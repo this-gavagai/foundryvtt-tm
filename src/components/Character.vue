@@ -1,12 +1,12 @@
 <script setup lang="ts">
 // todo: effects, equipment, attacks, actions
 import type { Item } from '@/utils/pf2e-types'
-import { authenticateFoundry, connectToFoundry, type FoundrySocket } from '@/utils/foundry-api'
 
 import { storeToRefs } from 'pinia'
 import { useSheet } from '@/stores/sheet'
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 
+import { authenticateFoundry, connectToFoundry, type FoundrySocket } from '@/utils/foundry-api'
 import { mergeDeep } from '@/utils/utilities'
 
 import Counter from '@/components/Counter.vue'
@@ -17,31 +17,29 @@ import Consumables from '@/components/Consumables.vue'
 import Spells from '@/components/Spells.vue'
 import Effects from '@/components/Effects.vue'
 
-const { foundry, actor, infoModal, foundryUrl, foundryUsername, foundryPassword } = storeToRefs(
-  useSheet()
-)
+const foundryUrl = new URL('http://192.168.2.148:30000/')
+const foundryUsername = 'Gamemaster'
+const foundryPassword = 'goshane'
+
+const sheet = useSheet()
+const { actor, socket, infoModal } = storeToRefs(sheet)
+
+const sessionId = await authenticateFoundry(foundryUrl, foundryUsername, foundryPassword)
+socket.value = await connectToFoundry(foundryUrl, sessionId, true)
+
 const { characterId } = defineProps<{ characterId: string }>()
 
 // const world: any = ref({})
 // world.value = socket.emit('world')
 
-const sessionId = await authenticateFoundry(
-  foundryUrl.value,
-  foundryUsername.value,
-  foundryPassword.value
-)
-const socket = await connectToFoundry(foundry.value.url, sessionId, true)
-
-console.log(socket)
-
-socket.removeAllListeners('module.keybard')
-socket.on('module.keybard', (args: any) => {
+socket.value.removeAllListeners('module.keybard')
+socket.value.on('module.keybard', (args: any) => {
   if (args.action == 'sendCharacterDetails' && args.actorId === characterId) {
     actor.value = args.actor
     mergeDeep(actor.value.system, args.system)
   }
 })
-socket.emit('module.keybard', { action: 'requestCharacterDetails', characterId: characterId })
+socket.value.emit('module.keybard', { action: 'requestCharacterDetails', characterId: characterId })
 
 // wait until the actor is set, listening for changes in the value
 await new Promise(function (resolve: any) {
@@ -51,8 +49,8 @@ await new Promise(function (resolve: any) {
   })()
 })
 
-socket.removeAllListeners('modifyDocument')
-socket.on('modifyDocument', (mods: any) => {
+socket.value.removeAllListeners('modifyDocument')
+socket.value.on('modifyDocument', (mods: any) => {
   if (mods.request.type === 'Actor') {
     mods.result.forEach((change: any) => {
       if (change._id === actor.value._id) {
@@ -115,7 +113,7 @@ window.actor = actor.value
       <div class="flex border p-4 items-center">
         <img
           class="h-24"
-          :src="foundry.url + actor.prototypeToken.texture?.src"
+          :src="foundryUrl + actor.prototypeToken.texture?.src"
           @click="infoPortrait()"
         />
         <div class="pl-2">
@@ -130,7 +128,29 @@ window.actor = actor.value
           </div>
         </div>
       </div>
-      <Effects />
+      <div class="border border-t-0 px-6 py-4 flex gap-2">
+        <div
+          v-for="effect in actor.items.filter((i: Item) =>
+            ['effect', 'condition'].includes(i.type)
+          )"
+          @click="console.log(effect)"
+        >
+          <div class="w-12">
+            <div class="relative">
+              <div
+                v-if="effect.system?.value?.value"
+                class="absolute right-0 bottom-0 bg-[#FFFFFFCC] border border-black px-1 text-xs"
+              >
+                {{ effect.system?.value?.value }}
+              </div>
+              <img :src="foundryUrl + effect.img" class="h-12 w-12 rounded-full" />
+            </div>
+            <div class="text-[0.5rem] whitespace-nowrap overflow-hidden w-12 text-center">
+              {{ effect.name.replace('Effect: ', '') }}
+            </div>
+          </div>
+        </div>
+      </div>
       <TabGroup>
         <TabPanels class="mb-16">
           <TabPanel>
