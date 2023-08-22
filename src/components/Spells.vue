@@ -69,7 +69,7 @@ const infoSpell = (id: string) => {
           socket.value.emit('module.keybard', params)
           infoModal.value.close()
         },
-        buttonClasses: 'bg-green-200 hover:bg-green-300',
+        buttonClasses: 'bg-blue-200 hover:bg-blue-300',
         buttonText: 'Cast!'
       }
     ]

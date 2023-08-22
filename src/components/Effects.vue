@@ -1,15 +1,29 @@
 <script setup lang="ts">
+import type { Item } from '@/utils/pf2e-types'
+
 import { useSheet } from '@/stores/sheet'
 import { storeToRefs } from 'pinia'
 
+import { capitalize, removeUUIDs } from '@/utils/utilities'
+
 const sheet = useSheet()
-// const { actor, infoModal, foundryUrl } = storeToRefs(sheet)
+const { actor, infoModal, foundryUrl } = storeToRefs(sheet)
+
+function infoCondition(effect: any) {
+  console.log(effect)
+  infoModal.value.open({
+    title: `${effect.name} ${effect.system?.value?.value ?? ''}`,
+    description: `${capitalize(effect.type)}`,
+    body: removeUUIDs(effect.system.description.value),
+    iconPath: effect.img
+  })
+}
 </script>
 <template>
-  <!-- <div class="border border-t-0 px-6 py-4 flex gap-2">
+  <div class="border border-t-0 px-6 py-4 flex gap-2">
     <div
       v-for="effect in actor.items.filter((i: Item) => ['effect', 'condition'].includes(i.type))"
-      @click="console.log(effect)"
+      @click="infoCondition(effect)"
     >
       <div class="w-12">
         <div class="relative">
@@ -26,5 +40,5 @@ const sheet = useSheet()
         </div>
       </div>
     </div>
-  </div> -->
+  </div>
 </template>
