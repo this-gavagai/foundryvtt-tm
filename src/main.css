@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: Pathfinder2eActions;
+  src: url(@/assets/Pathfinder2eActions.ttf);
+}
+
+.pf2-icon {
+  font-family: 'Pathfinder2eActions', sans-serif;
+  padding-bottom: 12px;
+  /* position: relative; */
+  /* bottom: 0.1rem; */
+  /* font-size: 140%; */
+}
