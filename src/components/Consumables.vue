@@ -1,23 +1,22 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useSheet } from '@/stores/sheet'
+// todo: filter for worn?
+import { ref, inject, computed } from 'vue'
 import { Listbox } from '@headlessui/vue'
 
 import { capitalize, makeTraits, removeUUIDs } from '@/utils/utilities'
-
 import ConsumablesType from './ConsumablesType.vue'
 
-const sheet: any = useSheet()
-const { actor, infoModal } = storeToRefs(sheet)
+const infoModal: any = inject('infoModal')
+const { actor } = defineProps(['actor'])
+
 const consumables = computed(
   () =>
-    actor.value.items?.filter((x: any) => {
+    actor?.items?.filter((x: any) => {
       return x.system.traits && x.system.traits.value.includes('consumable')
     }) || []
 )
 const infoConsumable = (id: string) => {
-  const consumable = actor.value.items.find((x: any) => x._id === id)
+  const consumable = actor?.items.find((x: any) => x._id === id)
   console.log(consumable)
   infoModal.value?.open({
     title: consumable.name,
@@ -38,6 +37,7 @@ const sections = [
 </script>
 <template>
   <div>
+    <h3 class="underline text-2xl">Consumables</h3>
     <ConsumablesType
       v-for="s in sections"
       :title="s.title"

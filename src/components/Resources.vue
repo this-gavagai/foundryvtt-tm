@@ -1,12 +1,8 @@
 <script setup lang="ts">
-import { useSheet } from '@/stores/sheet'
-import { storeToRefs } from 'pinia'
-
 import Statistic from '@/components/Statistic.vue'
 import Counter from '@/components/Counter.vue'
 
-const sheet = useSheet()
-const { actor } = storeToRefs(sheet)
+const { actor } = defineProps(['actor'])
 </script>
 <template>
   <div class="border border-t-0 px-6 py-4 flex gap-8">

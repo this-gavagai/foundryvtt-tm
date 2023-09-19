@@ -5,7 +5,7 @@ import { asyncEmit } from './socket-io-helpers'
 export type FoundrySocket = Socket<EventsMap, EventsMap>
 
 export function connectToFoundry(url: URL, sessionId: string, keepAlive = false) {
-  console.log('connecting...')
+  // console.log('connecting...')
   return new Promise<FoundrySocket>((ful, rej) => {
     const socketIoUrl = new URL('./socket.io', url)
     const socket = io(socketIoUrl.origin, {
@@ -36,18 +36,17 @@ export function connectToFoundry(url: URL, sessionId: string, keepAlive = false)
 
 export async function authenticateFoundry(url: URL, username: string, password: string) {
   const joinUrl = new URL('./join', url)
-  const getJoin = await fetch(joinUrl)
-  console.log(getJoin)
+  // const getJoin = await fetch(joinUrl)
   // const sessionId = getJoin.headers.get('set-cookie')?.match(/session=(.+?);/)?.[1]
 
-  //   for (let cookie of document.cookie.split('; ')) {
-  //     const [name, value] = cookie.split("=");
-  //     if (name === 'session') {
-  //         this.sessionId = decodeURIComponent(value);
-  //         break;
-  //     }
+  // for (let cookie of document.cookie.split('; ')) {
+  //   const [name, value] = cookie.split("=");
+  //   if (name === 'session') {
+  //       this.sessionId = decodeURIComponent(value);
+  //       break;
+  //   }
   // }
-  const sessionId = 'e88a20765a3427ac56b3fcdc'
+  const sessionId = '9148d3b5602495691cd6edaf'
 
   if (!sessionId) {
     throw new Error('session id not found')

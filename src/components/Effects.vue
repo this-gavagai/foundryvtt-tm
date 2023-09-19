@@ -1,13 +1,14 @@
 <script setup lang="ts">
+import { inject } from 'vue'
 import type { Item } from '@/utils/pf2e-types'
-
-import { useSheet } from '@/stores/sheet'
-import { storeToRefs } from 'pinia'
+import { useServer } from '@/utils/server'
 
 import { capitalize, removeUUIDs } from '@/utils/utilities'
 
-const sheet = useSheet()
-const { actor, infoModal, foundryUrl } = storeToRefs(sheet)
+const { foundryUrl } = useServer()
+
+const infoModal: any = inject('infoModal')
+const { actor } = defineProps(['actor'])
 
 function infoCondition(effect: any) {
   console.log(effect)
@@ -22,7 +23,7 @@ function infoCondition(effect: any) {
 <template>
   <div class="border border-t-0 px-6 py-4 flex gap-2">
     <div
-      v-for="effect in actor.items.filter((i: Item) => ['effect', 'condition'].includes(i.type))"
+      v-for="effect in actor?.items.filter((i: Item) => ['effect', 'condition'].includes(i.type))"
       @click="infoCondition(effect)"
     >
       <div class="w-12">

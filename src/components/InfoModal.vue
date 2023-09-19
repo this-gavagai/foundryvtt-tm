@@ -8,6 +8,7 @@ import {
   TransitionRoot,
   TransitionChild
 } from '@headlessui/vue'
+import { useServer } from '@/utils/server'
 
 type InfoModalContent = {
   title?: string
@@ -25,10 +26,16 @@ type InfoModalContent = {
   ]
 }
 const content: InfoModalContent = reactive({})
-const foundryUrl = new URL('http://192.168.2.148:30000/')
+const { foundryUrl } = useServer()
 
 const isOpen = ref(false)
 function close() {
+  content.title =
+    content.description =
+    content.body =
+    content.iconPath =
+    content.actionButtons =
+      undefined
   isOpen.value = false
 }
 function open(newValues: InfoModalContent) {
@@ -92,7 +99,7 @@ defineExpose({ open, close })
                 <button
                   v-for="b in content.actionButtons"
                   type="button"
-                  class="inline-flex justify-center items-end border border-transparent bg-gray-100 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-200 focus:outline-none"
+                  class="inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
                   :class="b.buttonClasses"
                   @click="b.actionMethod(b.actionParams)"
                 >

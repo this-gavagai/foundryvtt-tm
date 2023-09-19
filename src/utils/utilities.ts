@@ -48,6 +48,13 @@ export function makePropertiesHtml(item: any): string {
   )
 }
 
+export function printPrice(price: { gp: Number; sp: Number; cp: Number }) {
+  return [price.gp, price.sp, price.cp]
+    .map((x, i) => (x ? x + ['gp', 'sp', 'cp'][i] : undefined))
+    .filter((x) => x !== undefined)
+    .join(' ')
+}
+
 export function removeUUIDs(description: string) {
   // todo: remove [[]] (shocking grasp)
   // todo: give tooltip on linked object?
@@ -57,3 +64,7 @@ export function removeUUIDs(description: string) {
     '<span class="text-red-900">$2</span>'
   )
 }
+
+export const SignedNumber = new Intl.NumberFormat('en-US', {
+  signDisplay: 'always'
+})

@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { useSheet } from '@/stores/sheet'
-import { storeToRefs } from 'pinia'
+import { inject } from 'vue'
+import { useServer } from '@/utils/server'
 
-const sheet = useSheet()
-const { actor, foundryUrl, infoModal } = storeToRefs(sheet)
+const { foundryUrl } = useServer()
 
+const infoModal: any = inject('infoModal')
+
+const { actor } = defineProps(['actor'])
 function infoPortrait() {
   infoModal.value.open({
     title: 'Quill',
@@ -22,12 +24,12 @@ function infoPortrait() {
       @click="infoPortrait()"
     />
     <div class="pl-2">
-      <h3 class="text-2xl">{{ actor.name }}</h3>
-      <div class="text-md">
-        {{ actor.items?.find((x: any) => x.type === 'ancestry').name }}
-        {{ actor.items?.find((x: any) => x.type === 'background').name }}
+      <h3 class="text-2xl whitespace-nowrap overflow-hidden">{{ actor.name }}</h3>
+      <div class="text-md whitespace-nowrap overflow-hidden">
+        {{ actor.items?.find((x: any) => x.type === 'ancestry')?.name }}
+        {{ actor.items?.find((x: any) => x.type === 'background')?.name }}
       </div>
-      <div class="text-md">
+      <div class="text-md whitespace-nowrap overflow-hidden">
         {{ actor.items?.find((x: any) => x.type === 'class').name }}
         (Level {{ actor.system.details.level.value }})
       </div>

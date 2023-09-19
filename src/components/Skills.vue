@@ -1,9 +1,6 @@
 <script setup lang="ts">
-import { useSheet } from '@/stores/sheet'
-import { storeToRefs } from 'pinia'
-
-const sheet = useSheet()
-const { actor } = storeToRefs(sheet)
+import { SignedNumber } from '@/utils/utilities'
+const { actor } = defineProps(['actor'])
 </script>
 <template>
   <div class="px-6 py-4 border-b">
@@ -12,7 +9,9 @@ const { actor } = storeToRefs(sheet)
         <div>{{ skill.label }}</div>
         <!-- <div>{{ ['U', 'T', 'E', 'M', 'L'][skill.rank] }}</div> -->
         <div>{{ skill.modifiers.find((s: any) => s.type === 'proficiency').label }}</div>
-        <div class="text-right">{{ '+' + skill.totalModifier }}</div>
+        <div class="text-right">
+          {{ SignedNumber.format(skill.totalModifier) }}
+        </div>
       </li>
     </ul>
   </div>
