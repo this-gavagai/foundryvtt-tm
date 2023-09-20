@@ -5,8 +5,6 @@ import { useServer } from '@/utils/server'
 
 import { capitalize, removeUUIDs } from '@/utils/utilities'
 
-const { foundryUrl } = useServer()
-
 const infoModal: any = inject('infoModal')
 const { actor } = defineProps(['actor'])
 
@@ -23,7 +21,7 @@ function infoCondition(effect: any) {
 <template>
   <div class="border border-t-0 px-6 py-4 flex gap-2">
     <div
-      v-for="effect in actor?.items.filter((i: Item) => ['effect', 'condition'].includes(i.type))"
+      v-for="effect in actor?.items?.filter((i: Item) => ['effect', 'condition'].includes(i.type))"
       @click="infoCondition(effect)"
     >
       <div class="w-12">
@@ -34,7 +32,7 @@ function infoCondition(effect: any) {
           >
             {{ effect.system?.value?.value }}
           </div>
-          <img :src="foundryUrl + effect.img" class="h-12 w-12 rounded-full" />
+          <img :src="effect.img" class="h-12 w-12 rounded-full" />
         </div>
         <div class="text-[0.5rem] whitespace-nowrap overflow-hidden w-12 text-center">
           {{ effect.name.replace('Effect: ', '') }}

@@ -48,8 +48,8 @@ window.socket = socket
 window.actor = actor.value
 // window.world = world.value
 
-socket.value.removeAllListeners('module.keybard')
-socket.value.on('module.keybard', (args: any) => {
+socket.value.removeAllListeners('module.tablemate')
+socket.value.on('module.tablemate', (args: any) => {
   console.log(characterId)
   if (args.action == 'sendCharacterDetails' && args.actorId === characterId) {
     actor.value = args.actor
@@ -93,19 +93,19 @@ socket.value.on('modifyDocument', (mods: any) => {
 
 // request actor details
 // console.log('emitting')
-// socket.value.emit('module.keybard', {
+// socket.value.emit('module.tablemate', {
 //   action: 'requestCharacterDetails',
 //   characterId: characterId
 // })
 
 // wait until the actor is set, listening for changes in the value
-await new Promise(function (resolve: any) {
-  ;(function waitForActor() {
-    if (Object.keys(actor.value).length) return resolve()
-    console.log('waiting on actor...')
-    setTimeout(waitForActor, 1000)
-  })()
-})
+// await new Promise(function (resolve: any) {
+//   ;(function waitForActor() {
+//     if (Object.keys(actor.value).length) return resolve()
+//     console.log('waiting on actor...')
+//     setTimeout(waitForActor, 1000)
+//   })()
+// })
 
 //socket.close()
 </script>

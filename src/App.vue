@@ -1,28 +1,30 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useServer } from './utils/server'
 import Character from '@/components/Character.vue'
 
 const { socket, connectToServer } = useServer()
 const characterId = ref('')
+// const usr = ref('')
+// const pwd = ref('')
+const authenticated = ref<Boolean>(false)
 
-const url = import.meta.env.PROD
-  ? new URL(window.location.origin)
-  : new URL('http://192.168.2.176:30000')
-const usr = 'Gamemaster'
-const pwd = 'goshane'
-
-connectToServer(url, usr, pwd)
+// const url = import.meta.env.PROD
+//   ? new URL(window.location.origin)
+//   : new URL('http://192.168.2.176:30000')
 
 function pickChar(actorId: string) {
-  console.log(actorId)
   characterId.value = actorId
-  socket.value.emit('module.keybard', {
+  socket.value.emit('module.tablemate', {
     action: 'requestCharacterDetails',
     characterId: actorId
   })
-  console.log(characterId.value)
 }
+onMounted(async () => {
+  await nextTick()
+  setTimeout(() => window.history.pushState(null, '', '/game'), 100)
+})
+connectToServer(window.location.origin)
 </script>
 <template>
   <Suspense>
@@ -35,6 +37,11 @@ function pickChar(actorId: string) {
           <div class="p-4 text-xl" @click="pickChar('N7bBdCCXOANneraT')">Vanquility Gemini</div>
           <div class="p-4 text-xl" @click="pickChar('jZX9AzfZISlxQss7')">Friend</div>
         </div>
+        <!-- <div v-else class="p-4">
+          <input class="border p-2 m-2" type="text" name="usr" id="usr" v-model="usr" />
+          <input class="border p-2 m-2" type="password" name="pwd" id="pwd" v-model="pwd" /><br />
+          <button class="border p-2 m-2" @click="attemptLogin()">Sign in</button>
+        </div> -->
       </div>
     </template>
     <template #fallback>

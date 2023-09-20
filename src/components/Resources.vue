@@ -7,19 +7,19 @@ const { actor } = defineProps(['actor'])
 <template>
   <div class="border border-t-0 px-6 py-4 flex gap-8">
     <Statistic heading="Hitpoints">
-      {{ actor.system.attributes.hp.value }} / {{ actor.system.attributes.hp.max }}
+      {{ actor.system?.attributes.hp.value ?? '?' }} / {{ actor.system?.attributes.hp.max ?? '?' }}
     </Statistic>
     <Statistic heading="Hero Pts">
       <Counter
-        :value="actor.system.resources.heroPoints.value"
-        :max="actor.system.resources.heroPoints.max"
+        :value="actor.system?.resources.heroPoints.value ?? '0'"
+        :max="actor.system?.resources.heroPoints.max ?? '0'"
       />
     </Statistic>
     <Statistic heading="Experience">
       <div class="py-1">
         <svg width="60" height="14">
           <rect
-            :width="60 * (actor.system.details.xp.value / actor.system.details.xp.max)"
+            :width="60 * (actor.system?.details.xp.value / actor.system?.details.xp.max)"
             height="14"
             style="fill: #ccc"
           />
@@ -29,7 +29,7 @@ const { actor } = defineProps(['actor'])
             style="fill: transparent; stroke-width: 3; stroke: rgb(0, 0, 0)"
           />
           <text y="10" x="21" stroke="black" font-size="7pt" font-weight="lighter">
-            {{ actor.system.details.xp.value }}
+            {{ actor.system?.details.xp.value }}
           </text>
         </svg>
       </div>

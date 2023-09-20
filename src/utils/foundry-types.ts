@@ -5,7 +5,7 @@ export interface EventsMap {
     callback: (result: ModifyDocumentResult) => void
   ): void
   world(callback: (result: WorldResult) => void): void
-  'module.keybard'(actorId: any, callback: (result: any) => void): void
+  'module.tablemate'(actorId: any, callback: (result: any) => void): void
 }
 
 export interface WorldResult {

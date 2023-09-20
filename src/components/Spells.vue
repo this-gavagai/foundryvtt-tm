@@ -65,7 +65,7 @@ const infoSpell = (id: string) => {
         },
         actionMethod: (params: {}) => {
           // todo: manage slotId (for prepared) and level (for heighted) as params
-          socket.value.emit('module.keybard', params)
+          socket.value.emit('module.tm', params)
           infoModal.value.close()
         },
         buttonClasses: 'bg-blue-200 hover:bg-blue-300',

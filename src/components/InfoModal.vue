@@ -26,7 +26,6 @@ type InfoModalContent = {
   ]
 }
 const content: InfoModalContent = reactive({})
-const { foundryUrl } = useServer()
 
 const isOpen = ref(false)
 function close() {
@@ -82,7 +81,7 @@ defineExpose({ open, close })
               <div class="max-h-[70vh] overflow-auto">
                 <div class="flex space-x-2">
                   <div v-if="content.iconPath">
-                    <img class="w-12" :src="foundryUrl + content.iconPath" />
+                    <img class="w-12" :src="content.iconPath" />
                   </div>
                   <div>
                     <DialogTitle

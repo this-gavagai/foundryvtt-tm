@@ -11,6 +11,6 @@ const app = createApp(App)
 
 app.use(router)
 app.use(createPinia())
-app.use(Vue3TouchEvents)
+// app.use(Vue3TouchEvents)
 
 app.mount('#app')

@@ -24,12 +24,15 @@ export function connectToFoundry(url: URL, sessionId: string, keepAlive = false)
 
     socket.on('connect', async () => {
       ful(socket)
-      console.log('connected')
+      console.log('socket connected')
     })
     socket.on('connect_error', (e) => rej(e))
     socket.onAny((name, ...args) => {
       if (name === 'userActivity') return
       console.log('RECV', name, ...args)
+    })
+    socket.onAnyOutgoing((name, ...args) => {
+      console.log('SEND', name, ...args)
     })
   })
 }
