@@ -7,16 +7,16 @@ import { capitalize, makeTraits, removeUUIDs } from '@/utils/utilities'
 import ConsumablesType from './ConsumablesType.vue'
 
 const infoModal: any = inject('infoModal')
-const { actor } = defineProps(['actor'])
+const props = defineProps(['actor'])
 
 const consumables = computed(
   () =>
-    actor?.items?.filter((x: any) => {
+    props.actor?.items?.filter((x: any) => {
       return x.system.traits && x.system.traits.value.includes('consumable')
     }) || []
 )
 const infoConsumable = (id: string) => {
-  const consumable = actor?.items.find((x: any) => x._id === id)
+  const consumable = props.actor?.items.find((x: any) => x._id === id)
   console.log(consumable)
   infoModal.value?.open({
     title: consumable.name,

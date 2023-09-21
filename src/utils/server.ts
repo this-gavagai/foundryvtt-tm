@@ -1,7 +1,8 @@
 import { ref } from 'vue'
-import { connectToFoundry, type FoundrySocket } from '@/utils/foundry-api'
-import { asyncEmit } from './socket-io-helpers'
-import { Socket } from 'socket.io-client'
+import io, { Socket } from 'socket.io-client'
+import { type EventsMap } from './foundry-types'
+
+type FoundrySocket = Socket<EventsMap, EventsMap>
 
 const socket = ref<Socket>()
 
@@ -22,20 +23,47 @@ function getCookiesMap(cookiesString: string) {
     }, {})
 }
 
+function connectToFoundry(url: URL, sessionId: string, keepAlive = false) {
+  // console.log('connecting...')
+  return new Promise<FoundrySocket>((ful, rej) => {
+    const socketIoUrl = new URL('./socket.io', url)
+    const socket = io(socketIoUrl.origin, {
+      upgrade: false,
+      path: socketIoUrl.pathname,
+      reconnection: keepAlive,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 3,
+      reconnectionDelayMax: 5000,
+      transports: ['websocket'],
+      extraHeaders: {
+        cookie: `session=${sessionId}`
+      },
+      query: { session: sessionId }
+    })
+
+    socket.on('connect', async () => {
+      ful(socket)
+      console.log('socket connected')
+    })
+    socket.on('connect_error', (e) => rej(e))
+    socket.onAny((name, ...args) => {
+      if (name === 'userActivity') return
+      console.log('RECV', name, ...args)
+    })
+    socket.onAnyOutgoing((name, ...args) => {
+      console.log('SEND', name, ...args)
+    })
+  })
+}
+
 async function connectToServer(url: URL) {
-  console.log(url.href)
   let sid = getCookiesMap(document.cookie)['session']
-  // if (!sid) {
-  //   await fetch(url.href)
-  //   sid = getCookiesMap(document.cookie)['session']
-  // }
-  console.log('sid:', sid)
+  if (!sid) throw new Error('No Session ID found')
   sessionId.value = sid
   foundryUrl.value = url
 
   await connectToFoundry(url, sid, true)
     .then((r) => {
-      console.log('socket: ', r)
       socket.value = r
     })
     .catch((e) => {

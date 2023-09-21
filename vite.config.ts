@@ -8,7 +8,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   base: '/modules/tablemate/',
   build: {
-    outDir: 'tablemate'
+    outDir: 'tablemate',
+    sourcemap: true,
+    minify: false
   },
   plugins: [
     vue()

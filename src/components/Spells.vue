@@ -15,18 +15,18 @@ import { useServer } from '@/utils/server'
 import Counter from '@/components/Counter.vue'
 
 const { socket } = useServer()
-const { actor } = defineProps(['actor'])
+const props = defineProps(['actor'])
 const infoModal: any = inject('infoModal')
 
 function getLevelsForLocation(location: string): [any] {
-  return actor?.items
+  return props.actor?.items
     .filter((i: any) => i.type === 'spell' && i.system.location.value === location)
     .map((s: any) => (s.system.traits.value.includes('cantrip') ? 0 : s.system.level.value))
     .sort()
     .filter((itm: any, pos: number, ary: [any]) => !pos || itm != ary[pos - 1])
 }
 function getSpellsForLocationAndLevel(location: string, level: number): [any] {
-  const spells = actor?.items
+  const spells = props.actor?.items
     .filter((i: any) => i.type === 'spell' && i.system.location.value === location)
     .filter((s: any) => {
       return level === 0
@@ -37,7 +37,7 @@ function getSpellsForLocationAndLevel(location: string, level: number): [any] {
 }
 
 const infoSpell = (id: string) => {
-  const spell = actor?.items.find((x: any) => x._id === id)
+  const spell = props.actor?.items.find((x: any) => x._id === id)
   console.log('Spell: ', spell)
   infoModal.value?.open({
     title: `${spell.name}
@@ -59,7 +59,7 @@ const infoSpell = (id: string) => {
         actionParams: {
           action: 'castSpell',
           id: id,
-          characterId: actor?._id,
+          characterId: props.actor?._id,
           slotId: null,
           level: spell.system.level.value
         },
@@ -80,7 +80,7 @@ const infoSpell = (id: string) => {
     <!-- Spell Sources -->
     <ul class="">
       <li
-        v-for="location in actor.items.filter((x: any) => x.type === 'spellcastingEntry')"
+        v-for="location in props.actor.items.filter((x: any) => x.type === 'spellcastingEntry')"
         class="mt-4 first:mt-0"
       >
         <h3 class="">
@@ -90,8 +90,8 @@ const infoSpell = (id: string) => {
           <span class="pl-1 text-xs">
             <Counter
               v-if="location.system?.prepared.value === 'focus'"
-              :value="actor.system.resources.focus.value"
-              :max="actor.system.resources.focus.max"
+              :value="props.actor.system.resources.focus.value"
+              :max="props.actor.system.resources.focus.max"
             />
             <Counter
               v-if="location.system?.prepared.value === 'charge'"

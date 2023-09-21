@@ -3,7 +3,7 @@ import type { Item, FeatCategory, Actor } from '@/utils/pf2e-types'
 import { inject } from 'vue'
 import { makeTraits, capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
 
-const { actor } = defineProps<{ actor: Actor }>()
+const props = defineProps<{ actor: Actor }>()
 const infoModal: any = inject('infoModal')
 
 function infoEquip(item: Item) {
@@ -56,7 +56,7 @@ const inventoryTypes = [
     <dl v-for="inventoryType in inventoryTypes" class="pt-4 whitespace-nowrap">
       <dt class="underline text-lg only:hidden">{{ inventoryType.title }}</dt>
       <dd
-        v-for="item in actor.items.filter(
+        v-for="item in props.actor.items.filter(
           (i: Item) => i.type === inventoryType.type && !i.system?.containerId
         )"
         @click="infoEquip(item)"
@@ -76,7 +76,11 @@ const inventoryTypes = [
           <span class="text-xs"> x{{ item.system.quantity }}</span>
         </div>
         <ul class="ml-8" v-if="item.type === 'backpack'">
-          <li v-for="stowed in actor.items.filter((i: Item) => i.system?.containerId === item._id)">
+          <li
+            v-for="stowed in props.actor.items.filter(
+              (i: Item) => i.system?.containerId === item._id
+            )"
+          >
             {{ stowed.name }}<span class="text-xs"> x{{ stowed.system.quantity }}</span>
           </li>
         </ul>

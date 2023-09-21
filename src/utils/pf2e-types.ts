@@ -1,4 +1,11 @@
+export interface Actor {
+  feats: [FeatCategory]
+  items: [Item]
+  system: System
+}
+
 export interface Item {
+  _id: string
   name: string
   type: string
   system: any
@@ -10,7 +17,7 @@ export interface FeatCategory {
   feats: [any]
 }
 
-export interface Actor {
-  feats: [FeatCategory]
-  items: [any]
+export interface System {
+  skills: [any]
+  build: { attributes: any }
 }

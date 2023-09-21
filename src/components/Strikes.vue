@@ -4,7 +4,7 @@ import type { Item } from '@/utils/pf2e-types'
 import { inject } from 'vue'
 import { makeTraits, capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
 
-const { actor } = defineProps(['actor'])
+const props = defineProps(['actor'])
 const infoModal: any = inject('infoModal')
 
 function infoStrike(strike: any) {
@@ -44,14 +44,14 @@ const strikeCategories = [
 </script>
 <template>
   <div class="px-6">
-    <h3 class="underline text-2xl py-2">New Strikes</h3>
+    <h3 class="underline text-2xl py-2">Strikes</h3>
     <dl v-for="category in strikeCategories" class="pb-2 last:pb-0">
       <dt class="underline text-lg only:hidden">{{ category.title }}</dt>
       <dd
-        v-for="strike in actor.system.actions
-          .filter((a: any) => a.type === 'strike')
+        v-for="strike in props.actor.system?.actions
+          ?.filter((a: any) => a.type === 'strike')
           .map((a: any) => {
-            a['item'] = actor.items.find((i: Item) => i.system.slug === a?.slug)
+            a['item'] = props.actor.items.find((i: Item) => i.system.slug === a?.slug)
             return a
           })
           .filter((a: any) => category.catFilter(a.item))"
@@ -64,7 +64,7 @@ const strikeCategories = [
           new Intl.NumberFormat('en-US', {
             signDisplay: 'exceptZero'
           }).format(
-            actor.system.actions.find((a: any) => a.slug === strike.system.slug)?.totalModifier
+            props.actor.system.actions.find((a: any) => a.slug === strike.system.slug)?.totalModifier
           )
         }}</span>
         {{ strike.name }} -->
@@ -74,7 +74,7 @@ const strikeCategories = [
     <dl v-for="category in strikeCategories" class="pb-2 last:pb-0">
       <dt class="underline text-lg only:hidden">{{ category.title }}</dt>
       <dd
-        v-for="strike in actor.items.filter(
+        v-for="strike in props.actor.items.filter(
           (i: Item) => i.type === 'weapon' && category.catFilter(i)
         )"
         @click="infoStrike(strike)"
@@ -84,7 +84,7 @@ const strikeCategories = [
           new Intl.NumberFormat('en-US', {
             signDisplay: 'exceptZero'
           }).format(
-            actor.system.actions.find((a: any) => a.slug === strike.system.slug)?.totalModifier
+            props.actor.system.actions.find((a: any) => a.slug === strike.system.slug)?.totalModifier
           )
         }}</span>
         {{ strike.name }}

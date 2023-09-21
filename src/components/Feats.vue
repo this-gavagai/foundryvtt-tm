@@ -3,20 +3,20 @@ import type { Item, FeatCategory, Actor } from '@/utils/pf2e-types'
 import { inject } from 'vue'
 import { makeTraits, capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
 
-const { actor } = defineProps<{ actor: Actor }>()
+const props = defineProps<{ actor: Actor }>()
 const infoModal: any = inject('infoModal')
 
 function infoFeat(featId: any) {
   console.log('Feat: ', featId)
-  const item = actor.items.find((i) => i._id == featId)
+  const item = props.actor.items.find((i) => i._id == featId)
   console.log(item)
   infoModal.value?.open({
-    title: item.name,
-    description: `Level ${item.system.level.value} <span class="text-sm">(${capitalize(
-      item.system.traits.rarity
+    title: item?.name,
+    description: `Level ${item?.system.level.value} <span class="text-sm">(${capitalize(
+      item?.system.traits.rarity
     )})</span>`,
-    body: makeTraits(item.system.traits.value) + removeUUIDs(item.system.description.value),
-    iconPath: item.img
+    body: makeTraits(item?.system.traits.value) + removeUUIDs(item?.system.description.value),
+    iconPath: item?.img
   })
 }
 
@@ -50,7 +50,7 @@ const categoryLabels = new Map([
           class="ml-10"
           @click="infoFeat(grant.id)"
         >
-          {{ actor.items.find((i) => i._id == grant.id).name }}
+          {{ props.actor.items.find((i) => i._id == grant.id)?.name }}
         </div>
       </dd>
     </dl>

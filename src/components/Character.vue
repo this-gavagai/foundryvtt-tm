@@ -19,7 +19,7 @@ import Feats from '@/components/Feats.vue'
 import Equipment from '@/components/Equipment.vue'
 import Strikes from '@/components/Strikes.vue'
 
-const { characterId } = defineProps<{ characterId: string }>()
+const props = defineProps(['characterId'])
 const { socket } = useServer()
 
 // await new socket
@@ -35,23 +35,21 @@ if (socket.value == null) throw new Error('Socket Connection not available')
 const infoModal = ref()
 provide('infoModal', infoModal)
 const actor = ref<any>({})
+const world = ref<any>({})
 
-// DEBUGGING CONVENIENCES //
-declare global {
-  interface Window {
-    socket: any
-    actor: any
-    // world: any
-  }
-}
-window.socket = socket
-window.actor = actor.value
-// window.world = world.value
+socket.value.emit('world', (r: any) => {
+  world.value = r
+  const worldActor = world.value.actors.find((a: any) => a._id == props.characterId)
+  const synthActor = mergeDeep(worldActor, actor.value)
+  actor.value = synthActor
+  console.log('world received', r)
+  window.world = world.value
+  window.actor = actor.value
+})
 
 socket.value.removeAllListeners('module.tablemate')
 socket.value.on('module.tablemate', (args: any) => {
-  console.log(characterId)
-  if (args.action == 'sendCharacterDetails' && args.actorId === characterId) {
+  if (args.action == 'sendCharacterDetails' && args.actorId === props.characterId) {
     actor.value = args.actor
     mergeDeep(actor.value.system, args.system)
     actor.value.feats = args.feats
@@ -84,30 +82,23 @@ socket.value.on('modifyDocument', (mods: any) => {
       mods.result.forEach((d: string) => {
         const item = actor.value.items.find((i: any) => i._id === d)
         const index = actor.value.items.indexOf(item)
-        console.log('my index', index)
         actor.value.items.splice(index, 1)
       })
     }
   }
 })
 
-// request actor details
-// console.log('emitting')
-// socket.value.emit('module.tablemate', {
-//   action: 'requestCharacterDetails',
-//   characterId: characterId
-// })
-
-// wait until the actor is set, listening for changes in the value
-// await new Promise(function (resolve: any) {
-//   ;(function waitForActor() {
-//     if (Object.keys(actor.value).length) return resolve()
-//     console.log('waiting on actor...')
-//     setTimeout(waitForActor, 1000)
-//   })()
-// })
-
-//socket.close()
+// DEBUGGING CONVENIENCES //
+declare global {
+  interface Window {
+    socket: any
+    actor: any
+    world: any
+  }
+}
+window.socket = socket.value
+window.actor = actor.value
+window.world = world.value
 </script>
 <template>
   <div class="pb-14">
