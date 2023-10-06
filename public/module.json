@@ -14,6 +14,7 @@
   },
   "socket": true,
   "scripts": [
+    "hammer.min.js",
     "tablemate.js"
   ]
 }

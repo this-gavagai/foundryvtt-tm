@@ -1,4 +1,5 @@
 export interface Actor {
+  _id: String
   feats: [FeatCategory]
   items: [Item]
   system: System

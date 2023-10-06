@@ -9,19 +9,17 @@ const characterId = ref<String | null>()
 function pickChar(actorId: String | null) {
   if (!actorId) return
   characterId.value = actorId
-  socket.value.emit('module.tablemate', {
-    action: 'requestCharacterDetails',
-    characterId: actorId
-  })
 }
+
+const urlParams = new URLSearchParams(window.location.search)
+console.log(urlParams.get('id'))
 connectToServer(window.location.origin).then(() => {
-  const urlParams = new URLSearchParams(window.location.search)
   if (urlParams.get('id')) pickChar(urlParams.get('id'))
 })
 
 onMounted(async () => {
   await nextTick()
-  setTimeout(() => window.history.pushState(null, '', '/game'), 100)
+  setTimeout(() => window.history.pushState(null, '', '/'), 100)
 })
 </script>
 <template>
@@ -29,12 +27,12 @@ onMounted(async () => {
     <template #default>
       <div>
         <Character :characterId="characterId" v-if="characterId" />
-        <div v-else>
+        <!-- <div v-else>
           <div class="p-6 text-center w-full">Choose your hero:</div>
           <div class="p-4 text-xl" @click="pickChar('AnmCgwhd5JCwfaZc')">Leaf Leaf Stick</div>
           <div class="p-4 text-xl" @click="pickChar('N7bBdCCXOANneraT')">Vanquility Gemini</div>
           <div class="p-4 text-xl" @click="pickChar('jZX9AzfZISlxQss7')">Friend</div>
-        </div>
+        </div> -->
       </div>
     </template>
     <template #fallback>
@@ -43,5 +41,3 @@ onMounted(async () => {
   </Suspense>
 </template>
 <style scoped></style>
-<!-- Quill: N7bBdCCXOANneraT -->
-<!-- LLeaf: AnmCgwhd5JCwfaZc -->

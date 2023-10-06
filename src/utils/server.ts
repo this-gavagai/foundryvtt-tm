@@ -44,10 +44,12 @@ function connectToFoundry(url: URL, sessionId: string, keepAlive = false) {
     socket.on('connect', async () => {
       ful(socket)
       console.log('socket connected')
+      socket.emit('module.tablemate', { action: 'anybodyHome' })
     })
     socket.on('connect_error', (e) => rej(e))
     socket.onAny((name, ...args) => {
-      if (name === 'userActivity') return
+      if (name === 'userActivity' || (name.match('module.') && !name.match('module.tablemate')))
+        return
       console.log('RECV', name, ...args)
     })
     socket.onAnyOutgoing((name, ...args) => {

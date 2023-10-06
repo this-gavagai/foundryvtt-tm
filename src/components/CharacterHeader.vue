@@ -1,33 +1,23 @@
 <script setup lang="ts">
 import { inject, computed, watch, ref } from 'vue'
-import { useServer } from '@/utils/server'
 
-const infoModal: any = inject('infoModal')
+const actor: any = inject('actor')
 
-const props = defineProps(['actor'])
-// const { actor } = props
-function infoPortrait() {
-  // window.location = `${window.location.origin}/modules/tablemate/index.html?id=${actor._id}`
-  infoModal.value.open({
-    title: 'Quill',
-    description: 'Handsome Young Man',
-    body: '<p>The Quill is a rare species.</p><p>He have friend.</p>'
-  })
-}
-
-let reloadUrl = ref(`${window.location.origin}/modules/tablemate/index.html?id=${props.actor._id}`)
-watch(props, () => {
-  reloadUrl.value = `${window.location.origin}/modules/tablemate/index.html?id=${props.actor._id}`
+let reloadUrl = ref(`${window.location.origin}/modules/tablemate/index.html?id=${actor.value._id}`)
+watch(actor, () => {
+  reloadUrl.value = `${window.location.origin}/modules/tablemate/index.html?id=${actor.value._id}`
 })
+function reloadPage() {
+  console.log(reloadUrl.value)
+  window.location.href = reloadUrl.value
+}
 </script>
 
 <template>
   <div class="flex border p-4 items-center">
-    <a :href="reloadUrl" class="h-24 w-24">
-      <img
-        v-if="props.actor.prototypeToken?.texture?.src"
-        :src="props.actor.prototypeToken?.texture?.src"
-      />
+    <a class="h-24 w-24" @click="reloadPage()">
+      <!-- :href="reloadUrl" -->
+      <img v-if="actor.prototypeToken?.texture?.src" :src="actor.prototypeToken?.texture?.src" />
       <div v-else class="h-full">
         <svg
           aria-hidden="true"
@@ -48,17 +38,17 @@ watch(props, () => {
       </div>
     </a>
     <div class="pl-2">
-      <h3 class="text-2xl whitespace-nowrap overflow-hidden">{{ actor.name ?? 'Loading...' }}</h3>
+      <h3 class="text-2xl whitespace-nowrap overflow-hidden">
+        {{ actor.name ?? 'Loading...' }}
+      </h3>
       <div class="text-md whitespace-nowrap overflow-hidden">
-        <span
-          >{{ props.actor.items?.find((x: any) => x.type === 'ancestry')?.name ?? '-' }}&nbsp;</span
-        >
-        <span>{{ props.actor.items?.find((x: any) => x.type === 'background')?.name }}</span>
+        <span>{{ actor.items?.find((x: any) => x.type === 'ancestry')?.name ?? '-' }}&nbsp;</span>
+        <span>{{ actor.items?.find((x: any) => x.type === 'background')?.name }}</span>
       </div>
       <div class="text-md whitespace-nowrap overflow-hidden">
-        <span>{{ props.actor.items?.find((x: any) => x.type === 'class').name ?? '-' }}</span>
-        <span v-if="props.actor.system?.details.level.value">{{
-          ` (Level ${props.actor.system?.details.level.value})`
+        <span>{{ actor.items?.find((x: any) => x.type === 'class').name ?? '-' }}</span>
+        <span v-if="actor.system?.details.level.value">{{
+          ` (Level ${actor.system?.details.level.value})`
         }}</span>
       </div>
     </div>

@@ -6,7 +6,8 @@ import { useServer } from '@/utils/server'
 import { capitalize, removeUUIDs } from '@/utils/utilities'
 
 const infoModal: any = inject('infoModal')
-const props = defineProps(['actor'])
+const actor: any = inject('actor')
+// const props = defineProps(['actor'])
 
 function infoCondition(effect: any) {
   console.log(effect)
@@ -21,9 +22,7 @@ function infoCondition(effect: any) {
 <template>
   <div class="border border-t-0 px-6 py-4 flex gap-2 empty:hidden">
     <div
-      v-for="effect in props.actor?.items?.filter((i: Item) =>
-        ['effect', 'condition'].includes(i.type)
-      )"
+      v-for="effect in actor?.items?.filter((i: Item) => ['effect', 'condition'].includes(i.type))"
       @click="infoCondition(effect)"
     >
       <div class="w-12">

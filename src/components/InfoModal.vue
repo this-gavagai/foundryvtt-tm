@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import {
   Dialog,
   DialogPanel,
@@ -10,11 +10,13 @@ import {
 } from '@headlessui/vue'
 import { useServer } from '@/utils/server'
 
-type InfoModalContent = {
+export type InfoModalContent = {
   title?: string
   description?: string
   body?: string
   iconPath?: string
+  component?: any
+  componentProps?: {}
   actionButtons?: [
     {
       buttonHtml?: string
@@ -24,22 +26,34 @@ type InfoModalContent = {
       actionMethod?: any
     }
   ]
+  toggleSet?: [
+    {
+      toggleText: string
+      toggleTrigger: () => void
+      toggleIsActive: () => boolean
+    }
+  ]
 }
 const content: InfoModalContent = reactive({})
 
 const isOpen = ref(false)
+// const compProps = ref()
 function close() {
   content.title =
     content.description =
     content.body =
     content.iconPath =
+    content.component =
+    content.componentProps =
     content.actionButtons =
+    content.toggleSet =
       undefined
   isOpen.value = false
 }
 function open(newValues: InfoModalContent) {
   Object.assign(content, newValues)
   isOpen.value = true
+  // compProps.value = newValues.componentProps
 }
 
 function swipeClose(item: any, i: any) {
@@ -78,6 +92,18 @@ defineExpose({ open, close })
               class="w-full max-w-md transform overflow-hidden bg-white p-6 text-left shadow-xl transition-all"
               v-touch:swipe.bottom="swipeClose"
             >
+              <div
+                class="flex basis-full justify-items-center empty:hidden border border-gray-400 cursor-pointer rounded-md w-full text-xs mb-2"
+              >
+                <div
+                  v-for="t in content.toggleSet"
+                  class="p-2 flex-auto border-l border-gray-300 first:border-none text-center"
+                  @click="t?.toggleTrigger()"
+                  :class="{ 'bg-gray-300': t.toggleIsActive() }"
+                >
+                  {{ t.toggleText }}
+                </div>
+              </div>
               <div class="max-h-[70vh] overflow-auto">
                 <div class="flex space-x-2">
                   <div v-if="content.iconPath">
@@ -93,6 +119,7 @@ defineExpose({ open, close })
                   </div>
                 </div>
                 <div class="mt-2 text-sm [&>p]:my-1" v-html="content.body"></div>
+                <component :is="content.component" v-bind="content.componentProps"></component>
               </div>
               <div class="mt-4 flex items-end justify-end gap-2">
                 <button

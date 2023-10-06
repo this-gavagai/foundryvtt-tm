@@ -3,12 +3,12 @@ import type { Item, FeatCategory, Actor } from '@/utils/pf2e-types'
 import { inject } from 'vue'
 import { makeTraits, capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
 
-const props = defineProps<{ actor: Actor }>()
 const infoModal: any = inject('infoModal')
+const actor: any = inject('actor')
 
 function infoFeat(featId: any) {
   console.log('Feat: ', featId)
-  const item = props.actor.items.find((i) => i._id == featId)
+  const item = actor.items.find((i: any) => i._id == featId)
   console.log(item)
   infoModal.value?.open({
     title: item?.name,
@@ -43,14 +43,14 @@ const categoryLabels = new Map([
           <span class="text-xs text-gray-500 absolute text-right w-4 pt-1">{{
             feat.level ?? feat.feat.system.level.value
           }}</span
-          ><span class="pl-6">{{ feat.feat.name }}</span>
+          ><span class="pl-6 cursor-pointer">{{ feat.feat.name }}</span>
         </div>
         <div
           v-for="grant in feat.feat.flags?.pf2e?.itemGrants"
-          class="ml-10"
+          class="ml-10 cursor-pointer"
           @click="infoFeat(grant.id)"
         >
-          {{ props.actor.items.find((i) => i._id == grant.id)?.name }}
+          {{ actor.items.find((i: any) => i._id == grant.id)?.name }}
         </div>
       </dd>
     </dl>
