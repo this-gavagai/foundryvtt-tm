@@ -32,12 +32,14 @@ function getSpellsForLocationAndLevel(location: string, level: number): [any] {
     .filter((s: any) => {
       return level === 0
         ? s.system.traits.value.includes('cantrip')
-        : s.system.level.value === level && !s.system.traits.value.includes('cantrip')
+        : (s.system.level.value === level ||
+            (s.system.level.value < level && s.system.location.signature)) &&
+            !s.system.traits.value.includes('cantrip')
     })
   return spells
 }
 
-const infoSpell = (id: string) => {
+const infoSpell = (id: string, level: number) => {
   const spell = actor.value?.items.find((x: any) => x._id === id)
   console.log('Spell: ', spell)
   infoModal.value?.open({
@@ -62,7 +64,7 @@ const infoSpell = (id: string) => {
           id: id,
           characterId: actor.value?._id,
           slotId: null,
-          level: spell.system.level.value
+          level: level
         },
         actionMethod: (params: {}) => {
           // todo: manage slotId (for prepared) and level (for heighted) as params
@@ -118,7 +120,7 @@ const infoSpell = (id: string) => {
             <ul class="">
               <li v-for="spell in getSpellsForLocationAndLevel(location._id, level)">
                 <div class="text-md">
-                  <span @click="infoSpell(spell._id)" class="cursor-pointer">
+                  <span @click="infoSpell(spell._id, level)" class="cursor-pointer">
                     <span>{{ spell.name }}</span>
                     <span class="pl-1 text-md pf2-icon">{{
                       spell.system.time.value.replace('to', ' - ')

@@ -124,16 +124,27 @@ function rollInitiative(args) {
   if (combatantId) game.combat.rollInitiative([combatantId], { updateTurn: false })
 }
 function rollConfirm(args) {
-  ui.windows?.[args.appId].resolve(true)
-  ui.windows[args.appId].isResolved = true
+  if (args.roll) {
+    ui.windows?.[args.appId].resolve(true)
+    ui.windows[args.appId].isResolved = true
+  }
   ui.windows?.[args.appId].close()
 }
 function runMacro(args) {
   const actor = game.actors.get(args.characterId)
+  const tokenId = canvas.tokens.documentCollection.find((t) => t.actorId === args.characterId).id
+  const token = canvas.tokens.get(tokenId)
+  console.log('run macro using: ', token)
+  const controlled = token.control({ releaseOthers: true }) // it'd be nice to not release others, but need a way to ensure new token is "first"
+  console.log('now controlled', controlled)
+  console.log('macro', args.characterId, actor)
   game.packs
     .get(args.compendium)
     .getDocument(args.macroId)
-    .then((m) => m.execute({ event: event, actor: actor }))
+    .then((m) => {
+      m.execute({ actors: actor })
+      token.release()
+    })
 }
 
 // roll management
@@ -165,9 +176,9 @@ Hooks.on('renderCheckModifiersDialog', (application, html, data) => {
 // touch tweaks
 function setupTouchTweaks() {
   console.log('tablemate: touch tweaks')
-  ui.notifications.info('Tablemate 00012')
-  const ZOOM_SPEED = 3
-  const PAN_SPEED = 4
+  const ZOOM_SPEED = 0.5
+  const PAN_SPEED = 5
+  const SMOOTH_LENGTH = 30
   const screen = document.querySelector('canvas#board')
 
   const hammer = new Hammer(screen)
@@ -186,8 +197,8 @@ function setupTouchTweaks() {
   // })
   // hammer.add(reload)
 
-  let base_scale
-  let pinchStarted = false
+  let base_scale = 1
+  let scale_series = new Array(SMOOTH_LENGTH).fill(1)
   function getScale(ev) {
     base_scale = canvas.stage.scale.x
   }
@@ -198,21 +209,30 @@ function setupTouchTweaks() {
   }
   function pinchEnd(ev) {
     console.log('pinch end')
-    pinchStarted = false
+    scale_series = new Array(SMOOTH_LENGTH).fill(1)
+    // pinchStarted = false
   }
 
   function pinchHandler(ev) {
     canvas.controls.select.active = false
-    canvas.pan({
-      scale: base_scale * Math.pow(ev.scale, 1 / ZOOM_SPEED)
+    scale_series.push(ev.scale)
+    const smoothed_scale = scale_series
+      .slice(SMOOTH_LENGTH * -1)
+      .reduce((acc, c, i, a) => acc + c / a.length, 0)
+    console.log(ev.scale, smoothed_scale)
+    canvas.animatePan({
+      scale: base_scale * Math.pow(smoothed_scale, ZOOM_SPEED),
+      duration: 50
     })
   }
   function panHandler(ev) {
     //console.log("pan", ev.velocityX, ev.velocityY)
     canvas.controls.select.active = false
+    // canvas.animatePan({
     canvas.pan({
       x: canvas.stage.pivot.x - (ev.velocityX * PAN_SPEED) / canvas.stage.scale.x,
       y: canvas.stage.pivot.y - (ev.velocityY * PAN_SPEED) / canvas.stage.scale.x
+      // duration: 50
     })
   }
 

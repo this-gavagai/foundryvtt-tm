@@ -8,7 +8,7 @@ const actor: any = inject('actor')
 
 function infoFeat(featId: any) {
   console.log('Feat: ', featId)
-  const item = actor.items.find((i: any) => i._id == featId)
+  const item = actor.value.items.find((i: any) => i._id == featId)
   console.log(item)
   infoModal.value?.open({
     title: item?.name,

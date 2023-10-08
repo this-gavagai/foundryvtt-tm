@@ -1,7 +1,18 @@
 <script setup lang="ts">
 import { inject, computed, watch, ref } from 'vue'
+import {
+  Listbox,
+  ListboxLabel,
+  ListboxButton,
+  ListboxOptions,
+  ListboxOption
+} from '@headlessui/vue'
+
+defineEmits(['changeCharacter'])
 
 const actor: any = inject('actor')
+const world: any = inject('world')
+const changeChar: any = inject('changeChar')
 
 let reloadUrl = ref(`${window.location.origin}/modules/tablemate/index.html?id=${actor.value._id}`)
 watch(actor, () => {
@@ -17,7 +28,10 @@ function reloadPage() {
   <div class="flex border p-4 items-center">
     <a class="h-24 w-24" @click="reloadPage()">
       <!-- :href="reloadUrl" -->
-      <img v-if="actor.prototypeToken?.texture?.src" :src="actor.prototypeToken?.texture?.src" />
+      <img
+        v-if="actor.prototypeToken?.texture?.src"
+        :src="'/../../' + actor.prototypeToken?.texture?.src"
+      />
       <div v-else class="h-full">
         <svg
           aria-hidden="true"
@@ -39,7 +53,32 @@ function reloadPage() {
     </a>
     <div class="pl-2">
       <h3 class="text-2xl whitespace-nowrap overflow-hidden">
-        {{ actor.name ?? 'Loading...' }}
+        <Listbox>
+          <ListboxButton>{{ actor.name ?? 'Loading...' }}</ListboxButton>
+          <ListboxOptions
+            class="absolute mt-1 empty:hidden max-h-60 w-6/12 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+          >
+            <ListboxOption
+              v-slot="{ active, selected }"
+              v-for="(character, index) in world.actors
+                ?.filter((a: any) => a.ownership[world.userId] === 3)
+                ?.filter((a: any) => a._id !== actor._id)"
+              :key="character?._id"
+              :value="character"
+              :disabled="character?.unavailable"
+              @click="changeChar(character._id)"
+            >
+              <div
+                :class="[
+                  active ? 'bg-amber-100 text-amber-900' : 'text-gray-900',
+                  'relative select-none py-2 pl-6 pr-4 cursor-pointer'
+                ]"
+              >
+                {{ character?.name }}
+              </div>
+            </ListboxOption>
+          </ListboxOptions>
+        </Listbox>
       </h3>
       <div class="text-md whitespace-nowrap overflow-hidden">
         <span>{{ actor.items?.find((x: any) => x.type === 'ancestry')?.name ?? '-' }}&nbsp;</span>

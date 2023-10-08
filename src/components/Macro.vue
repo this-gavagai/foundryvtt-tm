@@ -17,7 +17,7 @@ function requestMacro(compendium: string, id: string) {
 </script>
 
 <template>
-  <div class="cursor-pointer" @click="requestMacro(props.compendium, props.macro)">
-    <slot></slot>
+  <div @click="requestMacro(props.compendium, props.macro)" class="my-2">
+    <span class="cursor-pointer p-1 bg-blue-300 text-xs border border-blue-800"><slot></slot></span>
   </div>
 </template>

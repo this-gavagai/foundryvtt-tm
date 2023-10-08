@@ -107,7 +107,7 @@ defineExpose({ open, close })
               <div class="max-h-[70vh] overflow-auto">
                 <div class="flex space-x-2">
                   <div v-if="content.iconPath">
-                    <img class="w-12" :src="content.iconPath" />
+                    <img class="w-12" :src="'/../../' + content.iconPath" />
                   </div>
                   <div>
                     <DialogTitle
