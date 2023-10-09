@@ -11801,7 +11801,7 @@ const _hoisted_7$a = { class: "flex space-x-2" };
 const _hoisted_8$7 = { key: 0 };
 const _hoisted_9$6 = ["src"];
 const _hoisted_10$6 = ["innerHTML"];
-const _hoisted_11$4 = { class: "mt-4 flex items-end justify-end gap-2" };
+const _hoisted_11$5 = { class: "mt-4 flex items-end justify-end gap-2" };
 const _hoisted_12$4 = ["onClick"];
 const _sfc_main$k = /* @__PURE__ */ defineComponent({
   __name: "InfoModal",
@@ -11895,7 +11895,7 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
                             }, null, 8, _hoisted_10$6),
                             (openBlock(), createBlock(resolveDynamicComponent(content.component), normalizeProps(guardReactiveProps(content.componentProps)), null, 16))
                           ]),
-                          createBaseVNode("div", _hoisted_11$4, [
+                          createBaseVNode("div", _hoisted_11$5, [
                             (openBlock(true), createElementBlock(Fragment, null, renderList(content.actionButtons, (b2) => {
                               return openBlock(), createElementBlock("button", {
                                 type: "button",
@@ -12080,9 +12080,10 @@ const _hoisted_5$b = [
 ];
 const _hoisted_6$a = { class: "pl-2" };
 const _hoisted_7$9 = { class: "text-2xl whitespace-nowrap overflow-hidden" };
-const _hoisted_8$6 = { class: "text-md whitespace-nowrap overflow-hidden" };
+const _hoisted_8$6 = /* @__PURE__ */ createBaseVNode("div", { class: "text-gray-400 relative select-none py-2 pl-6 pr-4" }, " Loading... ", -1);
 const _hoisted_9$5 = { class: "text-md whitespace-nowrap overflow-hidden" };
-const _hoisted_10$5 = { key: 0 };
+const _hoisted_10$5 = { class: "text-md whitespace-nowrap overflow-hidden" };
+const _hoisted_11$4 = { key: 0 };
 const _sfc_main$i = /* @__PURE__ */ defineComponent({
   __name: "CharacterHeader",
   emits: ["changeCharacter"],
@@ -12124,6 +12125,12 @@ const _sfc_main$i = /* @__PURE__ */ defineComponent({
                   default: withCtx(() => {
                     var _a2, _b2;
                     return [
+                      !unref(world).actors ? (openBlock(), createBlock(unref(Ue), { key: 0 }, {
+                        default: withCtx(() => [
+                          _hoisted_8$6
+                        ]),
+                        _: 1
+                      })) : createCommentVNode("", true),
                       (openBlock(true), createElementBlock(Fragment, null, renderList((_b2 = (_a2 = unref(world).actors) == null ? void 0 : _a2.filter((a2) => a2.ownership[unref(world).userId] === 3)) == null ? void 0 : _b2.filter((a2) => a2._id !== unref(actor)._id), (character, index) => {
                         return openBlock(), createBlock(unref(Ue), {
                           key: character == null ? void 0 : character._id,
@@ -12150,13 +12157,13 @@ const _sfc_main$i = /* @__PURE__ */ defineComponent({
               _: 1
             })
           ]),
-          createBaseVNode("div", _hoisted_8$6, [
+          createBaseVNode("div", _hoisted_9$5, [
             createBaseVNode("span", null, toDisplayString(((_f = (_e = unref(actor).items) == null ? void 0 : _e.find((x2) => x2.type === "ancestry")) == null ? void 0 : _f.name) ?? "-") + " ", 1),
             createBaseVNode("span", null, toDisplayString((_h = (_g = unref(actor).items) == null ? void 0 : _g.find((x2) => x2.type === "background")) == null ? void 0 : _h.name), 1)
           ]),
-          createBaseVNode("div", _hoisted_9$5, [
+          createBaseVNode("div", _hoisted_10$5, [
             createBaseVNode("span", null, toDisplayString(((_i = unref(actor).items) == null ? void 0 : _i.find((x2) => x2.type === "class").name) ?? "-"), 1),
-            ((_j = unref(actor).system) == null ? void 0 : _j.details.level.value) ? (openBlock(), createElementBlock("span", _hoisted_10$5, toDisplayString(` (Level ${(_k = unref(actor).system) == null ? void 0 : _k.details.level.value})`), 1)) : createCommentVNode("", true)
+            ((_j = unref(actor).system) == null ? void 0 : _j.details.level.value) ? (openBlock(), createElementBlock("span", _hoisted_11$4, toDisplayString(` (Level ${(_k = unref(actor).system) == null ? void 0 : _k.details.level.value})`), 1)) : createCommentVNode("", true)
           ])
         ])
       ]);
@@ -13565,6 +13572,10 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
     provide("rollModal", rollModal);
     const actor = ref({});
     provide("actor", actor);
+    const world = inject("world");
+    watch(world, () => {
+      console.log(props.characterId);
+    });
     socket2.value.emit("module.tablemate", {
       action: "requestCharacterDetails",
       characterId: props.characterId
@@ -13894,30 +13905,19 @@ const _hoisted_1 = /* @__PURE__ */ createBaseVNode("div", null, "Loading...", -1
 const _sfc_main$1 = /* @__PURE__ */ defineComponent({
   __name: "App",
   setup(__props) {
-    const { socket: socket2, connectToServer: connectToServer2 } = useServer();
-    const characterId = ref();
-    const selectedTab = ref(0);
-    const world = ref({});
-    ref();
-    ref([]);
-    provide("world", world);
-    function changeChar(id) {
-      var _a, _b;
-      const chars2 = (_b = (_a = world.value.actors) == null ? void 0 : _a.filter((a2) => a2.ownership[world.value.userId] === 3)) == null ? void 0 : _b.filter((a2) => a2._id !== characterId.value).map((a2) => a2._id);
-      selectedTab.value = [characterId.value, ...chars2].indexOf(id);
-    }
-    provide("changeChar", changeChar);
+    const wakeLock = useWakeLock();
+    wakeLock.request("screen");
     const urlParams = new URLSearchParams(window.location.search);
     const urlId = urlParams.get("id");
-    characterId.value = urlId;
-    connectToServer2(window.location.origin).then(() => {
-      socket2.value.emit("world", (r2) => {
-        console.log("world received", r2);
-        world.value = r2;
-        window.world = world.value;
-        console.log(characterIds.value);
-      });
-    });
+    const { socket: socket2, connectToServer: connectToServer2 } = useServer();
+    const selectedTab = ref(0);
+    const charRefs = ref([]);
+    const world = ref({});
+    provide("world", world);
+    function changeChar(id) {
+      selectedTab.value = characterIds.value.indexOf(id);
+    }
+    provide("changeChar", changeChar);
     const characterIds = computed(() => {
       var _a, _b, _c;
       let characters = [];
@@ -13926,60 +13926,41 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
       (_c = (_b = (_a = world.value) == null ? void 0 : _a.actors) == null ? void 0 : _b.filter((a2) => a2.ownership[world.value.userId] === 3)) == null ? void 0 : _c.filter((a2) => a2._id !== urlId).forEach((a2) => characters.push(a2._id));
       return characters;
     });
-    const wakeLock = useWakeLock();
-    wakeLock.request("screen");
+    connectToServer2(window.location.origin).then(() => {
+      socket2.value.emit("world", (r2) => {
+        world.value = r2;
+        window.world = world.value;
+        nextTick$1();
+        console.log(charRefs.value);
+      });
+    });
     return (_ctx, _cache) => {
       return openBlock(), createBlock(Suspense, null, {
         default: withCtx(() => [
           createVNode(unref(xe), { selectedIndex: selectedTab.value }, {
             default: withCtx(() => [
               createVNode(unref(Ie), { class: "h-12 bg-white gap-0 border border-gray-300 text-xl hidden" }, {
-                default: withCtx(() => {
-                  var _a, _b;
-                  return [
-                    createVNode(unref(ye), { class: "p-2 ui-selected:bg-blue-300 focus:outline-none relative top-0" }, {
-                      default: withCtx(() => [
-                        createTextVNode("Main")
-                      ]),
-                      _: 1
-                    }),
-                    (openBlock(true), createElementBlock(Fragment, null, renderList((_b = (_a = world.value.actors) == null ? void 0 : _a.filter((a2) => a2.ownership[world.value.userId] === 3)) == null ? void 0 : _b.filter((a2) => a2._id !== characterId.value), (character) => {
-                      return openBlock(), createBlock(unref(ye), { class: "p-2 ui-selected:bg-blue-300 focus:outline-none relative top-0" }, {
-                        default: withCtx(() => [
-                          createTextVNode(toDisplayString(character.name), 1)
-                        ]),
-                        _: 2
-                      }, 1024);
-                    }), 256))
-                  ];
-                }),
+                default: withCtx(() => [
+                  (openBlock(true), createElementBlock(Fragment, null, renderList(characterIds.value, (c2) => {
+                    return openBlock(), createBlock(unref(ye), {
+                      class: "p-2 ui-selected:bg-blue-300 focus:outline-none relative top-0",
+                      key: c2
+                    });
+                  }), 128))
+                ]),
                 _: 1
               }),
               createVNode(unref(Se$1), null, {
-                default: withCtx(() => {
-                  var _a, _b;
-                  return [
-                    createVNode(unref(ge$1), { unmount: false }, {
+                default: withCtx(() => [
+                  (openBlock(true), createElementBlock(Fragment, null, renderList(characterIds.value, (characterId) => {
+                    return openBlock(), createBlock(unref(ge$1), { unmount: false }, {
                       default: withCtx(() => [
-                        characterId.value ? (openBlock(), createBlock(_sfc_main$2, {
-                          key: 0,
-                          characterId: characterId.value
-                        }, null, 8, ["characterId"])) : createCommentVNode("", true)
+                        createVNode(_sfc_main$2, { characterId }, null, 8, ["characterId"])
                       ]),
-                      _: 1
-                    }),
-                    (openBlock(true), createElementBlock(Fragment, null, renderList((_b = (_a = world.value.actors) == null ? void 0 : _a.filter((a2) => a2.ownership[world.value.userId] === 3)) == null ? void 0 : _b.filter((a2) => a2._id !== characterId.value), (character) => {
-                      return openBlock(), createBlock(unref(ge$1), { unmount: false }, {
-                        default: withCtx(() => [
-                          createVNode(_sfc_main$2, {
-                            characterId: character._id
-                          }, null, 8, ["characterId"])
-                        ]),
-                        _: 2
-                      }, 1024);
-                    }), 256))
-                  ];
-                }),
+                      _: 2
+                    }, 1024);
+                  }), 256))
+                ]),
                 _: 1
               })
             ]),
@@ -15862,7 +15843,7 @@ const router = createRouter({
       // route level code-splitting
       // this generates a separate chunk (About.[hash].js) for this route
       // which is lazy-loaded when the route is visited.
-      component: () => __vitePreload(() => import("./AboutView-4f3e1913.js"), true ? ["assets/AboutView-4f3e1913.js","assets/AboutView-fe0787ef.css"] : void 0)
+      component: () => __vitePreload(() => import("./AboutView-135ce350.js"), true ? ["assets/AboutView-135ce350.js","assets/AboutView-fe0787ef.css"] : void 0)
     }
   ]
 });
@@ -15875,4 +15856,4 @@ export {
   createElementBlock as c,
   openBlock as o
 };
-//# sourceMappingURL=index-80f336e7.js.map
+//# sourceMappingURL=index-722cc7d1.js.map

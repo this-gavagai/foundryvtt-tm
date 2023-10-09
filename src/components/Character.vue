@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Item } from '@/utils/pf2e-types'
 
-import { ref, provide } from 'vue'
+import { ref, watch, provide, inject } from 'vue'
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 
 import { useServer } from '@/utils/server'
@@ -41,6 +41,11 @@ const rollModal = ref()
 provide('rollModal', rollModal)
 const actor = ref<any>({})
 provide('actor', actor)
+const world: any = inject('world')
+
+watch(world, () => {
+  console.log(props.characterId)
+})
 
 socket.value.emit('module.tablemate', {
   action: 'requestCharacterDetails',

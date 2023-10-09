@@ -58,6 +58,11 @@ function reloadPage() {
           <ListboxOptions
             class="absolute mt-1 empty:hidden max-h-60 w-6/12 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
           >
+            <ListboxOption v-if="!world.actors"
+              ><div class="text-gray-400 relative select-none py-2 pl-6 pr-4">
+                Loading...
+              </div></ListboxOption
+            >
             <ListboxOption
               v-slot="{ active, selected }"
               v-for="(character, index) in world.actors
