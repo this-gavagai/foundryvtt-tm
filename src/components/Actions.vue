@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { Item } from '@/utils/pf2e-types'
 const props = defineProps(['actor'])
-import { inject } from 'vue'
-import { makeTraits, capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
+import { inject, ref } from 'vue'
+import { capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
 
-const infoModal: any = inject('infoModal')
+import InfoModal from '@/components/InfoModal.vue'
+
+const infoModal = ref()
 const actor: any = inject('actor')
 
 function infoAction(action: any) {
@@ -15,9 +17,8 @@ function infoAction(action: any) {
     description: `Level ${action?.system.level?.value ?? 0} <span class="text-sm">(${capitalize(
       action?.system?.traits?.rarity
     )})</span>`,
-    body:
-      (makeTraits(action?.system.traits.value) ?? '') +
-      (removeUUIDs(action?.system.description.value) ?? ''),
+    traits: action?.system.traits.value,
+    body: action?.system.description.value,
     iconPath: action?.img
   })
 }
@@ -46,4 +47,7 @@ function infoAction(action: any) {
       </li>
     </ul>
   </div>
+  <Teleport to="#modals">
+    <InfoModal ref="infoModal" />
+  </Teleport>
 </template>

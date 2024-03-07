@@ -8,11 +8,13 @@ import {
   TransitionRoot,
   TransitionChild
 } from '@headlessui/vue'
-import { useServer } from '@/utils/server'
+import { getPath } from '@/utils/utilities'
+import { makeTraits, capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
 
 export type InfoModalContent = {
   title?: string
   description?: string
+  traits?: string[]
   body?: string
   iconPath?: string
   component?: any
@@ -39,15 +41,16 @@ const content: InfoModalContent = reactive({})
 const isOpen = ref(false)
 // const compProps = ref()
 function close() {
-  content.title =
-    content.description =
-    content.body =
-    content.iconPath =
-    content.component =
-    content.componentProps =
-    content.actionButtons =
-    content.toggleSet =
-      undefined
+  // content.title =
+  //   content.description =
+  //   content.traits =
+  //   content.body =
+  //   content.iconPath =
+  //   content.component =
+  //   content.componentProps =
+  //   content.actionButtons =
+  //   content.toggleSet =
+  //     undefined
   isOpen.value = false
 }
 function open(newValues: InfoModalContent) {
@@ -107,7 +110,7 @@ defineExpose({ open, close })
               <div class="max-h-[70vh] overflow-auto">
                 <div class="flex space-x-2">
                   <div v-if="content.iconPath">
-                    <img class="w-12" :src="'/../../' + content.iconPath" />
+                    <img class="w-12" :src="getPath(content.iconPath)" />
                   </div>
                   <div>
                     <DialogTitle
@@ -118,7 +121,16 @@ defineExpose({ open, close })
                     <DialogDescription v-html="content.description" />
                   </div>
                 </div>
-                <div class="mt-2 text-sm [&>p]:my-1" v-html="content.body"></div>
+                <div
+                  v-if="content.traits"
+                  class="mt-2 text-sm [&>p]:my-1"
+                  v-html="makeTraits(content.traits)"
+                ></div>
+                <div
+                  v-if="content.body"
+                  class="mt-2 text-sm [&>p]:my-1"
+                  v-html="removeUUIDs(content.body)"
+                ></div>
                 <component :is="content.component" v-bind="content.componentProps"></component>
               </div>
               <div class="mt-4 flex items-end justify-end gap-2">

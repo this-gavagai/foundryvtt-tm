@@ -18,7 +18,7 @@ export function mergeDeep(target: any, source: any) {
 export function capitalize(s: string) {
   return s?.[0]?.toUpperCase() + s?.slice(1)
 }
-export function makeTraits(traits: [string]): string {
+export function makeTraits(traits: string[] | undefined): string {
   // todo: on boost eidolon spell: traits for "Arcane" and "Concentrate" are missing
   let list = traits?.reduce((list, t) => {
     return (list += `<span class="bg-[#5E0000] text-[0.5rem] text-white px-1 uppercase">${t}${'\n'}</span>`)
@@ -55,7 +55,7 @@ export function printPrice(price: { gp: Number; sp: Number; cp: Number }) {
     .join(' ')
 }
 
-export function removeUUIDs(description: string) {
+export function removeUUIDs(description: string | undefined) {
   // todo: remove [[]] (shocking grasp)
   // todo: give tooltip on linked object?
   // todo: move this to utility
@@ -68,3 +68,8 @@ export function removeUUIDs(description: string) {
 export const SignedNumber = new Intl.NumberFormat('en-US', {
   signDisplay: 'always'
 })
+
+export function getPath(path: string) {
+  // console.log('input path', path)
+  return path.slice(0, 4) === 'http' ? path : '../../' + path
+}

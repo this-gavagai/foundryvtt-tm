@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { inject } from 'vue'
+import { inject, ref } from 'vue'
 import type { Item } from '@/utils/pf2e-types'
-import { useServer } from '@/utils/server'
+import InfoModal from '@/components/InfoModal.vue'
 
-import { capitalize, removeUUIDs } from '@/utils/utilities'
+import { capitalize, removeUUIDs, getPath } from '@/utils/utilities'
 
-const infoModal: any = inject('infoModal')
+// const infoModal: any = inject('infoModal')
+const infoModal = ref()
 const actor: any = inject('actor')
 // const props = defineProps(['actor'])
 
@@ -33,7 +34,7 @@ function infoCondition(effect: any) {
           >
             {{ effect.system?.value?.value }}
           </div>
-          <img :src="'/../../' + effect.img" class="h-12 w-12 rounded-full" />
+          <img :src="getPath(effect.img)" class="h-12 w-12 rounded-full" />
         </div>
         <div class="text-[0.5rem] whitespace-nowrap overflow-hidden w-12 text-center">
           {{ effect.name.replace('Effect: ', '') }}
@@ -41,4 +42,7 @@ function infoCondition(effect: any) {
       </div>
     </div>
   </div>
+  <Teleport to="#modals">
+    <InfoModal ref="infoModal" />
+  </Teleport>
 </template>

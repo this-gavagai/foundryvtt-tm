@@ -1,21 +1,25 @@
 <script setup lang="ts">
 import type { Item, FeatCategory, Actor } from '@/utils/pf2e-types'
-import { inject } from 'vue'
-import { makeTraits, capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
+import { inject, ref } from 'vue'
+import { capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
 
-const infoModal: any = inject('infoModal')
+import InfoModal from '@/components/InfoModal.vue'
+
+// const infoModal: any = inject('infoModal')
+const infoModal = ref()
 const actor: any = inject('actor')
 
 function infoFeat(featId: any) {
   console.log('Feat: ', featId)
   const item = actor.value.items.find((i: any) => i._id == featId)
-  console.log(item)
+  console.log(infoModal)
   infoModal.value?.open({
     title: item?.name,
-    description: `Level ${item?.system.level.value} <span class="text-sm">(${capitalize(
+    description: `Level ${item?.system.level?.value ?? '-'} <span class="text-sm">(${capitalize(
       item?.system.traits.rarity
     )})</span>`,
-    body: makeTraits(item?.system.traits.value) + removeUUIDs(item?.system.description.value),
+    traits: item?.system.traits.value,
+    body: item?.system.description.value,
     iconPath: item?.img
   })
 }
@@ -43,10 +47,10 @@ const categoryLabels = new Map([
           <span class="text-xs text-gray-500 absolute text-right w-4 pt-1">{{
             feat.level ?? feat.feat.system.level.value
           }}</span
-          ><span class="pl-6 cursor-pointer">{{ feat.feat.name }}</span>
+          ><span class="pl-6 cursor-pointer">{{ feat.feat?.name }}</span>
         </div>
         <div
-          v-for="grant in feat.feat.flags?.pf2e?.itemGrants"
+          v-for="grant in feat.feat?.flags?.pf2e?.itemGrants"
           class="ml-10 cursor-pointer"
           @click="infoFeat(grant.id)"
         >
@@ -55,4 +59,7 @@ const categoryLabels = new Map([
       </dd>
     </dl>
   </div>
+  <Teleport to="#modals">
+    <InfoModal ref="infoModal" />
+  </Teleport>
 </template>

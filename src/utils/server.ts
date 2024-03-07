@@ -50,10 +50,10 @@ function connectToFoundry(url: URL, sessionId: string, keepAlive = false) {
     socket.onAny((name, ...args) => {
       if (name === 'userActivity' || (name.match('module.') && !name.match('module.tablemate')))
         return
-      console.log('RECV', name, ...args)
+      console.log('RECV-TM', name, ...args)
     })
     socket.onAnyOutgoing((name, ...args) => {
-      console.log('SEND', name, ...args)
+      console.log('SEND-TM', name, ...args)
     })
   })
 }

@@ -7,17 +7,6 @@ import Macro from '@/components/Macro.vue'
 const actor: any = inject('actor')
 const { socket } = useServer()
 const props = defineProps(['skill', 'props'])
-
-// console.log(prop/s)
-
-function requestMacro(compendium: string, id: string) {
-  socket.value.emit('module.tablemate', {
-    action: 'runMacro',
-    characterId: actor.value._id,
-    compendium: compendium,
-    macroId: id
-  })
-}
 </script>
 <template>
   <div v-if="props.skill.slug === 'acrobatics'">

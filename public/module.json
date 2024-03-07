@@ -13,8 +13,10 @@
     "verified": "11"
   },
   "socket": true,
+  "esmodules": [
+    "index.mjs"
+  ],
   "scripts": [
-    "hammer.min.js",
-    "tablemate.js"
+    "libs/hammer.min.js"
   ]
 }

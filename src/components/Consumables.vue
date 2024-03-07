@@ -3,7 +3,7 @@
 import { ref, inject, computed } from 'vue'
 import { Listbox } from '@headlessui/vue'
 
-import { capitalize, makeTraits, removeUUIDs } from '@/utils/utilities'
+import { capitalize, removeUUIDs } from '@/utils/utilities'
 import ConsumablesType from './ConsumablesType.vue'
 
 const infoModal: any = inject('infoModal')
@@ -23,8 +23,8 @@ const infoConsumable = (id: string) => {
     description: `Level ${consumable.system.level.value} <span class="text-sm">(${capitalize(
       consumable.system.traits.rarity
     )}, ${consumable.system.price.value.gp}gp)</span>`,
-    body:
-      makeTraits(consumable.system.traits.value) + removeUUIDs(consumable.system.description.value),
+    traits: consumable.system.traits.value,
+    body: consumable.system.description.value,
     iconPath: consumable.img
   })
 }

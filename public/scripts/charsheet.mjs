@@ -1,27 +1,19 @@
-// import { setupTouch } from './touchmate'
-// setupTouch()
 // TODO: have more robust way of detecting observer in isObserver method
 // TODO: have more robust way of detecting sheet in 'init' hook
 const MODNAME = 'module.tablemate'
-Hooks.on('init', function () {
-  const user = game.data.users.find((x) => x._id === game.userId)
-  console.log('TABLEMATE init:', user)
 
-  if (user.name.match('Sheet')) {
-    window.location = `${window.location.origin}/modules/tablemate/index.html?id=${user.character}`
-  }
-})
-
-Hooks.on('ready', function () {
+export function setupCharSheet() {
   const user = game.data.users.find((x) => x._id === game.userId)
   console.log('TABLEMATE ready:', user)
-  if (user.name === 'Observer') {
-    setupTouchTweaks()
-  }
 
   console.log('tablemate:', 'listener update')
   game.socket.onAnyOutgoing((event, ...args) => {
-    if (event === 'userActivity' || (event.match('module.') && !event.match('module.tablemate')))
+    if (
+      event === 'userActivity' ||
+      event === 'template' ||
+      event === 'manageFiles' ||
+      (event.match('module.') && !event.match('module.tablemate'))
+    )
       return
     console.log(`SEND ${event}`, args)
   })
@@ -58,7 +50,7 @@ Hooks.on('ready', function () {
     }
   })
   announceSelf()
-})
+}
 
 // utility functions
 function announceSelf() {
@@ -89,14 +81,16 @@ function isObserverOnline() {
 // content functions
 function sendCharacterDetails(args) {
   const a = game.actors.find((x) => x._id === args.characterId)
-  game.socket.emit(MODNAME, {
+  const info = {
     action: 'sendCharacterDetails',
     actorId: a._id,
     actor: a,
     system: a.system,
-    feats: a.feats.set('unorganized', a.feats.unorganized),
+    feats: a.feats.set('unorganized', a.feats.bonus),
     inventory: a.inventory
-  })
+  }
+  console.log(info)
+  game.socket.emit(MODNAME, info)
 }
 function rollCheck(args) {
   const actor = game.actors.get(args.characterId, { strict: true })
@@ -143,7 +137,7 @@ function runMacro(args) {
     .getDocument(args.macroId)
     .then((m) => {
       m.execute({ actors: actor })
-      token.release()
+      //token.release()
     })
 }
 
@@ -172,82 +166,3 @@ Hooks.on('renderCheckModifiersDialog', (application, html, data) => {
 //   // html[0].setProperty('display', 'block', 'important')
 //   ui.windows[application.appId]._element[0].style.setProperty('display', 'block', 'important')
 // })
-
-// touch tweaks
-function setupTouchTweaks() {
-  console.log('tablemate: touch tweaks')
-  const ZOOM_SPEED = 0.5
-  const PAN_SPEED = 5
-  const SMOOTH_LENGTH = 30
-  const screen = document.querySelector('canvas#board')
-
-  const hammer = new Hammer(screen)
-  const pinch = hammer.get('pinch').set({ enable: true, threshold: 0 })
-  const pan = hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL, pointers: 2, threshold: 0 })
-  pinch.recognizeWith(pan)
-
-  hammer.on('pinchstart', pinchStart)
-  hammer.on('pinchend', pinchEnd)
-  hammer.on('pan', panHandler)
-  hammer.on('pinch', pinchHandler)
-
-  // const reload = new Hammer.Press({ pointers: 4 })
-  // reload.on(() => {
-  //   location.reload()
-  // })
-  // hammer.add(reload)
-
-  let base_scale = 1
-  let scale_series = new Array(SMOOTH_LENGTH).fill(1)
-  function getScale(ev) {
-    base_scale = canvas.stage.scale.x
-  }
-  function pinchStart(ev) {
-    console.log('pinch start')
-    getScale(ev)
-    // pinchStarted = true
-  }
-  function pinchEnd(ev) {
-    console.log('pinch end')
-    scale_series = new Array(SMOOTH_LENGTH).fill(1)
-    // pinchStarted = false
-  }
-
-  function pinchHandler(ev) {
-    canvas.controls.select.active = false
-    scale_series.push(ev.scale)
-    const smoothed_scale = scale_series
-      .slice(SMOOTH_LENGTH * -1)
-      .reduce((acc, c, i, a) => acc + c / a.length, 0)
-    console.log(ev.scale, smoothed_scale)
-    canvas.animatePan({
-      scale: base_scale * Math.pow(smoothed_scale, ZOOM_SPEED),
-      duration: 50
-    })
-  }
-  function panHandler(ev) {
-    //console.log("pan", ev.velocityX, ev.velocityY)
-    canvas.controls.select.active = false
-    // canvas.animatePan({
-    canvas.pan({
-      x: canvas.stage.pivot.x - (ev.velocityX * PAN_SPEED) / canvas.stage.scale.x,
-      y: canvas.stage.pivot.y - (ev.velocityY * PAN_SPEED) / canvas.stage.scale.x
-      // duration: 50
-    })
-  }
-
-  canvas.tokens.addEventListener('pointerup', (e) => {
-    console.log(e)
-    if (e.pointerType === 'mouse') return
-    canvas.tokens.children.forEach((c) => {
-      c.children.forEach((t) => {
-        try {
-          if (t.interactionState) t.dispatchEvent(e)
-        } catch (err) {
-          console.log(e)
-          console.log(err)
-        }
-      })
-    })
-  })
-}

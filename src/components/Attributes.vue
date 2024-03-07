@@ -3,7 +3,6 @@ import { inject } from 'vue'
 import { type Actor } from '@/utils/pf2e-types'
 import Statistic from './Statistic.vue'
 import { SignedNumber } from '@/utils/utilities'
-import { useAttributeScores, type modSet } from '@/utils/characterData'
 const actor: any = inject('actor')
 
 const attributes = [
@@ -14,18 +13,26 @@ const attributes = [
   { heading: 'Wis', abbr: 'wis' },
   { heading: 'Cha', abbr: 'cha' }
 ]
-
-// TODO: this useAttributeScores thing is really hard to do right. Worth doing even? Not sure.
-const attrMods = useAttributeScores((): Actor => actor)
 </script>
 <template>
-  <div>
+  <div class="px-6 py-4 flex justify-between border-b">
     <Statistic v-for="attr in attributes" :heading="attr.heading">
       {{
-        typeof actor.system?.abilities?.[attr.abbr]?.base === 'number'
-          ? SignedNumber.format(actor.system?.abilities?.[attr.abbr]?.base)
+        typeof actor.system?.abilities?.[attr.abbr]?.mod === 'number'
+          ? SignedNumber.format(actor.system?.abilities?.[attr.abbr]?.mod)
           : '??'
       }}
+    </Statistic>
+  </div>
+  <div class="px-6 py-4 flex justify-between border-b">
+    <Statistic v-for="save in actor.system?.saves" :heading="save.label">
+      {{ SignedNumber.format(save.totalModifier) }}
+    </Statistic>
+    <Statistic heading="Perception">
+      {{ SignedNumber.format(actor.system?.perception?.value) }}
+    </Statistic>
+    <Statistic heading="AC">
+      {{ actor.system?.attributes.ac?.value }}
     </Statistic>
   </div>
 </template>

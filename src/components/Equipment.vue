@@ -4,17 +4,17 @@
 // TODO: add unarmed strike here? or in actions?
 
 import EquipmentInvested from '@/components/EquipmentInvested.vue'
+import InfoModal from '@/components/InfoModal.vue'
 
 import type { Item, FeatCategory, Actor } from '@/utils/pf2e-types'
-import { inject } from 'vue'
-import { makeTraits, capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
+import { inject, ref } from 'vue'
+import { capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
 import { useServer } from '@/utils/server'
 import { mergeDeep } from '@/utils/utilities'
 
 const { socket } = useServer()
-const props = defineProps<{ actor: Actor }>()
-const infoModal: any = inject('infoModal')
 const actor: any = inject('actor')
+const infoModal = ref()
 
 function updateCarry(item: Item, systemUpdate: {}) {
   console.log(actor)
@@ -43,13 +43,13 @@ function updateCarry(item: Item, systemUpdate: {}) {
 }
 
 function infoEquip(item: Item) {
-  console.log(item)
   infoModal.value?.open({
     title: item.name,
     description: `Level ${item.system.level.value} <span class="text-sm">(${capitalize(
       item.system.traits.rarity
     )}, ${printPrice(item.system.price.value)})</span>`,
-    body: makeTraits(item.system.traits.value) + removeUUIDs(item.system.description.value),
+    traits: item.system.traits.value,
+    body: item.system.description.value,
     iconPath: item.img,
     toggleSet: [
       {
@@ -92,14 +92,16 @@ function infoEquip(item: Item) {
       },
       {
         toggleText: 'Stowed',
-        toggleTrigger: () =>
+        toggleTrigger: () => {
+          console.log(actor)
           updateCarry(item, {
-            containerId: actor.items.find((i: any) => i.type === 'backpack')?._id,
+            containerId: actor.value.items.find((i: any) => i.type === 'backpack')?._id,
             equipped: {
               carryType: 'stowed',
               handsHeld: 0
             }
-          }),
+          })
+        },
         toggleIsActive: () => item.system.equipped.carryType === 'stowed'
       },
       {
@@ -124,7 +126,6 @@ function infoInvested() {
       (i: Item) => i.system?.equipped?.invested === true || i.system?.equipped?.invested === false
     )
     .map((i: Item) => `<li class="cursor-pointer">${i.name}</li>`)
-  console.log(invested.join(''))
   infoModal.value.open({
     title: 'Invested Items',
     component: EquipmentInvested,
@@ -196,4 +197,7 @@ const inventoryTypes = [
       </dd>
     </dl>
   </div>
+  <Teleport to="#modals">
+    <InfoModal ref="infoModal" />
+  </Teleport>
 </template>

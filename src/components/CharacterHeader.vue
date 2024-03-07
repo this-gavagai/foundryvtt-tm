@@ -7,6 +7,7 @@ import {
   ListboxOptions,
   ListboxOption
 } from '@headlessui/vue'
+import { getPath } from '@/utils/utilities'
 
 defineEmits(['changeCharacter'])
 
@@ -30,7 +31,7 @@ function reloadPage() {
       <!-- :href="reloadUrl" -->
       <img
         v-if="actor.prototypeToken?.texture?.src"
-        :src="'/../../' + actor.prototypeToken?.texture?.src"
+        :src="getPath(actor.prototypeToken?.texture?.src)"
       />
       <div v-else class="h-full">
         <svg
@@ -54,7 +55,7 @@ function reloadPage() {
     <div class="pl-2">
       <h3 class="text-2xl whitespace-nowrap overflow-hidden">
         <Listbox>
-          <ListboxButton>{{ actor.name ?? 'Loading...' }}</ListboxButton>
+          <ListboxButton>{{ actor?.name ?? 'Loading...' }}</ListboxButton>
           <ListboxOptions
             class="absolute mt-1 empty:hidden max-h-60 w-6/12 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
           >
@@ -90,7 +91,7 @@ function reloadPage() {
         <span>{{ actor.items?.find((x: any) => x.type === 'background')?.name }}</span>
       </div>
       <div class="text-md whitespace-nowrap overflow-hidden">
-        <span>{{ actor.items?.find((x: any) => x.type === 'class').name ?? '-' }}</span>
+        <span>{{ actor.items?.find((x: any) => x.type === 'class')?.name ?? '-' }}</span>
         <span v-if="actor.system?.details.level.value">{{
           ` (Level ${actor.system?.details.level.value})`
         }}</span>

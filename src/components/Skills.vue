@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { makeTraits, capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
+// TODO: set up some kind of additional filter system for skill actions, for things like bon mot that have other requirements
+import { capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
 import { inject } from 'vue'
 // import SkillsRow from '@/components/SkillsRow.vue'
 import { useServer } from '@/utils/server'
 
+import Macro from '@/components/Macro.vue'
 import CheckModifiers from '@/components/CheckModifiers.vue'
 import SkillsMacros from '@/components/SkillsMacros.vue'
 
@@ -23,78 +25,120 @@ function skillInfo(skill: any) {
   infoModal.value?.open({
     title: skill.label,
     description: ['Untrained', 'Trained', 'Expert', 'Master', 'Legendary'][skill.rank],
-    component: SkillsMacros,
-    componentProps: { skill: skill, actor: actor },
-    iconPath: skill?.img,
-    actionButtons: [
-      {
-        actionParams: {
-          action: 'rollCheck',
-          characterId: actor.value._id,
-          checkType: 'skill',
-          checkSubtype: skill.slug
-        },
-        actionMethod: (params: {}) => {
-          // todo: manage slotId (for prepared) and level (for heighted) as params
-          socket.value.emit('module.tablemate', params)
-          infoModal.value.close()
-        },
-        buttonClasses: 'bg-blue-200 hover:bg-blue-300',
-        buttonText: 'Roll Check'
-      }
-    ]
+    // component: SkillsMacros,
+    // componentProps: { skill: skill, actor: actor },
+    iconPath: skill?.img
+    // actionButtons: [
+    //   {
+    //     actionParams: {
+    //       action: 'rollCheck',
+    //       characterId: actor.value._id,
+    //       checkType: 'skill',
+    //       checkSubtype: skill.slug
+    //     },
+    //     actionMethod: (params: {}) => {
+    //       // todo: manage slotId (for prepared) and level (for heighted) as params
+    //       socket.value.emit('module.tablemate', params)
+    //       infoModal.value.close()
+    //     },
+    //     buttonClasses: 'bg-blue-200 hover:bg-blue-300',
+    //     buttonText: 'Roll Check'
+    //   }
+    // ]
   })
 }
+
+// prettier-ignore
+const skillMacros = [
+  { skill: 'acrobatics', name: 'Balance', trained: false, compendium: 'pf2e.action-macros', macro: '55mxH0w8UkY1o3Xv' },
+  { skill: 'acrobatics', name: 'Escape', trained: false, compendium: 'pf2e.action-macros', macro: '50Q0DYL33Kalu1BH' },
+  { skill: 'acrobatics', name: 'Maneuver in Flight', trained: true, compendium: 'pf2e.action-macros', macro: '9Ul5Op5OceT9P5SS' },
+  { skill: 'acrobatics', name: 'Squeeze', trained: true, compendium: 'pf2e.action-macros', macro: 'UKHPveLpG7hUs4D0' },
+  { skill: 'acrobatics', name: 'Tumble Through', trained: false, compendium: 'pf2e.action-macros', macro: '2qhYHkcSsTJoSwrJ' },
+  { skill: 'arcana', name: 'Decipher Writing', trained: true, compendium: 'pf2e.action-macros', macro: 'U6WjxFPn4fUqIrfl' },
+  { skill: 'athletics', name: 'Climb', trained: false, compendium: 'pf2e.action-macros', macro: 'LXCy1iJddD95Z91s' },
+  { skill: 'athletics', name: 'Disarm', trained: true, compendium: 'pf2e.action-macros', macro: 'ooiO59Ch2QaebOmc' },
+  { skill: 'athletics', name: 'Escape', trained: false, compendium: 'pf2e.action-macros', macro: 'lkEcQQss16SIrVxM' },
+  { skill: 'athletics', name: 'Force Open', trained: false, compendium: 'pf2e.action-macros', macro: 'yMTKMnaYSGtDz4wk' },
+  { skill: 'athletics', name: 'Grapple', trained: false, compendium: 'pf2e.action-macros', macro: 'i95kcGLIQKOTsnv6' },
+  { skill: 'athletics', name: 'High Jump', trained: false, compendium: 'pf2e.action-macros', macro: 'v3dlDjFlOmT5T2gC' },
+  { skill: 'athletics', name: 'Long Jump', trained: false, compendium: 'pf2e.action-macros', macro: 'QPsV0qi2zXm7syt6' },
+  { skill: 'athletics', name: 'Shove', trained: false, compendium: 'pf2e.action-macros', macro: 'yNry1xMZqdWHncbV' },
+  { skill: 'athletics', name: 'Swim', trained: false, compendium: 'pf2e.action-macros', macro: 'TIlUkCzviYxdVk4E' },
+  { skill: 'athletics', name: 'Trip', trained: false, compendium: 'pf2e.action-macros', macro: 'gRj7xUfcpUZQLrOC' },
+  { skill: 'crafting', name: 'Craft', trained: true, compendium: 'pf2e.action-macros', macro: 'Tu7LIRelQsiOuo1l' },
+  { skill: 'crafting', name: 'Repair', trained: false, compendium: 'pf2e.action-macros', macro: 'BQTA7bL264189Xla' },
+  { skill: 'deception', name: 'Create a Diversion', trained: false, compendium: 'pf2e.action-macros', macro: '1JpYPlIkjyseE9JU' },
+  { skill: 'deception', name: 'Feint', trained: true, compendium: 'pf2e.action-macros', macro: 'RjfPFjqPrNve6eeh' },
+  { skill: 'deception', name: 'Impersonate', trained: false, compendium: 'pf2e.action-macros', macro: 'k5nW4jGyXD0Oq9LR' },
+  { skill: 'deception', name: 'Lie', trained: false, compendium: 'pf2e.action-macros', macro: 'VTg4t8kYTvXcHROq' },
+  // bon mot requires a feat that is currently not considered
+  { skill: 'diplomacy', name: 'Bon Mot', trained: true, compendium: 'pf2e.action-macros', macro: 'EDLftLWLBefTFDtu' },
+  { skill: 'diplomacy', name: 'Gather Information', trained: false, compendium: 'pf2e.action-macros', macro: 'rCgGPEyXbzLFcio6' },
+  { skill: 'diplomacy', name: 'Make an Impression', trained: false, compendium: 'pf2e.action-macros', macro: '1Sj2Pz3VI2SFWqZw' },
+  { skill: 'diplomacy', name: 'Request', trained: false, compendium: 'pf2e.action-macros', macro: 'tbveXG4gaIoKnsWX' },
+  { skill: 'intimidation', name: 'Coerce', trained: false, compendium: 'pf2e.action-macros', macro: '9RNumMausgG7adgL' },
+  { skill: 'intimidation', name: 'Demoralize', trained: false, compendium: 'pf2e.action-macros', macro: 'nEwqNNWX6scLt4sc' },
+  { skill: 'medicine', name: 'First Aid: Stabilize', trained: false, compendium: 'pf2e.action-macros', macro: 'l5pbgrj8SSNtRGs8' },
+  { skill: 'medicine', name: 'First Aid: Stop Bleeding', trained: false, compendium: 'pf2e.action-macros', macro: 'ZEWD4zcEDQwYhVT8' },
+  { skill: 'medicine', name: 'Treat Disease', trained: true, compendium: 'pf2e.action-macros', macro: 'm4iM5r3TfvQs5Y2n' },
+  { skill: 'medicine', name: 'Treat Poison', trained: true, compendium: 'pf2e.action-macros', macro: 'R03LRl2RBbsm6EcF' },
+  { skill: 'medicine', name: 'Treat Wounds', trained: true, compendium: 'pf2e.action-macros', macro: '' },
+  { skill: 'nature', name: 'Command an Animal', trained: false, compendium: 'pf2e.action-macros', macro: 'xcrdOOiN0l6O1sIn' },
+  { skill: 'occultism', name: 'Decipher Writing', trained: true, compendium: 'pf2e.action-macros', macro: 'RZyfkw1DiqVy3JUC' },
+  { skill: 'performance', name: 'Perform', trained: false, compendium: 'pf2e.action-macros', macro: 'dWcrojMk0d2WRPBq' },
+  { skill: 'religion', name: 'Decipher Writing', trained: true, compendium: 'pf2e.action-macros', macro: 'sDUERv4E88G5BRPr' },
+  { skill: 'society', name: 'Create Forgery', trained: true, compendium: 'pf2e.action-macros', macro: 'mNphXpAkmGsMadUv' },
+  { skill: 'society', name: 'Decipher Writing', trained: true, compendium: 'pf2e.action-macros', macro: 'YWAvvDXpdW1fYPFo' },
+  { skill: 'society', name: 'Subsist', trained: false, compendium: 'pf2e.action-macros', macro: 'mkKko3CEBCyJVQw1' },
+  { skill: 'stealth', name: 'Conceal an Object', trained: false, compendium: 'pf2e.action-macros', macro: 'zn0HadZeoKDALxRu' },
+  { skill: 'stealth', name: 'Hide', trained: false, compendium: 'pf2e.action-macros', macro: 'FlM3HvpnsZpCKawG' },
+  { skill: 'stealth', name: 'Sneak', trained: false, compendium: 'pf2e.action-macros', macro: 'HSTkVuv0SjTNK3Xx' },
+  { skill: 'survival', name: 'Sense Direction', trained: false, compendium: 'pf2e.action-macros', macro: 'LN67MgbGE8IHb2X0' },
+  { skill: 'survival', name: 'Subsist', trained: false, compendium: 'pf2e.action-macros', macro: 'zkqh01BoXDVgydzo' },
+  { skill: 'survival', name: 'Track', trained: true, compendium: 'pf2e.action-macros', macro: 'Al5LYMMdeDcpC9Br' },
+  { skill: 'thievery', name: 'Disable Device', trained: true, compendium: 'pf2e.action-macros', macro: 'T2QNEoRojMWEec4a' },
+  { skill: 'thievery', name: 'Palm an Object', trained: false, compendium: 'pf2e.action-macros', macro: 'Gj68YCVlDjc75iCP' },
+  { skill: 'thievery', name: 'Pick a Lock', trained: true, compendium: 'pf2e.action-macros', macro: '8YrH37NzKRuiKFbF' },
+  { skill: 'thievery', name: 'Steal', trained: false, compendium: 'pf2e.action-macros', macro: 'zjovbAeuLvyuWFKd' },
+]
 </script>
 <template>
   <div class="px-6 py-4 border-b empty:hidden">
     <h3 class="underline text-2xl">Skill Actions</h3>
-    <ul class="max-w-6xl empty:hidden columns-2">
-      <li
-        v-for="skill in actor.system?.skills"
-        class="flex gap-2 cursor-pointer"
-        :class="[
-          skill.rank === 1
-            ? 'text-blue-800'
-            : skill.rank === 2
-            ? 'text-purple-800'
-            : skill.rank === 3
-            ? 'text-yellow-800'
-            : skill.rank === 4
-            ? 'text-red-800'
-            : 'text-black'
-        ]"
-        @click="skillInfo(skill)"
-      >
-        <!-- <div>{{ levels[skill.proficiency] }}</div> -->
-        <template v-if="!skill.lore">
+    <!-- <Macro compendium="xdy-pf2e-workbench.asymonous-benefactor-macros" macro="i6YqLOlgMY6oqQ9t"
+      >Recall Knowledge</Macro
+    > -->
+    <ul class="max-w-6xl empty:hidden">
+      <li v-for="skill in actor.system?.skills" class="cursor-pointer mt-2 mb-4 text-lg">
+        <div
+          class="flex gap-2"
+          :class="[
+            skill.rank === 1
+              ? 'text-blue-800'
+              : skill.rank === 2
+              ? 'text-purple-800'
+              : skill.rank === 3
+              ? 'text-yellow-800'
+              : skill.rank === 4
+              ? 'text-red-800'
+              : 'text-black'
+          ]"
+          @click="skillInfo(skill)"
+        >
           <div>{{ skill.label }}</div>
           <div class="text-right">{{ SignedNumber.format(skill.totalModifier) }}</div>
-        </template>
-      </li>
-    </ul>
-    <ul class="max-w-6xl empty:hidden columns-2 pt-2">
-      <li
-        v-for="skill in actor.system?.skills"
-        class="flex gap-2 cursor-pointer"
-        :class="[
-          skill.rank === 1
-            ? 'text-blue-800'
-            : skill.rank === 2
-            ? 'text-purple-800'
-            : skill.rank === 3
-            ? 'text-yellow-800'
-            : skill.rank === 4
-            ? 'text-red-800'
-            : 'text-black'
-        ]"
-        @click="skillInfo(skill)"
-      >
-        <!-- <div>{{ levels[skill.proficiency] }}</div> -->
-        <template v-if="skill.lore">
-          <div>{{ skill.label }}</div>
-          <div class="text-right">{{ SignedNumber.format(skill.totalModifier) }}</div>
-        </template>
+        </div>
+        <!-- <div class="flex flex-wrap gap-2">
+          <Macro
+            v-for="macro in skillMacros
+              .filter((m: any) => m.skill === skill.slug)
+              .filter((m: any) => !m.trained || skill.rank)"
+            :compendium="macro.compendium"
+            :macro="macro.macro"
+            >{{ macro.name }}</Macro
+          >
+        </div> -->
       </li>
     </ul>
   </div>

@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import type { Item } from '@/utils/pf2e-types'
-
 import { ref, watch, provide, inject } from 'vue'
-import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
+import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
 
 import { useServer } from '@/utils/server'
 import { mergeDeep } from '@/utils/utilities'
 
-import InfoModal from '@/components/InfoModal.vue'
-import RollModal from '@/components/RollModal.vue'
+import cowled from '@/assets/icons/cowled.svg'
+import biceps from '@/assets/icons/biceps.svg'
+import backpack from '@/assets/icons/backpack.svg'
+import leapfrog from '@/assets/icons/leapfrog.svg'
+import spellBook from '@/assets/icons/spell-book.svg'
+import talk from '@/assets/icons/talk.svg'
+
+import CharacterTab from '@/components/CharacterTab.vue'
 import CharacterHeader from '@/components/CharacterHeader.vue'
 import Skills from '@/components/Skills.vue'
 import Actions from '@/components/Actions.vue'
@@ -22,36 +26,44 @@ import Strikes from '@/components/Strikes.vue'
 import Initiative from '@/components/Initiative.vue'
 
 const props = defineProps(['characterId'])
-const { socket } = useServer()
-
-// await new socket
-await new Promise(function (resolve: any) {
-  ;(function waitForSocket() {
-    if (socket.value) return resolve()
-    console.log('waiting on socket...')
-    setTimeout(waitForSocket, 1000)
-  })()
-})
-if (socket.value == null) throw new Error('Socket Connection not available')
 
 // make all provided data
-const infoModal = ref()
-provide('infoModal', infoModal)
+const world: any = inject('world')
 const rollModal = ref()
 provide('rollModal', rollModal)
 const actor = ref<any>({})
 provide('actor', actor)
-const world: any = inject('world')
 
-watch(world, () => {
-  console.log(props.characterId)
+// watch world for changes and update actor base
+watch(
+  world,
+  () => {
+    if (world.value?.actors) {
+      const worldActor = world.value.actors.find((a: any) => a._id == props.characterId)
+      const synthActor = mergeDeep(worldActor, actor.value)
+      actor.value = synthActor
+    }
+  },
+  { immediate: true }
+)
+
+// await new socket
+const { socket } = useServer()
+await new Promise(function (resolve: any) {
+  ;(function waitForSocket() {
+    if (socket.value) return resolve()
+    console.log('waiting on socket...')
+    setTimeout(waitForSocket, 100)
+  })()
 })
 
+// send request for enhanced character data
 socket.value.emit('module.tablemate', {
   action: 'requestCharacterDetails',
   characterId: props.characterId
 })
 
+// listen for tablemate messages
 socket.value.on('module.tablemate', (args: any) => {
   switch (args.action) {
     case 'gmOnline':
@@ -66,19 +78,26 @@ socket.value.on('module.tablemate', (args: any) => {
         mergeDeep(actor.value.system, args.system)
         actor.value.feats = args.feats
         actor.value.inventory = args.inventory
+        if (!window.actor) window.actor = actor.value
       }
       break
-    case 'rollReady':
-      if (args.characterId === props.characterId) {
-        rollModal.value?.openModal(args.application, args.userId)
-      }
-      break
+    // case 'rollReady':
+    //   if (args.characterId === props.characterId) {
+    //     rollModal.value?.openModal(args.application, args.userId)
+    //   }
+    //   break
     default:
       console.log('roll not managed locally: ', args.action)
   }
 })
+// listen for modifyDocument messages
 socket.value.on('modifyDocument', (mods: any) => {
-  // this should filter for active actor for all things, not just actor changes (also items)
+  // TODO: This is super verbose and not efficient at all. Need to think of a better way to handle synthetic data
+  socket.value.emit('module.tablemate', {
+    action: 'requestCharacterDetails',
+    characterId: props.characterId
+  })
+
   switch (mods.request.type) {
     case 'Actor':
       mods.result.forEach((change: any) => {
@@ -122,80 +141,60 @@ socket.value.on('modifyDocument', (mods: any) => {
   }
 })
 
-function updateActor() {
-  console.log(props.characterId)
+// debugging conveniences
+declare global {
+  interface Window {
+    socket: any
+    actor: any
+    world: any
+    altCharacters: any
+  }
 }
-
-defineExpose({ updateActor })
 </script>
 <template>
   <div class="pb-14">
     <div class="p-0">
-      <CharacterHeader :actor="actor" />
+      <CharacterHeader />
       <TabGroup>
         <TabPanels class="mb-16">
           <TabPanel>
-            <Resources :actor="actor" />
-            <Effects :actor="actor" />
-            <Attributes class="px-6 py-4 flex justify-between border-b" :actor="actor"></Attributes>
-            <Initiative class="px-6 py-4 border-b" :actor="actor" />
+            <Resources />
+            <Effects />
+            <Attributes />
+            <Initiative />
           </TabPanel>
           <TabPanel>
-            <Feats :actor="actor" />
+            <Feats />
           </TabPanel>
           <TabPanel>
-            <Equipment :actor="actor" />
+            <Equipment />
           </TabPanel>
           <TabPanel>
-            <Strikes :actor="actor" />
-            <Actions :actor="actor" />
-            <Skills :actor="actor" />
+            <Strikes />
+            <Actions />
+            <Skills />
           </TabPanel>
           <TabPanel>
-            <Spells class="px-6 py-4" :actor="actor" />
+            <Spells />
           </TabPanel>
           <TabPanel>
-            <div class="px-6 py-4">Hi</div>
+            <div class="px-6 py-4">
+              <div v-for="message in world.messages">
+                <div v-html="message.flavor" class="border m-2 p-2"></div>
+              </div>
+            </div>
           </TabPanel>
         </TabPanels>
-        <TabList
-          class="fixed bottom-0 grid grid-cols-6 w-full bg-white gap-0 border border-gray-300 text-xs"
-        >
-          <Tab
-            class="p-2 ui-selected:bg-blue-200 ui-not-selected:bg-white focus:outline-none relative top-0"
-            ><img src="@/assets/icons/cowled.svg" class="m-auto max-h-14" />
-            <span class="text-[.5rem]">Character</span></Tab
-          >
-          <Tab
-            class="p-2 ui-selected:bg-blue-200 ui-not-selected:bg-white focus:outline-none relative top-0"
-            ><img src="@/assets/icons/biceps.svg" class="m-auto max-h-14" />
-            <span class="text-[.5rem]">Feats</span></Tab
-          >
-          <Tab
-            class="p-2 ui-selected:bg-blue-200 ui-not-selected:bg-white focus:outline-none relative top-0"
-            ><img src="@/assets/icons/backpack.svg" class="m-auto max-h-14" />
-            <span class="text-[.5rem]">Gear</span></Tab
-          >
-          <Tab
-            class="p-2 ui-selected:bg-blue-200 ui-not-selected:bg-white focus:outline-none relative top-0"
-            ><img src="@/assets/icons/leapfrog.svg" class="m-auto max-h-14" />
-            <span class="text-[.5rem]">Actions</span></Tab
-          >
-          <Tab
-            class="p-2 ui-selected:bg-blue-200 ui-not-selected:bg-white focus:outline-none relative top-0"
-            ><img src="@/assets/icons/spell-book.svg" class="m-auto max-h-16" />
-            <span class="text-[.5rem]">Spells</span></Tab
-          >
-          <Tab
-            class="p-2 ui-selected:bg-blue-200 ui-not-selected:bg-white focus:outline-none relative top-0"
-            ><img src="@/assets/icons/talk.svg" class="m-auto max-h-16" />
-            <span class="text-[.5rem]">Chat</span></Tab
-          >
+        <TabList class="fixed bottom-0 grid grid-cols-6 w-full gap-0 border border-gray-300">
+          <CharacterTab :src="cowled" label="Character" />
+          <CharacterTab :src="biceps" label="Feats" />
+          <CharacterTab :src="backpack" label="Equipment" />
+          <CharacterTab :src="leapfrog" label="Actions" />
+          <CharacterTab :src="spellBook" label="Spells" />
+          <CharacterTab :src="talk" label="Chat" />
         </TabList>
       </TabGroup>
     </div>
-    <InfoModal ref="infoModal" />
-    <RollModal ref="rollModal" />
   </div>
 </template>
 

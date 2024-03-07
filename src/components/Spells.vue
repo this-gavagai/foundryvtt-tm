@@ -3,20 +3,12 @@
 // todo: prepared spells
 // todo: wands
 // todo: prevent casting if depleted
-import { inject } from 'vue'
-import {
-  capitalize,
-  makeTraits,
-  makeActionIcons,
-  makePropertiesHtml,
-  removeUUIDs
-} from '@/utils/utilities'
-import { useServer } from '@/utils/server'
+import { inject, computed, ref } from 'vue'
+import { capitalize, makeActionIcons, makePropertiesHtml } from '@/utils/utilities'
 import Counter from '@/components/Counter.vue'
+import InfoModal from '@/components/InfoModal.vue'
 
-const { socket } = useServer()
-const props = defineProps(['actor'])
-const infoModal: any = inject('infoModal')
+const infoModal = ref()
 const actor: any = inject('actor')
 
 function getLevelsForLocation(location: string): [any] {
@@ -39,6 +31,8 @@ function getSpellsForLocationAndLevel(location: string, level: number): [any] {
   return spells
 }
 
+const spellBook = computed(() => {})
+
 const infoSpell = (id: string, level: number) => {
   const spell = actor.value?.items.find((x: any) => x._id === id)
   console.log('Spell: ', spell)
@@ -52,38 +46,18 @@ const infoSpell = (id: string, level: number) => {
         ? `Cantrip`
         : `Rank ${spell.system.level.value}`) +
       ` <span class="text-sm">(${capitalize(spell.system.traits.rarity)})</span>`,
-    body:
-      makeTraits(spell.system.traits.value) +
-      makePropertiesHtml(spell) +
-      removeUUIDs(spell.system.description.value),
-    iconPath: spell.img,
-    actionButtons: [
-      {
-        actionParams: {
-          action: 'castSpell',
-          id: id,
-          characterId: actor.value?._id,
-          slotId: null,
-          level: level
-        },
-        actionMethod: (params: {}) => {
-          // todo: manage slotId (for prepared) and level (for heighted) as params
-          socket.value.emit('module.tablemate', params)
-          infoModal.value.close()
-        },
-        buttonClasses: 'bg-blue-200 hover:bg-blue-300',
-        buttonText: 'Cast!'
-      }
-    ]
+    traits: spell.system.traits.value,
+    body: makePropertiesHtml(spell) + spell.system.description.value,
+    iconPath: spell.img
   })
 }
 </script>
 <template>
-  <div>
+  <div class="px-6 py-4">
     <!-- Spell Sources -->
     <ul class="">
       <li
-        v-for="location in actor.items.filter((x: any) => x.type === 'spellcastingEntry')"
+        v-for="location in actor?.items?.filter((x: any) => x?.type === 'spellcastingEntry')"
         class="mt-4 first:mt-0"
       >
         <h3 class="">
@@ -117,13 +91,13 @@ const infoSpell = (id: string, level: number) => {
               />
             </h4>
             <!-- Spells -->
-            <ul class="">
+            <ul>
               <li v-for="spell in getSpellsForLocationAndLevel(location._id, level)">
                 <div class="text-md">
                   <span @click="infoSpell(spell._id, level)" class="cursor-pointer">
                     <span>{{ spell.name }}</span>
                     <span class="pl-1 text-md pf2-icon">{{
-                      spell.system.time.value.replace('to', ' - ')
+                      spell.system.time.value.replace('to', ' - ').replace('free', 'f')
                     }}</span>
                   </span>
                 </div>
@@ -134,4 +108,7 @@ const infoSpell = (id: string, level: number) => {
       </li>
     </ul>
   </div>
+  <Teleport to="#modals">
+    <InfoModal ref="infoModal" />
+  </Teleport>
 </template>

@@ -2,18 +2,18 @@
 import { ref, provide, computed, nextTick } from 'vue'
 import { useServer } from './utils/server'
 import Character from '@/components/Character.vue'
-import { useWakeLock } from '@vueuse/core'
+// import { useWakeLock } from '@vueuse/core'
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 
-const wakeLock = useWakeLock()
-wakeLock.request('screen')
+// const wakeLock = useWakeLock()
+// wakeLock.request('screen')
 
 const urlParams = new URLSearchParams(window.location.search)
 const urlId = urlParams.get('id')
 
 const { socket, connectToServer } = useServer()
 const selectedTab = ref(0)
-const charRefs = ref<any[]>([])
+// const charRefs = ref<any[]>([])
 const world = ref<any>({})
 provide('world', world)
 
@@ -34,10 +34,10 @@ const characterIds = computed(() => {
 
 connectToServer(window.location.origin).then(() => {
   socket.value.emit('world', (r: any) => {
+    console.log('TM-RECV world', r)
     world.value = r
     window.world = world.value
     nextTick()
-    console.log(charRefs.value)
   })
 })
 

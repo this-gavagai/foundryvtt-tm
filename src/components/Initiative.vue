@@ -11,10 +11,10 @@ const actor: any = inject('actor')
 
 const initSkills: any = computed(() => {
   const skills = Object.values(actor.value.system?.skills ?? {})
-  skills.unshift(actor.value.system?.attributes?.perception)
+  skills.unshift(actor.value.system?.perception)
   return skills
 })
-const selected = ref(actor.value?.system?.attributes?.initiative?.statistic)
+const selected = ref(actor.value?.system?.initiative?.statistic)
 watch(selected, async (newSkill, oldSkill) => {
   console.log(newSkill)
   socket.value.emit(
@@ -27,10 +27,8 @@ watch(selected, async (newSkill, oldSkill) => {
         {
           _id: actor.value._id,
           system: {
-            attributes: {
-              initiative: {
-                statistic: newSkill
-              }
+            initiative: {
+              statistic: newSkill
             }
           }
         }
@@ -52,7 +50,7 @@ function rollInitiative() {
 }
 </script>
 <template>
-  <div class="relative">
+  <div class="relative px-6 py-4 border-b">
     <div class="uppercase text-xs">Initiative</div>
     <Listbox v-model="selected">
       <div class="relative mt-1">
@@ -61,9 +59,7 @@ function rollInitiative() {
             class="relative w-full cursor-default rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-md focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
           >
             <span class="block truncate">{{
-              initSkills.find(
-                (s: any) => s?.slug === actor.system?.attributes?.initiative.statistic
-              )?.label
+              initSkills.find((s: any) => s?.slug === actor.system?.initiative.statistic)?.label
             }}</span>
             <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
               <ChevronUpDownIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -72,15 +68,14 @@ function rollInitiative() {
           <div class="p-2 w-8">
             {{
               SignedNumber.format(
-                initSkills.find(
-                  (s: any) => s?.slug === actor.system?.attributes?.initiative.statistic
-                )?.totalModifier ?? 0
+                initSkills.find((s: any) => s?.slug === actor.system?.initiative.statistic)
+                  ?.totalModifier ?? 0
               )
             }}
           </div>
-          <div class="pl-2 pt-1 w-12 cursor-pointer" @click="rollInitiative()">
+          <!-- <div class="pl-2 pt-1 w-12 cursor-pointer" @click="rollInitiative()">
             <img src="@/assets/icons/dice-twenty-faces-twenty.svg" />
-          </div>
+          </div> -->
         </div>
 
         <transition
@@ -104,9 +99,9 @@ function rollInitiative() {
                   'relative cursor-default select-none py-2 pl-10 pr-4'
                 ]"
               >
-                <span :class="[selected ? 'font-medium' : 'font-normal', 'block truncate']">{{
-                  skill.label
-                }}</span>
+                <span :class="[selected ? 'font-medium' : 'font-normal', 'block truncate']">
+                  {{ skill.label }} ({{ SignedNumber.format(skill.totalModifier) }})
+                </span>
                 <span
                   v-if="selected"
                   class="absolute inset-y-0 left-0 flex items-center pl-3 text-amber-600"
