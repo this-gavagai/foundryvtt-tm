@@ -4,10 +4,11 @@
 // TODO: add unarmed strike here? or in actions?
 
 import EquipmentInvested from '@/components/EquipmentInvested.vue'
+import Modal from '@/components/Modal.vue'
 import InfoModal from '@/components/InfoModal.vue'
 
 import type { Item, FeatCategory, Actor } from '@/utils/pf2e-types'
-import { inject, ref } from 'vue'
+import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
 import { useServer } from '@/utils/server'
 import { mergeDeep } from '@/utils/utilities'
@@ -15,9 +16,10 @@ import { mergeDeep } from '@/utils/utilities'
 const { socket } = useServer()
 const actor: any = inject('actor')
 const infoModal = ref()
+const investedModal = ref()
+const item = computed(() => actor.value.items?.find((i: any) => i._id === infoModal?.value?.itemId))
 
 function updateCarry(item: Item, systemUpdate: {}) {
-  console.log(actor)
   socket.value.emit(
     'modifyDocument',
     {
@@ -42,84 +44,6 @@ function updateCarry(item: Item, systemUpdate: {}) {
   )
 }
 
-function infoEquip(item: Item) {
-  infoModal.value?.open({
-    title: item.name,
-    description: `Level ${item.system.level.value} <span class="text-sm">(${capitalize(
-      item.system.traits.rarity
-    )}, ${printPrice(item.system.price.value)})</span>`,
-    traits: item.system.traits.value,
-    body: item.system.description.value,
-    iconPath: item.img,
-    toggleSet: [
-      {
-        toggleText: '1-Hand',
-        toggleTrigger: () =>
-          updateCarry(item, {
-            containerId: null,
-            equipped: {
-              carryType: 'held',
-              handsHeld: 1
-            }
-          }),
-        toggleIsActive: () =>
-          item.system.equipped.carryType === 'held' && item.system.equipped.handsHeld === 1
-      },
-      {
-        toggleText: '2-Hands',
-        toggleTrigger: () =>
-          updateCarry(item, {
-            containerId: null,
-            equipped: {
-              carryType: 'held',
-              handsHeld: 2
-            }
-          }),
-        toggleIsActive: () =>
-          item.system.equipped.carryType === 'held' && item.system.equipped.handsHeld === 2
-      },
-      {
-        toggleText: 'Worn',
-        toggleTrigger: () =>
-          updateCarry(item, {
-            containerId: null,
-            equipped: {
-              carryType: 'worn',
-              handsHeld: 0
-            }
-          }),
-        toggleIsActive: () => item.system.equipped.carryType === 'worn'
-      },
-      {
-        toggleText: 'Stowed',
-        toggleTrigger: () => {
-          console.log(actor)
-          updateCarry(item, {
-            containerId: actor.value.items.find((i: any) => i.type === 'backpack')?._id,
-            equipped: {
-              carryType: 'stowed',
-              handsHeld: 0
-            }
-          })
-        },
-        toggleIsActive: () => item.system.equipped.carryType === 'stowed'
-      },
-      {
-        toggleText: 'Dropped',
-        toggleTrigger: () =>
-          updateCarry(item, {
-            containerId: null,
-            equipped: {
-              carryType: 'dropped',
-              handsHeld: 0
-            }
-          }),
-        toggleIsActive: () => item.system.equipped.carryType === 'dropped'
-      }
-    ]
-  })
-}
-
 function infoInvested() {
   const invested = actor.value.items
     .filter(
@@ -141,12 +65,79 @@ const inventoryTypes = [
   { type: 'treasure', title: 'Treasure' },
   { type: 'backpack', title: 'Containers' }
 ]
+
+const toggleSet = [
+  {
+    toggleText: '1-Hand',
+    toggleTrigger: () =>
+      updateCarry(item.value, {
+        containerId: null,
+        equipped: {
+          carryType: 'held',
+          handsHeld: 1
+        }
+      }),
+    toggleIsActive: () =>
+      item.value.system.equipped.carryType === 'held' && item.value.system.equipped.handsHeld === 1
+  },
+  {
+    toggleText: '2-Hands',
+    toggleTrigger: () =>
+      updateCarry(item.value, {
+        containerId: null,
+        equipped: {
+          carryType: 'held',
+          handsHeld: 2
+        }
+      }),
+    toggleIsActive: () =>
+      item.value.system.equipped.carryType === 'held' && item.value.system.equipped.handsHeld === 2
+  },
+  {
+    toggleText: 'Worn',
+    toggleTrigger: () =>
+      updateCarry(item.value, {
+        containerId: null,
+        equipped: {
+          carryType: 'worn',
+          handsHeld: 0
+        }
+      }),
+    toggleIsActive: () => item.value.system.equipped.carryType === 'worn'
+  },
+  {
+    toggleText: 'Stowed',
+    toggleTrigger: () => {
+      console.log(actor)
+      updateCarry(item.value, {
+        containerId: actor.value.items.find((i: any) => i.type === 'backpack')?._id,
+        equipped: {
+          carryType: 'stowed',
+          handsHeld: 0
+        }
+      })
+    },
+    toggleIsActive: () => item.value.system.equipped.carryType === 'stowed'
+  },
+  {
+    toggleText: 'Dropped',
+    toggleTrigger: () =>
+      updateCarry(item.value, {
+        containerId: null,
+        equipped: {
+          carryType: 'dropped',
+          handsHeld: 0
+        }
+      }),
+    toggleIsActive: () => item.value.system.equipped.carryType === 'dropped'
+  }
+]
 </script>
 <template>
   <div class="px-6 py-4">
     <h3 class="text-2xl">
       <span class="underline">Equipment</span>
-      <span class="cursor-pointer text-sm text-gray-500" @click="infoInvested()">
+      <span class="cursor-pointer text-sm text-gray-500" @click="investedModal.open()">
         ({{ actor.items.filter((i: Item) => i.system?.equipped?.invested).length }}/10 Invested)
       </span>
     </h3>
@@ -154,7 +145,7 @@ const inventoryTypes = [
     <ul>
       <li
         v-for="item in actor.items.filter((i: Item) => i.system?.equipped?.handsHeld > 0)"
-        @click="infoEquip(item)"
+        @click="infoModal.open(null, item._id)"
         class="cursor-pointer text-2xl whitespace-nowrap"
       >
         <span class="pr-1">{{
@@ -181,7 +172,7 @@ const inventoryTypes = [
           :class="{
             'text-gray-300': item.system?.equipped?.carryType === 'dropped'
           }"
-          @click="infoEquip(item)"
+          @click="infoModal.open(null, item._id)"
         >
           <span>{{ item.name }}</span>
           <span class="text-xs"> x{{ item.system.quantity }}</span>
@@ -189,7 +180,7 @@ const inventoryTypes = [
         <ul class="ml-4" v-if="item.type === 'backpack'">
           <li
             v-for="stowed in actor.items.filter((i: Item) => i.system?.containerId === item._id)"
-            @click="infoEquip(stowed)"
+            @click="infoModal.open(null, stowed._id)"
           >
             {{ stowed.name }}<span class="text-xs"> x{{ stowed.system.quantity }}</span>
           </li>
@@ -198,6 +189,36 @@ const inventoryTypes = [
     </dl>
   </div>
   <Teleport to="#modals">
-    <InfoModal ref="infoModal" />
+    <Modal ref="investedModal" title="Invested Items">
+      <EquipmentInvested :actor="actor" />
+    </Modal>
+    <InfoModal ref="infoModal" :imageUrl="item?.img" :traits="item?.system.traits.value">
+      <template #title>
+        {{ item?.name }}
+      </template>
+      <template #description>
+        Level {{ item?.system.level.value }}
+        <span class="text-sm">
+          ({{ capitalize(item.system.traits.rarity) }}), {{ printPrice(item.system.price.value) }}
+        </span>
+      </template>
+      <template #beforeBody>
+        <div
+          class="flex my-2 basis-full justify-items-center empty:hidden border border-gray-400 cursor-pointer rounded-md w-full text-xs mb-2"
+        >
+          <div
+            v-for="t in toggleSet"
+            class="p-2 flex-auto border-l border-gray-300 first:border-none text-center"
+            @click="t?.toggleTrigger()"
+            :class="{ 'bg-gray-300': t.toggleIsActive() }"
+          >
+            {{ t.toggleText }}
+          </div>
+        </div>
+      </template>
+      <template #body>
+        <div v-html="removeUUIDs(item?.system.description.value)"></div>
+      </template>
+    </InfoModal>
   </Teleport>
 </template>

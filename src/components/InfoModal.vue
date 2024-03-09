@@ -12,41 +12,41 @@ import { getPath } from '@/utils/utilities'
 import { makeTraits, capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 
-export type InfoModalContent = {
-  itemId?: string
-  title?: string
-  description?: string
-  traits?: string[]
-  body?: string
-  iconPath?: string
-  component?: any
-  componentProps?: {}
-  actionButtons?: [
-    {
-      buttonHtml?: string
-      buttonClasses?: string
-      buttonText?: string
-      actionParams?: {}
-      actionMethod?: any
-    }
-  ]
-  toggleSet?: [
-    {
-      toggleText: string
-      toggleTrigger: () => void
-      toggleIsActive: () => boolean
-    }
-  ]
-}
+// export type InfoModalContent = {
+//   itemId?: string
+//   title?: string
+//   description?: string
+//   traits?: string[]
+//   body?: string
+//   iconPath?: string
+//   component?: any
+//   componentProps?: {}
+//   actionButtons?: [
+//     {
+//       buttonHtml?: string
+//       buttonClasses?: string
+//       buttonText?: string
+//       actionParams?: {}
+//       actionMethod?: any
+//     }
+//   ]
+//   toggleSet?: [
+//     {
+//       toggleText: string
+//       toggleTrigger: () => void
+//       toggleIsActive: () => boolean
+//     }
+//   ]
+// }
 
 const props = defineProps(['imageUrl', 'traits'])
-const content: InfoModalContent = reactive({})
+// const content: InfoModalContent = reactive({})
 const itemId = ref()
 
 const isOpen = ref(false)
-function open(newValues: InfoModalContent, newItemId: string) {
-  Object.assign(content, newValues)
-  itemId.value = newItemId ?? content.itemId
+function open(newValues: any, newItemId: string) {
+  // Object.assign(content, newValues)
+  itemId.value = newItemId //?? content.itemId
   // itemId.value = content.itemId
   isOpen.value = true
   // compProps.value = newValues.componentProps
@@ -101,27 +101,15 @@ defineExpose({ open, close, itemId })
               class="w-full max-w-md transform overflow-hidden bg-white p-6 text-left shadow-xl transition-all"
               v-touch:swipe.bottom="swipeClose"
             >
-              <div
-                class="flex basis-full justify-items-center empty:hidden border border-gray-400 cursor-pointer rounded-md w-full text-xs mb-2"
-              >
-                <div
-                  v-for="t in content.toggleSet"
-                  class="p-2 flex-auto border-l border-gray-300 first:border-none text-center"
-                  @click="t?.toggleTrigger()"
-                  :class="{ 'bg-gray-300': t.toggleIsActive() }"
-                >
-                  {{ t.toggleText }}
-                </div>
-              </div>
               <div class="max-h-[70vh] overflow-auto">
                 <div class="flex space-x-2">
                   <div>
-                    <img class="w-12" v-if="content.iconPath" :src="getPath(content.iconPath)" />
+                    <!-- <img class="w-12" v-if="content.iconPath" :src="getPath(content.iconPath)" /> -->
                     <img class="w-12" v-if="props.imageUrl" :src="getPath(props.imageUrl)" />
                   </div>
                   <div>
                     <DialogTitle as="h3" class="text-lg font-medium leading-6 text-gray-900">
-                      {{ content.title }}
+                      <!-- {{ content.title }} -->
                       <slot name="title"></slot>
                     </DialogTitle>
                     <div class="absolute right-0 top-0 pr-4 pt-4 sm:block">
@@ -135,7 +123,7 @@ defineExpose({ open, close, itemId })
                       </button>
                     </div>
                     <DialogDescription>
-                      <div v-if="content.description" v-html="content.description"></div>
+                      <!-- <div v-if="content.description" v-html="content.description"></div> -->
                       <slot name="description"></slot>
                     </DialogDescription>
                   </div>
@@ -145,15 +133,20 @@ defineExpose({ open, close, itemId })
                   class="mt-2 text-sm [&_p]:my-2"
                   v-html="makeTraits(props.traits)"
                 ></div>
+                <div>
+                  <slot name="beforeBody"></slot>
+                </div>
                 <div class="mt-2 text-sm [&_p]:my-2">
-                  <div v-if="content.body" v-html="removeUUIDs(content.body)"></div>
+                  <!-- <div v-if="content.body" v-html="removeUUIDs(content.body)"></div> -->
                   <slot name="body"></slot>
                 </div>
-                <component :is="content.component" v-bind="content.componentProps"></component>
-                <slot></slot>
+                <!-- <component :is="content.component" v-bind="content.componentProps"></component> -->
+                <div>
+                  <slot></slot>
+                </div>
               </div>
               <div class="mt-4 flex items-end justify-end gap-2">
-                <button
+                <!-- <button
                   v-for="b in content.actionButtons"
                   type="button"
                   class="inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
@@ -161,7 +154,7 @@ defineExpose({ open, close, itemId })
                   @click="b.actionMethod(b.actionParams)"
                 >
                   {{ b.buttonText }}
-                </button>
+                </button> -->
                 <slot name="actionButtons"></slot>
               </div>
             </DialogPanel>

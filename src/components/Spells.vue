@@ -3,13 +3,17 @@
 // todo: prepared spells
 // todo: wands
 // todo: prevent casting if depleted
+// todo: refactor spellbook to use computed variable
 import { inject, computed, ref } from 'vue'
-import { capitalize, makeActionIcons, makePropertiesHtml } from '@/utils/utilities'
+import { capitalize, makeActionIcons, makePropertiesHtml, removeUUIDs } from '@/utils/utilities'
 import Counter from '@/components/Counter.vue'
 import InfoModal from '@/components/InfoModal.vue'
 
 const infoModal = ref()
 const actor: any = inject('actor')
+const viewedItem = computed(
+  () => actor.value.items?.find((i: any) => i._id === infoModal?.value?.itemId)
+)
 
 function getLevelsForLocation(location: string): [any] {
   return actor.value?.items
@@ -29,27 +33,6 @@ function getSpellsForLocationAndLevel(location: string, level: number): [any] {
             !s.system.traits.value.includes('cantrip')
     })
   return spells
-}
-
-const spellBook = computed(() => {})
-
-const infoSpell = (id: string, level: number) => {
-  const spell = actor.value?.items.find((x: any) => x._id === id)
-  console.log('Spell: ', spell)
-  infoModal.value?.open({
-    title: `${spell.name}
-      <span class="text-2xl absolute pl-1 -mt-[.3rem]">
-        ${makeActionIcons(spell.system.time.value)}
-      </span>`,
-    description:
-      (spell.system.traits.value.includes('cantrip')
-        ? `Cantrip`
-        : `Rank ${spell.system.level.value}`) +
-      ` <span class="text-sm">(${capitalize(spell.system.traits.rarity)})</span>`,
-    traits: spell.system.traits.value,
-    body: makePropertiesHtml(spell) + spell.system.description.value,
-    iconPath: spell.img
-  })
 }
 </script>
 <template>
@@ -94,7 +77,7 @@ const infoSpell = (id: string, level: number) => {
             <ul>
               <li v-for="spell in getSpellsForLocationAndLevel(location._id, level)">
                 <div class="text-md">
-                  <span @click="infoSpell(spell._id, level)" class="cursor-pointer">
+                  <span @click="infoModal.open(null, spell._id)" class="cursor-pointer">
                     <span>{{ spell.name }}</span>
                     <span class="pl-1 text-md pf2-icon">{{
                       spell.system.time.value.replace('to', ' - ').replace('free', 'f')
@@ -109,6 +92,35 @@ const infoSpell = (id: string, level: number) => {
     </ul>
   </div>
   <Teleport to="#modals">
-    <InfoModal ref="infoModal" />
+    <InfoModal
+      ref="infoModal"
+      :imageUrl="viewedItem?.img"
+      :traits="viewedItem?.system.traits.value"
+    >
+      <template #title>
+        {{ viewedItem?.name }}
+        <span
+          class="text-2xl absolute pl-1 -mt-[.3rem]"
+          v-html="
+            makeActionIcons(viewedItem?.system.time.value.replace('to', ' - ').replace('free', 'f'))
+          "
+        ></span>
+      </template>
+      <template #description>
+        {{
+          (viewedItem.system.traits.value.includes('cantrip')
+            ? `Cantrip`
+            : `Rank
+        ${viewedItem.system.level.value}`) +
+          `
+        `
+        }}
+        <span class="text-sm">{{ capitalize(viewedItem.system.traits.rarity) }}</span>
+      </template>
+      <template #body>
+        <div v-html="makePropertiesHtml(viewedItem)"></div>
+        <div v-html="removeUUIDs(viewedItem.system.description.value)"></div>
+      </template>
+    </InfoModal>
   </Teleport>
 </template>

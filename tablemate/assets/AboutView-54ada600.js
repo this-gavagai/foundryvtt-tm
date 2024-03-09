@@ -1,4 +1,4 @@
-import { o as openBlock, c as createElementBlock, a as createBaseVNode } from "./index-b40a8e48.js";
+import { o as openBlock, c as createElementBlock, a as createBaseVNode } from "./index-748a40a3.js";
 const AboutView_vue_vue_type_style_index_0_lang = "";
 const _export_sfc = (sfc, props) => {
   const target = sfc.__vccOpts || sfc;
@@ -20,4 +20,4 @@ const AboutView = /* @__PURE__ */ _export_sfc(_sfc_main, [["render", _sfc_render
 export {
   AboutView as default
 };
-//# sourceMappingURL=AboutView-bbc3abdc.js.map
+//# sourceMappingURL=AboutView-54ada600.js.map

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onUpdated, ref } from 'vue'
+import { ref } from 'vue'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
 
 import { XMarkIcon } from '@heroicons/vue/24/outline'
@@ -13,8 +13,6 @@ function close() {
 }
 function open() {
   isOpen.value = true
-  console.log('hi')
-  console.log(content)
 
   setTimeout(() => {
     const target = content.value.querySelector('[focus-target]')
