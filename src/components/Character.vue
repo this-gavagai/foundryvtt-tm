@@ -4,6 +4,7 @@ import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
 
 import { useServer } from '@/utils/server'
 import { mergeDeep } from '@/utils/utilities'
+import { requestCharacterDetails, setupSocketListenersForActor } from '@/utils/api'
 
 import cowled from '@/assets/icons/cowled.svg'
 import biceps from '@/assets/icons/biceps.svg'
@@ -27,10 +28,8 @@ import Initiative from '@/components/Initiative.vue'
 
 const props = defineProps(['characterId'])
 
-// make all provided data
+// base data
 const world: any = inject('world')
-const rollModal = ref()
-provide('rollModal', rollModal)
 const actor = ref<any>({})
 provide('actor', actor)
 
@@ -56,85 +55,78 @@ await new Promise(function (resolve: any) {
     setTimeout(waitForSocket, 100)
   })()
 })
-
-// send request for enhanced character data
-socket.value.emit('module.tablemate', {
-  action: 'requestCharacterDetails',
-  actorId: props.characterId
-})
+requestCharacterDetails(props.characterId)
 
 // listen for tablemate messages
-socket.value.on('module.tablemate', (args: any) => {
-  switch (args.action) {
-    case 'gmOnline':
-      socket.value.emit('module.tablemate', {
-        action: 'requestCharacterDetails',
-        actorId: props.characterId
-      })
-      break
-    case 'updateCharacterDetails':
-      if (args.actorId === props.characterId) {
-        actor.value = args.actor
-        mergeDeep(actor.value.system, args.system)
-        actor.value.feats = args.feats
-        // actor.value.inventory = args.inventory
-        if (!window.actor) window.actor = actor.value
-      }
-      break
-    // case 'rollReady':
-    //   if (args.characterId === props.characterId) {
-    //     rollModal.value?.openModal(args.application, args.userId)
-    //   }
-    //   break
-    default:
-      console.log('roll not managed locally: ', args.action)
-  }
-})
+setupSocketListenersForActor(props.characterId, actor)
+// socket.value.on('module.tablemate', (args: any) => {
+//   switch (args.action) {
+//     case 'gmOnline':
+//       requestCharacterDetails(props.characterId)
+//       break
+//     case 'updateCharacterDetails':
+//       if (args.actorId === props.characterId) {
+//         actor.value = args.actor
+//         mergeDeep(actor.value.system, args.system)
+//         actor.value.feats = args.feats
+//         // actor.value.inventory = args.inventory
+//         if (!window.actor) window.actor = actor.value
+//       }
+//       break
+//     // case 'rollReady':
+//     //   if (args.characterId === props.characterId) {
+//     //     rollModal.value?.openModal(args.application, args.userId)
+//     //   }
+//     //   break
+//     default:
+//       console.log('roll not managed locally: ', args.action)
+//   }
+// })
 // listen for modifyDocument messages
-socket.value.on('modifyDocument', (mods: any) => {
-  // TODO: This is super verbose and not efficient at all. Need to think of a better way to handle synthetic data
-  switch (mods.request.type) {
-    case 'Actor':
-      mods.result.forEach((change: any) => {
-        if (change._id === actor.value._id) {
-          mergeDeep(actor.value, change)
-        }
-      })
-      break
-    case 'Item':
-      // handle item types
-      switch (mods.request.action) {
-        case 'update':
-          mods.result.forEach((change: any) => {
-            let inventoryItem = actor.value.items.find((a: any) => a._id == change._id)
-            if (inventoryItem) mergeDeep(inventoryItem, change)
-          })
-          break
-        case 'create':
-          console.log(mods)
-          if (mods.request.parentUuid === 'Actor.' + props.characterId) {
-            mods.result.forEach((c: any) => {
-              actor.value.items.push(c)
-            })
-          }
-          break
-        case 'delete':
-          mods.result.forEach((d: string) => {
-            const item = actor.value.items.find((i: any) => i._id === d)
-            if (item) {
-              const index = actor.value.items.indexOf(item)
-              actor.value.items.splice(index, 1)
-            }
-          })
-          break
-        default:
-          console.log('item action not handled', mods.request.action)
-      }
-      break
-    default:
-      console.log('request type not handled', mods.request.action)
-  }
-})
+// socket.value.on('modifyDocument', (mods: any) => {
+//   // TODO: This is super verbose and not efficient at all. Need to think of a better way to handle synthetic data
+//   switch (mods.request.type) {
+//     case 'Actor':
+//       mods.result.forEach((change: any) => {
+//         if (change._id === actor.value._id) {
+//           mergeDeep(actor.value, change)
+//         }
+//       })
+//       break
+//     case 'Item':
+//       // handle item types
+//       switch (mods.request.action) {
+//         case 'update':
+//           mods.result.forEach((change: any) => {
+//             let inventoryItem = actor.value.items.find((a: any) => a._id == change._id)
+//             if (inventoryItem) mergeDeep(inventoryItem, change)
+//           })
+//           break
+//         case 'create':
+//           console.log(mods)
+//           if (mods.request.parentUuid === 'Actor.' + props.characterId) {
+//             mods.result.forEach((c: any) => {
+//               actor.value.items.push(c)
+//             })
+//           }
+//           break
+//         case 'delete':
+//           mods.result.forEach((d: string) => {
+//             const item = actor.value.items.find((i: any) => i._id === d)
+//             if (item) {
+//               const index = actor.value.items.indexOf(item)
+//               actor.value.items.splice(index, 1)
+//             }
+//           })
+//           break
+//         default:
+//           console.log('item action not handled', mods.request.action)
+//       }
+//       break
+//     default:
+//       console.log('request type not handled', mods.request.action)
+//   }
+// })
 
 // debugging conveniences
 declare global {

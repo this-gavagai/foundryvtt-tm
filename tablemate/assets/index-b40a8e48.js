@@ -11807,6 +11807,122 @@ const SignedNumber = new Intl.NumberFormat("en-US", {
 function getPath(path) {
   return path.slice(0, 4) === "http" ? path : "../../" + path;
 }
+const { socket } = useServer();
+function requestCharacterDetails(actorId) {
+  socket.value.emit("module.tablemate", {
+    action: "requestCharacterDetails",
+    actorId
+  });
+}
+function setupSocketListenersForActor(actorId, actor) {
+  socket.value.on("module.tablemate", (args) => {
+    switch (args.action) {
+      case "gmOnline":
+        requestCharacterDetails(actorId);
+        break;
+      case "updateCharacterDetails":
+        if (args.actorId === actorId) {
+          actor.value = args.actor;
+          mergeDeep(actor.value.system, args.system);
+          actor.value.feats = args.feats;
+          actor.value.inventory = args.inventory;
+          if (!window.actor)
+            window.actor = actor.value;
+        }
+        break;
+      default:
+        console.log("roll not managed locally: ", args.action);
+    }
+  });
+  socket.value.on("modifyDocument", (mods) => {
+    switch (mods.request.type) {
+      case "Actor":
+        mods.result.forEach((change) => {
+          if (change._id === actor.value._id) {
+            mergeDeep(actor.value, change);
+          }
+        });
+        break;
+      case "Item":
+        if (mods.request.parentUuid !== "Actor." + actorId)
+          break;
+        switch (mods.request.action) {
+          case "update":
+            _processUpdates(actor, mods.result);
+            break;
+          case "create":
+            _processCreates(actor, mods.result);
+            break;
+          case "delete":
+            _processDeletes(actor, mods.result);
+            break;
+          default:
+            console.log("item action not handled", mods.request.action);
+        }
+        break;
+      default:
+        console.log("request type not handled", mods.request.action);
+    }
+  });
+}
+function deleteActorItem(actor, itemId) {
+  console.log(actor);
+  socket.value.emit(
+    "modifyDocument",
+    {
+      action: "delete",
+      type: "Item",
+      ids: [itemId],
+      parentUuid: "Actor." + actor.value._id
+    },
+    (r2) => {
+      _processDeletes(actor, r2.result);
+      requestCharacterDetails(actor.value._id);
+    }
+  );
+}
+function updateActorItem(actor, itemId, update, additionalOptions) {
+  socket.value.emit(
+    "modifyDocument",
+    {
+      action: "update",
+      type: "Item",
+      options: { diff: true, render: true, ...additionalOptions },
+      parentUuid: "Actor." + actor.value._id,
+      updates: [
+        {
+          _id: itemId,
+          ...update
+        }
+      ]
+    },
+    (r2) => {
+      _processUpdates(actor, r2.result);
+      requestCharacterDetails(actor.value._id);
+    }
+  );
+}
+function _processDeletes(actor, results) {
+  results.forEach((d2) => {
+    const item = actor.value.items.find((i2) => i2._id === d2);
+    if (item) {
+      const index = actor.value.items.indexOf(item);
+      actor.value.items.splice(index, 1);
+    }
+  });
+}
+function _processUpdates(actor, results) {
+  results.forEach((change) => {
+    let item = actor.value.items.find((a2) => a2._id == change._id);
+    if (item)
+      mergeDeep(item, change);
+  });
+}
+function _processCreates(actor, results) {
+  results.forEach((c2) => {
+    actor.value.items.push(c2);
+  });
+}
 const cowled = "/modules/tablemate/assets/cowled-48ae9a0c.svg";
 const biceps = "/modules/tablemate/assets/biceps-e17f9ce7.svg";
 const backpack = "/modules/tablemate/assets/backpack-0f960096.svg";
@@ -12534,60 +12650,6 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const { socket } = useServer();
-function requestCharacterDetails(actorId) {
-  socket.value.emit("module.tablemate", {
-    action: "requestCharacterDetails",
-    actorId
-  });
-}
-function deleteActorItem(actor, itemId) {
-  console.log(actor);
-  socket.value.emit(
-    "modifyDocument",
-    {
-      action: "delete",
-      type: "Item",
-      ids: [itemId],
-      parentUuid: "Actor." + actor.value._id
-    },
-    (r2) => {
-      r2.result.forEach((d2) => {
-        const item = actor.value.items.find((i2) => i2._id === d2);
-        if (item) {
-          const index = actor.value.items.indexOf(item);
-          console.log(index);
-          actor.value.items.splice(index, 1);
-        }
-      });
-      requestCharacterDetails(actor.value._id);
-    }
-  );
-}
-function updateActorItem(actor, itemId, update, additionalOptions) {
-  socket.value.emit(
-    "modifyDocument",
-    {
-      action: "update",
-      type: "Item",
-      options: { diff: true, render: true, ...additionalOptions },
-      parentUuid: "Actor." + actor.value._id,
-      updates: [
-        {
-          _id: itemId,
-          ...update
-        }
-      ]
-    },
-    (r2) => {
-      r2.result.forEach((change) => {
-        let item = actor.value.items.find((a2) => a2._id == change._id);
-        mergeDeep(item, change);
-        requestCharacterDetails(actor.value._id);
-      });
-    }
-  );
-}
 const _hoisted_1$c = { class: "border border-t-0 px-6 py-4 flex gap-2 empty:hidden" };
 const _hoisted_2$8 = ["onClick"];
 const _hoisted_3$8 = { class: "w-12" };
@@ -13803,8 +13865,6 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
     let __temp, __restore;
     const props = __props;
     const world = inject("world");
-    const rollModal = ref();
-    provide("rollModal", rollModal);
     const actor = ref({});
     provide("actor", actor);
     watch(
@@ -13828,74 +13888,8 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
         setTimeout(waitForSocket, 100);
       })();
     })), await __temp, __restore();
-    socket2.value.emit("module.tablemate", {
-      action: "requestCharacterDetails",
-      actorId: props.characterId
-    });
-    socket2.value.on("module.tablemate", (args) => {
-      switch (args.action) {
-        case "gmOnline":
-          socket2.value.emit("module.tablemate", {
-            action: "requestCharacterDetails",
-            actorId: props.characterId
-          });
-          break;
-        case "updateCharacterDetails":
-          if (args.actorId === props.characterId) {
-            actor.value = args.actor;
-            mergeDeep(actor.value.system, args.system);
-            actor.value.feats = args.feats;
-            if (!window.actor)
-              window.actor = actor.value;
-          }
-          break;
-        default:
-          console.log("roll not managed locally: ", args.action);
-      }
-    });
-    socket2.value.on("modifyDocument", (mods) => {
-      switch (mods.request.type) {
-        case "Actor":
-          mods.result.forEach((change) => {
-            if (change._id === actor.value._id) {
-              mergeDeep(actor.value, change);
-            }
-          });
-          break;
-        case "Item":
-          switch (mods.request.action) {
-            case "update":
-              mods.result.forEach((change) => {
-                let inventoryItem = actor.value.items.find((a2) => a2._id == change._id);
-                if (inventoryItem)
-                  mergeDeep(inventoryItem, change);
-              });
-              break;
-            case "create":
-              console.log(mods);
-              if (mods.request.parentUuid === "Actor." + props.characterId) {
-                mods.result.forEach((c2) => {
-                  actor.value.items.push(c2);
-                });
-              }
-              break;
-            case "delete":
-              mods.result.forEach((d2) => {
-                const item = actor.value.items.find((i2) => i2._id === d2);
-                if (item) {
-                  const index = actor.value.items.indexOf(item);
-                  actor.value.items.splice(index, 1);
-                }
-              });
-              break;
-            default:
-              console.log("item action not handled", mods.request.action);
-          }
-          break;
-        default:
-          console.log("request type not handled", mods.request.action);
-      }
-    });
+    requestCharacterDetails(props.characterId);
+    setupSocketListenersForActor(props.characterId, actor);
     return (_ctx, _cache) => {
       return openBlock(), createElementBlock("div", _hoisted_1$1, [
         createBaseVNode("div", _hoisted_2, [
@@ -15933,7 +15927,7 @@ const router = createRouter({
       // route level code-splitting
       // this generates a separate chunk (About.[hash].js) for this route
       // which is lazy-loaded when the route is visited.
-      component: () => __vitePreload(() => import("./AboutView-c3731716.js"), true ? ["assets/AboutView-c3731716.js","assets/AboutView-fe0787ef.css"] : void 0)
+      component: () => __vitePreload(() => import("./AboutView-bbc3abdc.js"), true ? ["assets/AboutView-bbc3abdc.js","assets/AboutView-fe0787ef.css"] : void 0)
     }
   ]
 });
@@ -15946,4 +15940,4 @@ export {
   createElementBlock as c,
   openBlock as o
 };
-//# sourceMappingURL=index-4d3a8795.js.map
+//# sourceMappingURL=index-b40a8e48.js.map
