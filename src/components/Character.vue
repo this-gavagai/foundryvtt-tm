@@ -60,7 +60,7 @@ await new Promise(function (resolve: any) {
 // send request for enhanced character data
 socket.value.emit('module.tablemate', {
   action: 'requestCharacterDetails',
-  characterId: props.characterId
+  actorId: props.characterId
 })
 
 // listen for tablemate messages
@@ -69,15 +69,15 @@ socket.value.on('module.tablemate', (args: any) => {
     case 'gmOnline':
       socket.value.emit('module.tablemate', {
         action: 'requestCharacterDetails',
-        characterId: props.characterId
+        actorId: props.characterId
       })
       break
-    case 'sendCharacterDetails':
+    case 'updateCharacterDetails':
       if (args.actorId === props.characterId) {
         actor.value = args.actor
         mergeDeep(actor.value.system, args.system)
         actor.value.feats = args.feats
-        actor.value.inventory = args.inventory
+        // actor.value.inventory = args.inventory
         if (!window.actor) window.actor = actor.value
       }
       break
@@ -93,11 +93,6 @@ socket.value.on('module.tablemate', (args: any) => {
 // listen for modifyDocument messages
 socket.value.on('modifyDocument', (mods: any) => {
   // TODO: This is super verbose and not efficient at all. Need to think of a better way to handle synthetic data
-  socket.value.emit('module.tablemate', {
-    action: 'requestCharacterDetails',
-    characterId: props.characterId
-  })
-
   switch (mods.request.type) {
     case 'Actor':
       mods.result.forEach((change: any) => {
@@ -156,8 +151,8 @@ declare global {
     <div class="p-0">
       <CharacterHeader />
       <TabGroup>
-        <TabPanels class="mb-16">
-          <TabPanel>
+        <TabPanels class="mb-16 focus:ring-color-red-100">
+          <TabPanel class="mb-16 focus:ring-color-red-100">
             <Resources />
             <Effects />
             <Attributes />

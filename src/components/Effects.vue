@@ -1,35 +1,43 @@
 <script setup lang="ts">
-import { inject, ref } from 'vue'
+import { inject, ref, computed } from 'vue'
 import type { Item } from '@/utils/pf2e-types'
 import InfoModal from '@/components/InfoModal.vue'
+import { deleteActorItem, updateActorItem } from '@/utils/api'
 
 import { capitalize, removeUUIDs, getPath } from '@/utils/utilities'
 
-// const infoModal: any = inject('infoModal')
 const infoModal = ref()
 const actor: any = inject('actor')
-// const props = defineProps(['actor'])
+const viewedItem = computed(
+  () => actor.value.items?.find((i: any) => i._id === infoModal?.value?.itemId)
+)
 
-function infoCondition(effect: any) {
-  console.log(effect)
-  infoModal.value.open({
-    title: `${effect.name} ${effect.system?.value?.value ?? ''}`,
-    description: `${capitalize(effect.type)}`,
-    body: removeUUIDs(effect.system.description.value),
-    iconPath: effect.img
-  })
+function deleteEffect(effectId: string) {
+  deleteActorItem(actor, effectId)
+}
+function incrementEffectValue(effectId: any, change: number) {
+  const effect = actor.value.items.find((i: any) => i._id === effectId)
+  const newValue = effect.system.value.value + change
+  const update = {
+    system: {
+      value: {
+        value: newValue
+      }
+    }
+  }
+  updateActorItem(actor, effectId, update, { conditionValue: newValue })
 }
 </script>
 <template>
   <div class="border border-t-0 px-6 py-4 flex gap-2 empty:hidden">
     <div
-      v-for="effect in actor?.items?.filter((i: Item) => ['effect', 'condition'].includes(i.type))"
-      @click="infoCondition(effect)"
+      v-for="effect in actor?.items?.filter((i: Item) => ['effect', 'condition'].includes(i?.type))"
+      @click="infoModal.open(null, effect._id)"
     >
       <div class="w-12">
         <div class="relative">
           <div
-            v-if="effect.system?.value?.value"
+            v-if="effect.system?.value?.isValued"
             class="absolute right-0 bottom-0 bg-[#FFFFFFCC] border border-black px-1 text-xs"
           >
             {{ effect.system?.value?.value }}
@@ -43,6 +51,45 @@ function infoCondition(effect: any) {
     </div>
   </div>
   <Teleport to="#modals">
-    <InfoModal ref="infoModal" />
+    <InfoModal ref="infoModal" :imageUrl="viewedItem?.img">
+      <template #title>
+        {{ viewedItem?.name }}
+        {{ viewedItem?.system?.value?.value }}
+      </template>
+      <template #description>
+        {{ capitalize(viewedItem?.type) }}
+      </template>
+      <template #body>
+        <div v-html="removeUUIDs(viewedItem?.system?.description?.value)"></div>
+      </template>
+      <template #actionButtons>
+        <button
+          type="button"
+          class="bg-red-200 hover:bg-red-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
+          @click="
+            () => {
+              deleteEffect(viewedItem?._id)
+              infoModal.close()
+            }
+          "
+        >
+          Remove
+        </button>
+        <button
+          type="button"
+          class="bg-gray-200 hover:bg-gray-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
+          @click="() => incrementEffectValue(viewedItem?._id, -1)"
+        >
+          -
+        </button>
+        <button
+          type="button"
+          class="bg-gray-200 hover:bg-gray-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
+          @click="() => incrementEffectValue(viewedItem?._id, 1)"
+        >
+          +
+        </button>
+      </template>
+    </InfoModal>
   </Teleport>
 </template>

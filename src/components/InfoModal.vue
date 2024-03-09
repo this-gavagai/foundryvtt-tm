@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, inject } from 'vue'
 import {
   Dialog,
   DialogPanel,
@@ -10,8 +10,10 @@ import {
 } from '@headlessui/vue'
 import { getPath } from '@/utils/utilities'
 import { makeTraits, capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
+import { XMarkIcon } from '@heroicons/vue/24/outline'
 
 export type InfoModalContent = {
+  itemId?: string
   title?: string
   description?: string
   traits?: string[]
@@ -36,10 +38,12 @@ export type InfoModalContent = {
     }
   ]
 }
+
+const props = defineProps(['imageUrl'])
 const content: InfoModalContent = reactive({})
+const itemId = ref()
 
 const isOpen = ref(false)
-// const compProps = ref()
 function close() {
   // content.title =
   //   content.description =
@@ -53,8 +57,10 @@ function close() {
   //     undefined
   isOpen.value = false
 }
-function open(newValues: InfoModalContent) {
+function open(newValues: InfoModalContent, newItemId: string) {
   Object.assign(content, newValues)
+  itemId.value = newItemId ?? content.itemId
+  // itemId.value = content.itemId
   isOpen.value = true
   // compProps.value = newValues.componentProps
 }
@@ -63,7 +69,7 @@ function swipeClose(item: any, i: any) {
   close()
 }
 
-defineExpose({ open, close })
+defineExpose({ open, close, itemId })
 </script>
 <template>
   <TransitionRoot appear :show="isOpen" as="template">
@@ -109,29 +115,42 @@ defineExpose({ open, close })
               </div>
               <div class="max-h-[70vh] overflow-auto">
                 <div class="flex space-x-2">
-                  <div v-if="content.iconPath">
-                    <img class="w-12" :src="getPath(content.iconPath)" />
+                  <div>
+                    <img class="w-12" v-if="content.iconPath" :src="getPath(content.iconPath)" />
+                    <img class="w-12" v-if="props.imageUrl" :src="getPath(props.imageUrl)" />
                   </div>
                   <div>
-                    <DialogTitle
-                      as="h3"
-                      class="text-lg font-medium leading-6 text-gray-900"
-                      v-html="content.title"
-                    />
-                    <DialogDescription v-html="content.description" />
+                    <DialogTitle as="h3" class="text-lg font-medium leading-6 text-gray-900">
+                      {{ content.title }}
+                      <slot name="title"></slot>
+                    </DialogTitle>
+                    <div class="absolute right-0 top-0 pr-4 pt-4 sm:block">
+                      <button
+                        type="button"
+                        class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none"
+                        @click="close"
+                      >
+                        <span class="sr-only">Close</span>
+                        <XMarkIcon class="h-6 w-6" aria-hidden="true" />
+                      </button>
+                    </div>
+                    <DialogDescription>
+                      <div v-if="content.description" v-html="content.description"></div>
+                      <slot name="description"></slot>
+                    </DialogDescription>
                   </div>
                 </div>
                 <div
                   v-if="content.traits"
-                  class="mt-2 text-sm [&>p]:my-1"
+                  class="mt-2 text-sm [&_p]:my-2"
                   v-html="makeTraits(content.traits)"
                 ></div>
-                <div
-                  v-if="content.body"
-                  class="mt-2 text-sm [&>p]:my-1"
-                  v-html="removeUUIDs(content.body)"
-                ></div>
+                <div class="mt-2 text-sm [&_p]:my-2">
+                  <div v-if="content.body" v-html="removeUUIDs(content.body)"></div>
+                  <slot name="body"></slot>
+                </div>
                 <component :is="content.component" v-bind="content.componentProps"></component>
+                <slot></slot>
               </div>
               <div class="mt-4 flex items-end justify-end gap-2">
                 <button
@@ -143,13 +162,7 @@ defineExpose({ open, close })
                 >
                   {{ b.buttonText }}
                 </button>
-                <button
-                  type="button"
-                  class="inline-flex justify-center items-end border border-transparent bg-gray-100 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-200 focus:outline-none"
-                  @click="close"
-                >
-                  Close
-                </button>
+                <slot name="actionButtons"></slot>
               </div>
             </DialogPanel>
           </TransitionChild>

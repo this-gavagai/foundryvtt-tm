@@ -6,7 +6,6 @@ export function setupCharSheet() {
   const user = game.data.users.find((x) => x._id === game.userId)
   console.log('TABLEMATE ready:', user)
 
-  console.log('tablemate:', 'listener update')
   game.socket.onAnyOutgoing((event, ...args) => {
     if (
       event === 'userActivity' ||
@@ -18,6 +17,8 @@ export function setupCharSheet() {
     console.log(`SEND ${event}`, args)
   })
 
+  game.socket.on('modifyDocument', (args) => console.log(args))
+
   game.socket.on(MODNAME, (args) => {
     console.log('RECV', args)
     switch (args.action) {
@@ -25,7 +26,7 @@ export function setupCharSheet() {
         announceSelf()
         break
       case 'requestCharacterDetails':
-        if (isFirstGm()) sendCharacterDetails(args)
+        if (isFirstGm()) updateCharacterDetails(args)
         break
       case 'rollCheck':
         if (isObserverOrTryGm()) rollCheck(args)
@@ -79,10 +80,10 @@ function isObserverOnline() {
 }
 
 // content functions
-function sendCharacterDetails(args) {
-  const a = game.actors.find((x) => x._id === args.characterId)
+function updateCharacterDetails(args) {
+  const a = game.actors.find((x) => x._id === args.actorId)
   const info = {
-    action: 'sendCharacterDetails',
+    action: 'updateCharacterDetails',
     actorId: a._id,
     actor: a,
     system: a.system,
