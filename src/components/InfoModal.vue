@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, inject } from 'vue'
+import { ref, reactive } from 'vue'
 import {
   Dialog,
   DialogPanel,
@@ -39,11 +39,18 @@ export type InfoModalContent = {
   ]
 }
 
-const props = defineProps(['imageUrl'])
+const props = defineProps(['imageUrl', 'traits'])
 const content: InfoModalContent = reactive({})
 const itemId = ref()
 
 const isOpen = ref(false)
+function open(newValues: InfoModalContent, newItemId: string) {
+  Object.assign(content, newValues)
+  itemId.value = newItemId ?? content.itemId
+  // itemId.value = content.itemId
+  isOpen.value = true
+  // compProps.value = newValues.componentProps
+}
 function close() {
   // content.title =
   //   content.description =
@@ -56,13 +63,6 @@ function close() {
   //   content.toggleSet =
   //     undefined
   isOpen.value = false
-}
-function open(newValues: InfoModalContent, newItemId: string) {
-  Object.assign(content, newValues)
-  itemId.value = newItemId ?? content.itemId
-  // itemId.value = content.itemId
-  isOpen.value = true
-  // compProps.value = newValues.componentProps
 }
 
 function swipeClose(item: any, i: any) {
@@ -141,9 +141,9 @@ defineExpose({ open, close, itemId })
                   </div>
                 </div>
                 <div
-                  v-if="content.traits"
+                  v-if="props.traits"
                   class="mt-2 text-sm [&_p]:my-2"
-                  v-html="makeTraits(content.traits)"
+                  v-html="makeTraits(props.traits)"
                 ></div>
                 <div class="mt-2 text-sm [&_p]:my-2">
                   <div v-if="content.body" v-html="removeUUIDs(content.body)"></div>

@@ -11861,8 +11861,8 @@ const _hoisted_5$b = [
 ];
 const _hoisted_6$9 = { class: "pl-2" };
 const _hoisted_7$7 = { class: "text-2xl whitespace-nowrap overflow-hidden" };
-const _hoisted_8$6 = /* @__PURE__ */ createBaseVNode("div", { class: "text-gray-400 relative select-none py-2 pl-6 pr-4" }, " Loading... ", -1);
-const _hoisted_9$3 = { class: "text-md whitespace-nowrap overflow-hidden" };
+const _hoisted_8$7 = /* @__PURE__ */ createBaseVNode("div", { class: "text-gray-400 relative select-none py-2 pl-6 pr-4" }, " Loading... ", -1);
+const _hoisted_9$4 = { class: "text-md whitespace-nowrap overflow-hidden" };
 const _hoisted_10$3 = { class: "text-md whitespace-nowrap overflow-hidden" };
 const _hoisted_11$3 = { key: 0 };
 const _sfc_main$l = /* @__PURE__ */ defineComponent({
@@ -11911,7 +11911,7 @@ const _sfc_main$l = /* @__PURE__ */ defineComponent({
                     return [
                       !unref(world).actors ? (openBlock(), createBlock(unref(Ue), { key: 0 }, {
                         default: withCtx(() => [
-                          _hoisted_8$6
+                          _hoisted_8$7
                         ]),
                         _: 1
                       })) : createCommentVNode("", true),
@@ -11941,7 +11941,7 @@ const _sfc_main$l = /* @__PURE__ */ defineComponent({
               _: 1
             })
           ]),
-          createBaseVNode("div", _hoisted_9$3, [
+          createBaseVNode("div", _hoisted_9$4, [
             createBaseVNode("span", null, toDisplayString(((_f = (_e = unref(actor).items) == null ? void 0 : _e.find((x2) => x2.type === "ancestry")) == null ? void 0 : _f.name) ?? "-") + " ", 1),
             createBaseVNode("span", null, toDisplayString((_h = (_g = unref(actor).items) == null ? void 0 : _g.find((x2) => x2.type === "background")) == null ? void 0 : _h.name), 1)
           ]),
@@ -12076,8 +12076,8 @@ const _hoisted_4$b = { class: "flex basis-full justify-items-center empty:hidden
 const _hoisted_5$9 = ["onClick"];
 const _hoisted_6$7 = { class: "max-h-[70vh] overflow-auto" };
 const _hoisted_7$6 = { class: "flex space-x-2" };
-const _hoisted_8$5 = ["src"];
-const _hoisted_9$2 = ["src"];
+const _hoisted_8$6 = ["src"];
+const _hoisted_9$3 = ["src"];
 const _hoisted_10$2 = { class: "absolute right-0 top-0 pr-4 pt-4 sm:block" };
 const _hoisted_11$2 = /* @__PURE__ */ createBaseVNode("span", { class: "sr-only" }, "Close", -1);
 const _hoisted_12$2 = ["innerHTML"];
@@ -12088,19 +12088,19 @@ const _hoisted_16 = { class: "mt-4 flex items-end justify-end gap-2" };
 const _hoisted_17 = ["onClick"];
 const _sfc_main$j = /* @__PURE__ */ defineComponent({
   __name: "InfoModal",
-  props: ["imageUrl"],
+  props: ["imageUrl", "traits"],
   setup(__props, { expose: __expose }) {
     const props = __props;
     const content = reactive({});
     const itemId = ref();
     const isOpen = ref(false);
-    function close() {
-      isOpen.value = false;
-    }
     function open(newValues, newItemId) {
       Object.assign(content, newValues);
       itemId.value = newItemId ?? content.itemId;
       isOpen.value = true;
+    }
+    function close() {
+      isOpen.value = false;
     }
     function swipeClose(item, i2) {
       close();
@@ -12163,12 +12163,12 @@ const _sfc_main$j = /* @__PURE__ */ defineComponent({
                                   key: 0,
                                   class: "w-12",
                                   src: unref(getPath)(content.iconPath)
-                                }, null, 8, _hoisted_8$5)) : createCommentVNode("", true),
+                                }, null, 8, _hoisted_8$6)) : createCommentVNode("", true),
                                 props.imageUrl ? (openBlock(), createElementBlock("img", {
                                   key: 1,
                                   class: "w-12",
                                   src: unref(getPath)(props.imageUrl)
-                                }, null, 8, _hoisted_9$2)) : createCommentVNode("", true)
+                                }, null, 8, _hoisted_9$3)) : createCommentVNode("", true)
                               ]),
                               createBaseVNode("div", null, [
                                 createVNode(unref(Ve), {
@@ -12206,10 +12206,10 @@ const _sfc_main$j = /* @__PURE__ */ defineComponent({
                                 })
                               ])
                             ]),
-                            content.traits ? (openBlock(), createElementBlock("div", {
+                            props.traits ? (openBlock(), createElementBlock("div", {
                               key: 0,
                               class: "mt-2 text-sm [&_p]:my-2",
-                              innerHTML: unref(makeTraits)(content.traits)
+                              innerHTML: unref(makeTraits)(props.traits)
                             }, null, 8, _hoisted_13$1)) : createCommentVNode("", true),
                             createBaseVNode("div", _hoisted_14, [
                               content.body ? (openBlock(), createElementBlock("div", {
@@ -12429,8 +12429,8 @@ const _hoisted_4$9 = { class: "" };
 const _hoisted_5$7 = { class: "underline text-xl" };
 const _hoisted_6$6 = { class: "pl-1 text-xs" };
 const _hoisted_7$5 = { class: "mt-2 first:mt-0" };
-const _hoisted_8$4 = { class: "text-sm italic" };
-const _hoisted_9$1 = { class: "pr-1" };
+const _hoisted_8$5 = { class: "text-sm italic" };
+const _hoisted_9$2 = { class: "pr-1" };
 const _hoisted_10$1 = { class: "text-md" };
 const _hoisted_11$1 = ["onClick"];
 const _hoisted_12$1 = { class: "pl-1 text-md pf2-icon" };
@@ -12493,8 +12493,8 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
                   (openBlock(true), createElementBlock(Fragment, null, renderList(getLevelsForLocation(location2._id), (level) => {
                     var _a3;
                     return openBlock(), createElementBlock("li", _hoisted_7$5, [
-                      createBaseVNode("h4", _hoisted_8$4, [
-                        createBaseVNode("span", _hoisted_9$1, toDisplayString(level == 0 ? "Cantrips" : "Rank " + level), 1),
+                      createBaseVNode("h4", _hoisted_8$5, [
+                        createBaseVNode("span", _hoisted_9$2, toDisplayString(level == 0 ? "Cantrips" : "Rank " + level), 1),
                         ((_a3 = location2.system) == null ? void 0 : _a3.prepared.value) === "spontaneous" ? (openBlock(), createBlock(_sfc_main$f, {
                           key: 0,
                           class: "text-xs",
@@ -12598,7 +12598,7 @@ const _hoisted_5$6 = {
 };
 const _hoisted_6$5 = ["src"];
 const _hoisted_7$4 = { class: "text-[0.5rem] whitespace-nowrap overflow-hidden w-12 text-center" };
-const _hoisted_8$3 = ["innerHTML"];
+const _hoisted_8$4 = ["innerHTML"];
 const _sfc_main$d = /* @__PURE__ */ defineComponent({
   __name: "Effects",
   setup(__props) {
@@ -12673,7 +12673,7 @@ const _sfc_main$d = /* @__PURE__ */ defineComponent({
               return [
                 createBaseVNode("div", {
                   innerHTML: unref(removeUUIDs)((_c2 = (_b2 = (_a2 = viewedItem.value) == null ? void 0 : _a2.system) == null ? void 0 : _b2.description) == null ? void 0 : _c2.value)
-                }, null, 8, _hoisted_8$3)
+                }, null, 8, _hoisted_8$4)
               ];
             }),
             actionButtons: withCtx(() => [
@@ -13044,7 +13044,7 @@ const _hoisted_5$4 = {
 };
 const _hoisted_6$4 = { class: "w-full py-8 text-3xl flex justify-center items-center" };
 const _hoisted_7$3 = ["placeholder"];
-const _hoisted_8$2 = /* @__PURE__ */ createBaseVNode("div", { class: "mt-5 sm:mt-4 sm:flex sm:flex-row-reverse" }, [
+const _hoisted_8$3 = /* @__PURE__ */ createBaseVNode("div", { class: "mt-5 sm:mt-4 sm:flex sm:flex-row-reverse" }, [
   /* @__PURE__ */ createBaseVNode("button", {
     type: "submit",
     class: "inline-flex w-full justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:ml-3 sm:w-auto"
@@ -13147,7 +13147,7 @@ const _sfc_main$9 = /* @__PURE__ */ defineComponent({
                       "focus-target": ""
                     }, null, 40, _hoisted_7$3)
                   ]),
-                  _hoisted_8$2
+                  _hoisted_8$3
                 ], 32)
               ];
             }),
@@ -13178,26 +13178,22 @@ const _hoisted_4$4 = ["onClick"];
 const _hoisted_5$3 = { class: "text-xs text-gray-500 absolute text-right w-4 pt-1" };
 const _hoisted_6$3 = { class: "pl-6 cursor-pointer" };
 const _hoisted_7$2 = ["onClick"];
+const _hoisted_8$2 = { class: "text-sm" };
+const _hoisted_9$1 = ["innerHTML"];
 const _sfc_main$7 = /* @__PURE__ */ defineComponent({
   __name: "Feats",
   setup(__props) {
     const infoModal = ref();
     const actor = inject("actor");
-    function infoFeat(featId) {
-      var _a, _b;
-      console.log("Feat: ", featId);
-      const item = actor.value.items.find((i2) => i2._id == featId);
-      console.log(infoModal);
-      (_b = infoModal.value) == null ? void 0 : _b.open({
-        title: item == null ? void 0 : item.name,
-        description: `Level ${((_a = item == null ? void 0 : item.system.level) == null ? void 0 : _a.value) ?? "-"} <span class="text-sm">(${capitalize(
-          item == null ? void 0 : item.system.traits.rarity
-        )})</span>`,
-        traits: item == null ? void 0 : item.system.traits.value,
-        body: item == null ? void 0 : item.system.description.value,
-        iconPath: item == null ? void 0 : item.img
-      });
-    }
+    const viewedItem = computed(
+      () => {
+        var _a;
+        return (_a = actor.value.items) == null ? void 0 : _a.find((i2) => {
+          var _a2;
+          return i2._id === ((_a2 = infoModal == null ? void 0 : infoModal.value) == null ? void 0 : _a2.itemId);
+        });
+      }
+    );
     const categoryLabels = /* @__PURE__ */ new Map([
       ["PF2E.FeaturesAncestryHeader", "Ancestry Features"],
       ["PF2E.FeaturesClassHeader", "Class Features"],
@@ -13209,6 +13205,7 @@ const _sfc_main$7 = /* @__PURE__ */ defineComponent({
       ["PF2E.FeatBonusHeader", "Bonus Feats"]
     ]);
     return (_ctx, _cache) => {
+      var _a, _b;
       return openBlock(), createElementBlock(Fragment, null, [
         createBaseVNode("div", _hoisted_1$6, [
           _hoisted_2$4,
@@ -13216,21 +13213,21 @@ const _sfc_main$7 = /* @__PURE__ */ defineComponent({
             return openBlock(), createElementBlock("dl", null, [
               createBaseVNode("dt", _hoisted_3$4, toDisplayString(unref(categoryLabels).get(category.label) ?? category.label), 1),
               (openBlock(true), createElementBlock(Fragment, null, renderList(category.feats, (feat) => {
-                var _a, _b, _c, _d;
+                var _a2, _b2, _c, _d;
                 return openBlock(), createElementBlock("dd", null, [
                   createBaseVNode("div", {
                     class: "relative",
-                    onClick: ($event) => infoFeat(feat.feat._id)
+                    onClick: ($event) => infoModal.value.open(null, feat.feat._id)
                   }, [
                     createBaseVNode("span", _hoisted_5$3, toDisplayString(feat.level ?? feat.feat.system.level.value), 1),
-                    createBaseVNode("span", _hoisted_6$3, toDisplayString((_a = feat.feat) == null ? void 0 : _a.name), 1)
+                    createBaseVNode("span", _hoisted_6$3, toDisplayString((_a2 = feat.feat) == null ? void 0 : _a2.name), 1)
                   ], 8, _hoisted_4$4),
-                  (openBlock(true), createElementBlock(Fragment, null, renderList((_d = (_c = (_b = feat.feat) == null ? void 0 : _b.flags) == null ? void 0 : _c.pf2e) == null ? void 0 : _d.itemGrants, (grant) => {
-                    var _a2;
+                  (openBlock(true), createElementBlock(Fragment, null, renderList((_d = (_c = (_b2 = feat.feat) == null ? void 0 : _b2.flags) == null ? void 0 : _c.pf2e) == null ? void 0 : _d.itemGrants, (grant) => {
+                    var _a3;
                     return openBlock(), createElementBlock("div", {
                       class: "ml-10 cursor-pointer",
-                      onClick: ($event) => infoFeat(grant.id)
-                    }, toDisplayString((_a2 = unref(actor).items.find((i2) => i2._id == grant.id)) == null ? void 0 : _a2.name), 9, _hoisted_7$2);
+                      onClick: ($event) => infoModal.value.open(null, grant.id)
+                    }, toDisplayString((_a3 = unref(actor).items.find((i2) => i2._id == grant.id)) == null ? void 0 : _a3.name), 9, _hoisted_7$2);
                   }), 256))
                 ]);
               }), 256))
@@ -13240,8 +13237,33 @@ const _sfc_main$7 = /* @__PURE__ */ defineComponent({
         (openBlock(), createBlock(Teleport, { to: "#modals" }, [
           createVNode(_sfc_main$j, {
             ref_key: "infoModal",
-            ref: infoModal
-          }, null, 512)
+            ref: infoModal,
+            imageUrl: (_a = viewedItem.value) == null ? void 0 : _a.img,
+            traits: (_b = viewedItem.value) == null ? void 0 : _b.system.traits.value
+          }, {
+            title: withCtx(() => {
+              var _a2;
+              return [
+                createTextVNode(toDisplayString((_a2 = viewedItem.value) == null ? void 0 : _a2.name), 1)
+              ];
+            }),
+            description: withCtx(() => {
+              var _a2, _b2, _c, _d;
+              return [
+                createTextVNode(" Level " + toDisplayString(((_c = (_b2 = (_a2 = viewedItem.value) == null ? void 0 : _a2.system) == null ? void 0 : _b2.level) == null ? void 0 : _c.value) ?? "-") + " ", 1),
+                createBaseVNode("span", _hoisted_8$2, "(" + toDisplayString(unref(capitalize)((_d = viewedItem.value) == null ? void 0 : _d.system.traits.rarity)) + ")", 1)
+              ];
+            }),
+            body: withCtx(() => {
+              var _a2;
+              return [
+                createBaseVNode("div", {
+                  innerHTML: unref(removeUUIDs)((_a2 = viewedItem.value) == null ? void 0 : _a2.system.description.value)
+                }, null, 8, _hoisted_9$1)
+              ];
+            }),
+            _: 1
+          }, 8, ["imageUrl", "traits"])
         ]))
       ], 64);
     };
@@ -15911,7 +15933,7 @@ const router = createRouter({
       // route level code-splitting
       // this generates a separate chunk (About.[hash].js) for this route
       // which is lazy-loaded when the route is visited.
-      component: () => __vitePreload(() => import("./AboutView-c8b4ad65.js"), true ? ["assets/AboutView-c8b4ad65.js","assets/AboutView-fe0787ef.css"] : void 0)
+      component: () => __vitePreload(() => import("./AboutView-c3731716.js"), true ? ["assets/AboutView-c3731716.js","assets/AboutView-fe0787ef.css"] : void 0)
     }
   ]
 });
@@ -15924,4 +15946,4 @@ export {
   createElementBlock as c,
   openBlock as o
 };
-//# sourceMappingURL=index-1c595dcc.js.map
+//# sourceMappingURL=index-4d3a8795.js.map
