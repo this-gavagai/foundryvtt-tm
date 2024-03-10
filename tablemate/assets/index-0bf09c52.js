@@ -40,19 +40,6 @@
   }
 })();
 const main = "";
-(function() {
-  var supportsPassive = false;
-  try {
-    var opts = Object.defineProperty({}, "passive", {
-      get: function() {
-        supportsPassive = true;
-      }
-    });
-    window.addEventListener("test", null, opts);
-  } catch (e2) {
-  }
-  return supportsPassive;
-})();
 function makeMap(str, expectsLowerCase) {
   const map2 = /* @__PURE__ */ Object.create(null);
   const list = str.split(",");
@@ -78,15 +65,15 @@ const remove = (arr, el) => {
 };
 const hasOwnProperty$1 = Object.prototype.hasOwnProperty;
 const hasOwn = (val, key) => hasOwnProperty$1.call(val, key);
-const isArray$1 = Array.isArray;
+const isArray = Array.isArray;
 const isMap = (val) => toTypeString(val) === "[object Map]";
 const isSet = (val) => toTypeString(val) === "[object Set]";
 const isFunction = (val) => typeof val === "function";
 const isString = (val) => typeof val === "string";
 const isSymbol = (val) => typeof val === "symbol";
-const isObject$2 = (val) => val !== null && typeof val === "object";
+const isObject$3 = (val) => val !== null && typeof val === "object";
 const isPromise = (val) => {
-  return isObject$2(val) && isFunction(val.then) && isFunction(val.catch);
+  return isObject$3(val) && isFunction(val.then) && isFunction(val.catch);
 };
 const objectToString = Object.prototype.toString;
 const toTypeString = (value2) => objectToString.call(value2);
@@ -146,7 +133,7 @@ const getGlobalThis = () => {
   return _globalThis || (_globalThis = typeof globalThis !== "undefined" ? globalThis : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : {});
 };
 function normalizeStyle(value2) {
-  if (isArray$1(value2)) {
+  if (isArray(value2)) {
     const res = {};
     for (let i2 = 0; i2 < value2.length; i2++) {
       const item = value2[i2];
@@ -160,7 +147,7 @@ function normalizeStyle(value2) {
     return res;
   } else if (isString(value2)) {
     return value2;
-  } else if (isObject$2(value2)) {
+  } else if (isObject$3(value2)) {
     return value2;
   }
 }
@@ -181,14 +168,14 @@ function normalizeClass(value2) {
   let res = "";
   if (isString(value2)) {
     res = value2;
-  } else if (isArray$1(value2)) {
+  } else if (isArray(value2)) {
     for (let i2 = 0; i2 < value2.length; i2++) {
       const normalized = normalizeClass(value2[i2]);
       if (normalized) {
         res += normalized + " ";
       }
     }
-  } else if (isObject$2(value2)) {
+  } else if (isObject$3(value2)) {
     for (const name in value2) {
       if (value2[name]) {
         res += name + " ";
@@ -203,7 +190,7 @@ function includeBooleanAttr(value2) {
   return !!value2 || value2 === "";
 }
 const toDisplayString = (val) => {
-  return isString(val) ? val : val == null ? "" : isArray$1(val) || isObject$2(val) && (val.toString === objectToString || !isFunction(val.toString)) ? JSON.stringify(val, replacer, 2) : String(val);
+  return isString(val) ? val : val == null ? "" : isArray(val) || isObject$3(val) && (val.toString === objectToString || !isFunction(val.toString)) ? JSON.stringify(val, replacer, 2) : String(val);
 };
 const replacer = (_key, val) => {
   if (val && val.__v_isRef) {
@@ -219,7 +206,7 @@ const replacer = (_key, val) => {
     return {
       [`Set(${val.size})`]: [...val.values()]
     };
-  } else if (isObject$2(val) && !isArray$1(val) && !isPlainObject(val)) {
+  } else if (isObject$3(val) && !isArray(val) && !isPlainObject(val)) {
     return String(val);
   }
   return val;
@@ -292,9 +279,6 @@ class EffectScope {
     }
   }
 }
-function effectScope(detached) {
-  return new EffectScope(detached);
-}
 function recordEffectScope(effect, scope = activeEffectScope) {
   if (scope && scope.active) {
     scope.effects.push(effect);
@@ -302,6 +286,11 @@ function recordEffectScope(effect, scope = activeEffectScope) {
 }
 function getCurrentScope() {
   return activeEffectScope;
+}
+function onScopeDispose(fn) {
+  if (activeEffectScope) {
+    activeEffectScope.cleanups.push(fn);
+  }
 }
 const createDep = (effects) => {
   const dep = new Set(effects);
@@ -454,7 +443,7 @@ function trigger(target, type, key, newValue, oldValue, oldTarget) {
   let deps = [];
   if (type === "clear") {
     deps = [...depsMap.values()];
-  } else if (key === "length" && isArray$1(target)) {
+  } else if (key === "length" && isArray(target)) {
     const newLength = Number(newValue);
     depsMap.forEach((dep, key2) => {
       if (key2 === "length" || key2 >= newLength) {
@@ -467,7 +456,7 @@ function trigger(target, type, key, newValue, oldValue, oldTarget) {
     }
     switch (type) {
       case "add":
-        if (!isArray$1(target)) {
+        if (!isArray(target)) {
           deps.push(depsMap.get(ITERATE_KEY));
           if (isMap(target)) {
             deps.push(depsMap.get(MAP_KEY_ITERATE_KEY));
@@ -477,7 +466,7 @@ function trigger(target, type, key, newValue, oldValue, oldTarget) {
         }
         break;
       case "delete":
-        if (!isArray$1(target)) {
+        if (!isArray(target)) {
           deps.push(depsMap.get(ITERATE_KEY));
           if (isMap(target)) {
             deps.push(depsMap.get(MAP_KEY_ITERATE_KEY));
@@ -510,7 +499,7 @@ function trigger(target, type, key, newValue, oldValue, oldTarget) {
   }
 }
 function triggerEffects(dep, debuggerEventExtraInfo) {
-  const effects = isArray$1(dep) ? dep : [...dep];
+  const effects = isArray(dep) ? dep : [...dep];
   for (const effect2 of effects) {
     if (effect2.computed) {
       triggerEffect(effect2);
@@ -581,7 +570,7 @@ function createGetter(isReadonly2 = false, shallow = false) {
     } else if (key === "__v_raw" && receiver === (isReadonly2 ? shallow ? shallowReadonlyMap : readonlyMap : shallow ? shallowReactiveMap : reactiveMap).get(target)) {
       return target;
     }
-    const targetIsArray = isArray$1(target);
+    const targetIsArray = isArray(target);
     if (!isReadonly2) {
       if (targetIsArray && hasOwn(arrayInstrumentations, key)) {
         return Reflect.get(arrayInstrumentations, key, receiver);
@@ -603,7 +592,7 @@ function createGetter(isReadonly2 = false, shallow = false) {
     if (isRef(res)) {
       return targetIsArray && isIntegerKey(key) ? res : res.value;
     }
-    if (isObject$2(res)) {
+    if (isObject$3(res)) {
       return isReadonly2 ? readonly(res) : reactive(res);
     }
     return res;
@@ -622,12 +611,12 @@ function createSetter(shallow = false) {
         oldValue = toRaw(oldValue);
         value2 = toRaw(value2);
       }
-      if (!isArray$1(target) && isRef(oldValue) && !isRef(value2)) {
+      if (!isArray(target) && isRef(oldValue) && !isRef(value2)) {
         oldValue.value = value2;
         return true;
       }
     }
-    const hadKey = isArray$1(target) && isIntegerKey(key) ? Number(key) < target.length : hasOwn(target, key);
+    const hadKey = isArray(target) && isIntegerKey(key) ? Number(key) < target.length : hasOwn(target, key);
     const result = Reflect.set(target, key, value2, receiver);
     if (target === toRaw(receiver)) {
       if (!hadKey) {
@@ -656,7 +645,7 @@ function has$1(target, key) {
   return result;
 }
 function ownKeys(target) {
-  track(target, "iterate", isArray$1(target) ? "length" : ITERATE_KEY);
+  track(target, "iterate", isArray(target) ? "length" : ITERATE_KEY);
   return Reflect.ownKeys(target);
 }
 const mutableHandlers = {
@@ -997,7 +986,7 @@ function readonly(target) {
   );
 }
 function createReactiveObject(target, isReadonly2, baseHandlers, collectionHandlers, proxyMap) {
-  if (!isObject$2(target)) {
+  if (!isObject$3(target)) {
     return target;
   }
   if (target["__v_raw"] && !(isReadonly2 && target["__v_isReactive"])) {
@@ -1041,8 +1030,8 @@ function markRaw(value2) {
   def(value2, "__v_skip", true);
   return value2;
 }
-const toReactive = (value2) => isObject$2(value2) ? reactive(value2) : value2;
-const toReadonly = (value2) => isObject$2(value2) ? readonly(value2) : value2;
+const toReactive = (value2) => isObject$3(value2) ? reactive(value2) : value2;
+const toReadonly = (value2) => isObject$3(value2) ? readonly(value2) : value2;
 function trackRefValue(ref2) {
   if (shouldTrack && activeEffect) {
     ref2 = toRaw(ref2);
@@ -1271,7 +1260,7 @@ function invalidateJob(job) {
   }
 }
 function queuePostFlushCb(cb) {
-  if (!isArray$1(cb)) {
+  if (!isArray(cb)) {
     if (!activePostFlushCbs || !activePostFlushCbs.includes(
       cb,
       cb.allowRecurse ? postFlushIndex + 1 : postFlushIndex
@@ -1283,7 +1272,7 @@ function queuePostFlushCb(cb) {
   }
   queueFlush();
 }
-function flushPreFlushCbs(seen2, i2 = isFlushing ? flushIndex + 1 : 0) {
+function flushPreFlushCbs(seen, i2 = isFlushing ? flushIndex + 1 : 0) {
   for (; i2 < queue.length; i2++) {
     const cb = queue[i2];
     if (cb && cb.pre) {
@@ -1293,7 +1282,7 @@ function flushPreFlushCbs(seen2, i2 = isFlushing ? flushIndex + 1 : 0) {
     }
   }
 }
-function flushPostFlushCbs(seen2) {
+function flushPostFlushCbs(seen) {
   if (pendingPostFlushCbs.length) {
     const deduped = [...new Set(pendingPostFlushCbs)];
     pendingPostFlushCbs.length = 0;
@@ -1321,7 +1310,7 @@ const comparator = (a2, b2) => {
   }
   return diff;
 };
-function flushJobs(seen2) {
+function flushJobs(seen) {
   isFlushPending = false;
   isFlushing = true;
   queue.sort(comparator);
@@ -1421,17 +1410,17 @@ function normalizeEmitsOptions(comp, appContext, asMixin = false) {
     }
   }
   if (!raw && !hasExtends) {
-    if (isObject$2(comp)) {
+    if (isObject$3(comp)) {
       cache2.set(comp, null);
     }
     return null;
   }
-  if (isArray$1(raw)) {
+  if (isArray(raw)) {
     raw.forEach((key) => normalized[key] = null);
   } else {
     extend(normalized, raw);
   }
-  if (isObject$2(comp)) {
+  if (isObject$3(comp)) {
     cache2.set(comp, normalized);
   }
   return normalized;
@@ -2174,7 +2163,7 @@ function normalizeSuspenseSlot(s2) {
       closeBlock();
     }
   }
-  if (isArray$1(s2)) {
+  if (isArray(s2)) {
     const singleChild = filterSingleRoot(s2);
     s2 = singleChild;
   }
@@ -2186,7 +2175,7 @@ function normalizeSuspenseSlot(s2) {
 }
 function queueEffectWithSuspense(fn, suspense) {
   if (suspense && suspense.pendingBranch) {
-    if (isArray$1(fn)) {
+    if (isArray(fn)) {
       suspense.effects.push(...fn);
     } else {
       suspense.effects.push(fn);
@@ -2227,7 +2216,7 @@ function doWatch(source, cb, { immediate, deep, flush, onTrack, onTrigger } = EM
   } else if (isReactive(source)) {
     getter = () => source;
     deep = true;
-  } else if (isArray$1(source)) {
+  } else if (isArray(source)) {
     isMultiSource = true;
     forceTrigger = source.some((s2) => isReactive(s2) || isShallow(s2));
     getter = () => source.map((s2) => {
@@ -2383,28 +2372,28 @@ function createPathGetter(ctx, path) {
     return cur;
   };
 }
-function traverse(value2, seen2) {
-  if (!isObject$2(value2) || value2["__v_skip"]) {
+function traverse(value2, seen) {
+  if (!isObject$3(value2) || value2["__v_skip"]) {
     return value2;
   }
-  seen2 = seen2 || /* @__PURE__ */ new Set();
-  if (seen2.has(value2)) {
+  seen = seen || /* @__PURE__ */ new Set();
+  if (seen.has(value2)) {
     return value2;
   }
-  seen2.add(value2);
+  seen.add(value2);
   if (isRef(value2)) {
-    traverse(value2.value, seen2);
-  } else if (isArray$1(value2)) {
+    traverse(value2.value, seen);
+  } else if (isArray(value2)) {
     for (let i2 = 0; i2 < value2.length; i2++) {
-      traverse(value2[i2], seen2);
+      traverse(value2[i2], seen);
     }
   } else if (isSet(value2) || isMap(value2)) {
     value2.forEach((v2) => {
-      traverse(v2, seen2);
+      traverse(v2, seen);
     });
   } else if (isPlainObject(value2)) {
     for (const key in value2) {
-      traverse(value2[key], seen2);
+      traverse(value2[key], seen);
     }
   }
   return value2;
@@ -2625,7 +2614,7 @@ function resolveTransitionHooks(vnode, props, state, instance) {
   const callAsyncHook = (hook, args) => {
     const done = args[1];
     callHook2(hook, args);
-    if (isArray$1(hook)) {
+    if (isArray(hook)) {
       if (hook.every((hook2) => hook2.length <= 1))
         done();
     } else if (hook.length <= 1) {
@@ -2903,7 +2892,7 @@ function resolve(registry, name) {
 function renderList(source, renderItem, cache2, index) {
   let ret;
   const cached = cache2 && cache2[index];
-  if (isArray$1(source) || isString(source)) {
+  if (isArray(source) || isString(source)) {
     ret = new Array(source.length);
     for (let i2 = 0, l2 = source.length; i2 < l2; i2++) {
       ret[i2] = renderItem(source[i2], i2, void 0, cached && cached[i2]);
@@ -2913,7 +2902,7 @@ function renderList(source, renderItem, cache2, index) {
     for (let i2 = 0; i2 < source; i2++) {
       ret[i2] = renderItem(i2 + 1, i2, void 0, cached && cached[i2]);
     }
-  } else if (isObject$2(source)) {
+  } else if (isObject$3(source)) {
     if (source[Symbol.iterator]) {
       ret = Array.from(
         source,
@@ -3102,7 +3091,7 @@ const PublicInstanceProxyHandlers = {
   }
 };
 function normalizePropsOrEmits(props) {
-  return isArray$1(props) ? props.reduce(
+  return isArray(props) ? props.reduce(
     (normalized, p2) => (normalized[p2] = null, normalized),
     {}
   ) : props;
@@ -3177,7 +3166,7 @@ function applyOptions(instance) {
   }
   if (dataOptions) {
     const data = dataOptions.call(publicThis, publicThis);
-    if (!isObject$2(data))
+    if (!isObject$3(data))
       ;
     else {
       instance.data = reactive(data);
@@ -3216,7 +3205,7 @@ function applyOptions(instance) {
     callHook$1(created, instance, "c");
   }
   function registerLifecycleHook(register, hook) {
-    if (isArray$1(hook)) {
+    if (isArray(hook)) {
       hook.forEach((_hook) => register(_hook.bind(publicThis)));
     } else if (hook) {
       register(hook.bind(publicThis));
@@ -3234,7 +3223,7 @@ function applyOptions(instance) {
   registerLifecycleHook(onBeforeUnmount, beforeUnmount);
   registerLifecycleHook(onUnmounted, unmounted);
   registerLifecycleHook(onServerPrefetch, serverPrefetch);
-  if (isArray$1(expose)) {
+  if (isArray(expose)) {
     if (expose.length) {
       const exposed = instance.exposed || (instance.exposed = {});
       expose.forEach((key) => {
@@ -3259,13 +3248,13 @@ function applyOptions(instance) {
     instance.directives = directives;
 }
 function resolveInjections(injectOptions, ctx, checkDuplicateProperties = NOOP) {
-  if (isArray$1(injectOptions)) {
+  if (isArray(injectOptions)) {
     injectOptions = normalizeInject(injectOptions);
   }
   for (const key in injectOptions) {
     const opt = injectOptions[key];
     let injected;
-    if (isObject$2(opt)) {
+    if (isObject$3(opt)) {
       if ("default" in opt) {
         injected = inject(
           opt.from || key,
@@ -3293,7 +3282,7 @@ function resolveInjections(injectOptions, ctx, checkDuplicateProperties = NOOP) 
 }
 function callHook$1(hook, instance, type) {
   callWithAsyncErrorHandling(
-    isArray$1(hook) ? hook.map((h2) => h2.bind(instance.proxy)) : hook.bind(instance.proxy),
+    isArray(hook) ? hook.map((h2) => h2.bind(instance.proxy)) : hook.bind(instance.proxy),
     instance,
     type
   );
@@ -3307,8 +3296,8 @@ function createWatcher(raw, ctx, publicThis, key) {
     }
   } else if (isFunction(raw)) {
     watch(getter, raw.bind(publicThis));
-  } else if (isObject$2(raw)) {
-    if (isArray$1(raw)) {
+  } else if (isObject$3(raw)) {
+    if (isArray(raw)) {
       raw.forEach((r2) => createWatcher(r2, ctx, publicThis, key));
     } else {
       const handler = isFunction(raw.handler) ? raw.handler.bind(publicThis) : ctx[raw.handler];
@@ -3339,24 +3328,24 @@ function resolveMergedOptions(instance) {
     resolved = {};
     if (globalMixins.length) {
       globalMixins.forEach(
-        (m2) => mergeOptions$1(resolved, m2, optionMergeStrategies, true)
+        (m2) => mergeOptions(resolved, m2, optionMergeStrategies, true)
       );
     }
-    mergeOptions$1(resolved, base, optionMergeStrategies);
+    mergeOptions(resolved, base, optionMergeStrategies);
   }
-  if (isObject$2(base)) {
+  if (isObject$3(base)) {
     cache2.set(base, resolved);
   }
   return resolved;
 }
-function mergeOptions$1(to, from, strats, asMixin = false) {
+function mergeOptions(to, from, strats, asMixin = false) {
   const { mixins, extends: extendsOptions } = from;
   if (extendsOptions) {
-    mergeOptions$1(to, extendsOptions, strats, true);
+    mergeOptions(to, extendsOptions, strats, true);
   }
   if (mixins) {
     mixins.forEach(
-      (m2) => mergeOptions$1(to, m2, strats, true)
+      (m2) => mergeOptions(to, m2, strats, true)
     );
   }
   for (const key in from) {
@@ -3418,7 +3407,7 @@ function mergeInject(to, from) {
   return mergeObjectOptions(normalizeInject(to), normalizeInject(from));
 }
 function normalizeInject(raw) {
-  if (isArray$1(raw)) {
+  if (isArray(raw)) {
     const res = {};
     for (let i2 = 0; i2 < raw.length; i2++) {
       res[raw[i2]] = raw[i2];
@@ -3435,7 +3424,7 @@ function mergeObjectOptions(to, from) {
 }
 function mergeEmitsOrPropsOptions(to, from) {
   if (to) {
-    if (isArray$1(to) && isArray$1(from)) {
+    if (isArray(to) && isArray(from)) {
       return [.../* @__PURE__ */ new Set([...to, ...from])];
     }
     return extend(
@@ -3485,7 +3474,7 @@ function createAppAPI(render2, hydrate) {
     if (!isFunction(rootComponent)) {
       rootComponent = extend({}, rootComponent);
     }
-    if (rootProps != null && !isObject$2(rootProps)) {
+    if (rootProps != null && !isObject$3(rootProps)) {
       rootProps = null;
     }
     const context = createAppContext();
@@ -3826,12 +3815,12 @@ function normalizePropsOptions(comp, appContext, asMixin = false) {
     }
   }
   if (!raw && !hasExtends) {
-    if (isObject$2(comp)) {
+    if (isObject$3(comp)) {
       cache2.set(comp, EMPTY_ARR);
     }
     return EMPTY_ARR;
   }
-  if (isArray$1(raw)) {
+  if (isArray(raw)) {
     for (let i2 = 0; i2 < raw.length; i2++) {
       const normalizedKey = camelize(raw[i2]);
       if (validatePropName(normalizedKey)) {
@@ -3843,7 +3832,7 @@ function normalizePropsOptions(comp, appContext, asMixin = false) {
       const normalizedKey = camelize(key);
       if (validatePropName(normalizedKey)) {
         const opt = raw[key];
-        const prop = normalized[normalizedKey] = isArray$1(opt) || isFunction(opt) ? { type: opt } : extend({}, opt);
+        const prop = normalized[normalizedKey] = isArray(opt) || isFunction(opt) ? { type: opt } : extend({}, opt);
         if (prop) {
           const booleanIndex = getTypeIndex(Boolean, prop.type);
           const stringIndex = getTypeIndex(String, prop.type);
@@ -3863,7 +3852,7 @@ function normalizePropsOptions(comp, appContext, asMixin = false) {
     }
   }
   const res = [normalized, needCastKeys];
-  if (isObject$2(comp)) {
+  if (isObject$3(comp)) {
     cache2.set(comp, res);
   }
   return res;
@@ -3882,7 +3871,7 @@ function isSameType(a2, b2) {
   return getType(a2) === getType(b2);
 }
 function getTypeIndex(type, expectedTypes) {
-  if (isArray$1(expectedTypes)) {
+  if (isArray(expectedTypes)) {
     return expectedTypes.findIndex((t2) => isSameType(t2, type));
   } else if (isFunction(expectedTypes)) {
     return isSameType(expectedTypes, type) ? 0 : -1;
@@ -3890,8 +3879,8 @@ function getTypeIndex(type, expectedTypes) {
   return -1;
 }
 const isInternalKey = (key) => key[0] === "_" || key === "$stable";
-const normalizeSlotValue = (value2) => isArray$1(value2) ? value2.map(normalizeVNode) : [normalizeVNode(value2)];
-const normalizeSlot$1 = (key, rawSlot, ctx) => {
+const normalizeSlotValue = (value2) => isArray(value2) ? value2.map(normalizeVNode) : [normalizeVNode(value2)];
+const normalizeSlot = (key, rawSlot, ctx) => {
   if (rawSlot._n) {
     return rawSlot;
   }
@@ -3910,7 +3899,7 @@ const normalizeObjectSlots = (rawSlots, slots, instance) => {
       continue;
     const value2 = rawSlots[key];
     if (isFunction(value2)) {
-      slots[key] = normalizeSlot$1(key, value2, ctx);
+      slots[key] = normalizeSlot(key, value2, ctx);
     } else if (value2 != null) {
       const normalized = normalizeSlotValue(value2);
       slots[key] = () => normalized;
@@ -3974,11 +3963,11 @@ const updateSlots = (instance, children, optimized) => {
   }
 };
 function setRef(rawRef, oldRawRef, parentSuspense, vnode, isUnmount = false) {
-  if (isArray$1(rawRef)) {
+  if (isArray(rawRef)) {
     rawRef.forEach(
       (r2, i2) => setRef(
         r2,
-        oldRawRef && (isArray$1(oldRawRef) ? oldRawRef[i2] : oldRawRef),
+        oldRawRef && (isArray(oldRawRef) ? oldRawRef[i2] : oldRawRef),
         parentSuspense,
         vnode,
         isUnmount
@@ -4015,9 +4004,9 @@ function setRef(rawRef, oldRawRef, parentSuspense, vnode, isUnmount = false) {
         if (rawRef.f) {
           const existing = _isString ? hasOwn(setupState, ref2) ? setupState[ref2] : refs[ref2] : ref2.value;
           if (isUnmount) {
-            isArray$1(existing) && remove(existing, refValue);
+            isArray(existing) && remove(existing, refValue);
           } else {
-            if (!isArray$1(existing)) {
+            if (!isArray(existing)) {
               if (_isString) {
                 refs[ref2] = [refValue];
                 if (hasOwn(setupState, ref2)) {
@@ -5314,7 +5303,7 @@ function toggleRecurse({ effect, update }, allowed) {
 function traverseStaticChildren(n1, n2, shallow = false) {
   const ch1 = n1.children;
   const ch2 = n2.children;
-  if (isArray$1(ch1) && isArray$1(ch2)) {
+  if (isArray(ch1) && isArray(ch2)) {
     for (let i2 = 0; i2 < ch1.length; i2++) {
       const c1 = ch1[i2];
       let c2 = ch2[i2];
@@ -5763,14 +5752,14 @@ function _createVNode(type, props = null, children = null, patchFlag = 0, dynami
     if (klass && !isString(klass)) {
       props.class = normalizeClass(klass);
     }
-    if (isObject$2(style)) {
-      if (isProxy(style) && !isArray$1(style)) {
+    if (isObject$3(style)) {
+      if (isProxy(style) && !isArray(style)) {
         style = extend({}, style);
       }
       props.style = normalizeStyle(style);
     }
   }
-  const shapeFlag = isString(type) ? 1 : isSuspense(type) ? 128 : isTeleport(type) ? 64 : isObject$2(type) ? 4 : isFunction(type) ? 2 : 0;
+  const shapeFlag = isString(type) ? 1 : isSuspense(type) ? 128 : isTeleport(type) ? 64 : isObject$3(type) ? 4 : isFunction(type) ? 2 : 0;
   return createBaseVNode(
     type,
     props,
@@ -5800,7 +5789,7 @@ function cloneVNode(vnode, extraProps, mergeRef = false) {
       // #2078 in the case of <component :is="vnode" ref="extra"/>
       // if the vnode itself already has a ref, cloneVNode will need to merge
       // the refs so the single vnode can be set on multiple refs
-      mergeRef && ref2 ? isArray$1(ref2) ? ref2.concat(normalizeRef(extraProps)) : [ref2, normalizeRef(extraProps)] : normalizeRef(extraProps)
+      mergeRef && ref2 ? isArray(ref2) ? ref2.concat(normalizeRef(extraProps)) : [ref2, normalizeRef(extraProps)] : normalizeRef(extraProps)
     ) : ref2,
     scopeId: vnode.scopeId,
     slotScopeIds: vnode.slotScopeIds,
@@ -5843,7 +5832,7 @@ function createCommentVNode(text = "", asBlock = false) {
 function normalizeVNode(child) {
   if (child == null || typeof child === "boolean") {
     return createVNode(Comment$1);
-  } else if (isArray$1(child)) {
+  } else if (isArray(child)) {
     return createVNode(
       Fragment,
       null,
@@ -5864,7 +5853,7 @@ function normalizeChildren(vnode, children) {
   const { shapeFlag } = vnode;
   if (children == null) {
     children = null;
-  } else if (isArray$1(children)) {
+  } else if (isArray(children)) {
     type = 16;
   } else if (typeof children === "object") {
     if (shapeFlag & (1 | 64)) {
@@ -5918,7 +5907,7 @@ function mergeProps(...args) {
       } else if (isOn(key)) {
         const existing = ret[key];
         const incoming = toMerge[key];
-        if (incoming && existing !== incoming && !(isArray$1(existing) && existing.includes(incoming))) {
+        if (incoming && existing !== incoming && !(isArray(existing) && existing.includes(incoming))) {
           ret[key] = existing ? [].concat(existing, incoming) : incoming;
         }
       } else if (key !== "") {
@@ -6107,7 +6096,7 @@ function handleSetupResult(instance, setupResult, isSSR) {
     } else {
       instance.render = setupResult;
     }
-  } else if (isObject$2(setupResult)) {
+  } else if (isObject$3(setupResult)) {
     instance.setupState = proxyRefs(setupResult);
   } else
     ;
@@ -6199,7 +6188,7 @@ const computed = (getterOrOptions, debugOptions) => {
 function h$2(type, propsOrChildren, children) {
   const l2 = arguments.length;
   if (l2 === 2) {
-    if (isObject$2(propsOrChildren) && !isArray$1(propsOrChildren)) {
+    if (isObject$3(propsOrChildren) && !isArray(propsOrChildren)) {
       if (isVNode(propsOrChildren)) {
         return createVNode(type, null, [propsOrChildren]);
       }
@@ -6333,7 +6322,7 @@ function patchStyle(el, prev2, next) {
 }
 const importantRE = /\s*!important$/;
 function setStyle(style, name, val) {
-  if (isArray$1(val)) {
+  if (isArray(val)) {
     val.forEach((v2) => setStyle(style, name, v2));
   } else {
     if (val == null)
@@ -6490,7 +6479,7 @@ function createInvoker(initialValue, instance) {
   return invoker;
 }
 function patchStopImmediatePropagation(e2, value2) {
-  if (isArray$1(value2)) {
+  if (isArray(value2)) {
     const originalStop = e2.stopImmediatePropagation;
     e2.stopImmediatePropagation = () => {
       originalStop.call(e2);
@@ -6585,14 +6574,14 @@ Transition.props = /* @__PURE__ */ extend(
   DOMTransitionPropsValidators
 );
 const callHook = (hook, args = []) => {
-  if (isArray$1(hook)) {
+  if (isArray(hook)) {
     hook.forEach((h2) => h2(...args));
   } else if (hook) {
     hook(...args);
   }
 };
 const hasExplicitCallback = (hook) => {
-  return hook ? isArray$1(hook) ? hook.some((h2) => h2.length > 1) : hook.length > 1 : false;
+  return hook ? isArray(hook) ? hook.some((h2) => h2.length > 1) : hook.length > 1 : false;
 };
 function resolveTransitionProps(rawProps) {
   const baseProps = {};
@@ -6705,7 +6694,7 @@ function resolveTransitionProps(rawProps) {
 function normalizeDuration(duration) {
   if (duration == null) {
     return null;
-  } else if (isObject$2(duration)) {
+  } else if (isObject$3(duration)) {
     return [NumberOf(duration.enter), NumberOf(duration.leave)];
   } else {
     const n2 = NumberOf(duration);
@@ -6876,55 +6865,6 @@ function normalizeContainer(container) {
   }
   return container;
 }
-var isVue2 = false;
-/*!
- * pinia v2.1.6
- * (c) 2023 Eduardo San Martin Morote
- * @license MIT
- */
-const piniaSymbol = (
-  /* istanbul ignore next */
-  Symbol()
-);
-var MutationType;
-(function(MutationType2) {
-  MutationType2["direct"] = "direct";
-  MutationType2["patchObject"] = "patch object";
-  MutationType2["patchFunction"] = "patch function";
-})(MutationType || (MutationType = {}));
-function createPinia() {
-  const scope = effectScope(true);
-  const state = scope.run(() => ref({}));
-  let _p = [];
-  let toBeInstalled = [];
-  const pinia = markRaw({
-    install(app2) {
-      {
-        pinia._a = app2;
-        app2.provide(piniaSymbol, pinia);
-        app2.config.globalProperties.$pinia = pinia;
-        toBeInstalled.forEach((plugin) => _p.push(plugin));
-        toBeInstalled = [];
-      }
-    },
-    use(plugin) {
-      if (!this._a && !isVue2) {
-        toBeInstalled.push(plugin);
-      } else {
-        _p.push(plugin);
-      }
-      return this;
-    },
-    _p,
-    // it's actually undefined here
-    // @ts-expect-error
-    _a: null,
-    _e: scope,
-    _s: /* @__PURE__ */ new Map(),
-    state
-  });
-  return pinia;
-}
 const PACKET_TYPES = /* @__PURE__ */ Object.create(null);
 PACKET_TYPES["open"] = "0";
 PACKET_TYPES["close"] = "1";
@@ -6995,7 +6935,7 @@ const lookup$1 = typeof Uint8Array === "undefined" ? [] : new Uint8Array(256);
 for (let i2 = 0; i2 < chars.length; i2++) {
   lookup$1[chars.charCodeAt(i2)] = i2;
 }
-const decode$2 = (base64) => {
+const decode$1 = (base64) => {
   let bufferLength = base64.length * 0.75, len = base64.length, i2, p2 = 0, encoded1, encoded2, encoded3, encoded4;
   if (base64[base64.length - 1] === "=") {
     bufferLength--;
@@ -7043,7 +6983,7 @@ const decodePacket = (encodedPacket, binaryType) => {
 };
 const decodeBase64Packet = (data, binaryType) => {
   if (withNativeArrayBuffer$1) {
-    const decoded = decode$2(data);
+    const decoded = decode$1(data);
     return mapBinary(decoded, binaryType);
   } else {
     return { base64: true, data };
@@ -7341,7 +7281,7 @@ function encode$1(obj) {
   }
   return str;
 }
-function decode$1(qs) {
+function decode(qs) {
   let qry = {};
   let pairs = qs.split("&");
   for (let i2 = 0, l2 = pairs.length; i2 < l2; i2++) {
@@ -8159,7 +8099,7 @@ let Socket$1 = class Socket extends Emitter {
     }, opts);
     this.opts.path = this.opts.path.replace(/\/$/, "") + (this.opts.addTrailingSlash ? "/" : "");
     if (typeof this.opts.query === "string") {
-      this.opts.query = decode$1(this.opts.query);
+      this.opts.query = decode(this.opts.query);
     }
     this.id = null;
     this.upgrades = null;
@@ -8647,9 +8587,9 @@ const withNativeArrayBuffer = typeof ArrayBuffer === "function";
 const isView = (obj) => {
   return typeof ArrayBuffer.isView === "function" ? ArrayBuffer.isView(obj) : obj.buffer instanceof ArrayBuffer;
 };
-const toString = Object.prototype.toString;
-const withNativeBlob = typeof Blob === "function" || typeof Blob !== "undefined" && toString.call(Blob) === "[object BlobConstructor]";
-const withNativeFile = typeof File === "function" || typeof File !== "undefined" && toString.call(File) === "[object FileConstructor]";
+const toString$1 = Object.prototype.toString;
+const withNativeBlob = typeof Blob === "function" || typeof Blob !== "undefined" && toString$1.call(Blob) === "[object BlobConstructor]";
+const withNativeFile = typeof File === "function" || typeof File !== "undefined" && toString$1.call(File) === "[object FileConstructor]";
 function isBinary(obj) {
   return withNativeArrayBuffer && (obj instanceof ArrayBuffer || isView(obj)) || withNativeBlob && obj instanceof Blob || withNativeFile && obj instanceof File;
 }
@@ -8818,7 +8758,7 @@ class Encoder {
     return buffers;
   }
 }
-function isObject$1(value2) {
+function isObject$2(value2) {
   return Object.prototype.toString.call(value2) === "[object Object]";
 }
 class Decoder extends Emitter {
@@ -8938,11 +8878,11 @@ class Decoder extends Emitter {
   static isPayloadValid(type, payload) {
     switch (type) {
       case PacketType.CONNECT:
-        return isObject$1(payload);
+        return isObject$2(payload);
       case PacketType.DISCONNECT:
         return payload === void 0;
       case PacketType.CONNECT_ERROR:
-        return typeof payload === "string" || isObject$1(payload);
+        return typeof payload === "string" || isObject$2(payload);
       case PacketType.EVENT:
       case PacketType.BINARY_EVENT:
         return Array.isArray(payload) && (typeof payload[0] === "number" || typeof payload[0] === "string" && RESERVED_EVENTS$1.indexOf(payload[0]) === -1);
@@ -11735,13 +11675,13 @@ let W = N$3.RenderStrategy, he = defineComponent({ props: { as: { type: [Object,
     return H$1({ ourProps: { ...b2, as: "template" }, theirProps: {}, slot: {}, slots: { ...s2, default: () => [h$2(ce, { onBeforeEnter: () => t2("beforeEnter"), onAfterEnter: () => t2("afterEnter"), onBeforeLeave: () => t2("beforeLeave"), onAfterLeave: () => t2("afterLeave"), ...a2, ...b2, ...d2 }, s2.default)] }, attrs: {}, features: W, visible: r2.value === "visible", name: "Transition" });
   };
 } });
-function isObject(item) {
+function isObject$1(item) {
   return item && typeof item === "object" && !Array.isArray(item) && item !== null;
 }
 function mergeDeep(target, source) {
-  if (isObject(target) && isObject(source)) {
+  if (isObject$1(target) && isObject$1(source)) {
     for (const key in source) {
-      if (isObject(source[key])) {
+      if (isObject$1(source[key])) {
         if (!target[key])
           Object.assign(target, { [key]: {} });
         mergeDeep(target[key], source[key]);
@@ -11768,7 +11708,7 @@ function makeActionIcons(actionValue) {
 }
 function makePropertiesHtml(item) {
   var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p;
-  return (((_b = (_a = item.system) == null ? void 0 : _a.duration) == null ? void 0 : _b.value) ? `<div><span class='font-bold'>Duration:</span> ${(_c = item.system.duration) == null ? void 0 : _c.value}</div>` : ``) + (((_e = (_d = item.system) == null ? void 0 : _d.area) == null ? void 0 : _e.value) ? `<div><span class='font-bold'>Area:</span> ${item.system.area.value} ft ${item.system.area.type}</div>` : ``) + (((_g = (_f = item.system) == null ? void 0 : _f.target) == null ? void 0 : _g.value) ? `<div><span class='font-bold'>Target:</span> ${(_h = item.system.target) == null ? void 0 : _h.value}</div>` : ``) + (((_j = (_i = item.system) == null ? void 0 : _i.save) == null ? void 0 : _j.value) ? `<p><span class='font-bold'>Save:</span> ${((_l = (_k = item.system) == null ? void 0 : _k.save) == null ? void 0 : _l.basic) ? capitalize((_n = (_m = item.system) == null ? void 0 : _m.save) == null ? void 0 : _n.basic) : ``} ${capitalize((_p = (_o = item.system) == null ? void 0 : _o.save) == null ? void 0 : _p.value)}</p>` : ``);
+  return (((_b = (_a = item == null ? void 0 : item.system) == null ? void 0 : _a.duration) == null ? void 0 : _b.value) ? `<div><span class='font-bold'>Duration:</span> ${(_c = item == null ? void 0 : item.system.duration) == null ? void 0 : _c.value}</div>` : ``) + (((_e = (_d = item == null ? void 0 : item.system) == null ? void 0 : _d.area) == null ? void 0 : _e.value) ? `<div><span class='font-bold'>Area:</span> ${item == null ? void 0 : item.system.area.value} ft ${item.system.area.type}</div>` : ``) + (((_g = (_f = item == null ? void 0 : item.system) == null ? void 0 : _f.target) == null ? void 0 : _g.value) ? `<div><span class='font-bold'>Target:</span> ${(_h = item == null ? void 0 : item.system.target) == null ? void 0 : _h.value}</div>` : ``) + (((_j = (_i = item == null ? void 0 : item.system) == null ? void 0 : _i.save) == null ? void 0 : _j.value) ? `<p><span class='font-bold'>Save:</span> ${((_l = (_k = item.system) == null ? void 0 : _k.save) == null ? void 0 : _l.basic) ? capitalize((_n = (_m = item == null ? void 0 : item.system) == null ? void 0 : _m.save) == null ? void 0 : _n.basic) : ``} ${capitalize((_p = (_o = item.system) == null ? void 0 : _o.save) == null ? void 0 : _p.value)}</p>` : ``);
 }
 function printPrice(price) {
   return [price == null ? void 0 : price.gp, price == null ? void 0 : price.sp, price == null ? void 0 : price.cp].map((x2, i2) => {
@@ -11788,13 +11728,227 @@ const SignedNumber = new Intl.NumberFormat("en-US", {
 function getPath(path) {
   return path.slice(0, 4) === "http" ? path : "../../" + path;
 }
-const { socket } = useServer();
-function requestCharacterDetails(actorId) {
-  socket.value.emit("module.tablemate", {
-    action: "requestCharacterDetails",
-    actorId
+function parseIncrement(input, startingValue) {
+  var _a;
+  const transform = (_a = [...input.matchAll(/([+-]){0,1}([0-9]+)$/g)]) == null ? void 0 : _a[0];
+  if (!transform)
+    return startingValue;
+  let newValue;
+  if (transform[1] === "+") {
+    newValue = startingValue + (Number(transform[2]) ?? 0);
+  } else if (transform[1] === "-") {
+    newValue = startingValue - (Number(transform[2]) ?? 0);
+  } else {
+    newValue = Number(transform[2]) ?? startingValue;
+  }
+  return newValue;
+}
+function tryOnScopeDispose(fn) {
+  if (getCurrentScope()) {
+    onScopeDispose(fn);
+    return true;
+  }
+  return false;
+}
+function toValue(r2) {
+  return typeof r2 === "function" ? r2() : unref(r2);
+}
+const isClient = typeof window !== "undefined" && typeof document !== "undefined";
+typeof WorkerGlobalScope !== "undefined" && globalThis instanceof WorkerGlobalScope;
+const toString = Object.prototype.toString;
+const isObject = (val) => toString.call(val) === "[object Object]";
+const noop = () => {
+};
+function createFilterWrapper(filter, fn) {
+  function wrapper(...args) {
+    return new Promise((resolve2, reject) => {
+      Promise.resolve(filter(() => fn.apply(this, args), { fn, thisArg: this, args })).then(resolve2).catch(reject);
+    });
+  }
+  return wrapper;
+}
+function throttleFilter(...args) {
+  let lastExec = 0;
+  let timer;
+  let isLeading = true;
+  let lastRejector = noop;
+  let lastValue;
+  let ms;
+  let trailing;
+  let leading;
+  let rejectOnCancel;
+  if (!isRef(args[0]) && typeof args[0] === "object")
+    ({ delay: ms, trailing = true, leading = true, rejectOnCancel = false } = args[0]);
+  else
+    [ms, trailing = true, leading = true, rejectOnCancel = false] = args;
+  const clear2 = () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = void 0;
+      lastRejector();
+      lastRejector = noop;
+    }
+  };
+  const filter = (_invoke) => {
+    const duration = toValue(ms);
+    const elapsed = Date.now() - lastExec;
+    const invoke = () => {
+      return lastValue = _invoke();
+    };
+    clear2();
+    if (duration <= 0) {
+      lastExec = Date.now();
+      return invoke();
+    }
+    if (elapsed > duration && (leading || !isLeading)) {
+      lastExec = Date.now();
+      invoke();
+    } else if (trailing) {
+      lastValue = new Promise((resolve2, reject) => {
+        lastRejector = rejectOnCancel ? reject : resolve2;
+        timer = setTimeout(() => {
+          lastExec = Date.now();
+          isLeading = true;
+          resolve2(invoke());
+          clear2();
+        }, Math.max(0, duration - elapsed));
+      });
+    }
+    if (!leading && !timer)
+      timer = setTimeout(() => isLeading = true, duration);
+    isLeading = false;
+    return lastValue;
+  };
+  return filter;
+}
+function useThrottleFn(fn, ms = 200, trailing = false, leading = true, rejectOnCancel = false) {
+  return createFilterWrapper(
+    throttleFilter(ms, trailing, leading, rejectOnCancel),
+    fn
+  );
+}
+function unrefElement(elRef) {
+  var _a;
+  const plain = toValue(elRef);
+  return (_a = plain == null ? void 0 : plain.$el) != null ? _a : plain;
+}
+const defaultWindow = isClient ? window : void 0;
+const defaultDocument = isClient ? window.document : void 0;
+const defaultNavigator = isClient ? window.navigator : void 0;
+function useEventListener(...args) {
+  let target;
+  let events;
+  let listeners;
+  let options;
+  if (typeof args[0] === "string" || Array.isArray(args[0])) {
+    [events, listeners, options] = args;
+    target = defaultWindow;
+  } else {
+    [target, events, listeners, options] = args;
+  }
+  if (!target)
+    return noop;
+  if (!Array.isArray(events))
+    events = [events];
+  if (!Array.isArray(listeners))
+    listeners = [listeners];
+  const cleanups = [];
+  const cleanup = () => {
+    cleanups.forEach((fn) => fn());
+    cleanups.length = 0;
+  };
+  const register = (el, event, listener, options2) => {
+    el.addEventListener(event, listener, options2);
+    return () => el.removeEventListener(event, listener, options2);
+  };
+  const stopWatch = watch(
+    () => [unrefElement(target), toValue(options)],
+    ([el, options2]) => {
+      cleanup();
+      if (!el)
+        return;
+      const optionsClone = isObject(options2) ? { ...options2 } : options2;
+      cleanups.push(
+        ...events.flatMap((event) => {
+          return listeners.map((listener) => register(el, event, listener, optionsClone));
+        })
+      );
+    },
+    { immediate: true, flush: "post" }
+  );
+  const stop = () => {
+    stopWatch();
+    cleanup();
+  };
+  tryOnScopeDispose(stop);
+  return stop;
+}
+function useMounted() {
+  const isMounted = ref(false);
+  const instance = getCurrentInstance();
+  if (instance) {
+    onMounted(() => {
+      isMounted.value = true;
+    }, instance);
+  }
+  return isMounted;
+}
+function useSupported(callback) {
+  const isMounted = useMounted();
+  return computed(() => {
+    isMounted.value;
+    return Boolean(callback());
   });
 }
+function useWakeLock(options = {}) {
+  const {
+    navigator: navigator2 = defaultNavigator,
+    document: document2 = defaultDocument
+  } = options;
+  let wakeLock;
+  const isSupported = useSupported(() => navigator2 && "wakeLock" in navigator2);
+  const isActive = ref(false);
+  async function onVisibilityChange() {
+    if (!isSupported.value || !wakeLock)
+      return;
+    if (document2 && document2.visibilityState === "visible")
+      wakeLock = await navigator2.wakeLock.request("screen");
+    isActive.value = !wakeLock.released;
+  }
+  if (document2)
+    useEventListener(document2, "visibilitychange", onVisibilityChange, { passive: true });
+  async function request(type) {
+    if (!isSupported.value)
+      return;
+    wakeLock = await navigator2.wakeLock.request(type);
+    isActive.value = !wakeLock.released;
+  }
+  async function release() {
+    if (!isSupported.value || !wakeLock)
+      return;
+    await wakeLock.release();
+    isActive.value = !wakeLock.released;
+    wakeLock = null;
+  }
+  return {
+    isSupported,
+    isActive,
+    request,
+    release
+  };
+}
+const { socket } = useServer();
+const requestCharacterDetails = useThrottleFn(
+  (actorId) => {
+    socket.value.emit("module.tablemate", {
+      action: "requestCharacterDetails",
+      actorId
+    });
+  },
+  3e3,
+  true,
+  true
+);
 function setupSocketListenersForActor(actorId, actor) {
   socket.value.on("module.tablemate", (args) => {
     switch (args.action) {
@@ -11883,6 +12037,27 @@ function updateActorItem(actor, itemId, update, additionalOptions) {
     }
   );
 }
+function updateActor(actor, update, additionalOptions) {
+  socket.value.emit(
+    "modifyDocument",
+    {
+      action: "update",
+      type: "Actor",
+      options: { diff: true, render: true },
+      updates: [
+        {
+          _id: actor.value._id,
+          ...update
+        }
+      ]
+    },
+    (r2) => {
+      r2.result.forEach((change) => {
+        mergeDeep(actor.value, change);
+      });
+    }
+  );
+}
 function _processDeletes(actor, results) {
   results.forEach((d2) => {
     const item = actor.value.items.find((i2) => i2._id === d2);
@@ -11910,8 +12085,8 @@ const backpack = "/modules/tablemate/assets/backpack-0f960096.svg";
 const leapfrog = "/modules/tablemate/assets/leapfrog-01b964a5.svg";
 const spellBook = "/modules/tablemate/assets/spell-book-f886ae80.svg";
 const talk = "/modules/tablemate/assets/talk-d715f64d.svg";
-const _hoisted_1$k = ["src"];
-const _hoisted_2$g = { class: "text-[.5rem]" };
+const _hoisted_1$l = ["src"];
+const _hoisted_2$h = { class: "text-[.5rem]" };
 const _sfc_main$m = /* @__PURE__ */ defineComponent({
   __name: "CharacterTab",
   props: ["src", "label"],
@@ -11923,21 +12098,21 @@ const _sfc_main$m = /* @__PURE__ */ defineComponent({
           createBaseVNode("img", {
             src: props.src,
             class: "m-auto max-h-14"
-          }, null, 8, _hoisted_1$k),
-          createBaseVNode("span", _hoisted_2$g, toDisplayString(__props.label), 1)
+          }, null, 8, _hoisted_1$l),
+          createBaseVNode("span", _hoisted_2$h, toDisplayString(__props.label), 1)
         ]),
         _: 1
       });
     };
   }
 });
-const _hoisted_1$j = { class: "flex border p-4 items-center" };
-const _hoisted_2$f = ["src"];
-const _hoisted_3$e = {
+const _hoisted_1$k = { class: "flex border p-4 items-center" };
+const _hoisted_2$g = ["src"];
+const _hoisted_3$f = {
   key: 1,
   class: "h-full"
 };
-const _hoisted_4$d = /* @__PURE__ */ createBaseVNode("svg", {
+const _hoisted_4$f = /* @__PURE__ */ createBaseVNode("svg", {
   "aria-hidden": "true",
   class: "w-full h-full mr-2 p-4 text-gray-200 animate-spin dark:text-gray-100 fill-gray-400",
   viewBox: "0 0 100 101",
@@ -11953,15 +12128,15 @@ const _hoisted_4$d = /* @__PURE__ */ createBaseVNode("svg", {
     fill: "currentFill"
   })
 ], -1);
-const _hoisted_5$b = [
-  _hoisted_4$d
+const _hoisted_5$c = [
+  _hoisted_4$f
 ];
-const _hoisted_6$a = { class: "pl-2" };
-const _hoisted_7$8 = { class: "text-2xl whitespace-nowrap overflow-hidden" };
-const _hoisted_8$7 = /* @__PURE__ */ createBaseVNode("div", { class: "text-gray-400 relative select-none py-2 pl-6 pr-4" }, " Loading... ", -1);
-const _hoisted_9$4 = { class: "text-md whitespace-nowrap overflow-hidden" };
-const _hoisted_10$3 = { class: "text-md whitespace-nowrap overflow-hidden" };
-const _hoisted_11$3 = { key: 0 };
+const _hoisted_6$b = { class: "pl-2" };
+const _hoisted_7$a = { class: "text-2xl whitespace-nowrap overflow-hidden" };
+const _hoisted_8$8 = /* @__PURE__ */ createBaseVNode("div", { class: "text-gray-400 relative select-none py-2 pl-6 pr-4" }, " Loading... ", -1);
+const _hoisted_9$5 = { class: "text-md whitespace-nowrap overflow-hidden" };
+const _hoisted_10$4 = { class: "text-md whitespace-nowrap overflow-hidden" };
+const _hoisted_11$4 = { key: 0 };
 const _sfc_main$l = /* @__PURE__ */ defineComponent({
   __name: "CharacterHeader",
   emits: ["changeCharacter"],
@@ -11979,7 +12154,7 @@ const _sfc_main$l = /* @__PURE__ */ defineComponent({
     }
     return (_ctx, _cache) => {
       var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l;
-      return openBlock(), createElementBlock("div", _hoisted_1$j, [
+      return openBlock(), createElementBlock("div", _hoisted_1$k, [
         createBaseVNode("a", {
           class: "h-24 w-24",
           onClick: _cache[0] || (_cache[0] = ($event) => reloadPage())
@@ -11987,10 +12162,10 @@ const _sfc_main$l = /* @__PURE__ */ defineComponent({
           ((_b = (_a = unref(actor).prototypeToken) == null ? void 0 : _a.texture) == null ? void 0 : _b.src) ? (openBlock(), createElementBlock("img", {
             key: 0,
             src: unref(getPath)((_d = (_c = unref(actor).prototypeToken) == null ? void 0 : _c.texture) == null ? void 0 : _d.src)
-          }, null, 8, _hoisted_2$f)) : (openBlock(), createElementBlock("div", _hoisted_3$e, _hoisted_5$b))
+          }, null, 8, _hoisted_2$g)) : (openBlock(), createElementBlock("div", _hoisted_3$f, _hoisted_5$c))
         ]),
-        createBaseVNode("div", _hoisted_6$a, [
-          createBaseVNode("h3", _hoisted_7$8, [
+        createBaseVNode("div", _hoisted_6$b, [
+          createBaseVNode("h3", _hoisted_7$a, [
             createVNode(unref(Be), null, {
               default: withCtx(() => [
                 createVNode(unref(Ne), null, {
@@ -12008,7 +12183,7 @@ const _sfc_main$l = /* @__PURE__ */ defineComponent({
                     return [
                       !unref(world).actors ? (openBlock(), createBlock(unref(Ue), { key: 0 }, {
                         default: withCtx(() => [
-                          _hoisted_8$7
+                          _hoisted_8$8
                         ]),
                         _: 1
                       })) : createCommentVNode("", true),
@@ -12038,14 +12213,40 @@ const _sfc_main$l = /* @__PURE__ */ defineComponent({
               _: 1
             })
           ]),
-          createBaseVNode("div", _hoisted_9$4, [
+          createBaseVNode("div", _hoisted_9$5, [
             createBaseVNode("span", null, toDisplayString(((_f = (_e = unref(actor).items) == null ? void 0 : _e.find((x2) => x2.type === "ancestry")) == null ? void 0 : _f.name) ?? "-") + " ", 1),
             createBaseVNode("span", null, toDisplayString((_h = (_g = unref(actor).items) == null ? void 0 : _g.find((x2) => x2.type === "background")) == null ? void 0 : _h.name), 1)
           ]),
-          createBaseVNode("div", _hoisted_10$3, [
+          createBaseVNode("div", _hoisted_10$4, [
             createBaseVNode("span", null, toDisplayString(((_j = (_i = unref(actor).items) == null ? void 0 : _i.find((x2) => x2.type === "class")) == null ? void 0 : _j.name) ?? "-"), 1),
-            ((_k = unref(actor).system) == null ? void 0 : _k.details.level.value) ? (openBlock(), createElementBlock("span", _hoisted_11$3, toDisplayString(` (Level ${(_l = unref(actor).system) == null ? void 0 : _l.details.level.value})`), 1)) : createCommentVNode("", true)
+            ((_k = unref(actor).system) == null ? void 0 : _k.details.level.value) ? (openBlock(), createElementBlock("span", _hoisted_11$4, toDisplayString(` (Level ${(_l = unref(actor).system) == null ? void 0 : _l.details.level.value})`), 1)) : createCommentVNode("", true)
           ])
+        ])
+      ]);
+    };
+  }
+});
+const _hoisted_1$j = { class: "cursor-pointer" };
+const _hoisted_2$f = { class: "text-lg" };
+const _sfc_main$k = /* @__PURE__ */ defineComponent({
+  __name: "Statistic",
+  props: ["heading", "proficiency"],
+  setup(__props) {
+    const props = __props;
+    const proficiencies = [
+      "text-black",
+      "text-blue-800",
+      "text-purple-800",
+      "text-yellow-800",
+      "text-red-800"
+    ];
+    return (_ctx, _cache) => {
+      return openBlock(), createElementBlock("div", _hoisted_1$j, [
+        createBaseVNode("div", {
+          class: normalizeClass(["text-[0.8rem] uppercase whitespace-nowrap", proficiencies[props.proficiency]])
+        }, toDisplayString(__props.heading), 3),
+        createBaseVNode("div", _hoisted_2$f, [
+          renderSlot(_ctx.$slots, "default")
         ])
       ]);
     };
@@ -12053,63 +12254,36 @@ const _sfc_main$l = /* @__PURE__ */ defineComponent({
 });
 const _hoisted_1$i = { class: "px-6 py-4 border-b empty:hidden" };
 const _hoisted_2$e = /* @__PURE__ */ createBaseVNode("h3", { class: "underline text-2xl" }, "Skill Actions", -1);
-const _hoisted_3$d = { class: "max-w-6xl empty:hidden" };
-const _hoisted_4$c = { class: "cursor-pointer mt-2 mb-4 text-lg" };
-const _hoisted_5$a = ["onClick"];
-const _hoisted_6$9 = { class: "text-right" };
-const _sfc_main$k = /* @__PURE__ */ defineComponent({
+const _hoisted_3$e = { class: "empty:hidden columns-2 border-t first:border-t-0 pt-2" };
+const _hoisted_4$e = { class: "cursor-pointer mb-4 text-lg break-inside-avoid" };
+const _sfc_main$j = /* @__PURE__ */ defineComponent({
   __name: "Skills",
   setup(__props) {
     const actor = inject("actor");
-    const infoModal = inject("infoModal");
-    function skillInfo(skill) {
-      var _a;
-      console.log("Skill: ", skill);
-      if (!skill)
-        return;
-      (_a = infoModal.value) == null ? void 0 : _a.open({
-        title: skill.label,
-        description: ["Untrained", "Trained", "Expert", "Master", "Legendary"][skill.rank],
-        // component: SkillsMacros,
-        // componentProps: { skill: skill, actor: actor },
-        iconPath: skill == null ? void 0 : skill.img
-        // actionButtons: [
-        //   {
-        //     actionParams: {
-        //       action: 'rollCheck',
-        //       characterId: actor.value._id,
-        //       checkType: 'skill',
-        //       checkSubtype: skill.slug
-        //     },
-        //     actionMethod: (params: {}) => {
-        //       // todo: manage slotId (for prepared) and level (for heighted) as params
-        //       socket.value.emit('module.tablemate', params)
-        //       infoModal.value.close()
-        //     },
-        //     buttonClasses: 'bg-blue-200 hover:bg-blue-300',
-        //     buttonText: 'Roll Check'
-        //   }
-        // ]
-      });
-    }
     return (_ctx, _cache) => {
-      var _a;
       return openBlock(), createElementBlock("div", _hoisted_1$i, [
         _hoisted_2$e,
-        createBaseVNode("ul", _hoisted_3$d, [
-          (openBlock(true), createElementBlock(Fragment, null, renderList((_a = unref(actor).system) == null ? void 0 : _a.skills, (skill) => {
-            return openBlock(), createElementBlock("li", _hoisted_4$c, [
-              createBaseVNode("div", {
-                class: normalizeClass(["flex gap-2", [
-                  skill.rank === 1 ? "text-blue-800" : skill.rank === 2 ? "text-purple-800" : skill.rank === 3 ? "text-yellow-800" : skill.rank === 4 ? "text-red-800" : "text-black"
-                ]]),
-                onClick: ($event) => skillInfo(skill)
-              }, [
-                createBaseVNode("div", null, toDisplayString(skill.label), 1),
-                createBaseVNode("div", _hoisted_6$9, toDisplayString(unref(SignedNumber).format(skill.totalModifier)), 1)
-              ], 10, _hoisted_5$a)
+        createBaseVNode("div", null, [
+          (openBlock(), createElementBlock(Fragment, null, renderList([true, false], (isNonLore) => {
+            var _a, _b;
+            return createBaseVNode("ul", _hoisted_3$e, [
+              (openBlock(true), createElementBlock(Fragment, null, renderList(Object.values(((_b = (_a = unref(actor)) == null ? void 0 : _a.system) == null ? void 0 : _b.skills) ?? {}).filter(
+                (s2) => !s2.lore === isNonLore
+              ), (skill) => {
+                return openBlock(), createElementBlock("li", _hoisted_4$e, [
+                  createVNode(_sfc_main$k, {
+                    heading: skill.label,
+                    proficiency: skill.rank
+                  }, {
+                    default: withCtx(() => [
+                      createTextVNode(toDisplayString(unref(SignedNumber).format(skill.totalModifier)), 1)
+                    ]),
+                    _: 2
+                  }, 1032, ["heading", "proficiency"])
+                ]);
+              }), 256))
             ]);
-          }), 256))
+          }), 64))
         ])
       ]);
     };
@@ -12168,27 +12342,28 @@ function render$2(_ctx, _cache) {
 }
 const _hoisted_1$h = /* @__PURE__ */ createBaseVNode("div", { class: "fixed inset-0 bg-black bg-opacity-25" }, null, -1);
 const _hoisted_2$d = { class: "fixed inset-x-0 bottom-0 overflow-y-auto" };
-const _hoisted_3$c = { class: "flex bottom items-bottom justify-center p-0 pb-0 text-center" };
-const _hoisted_4$b = { class: "max-h-[70vh] overflow-auto" };
-const _hoisted_5$9 = { class: "flex space-x-2" };
-const _hoisted_6$8 = ["src"];
-const _hoisted_7$7 = { class: "absolute right-0 top-0 pr-4 pt-4 sm:block" };
-const _hoisted_8$6 = /* @__PURE__ */ createBaseVNode("span", { class: "sr-only" }, "Close", -1);
-const _hoisted_9$3 = ["innerHTML"];
-const _hoisted_10$2 = { class: "mt-2 text-sm [&_p]:my-2" };
-const _hoisted_11$2 = { class: "mt-4 flex items-end justify-end gap-2" };
-const _sfc_main$j = /* @__PURE__ */ defineComponent({
+const _hoisted_3$d = { class: "flex bottom items-bottom justify-center p-0 pb-0 text-center" };
+const _hoisted_4$d = { class: "max-h-[70vh] overflow-auto" };
+const _hoisted_5$b = { class: "flex space-x-2" };
+const _hoisted_6$a = ["src"];
+const _hoisted_7$9 = { class: "absolute right-0 top-0 pr-4 pt-4 sm:block" };
+const _hoisted_8$7 = /* @__PURE__ */ createBaseVNode("span", { class: "sr-only" }, "Close", -1);
+const _hoisted_9$4 = ["innerHTML"];
+const _hoisted_10$3 = { class: "mt-2 text-sm [&_p]:my-2" };
+const _hoisted_11$3 = { class: "mt-4 flex items-end justify-end gap-2" };
+const _sfc_main$i = /* @__PURE__ */ defineComponent({
   __name: "InfoModal",
   props: ["imageUrl", "traits"],
   setup(__props, { expose: __expose }) {
     const props = __props;
     const itemId = ref();
     const isOpen = ref(false);
-    function open(newValues, newItemId) {
+    function open(newItemId) {
       itemId.value = newItemId;
       isOpen.value = true;
     }
     function close() {
+      itemId.value = null;
       isOpen.value = false;
     }
     function swipeClose(item, i2) {
@@ -12224,7 +12399,7 @@ const _sfc_main$j = /* @__PURE__ */ defineComponent({
                 _: 1
               }),
               createBaseVNode("div", _hoisted_2$d, [
-                createBaseVNode("div", _hoisted_3$c, [
+                createBaseVNode("div", _hoisted_3$d, [
                   createVNode(unref(he), {
                     as: "template",
                     enter: "duration-300 ease-out",
@@ -12237,14 +12412,14 @@ const _sfc_main$j = /* @__PURE__ */ defineComponent({
                     default: withCtx(() => [
                       withDirectives((openBlock(), createBlock(unref(Ge), { class: "w-full max-w-md transform overflow-hidden bg-white p-6 text-left shadow-xl transition-all" }, {
                         default: withCtx(() => [
-                          createBaseVNode("div", _hoisted_4$b, [
-                            createBaseVNode("div", _hoisted_5$9, [
+                          createBaseVNode("div", _hoisted_4$d, [
+                            createBaseVNode("div", _hoisted_5$b, [
                               createBaseVNode("div", null, [
                                 props.imageUrl ? (openBlock(), createElementBlock("img", {
                                   key: 0,
                                   class: "w-12",
                                   src: unref(getPath)(props.imageUrl)
-                                }, null, 8, _hoisted_6$8)) : createCommentVNode("", true)
+                                }, null, 8, _hoisted_6$a)) : createCommentVNode("", true)
                               ]),
                               createBaseVNode("div", null, [
                                 createVNode(unref(Ve), {
@@ -12256,13 +12431,13 @@ const _sfc_main$j = /* @__PURE__ */ defineComponent({
                                   ]),
                                   _: 3
                                 }),
-                                createBaseVNode("div", _hoisted_7$7, [
+                                createBaseVNode("div", _hoisted_7$9, [
                                   createBaseVNode("button", {
                                     type: "button",
                                     class: "rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none",
                                     onClick: close
                                   }, [
-                                    _hoisted_8$6,
+                                    _hoisted_8$7,
                                     createVNode(unref(render$2), {
                                       class: "h-6 w-6",
                                       "aria-hidden": "true"
@@ -12281,18 +12456,18 @@ const _sfc_main$j = /* @__PURE__ */ defineComponent({
                               key: 0,
                               class: "mt-2 text-sm [&_p]:my-2",
                               innerHTML: unref(makeTraits)(props.traits)
-                            }, null, 8, _hoisted_9$3)) : createCommentVNode("", true),
+                            }, null, 8, _hoisted_9$4)) : createCommentVNode("", true),
                             createBaseVNode("div", null, [
                               renderSlot(_ctx.$slots, "beforeBody")
                             ]),
-                            createBaseVNode("div", _hoisted_10$2, [
+                            createBaseVNode("div", _hoisted_10$3, [
                               renderSlot(_ctx.$slots, "body")
                             ]),
                             createBaseVNode("div", null, [
                               renderSlot(_ctx.$slots, "default")
                             ])
                           ]),
-                          createBaseVNode("div", _hoisted_11$2, [
+                          createBaseVNode("div", _hoisted_11$3, [
                             renderSlot(_ctx.$slots, "actionButtons")
                           ])
                         ]),
@@ -12321,12 +12496,12 @@ const _sfc_main$j = /* @__PURE__ */ defineComponent({
 });
 const _hoisted_1$g = { class: "px-6 py-4" };
 const _hoisted_2$c = /* @__PURE__ */ createBaseVNode("h3", { class: "underline text-2xl" }, "Actions", -1);
-const _hoisted_3$b = ["onClick"];
-const _hoisted_4$a = /* @__PURE__ */ createBaseVNode("h3", { class: "underline text-2xl pt-2" }, "Reactions", -1);
-const _hoisted_5$8 = ["onClick"];
-const _hoisted_6$7 = { class: "text-sm" };
-const _hoisted_7$6 = ["innerHTML"];
-const _sfc_main$i = /* @__PURE__ */ defineComponent({
+const _hoisted_3$c = ["onClick"];
+const _hoisted_4$c = /* @__PURE__ */ createBaseVNode("h3", { class: "underline text-2xl pt-2" }, "Reactions", -1);
+const _hoisted_5$a = ["onClick"];
+const _hoisted_6$9 = { class: "text-sm" };
+const _hoisted_7$8 = ["innerHTML"];
+const _sfc_main$h = /* @__PURE__ */ defineComponent({
   __name: "Actions",
   props: ["actor"],
   setup(__props) {
@@ -12353,11 +12528,11 @@ const _sfc_main$i = /* @__PURE__ */ defineComponent({
             }), (feat) => {
               return openBlock(), createElementBlock("li", {
                 class: "cursor-pointer",
-                onClick: ($event) => infoModal.value.open(null, feat._id)
-              }, toDisplayString(feat.name), 9, _hoisted_3$b);
+                onClick: ($event) => infoModal.value.open(feat._id)
+              }, toDisplayString(feat.name), 9, _hoisted_3$c);
             }), 256))
           ]),
-          _hoisted_4$a,
+          _hoisted_4$c,
           createBaseVNode("ul", null, [
             (openBlock(true), createElementBlock(Fragment, null, renderList(unref(actor).items.filter((i2) => {
               var _a2;
@@ -12365,13 +12540,13 @@ const _sfc_main$i = /* @__PURE__ */ defineComponent({
             }), (feat) => {
               return openBlock(), createElementBlock("li", {
                 class: "cursor-pointer",
-                onClick: ($event) => infoModal.value.open(null, feat._id)
-              }, toDisplayString(feat.name), 9, _hoisted_5$8);
+                onClick: ($event) => infoModal.value.open(feat._id)
+              }, toDisplayString(feat.name), 9, _hoisted_5$a);
             }), 256))
           ])
         ]),
         (openBlock(), createBlock(Teleport, { to: "#modals" }, [
-          createVNode(_sfc_main$j, {
+          createVNode(_sfc_main$i, {
             ref_key: "infoModal",
             ref: infoModal,
             imageUrl: (_a = action.value) == null ? void 0 : _a.img,
@@ -12387,7 +12562,7 @@ const _sfc_main$i = /* @__PURE__ */ defineComponent({
               var _a2, _b2, _c, _d, _e;
               return [
                 createTextVNode(" Level " + toDisplayString(((_b2 = (_a2 = action.value) == null ? void 0 : _a2.system.level) == null ? void 0 : _b2.value) ?? 0) + " ", 1),
-                createBaseVNode("span", _hoisted_6$7, "(" + toDisplayString(unref(capitalize)((_e = (_d = (_c = action.value) == null ? void 0 : _c.system) == null ? void 0 : _d.traits) == null ? void 0 : _e.rarity)) + ")", 1)
+                createBaseVNode("span", _hoisted_6$9, "(" + toDisplayString(unref(capitalize)((_e = (_d = (_c = action.value) == null ? void 0 : _c.system) == null ? void 0 : _d.traits) == null ? void 0 : _e.rarity)) + ")", 1)
               ];
             }),
             body: withCtx(() => {
@@ -12395,7 +12570,7 @@ const _sfc_main$i = /* @__PURE__ */ defineComponent({
               return [
                 createBaseVNode("div", {
                   innerHTML: (_a2 = action.value) == null ? void 0 : _a2.system.description.value
-                }, null, 8, _hoisted_7$6)
+                }, null, 8, _hoisted_7$8)
               ];
             }),
             _: 1
@@ -12405,25 +12580,10 @@ const _sfc_main$i = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$f = { class: "cursor-pointer" };
-const _hoisted_2$b = { class: "text-[0.8rem] uppercase whitespace-nowrap" };
-const _hoisted_3$a = { class: "text-lg" };
-const _sfc_main$h = /* @__PURE__ */ defineComponent({
-  __name: "Statistic",
-  props: ["heading"],
-  setup(__props) {
-    return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", _hoisted_1$f, [
-        createBaseVNode("div", _hoisted_2$b, toDisplayString(__props.heading), 1),
-        createBaseVNode("div", _hoisted_3$a, [
-          renderSlot(_ctx.$slots, "default")
-        ])
-      ]);
-    };
-  }
-});
-const _hoisted_1$e = { class: "px-6 py-4 flex justify-between border-b" };
-const _hoisted_2$a = { class: "px-6 py-4 flex justify-between border-b" };
+const _hoisted_1$f = { class: "px-6 py-4 flex justify-between border-b" };
+const _hoisted_2$b = { class: "px-6 py-4 flex justify-between border-b" };
+const _hoisted_3$b = /* @__PURE__ */ createBaseVNode("div", { class: "border border-gray-200" }, null, -1);
+const _hoisted_4$b = /* @__PURE__ */ createBaseVNode("div", { class: "border border-gray-200" }, null, -1);
 const _sfc_main$g = /* @__PURE__ */ defineComponent({
   __name: "Attributes",
   setup(__props) {
@@ -12437,52 +12597,58 @@ const _sfc_main$g = /* @__PURE__ */ defineComponent({
       { heading: "Cha", abbr: "cha" }
     ];
     return (_ctx, _cache) => {
-      var _a;
+      var _a, _b, _c;
       return openBlock(), createElementBlock(Fragment, null, [
-        createBaseVNode("div", _hoisted_1$e, [
+        createBaseVNode("div", _hoisted_1$f, [
           (openBlock(), createElementBlock(Fragment, null, renderList(attributes, (attr) => {
-            return createVNode(_sfc_main$h, {
+            return createVNode(_sfc_main$k, {
               heading: attr.heading
             }, {
               default: withCtx(() => {
-                var _a2, _b, _c, _d, _e, _f;
+                var _a2, _b2, _c2, _d, _e, _f;
                 return [
-                  createTextVNode(toDisplayString(typeof ((_c = (_b = (_a2 = unref(actor).system) == null ? void 0 : _a2.abilities) == null ? void 0 : _b[attr.abbr]) == null ? void 0 : _c.mod) === "number" ? unref(SignedNumber).format((_f = (_e = (_d = unref(actor).system) == null ? void 0 : _d.abilities) == null ? void 0 : _e[attr.abbr]) == null ? void 0 : _f.mod) : "??"), 1)
+                  createTextVNode(toDisplayString(typeof ((_c2 = (_b2 = (_a2 = unref(actor).system) == null ? void 0 : _a2.abilities) == null ? void 0 : _b2[attr.abbr]) == null ? void 0 : _c2.mod) === "number" ? unref(SignedNumber).format((_f = (_e = (_d = unref(actor).system) == null ? void 0 : _d.abilities) == null ? void 0 : _e[attr.abbr]) == null ? void 0 : _f.mod) : "??"), 1)
                 ];
               }),
               _: 2
             }, 1032, ["heading"]);
           }), 64))
         ]),
-        createBaseVNode("div", _hoisted_2$a, [
+        createBaseVNode("div", _hoisted_2$b, [
+          createVNode(_sfc_main$k, { heading: "AC" }, {
+            default: withCtx(() => {
+              var _a2, _b2, _c2;
+              return [
+                createTextVNode(toDisplayString((_c2 = (_b2 = (_a2 = unref(actor).system) == null ? void 0 : _a2.attributes) == null ? void 0 : _b2.ac) == null ? void 0 : _c2.value), 1)
+              ];
+            }),
+            _: 1
+          }),
+          _hoisted_3$b,
           (openBlock(true), createElementBlock(Fragment, null, renderList((_a = unref(actor).system) == null ? void 0 : _a.saves, (save) => {
-            return openBlock(), createBlock(_sfc_main$h, {
-              heading: save.label
+            return openBlock(), createBlock(_sfc_main$k, {
+              heading: save.label,
+              proficiency: save.rank
             }, {
               default: withCtx(() => [
                 createTextVNode(toDisplayString(unref(SignedNumber).format(save.totalModifier)), 1)
               ]),
               _: 2
-            }, 1032, ["heading"]);
+            }, 1032, ["heading", "proficiency"]);
           }), 256)),
-          createVNode(_sfc_main$h, { heading: "Perception" }, {
+          _hoisted_4$b,
+          createVNode(_sfc_main$k, {
+            heading: "Perception",
+            proficiency: (_c = (_b = unref(actor).system) == null ? void 0 : _b.perception) == null ? void 0 : _c.rank
+          }, {
             default: withCtx(() => {
-              var _a2, _b;
+              var _a2, _b2;
               return [
-                createTextVNode(toDisplayString(unref(SignedNumber).format((_b = (_a2 = unref(actor).system) == null ? void 0 : _a2.perception) == null ? void 0 : _b.value)), 1)
+                createTextVNode(toDisplayString(unref(SignedNumber).format((_b2 = (_a2 = unref(actor).system) == null ? void 0 : _a2.perception) == null ? void 0 : _b2.value)), 1)
               ];
             }),
             _: 1
-          }),
-          createVNode(_sfc_main$h, { heading: "AC" }, {
-            default: withCtx(() => {
-              var _a2, _b;
-              return [
-                createTextVNode(toDisplayString((_b = (_a2 = unref(actor).system) == null ? void 0 : _a2.attributes.ac) == null ? void 0 : _b.value), 1)
-              ];
-            }),
-            _: 1
-          })
+          }, 8, ["proficiency"])
         ])
       ], 64);
     };
@@ -12508,17 +12674,17 @@ const _sfc_main$f = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$d = { class: "px-6 py-4" };
-const _hoisted_2$9 = { class: "" };
-const _hoisted_3$9 = { class: "mt-4 first:mt-0" };
-const _hoisted_4$9 = { class: "" };
-const _hoisted_5$7 = { class: "underline text-xl" };
-const _hoisted_6$6 = { class: "pl-1 text-xs" };
-const _hoisted_7$5 = { class: "mt-2 first:mt-0" };
-const _hoisted_8$5 = { class: "text-sm italic" };
-const _hoisted_9$2 = { class: "pr-1" };
-const _hoisted_10$1 = { class: "text-md" };
-const _hoisted_11$1 = ["onClick"];
+const _hoisted_1$e = { class: "px-6 py-4" };
+const _hoisted_2$a = { class: "" };
+const _hoisted_3$a = { class: "mt-4 first:mt-0" };
+const _hoisted_4$a = { class: "" };
+const _hoisted_5$9 = { class: "underline text-xl" };
+const _hoisted_6$8 = { class: "pl-1 text-xs" };
+const _hoisted_7$7 = { class: "mt-2 first:mt-0" };
+const _hoisted_8$6 = { class: "text-sm italic" };
+const _hoisted_9$3 = { class: "pr-1" };
+const _hoisted_10$2 = { class: "text-md" };
+const _hoisted_11$2 = ["onClick"];
 const _hoisted_12$1 = { class: "pl-1 text-md pf2-icon" };
 const _hoisted_13$1 = ["innerHTML"];
 const _hoisted_14$1 = { class: "text-sm" };
@@ -12538,28 +12704,36 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
         });
       }
     );
-    function getLevelsForLocation(location2) {
+    const spellbook = computed(() => {
       var _a;
-      return (_a = actor.value) == null ? void 0 : _a.items.filter((i2) => i2.type === "spell" && i2.system.location.value === location2).map((s2) => s2.system.traits.value.includes("cantrip") ? 0 : s2.system.level.value).sort().filter((itm, pos, ary) => !pos || itm != ary[pos - 1]);
-    }
-    function getSpellsForLocationAndLevel(location2, level) {
-      var _a;
-      const spells = (_a = actor.value) == null ? void 0 : _a.items.filter((i2) => i2.type === "spell" && i2.system.location.value === location2).filter((s2) => {
-        return level === 0 ? s2.system.traits.value.includes("cantrip") : (s2.system.level.value === level || s2.system.level.value < level && s2.system.location.signature) && !s2.system.traits.value.includes("cantrip");
+      let sb = {};
+      (_a = actor.value.items) == null ? void 0 : _a.filter((i2) => (i2 == null ? void 0 : i2.type) === "spellcastingEntry").forEach((se) => {
+        const location2 = se._id;
+        sb[location2] = {};
+        actor.value.items.filter((i2) => i2.type === "spell" && i2.system.location.value === location2).map(
+          (s2) => s2.system.traits.value.includes("cantrip") ? "0" : String(s2.system.level.value)
+        ).sort().filter((itm, pos, ary) => !pos || itm != ary[pos - 1]).forEach((level) => {
+          sb[location2][level] = [];
+          actor.value.items.filter((i2) => i2.type === "spell" && i2.system.location.value === location2).filter((s2) => {
+            return level === "0" ? s2.system.traits.value.includes("cantrip") : (s2.system.level.value === Number(level) || s2.system.level.value < Number(level) && s2.system.location.signature) && !s2.system.traits.value.includes("cantrip");
+          }).forEach((s2) => {
+            sb[location2][level].push(s2);
+          });
+        });
       });
-      return spells;
-    }
+      return sb;
+    });
     return (_ctx, _cache) => {
-      var _a, _b, _c, _d;
+      var _a, _b, _c, _d, _e;
       return openBlock(), createElementBlock(Fragment, null, [
-        createBaseVNode("div", _hoisted_1$d, [
-          createBaseVNode("ul", _hoisted_2$9, [
+        createBaseVNode("div", _hoisted_1$e, [
+          createBaseVNode("ul", _hoisted_2$a, [
             (openBlock(true), createElementBlock(Fragment, null, renderList((_b = (_a = unref(actor)) == null ? void 0 : _a.items) == null ? void 0 : _b.filter((x2) => (x2 == null ? void 0 : x2.type) === "spellcastingEntry"), (location2) => {
               var _a2, _b2, _c2, _d2;
-              return openBlock(), createElementBlock("li", _hoisted_3$9, [
-                createBaseVNode("h3", _hoisted_4$9, [
-                  createBaseVNode("span", _hoisted_5$7, toDisplayString(location2.name), 1),
-                  createBaseVNode("span", _hoisted_6$6, [
+              return openBlock(), createElementBlock("li", _hoisted_3$a, [
+                createBaseVNode("h3", _hoisted_4$a, [
+                  createBaseVNode("span", _hoisted_5$9, toDisplayString(location2.name), 1),
+                  createBaseVNode("span", _hoisted_6$8, [
                     ((_a2 = location2.system) == null ? void 0 : _a2.prepared.value) === "focus" ? (openBlock(), createBlock(_sfc_main$f, {
                       key: 0,
                       value: unref(actor).system.resources.focus.value,
@@ -12572,11 +12746,11 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
                   ])
                 ]),
                 createBaseVNode("ul", null, [
-                  (openBlock(true), createElementBlock(Fragment, null, renderList(getLevelsForLocation(location2._id), (level) => {
+                  (openBlock(true), createElementBlock(Fragment, null, renderList(spellbook.value[location2._id], (spells, level) => {
                     var _a3;
-                    return openBlock(), createElementBlock("li", _hoisted_7$5, [
-                      createBaseVNode("h4", _hoisted_8$5, [
-                        createBaseVNode("span", _hoisted_9$2, toDisplayString(level == 0 ? "Cantrips" : "Rank " + level), 1),
+                    return openBlock(), createElementBlock("li", _hoisted_7$7, [
+                      createBaseVNode("h4", _hoisted_8$6, [
+                        createBaseVNode("span", _hoisted_9$3, toDisplayString(level == "0" ? "Cantrips" : "Rank " + level), 1),
                         ((_a3 = location2.system) == null ? void 0 : _a3.prepared.value) === "spontaneous" ? (openBlock(), createBlock(_sfc_main$f, {
                           key: 0,
                           class: "text-xs",
@@ -12585,16 +12759,16 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
                         }, null, 8, ["value", "max"])) : createCommentVNode("", true)
                       ]),
                       createBaseVNode("ul", null, [
-                        (openBlock(true), createElementBlock(Fragment, null, renderList(getSpellsForLocationAndLevel(location2._id, level), (spell) => {
+                        (openBlock(true), createElementBlock(Fragment, null, renderList(spells, (spell) => {
                           return openBlock(), createElementBlock("li", null, [
-                            createBaseVNode("div", _hoisted_10$1, [
+                            createBaseVNode("div", _hoisted_10$2, [
                               createBaseVNode("span", {
-                                onClick: ($event) => infoModal.value.open(null, spell._id),
+                                onClick: ($event) => infoModal.value.open(spell == null ? void 0 : spell._id),
                                 class: "cursor-pointer"
                               }, [
-                                createBaseVNode("span", null, toDisplayString(spell.name), 1),
-                                createBaseVNode("span", _hoisted_12$1, toDisplayString(spell.system.time.value.replace("to", " - ").replace("free", "f")), 1)
-                              ], 8, _hoisted_11$1)
+                                createBaseVNode("span", null, toDisplayString(spell == null ? void 0 : spell.name), 1),
+                                createBaseVNode("span", _hoisted_12$1, toDisplayString(spell == null ? void 0 : spell.system.time.value.replace("to", " - ").replace("free", "f")), 1)
+                              ], 8, _hoisted_11$2)
                             ])
                           ]);
                         }), 256))
@@ -12607,36 +12781,44 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
           ])
         ]),
         (openBlock(), createBlock(Teleport, { to: "#modals" }, [
-          createVNode(_sfc_main$j, {
+          createVNode(_sfc_main$i, {
             ref_key: "infoModal",
             ref: infoModal,
             imageUrl: (_c = viewedItem.value) == null ? void 0 : _c.img,
-            traits: (_d = viewedItem.value) == null ? void 0 : _d.system.traits.value
+            traits: (_e = (_d = viewedItem.value) == null ? void 0 : _d.system) == null ? void 0 : _e.traits.value
           }, {
             title: withCtx(() => {
-              var _a2, _b2;
+              var _a2, _b2, _c2;
               return [
                 createTextVNode(toDisplayString((_a2 = viewedItem.value) == null ? void 0 : _a2.name) + " ", 1),
                 createBaseVNode("span", {
                   class: "text-2xl absolute pl-1 -mt-[.3rem]",
-                  innerHTML: unref(makeActionIcons)((_b2 = viewedItem.value) == null ? void 0 : _b2.system.time.value.replace("to", " - ").replace("free", "f"))
+                  innerHTML: unref(makeActionIcons)(
+                    (_c2 = (_b2 = viewedItem.value) == null ? void 0 : _b2.system) == null ? void 0 : _c2.time.value.replace("to", " - ").replace("free", "f")
+                  )
                 }, null, 8, _hoisted_13$1)
               ];
             }),
-            description: withCtx(() => [
-              createTextVNode(toDisplayString((viewedItem.value.system.traits.value.includes("cantrip") ? `Cantrip` : `Rank
-        ${viewedItem.value.system.level.value}`) + `
+            description: withCtx(() => {
+              var _a2, _b2, _c2;
+              return [
+                createTextVNode(toDisplayString((((_a2 = viewedItem.value) == null ? void 0 : _a2.system.traits.value.includes("cantrip")) ? `Cantrip` : `Rank
+        ${(_b2 = viewedItem.value) == null ? void 0 : _b2.system.level.value}`) + `
         `) + " ", 1),
-              createBaseVNode("span", _hoisted_14$1, toDisplayString(unref(capitalize)(viewedItem.value.system.traits.rarity)), 1)
-            ]),
-            body: withCtx(() => [
-              createBaseVNode("div", {
-                innerHTML: unref(makePropertiesHtml)(viewedItem.value)
-              }, null, 8, _hoisted_15$1),
-              createBaseVNode("div", {
-                innerHTML: unref(removeUUIDs)(viewedItem.value.system.description.value)
-              }, null, 8, _hoisted_16$1)
-            ]),
+                createBaseVNode("span", _hoisted_14$1, toDisplayString(unref(capitalize)((_c2 = viewedItem.value) == null ? void 0 : _c2.system.traits.rarity)), 1)
+              ];
+            }),
+            body: withCtx(() => {
+              var _a2;
+              return [
+                createBaseVNode("div", {
+                  innerHTML: unref(makePropertiesHtml)(viewedItem.value)
+                }, null, 8, _hoisted_15$1),
+                createBaseVNode("div", {
+                  innerHTML: unref(removeUUIDs)((_a2 = viewedItem.value) == null ? void 0 : _a2.system.description.value)
+                }, null, 8, _hoisted_16$1)
+              ];
+            }),
             _: 1
           }, 8, ["imageUrl", "traits"])
         ]))
@@ -12644,17 +12826,17 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$c = { class: "border border-t-0 px-6 py-4 flex gap-2 empty:hidden" };
-const _hoisted_2$8 = ["onClick"];
-const _hoisted_3$8 = { class: "w-12" };
-const _hoisted_4$8 = { class: "relative" };
-const _hoisted_5$6 = {
+const _hoisted_1$d = { class: "border border-t-0 px-6 py-4 flex gap-2 empty:hidden" };
+const _hoisted_2$9 = ["onClick"];
+const _hoisted_3$9 = { class: "w-12" };
+const _hoisted_4$9 = { class: "relative" };
+const _hoisted_5$8 = {
   key: 0,
   class: "absolute right-0 bottom-0 bg-[#FFFFFFCC] border border-black px-1 text-xs"
 };
-const _hoisted_6$5 = ["src"];
-const _hoisted_7$4 = { class: "text-[0.5rem] whitespace-nowrap overflow-hidden w-12 text-center" };
-const _hoisted_8$4 = ["innerHTML"];
+const _hoisted_6$7 = ["src"];
+const _hoisted_7$6 = { class: "text-[0.5rem] whitespace-nowrap overflow-hidden w-12 text-center" };
+const _hoisted_8$5 = ["innerHTML"];
 const _sfc_main$d = /* @__PURE__ */ defineComponent({
   __name: "Effects",
   setup(__props) {
@@ -12673,8 +12855,9 @@ const _sfc_main$d = /* @__PURE__ */ defineComponent({
       deleteActorItem(actor, effectId);
     }
     function incrementEffectValue(effectId, change) {
+      var _a, _b;
       const effect = actor.value.items.find((i2) => i2._id === effectId);
-      const newValue = effect.system.value.value + change;
+      const newValue = ((_b = (_a = effect.system) == null ? void 0 : _a.value) == null ? void 0 : _b.value) + change;
       const update = {
         system: {
           value: {
@@ -12687,27 +12870,28 @@ const _sfc_main$d = /* @__PURE__ */ defineComponent({
     return (_ctx, _cache) => {
       var _a, _b, _c;
       return openBlock(), createElementBlock(Fragment, null, [
-        createBaseVNode("div", _hoisted_1$c, [
+        createBaseVNode("div", _hoisted_1$d, [
           (openBlock(true), createElementBlock(Fragment, null, renderList((_b = (_a = unref(actor)) == null ? void 0 : _a.items) == null ? void 0 : _b.filter((i2) => ["effect", "condition"].includes(i2 == null ? void 0 : i2.type)), (effect) => {
             var _a2, _b2, _c2, _d;
             return openBlock(), createElementBlock("div", {
-              onClick: ($event) => infoModal.value.open(null, effect._id)
+              class: "cursor-pointer",
+              onClick: ($event) => infoModal.value.open(effect._id)
             }, [
-              createBaseVNode("div", _hoisted_3$8, [
-                createBaseVNode("div", _hoisted_4$8, [
-                  ((_b2 = (_a2 = effect.system) == null ? void 0 : _a2.value) == null ? void 0 : _b2.isValued) ? (openBlock(), createElementBlock("div", _hoisted_5$6, toDisplayString((_d = (_c2 = effect.system) == null ? void 0 : _c2.value) == null ? void 0 : _d.value), 1)) : createCommentVNode("", true),
+              createBaseVNode("div", _hoisted_3$9, [
+                createBaseVNode("div", _hoisted_4$9, [
+                  ((_b2 = (_a2 = effect.system) == null ? void 0 : _a2.value) == null ? void 0 : _b2.isValued) ? (openBlock(), createElementBlock("div", _hoisted_5$8, toDisplayString((_d = (_c2 = effect.system) == null ? void 0 : _c2.value) == null ? void 0 : _d.value), 1)) : createCommentVNode("", true),
                   createBaseVNode("img", {
                     src: unref(getPath)(effect.img),
                     class: "h-12 w-12 rounded-full"
-                  }, null, 8, _hoisted_6$5)
+                  }, null, 8, _hoisted_6$7)
                 ]),
-                createBaseVNode("div", _hoisted_7$4, toDisplayString(effect.name.replace("Effect: ", "")), 1)
+                createBaseVNode("div", _hoisted_7$6, toDisplayString(effect.name.replace("Effect: ", "")), 1)
               ])
-            ], 8, _hoisted_2$8);
+            ], 8, _hoisted_2$9);
           }), 256))
         ]),
         (openBlock(), createBlock(Teleport, { to: "#modals" }, [
-          createVNode(_sfc_main$j, {
+          createVNode(_sfc_main$i, {
             ref_key: "infoModal",
             ref: infoModal,
             imageUrl: (_c = viewedItem.value) == null ? void 0 : _c.img
@@ -12729,36 +12913,41 @@ const _sfc_main$d = /* @__PURE__ */ defineComponent({
               return [
                 createBaseVNode("div", {
                   innerHTML: unref(removeUUIDs)((_c2 = (_b2 = (_a2 = viewedItem.value) == null ? void 0 : _a2.system) == null ? void 0 : _b2.description) == null ? void 0 : _c2.value)
-                }, null, 8, _hoisted_8$4)
+                }, null, 8, _hoisted_8$5)
               ];
             }),
-            actionButtons: withCtx(() => [
-              createBaseVNode("button", {
-                type: "button",
-                class: "bg-red-200 hover:bg-red-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none",
-                onClick: _cache[0] || (_cache[0] = () => {
-                  var _a2;
-                  deleteEffect((_a2 = viewedItem.value) == null ? void 0 : _a2._id);
-                  infoModal.value.close();
-                })
-              }, " Remove "),
-              createBaseVNode("button", {
-                type: "button",
-                class: "bg-gray-200 hover:bg-gray-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none",
-                onClick: _cache[1] || (_cache[1] = () => {
-                  var _a2;
-                  return incrementEffectValue((_a2 = viewedItem.value) == null ? void 0 : _a2._id, -1);
-                })
-              }, " - "),
-              createBaseVNode("button", {
-                type: "button",
-                class: "bg-gray-200 hover:bg-gray-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none",
-                onClick: _cache[2] || (_cache[2] = () => {
-                  var _a2;
-                  return incrementEffectValue((_a2 = viewedItem.value) == null ? void 0 : _a2._id, 1);
-                })
-              }, " + ")
-            ]),
+            actionButtons: withCtx(() => {
+              var _a2, _b2, _c2, _d, _e, _f;
+              return [
+                createBaseVNode("button", {
+                  type: "button",
+                  class: "bg-red-200 hover:bg-red-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none",
+                  onClick: _cache[0] || (_cache[0] = () => {
+                    var _a3;
+                    deleteEffect((_a3 = viewedItem.value) == null ? void 0 : _a3._id);
+                    infoModal.value.close();
+                  })
+                }, " Remove "),
+                ((_c2 = (_b2 = (_a2 = viewedItem.value) == null ? void 0 : _a2.system) == null ? void 0 : _b2.value) == null ? void 0 : _c2.isValued) ? (openBlock(), createElementBlock("button", {
+                  key: 0,
+                  type: "button",
+                  class: "bg-gray-200 hover:bg-gray-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none",
+                  onClick: _cache[1] || (_cache[1] = () => {
+                    var _a3;
+                    return incrementEffectValue((_a3 = viewedItem.value) == null ? void 0 : _a3._id, -1);
+                  })
+                }, " - ")) : createCommentVNode("", true),
+                ((_f = (_e = (_d = viewedItem.value) == null ? void 0 : _d.system) == null ? void 0 : _e.value) == null ? void 0 : _f.isValued) ? (openBlock(), createElementBlock("button", {
+                  key: 1,
+                  type: "button",
+                  class: "bg-gray-200 hover:bg-gray-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none",
+                  onClick: _cache[2] || (_cache[2] = () => {
+                    var _a3;
+                    return incrementEffectValue((_a3 = viewedItem.value) == null ? void 0 : _a3._id, 1);
+                  })
+                }, " + ")) : createCommentVNode("", true)
+              ];
+            }),
             _: 1
           }, 8, ["imageUrl"])
         ]))
@@ -12766,11 +12955,11 @@ const _sfc_main$d = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$b = /* @__PURE__ */ createBaseVNode("div", { class: "fixed inset-0 bg-black/25" }, null, -1);
-const _hoisted_2$7 = { class: "fixed inset-0 overflow-y-auto" };
-const _hoisted_3$7 = { class: "flex min-h-full items-center justify-center p-4 text-center" };
-const _hoisted_4$7 = { class: "absolute right-0 top-0 pr-4 pt-4 sm:block" };
-const _hoisted_5$5 = /* @__PURE__ */ createBaseVNode("span", { class: "sr-only" }, "Close", -1);
+const _hoisted_1$c = /* @__PURE__ */ createBaseVNode("div", { class: "fixed inset-0 bg-black/25" }, null, -1);
+const _hoisted_2$8 = { class: "fixed inset-0 overflow-y-auto" };
+const _hoisted_3$8 = { class: "flex min-h-full items-center justify-center p-4 text-center" };
+const _hoisted_4$8 = { class: "absolute right-0 top-0 pr-4 pt-4 sm:block" };
+const _hoisted_5$7 = /* @__PURE__ */ createBaseVNode("span", { class: "sr-only" }, "Close", -1);
 const _sfc_main$c = /* @__PURE__ */ defineComponent({
   __name: "Modal",
   props: ["title"],
@@ -12813,12 +13002,12 @@ const _sfc_main$c = /* @__PURE__ */ defineComponent({
                 "leave-to": "opacity-0"
               }, {
                 default: withCtx(() => [
-                  _hoisted_1$b
+                  _hoisted_1$c
                 ]),
                 _: 1
               }),
-              createBaseVNode("div", _hoisted_2$7, [
-                createBaseVNode("div", _hoisted_3$7, [
+              createBaseVNode("div", _hoisted_2$8, [
+                createBaseVNode("div", _hoisted_3$8, [
                   createVNode(unref(he), {
                     as: "template",
                     enter: "duration-300 ease-out",
@@ -12840,13 +13029,13 @@ const _sfc_main$c = /* @__PURE__ */ defineComponent({
                             ]),
                             _: 1
                           }),
-                          createBaseVNode("div", _hoisted_4$7, [
+                          createBaseVNode("div", _hoisted_4$8, [
                             createBaseVNode("button", {
                               type: "button",
                               class: "rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none",
                               onClick: close
                             }, [
-                              _hoisted_5$5,
+                              _hoisted_5$7,
                               createVNode(unref(render$2), {
                                 class: "h-6 w-6",
                                 "aria-hidden": "true"
@@ -12876,10 +13065,20 @@ const _sfc_main$c = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$a = { class: "w-full py-8 text-3xl flex justify-center items-center" };
-const _hoisted_2$6 = ["placeholder"];
-const _hoisted_3$6 = { class: "text-xl" };
-const _hoisted_4$6 = /* @__PURE__ */ createBaseVNode("div", { class: "mt-5 sm:mt-4 sm:flex sm:flex-row-reverse" }, [
+const _hoisted_1$b = {
+  key: 0,
+  class: "text-blue-600"
+};
+const _hoisted_2$7 = { key: 1 };
+const _hoisted_3$7 = { class: "w-full pt-4 pb-1 flex justify-center items-center" };
+const _hoisted_4$7 = /* @__PURE__ */ createBaseVNode("div", { class: "w-1/3" }, "Standard:", -1);
+const _hoisted_5$6 = ["placeholder"];
+const _hoisted_6$6 = { class: "text-xl w-1/3" };
+const _hoisted_7$5 = { class: "w-full pb-4 pt-1 flex justify-center items-center" };
+const _hoisted_8$4 = /* @__PURE__ */ createBaseVNode("div", { class: "w-1/3 text-blue-600" }, "Temporary:", -1);
+const _hoisted_9$2 = ["placeholder"];
+const _hoisted_10$1 = /* @__PURE__ */ createBaseVNode("div", { class: "w-1/3" }, null, -1);
+const _hoisted_11$1 = /* @__PURE__ */ createBaseVNode("div", { class: "mt-5 sm:mt-4 sm:flex sm:flex-row-reverse" }, [
   /* @__PURE__ */ createBaseVNode("button", {
     type: "submit",
     class: "inline-flex w-full justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:ml-3 sm:w-auto"
@@ -12890,58 +13089,26 @@ const _sfc_main$b = /* @__PURE__ */ defineComponent({
   setup(__props) {
     const actor = inject("actor");
     const hitpointsModal = ref();
-    const { socket: socket2 } = useServer();
-    function updateHitPoints(input) {
-      var _a, _b, _c, _d, _e;
-      const transform = (_a = [...input.matchAll(/([+-]){0,1}([0-9]+)$/g)]) == null ? void 0 : _a[0];
-      if (!transform)
-        return;
-      let newValue;
-      if (transform[1] === "+") {
-        newValue = ((_b = actor.value.system) == null ? void 0 : _b.attributes.hp.value) + (Number(transform[2]) ?? 0);
-      } else if (transform[1] === "-") {
-        newValue = ((_c = actor.value.system) == null ? void 0 : _c.attributes.hp.value) - (Number(transform[2]) ?? 0);
-      } else {
-        newValue = Number(transform[2]) ?? ((_d = actor.value.system) == null ? void 0 : _d.attributes.hp.value);
-      }
-      newValue = Math.max(Math.min(newValue, (_e = actor.value.system) == null ? void 0 : _e.attributes.hp.max), 0);
-      console.log(newValue);
-      socket2.value.emit(
-        "modifyDocument",
-        {
-          action: "update",
-          type: "Actor",
-          options: { diff: true, render: true },
-          updates: [
-            {
-              _id: actor.value._id,
-              system: {
-                attributes: {
-                  hp: {
-                    value: newValue
-                  }
-                }
-              }
-            }
-          ]
-        },
-        (r2) => {
-          r2.result.forEach((change) => {
-            mergeDeep(actor.value, change);
-          });
-        }
-      );
+    function updateHitPoints(hp_input, temp_input) {
+      var _a;
+      let newHP = parseIncrement(hp_input, actor.value.system.attributes.hp.value);
+      newHP = Math.max(Math.min(newHP, (_a = actor.value.system) == null ? void 0 : _a.attributes.hp.max), 0);
+      let newTemp = parseIncrement(temp_input, actor.value.system.attributes.hp.temp);
+      newTemp = Math.max(newTemp, 0);
+      updateActor(actor, { system: { attributes: { hp: { value: newHP, temp: newTemp } } } });
     }
     return (_ctx, _cache) => {
       return openBlock(), createElementBlock(Fragment, null, [
-        createVNode(_sfc_main$h, {
+        createVNode(_sfc_main$k, {
           heading: "Hit Points",
           onClick: _cache[0] || (_cache[0] = ($event) => hitpointsModal.value.open())
         }, {
           default: withCtx(() => {
-            var _a, _b;
+            var _a, _b, _c, _d, _e;
             return [
-              createTextVNode(toDisplayString(((_a = unref(actor).system) == null ? void 0 : _a.attributes.hp.value) ?? "??") + " / " + toDisplayString(((_b = unref(actor).system) == null ? void 0 : _b.attributes.hp.max) ?? "??"), 1)
+              createTextVNode(toDisplayString(((_a = unref(actor).system) == null ? void 0 : _a.attributes.hp.value) ?? "??") + " ", 1),
+              ((_b = unref(actor).system) == null ? void 0 : _b.attributes.hp.temp) ? (openBlock(), createElementBlock("span", _hoisted_1$b, "+ " + toDisplayString((_c = unref(actor).system) == null ? void 0 : _c.attributes.hp.temp), 1)) : createCommentVNode("", true),
+              !((_d = unref(actor).system) == null ? void 0 : _d.attributes.hp.temp) ? (openBlock(), createElementBlock("span", _hoisted_2$7, " / " + toDisplayString(((_e = unref(actor).system) == null ? void 0 : _e.attributes.hp.max) ?? "??"), 1)) : createCommentVNode("", true)
             ];
           }),
           _: 1
@@ -12953,28 +13120,43 @@ const _sfc_main$b = /* @__PURE__ */ defineComponent({
             title: "Hit Points"
           }, {
             default: withCtx(() => {
-              var _a, _b;
+              var _a, _b, _c;
               return [
                 createBaseVNode("form", {
-                  onSubmit: _cache[2] || (_cache[2] = withModifiers(
+                  onSubmit: _cache[3] || (_cache[3] = withModifiers(
                     (e2) => {
-                      updateHitPoints(e2.target[0].value);
+                      updateHitPoints(e2.target.elements.hp.value, e2.target.elements.temp_hp.value);
                       hitpointsModal.value.close();
                     },
                     ["prevent"]
                   ))
                 }, [
-                  createBaseVNode("div", _hoisted_1$a, [
+                  createBaseVNode("div", _hoisted_3$7, [
+                    _hoisted_4$7,
                     createBaseVNode("input", {
-                      class: "text-3xl border-2 border-black w-24 p-1 mr-4 text-right ml-[42px]",
+                      class: "text-3xl border-2 border-black w-1/3 p-1 mr-4 text-right ml-[32px]",
                       name: "hp",
+                      type: "number",
+                      pattern: "[+-]{0,1}[0-9]*",
                       placeholder: (_a = unref(actor).system) == null ? void 0 : _a.attributes.hp.value,
                       onFocus: _cache[1] || (_cache[1] = (e2) => e2.target.select()),
                       "focus-target": ""
-                    }, null, 40, _hoisted_2$6),
-                    createBaseVNode("span", _hoisted_3$6, "/ " + toDisplayString((_b = unref(actor).system) == null ? void 0 : _b.attributes.hp.max), 1)
+                    }, null, 40, _hoisted_5$6),
+                    createBaseVNode("div", _hoisted_6$6, "/ " + toDisplayString((_b = unref(actor).system) == null ? void 0 : _b.attributes.hp.max), 1)
                   ]),
-                  _hoisted_4$6
+                  createBaseVNode("div", _hoisted_7$5, [
+                    _hoisted_8$4,
+                    createBaseVNode("input", {
+                      class: "text-xl border-2 border-black text-blue-600 w-1/3 p-1 mr-4 text-right ml-[32px]",
+                      name: "temp_hp",
+                      type: "number",
+                      pattern: "[+-]{0,1}[0-9]*",
+                      placeholder: (_c = unref(actor).system) == null ? void 0 : _c.attributes.hp.temp,
+                      onFocus: _cache[2] || (_cache[2] = (e2) => e2.target.select())
+                    }, null, 40, _hoisted_9$2),
+                    _hoisted_10$1
+                  ]),
+                  _hoisted_11$1
                 ], 32)
               ];
             }),
@@ -12985,7 +13167,7 @@ const _sfc_main$b = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$9 = { class: "w-full py-8 text-3xl flex justify-center" };
+const _hoisted_1$a = { class: "w-full py-8 text-3xl flex justify-center" };
 const _sfc_main$a = /* @__PURE__ */ defineComponent({
   __name: "HeroPoints",
   setup(__props) {
@@ -13026,7 +13208,7 @@ const _sfc_main$a = /* @__PURE__ */ defineComponent({
     }
     return (_ctx, _cache) => {
       return openBlock(), createElementBlock(Fragment, null, [
-        createVNode(_sfc_main$h, {
+        createVNode(_sfc_main$k, {
           heading: "Hero Pts",
           onClick: _cache[0] || (_cache[0] = ($event) => heropointsModal.value.open())
         }, {
@@ -13050,7 +13232,7 @@ const _sfc_main$a = /* @__PURE__ */ defineComponent({
             default: withCtx(() => {
               var _a, _b;
               return [
-                createBaseVNode("div", _hoisted_1$9, [
+                createBaseVNode("div", _hoisted_1$a, [
                   createBaseVNode("button", {
                     class: "text-gray-500",
                     onClick: _cache[1] || (_cache[1] = ($event) => updateHeroPoints(-1))
@@ -13078,26 +13260,26 @@ const _sfc_main$a = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$8 = { class: "py-1" };
-const _hoisted_2$5 = {
+const _hoisted_1$9 = { class: "py-1" };
+const _hoisted_2$6 = {
   width: "75",
   height: "18"
 };
-const _hoisted_3$5 = ["width"];
-const _hoisted_4$5 = /* @__PURE__ */ createBaseVNode("rect", {
+const _hoisted_3$6 = ["width"];
+const _hoisted_4$6 = /* @__PURE__ */ createBaseVNode("rect", {
   width: "75",
   height: "18",
   style: { "fill": "transparent", "stroke-width": "3", "stroke": "rgb(0, 0, 0)" }
 }, null, -1);
-const _hoisted_5$4 = {
+const _hoisted_5$5 = {
   y: "12",
   x: "31",
   stroke: "black",
   "font-size": "7pt",
   "font-weight": "lighter"
 };
-const _hoisted_6$4 = { class: "w-full py-8 text-3xl flex justify-center items-center" };
-const _hoisted_7$3 = ["placeholder"];
+const _hoisted_6$5 = { class: "w-full pt-4 text-3xl flex justify-center items-center" };
+const _hoisted_7$4 = ["placeholder"];
 const _hoisted_8$3 = /* @__PURE__ */ createBaseVNode("div", { class: "mt-5 sm:mt-4 sm:flex sm:flex-row-reverse" }, [
   /* @__PURE__ */ createBaseVNode("button", {
     type: "submit",
@@ -13152,22 +13334,22 @@ const _sfc_main$9 = /* @__PURE__ */ defineComponent({
     }
     return (_ctx, _cache) => {
       return openBlock(), createElementBlock(Fragment, null, [
-        createVNode(_sfc_main$h, {
+        createVNode(_sfc_main$k, {
           heading: "Experience",
           onClick: _cache[0] || (_cache[0] = ($event) => experienceModal.value.open())
         }, {
           default: withCtx(() => {
             var _a, _b, _c;
             return [
-              createBaseVNode("div", _hoisted_1$8, [
-                (openBlock(), createElementBlock("svg", _hoisted_2$5, [
+              createBaseVNode("div", _hoisted_1$9, [
+                (openBlock(), createElementBlock("svg", _hoisted_2$6, [
                   createBaseVNode("rect", {
                     width: 75 * ((((_a = unref(actor).system) == null ? void 0 : _a.details.xp.value) ?? 0) / (((_b = unref(actor).system) == null ? void 0 : _b.details.xp.max) ?? 1)),
                     height: "18",
                     style: { "fill": "#ccc" }
-                  }, null, 8, _hoisted_3$5),
-                  _hoisted_4$5,
-                  createBaseVNode("text", _hoisted_5$4, toDisplayString((_c = unref(actor).system) == null ? void 0 : _c.details.xp.value), 1)
+                  }, null, 8, _hoisted_3$6),
+                  _hoisted_4$6,
+                  createBaseVNode("text", _hoisted_5$5, toDisplayString((_c = unref(actor).system) == null ? void 0 : _c.details.xp.value), 1)
                 ]))
               ])
             ];
@@ -13192,14 +13374,16 @@ const _sfc_main$9 = /* @__PURE__ */ defineComponent({
                     ["prevent"]
                   ))
                 }, [
-                  createBaseVNode("div", _hoisted_6$4, [
+                  createBaseVNode("div", _hoisted_6$5, [
                     createBaseVNode("input", {
-                      class: "text-3xl border-2 border-black w-24 p-1 mr-4 text-right",
+                      class: "text-3xl border-2 border-black w-36 p-1 mr-4 text-right",
                       name: "xp",
+                      type: "number",
+                      pattern: "[+-]{0,1}[0-9]*",
                       placeholder: (_a = unref(actor).system) == null ? void 0 : _a.details.xp.value,
                       onFocus: _cache[1] || (_cache[1] = (e2) => e2.target.select()),
                       "focus-target": ""
-                    }, null, 40, _hoisted_7$3)
+                    }, null, 40, _hoisted_7$4)
                   ]),
                   _hoisted_8$3
                 ], 32)
@@ -13212,12 +13396,12 @@ const _sfc_main$9 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$7 = { class: "border border-t-0 px-6 py-4 flex gap-8" };
+const _hoisted_1$8 = { class: "border border-t-0 px-6 py-4 flex gap-8" };
 const _sfc_main$8 = /* @__PURE__ */ defineComponent({
   __name: "Resources",
   setup(__props) {
     return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", _hoisted_1$7, [
+      return openBlock(), createElementBlock("div", _hoisted_1$8, [
         createVNode(_sfc_main$b),
         createVNode(_sfc_main$a),
         createVNode(_sfc_main$9)
@@ -13225,13 +13409,13 @@ const _sfc_main$8 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$6 = { class: "px-6 py-4" };
-const _hoisted_2$4 = /* @__PURE__ */ createBaseVNode("h3", { class: "underline text-2xl" }, "Feats", -1);
-const _hoisted_3$4 = { class: "underline text-lg only:hidden pt-2" };
-const _hoisted_4$4 = ["onClick"];
-const _hoisted_5$3 = { class: "text-xs text-gray-500 absolute text-right w-4 pt-1" };
-const _hoisted_6$3 = { class: "pl-6 cursor-pointer" };
-const _hoisted_7$2 = ["onClick"];
+const _hoisted_1$7 = { class: "px-6 py-4" };
+const _hoisted_2$5 = /* @__PURE__ */ createBaseVNode("h3", { class: "underline text-2xl" }, "Feats", -1);
+const _hoisted_3$5 = { class: "underline text-lg only:hidden pt-2" };
+const _hoisted_4$5 = ["onClick"];
+const _hoisted_5$4 = { class: "text-xs text-gray-500 absolute text-right w-4 pt-1" };
+const _hoisted_6$4 = { class: "pl-6 cursor-pointer" };
+const _hoisted_7$3 = ["onClick"];
 const _hoisted_8$2 = { class: "text-sm" };
 const _hoisted_9$1 = ["innerHTML"];
 const _sfc_main$7 = /* @__PURE__ */ defineComponent({
@@ -13261,27 +13445,27 @@ const _sfc_main$7 = /* @__PURE__ */ defineComponent({
     return (_ctx, _cache) => {
       var _a, _b;
       return openBlock(), createElementBlock(Fragment, null, [
-        createBaseVNode("div", _hoisted_1$6, [
-          _hoisted_2$4,
+        createBaseVNode("div", _hoisted_1$7, [
+          _hoisted_2$5,
           (openBlock(true), createElementBlock(Fragment, null, renderList(unref(actor).feats, (category) => {
             return openBlock(), createElementBlock("dl", null, [
-              createBaseVNode("dt", _hoisted_3$4, toDisplayString(unref(categoryLabels).get(category.label) ?? category.label), 1),
+              createBaseVNode("dt", _hoisted_3$5, toDisplayString(unref(categoryLabels).get(category.label) ?? category.label), 1),
               (openBlock(true), createElementBlock(Fragment, null, renderList(category.feats, (feat) => {
                 var _a2, _b2, _c, _d;
                 return openBlock(), createElementBlock("dd", null, [
                   createBaseVNode("div", {
                     class: "relative",
-                    onClick: ($event) => infoModal.value.open(null, feat.feat._id)
+                    onClick: ($event) => infoModal.value.open(feat.feat._id)
                   }, [
-                    createBaseVNode("span", _hoisted_5$3, toDisplayString(feat.level ?? feat.feat.system.level.value), 1),
-                    createBaseVNode("span", _hoisted_6$3, toDisplayString((_a2 = feat.feat) == null ? void 0 : _a2.name), 1)
-                  ], 8, _hoisted_4$4),
+                    createBaseVNode("span", _hoisted_5$4, toDisplayString(feat.level ?? feat.feat.system.level.value), 1),
+                    createBaseVNode("span", _hoisted_6$4, toDisplayString((_a2 = feat.feat) == null ? void 0 : _a2.name), 1)
+                  ], 8, _hoisted_4$5),
                   (openBlock(true), createElementBlock(Fragment, null, renderList((_d = (_c = (_b2 = feat.feat) == null ? void 0 : _b2.flags) == null ? void 0 : _c.pf2e) == null ? void 0 : _d.itemGrants, (grant) => {
                     var _a3;
                     return openBlock(), createElementBlock("div", {
                       class: "ml-10 cursor-pointer",
-                      onClick: ($event) => infoModal.value.open(null, grant.id)
-                    }, toDisplayString((_a3 = unref(actor).items.find((i2) => i2._id == grant.id)) == null ? void 0 : _a3.name), 9, _hoisted_7$2);
+                      onClick: ($event) => infoModal.value.open(grant.id)
+                    }, toDisplayString((_a3 = unref(actor).items.find((i2) => i2._id == grant.id)) == null ? void 0 : _a3.name), 9, _hoisted_7$3);
                   }), 256))
                 ]);
               }), 256))
@@ -13289,7 +13473,7 @@ const _sfc_main$7 = /* @__PURE__ */ defineComponent({
           }), 256))
         ]),
         (openBlock(), createBlock(Teleport, { to: "#modals" }, [
-          createVNode(_sfc_main$j, {
+          createVNode(_sfc_main$i, {
             ref_key: "infoModal",
             ref: infoModal,
             imageUrl: (_a = viewedItem.value) == null ? void 0 : _a.img,
@@ -13323,7 +13507,7 @@ const _sfc_main$7 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$5 = ["onClick"];
+const _hoisted_1$6 = ["onClick"];
 const _sfc_main$6 = /* @__PURE__ */ defineComponent({
   __name: "EquipmentInvested",
   props: ["actor"],
@@ -13373,25 +13557,28 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
           }, [
             createBaseVNode("span", null, toDisplayString(((_d = (_c = i2.system) == null ? void 0 : _c.equipped) == null ? void 0 : _d.invested) ? "✓" : "ｘ"), 1),
             createBaseVNode("span", null, toDisplayString(i2.name), 1)
-          ], 10, _hoisted_1$5);
+          ], 10, _hoisted_1$6);
         }), 256))
       ]);
     };
   }
 });
-const _hoisted_1$4 = { class: "px-6 py-4" };
-const _hoisted_2$3 = { class: "text-2xl" };
-const _hoisted_3$3 = /* @__PURE__ */ createBaseVNode("span", { class: "underline" }, "Equipment", -1);
-const _hoisted_4$3 = ["onClick"];
-const _hoisted_5$2 = { class: "pr-1" };
-const _hoisted_6$2 = { class: "pt-4 whitespace-nowrap" };
-const _hoisted_7$1 = { class: "underline text-lg only:hidden" };
+const _hoisted_1$5 = { class: "px-6 py-4" };
+const _hoisted_2$4 = { class: "text-2xl" };
+const _hoisted_3$4 = /* @__PURE__ */ createBaseVNode("span", { class: "underline" }, "Equipment", -1);
+const _hoisted_4$4 = ["onClick"];
+const _hoisted_5$3 = { class: "pr-1" };
+const _hoisted_6$3 = { class: "pt-4 whitespace-nowrap" };
+const _hoisted_7$2 = { class: "underline text-lg only:hidden" };
 const _hoisted_8$1 = { class: "cursor-pointer" };
 const _hoisted_9 = ["onClick"];
-const _hoisted_10 = { class: "text-xs" };
+const _hoisted_10 = {
+  key: 0,
+  class: "text-xs"
+};
 const _hoisted_11 = {
   key: 0,
-  class: "ml-4"
+  class: "pb-2"
 };
 const _hoisted_12 = ["onClick"];
 const _hoisted_13 = { class: "text-xs" };
@@ -13443,7 +13630,7 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
       { type: "equipment", title: "Equipment" },
       { type: "armor", title: "Armor" },
       { type: "treasure", title: "Treasure" },
-      { type: "backpack", title: "Containers" }
+      { type: "backpack", title: "" }
     ];
     const toggleSet = [
       {
@@ -13455,7 +13642,10 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
             handsHeld: 1
           }
         }),
-        toggleIsActive: () => item.value.system.equipped.carryType === "held" && item.value.system.equipped.handsHeld === 1
+        toggleIsActive: () => {
+          var _a, _b;
+          return ((_a = item.value) == null ? void 0 : _a.system.equipped.carryType) === "held" && ((_b = item.value) == null ? void 0 : _b.system.equipped.handsHeld) === 1;
+        }
       },
       {
         toggleText: "2-Hands",
@@ -13466,7 +13656,10 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
             handsHeld: 2
           }
         }),
-        toggleIsActive: () => item.value.system.equipped.carryType === "held" && item.value.system.equipped.handsHeld === 2
+        toggleIsActive: () => {
+          var _a, _b;
+          return ((_a = item.value) == null ? void 0 : _a.system.equipped.carryType) === "held" && ((_b = item.value) == null ? void 0 : _b.system.equipped.handsHeld) === 2;
+        }
       },
       {
         toggleText: "Worn",
@@ -13477,7 +13670,10 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
             handsHeld: 0
           }
         }),
-        toggleIsActive: () => item.value.system.equipped.carryType === "worn"
+        toggleIsActive: () => {
+          var _a;
+          return ((_a = item.value) == null ? void 0 : _a.system.equipped.carryType) === "worn";
+        }
       },
       {
         toggleText: "Stowed",
@@ -13492,7 +13688,10 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
             }
           });
         },
-        toggleIsActive: () => item.value.system.equipped.carryType === "stowed"
+        toggleIsActive: () => {
+          var _a;
+          return ((_a = item.value) == null ? void 0 : _a.system.equipped.carryType) === "stowed";
+        }
       },
       {
         toggleText: "Dropped",
@@ -13503,15 +13702,18 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
             handsHeld: 0
           }
         }),
-        toggleIsActive: () => item.value.system.equipped.carryType === "dropped"
+        toggleIsActive: () => {
+          var _a;
+          return ((_a = item.value) == null ? void 0 : _a.system.equipped.carryType) === "dropped";
+        }
       }
     ];
     return (_ctx, _cache) => {
       var _a, _b;
       return openBlock(), createElementBlock(Fragment, null, [
-        createBaseVNode("div", _hoisted_1$4, [
-          createBaseVNode("h3", _hoisted_2$3, [
-            _hoisted_3$3,
+        createBaseVNode("div", _hoisted_1$5, [
+          createBaseVNode("h3", _hoisted_2$4, [
+            _hoisted_3$4,
             createBaseVNode("span", {
               class: "cursor-pointer text-sm text-gray-500",
               onClick: _cache[0] || (_cache[0] = ($event) => investedModal.value.open())
@@ -13527,17 +13729,17 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
             }), (item2) => {
               var _a2, _b2, _c, _d, _e, _f;
               return openBlock(), createElementBlock("li", {
-                onClick: ($event) => infoModal.value.open(null, item2._id),
+                onClick: ($event) => infoModal.value.open(item2._id),
                 class: "cursor-pointer text-2xl whitespace-nowrap"
               }, [
-                createBaseVNode("span", _hoisted_5$2, toDisplayString(((_b2 = (_a2 = item2.system) == null ? void 0 : _a2.equipped) == null ? void 0 : _b2.handsHeld) > 0 ? ((_d = (_c = item2.system) == null ? void 0 : _c.equipped) == null ? void 0 : _d.handsHeld) === 1 ? "❶" : "❷" : ((_f = (_e = item2.system) == null ? void 0 : _e.equipped) == null ? void 0 : _f.carryType) === "dropped" ? "⌵" : "Ⓦ"), 1),
+                createBaseVNode("span", _hoisted_5$3, toDisplayString(((_b2 = (_a2 = item2.system) == null ? void 0 : _a2.equipped) == null ? void 0 : _b2.handsHeld) > 0 ? ((_d = (_c = item2.system) == null ? void 0 : _c.equipped) == null ? void 0 : _d.handsHeld) === 1 ? "❶" : "❷" : ((_f = (_e = item2.system) == null ? void 0 : _e.equipped) == null ? void 0 : _f.carryType) === "dropped" ? "⌵" : "Ⓦ"), 1),
                 createBaseVNode("span", null, toDisplayString(item2.name), 1)
-              ], 8, _hoisted_4$3);
+              ], 8, _hoisted_4$4);
             }), 256))
           ]),
           (openBlock(), createElementBlock(Fragment, null, renderList(inventoryTypes, (inventoryType) => {
-            return createBaseVNode("dl", _hoisted_6$2, [
-              createBaseVNode("dt", _hoisted_7$1, toDisplayString(inventoryType.title), 1),
+            return createBaseVNode("dl", _hoisted_6$3, [
+              createBaseVNode("dt", _hoisted_7$2, toDisplayString(inventoryType.title), 1),
               (openBlock(true), createElementBlock(Fragment, null, renderList(unref(actor).items.filter(
                 (i2) => {
                   var _a2;
@@ -13548,12 +13750,13 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
                 return openBlock(), createElementBlock("dd", _hoisted_8$1, [
                   createBaseVNode("div", {
                     class: normalizeClass({
-                      "text-gray-300": ((_b2 = (_a2 = item2.system) == null ? void 0 : _a2.equipped) == null ? void 0 : _b2.carryType) === "dropped"
+                      "text-gray-300": ((_b2 = (_a2 = item2.system) == null ? void 0 : _a2.equipped) == null ? void 0 : _b2.carryType) === "dropped",
+                      "underline text-lg": item2.type === "backpack"
                     }),
-                    onClick: ($event) => infoModal.value.open(null, item2._id)
+                    onClick: ($event) => infoModal.value.open(item2._id)
                   }, [
                     createBaseVNode("span", null, toDisplayString(item2.name), 1),
-                    createBaseVNode("span", _hoisted_10, " x" + toDisplayString(item2.system.quantity), 1)
+                    item2.type !== "backpack" ? (openBlock(), createElementBlock("span", _hoisted_10, " x" + toDisplayString(item2.system.quantity), 1)) : createCommentVNode("", true)
                   ], 10, _hoisted_9),
                   item2.type === "backpack" ? (openBlock(), createElementBlock("ul", _hoisted_11, [
                     (openBlock(true), createElementBlock(Fragment, null, renderList(unref(actor).items.filter((i2) => {
@@ -13561,7 +13764,7 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
                       return ((_a3 = i2.system) == null ? void 0 : _a3.containerId) === item2._id;
                     }), (stowed) => {
                       return openBlock(), createElementBlock("li", {
-                        onClick: ($event) => infoModal.value.open(null, stowed._id)
+                        onClick: ($event) => infoModal.value.open(stowed._id)
                       }, [
                         createTextVNode(toDisplayString(stowed.name), 1),
                         createBaseVNode("span", _hoisted_13, " x" + toDisplayString(stowed.system.quantity), 1)
@@ -13584,7 +13787,7 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
             ]),
             _: 1
           }, 512),
-          createVNode(_sfc_main$j, {
+          createVNode(_sfc_main$i, {
             ref_key: "infoModal",
             ref: infoModal,
             imageUrl: (_a = item.value) == null ? void 0 : _a.img,
@@ -13597,10 +13800,10 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
               ];
             }),
             description: withCtx(() => {
-              var _a2;
+              var _a2, _b2, _c;
               return [
                 createTextVNode(" Level " + toDisplayString((_a2 = item.value) == null ? void 0 : _a2.system.level.value) + " ", 1),
-                createBaseVNode("span", _hoisted_14, " (" + toDisplayString(unref(capitalize)(item.value.system.traits.rarity)) + "), " + toDisplayString(unref(printPrice)(item.value.system.price.value)), 1)
+                createBaseVNode("span", _hoisted_14, " (" + toDisplayString(unref(capitalize)((_b2 = item.value) == null ? void 0 : _b2.system.traits.rarity)) + "), " + toDisplayString(unref(printPrice)((_c = item.value) == null ? void 0 : _c.system.price.value)), 1)
               ];
             }),
             beforeBody: withCtx(() => [
@@ -13628,15 +13831,15 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$3 = { class: "px-6" };
-const _hoisted_2$2 = /* @__PURE__ */ createBaseVNode("h3", { class: "underline text-2xl py-2" }, "Strikes", -1);
-const _hoisted_3$2 = ["onClick"];
-const _hoisted_4$2 = { class: "border p-1 mr-2 text-xs" };
-const _hoisted_5$1 = {
+const _hoisted_1$4 = { class: "px-6" };
+const _hoisted_2$3 = /* @__PURE__ */ createBaseVNode("h3", { class: "underline text-2xl py-2" }, "Strikes", -1);
+const _hoisted_3$3 = ["onClick"];
+const _hoisted_4$3 = { class: "border p-1 mr-2 text-xs" };
+const _hoisted_5$2 = {
   key: 0,
   class: "pf2-icon text-lg pr-1"
 };
-const _hoisted_6$1 = { key: 1 };
+const _hoisted_6$2 = { key: 1 };
 const _sfc_main$4 = /* @__PURE__ */ defineComponent({
   __name: "Strikes",
   setup(__props) {
@@ -13672,8 +13875,8 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
     }
     return (_ctx, _cache) => {
       var _a, _b;
-      return openBlock(), createElementBlock("div", _hoisted_1$3, [
-        _hoisted_2$2,
+      return openBlock(), createElementBlock("div", _hoisted_1$4, [
+        _hoisted_2$3,
         createBaseVNode("ul", null, [
           (openBlock(true), createElementBlock(Fragment, null, renderList((_b = (_a = unref(actor).system) == null ? void 0 : _a.actions) == null ? void 0 : _b.filter((a2) => a2.type === "strike").map((a2) => {
             a2["item"] = unref(actor).items.find((i2) => {
@@ -13695,14 +13898,14 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
               createBaseVNode("div", null, toDisplayString(((_a2 = strike == null ? void 0 : strike.item) == null ? void 0 : _a2.name) ?? (strike == null ? void 0 : strike.label)), 1),
               createBaseVNode("div", null, [
                 (openBlock(true), createElementBlock(Fragment, null, renderList(strike.variants, (variant, index) => {
-                  return openBlock(), createElementBlock("span", _hoisted_4$2, [
-                    !index ? (openBlock(), createElementBlock("span", _hoisted_5$1, "1")) : createCommentVNode("", true),
-                    !index ? (openBlock(), createElementBlock("span", _hoisted_6$1, "Strike ")) : createCommentVNode("", true),
+                  return openBlock(), createElementBlock("span", _hoisted_4$3, [
+                    !index ? (openBlock(), createElementBlock("span", _hoisted_5$2, "1")) : createCommentVNode("", true),
+                    !index ? (openBlock(), createElementBlock("span", _hoisted_6$2, "Strike ")) : createCommentVNode("", true),
                     createBaseVNode("span", null, toDisplayString(variant.label), 1)
                   ]);
                 }), 256))
               ])
-            ], 8, _hoisted_3$2);
+            ], 8, _hoisted_3$3);
           }), 256))
         ])
       ]);
@@ -13739,13 +13942,13 @@ function render(_ctx, _cache) {
     })
   ]);
 }
-const _hoisted_1$2 = { class: "relative px-6 py-4 border-b" };
-const _hoisted_2$1 = /* @__PURE__ */ createBaseVNode("div", { class: "uppercase text-xs" }, "Initiative", -1);
-const _hoisted_3$1 = { class: "relative mt-1" };
-const _hoisted_4$1 = { class: "flex" };
-const _hoisted_5 = { class: "block truncate" };
-const _hoisted_6 = { class: "pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2" };
-const _hoisted_7 = { class: "p-2 w-8" };
+const _hoisted_1$3 = { class: "relative px-6 py-4 border-b" };
+const _hoisted_2$2 = /* @__PURE__ */ createBaseVNode("div", { class: "uppercase text-xs" }, "Initiative", -1);
+const _hoisted_3$2 = { class: "relative mt-1" };
+const _hoisted_4$2 = { class: "flex" };
+const _hoisted_5$1 = { class: "block truncate" };
+const _hoisted_6$1 = { class: "pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2" };
+const _hoisted_7$1 = { class: "p-2 w-8" };
 const _hoisted_8 = {
   key: 0,
   class: "absolute inset-y-0 left-0 flex items-center pl-3 text-amber-600"
@@ -13792,8 +13995,8 @@ const _sfc_main$3 = /* @__PURE__ */ defineComponent({
       );
     });
     return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", _hoisted_1$2, [
-        _hoisted_2$1,
+      return openBlock(), createElementBlock("div", _hoisted_1$3, [
+        _hoisted_2$2,
         createVNode(unref(Be), {
           modelValue: selected.value,
           "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => selected.value = $event)
@@ -13801,17 +14004,17 @@ const _sfc_main$3 = /* @__PURE__ */ defineComponent({
           default: withCtx(() => {
             var _a2;
             return [
-              createBaseVNode("div", _hoisted_3$1, [
-                createBaseVNode("div", _hoisted_4$1, [
+              createBaseVNode("div", _hoisted_3$2, [
+                createBaseVNode("div", _hoisted_4$2, [
                   createVNode(unref(Ne), { class: "relative w-full cursor-default rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-md focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm" }, {
                     default: withCtx(() => {
                       var _a3;
                       return [
-                        createBaseVNode("span", _hoisted_5, toDisplayString((_a3 = initSkills.value.find((s2) => {
+                        createBaseVNode("span", _hoisted_5$1, toDisplayString((_a3 = initSkills.value.find((s2) => {
                           var _a4;
                           return (s2 == null ? void 0 : s2.slug) === ((_a4 = unref(actor).system) == null ? void 0 : _a4.initiative.statistic);
                         })) == null ? void 0 : _a3.label), 1),
-                        createBaseVNode("span", _hoisted_6, [
+                        createBaseVNode("span", _hoisted_6$1, [
                           createVNode(unref(render), {
                             class: "h-5 w-5 text-gray-400",
                             "aria-hidden": "true"
@@ -13821,7 +14024,7 @@ const _sfc_main$3 = /* @__PURE__ */ defineComponent({
                     }),
                     _: 1
                   }),
-                  createBaseVNode("div", _hoisted_7, toDisplayString(unref(SignedNumber).format(
+                  createBaseVNode("div", _hoisted_7$1, toDisplayString(unref(SignedNumber).format(
                     ((_a2 = initSkills.value.find((s2) => {
                       var _a3;
                       return (s2 == null ? void 0 : s2.slug) === ((_a3 = unref(actor).system) == null ? void 0 : _a3.initiative.statistic);
@@ -13878,11 +14081,47 @@ const _sfc_main$3 = /* @__PURE__ */ defineComponent({
     };
   }
 });
+const _hoisted_1$2 = { class: "px-6 py-4 flex justify-between border-b empty:hidden" };
+const _hoisted_2$1 = { key: 0 };
+const _hoisted_3$1 = /* @__PURE__ */ createBaseVNode("dt", { class: "underline" }, "Immunities", -1);
+const _hoisted_4$1 = { key: 1 };
+const _hoisted_5 = /* @__PURE__ */ createBaseVNode("dt", { class: "underline" }, "Weaknesses", -1);
+const _hoisted_6 = { key: 2 };
+const _hoisted_7 = /* @__PURE__ */ createBaseVNode("dt", { class: "underline" }, "Resistances", -1);
+const _sfc_main$2 = /* @__PURE__ */ defineComponent({
+  __name: "IWR",
+  setup(__props) {
+    const actor = inject("actor");
+    return (_ctx, _cache) => {
+      var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o;
+      return openBlock(), createElementBlock("div", _hoisted_1$2, [
+        ((_c = (_b = (_a = unref(actor)) == null ? void 0 : _a.system) == null ? void 0 : _b.attributes.immunities) == null ? void 0 : _c.length) ? (openBlock(), createElementBlock("dl", _hoisted_2$1, [
+          _hoisted_3$1,
+          (openBlock(true), createElementBlock(Fragment, null, renderList((_e = (_d = unref(actor)) == null ? void 0 : _d.system) == null ? void 0 : _e.attributes.immunities, (immunity) => {
+            return openBlock(), createElementBlock("dd", null, toDisplayString(unref(capitalize)(immunity.type)), 1);
+          }), 256))
+        ])) : createCommentVNode("", true),
+        ((_h = (_g = (_f = unref(actor)) == null ? void 0 : _f.system) == null ? void 0 : _g.attributes.weaknesses) == null ? void 0 : _h.length) ? (openBlock(), createElementBlock("dl", _hoisted_4$1, [
+          _hoisted_5,
+          (openBlock(true), createElementBlock(Fragment, null, renderList((_j = (_i = unref(actor)) == null ? void 0 : _i.system) == null ? void 0 : _j.attributes.weaknesses, (weakness) => {
+            return openBlock(), createElementBlock("dd", null, toDisplayString(unref(capitalize)(weakness.type)) + " " + toDisplayString(weakness.value), 1);
+          }), 256))
+        ])) : createCommentVNode("", true),
+        ((_m = (_l = (_k = unref(actor)) == null ? void 0 : _k.system) == null ? void 0 : _l.attributes.resistances) == null ? void 0 : _m.length) ? (openBlock(), createElementBlock("dl", _hoisted_6, [
+          _hoisted_7,
+          (openBlock(true), createElementBlock(Fragment, null, renderList((_o = (_n = unref(actor)) == null ? void 0 : _n.system) == null ? void 0 : _o.attributes.resistances, (resistance) => {
+            return openBlock(), createElementBlock("dd", null, toDisplayString(unref(capitalize)(resistance.type)) + " " + toDisplayString(resistance.value), 1);
+          }), 256))
+        ])) : createCommentVNode("", true)
+      ]);
+    };
+  }
+});
 const _hoisted_1$1 = { class: "pb-14" };
 const _hoisted_2 = { class: "p-0" };
 const _hoisted_3 = { class: "px-6 py-4" };
 const _hoisted_4 = ["innerHTML"];
-const _sfc_main$2 = /* @__PURE__ */ defineComponent({
+const _sfc_main$1 = /* @__PURE__ */ defineComponent({
   __name: "Character",
   props: ["characterId"],
   async setup(__props) {
@@ -13927,7 +14166,8 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
                       createVNode(_sfc_main$8),
                       createVNode(_sfc_main$d),
                       createVNode(_sfc_main$g),
-                      createVNode(_sfc_main$3)
+                      createVNode(_sfc_main$3),
+                      createVNode(_sfc_main$2)
                     ]),
                     _: 1
                   }),
@@ -13946,8 +14186,8 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
                   createVNode(unref(ge$1), null, {
                     default: withCtx(() => [
                       createVNode(_sfc_main$4),
-                      createVNode(_sfc_main$i),
-                      createVNode(_sfc_main$k)
+                      createVNode(_sfc_main$h),
+                      createVNode(_sfc_main$j)
                     ]),
                     _: 1
                   }),
@@ -14013,9 +14253,12 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
   }
 });
 const _hoisted_1 = /* @__PURE__ */ createBaseVNode("div", null, "Loading...", -1);
-const _sfc_main$1 = /* @__PURE__ */ defineComponent({
+const _sfc_main = /* @__PURE__ */ defineComponent({
   __name: "App",
   setup(__props) {
+    const wakeLock = reactive(useWakeLock());
+    wakeLock.request("screen");
+    console.log("wakelock", wakeLock.isActive, wakeLock.isSupported, wakeLock);
     const urlParams = new URLSearchParams(window.location.search);
     const urlId = urlParams.get("id");
     const { socket: socket2, connectToServer: connectToServer2 } = useServer();
@@ -14063,7 +14306,7 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
                   (openBlock(true), createElementBlock(Fragment, null, renderList(characterIds.value, (characterId) => {
                     return openBlock(), createBlock(unref(ge$1), { unmount: false }, {
                       default: withCtx(() => [
-                        createVNode(_sfc_main$2, { characterId }, null, 8, ["characterId"])
+                        createVNode(_sfc_main$1, { characterId }, null, 8, ["characterId"])
                       ]),
                       _: 2
                     }, 1024);
@@ -14083,1885 +14326,6 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const scriptRel = "modulepreload";
-const assetsURL = function(dep) {
-  return "/modules/tablemate/" + dep;
-};
-const seen = {};
-const __vitePreload = function preload(baseModule, deps, importerUrl) {
-  if (!deps || deps.length === 0) {
-    return baseModule();
-  }
-  const links = document.getElementsByTagName("link");
-  return Promise.all(deps.map((dep) => {
-    dep = assetsURL(dep);
-    if (dep in seen)
-      return;
-    seen[dep] = true;
-    const isCss = dep.endsWith(".css");
-    const cssSelector = isCss ? '[rel="stylesheet"]' : "";
-    const isBaseRelative = !!importerUrl;
-    if (isBaseRelative) {
-      for (let i2 = links.length - 1; i2 >= 0; i2--) {
-        const link2 = links[i2];
-        if (link2.href === dep && (!isCss || link2.rel === "stylesheet")) {
-          return;
-        }
-      }
-    } else if (document.querySelector(`link[href="${dep}"]${cssSelector}`)) {
-      return;
-    }
-    const link = document.createElement("link");
-    link.rel = isCss ? "stylesheet" : scriptRel;
-    if (!isCss) {
-      link.as = "script";
-      link.crossOrigin = "";
-    }
-    link.href = dep;
-    document.head.appendChild(link);
-    if (isCss) {
-      return new Promise((res, rej) => {
-        link.addEventListener("load", res);
-        link.addEventListener("error", () => rej(new Error(`Unable to preload CSS for ${dep}`)));
-      });
-    }
-  })).then(() => baseModule()).catch((err) => {
-    const e2 = new Event("vite:preloadError", { cancelable: true });
-    e2.payload = err;
-    window.dispatchEvent(e2);
-    if (!e2.defaultPrevented) {
-      throw err;
-    }
-  });
-};
-/*!
-  * vue-router v4.2.4
-  * (c) 2023 Eduardo San Martin Morote
-  * @license MIT
-  */
-const isBrowser = typeof window !== "undefined";
-function isESModule(obj) {
-  return obj.__esModule || obj[Symbol.toStringTag] === "Module";
-}
-const assign = Object.assign;
-function applyToParams(fn, params) {
-  const newParams = {};
-  for (const key in params) {
-    const value2 = params[key];
-    newParams[key] = isArray(value2) ? value2.map(fn) : fn(value2);
-  }
-  return newParams;
-}
-const noop = () => {
-};
-const isArray = Array.isArray;
-const TRAILING_SLASH_RE = /\/$/;
-const removeTrailingSlash = (path) => path.replace(TRAILING_SLASH_RE, "");
-function parseURL(parseQuery2, location2, currentLocation = "/") {
-  let path, query = {}, searchString = "", hash = "";
-  const hashPos = location2.indexOf("#");
-  let searchPos = location2.indexOf("?");
-  if (hashPos < searchPos && hashPos >= 0) {
-    searchPos = -1;
-  }
-  if (searchPos > -1) {
-    path = location2.slice(0, searchPos);
-    searchString = location2.slice(searchPos + 1, hashPos > -1 ? hashPos : location2.length);
-    query = parseQuery2(searchString);
-  }
-  if (hashPos > -1) {
-    path = path || location2.slice(0, hashPos);
-    hash = location2.slice(hashPos, location2.length);
-  }
-  path = resolveRelativePath(path != null ? path : location2, currentLocation);
-  return {
-    fullPath: path + (searchString && "?") + searchString + hash,
-    path,
-    query,
-    hash
-  };
-}
-function stringifyURL(stringifyQuery2, location2) {
-  const query = location2.query ? stringifyQuery2(location2.query) : "";
-  return location2.path + (query && "?") + query + (location2.hash || "");
-}
-function stripBase(pathname, base) {
-  if (!base || !pathname.toLowerCase().startsWith(base.toLowerCase()))
-    return pathname;
-  return pathname.slice(base.length) || "/";
-}
-function isSameRouteLocation(stringifyQuery2, a2, b2) {
-  const aLastIndex = a2.matched.length - 1;
-  const bLastIndex = b2.matched.length - 1;
-  return aLastIndex > -1 && aLastIndex === bLastIndex && isSameRouteRecord(a2.matched[aLastIndex], b2.matched[bLastIndex]) && isSameRouteLocationParams(a2.params, b2.params) && stringifyQuery2(a2.query) === stringifyQuery2(b2.query) && a2.hash === b2.hash;
-}
-function isSameRouteRecord(a2, b2) {
-  return (a2.aliasOf || a2) === (b2.aliasOf || b2);
-}
-function isSameRouteLocationParams(a2, b2) {
-  if (Object.keys(a2).length !== Object.keys(b2).length)
-    return false;
-  for (const key in a2) {
-    if (!isSameRouteLocationParamsValue(a2[key], b2[key]))
-      return false;
-  }
-  return true;
-}
-function isSameRouteLocationParamsValue(a2, b2) {
-  return isArray(a2) ? isEquivalentArray(a2, b2) : isArray(b2) ? isEquivalentArray(b2, a2) : a2 === b2;
-}
-function isEquivalentArray(a2, b2) {
-  return isArray(b2) ? a2.length === b2.length && a2.every((value2, i2) => value2 === b2[i2]) : a2.length === 1 && a2[0] === b2;
-}
-function resolveRelativePath(to, from) {
-  if (to.startsWith("/"))
-    return to;
-  if (!to)
-    return from;
-  const fromSegments = from.split("/");
-  const toSegments = to.split("/");
-  const lastToSegment = toSegments[toSegments.length - 1];
-  if (lastToSegment === ".." || lastToSegment === ".") {
-    toSegments.push("");
-  }
-  let position = fromSegments.length - 1;
-  let toPosition;
-  let segment;
-  for (toPosition = 0; toPosition < toSegments.length; toPosition++) {
-    segment = toSegments[toPosition];
-    if (segment === ".")
-      continue;
-    if (segment === "..") {
-      if (position > 1)
-        position--;
-    } else
-      break;
-  }
-  return fromSegments.slice(0, position).join("/") + "/" + toSegments.slice(toPosition - (toPosition === toSegments.length ? 1 : 0)).join("/");
-}
-var NavigationType;
-(function(NavigationType2) {
-  NavigationType2["pop"] = "pop";
-  NavigationType2["push"] = "push";
-})(NavigationType || (NavigationType = {}));
-var NavigationDirection;
-(function(NavigationDirection2) {
-  NavigationDirection2["back"] = "back";
-  NavigationDirection2["forward"] = "forward";
-  NavigationDirection2["unknown"] = "";
-})(NavigationDirection || (NavigationDirection = {}));
-function normalizeBase(base) {
-  if (!base) {
-    if (isBrowser) {
-      const baseEl = document.querySelector("base");
-      base = baseEl && baseEl.getAttribute("href") || "/";
-      base = base.replace(/^\w+:\/\/[^\/]+/, "");
-    } else {
-      base = "/";
-    }
-  }
-  if (base[0] !== "/" && base[0] !== "#")
-    base = "/" + base;
-  return removeTrailingSlash(base);
-}
-const BEFORE_HASH_RE = /^[^#]+#/;
-function createHref(base, location2) {
-  return base.replace(BEFORE_HASH_RE, "#") + location2;
-}
-function getElementPosition(el, offset) {
-  const docRect = document.documentElement.getBoundingClientRect();
-  const elRect = el.getBoundingClientRect();
-  return {
-    behavior: offset.behavior,
-    left: elRect.left - docRect.left - (offset.left || 0),
-    top: elRect.top - docRect.top - (offset.top || 0)
-  };
-}
-const computeScrollPosition = () => ({
-  left: window.pageXOffset,
-  top: window.pageYOffset
-});
-function scrollToPosition(position) {
-  let scrollToOptions;
-  if ("el" in position) {
-    const positionEl = position.el;
-    const isIdSelector = typeof positionEl === "string" && positionEl.startsWith("#");
-    const el = typeof positionEl === "string" ? isIdSelector ? document.getElementById(positionEl.slice(1)) : document.querySelector(positionEl) : positionEl;
-    if (!el) {
-      return;
-    }
-    scrollToOptions = getElementPosition(el, position);
-  } else {
-    scrollToOptions = position;
-  }
-  if ("scrollBehavior" in document.documentElement.style)
-    window.scrollTo(scrollToOptions);
-  else {
-    window.scrollTo(scrollToOptions.left != null ? scrollToOptions.left : window.pageXOffset, scrollToOptions.top != null ? scrollToOptions.top : window.pageYOffset);
-  }
-}
-function getScrollKey(path, delta) {
-  const position = history.state ? history.state.position - delta : -1;
-  return position + path;
-}
-const scrollPositions = /* @__PURE__ */ new Map();
-function saveScrollPosition(key, scrollPosition) {
-  scrollPositions.set(key, scrollPosition);
-}
-function getSavedScrollPosition(key) {
-  const scroll = scrollPositions.get(key);
-  scrollPositions.delete(key);
-  return scroll;
-}
-let createBaseLocation = () => location.protocol + "//" + location.host;
-function createCurrentLocation(base, location2) {
-  const { pathname, search, hash } = location2;
-  const hashPos = base.indexOf("#");
-  if (hashPos > -1) {
-    let slicePos = hash.includes(base.slice(hashPos)) ? base.slice(hashPos).length : 1;
-    let pathFromHash = hash.slice(slicePos);
-    if (pathFromHash[0] !== "/")
-      pathFromHash = "/" + pathFromHash;
-    return stripBase(pathFromHash, "");
-  }
-  const path = stripBase(pathname, base);
-  return path + search + hash;
-}
-function useHistoryListeners(base, historyState, currentLocation, replace) {
-  let listeners = [];
-  let teardowns = [];
-  let pauseState = null;
-  const popStateHandler = ({ state }) => {
-    const to = createCurrentLocation(base, location);
-    const from = currentLocation.value;
-    const fromState = historyState.value;
-    let delta = 0;
-    if (state) {
-      currentLocation.value = to;
-      historyState.value = state;
-      if (pauseState && pauseState === from) {
-        pauseState = null;
-        return;
-      }
-      delta = fromState ? state.position - fromState.position : 0;
-    } else {
-      replace(to);
-    }
-    listeners.forEach((listener) => {
-      listener(currentLocation.value, from, {
-        delta,
-        type: NavigationType.pop,
-        direction: delta ? delta > 0 ? NavigationDirection.forward : NavigationDirection.back : NavigationDirection.unknown
-      });
-    });
-  };
-  function pauseListeners() {
-    pauseState = currentLocation.value;
-  }
-  function listen(callback) {
-    listeners.push(callback);
-    const teardown = () => {
-      const index = listeners.indexOf(callback);
-      if (index > -1)
-        listeners.splice(index, 1);
-    };
-    teardowns.push(teardown);
-    return teardown;
-  }
-  function beforeUnloadListener() {
-    const { history: history2 } = window;
-    if (!history2.state)
-      return;
-    history2.replaceState(assign({}, history2.state, { scroll: computeScrollPosition() }), "");
-  }
-  function destroy() {
-    for (const teardown of teardowns)
-      teardown();
-    teardowns = [];
-    window.removeEventListener("popstate", popStateHandler);
-    window.removeEventListener("beforeunload", beforeUnloadListener);
-  }
-  window.addEventListener("popstate", popStateHandler);
-  window.addEventListener("beforeunload", beforeUnloadListener, {
-    passive: true
-  });
-  return {
-    pauseListeners,
-    listen,
-    destroy
-  };
-}
-function buildState(back, current, forward, replaced = false, computeScroll = false) {
-  return {
-    back,
-    current,
-    forward,
-    replaced,
-    position: window.history.length,
-    scroll: computeScroll ? computeScrollPosition() : null
-  };
-}
-function useHistoryStateNavigation(base) {
-  const { history: history2, location: location2 } = window;
-  const currentLocation = {
-    value: createCurrentLocation(base, location2)
-  };
-  const historyState = { value: history2.state };
-  if (!historyState.value) {
-    changeLocation(currentLocation.value, {
-      back: null,
-      current: currentLocation.value,
-      forward: null,
-      // the length is off by one, we need to decrease it
-      position: history2.length - 1,
-      replaced: true,
-      // don't add a scroll as the user may have an anchor, and we want
-      // scrollBehavior to be triggered without a saved position
-      scroll: null
-    }, true);
-  }
-  function changeLocation(to, state, replace2) {
-    const hashIndex = base.indexOf("#");
-    const url2 = hashIndex > -1 ? (location2.host && document.querySelector("base") ? base : base.slice(hashIndex)) + to : createBaseLocation() + base + to;
-    try {
-      history2[replace2 ? "replaceState" : "pushState"](state, "", url2);
-      historyState.value = state;
-    } catch (err) {
-      {
-        console.error(err);
-      }
-      location2[replace2 ? "replace" : "assign"](url2);
-    }
-  }
-  function replace(to, data) {
-    const state = assign({}, history2.state, buildState(
-      historyState.value.back,
-      // keep back and forward entries but override current position
-      to,
-      historyState.value.forward,
-      true
-    ), data, { position: historyState.value.position });
-    changeLocation(to, state, true);
-    currentLocation.value = to;
-  }
-  function push(to, data) {
-    const currentState = assign(
-      {},
-      // use current history state to gracefully handle a wrong call to
-      // history.replaceState
-      // https://github.com/vuejs/router/issues/366
-      historyState.value,
-      history2.state,
-      {
-        forward: to,
-        scroll: computeScrollPosition()
-      }
-    );
-    changeLocation(currentState.current, currentState, true);
-    const state = assign({}, buildState(currentLocation.value, to, null), { position: currentState.position + 1 }, data);
-    changeLocation(to, state, false);
-    currentLocation.value = to;
-  }
-  return {
-    location: currentLocation,
-    state: historyState,
-    push,
-    replace
-  };
-}
-function createWebHistory(base) {
-  base = normalizeBase(base);
-  const historyNavigation = useHistoryStateNavigation(base);
-  const historyListeners = useHistoryListeners(base, historyNavigation.state, historyNavigation.location, historyNavigation.replace);
-  function go(delta, triggerListeners = true) {
-    if (!triggerListeners)
-      historyListeners.pauseListeners();
-    history.go(delta);
-  }
-  const routerHistory = assign({
-    // it's overridden right after
-    location: "",
-    base,
-    go,
-    createHref: createHref.bind(null, base)
-  }, historyNavigation, historyListeners);
-  Object.defineProperty(routerHistory, "location", {
-    enumerable: true,
-    get: () => historyNavigation.location.value
-  });
-  Object.defineProperty(routerHistory, "state", {
-    enumerable: true,
-    get: () => historyNavigation.state.value
-  });
-  return routerHistory;
-}
-function isRouteLocation(route) {
-  return typeof route === "string" || route && typeof route === "object";
-}
-function isRouteName(name) {
-  return typeof name === "string" || typeof name === "symbol";
-}
-const START_LOCATION_NORMALIZED = {
-  path: "/",
-  name: void 0,
-  params: {},
-  query: {},
-  hash: "",
-  fullPath: "/",
-  matched: [],
-  meta: {},
-  redirectedFrom: void 0
-};
-const NavigationFailureSymbol = Symbol("");
-var NavigationFailureType;
-(function(NavigationFailureType2) {
-  NavigationFailureType2[NavigationFailureType2["aborted"] = 4] = "aborted";
-  NavigationFailureType2[NavigationFailureType2["cancelled"] = 8] = "cancelled";
-  NavigationFailureType2[NavigationFailureType2["duplicated"] = 16] = "duplicated";
-})(NavigationFailureType || (NavigationFailureType = {}));
-function createRouterError(type, params) {
-  {
-    return assign(new Error(), {
-      type,
-      [NavigationFailureSymbol]: true
-    }, params);
-  }
-}
-function isNavigationFailure(error, type) {
-  return error instanceof Error && NavigationFailureSymbol in error && (type == null || !!(error.type & type));
-}
-const BASE_PARAM_PATTERN = "[^/]+?";
-const BASE_PATH_PARSER_OPTIONS = {
-  sensitive: false,
-  strict: false,
-  start: true,
-  end: true
-};
-const REGEX_CHARS_RE = /[.+*?^${}()[\]/\\]/g;
-function tokensToParser(segments, extraOptions) {
-  const options = assign({}, BASE_PATH_PARSER_OPTIONS, extraOptions);
-  const score = [];
-  let pattern = options.start ? "^" : "";
-  const keys = [];
-  for (const segment of segments) {
-    const segmentScores = segment.length ? [] : [
-      90
-      /* PathScore.Root */
-    ];
-    if (options.strict && !segment.length)
-      pattern += "/";
-    for (let tokenIndex = 0; tokenIndex < segment.length; tokenIndex++) {
-      const token = segment[tokenIndex];
-      let subSegmentScore = 40 + (options.sensitive ? 0.25 : 0);
-      if (token.type === 0) {
-        if (!tokenIndex)
-          pattern += "/";
-        pattern += token.value.replace(REGEX_CHARS_RE, "\\$&");
-        subSegmentScore += 40;
-      } else if (token.type === 1) {
-        const { value: value2, repeatable, optional, regexp } = token;
-        keys.push({
-          name: value2,
-          repeatable,
-          optional
-        });
-        const re3 = regexp ? regexp : BASE_PARAM_PATTERN;
-        if (re3 !== BASE_PARAM_PATTERN) {
-          subSegmentScore += 10;
-          try {
-            new RegExp(`(${re3})`);
-          } catch (err) {
-            throw new Error(`Invalid custom RegExp for param "${value2}" (${re3}): ` + err.message);
-          }
-        }
-        let subPattern = repeatable ? `((?:${re3})(?:/(?:${re3}))*)` : `(${re3})`;
-        if (!tokenIndex)
-          subPattern = // avoid an optional / if there are more segments e.g. /:p?-static
-          // or /:p?-:p2
-          optional && segment.length < 2 ? `(?:/${subPattern})` : "/" + subPattern;
-        if (optional)
-          subPattern += "?";
-        pattern += subPattern;
-        subSegmentScore += 20;
-        if (optional)
-          subSegmentScore += -8;
-        if (repeatable)
-          subSegmentScore += -20;
-        if (re3 === ".*")
-          subSegmentScore += -50;
-      }
-      segmentScores.push(subSegmentScore);
-    }
-    score.push(segmentScores);
-  }
-  if (options.strict && options.end) {
-    const i2 = score.length - 1;
-    score[i2][score[i2].length - 1] += 0.7000000000000001;
-  }
-  if (!options.strict)
-    pattern += "/?";
-  if (options.end)
-    pattern += "$";
-  else if (options.strict)
-    pattern += "(?:/|$)";
-  const re2 = new RegExp(pattern, options.sensitive ? "" : "i");
-  function parse2(path) {
-    const match = path.match(re2);
-    const params = {};
-    if (!match)
-      return null;
-    for (let i2 = 1; i2 < match.length; i2++) {
-      const value2 = match[i2] || "";
-      const key = keys[i2 - 1];
-      params[key.name] = value2 && key.repeatable ? value2.split("/") : value2;
-    }
-    return params;
-  }
-  function stringify(params) {
-    let path = "";
-    let avoidDuplicatedSlash = false;
-    for (const segment of segments) {
-      if (!avoidDuplicatedSlash || !path.endsWith("/"))
-        path += "/";
-      avoidDuplicatedSlash = false;
-      for (const token of segment) {
-        if (token.type === 0) {
-          path += token.value;
-        } else if (token.type === 1) {
-          const { value: value2, repeatable, optional } = token;
-          const param = value2 in params ? params[value2] : "";
-          if (isArray(param) && !repeatable) {
-            throw new Error(`Provided param "${value2}" is an array but it is not repeatable (* or + modifiers)`);
-          }
-          const text = isArray(param) ? param.join("/") : param;
-          if (!text) {
-            if (optional) {
-              if (segment.length < 2) {
-                if (path.endsWith("/"))
-                  path = path.slice(0, -1);
-                else
-                  avoidDuplicatedSlash = true;
-              }
-            } else
-              throw new Error(`Missing required param "${value2}"`);
-          }
-          path += text;
-        }
-      }
-    }
-    return path || "/";
-  }
-  return {
-    re: re2,
-    score,
-    keys,
-    parse: parse2,
-    stringify
-  };
-}
-function compareScoreArray(a2, b2) {
-  let i2 = 0;
-  while (i2 < a2.length && i2 < b2.length) {
-    const diff = b2[i2] - a2[i2];
-    if (diff)
-      return diff;
-    i2++;
-  }
-  if (a2.length < b2.length) {
-    return a2.length === 1 && a2[0] === 40 + 40 ? -1 : 1;
-  } else if (a2.length > b2.length) {
-    return b2.length === 1 && b2[0] === 40 + 40 ? 1 : -1;
-  }
-  return 0;
-}
-function comparePathParserScore(a2, b2) {
-  let i2 = 0;
-  const aScore = a2.score;
-  const bScore = b2.score;
-  while (i2 < aScore.length && i2 < bScore.length) {
-    const comp = compareScoreArray(aScore[i2], bScore[i2]);
-    if (comp)
-      return comp;
-    i2++;
-  }
-  if (Math.abs(bScore.length - aScore.length) === 1) {
-    if (isLastScoreNegative(aScore))
-      return 1;
-    if (isLastScoreNegative(bScore))
-      return -1;
-  }
-  return bScore.length - aScore.length;
-}
-function isLastScoreNegative(score) {
-  const last = score[score.length - 1];
-  return score.length > 0 && last[last.length - 1] < 0;
-}
-const ROOT_TOKEN = {
-  type: 0,
-  value: ""
-};
-const VALID_PARAM_RE = /[a-zA-Z0-9_]/;
-function tokenizePath(path) {
-  if (!path)
-    return [[]];
-  if (path === "/")
-    return [[ROOT_TOKEN]];
-  if (!path.startsWith("/")) {
-    throw new Error(`Invalid path "${path}"`);
-  }
-  function crash(message) {
-    throw new Error(`ERR (${state})/"${buffer}": ${message}`);
-  }
-  let state = 0;
-  let previousState = state;
-  const tokens = [];
-  let segment;
-  function finalizeSegment() {
-    if (segment)
-      tokens.push(segment);
-    segment = [];
-  }
-  let i2 = 0;
-  let char;
-  let buffer = "";
-  let customRe = "";
-  function consumeBuffer() {
-    if (!buffer)
-      return;
-    if (state === 0) {
-      segment.push({
-        type: 0,
-        value: buffer
-      });
-    } else if (state === 1 || state === 2 || state === 3) {
-      if (segment.length > 1 && (char === "*" || char === "+"))
-        crash(`A repeatable param (${buffer}) must be alone in its segment. eg: '/:ids+.`);
-      segment.push({
-        type: 1,
-        value: buffer,
-        regexp: customRe,
-        repeatable: char === "*" || char === "+",
-        optional: char === "*" || char === "?"
-      });
-    } else {
-      crash("Invalid state to consume buffer");
-    }
-    buffer = "";
-  }
-  function addCharToBuffer() {
-    buffer += char;
-  }
-  while (i2 < path.length) {
-    char = path[i2++];
-    if (char === "\\" && state !== 2) {
-      previousState = state;
-      state = 4;
-      continue;
-    }
-    switch (state) {
-      case 0:
-        if (char === "/") {
-          if (buffer) {
-            consumeBuffer();
-          }
-          finalizeSegment();
-        } else if (char === ":") {
-          consumeBuffer();
-          state = 1;
-        } else {
-          addCharToBuffer();
-        }
-        break;
-      case 4:
-        addCharToBuffer();
-        state = previousState;
-        break;
-      case 1:
-        if (char === "(") {
-          state = 2;
-        } else if (VALID_PARAM_RE.test(char)) {
-          addCharToBuffer();
-        } else {
-          consumeBuffer();
-          state = 0;
-          if (char !== "*" && char !== "?" && char !== "+")
-            i2--;
-        }
-        break;
-      case 2:
-        if (char === ")") {
-          if (customRe[customRe.length - 1] == "\\")
-            customRe = customRe.slice(0, -1) + char;
-          else
-            state = 3;
-        } else {
-          customRe += char;
-        }
-        break;
-      case 3:
-        consumeBuffer();
-        state = 0;
-        if (char !== "*" && char !== "?" && char !== "+")
-          i2--;
-        customRe = "";
-        break;
-      default:
-        crash("Unknown state");
-        break;
-    }
-  }
-  if (state === 2)
-    crash(`Unfinished custom RegExp for param "${buffer}"`);
-  consumeBuffer();
-  finalizeSegment();
-  return tokens;
-}
-function createRouteRecordMatcher(record, parent, options) {
-  const parser2 = tokensToParser(tokenizePath(record.path), options);
-  const matcher = assign(parser2, {
-    record,
-    parent,
-    // these needs to be populated by the parent
-    children: [],
-    alias: []
-  });
-  if (parent) {
-    if (!matcher.record.aliasOf === !parent.record.aliasOf)
-      parent.children.push(matcher);
-  }
-  return matcher;
-}
-function createRouterMatcher(routes, globalOptions) {
-  const matchers = [];
-  const matcherMap = /* @__PURE__ */ new Map();
-  globalOptions = mergeOptions({ strict: false, end: true, sensitive: false }, globalOptions);
-  function getRecordMatcher(name) {
-    return matcherMap.get(name);
-  }
-  function addRoute(record, parent, originalRecord) {
-    const isRootAdd = !originalRecord;
-    const mainNormalizedRecord = normalizeRouteRecord(record);
-    mainNormalizedRecord.aliasOf = originalRecord && originalRecord.record;
-    const options = mergeOptions(globalOptions, record);
-    const normalizedRecords = [
-      mainNormalizedRecord
-    ];
-    if ("alias" in record) {
-      const aliases = typeof record.alias === "string" ? [record.alias] : record.alias;
-      for (const alias of aliases) {
-        normalizedRecords.push(assign({}, mainNormalizedRecord, {
-          // this allows us to hold a copy of the `components` option
-          // so that async components cache is hold on the original record
-          components: originalRecord ? originalRecord.record.components : mainNormalizedRecord.components,
-          path: alias,
-          // we might be the child of an alias
-          aliasOf: originalRecord ? originalRecord.record : mainNormalizedRecord
-          // the aliases are always of the same kind as the original since they
-          // are defined on the same record
-        }));
-      }
-    }
-    let matcher;
-    let originalMatcher;
-    for (const normalizedRecord of normalizedRecords) {
-      const { path } = normalizedRecord;
-      if (parent && path[0] !== "/") {
-        const parentPath = parent.record.path;
-        const connectingSlash = parentPath[parentPath.length - 1] === "/" ? "" : "/";
-        normalizedRecord.path = parent.record.path + (path && connectingSlash + path);
-      }
-      matcher = createRouteRecordMatcher(normalizedRecord, parent, options);
-      if (originalRecord) {
-        originalRecord.alias.push(matcher);
-      } else {
-        originalMatcher = originalMatcher || matcher;
-        if (originalMatcher !== matcher)
-          originalMatcher.alias.push(matcher);
-        if (isRootAdd && record.name && !isAliasRecord(matcher))
-          removeRoute(record.name);
-      }
-      if (mainNormalizedRecord.children) {
-        const children = mainNormalizedRecord.children;
-        for (let i2 = 0; i2 < children.length; i2++) {
-          addRoute(children[i2], matcher, originalRecord && originalRecord.children[i2]);
-        }
-      }
-      originalRecord = originalRecord || matcher;
-      if (matcher.record.components && Object.keys(matcher.record.components).length || matcher.record.name || matcher.record.redirect) {
-        insertMatcher(matcher);
-      }
-    }
-    return originalMatcher ? () => {
-      removeRoute(originalMatcher);
-    } : noop;
-  }
-  function removeRoute(matcherRef) {
-    if (isRouteName(matcherRef)) {
-      const matcher = matcherMap.get(matcherRef);
-      if (matcher) {
-        matcherMap.delete(matcherRef);
-        matchers.splice(matchers.indexOf(matcher), 1);
-        matcher.children.forEach(removeRoute);
-        matcher.alias.forEach(removeRoute);
-      }
-    } else {
-      const index = matchers.indexOf(matcherRef);
-      if (index > -1) {
-        matchers.splice(index, 1);
-        if (matcherRef.record.name)
-          matcherMap.delete(matcherRef.record.name);
-        matcherRef.children.forEach(removeRoute);
-        matcherRef.alias.forEach(removeRoute);
-      }
-    }
-  }
-  function getRoutes() {
-    return matchers;
-  }
-  function insertMatcher(matcher) {
-    let i2 = 0;
-    while (i2 < matchers.length && comparePathParserScore(matcher, matchers[i2]) >= 0 && // Adding children with empty path should still appear before the parent
-    // https://github.com/vuejs/router/issues/1124
-    (matcher.record.path !== matchers[i2].record.path || !isRecordChildOf(matcher, matchers[i2])))
-      i2++;
-    matchers.splice(i2, 0, matcher);
-    if (matcher.record.name && !isAliasRecord(matcher))
-      matcherMap.set(matcher.record.name, matcher);
-  }
-  function resolve2(location2, currentLocation) {
-    let matcher;
-    let params = {};
-    let path;
-    let name;
-    if ("name" in location2 && location2.name) {
-      matcher = matcherMap.get(location2.name);
-      if (!matcher)
-        throw createRouterError(1, {
-          location: location2
-        });
-      name = matcher.record.name;
-      params = assign(
-        // paramsFromLocation is a new object
-        paramsFromLocation(
-          currentLocation.params,
-          // only keep params that exist in the resolved location
-          // TODO: only keep optional params coming from a parent record
-          matcher.keys.filter((k2) => !k2.optional).map((k2) => k2.name)
-        ),
-        // discard any existing params in the current location that do not exist here
-        // #1497 this ensures better active/exact matching
-        location2.params && paramsFromLocation(location2.params, matcher.keys.map((k2) => k2.name))
-      );
-      path = matcher.stringify(params);
-    } else if ("path" in location2) {
-      path = location2.path;
-      matcher = matchers.find((m2) => m2.re.test(path));
-      if (matcher) {
-        params = matcher.parse(path);
-        name = matcher.record.name;
-      }
-    } else {
-      matcher = currentLocation.name ? matcherMap.get(currentLocation.name) : matchers.find((m2) => m2.re.test(currentLocation.path));
-      if (!matcher)
-        throw createRouterError(1, {
-          location: location2,
-          currentLocation
-        });
-      name = matcher.record.name;
-      params = assign({}, currentLocation.params, location2.params);
-      path = matcher.stringify(params);
-    }
-    const matched = [];
-    let parentMatcher = matcher;
-    while (parentMatcher) {
-      matched.unshift(parentMatcher.record);
-      parentMatcher = parentMatcher.parent;
-    }
-    return {
-      name,
-      path,
-      params,
-      matched,
-      meta: mergeMetaFields(matched)
-    };
-  }
-  routes.forEach((route) => addRoute(route));
-  return { addRoute, resolve: resolve2, removeRoute, getRoutes, getRecordMatcher };
-}
-function paramsFromLocation(params, keys) {
-  const newParams = {};
-  for (const key of keys) {
-    if (key in params)
-      newParams[key] = params[key];
-  }
-  return newParams;
-}
-function normalizeRouteRecord(record) {
-  return {
-    path: record.path,
-    redirect: record.redirect,
-    name: record.name,
-    meta: record.meta || {},
-    aliasOf: void 0,
-    beforeEnter: record.beforeEnter,
-    props: normalizeRecordProps(record),
-    children: record.children || [],
-    instances: {},
-    leaveGuards: /* @__PURE__ */ new Set(),
-    updateGuards: /* @__PURE__ */ new Set(),
-    enterCallbacks: {},
-    components: "components" in record ? record.components || null : record.component && { default: record.component }
-  };
-}
-function normalizeRecordProps(record) {
-  const propsObject = {};
-  const props = record.props || false;
-  if ("component" in record) {
-    propsObject.default = props;
-  } else {
-    for (const name in record.components)
-      propsObject[name] = typeof props === "object" ? props[name] : props;
-  }
-  return propsObject;
-}
-function isAliasRecord(record) {
-  while (record) {
-    if (record.record.aliasOf)
-      return true;
-    record = record.parent;
-  }
-  return false;
-}
-function mergeMetaFields(matched) {
-  return matched.reduce((meta, record) => assign(meta, record.meta), {});
-}
-function mergeOptions(defaults, partialOptions) {
-  const options = {};
-  for (const key in defaults) {
-    options[key] = key in partialOptions ? partialOptions[key] : defaults[key];
-  }
-  return options;
-}
-function isRecordChildOf(record, parent) {
-  return parent.children.some((child) => child === record || isRecordChildOf(record, child));
-}
-const HASH_RE = /#/g;
-const AMPERSAND_RE = /&/g;
-const SLASH_RE = /\//g;
-const EQUAL_RE = /=/g;
-const IM_RE = /\?/g;
-const PLUS_RE = /\+/g;
-const ENC_BRACKET_OPEN_RE = /%5B/g;
-const ENC_BRACKET_CLOSE_RE = /%5D/g;
-const ENC_CARET_RE = /%5E/g;
-const ENC_BACKTICK_RE = /%60/g;
-const ENC_CURLY_OPEN_RE = /%7B/g;
-const ENC_PIPE_RE = /%7C/g;
-const ENC_CURLY_CLOSE_RE = /%7D/g;
-const ENC_SPACE_RE = /%20/g;
-function commonEncode(text) {
-  return encodeURI("" + text).replace(ENC_PIPE_RE, "|").replace(ENC_BRACKET_OPEN_RE, "[").replace(ENC_BRACKET_CLOSE_RE, "]");
-}
-function encodeHash(text) {
-  return commonEncode(text).replace(ENC_CURLY_OPEN_RE, "{").replace(ENC_CURLY_CLOSE_RE, "}").replace(ENC_CARET_RE, "^");
-}
-function encodeQueryValue(text) {
-  return commonEncode(text).replace(PLUS_RE, "%2B").replace(ENC_SPACE_RE, "+").replace(HASH_RE, "%23").replace(AMPERSAND_RE, "%26").replace(ENC_BACKTICK_RE, "`").replace(ENC_CURLY_OPEN_RE, "{").replace(ENC_CURLY_CLOSE_RE, "}").replace(ENC_CARET_RE, "^");
-}
-function encodeQueryKey(text) {
-  return encodeQueryValue(text).replace(EQUAL_RE, "%3D");
-}
-function encodePath(text) {
-  return commonEncode(text).replace(HASH_RE, "%23").replace(IM_RE, "%3F");
-}
-function encodeParam(text) {
-  return text == null ? "" : encodePath(text).replace(SLASH_RE, "%2F");
-}
-function decode(text) {
-  try {
-    return decodeURIComponent("" + text);
-  } catch (err) {
-  }
-  return "" + text;
-}
-function parseQuery(search) {
-  const query = {};
-  if (search === "" || search === "?")
-    return query;
-  const hasLeadingIM = search[0] === "?";
-  const searchParams = (hasLeadingIM ? search.slice(1) : search).split("&");
-  for (let i2 = 0; i2 < searchParams.length; ++i2) {
-    const searchParam = searchParams[i2].replace(PLUS_RE, " ");
-    const eqPos = searchParam.indexOf("=");
-    const key = decode(eqPos < 0 ? searchParam : searchParam.slice(0, eqPos));
-    const value2 = eqPos < 0 ? null : decode(searchParam.slice(eqPos + 1));
-    if (key in query) {
-      let currentValue = query[key];
-      if (!isArray(currentValue)) {
-        currentValue = query[key] = [currentValue];
-      }
-      currentValue.push(value2);
-    } else {
-      query[key] = value2;
-    }
-  }
-  return query;
-}
-function stringifyQuery(query) {
-  let search = "";
-  for (let key in query) {
-    const value2 = query[key];
-    key = encodeQueryKey(key);
-    if (value2 == null) {
-      if (value2 !== void 0) {
-        search += (search.length ? "&" : "") + key;
-      }
-      continue;
-    }
-    const values = isArray(value2) ? value2.map((v2) => v2 && encodeQueryValue(v2)) : [value2 && encodeQueryValue(value2)];
-    values.forEach((value3) => {
-      if (value3 !== void 0) {
-        search += (search.length ? "&" : "") + key;
-        if (value3 != null)
-          search += "=" + value3;
-      }
-    });
-  }
-  return search;
-}
-function normalizeQuery(query) {
-  const normalizedQuery = {};
-  for (const key in query) {
-    const value2 = query[key];
-    if (value2 !== void 0) {
-      normalizedQuery[key] = isArray(value2) ? value2.map((v2) => v2 == null ? null : "" + v2) : value2 == null ? value2 : "" + value2;
-    }
-  }
-  return normalizedQuery;
-}
-const matchedRouteKey = Symbol("");
-const viewDepthKey = Symbol("");
-const routerKey = Symbol("");
-const routeLocationKey = Symbol("");
-const routerViewLocationKey = Symbol("");
-function useCallbacks() {
-  let handlers = [];
-  function add2(handler) {
-    handlers.push(handler);
-    return () => {
-      const i2 = handlers.indexOf(handler);
-      if (i2 > -1)
-        handlers.splice(i2, 1);
-    };
-  }
-  function reset() {
-    handlers = [];
-  }
-  return {
-    add: add2,
-    list: () => handlers.slice(),
-    reset
-  };
-}
-function guardToPromiseFn(guard, to, from, record, name) {
-  const enterCallbackArray = record && // name is defined if record is because of the function overload
-  (record.enterCallbacks[name] = record.enterCallbacks[name] || []);
-  return () => new Promise((resolve2, reject) => {
-    const next = (valid) => {
-      if (valid === false) {
-        reject(createRouterError(4, {
-          from,
-          to
-        }));
-      } else if (valid instanceof Error) {
-        reject(valid);
-      } else if (isRouteLocation(valid)) {
-        reject(createRouterError(2, {
-          from: to,
-          to: valid
-        }));
-      } else {
-        if (enterCallbackArray && // since enterCallbackArray is truthy, both record and name also are
-        record.enterCallbacks[name] === enterCallbackArray && typeof valid === "function") {
-          enterCallbackArray.push(valid);
-        }
-        resolve2();
-      }
-    };
-    const guardReturn = guard.call(record && record.instances[name], to, from, next);
-    let guardCall = Promise.resolve(guardReturn);
-    if (guard.length < 3)
-      guardCall = guardCall.then(next);
-    guardCall.catch((err) => reject(err));
-  });
-}
-function extractComponentsGuards(matched, guardType, to, from) {
-  const guards = [];
-  for (const record of matched) {
-    for (const name in record.components) {
-      let rawComponent = record.components[name];
-      if (guardType !== "beforeRouteEnter" && !record.instances[name])
-        continue;
-      if (isRouteComponent(rawComponent)) {
-        const options = rawComponent.__vccOpts || rawComponent;
-        const guard = options[guardType];
-        guard && guards.push(guardToPromiseFn(guard, to, from, record, name));
-      } else {
-        let componentPromise = rawComponent();
-        guards.push(() => componentPromise.then((resolved) => {
-          if (!resolved)
-            return Promise.reject(new Error(`Couldn't resolve component "${name}" at "${record.path}"`));
-          const resolvedComponent = isESModule(resolved) ? resolved.default : resolved;
-          record.components[name] = resolvedComponent;
-          const options = resolvedComponent.__vccOpts || resolvedComponent;
-          const guard = options[guardType];
-          return guard && guardToPromiseFn(guard, to, from, record, name)();
-        }));
-      }
-    }
-  }
-  return guards;
-}
-function isRouteComponent(component) {
-  return typeof component === "object" || "displayName" in component || "props" in component || "__vccOpts" in component;
-}
-function useLink(props) {
-  const router2 = inject(routerKey);
-  const currentRoute = inject(routeLocationKey);
-  const route = computed(() => router2.resolve(unref(props.to)));
-  const activeRecordIndex = computed(() => {
-    const { matched } = route.value;
-    const { length: length2 } = matched;
-    const routeMatched = matched[length2 - 1];
-    const currentMatched = currentRoute.matched;
-    if (!routeMatched || !currentMatched.length)
-      return -1;
-    const index = currentMatched.findIndex(isSameRouteRecord.bind(null, routeMatched));
-    if (index > -1)
-      return index;
-    const parentRecordPath = getOriginalPath(matched[length2 - 2]);
-    return (
-      // we are dealing with nested routes
-      length2 > 1 && // if the parent and matched route have the same path, this link is
-      // referring to the empty child. Or we currently are on a different
-      // child of the same parent
-      getOriginalPath(routeMatched) === parentRecordPath && // avoid comparing the child with its parent
-      currentMatched[currentMatched.length - 1].path !== parentRecordPath ? currentMatched.findIndex(isSameRouteRecord.bind(null, matched[length2 - 2])) : index
-    );
-  });
-  const isActive = computed(() => activeRecordIndex.value > -1 && includesParams(currentRoute.params, route.value.params));
-  const isExactActive = computed(() => activeRecordIndex.value > -1 && activeRecordIndex.value === currentRoute.matched.length - 1 && isSameRouteLocationParams(currentRoute.params, route.value.params));
-  function navigate(e2 = {}) {
-    if (guardEvent(e2)) {
-      return router2[unref(props.replace) ? "replace" : "push"](
-        unref(props.to)
-        // avoid uncaught errors are they are logged anyway
-      ).catch(noop);
-    }
-    return Promise.resolve();
-  }
-  return {
-    route,
-    href: computed(() => route.value.href),
-    isActive,
-    isExactActive,
-    navigate
-  };
-}
-const RouterLinkImpl = /* @__PURE__ */ defineComponent({
-  name: "RouterLink",
-  compatConfig: { MODE: 3 },
-  props: {
-    to: {
-      type: [String, Object],
-      required: true
-    },
-    replace: Boolean,
-    activeClass: String,
-    // inactiveClass: String,
-    exactActiveClass: String,
-    custom: Boolean,
-    ariaCurrentValue: {
-      type: String,
-      default: "page"
-    }
-  },
-  useLink,
-  setup(props, { slots }) {
-    const link = reactive(useLink(props));
-    const { options } = inject(routerKey);
-    const elClass = computed(() => ({
-      [getLinkClass(props.activeClass, options.linkActiveClass, "router-link-active")]: link.isActive,
-      // [getLinkClass(
-      //   props.inactiveClass,
-      //   options.linkInactiveClass,
-      //   'router-link-inactive'
-      // )]: !link.isExactActive,
-      [getLinkClass(props.exactActiveClass, options.linkExactActiveClass, "router-link-exact-active")]: link.isExactActive
-    }));
-    return () => {
-      const children = slots.default && slots.default(link);
-      return props.custom ? children : h$2("a", {
-        "aria-current": link.isExactActive ? props.ariaCurrentValue : null,
-        href: link.href,
-        // this would override user added attrs but Vue will still add
-        // the listener, so we end up triggering both
-        onClick: link.navigate,
-        class: elClass.value
-      }, children);
-    };
-  }
-});
-const RouterLink = RouterLinkImpl;
-function guardEvent(e2) {
-  if (e2.metaKey || e2.altKey || e2.ctrlKey || e2.shiftKey)
-    return;
-  if (e2.defaultPrevented)
-    return;
-  if (e2.button !== void 0 && e2.button !== 0)
-    return;
-  if (e2.currentTarget && e2.currentTarget.getAttribute) {
-    const target = e2.currentTarget.getAttribute("target");
-    if (/\b_blank\b/i.test(target))
-      return;
-  }
-  if (e2.preventDefault)
-    e2.preventDefault();
-  return true;
-}
-function includesParams(outer, inner) {
-  for (const key in inner) {
-    const innerValue = inner[key];
-    const outerValue = outer[key];
-    if (typeof innerValue === "string") {
-      if (innerValue !== outerValue)
-        return false;
-    } else {
-      if (!isArray(outerValue) || outerValue.length !== innerValue.length || innerValue.some((value2, i2) => value2 !== outerValue[i2]))
-        return false;
-    }
-  }
-  return true;
-}
-function getOriginalPath(record) {
-  return record ? record.aliasOf ? record.aliasOf.path : record.path : "";
-}
-const getLinkClass = (propClass, globalClass, defaultClass) => propClass != null ? propClass : globalClass != null ? globalClass : defaultClass;
-const RouterViewImpl = /* @__PURE__ */ defineComponent({
-  name: "RouterView",
-  // #674 we manually inherit them
-  inheritAttrs: false,
-  props: {
-    name: {
-      type: String,
-      default: "default"
-    },
-    route: Object
-  },
-  // Better compat for @vue/compat users
-  // https://github.com/vuejs/router/issues/1315
-  compatConfig: { MODE: 3 },
-  setup(props, { attrs, slots }) {
-    const injectedRoute = inject(routerViewLocationKey);
-    const routeToDisplay = computed(() => props.route || injectedRoute.value);
-    const injectedDepth = inject(viewDepthKey, 0);
-    const depth = computed(() => {
-      let initialDepth = unref(injectedDepth);
-      const { matched } = routeToDisplay.value;
-      let matchedRoute;
-      while ((matchedRoute = matched[initialDepth]) && !matchedRoute.components) {
-        initialDepth++;
-      }
-      return initialDepth;
-    });
-    const matchedRouteRef = computed(() => routeToDisplay.value.matched[depth.value]);
-    provide(viewDepthKey, computed(() => depth.value + 1));
-    provide(matchedRouteKey, matchedRouteRef);
-    provide(routerViewLocationKey, routeToDisplay);
-    const viewRef = ref();
-    watch(() => [viewRef.value, matchedRouteRef.value, props.name], ([instance, to, name], [oldInstance, from, oldName]) => {
-      if (to) {
-        to.instances[name] = instance;
-        if (from && from !== to && instance && instance === oldInstance) {
-          if (!to.leaveGuards.size) {
-            to.leaveGuards = from.leaveGuards;
-          }
-          if (!to.updateGuards.size) {
-            to.updateGuards = from.updateGuards;
-          }
-        }
-      }
-      if (instance && to && // if there is no instance but to and from are the same this might be
-      // the first visit
-      (!from || !isSameRouteRecord(to, from) || !oldInstance)) {
-        (to.enterCallbacks[name] || []).forEach((callback) => callback(instance));
-      }
-    }, { flush: "post" });
-    return () => {
-      const route = routeToDisplay.value;
-      const currentName = props.name;
-      const matchedRoute = matchedRouteRef.value;
-      const ViewComponent = matchedRoute && matchedRoute.components[currentName];
-      if (!ViewComponent) {
-        return normalizeSlot(slots.default, { Component: ViewComponent, route });
-      }
-      const routePropsOption = matchedRoute.props[currentName];
-      const routeProps = routePropsOption ? routePropsOption === true ? route.params : typeof routePropsOption === "function" ? routePropsOption(route) : routePropsOption : null;
-      const onVnodeUnmounted = (vnode) => {
-        if (vnode.component.isUnmounted) {
-          matchedRoute.instances[currentName] = null;
-        }
-      };
-      const component = h$2(ViewComponent, assign({}, routeProps, attrs, {
-        onVnodeUnmounted,
-        ref: viewRef
-      }));
-      return (
-        // pass the vnode to the slot as a prop.
-        // h and <component :is="..."> both accept vnodes
-        normalizeSlot(slots.default, { Component: component, route }) || component
-      );
-    };
-  }
-});
-function normalizeSlot(slot, data) {
-  if (!slot)
-    return null;
-  const slotContent = slot(data);
-  return slotContent.length === 1 ? slotContent[0] : slotContent;
-}
-const RouterView = RouterViewImpl;
-function createRouter(options) {
-  const matcher = createRouterMatcher(options.routes, options);
-  const parseQuery$1 = options.parseQuery || parseQuery;
-  const stringifyQuery$1 = options.stringifyQuery || stringifyQuery;
-  const routerHistory = options.history;
-  const beforeGuards = useCallbacks();
-  const beforeResolveGuards = useCallbacks();
-  const afterGuards = useCallbacks();
-  const currentRoute = shallowRef(START_LOCATION_NORMALIZED);
-  let pendingLocation = START_LOCATION_NORMALIZED;
-  if (isBrowser && options.scrollBehavior && "scrollRestoration" in history) {
-    history.scrollRestoration = "manual";
-  }
-  const normalizeParams = applyToParams.bind(null, (paramValue) => "" + paramValue);
-  const encodeParams = applyToParams.bind(null, encodeParam);
-  const decodeParams = (
-    // @ts-expect-error: intentionally avoid the type check
-    applyToParams.bind(null, decode)
-  );
-  function addRoute(parentOrRoute, route) {
-    let parent;
-    let record;
-    if (isRouteName(parentOrRoute)) {
-      parent = matcher.getRecordMatcher(parentOrRoute);
-      record = route;
-    } else {
-      record = parentOrRoute;
-    }
-    return matcher.addRoute(record, parent);
-  }
-  function removeRoute(name) {
-    const recordMatcher = matcher.getRecordMatcher(name);
-    if (recordMatcher) {
-      matcher.removeRoute(recordMatcher);
-    }
-  }
-  function getRoutes() {
-    return matcher.getRoutes().map((routeMatcher) => routeMatcher.record);
-  }
-  function hasRoute(name) {
-    return !!matcher.getRecordMatcher(name);
-  }
-  function resolve2(rawLocation, currentLocation) {
-    currentLocation = assign({}, currentLocation || currentRoute.value);
-    if (typeof rawLocation === "string") {
-      const locationNormalized = parseURL(parseQuery$1, rawLocation, currentLocation.path);
-      const matchedRoute2 = matcher.resolve({ path: locationNormalized.path }, currentLocation);
-      const href2 = routerHistory.createHref(locationNormalized.fullPath);
-      return assign(locationNormalized, matchedRoute2, {
-        params: decodeParams(matchedRoute2.params),
-        hash: decode(locationNormalized.hash),
-        redirectedFrom: void 0,
-        href: href2
-      });
-    }
-    let matcherLocation;
-    if ("path" in rawLocation) {
-      matcherLocation = assign({}, rawLocation, {
-        path: parseURL(parseQuery$1, rawLocation.path, currentLocation.path).path
-      });
-    } else {
-      const targetParams = assign({}, rawLocation.params);
-      for (const key in targetParams) {
-        if (targetParams[key] == null) {
-          delete targetParams[key];
-        }
-      }
-      matcherLocation = assign({}, rawLocation, {
-        params: encodeParams(targetParams)
-      });
-      currentLocation.params = encodeParams(currentLocation.params);
-    }
-    const matchedRoute = matcher.resolve(matcherLocation, currentLocation);
-    const hash = rawLocation.hash || "";
-    matchedRoute.params = normalizeParams(decodeParams(matchedRoute.params));
-    const fullPath = stringifyURL(stringifyQuery$1, assign({}, rawLocation, {
-      hash: encodeHash(hash),
-      path: matchedRoute.path
-    }));
-    const href = routerHistory.createHref(fullPath);
-    return assign({
-      fullPath,
-      // keep the hash encoded so fullPath is effectively path + encodedQuery +
-      // hash
-      hash,
-      query: (
-        // if the user is using a custom query lib like qs, we might have
-        // nested objects, so we keep the query as is, meaning it can contain
-        // numbers at `$route.query`, but at the point, the user will have to
-        // use their own type anyway.
-        // https://github.com/vuejs/router/issues/328#issuecomment-649481567
-        stringifyQuery$1 === stringifyQuery ? normalizeQuery(rawLocation.query) : rawLocation.query || {}
-      )
-    }, matchedRoute, {
-      redirectedFrom: void 0,
-      href
-    });
-  }
-  function locationAsObject(to) {
-    return typeof to === "string" ? parseURL(parseQuery$1, to, currentRoute.value.path) : assign({}, to);
-  }
-  function checkCanceledNavigation(to, from) {
-    if (pendingLocation !== to) {
-      return createRouterError(8, {
-        from,
-        to
-      });
-    }
-  }
-  function push(to) {
-    return pushWithRedirect(to);
-  }
-  function replace(to) {
-    return push(assign(locationAsObject(to), { replace: true }));
-  }
-  function handleRedirectRecord(to) {
-    const lastMatched = to.matched[to.matched.length - 1];
-    if (lastMatched && lastMatched.redirect) {
-      const { redirect } = lastMatched;
-      let newTargetLocation = typeof redirect === "function" ? redirect(to) : redirect;
-      if (typeof newTargetLocation === "string") {
-        newTargetLocation = newTargetLocation.includes("?") || newTargetLocation.includes("#") ? newTargetLocation = locationAsObject(newTargetLocation) : (
-          // force empty params
-          { path: newTargetLocation }
-        );
-        newTargetLocation.params = {};
-      }
-      return assign({
-        query: to.query,
-        hash: to.hash,
-        // avoid transferring params if the redirect has a path
-        params: "path" in newTargetLocation ? {} : to.params
-      }, newTargetLocation);
-    }
-  }
-  function pushWithRedirect(to, redirectedFrom) {
-    const targetLocation = pendingLocation = resolve2(to);
-    const from = currentRoute.value;
-    const data = to.state;
-    const force = to.force;
-    const replace2 = to.replace === true;
-    const shouldRedirect = handleRedirectRecord(targetLocation);
-    if (shouldRedirect)
-      return pushWithRedirect(
-        assign(locationAsObject(shouldRedirect), {
-          state: typeof shouldRedirect === "object" ? assign({}, data, shouldRedirect.state) : data,
-          force,
-          replace: replace2
-        }),
-        // keep original redirectedFrom if it exists
-        redirectedFrom || targetLocation
-      );
-    const toLocation = targetLocation;
-    toLocation.redirectedFrom = redirectedFrom;
-    let failure;
-    if (!force && isSameRouteLocation(stringifyQuery$1, from, targetLocation)) {
-      failure = createRouterError(16, { to: toLocation, from });
-      handleScroll(
-        from,
-        from,
-        // this is a push, the only way for it to be triggered from a
-        // history.listen is with a redirect, which makes it become a push
-        true,
-        // This cannot be the first navigation because the initial location
-        // cannot be manually navigated to
-        false
-      );
-    }
-    return (failure ? Promise.resolve(failure) : navigate(toLocation, from)).catch((error) => isNavigationFailure(error) ? (
-      // navigation redirects still mark the router as ready
-      isNavigationFailure(
-        error,
-        2
-        /* ErrorTypes.NAVIGATION_GUARD_REDIRECT */
-      ) ? error : markAsReady(error)
-    ) : (
-      // reject any unknown error
-      triggerError(error, toLocation, from)
-    )).then((failure2) => {
-      if (failure2) {
-        if (isNavigationFailure(
-          failure2,
-          2
-          /* ErrorTypes.NAVIGATION_GUARD_REDIRECT */
-        )) {
-          return pushWithRedirect(
-            // keep options
-            assign({
-              // preserve an existing replacement but allow the redirect to override it
-              replace: replace2
-            }, locationAsObject(failure2.to), {
-              state: typeof failure2.to === "object" ? assign({}, data, failure2.to.state) : data,
-              force
-            }),
-            // preserve the original redirectedFrom if any
-            redirectedFrom || toLocation
-          );
-        }
-      } else {
-        failure2 = finalizeNavigation(toLocation, from, true, replace2, data);
-      }
-      triggerAfterEach(toLocation, from, failure2);
-      return failure2;
-    });
-  }
-  function checkCanceledNavigationAndReject(to, from) {
-    const error = checkCanceledNavigation(to, from);
-    return error ? Promise.reject(error) : Promise.resolve();
-  }
-  function runWithContext(fn) {
-    const app2 = installedApps.values().next().value;
-    return app2 && typeof app2.runWithContext === "function" ? app2.runWithContext(fn) : fn();
-  }
-  function navigate(to, from) {
-    let guards;
-    const [leavingRecords, updatingRecords, enteringRecords] = extractChangingRecords(to, from);
-    guards = extractComponentsGuards(leavingRecords.reverse(), "beforeRouteLeave", to, from);
-    for (const record of leavingRecords) {
-      record.leaveGuards.forEach((guard) => {
-        guards.push(guardToPromiseFn(guard, to, from));
-      });
-    }
-    const canceledNavigationCheck = checkCanceledNavigationAndReject.bind(null, to, from);
-    guards.push(canceledNavigationCheck);
-    return runGuardQueue(guards).then(() => {
-      guards = [];
-      for (const guard of beforeGuards.list()) {
-        guards.push(guardToPromiseFn(guard, to, from));
-      }
-      guards.push(canceledNavigationCheck);
-      return runGuardQueue(guards);
-    }).then(() => {
-      guards = extractComponentsGuards(updatingRecords, "beforeRouteUpdate", to, from);
-      for (const record of updatingRecords) {
-        record.updateGuards.forEach((guard) => {
-          guards.push(guardToPromiseFn(guard, to, from));
-        });
-      }
-      guards.push(canceledNavigationCheck);
-      return runGuardQueue(guards);
-    }).then(() => {
-      guards = [];
-      for (const record of enteringRecords) {
-        if (record.beforeEnter) {
-          if (isArray(record.beforeEnter)) {
-            for (const beforeEnter of record.beforeEnter)
-              guards.push(guardToPromiseFn(beforeEnter, to, from));
-          } else {
-            guards.push(guardToPromiseFn(record.beforeEnter, to, from));
-          }
-        }
-      }
-      guards.push(canceledNavigationCheck);
-      return runGuardQueue(guards);
-    }).then(() => {
-      to.matched.forEach((record) => record.enterCallbacks = {});
-      guards = extractComponentsGuards(enteringRecords, "beforeRouteEnter", to, from);
-      guards.push(canceledNavigationCheck);
-      return runGuardQueue(guards);
-    }).then(() => {
-      guards = [];
-      for (const guard of beforeResolveGuards.list()) {
-        guards.push(guardToPromiseFn(guard, to, from));
-      }
-      guards.push(canceledNavigationCheck);
-      return runGuardQueue(guards);
-    }).catch((err) => isNavigationFailure(
-      err,
-      8
-      /* ErrorTypes.NAVIGATION_CANCELLED */
-    ) ? err : Promise.reject(err));
-  }
-  function triggerAfterEach(to, from, failure) {
-    afterGuards.list().forEach((guard) => runWithContext(() => guard(to, from, failure)));
-  }
-  function finalizeNavigation(toLocation, from, isPush, replace2, data) {
-    const error = checkCanceledNavigation(toLocation, from);
-    if (error)
-      return error;
-    const isFirstNavigation = from === START_LOCATION_NORMALIZED;
-    const state = !isBrowser ? {} : history.state;
-    if (isPush) {
-      if (replace2 || isFirstNavigation)
-        routerHistory.replace(toLocation.fullPath, assign({
-          scroll: isFirstNavigation && state && state.scroll
-        }, data));
-      else
-        routerHistory.push(toLocation.fullPath, data);
-    }
-    currentRoute.value = toLocation;
-    handleScroll(toLocation, from, isPush, isFirstNavigation);
-    markAsReady();
-  }
-  let removeHistoryListener;
-  function setupListeners() {
-    if (removeHistoryListener)
-      return;
-    removeHistoryListener = routerHistory.listen((to, _from, info) => {
-      if (!router2.listening)
-        return;
-      const toLocation = resolve2(to);
-      const shouldRedirect = handleRedirectRecord(toLocation);
-      if (shouldRedirect) {
-        pushWithRedirect(assign(shouldRedirect, { replace: true }), toLocation).catch(noop);
-        return;
-      }
-      pendingLocation = toLocation;
-      const from = currentRoute.value;
-      if (isBrowser) {
-        saveScrollPosition(getScrollKey(from.fullPath, info.delta), computeScrollPosition());
-      }
-      navigate(toLocation, from).catch((error) => {
-        if (isNavigationFailure(
-          error,
-          4 | 8
-          /* ErrorTypes.NAVIGATION_CANCELLED */
-        )) {
-          return error;
-        }
-        if (isNavigationFailure(
-          error,
-          2
-          /* ErrorTypes.NAVIGATION_GUARD_REDIRECT */
-        )) {
-          pushWithRedirect(
-            error.to,
-            toLocation
-            // avoid an uncaught rejection, let push call triggerError
-          ).then((failure) => {
-            if (isNavigationFailure(
-              failure,
-              4 | 16
-              /* ErrorTypes.NAVIGATION_DUPLICATED */
-            ) && !info.delta && info.type === NavigationType.pop) {
-              routerHistory.go(-1, false);
-            }
-          }).catch(noop);
-          return Promise.reject();
-        }
-        if (info.delta) {
-          routerHistory.go(-info.delta, false);
-        }
-        return triggerError(error, toLocation, from);
-      }).then((failure) => {
-        failure = failure || finalizeNavigation(
-          // after navigation, all matched components are resolved
-          toLocation,
-          from,
-          false
-        );
-        if (failure) {
-          if (info.delta && // a new navigation has been triggered, so we do not want to revert, that will change the current history
-          // entry while a different route is displayed
-          !isNavigationFailure(
-            failure,
-            8
-            /* ErrorTypes.NAVIGATION_CANCELLED */
-          )) {
-            routerHistory.go(-info.delta, false);
-          } else if (info.type === NavigationType.pop && isNavigationFailure(
-            failure,
-            4 | 16
-            /* ErrorTypes.NAVIGATION_DUPLICATED */
-          )) {
-            routerHistory.go(-1, false);
-          }
-        }
-        triggerAfterEach(toLocation, from, failure);
-      }).catch(noop);
-    });
-  }
-  let readyHandlers = useCallbacks();
-  let errorHandlers = useCallbacks();
-  let ready;
-  function triggerError(error, to, from) {
-    markAsReady(error);
-    const list = errorHandlers.list();
-    if (list.length) {
-      list.forEach((handler) => handler(error, to, from));
-    } else {
-      console.error(error);
-    }
-    return Promise.reject(error);
-  }
-  function isReady() {
-    if (ready && currentRoute.value !== START_LOCATION_NORMALIZED)
-      return Promise.resolve();
-    return new Promise((resolve3, reject) => {
-      readyHandlers.add([resolve3, reject]);
-    });
-  }
-  function markAsReady(err) {
-    if (!ready) {
-      ready = !err;
-      setupListeners();
-      readyHandlers.list().forEach(([resolve3, reject]) => err ? reject(err) : resolve3());
-      readyHandlers.reset();
-    }
-    return err;
-  }
-  function handleScroll(to, from, isPush, isFirstNavigation) {
-    const { scrollBehavior } = options;
-    if (!isBrowser || !scrollBehavior)
-      return Promise.resolve();
-    const scrollPosition = !isPush && getSavedScrollPosition(getScrollKey(to.fullPath, 0)) || (isFirstNavigation || !isPush) && history.state && history.state.scroll || null;
-    return nextTick$1().then(() => scrollBehavior(to, from, scrollPosition)).then((position) => position && scrollToPosition(position)).catch((err) => triggerError(err, to, from));
-  }
-  const go = (delta) => routerHistory.go(delta);
-  let started;
-  const installedApps = /* @__PURE__ */ new Set();
-  const router2 = {
-    currentRoute,
-    listening: true,
-    addRoute,
-    removeRoute,
-    hasRoute,
-    getRoutes,
-    resolve: resolve2,
-    options,
-    push,
-    replace,
-    go,
-    back: () => go(-1),
-    forward: () => go(1),
-    beforeEach: beforeGuards.add,
-    beforeResolve: beforeResolveGuards.add,
-    afterEach: afterGuards.add,
-    onError: errorHandlers.add,
-    isReady,
-    install(app2) {
-      const router3 = this;
-      app2.component("RouterLink", RouterLink);
-      app2.component("RouterView", RouterView);
-      app2.config.globalProperties.$router = router3;
-      Object.defineProperty(app2.config.globalProperties, "$route", {
-        enumerable: true,
-        get: () => unref(currentRoute)
-      });
-      if (isBrowser && // used for the initial navigation client side to avoid pushing
-      // multiple times when the router is used in multiple apps
-      !started && currentRoute.value === START_LOCATION_NORMALIZED) {
-        started = true;
-        push(routerHistory.location).catch((err) => {
-        });
-      }
-      const reactiveRoute = {};
-      for (const key in START_LOCATION_NORMALIZED) {
-        Object.defineProperty(reactiveRoute, key, {
-          get: () => currentRoute.value[key],
-          enumerable: true
-        });
-      }
-      app2.provide(routerKey, router3);
-      app2.provide(routeLocationKey, shallowReactive(reactiveRoute));
-      app2.provide(routerViewLocationKey, currentRoute);
-      const unmountApp = app2.unmount;
-      installedApps.add(app2);
-      app2.unmount = function() {
-        installedApps.delete(app2);
-        if (installedApps.size < 1) {
-          pendingLocation = START_LOCATION_NORMALIZED;
-          removeHistoryListener && removeHistoryListener();
-          removeHistoryListener = null;
-          currentRoute.value = START_LOCATION_NORMALIZED;
-          started = false;
-          ready = false;
-        }
-        unmountApp();
-      };
-    }
-  };
-  function runGuardQueue(guards) {
-    return guards.reduce((promise, guard) => promise.then(() => runWithContext(guard)), Promise.resolve());
-  }
-  return router2;
-}
-function extractChangingRecords(to, from) {
-  const leavingRecords = [];
-  const updatingRecords = [];
-  const enteringRecords = [];
-  const len = Math.max(from.matched.length, to.matched.length);
-  for (let i2 = 0; i2 < len; i2++) {
-    const recordFrom = from.matched[i2];
-    if (recordFrom) {
-      if (to.matched.find((record) => isSameRouteRecord(record, recordFrom)))
-        updatingRecords.push(recordFrom);
-      else
-        leavingRecords.push(recordFrom);
-    }
-    const recordTo = to.matched[i2];
-    if (recordTo) {
-      if (!from.matched.find((record) => isSameRouteRecord(record, recordTo))) {
-        enteringRecords.push(recordTo);
-      }
-    }
-  }
-  return [leavingRecords, updatingRecords, enteringRecords];
-}
-const _sfc_main = /* @__PURE__ */ defineComponent({
-  __name: "HomeView",
-  setup(__props) {
-    return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("main");
-    };
-  }
-});
-const router = createRouter({
-  history: createWebHistory("/modules/tablemate/"),
-  routes: [
-    {
-      path: "/",
-      name: "home",
-      component: _sfc_main
-    },
-    {
-      path: "/about",
-      name: "about",
-      // route level code-splitting
-      // this generates a separate chunk (About.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
-      component: () => __vitePreload(() => import("./AboutView-54ada600.js"), true ? ["assets/AboutView-54ada600.js","assets/AboutView-fe0787ef.css"] : void 0)
-    }
-  ]
-});
-const app = createApp(_sfc_main$1);
-app.use(router);
-app.use(createPinia());
+const app = createApp(_sfc_main);
 app.mount("#app");
-export {
-  createBaseVNode as a,
-  createElementBlock as c,
-  openBlock as o
-};
-//# sourceMappingURL=index-748a40a3.js.map
+//# sourceMappingURL=index-0bf09c52.js.map

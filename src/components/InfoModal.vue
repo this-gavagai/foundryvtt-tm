@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref } from 'vue'
 import {
   Dialog,
   DialogPanel,
@@ -9,59 +9,19 @@ import {
   TransitionChild
 } from '@headlessui/vue'
 import { getPath } from '@/utils/utilities'
-import { makeTraits, capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
+import { makeTraits } from '@/utils/utilities'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 
-// export type InfoModalContent = {
-//   itemId?: string
-//   title?: string
-//   description?: string
-//   traits?: string[]
-//   body?: string
-//   iconPath?: string
-//   component?: any
-//   componentProps?: {}
-//   actionButtons?: [
-//     {
-//       buttonHtml?: string
-//       buttonClasses?: string
-//       buttonText?: string
-//       actionParams?: {}
-//       actionMethod?: any
-//     }
-//   ]
-//   toggleSet?: [
-//     {
-//       toggleText: string
-//       toggleTrigger: () => void
-//       toggleIsActive: () => boolean
-//     }
-//   ]
-// }
-
 const props = defineProps(['imageUrl', 'traits'])
-// const content: InfoModalContent = reactive({})
 const itemId = ref()
 
 const isOpen = ref(false)
-function open(newValues: any, newItemId: string) {
-  // Object.assign(content, newValues)
-  itemId.value = newItemId //?? content.itemId
-  // itemId.value = content.itemId
+function open(newItemId: string) {
+  itemId.value = newItemId
   isOpen.value = true
-  // compProps.value = newValues.componentProps
 }
 function close() {
-  // content.title =
-  //   content.description =
-  //   content.traits =
-  //   content.body =
-  //   content.iconPath =
-  //   content.component =
-  //   content.componentProps =
-  //   content.actionButtons =
-  //   content.toggleSet =
-  //     undefined
+  itemId.value = null
   isOpen.value = false
 }
 
@@ -104,12 +64,10 @@ defineExpose({ open, close, itemId })
               <div class="max-h-[70vh] overflow-auto">
                 <div class="flex space-x-2">
                   <div>
-                    <!-- <img class="w-12" v-if="content.iconPath" :src="getPath(content.iconPath)" /> -->
                     <img class="w-12" v-if="props.imageUrl" :src="getPath(props.imageUrl)" />
                   </div>
                   <div>
                     <DialogTitle as="h3" class="text-lg font-medium leading-6 text-gray-900">
-                      <!-- {{ content.title }} -->
                       <slot name="title"></slot>
                     </DialogTitle>
                     <div class="absolute right-0 top-0 pr-4 pt-4 sm:block">
@@ -123,7 +81,6 @@ defineExpose({ open, close, itemId })
                       </button>
                     </div>
                     <DialogDescription>
-                      <!-- <div v-if="content.description" v-html="content.description"></div> -->
                       <slot name="description"></slot>
                     </DialogDescription>
                   </div>
@@ -137,24 +94,13 @@ defineExpose({ open, close, itemId })
                   <slot name="beforeBody"></slot>
                 </div>
                 <div class="mt-2 text-sm [&_p]:my-2">
-                  <!-- <div v-if="content.body" v-html="removeUUIDs(content.body)"></div> -->
                   <slot name="body"></slot>
                 </div>
-                <!-- <component :is="content.component" v-bind="content.componentProps"></component> -->
                 <div>
                   <slot></slot>
                 </div>
               </div>
               <div class="mt-4 flex items-end justify-end gap-2">
-                <!-- <button
-                  v-for="b in content.actionButtons"
-                  type="button"
-                  class="inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
-                  :class="b.buttonClasses"
-                  @click="b.actionMethod(b.actionParams)"
-                >
-                  {{ b.buttonText }}
-                </button> -->
                 <slot name="actionButtons"></slot>
               </div>
             </DialogPanel>

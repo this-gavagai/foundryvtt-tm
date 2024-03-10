@@ -25,6 +25,7 @@ import Feats from '@/components/Feats.vue'
 import Equipment from '@/components/Equipment.vue'
 import Strikes from '@/components/Strikes.vue'
 import Initiative from '@/components/Initiative.vue'
+import IWR from '@/components/IWR.vue'
 
 const props = defineProps(['characterId'])
 
@@ -56,8 +57,6 @@ await new Promise(function (resolve: any) {
   })()
 })
 requestCharacterDetails(props.characterId)
-
-// listen for tablemate messages
 setupSocketListenersForActor(props.characterId, actor)
 
 // debugging conveniences
@@ -81,6 +80,7 @@ declare global {
             <Effects />
             <Attributes />
             <Initiative />
+            <IWR />
           </TabPanel>
           <TabPanel>
             <Feats />

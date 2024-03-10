@@ -19,6 +19,13 @@ export interface FeatCategory {
 }
 
 export interface System {
-  skills: [any]
+  skills: [Skill]
   build: { attributes: any }
+}
+
+export interface Skill {
+  lore: boolean
+  label: string
+  rank: number
+  totalModifier: number
 }

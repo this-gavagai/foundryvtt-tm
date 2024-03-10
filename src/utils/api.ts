@@ -1,17 +1,23 @@
 import { mergeDeep } from '@/utils/utilities'
 import { useServer } from '@/utils/server'
+import { useThrottleFn } from '@vueuse/core'
 
 const { socket } = useServer()
 
-export function requestCharacterDetails(actorId: string) {
-  // this method needs to be debounced (and the data sent should be paired back significantly)
-  socket.value.emit('module.tablemate', {
-    action: 'requestCharacterDetails',
-    actorId: actorId
-  })
-}
+export const requestCharacterDetails = useThrottleFn(
+  (actorId: string) => {
+    socket.value.emit('module.tablemate', {
+      action: 'requestCharacterDetails',
+      actorId: actorId
+    })
+  },
+  3000,
+  true,
+  true
+)
 
 export function setupSocketListenersForActor(actorId: string, actor: any) {
+  // todo: is there any way to refactor this so both actorId and actor aren't needed? right now, need both because actor may be empty
   socket.value.on('module.tablemate', (args: any) => {
     switch (args.action) {
       case 'gmOnline':
@@ -103,6 +109,28 @@ export function updateActorItem(
     (r: any) => {
       _processUpdates(actor, r.result)
       requestCharacterDetails(actor.value._id)
+    }
+  )
+}
+
+export function updateActor(actor: any, update: {}, additionalOptions: {} | null) {
+  socket.value.emit(
+    'modifyDocument',
+    {
+      action: 'update',
+      type: 'Actor',
+      options: { diff: true, render: true },
+      updates: [
+        {
+          _id: actor.value._id,
+          ...update
+        }
+      ]
+    },
+    (r: any) => {
+      r.result.forEach((change: any) => {
+        mergeDeep(actor.value, change)
+      })
     }
   )
 }

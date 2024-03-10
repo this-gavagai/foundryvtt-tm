@@ -25,14 +25,16 @@ const attributes = [
     </Statistic>
   </div>
   <div class="px-6 py-4 flex justify-between border-b">
-    <Statistic v-for="save in actor.system?.saves" :heading="save.label">
+    <Statistic heading="AC">
+      {{ actor.system?.attributes?.ac?.value }}
+    </Statistic>
+    <div class="border border-gray-200"></div>
+    <Statistic v-for="save in actor.system?.saves" :heading="save.label" :proficiency="save.rank">
       {{ SignedNumber.format(save.totalModifier) }}
     </Statistic>
-    <Statistic heading="Perception">
+    <div class="border border-gray-200"></div>
+    <Statistic heading="Perception" :proficiency="actor.system?.perception?.rank">
       {{ SignedNumber.format(actor.system?.perception?.value) }}
-    </Statistic>
-    <Statistic heading="AC">
-      {{ actor.system?.attributes.ac?.value }}
     </Statistic>
   </div>
 </template>

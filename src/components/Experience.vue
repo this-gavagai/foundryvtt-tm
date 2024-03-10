@@ -84,10 +84,12 @@ function updateExperience(input: String) {
           }
         "
       >
-        <div class="w-full py-8 text-3xl flex justify-center items-center">
+        <div class="w-full pt-4 text-3xl flex justify-center items-center">
           <input
-            class="text-3xl border-2 border-black w-24 p-1 mr-4 text-right"
+            class="text-3xl border-2 border-black w-36 p-1 mr-4 text-right"
             name="xp"
+            type="number"
+            pattern="[+-]{0,1}[0-9]*"
             :placeholder="actor.system?.details.xp.value"
             @focus="(e: any) => e.target.select()"
             focus-target

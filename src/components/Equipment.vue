@@ -1,7 +1,14 @@
 <script setup lang="ts">
-// TODO: figure out how the parenthetical worn style works (system.usage.value: 'worngloves', etc.)
-// TODO: some kind of feedback on the carry toggle on click
-// TODO: add unarmed strike here? or in actions?
+// TODO: (ux) some kind of feedback on the carry toggle on click
+
+// TODO: (bug) figure out how the parenthetical worn style works (system.usage.value: 'worngloves', etc.)
+// TODO: (bug) stowed items sometimes show up as "worn" in the togglebar. Why?
+// TODO: (refactor) switch over to API
+
+// TODO: (feature) Move between multiple backpacks?
+// TODO: (feature) add ability to change quantity of items
+// TODO: (feature) add ability to remove items
+// TODO: (feature) add ability to add new items
 
 import EquipmentInvested from '@/components/EquipmentInvested.vue'
 import Modal from '@/components/Modal.vue'
@@ -63,7 +70,7 @@ const inventoryTypes = [
   { type: 'equipment', title: 'Equipment' },
   { type: 'armor', title: 'Armor' },
   { type: 'treasure', title: 'Treasure' },
-  { type: 'backpack', title: 'Containers' }
+  { type: 'backpack', title: '' }
 ]
 
 const toggleSet = [
@@ -78,7 +85,8 @@ const toggleSet = [
         }
       }),
     toggleIsActive: () =>
-      item.value.system.equipped.carryType === 'held' && item.value.system.equipped.handsHeld === 1
+      item.value?.system.equipped.carryType === 'held' &&
+      item.value?.system.equipped.handsHeld === 1
   },
   {
     toggleText: '2-Hands',
@@ -91,7 +99,8 @@ const toggleSet = [
         }
       }),
     toggleIsActive: () =>
-      item.value.system.equipped.carryType === 'held' && item.value.system.equipped.handsHeld === 2
+      item.value?.system.equipped.carryType === 'held' &&
+      item.value?.system.equipped.handsHeld === 2
   },
   {
     toggleText: 'Worn',
@@ -103,7 +112,7 @@ const toggleSet = [
           handsHeld: 0
         }
       }),
-    toggleIsActive: () => item.value.system.equipped.carryType === 'worn'
+    toggleIsActive: () => item.value?.system.equipped.carryType === 'worn'
   },
   {
     toggleText: 'Stowed',
@@ -117,7 +126,7 @@ const toggleSet = [
         }
       })
     },
-    toggleIsActive: () => item.value.system.equipped.carryType === 'stowed'
+    toggleIsActive: () => item.value?.system.equipped.carryType === 'stowed'
   },
   {
     toggleText: 'Dropped',
@@ -129,7 +138,7 @@ const toggleSet = [
           handsHeld: 0
         }
       }),
-    toggleIsActive: () => item.value.system.equipped.carryType === 'dropped'
+    toggleIsActive: () => item.value?.system.equipped.carryType === 'dropped'
   }
 ]
 </script>
@@ -145,7 +154,7 @@ const toggleSet = [
     <ul>
       <li
         v-for="item in actor.items.filter((i: Item) => i.system?.equipped?.handsHeld > 0)"
-        @click="infoModal.open(null, item._id)"
+        @click="infoModal.open(item._id)"
         class="cursor-pointer text-2xl whitespace-nowrap"
       >
         <span class="pr-1">{{
@@ -170,17 +179,18 @@ const toggleSet = [
       >
         <div
           :class="{
-            'text-gray-300': item.system?.equipped?.carryType === 'dropped'
+            'text-gray-300': item.system?.equipped?.carryType === 'dropped',
+            'underline text-lg': item.type === 'backpack'
           }"
-          @click="infoModal.open(null, item._id)"
+          @click="infoModal.open(item._id)"
         >
           <span>{{ item.name }}</span>
-          <span class="text-xs"> x{{ item.system.quantity }}</span>
+          <span v-if="item.type !== 'backpack'" class="text-xs"> x{{ item.system.quantity }}</span>
         </div>
-        <ul class="ml-4" v-if="item.type === 'backpack'">
+        <ul class="pb-2" v-if="item.type === 'backpack'">
           <li
             v-for="stowed in actor.items.filter((i: Item) => i.system?.containerId === item._id)"
-            @click="infoModal.open(null, stowed._id)"
+            @click="infoModal.open(stowed._id)"
           >
             {{ stowed.name }}<span class="text-xs"> x{{ stowed.system.quantity }}</span>
           </li>
@@ -199,7 +209,7 @@ const toggleSet = [
       <template #description>
         Level {{ item?.system.level.value }}
         <span class="text-sm">
-          ({{ capitalize(item.system.traits.rarity) }}), {{ printPrice(item.system.price.value) }}
+          ({{ capitalize(item?.system.traits.rarity) }}), {{ printPrice(item?.system.price.value) }}
         </span>
       </template>
       <template #beforeBody>

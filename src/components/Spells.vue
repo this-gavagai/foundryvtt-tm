@@ -4,6 +4,9 @@
 // todo: wands
 // todo: prevent casting if depleted
 // todo: refactor spellbook to use computed variable
+// todo: add staff charges?
+
+import type { Item } from '@/utils/pf2e-types'
 import { inject, computed, ref } from 'vue'
 import { capitalize, makeActionIcons, makePropertiesHtml, removeUUIDs } from '@/utils/utilities'
 import Counter from '@/components/Counter.vue'
@@ -34,6 +37,45 @@ function getSpellsForLocationAndLevel(location: string, level: number): [any] {
     })
   return spells
 }
+
+interface Spellbook {
+  [key: string]: { [key: string]: [Item?] }
+}
+const spellbook = computed((): Spellbook => {
+  let sb: Spellbook = {} // {location - level - spell}
+
+  // add locations, levels,  then spell items
+  actor.value.items
+    ?.filter((i: Item) => i?.type === 'spellcastingEntry')
+    .forEach((se: { _id: string }) => {
+      const location = se._id
+      sb[location] = {}
+      actor.value.items
+        .filter((i: Item) => i.type === 'spell' && i.system.location.value === location)
+        .map((s: Item) =>
+          s.system.traits.value.includes('cantrip') ? '0' : String(s.system.level.value)
+        )
+        .sort()
+        .filter((itm: number, pos: number, ary: [number]) => !pos || itm != ary[pos - 1])
+        .forEach((level: string) => {
+          // levels
+          sb[location][level] = []
+          actor.value.items
+            .filter((i: Item) => i.type === 'spell' && i.system.location.value === location)
+            .filter((s: Item) => {
+              return level === '0'
+                ? s.system.traits.value.includes('cantrip')
+                : (s.system.level.value === Number(level) ||
+                    (s.system.level.value < Number(level) && s.system.location.signature)) &&
+                    !s.system.traits.value.includes('cantrip')
+            })
+            .forEach((s: Item) => {
+              sb[location][level].push(s)
+            })
+        })
+    })
+  return sb
+})
 </script>
 <template>
   <div class="px-6 py-4">
@@ -61,10 +103,11 @@ function getSpellsForLocationAndLevel(location: string, level: number): [any] {
         </h3>
         <!-- Spell Levels -->
         <ul>
-          <li v-for="level in getLevelsForLocation(location._id)" class="mt-2 first:mt-0">
+          <!-- <li v-for="level in getLevelsForLocation(location._id)" class="mt-2 first:mt-0"> -->
+          <li v-for="(spells, level) in spellbook[location._id]" class="mt-2 first:mt-0">
             <h4 class="text-sm italic">
               <span class="pr-1">
-                {{ level == 0 ? 'Cantrips' : 'Rank ' + level }}
+                {{ level == '0' ? 'Cantrips' : 'Rank ' + level }}
               </span>
               <Counter
                 v-if="location.system?.prepared.value === 'spontaneous'"
@@ -75,12 +118,12 @@ function getSpellsForLocationAndLevel(location: string, level: number): [any] {
             </h4>
             <!-- Spells -->
             <ul>
-              <li v-for="spell in getSpellsForLocationAndLevel(location._id, level)">
+              <li v-for="spell in spells">
                 <div class="text-md">
-                  <span @click="infoModal.open(null, spell._id)" class="cursor-pointer">
-                    <span>{{ spell.name }}</span>
+                  <span @click="infoModal.open(spell?._id)" class="cursor-pointer">
+                    <span>{{ spell?.name }}</span>
                     <span class="pl-1 text-md pf2-icon">{{
-                      spell.system.time.value.replace('to', ' - ').replace('free', 'f')
+                      spell?.system.time.value.replace('to', ' - ').replace('free', 'f')
                     }}</span>
                   </span>
                 </div>
@@ -95,31 +138,33 @@ function getSpellsForLocationAndLevel(location: string, level: number): [any] {
     <InfoModal
       ref="infoModal"
       :imageUrl="viewedItem?.img"
-      :traits="viewedItem?.system.traits.value"
+      :traits="viewedItem?.system?.traits.value"
     >
       <template #title>
         {{ viewedItem?.name }}
         <span
           class="text-2xl absolute pl-1 -mt-[.3rem]"
           v-html="
-            makeActionIcons(viewedItem?.system.time.value.replace('to', ' - ').replace('free', 'f'))
+            makeActionIcons(
+              viewedItem?.system?.time.value.replace('to', ' - ').replace('free', 'f')
+            )
           "
         ></span>
       </template>
       <template #description>
         {{
-          (viewedItem.system.traits.value.includes('cantrip')
+          (viewedItem?.system.traits.value.includes('cantrip')
             ? `Cantrip`
             : `Rank
-        ${viewedItem.system.level.value}`) +
+        ${viewedItem?.system.level.value}`) +
           `
         `
         }}
-        <span class="text-sm">{{ capitalize(viewedItem.system.traits.rarity) }}</span>
+        <span class="text-sm">{{ capitalize(viewedItem?.system.traits.rarity) }}</span>
       </template>
       <template #body>
         <div v-html="makePropertiesHtml(viewedItem)"></div>
-        <div v-html="removeUUIDs(viewedItem.system.description.value)"></div>
+        <div v-html="removeUUIDs(viewedItem?.system.description.value)"></div>
       </template>
     </InfoModal>
   </Teleport>

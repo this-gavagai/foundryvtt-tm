@@ -30,7 +30,7 @@ const categoryLabels = new Map([
         {{ categoryLabels.get(category.label) ?? category.label }}
       </dt>
       <dd v-for="feat in category.feats">
-        <div class="relative" @click="infoModal.open(null, feat.feat._id)">
+        <div class="relative" @click="infoModal.open(feat.feat._id)">
           <span class="text-xs text-gray-500 absolute text-right w-4 pt-1">{{
             feat.level ?? feat.feat.system.level.value
           }}</span
@@ -39,7 +39,7 @@ const categoryLabels = new Map([
         <div
           v-for="grant in feat.feat?.flags?.pf2e?.itemGrants"
           class="ml-10 cursor-pointer"
-          @click="infoModal.open(null, grant.id)"
+          @click="infoModal.open(grant.id)"
         >
           {{ actor.items.find((i: any) => i._id == grant.id)?.name }}
         </div>

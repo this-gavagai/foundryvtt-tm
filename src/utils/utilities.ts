@@ -31,18 +31,18 @@ export function makeActionIcons(actionValue: string): string {
 }
 export function makePropertiesHtml(item: any): string {
   return (
-    (item.system?.duration?.value
-      ? `<div><span class='font-bold'>Duration:</span> ${item.system.duration?.value}</div>`
+    (item?.system?.duration?.value
+      ? `<div><span class='font-bold'>Duration:</span> ${item?.system.duration?.value}</div>`
       : ``) +
-    (item.system?.area?.value
-      ? `<div><span class='font-bold'>Area:</span> ${item.system.area.value} ft ${item.system.area.type}</div>`
+    (item?.system?.area?.value
+      ? `<div><span class='font-bold'>Area:</span> ${item?.system.area.value} ft ${item.system.area.type}</div>`
       : ``) +
-    (item.system?.target?.value
-      ? `<div><span class='font-bold'>Target:</span> ${item.system.target?.value}</div>`
+    (item?.system?.target?.value
+      ? `<div><span class='font-bold'>Target:</span> ${item?.system.target?.value}</div>`
       : ``) +
-    (item.system?.save?.value
+    (item?.system?.save?.value
       ? `<p><span class='font-bold'>Save:</span> ${
-          item.system?.save?.basic ? capitalize(item.system?.save?.basic) : ``
+          item.system?.save?.basic ? capitalize(item?.system?.save?.basic) : ``
         } ${capitalize(item.system?.save?.value)}</p>`
       : ``)
   )
@@ -72,4 +72,19 @@ export const SignedNumber = new Intl.NumberFormat('en-US', {
 export function getPath(path: string) {
   // console.log('input path', path)
   return path.slice(0, 4) === 'http' ? path : '../../' + path
+}
+
+export function parseIncrement(input: string, startingValue: number): number {
+  const transform = [...input.matchAll(/([+-]){0,1}([0-9]+)$/g)]?.[0]
+  if (!transform) return startingValue
+
+  let newValue: number
+  if (transform[1] === '+') {
+    newValue = startingValue + (Number(transform[2]) ?? 0)
+  } else if (transform[1] === '-') {
+    newValue = startingValue - (Number(transform[2]) ?? 0)
+  } else {
+    newValue = Number(transform[2]) ?? startingValue
+  }
+  return newValue
 }

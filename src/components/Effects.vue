@@ -17,7 +17,7 @@ function deleteEffect(effectId: string) {
 }
 function incrementEffectValue(effectId: any, change: number) {
   const effect = actor.value.items.find((i: any) => i._id === effectId)
-  const newValue = effect.system.value.value + change
+  const newValue = effect.system?.value?.value + change
   const update = {
     system: {
       value: {
@@ -31,8 +31,9 @@ function incrementEffectValue(effectId: any, change: number) {
 <template>
   <div class="border border-t-0 px-6 py-4 flex gap-2 empty:hidden">
     <div
+      class="cursor-pointer"
       v-for="effect in actor?.items?.filter((i: Item) => ['effect', 'condition'].includes(i?.type))"
-      @click="infoModal.open(null, effect._id)"
+      @click="infoModal.open(effect._id)"
     >
       <div class="w-12">
         <div class="relative">
@@ -77,6 +78,7 @@ function incrementEffectValue(effectId: any, change: number) {
         </button>
         <button
           type="button"
+          v-if="viewedItem?.system?.value?.isValued"
           class="bg-gray-200 hover:bg-gray-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
           @click="() => incrementEffectValue(viewedItem?._id, -1)"
         >
@@ -84,6 +86,7 @@ function incrementEffectValue(effectId: any, change: number) {
         </button>
         <button
           type="button"
+          v-if="viewedItem?.system?.value?.isValued"
           class="bg-gray-200 hover:bg-gray-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
           @click="() => incrementEffectValue(viewedItem?._id, 1)"
         >

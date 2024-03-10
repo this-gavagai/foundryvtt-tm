@@ -20,7 +20,7 @@ const action = computed(
       <li
         v-for="feat in actor.items.filter((i: Item) => i.system.actionType?.value === 'action')"
         class="cursor-pointer"
-        @click="infoModal.open(null, feat._id)"
+        @click="infoModal.open(feat._id)"
       >
         {{ feat.name }}
       </li>
@@ -30,7 +30,7 @@ const action = computed(
       <li
         v-for="feat in actor.items.filter((i: Item) => i.system.actionType?.value === 'reaction')"
         class="cursor-pointer"
-        @click="infoModal.open(null, feat._id)"
+        @click="infoModal.open(feat._id)"
       >
         {{ feat.name }}
       </li>

@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, provide, computed, nextTick } from 'vue'
+import { ref, provide, computed, nextTick, reactive } from 'vue'
 import { useServer } from './utils/server'
 import Character from '@/components/Character.vue'
-// import { useWakeLock } from '@vueuse/core'
+import { useWakeLock } from '@vueuse/core'
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 
-// const wakeLock = useWakeLock()
-// wakeLock.request('screen')
+const wakeLock = reactive(useWakeLock())
+wakeLock.request('screen')
+console.log('wakelock', wakeLock.isActive, wakeLock.isSupported, wakeLock)
 
 const urlParams = new URLSearchParams(window.location.search)
 const urlId = urlParams.get('id')

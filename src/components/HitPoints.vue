@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { inject, ref } from 'vue'
-import { useServer } from '@/utils/server'
-import { mergeDeep } from '@/utils/utilities'
+import { updateActor } from '@/utils/api'
+import { parseIncrement } from '@/utils/utilities'
 
 import Statistic from '@/components/Statistic.vue'
 import Modal from '@/components/Modal.vue'
@@ -9,74 +9,60 @@ import Modal from '@/components/Modal.vue'
 const actor: any = inject('actor')
 const hitpointsModal = ref()
 
-const { socket } = useServer()
+function updateHitPoints(hp_input: string, temp_input: string) {
+  let newHP = parseIncrement(hp_input, actor.value.system.attributes.hp.value)
+  newHP = Math.max(Math.min(newHP, actor.value.system?.attributes.hp.max), 0)
 
-function updateHitPoints(input: String) {
-  const transform = [...input.matchAll(/([+-]){0,1}([0-9]+)$/g)]?.[0]
-  if (!transform) return
+  let newTemp = parseIncrement(temp_input, actor.value.system.attributes.hp.temp)
+  newTemp = Math.max(newTemp, 0)
 
-  let newValue: number
-  if (transform[1] === '+') {
-    newValue = actor.value.system?.attributes.hp.value + (Number(transform[2]) ?? 0)
-  } else if (transform[1] === '-') {
-    newValue = actor.value.system?.attributes.hp.value - (Number(transform[2]) ?? 0)
-  } else {
-    newValue = Number(transform[2]) ?? actor.value.system?.attributes.hp.value
-  }
-  newValue = Math.max(Math.min(newValue, actor.value.system?.attributes.hp.max), 0)
-
-  console.log(newValue)
-  socket.value.emit(
-    'modifyDocument',
-    {
-      action: 'update',
-      type: 'Actor',
-      options: { diff: true, render: true },
-      updates: [
-        {
-          _id: actor.value._id,
-          system: {
-            attributes: {
-              hp: {
-                value: newValue
-              }
-            }
-          }
-        }
-      ]
-    },
-    (r: any) => {
-      r.result.forEach((change: any) => {
-        mergeDeep(actor.value, change)
-      })
-    }
-  )
+  updateActor(actor, { system: { attributes: { hp: { value: newHP, temp: newTemp } } } }, null)
 }
 </script>
 <template>
   <Statistic heading="Hit Points" @click="hitpointsModal.open()">
-    {{ actor.system?.attributes.hp.value ?? '??' }} /
-    {{ actor.system?.attributes.hp.max ?? '??' }}
+    {{ actor.system?.attributes.hp.value ?? '??' }}
+    <span v-if="actor.system?.attributes.hp.temp" class="text-blue-600"
+      >+ {{ actor.system?.attributes.hp.temp }}</span
+    >
+    <span v-if="!actor.system?.attributes.hp.temp">
+      / {{ actor.system?.attributes.hp.max ?? '??' }}
+    </span>
   </Statistic>
   <Teleport to="#modals">
     <Modal ref="hitpointsModal" title="Hit Points">
       <form
         @submit.prevent="
           (e: any) => {
-            updateHitPoints(e.target[0].value)
+            updateHitPoints(e.target.elements.hp.value, e.target.elements.temp_hp.value)
             hitpointsModal.close()
           }
         "
       >
-        <div class="w-full py-8 text-3xl flex justify-center items-center">
+        <div class="w-full pt-4 pb-1 flex justify-center items-center">
+          <div class="w-1/3">Standard:</div>
           <input
-            class="text-3xl border-2 border-black w-24 p-1 mr-4 text-right ml-[42px]"
+            class="text-3xl border-2 border-black w-1/3 p-1 mr-4 text-right ml-[32px]"
             name="hp"
+            type="number"
+            pattern="[+-]{0,1}[0-9]*"
             :placeholder="actor.system?.attributes.hp.value"
             @focus="(e: any) => e.target.select()"
             focus-target
           />
-          <span class="text-xl">/ {{ actor.system?.attributes.hp.max }}</span>
+          <div class="text-xl w-1/3">/ {{ actor.system?.attributes.hp.max }}</div>
+        </div>
+        <div class="w-full pb-4 pt-1 flex justify-center items-center">
+          <div class="w-1/3 text-blue-600">Temporary:</div>
+          <input
+            class="text-xl border-2 border-black text-blue-600 w-1/3 p-1 mr-4 text-right ml-[32px]"
+            name="temp_hp"
+            type="number"
+            pattern="[+-]{0,1}[0-9]*"
+            :placeholder="actor.system?.attributes.hp.temp"
+            @focus="(e: any) => e.target.select()"
+          />
+          <div class="w-1/3"></div>
         </div>
         <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
           <button
