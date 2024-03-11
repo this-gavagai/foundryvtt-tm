@@ -1,3 +1,7 @@
+// todo: is there any way to refactor setupSocketListernsForActor so both actorId and actor aren't needed? right now, need both because actor may be empty
+
+import type { Actor } from './pf2e-types'
+
 import { mergeDeep } from '@/utils/utilities'
 import { useServer } from '@/utils/server'
 import { useThrottleFn } from '@vueuse/core'
@@ -16,8 +20,7 @@ export const requestCharacterDetails = useThrottleFn(
   true
 )
 
-export function setupSocketListenersForActor(actorId: string, actor: any) {
-  // todo: is there any way to refactor this so both actorId and actor aren't needed? right now, need both because actor may be empty
+export function setupSocketListenersForActor(actorId: string, actor: Actor) {
   socket.value.on('module.tablemate', (args: any) => {
     switch (args.action) {
       case 'gmOnline':
@@ -28,8 +31,9 @@ export function setupSocketListenersForActor(actorId: string, actor: any) {
         if (args.actorId === actorId) {
           actor.value = args.actor
           mergeDeep(actor.value.system, args.system)
-          actor.value.feats = args.feats
-          actor.value.inventory = args.inventory
+          // actor.value.feats = args.feats
+          // actor.value.items = args.items
+          // actor.value.inventory = args.inventory
           if (!window.actor) window.actor = actor.value
         }
         break
@@ -69,7 +73,7 @@ export function setupSocketListenersForActor(actorId: string, actor: any) {
   })
 }
 
-export function deleteActorItem(actor: any, itemId: string) {
+export function deleteActorItem(actor: Actor, itemId: string) {
   console.log(actor)
   socket.value.emit(
     'modifyDocument',

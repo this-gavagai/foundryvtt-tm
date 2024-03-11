@@ -1,5 +1,5 @@
 // prettier-ignore
-const skillMacros = [
+export const skillMacros = [
 	{ skill: 'acrobatics', name: 'Balance', trained: false, compendium: 'pf2e.action-macros', macro: '55mxH0w8UkY1o3Xv' },
 	{ skill: 'acrobatics', name: 'Escape', trained: false, compendium: 'pf2e.action-macros', macro: '50Q0DYL33Kalu1BH' },
 	{ skill: 'acrobatics', name: 'Maneuver in Flight', trained: true, compendium: 'pf2e.action-macros', macro: '9Ul5Op5OceT9P5SS' },
@@ -52,3 +52,14 @@ const skillMacros = [
 	{ skill: 'thievery', name: 'Pick a Lock', trained: true, compendium: 'pf2e.action-macros', macro: '8YrH37NzKRuiKFbF' },
 	{ skill: 'thievery', name: 'Steal', trained: false, compendium: 'pf2e.action-macros', macro: 'zjovbAeuLvyuWFKd' },
   ]
+
+export const featCategoryLabels = new Map([
+  ['PF2E.FeaturesAncestryHeader', 'Ancestry Features'],
+  ['PF2E.FeaturesClassHeader', 'Class Features'],
+  ['PF2E.FeatAncestryHeader', 'Ancestry Feats'],
+  ['PF2E.FeatClassHeader', 'Class Feats'],
+  ['PF2E.FeatArchetypeHeader', 'Archetype Feats'],
+  ['PF2E.FeatSkillHeader', 'Skill Feats'],
+  ['PF2E.FeatGeneralHeader', 'General Feats'],
+  ['PF2E.FeatBonusHeader', 'Bonus Feats']
+])

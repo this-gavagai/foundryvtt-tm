@@ -1,10 +1,8 @@
 <script setup lang="ts">
-// todo: heightened spells
+// todo: reorganize to use spellcastingEntry slots
 // todo: prepared spells
 // todo: wands
 // todo: prevent casting if depleted
-// todo: refactor spellbook to use computed variable
-// todo: add staff charges?
 
 import type { Item } from '@/utils/pf2e-types'
 import { inject, computed, ref } from 'vue'
@@ -17,26 +15,6 @@ const actor: any = inject('actor')
 const viewedItem = computed(
   () => actor.value.items?.find((i: any) => i._id === infoModal?.value?.itemId)
 )
-
-function getLevelsForLocation(location: string): [any] {
-  return actor.value?.items
-    .filter((i: any) => i.type === 'spell' && i.system.location.value === location)
-    .map((s: any) => (s.system.traits.value.includes('cantrip') ? 0 : s.system.level.value))
-    .sort()
-    .filter((itm: any, pos: number, ary: [any]) => !pos || itm != ary[pos - 1])
-}
-function getSpellsForLocationAndLevel(location: string, level: number): [any] {
-  const spells = actor.value?.items
-    .filter((i: any) => i.type === 'spell' && i.system.location.value === location)
-    .filter((s: any) => {
-      return level === 0
-        ? s.system.traits.value.includes('cantrip')
-        : (s.system.level.value === level ||
-            (s.system.level.value < level && s.system.location.signature)) &&
-            !s.system.traits.value.includes('cantrip')
-    })
-  return spells
-}
 
 interface Spellbook {
   [key: string]: { [key: string]: [Item?] }
@@ -82,36 +60,42 @@ const spellbook = computed((): Spellbook => {
     <!-- Spell Sources -->
     <ul class="">
       <li
-        v-for="location in actor?.items?.filter((x: any) => x?.type === 'spellcastingEntry')"
+        v-for="location in actor?.items?.filter((x: Item) => x?.type === 'spellcastingEntry')"
         class="mt-4 first:mt-0"
       >
-        <h3 class="">
+        <h3 class="flex justify-between align-bottom bg-gray-300">
           <span class="underline text-xl">
             {{ location.name }}
           </span>
           <span class="pl-1 text-xs">
             <Counter
+              class="relative bottom-[-5px] text-sm"
               v-if="location.system?.prepared.value === 'focus'"
               :value="actor.system.resources.focus.value"
               :max="actor.system.resources.focus.max"
             />
             <Counter
+              class="relative bottom-[-5px] text-sm"
               v-if="location.system?.prepared.value === 'charge'"
-              :value="location.flags?.['pf2e-staves']?.charges"
+              :value="location.flags?.['pf2e-dailies']?.staff?.charges"
             />
           </span>
         </h3>
+        <div>
+          Spell DC
+          {{ location.system.spelldc.dc || actor.system.attributes?.classOrSpellDC?.value }}
+        </div>
         <!-- Spell Levels -->
         <ul>
           <!-- <li v-for="level in getLevelsForLocation(location._id)" class="mt-2 first:mt-0"> -->
           <li v-for="(spells, level) in spellbook[location._id]" class="mt-2 first:mt-0">
-            <h4 class="text-sm italic">
+            <h4 class="text-sm italic flex justify-between align-bottom bg-gray-200">
               <span class="pr-1">
                 {{ level == '0' ? 'Cantrips' : 'Rank ' + level }}
               </span>
               <Counter
+                class="relative bottom-[-1px] text-sm"
                 v-if="location.system?.prepared.value === 'spontaneous'"
-                class="text-xs"
                 :value="location.system.slots['slot' + level].value"
                 :max="location.system.slots['slot' + level].max"
               />

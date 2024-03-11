@@ -1,9 +1,18 @@
-export interface Actor {
-  _id: String
+interface ActorBase {
+  _id: string
   feats: [FeatCategory]
   items: [Item]
+  inventory: any
   system: System
 }
+interface ActorBaseReactive {
+  value: ActorBase
+}
+export interface Actor extends ActorBase, ActorBaseReactive {}
+
+// export interface ActorReactive {
+//   value: Actor
+// }
 
 export interface Item {
   _id: string
@@ -11,6 +20,7 @@ export interface Item {
   type: string
   system: any
   img: string
+  flags: any
 }
 
 export interface FeatCategory {

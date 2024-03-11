@@ -87,8 +87,9 @@ function updateCharacterDetails(args) {
     actorId: a._id,
     actor: a,
     system: a.system,
-    feats: a.feats.set('unorganized', a.feats.bonus),
-    inventory: a.inventory
+    feats: a.feats.set('unorganized', a.feats.bonus)
+    // items: a.items,
+    // inventory: a.inventory
   }
   console.log(info)
   game.socket.emit(MODNAME, info)

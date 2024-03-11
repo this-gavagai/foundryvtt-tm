@@ -40,6 +40,9 @@ export function makePropertiesHtml(item: any): string {
     (item?.system?.target?.value
       ? `<div><span class='font-bold'>Target:</span> ${item?.system.target?.value}</div>`
       : ``) +
+    (item?.system?.target?.value
+      ? `<div><span class='font-bold'>Range:</span> ${item?.system.range?.value}</div>`
+      : ``) +
     (item?.system?.save?.value
       ? `<p><span class='font-bold'>Save:</span> ${
           item.system?.save?.basic ? capitalize(item?.system?.save?.basic) : ``
