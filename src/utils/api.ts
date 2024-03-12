@@ -1,4 +1,5 @@
 // todo: is there any way to refactor setupSocketListernsForActor so both actorId and actor aren't needed? right now, need both because actor may be empty
+// TODO: convert everything to a promises based architecture to better support UI
 
 import type { Actor } from './pf2e-types'
 
@@ -31,7 +32,7 @@ export function setupSocketListenersForActor(actorId: string, actor: Actor) {
         if (args.actorId === actorId) {
           actor.value = args.actor
           mergeDeep(actor.value.system, args.system)
-          // actor.value.feats = args.feats
+          actor.value.feats = args.feats
           // actor.value.items = args.items
           // actor.value.inventory = args.inventory
           if (!window.actor) window.actor = actor.value

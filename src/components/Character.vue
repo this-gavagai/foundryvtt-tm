@@ -8,7 +8,7 @@ import { requestCharacterDetails, setupSocketListenersForActor } from '@/utils/a
 
 import cowled from '@/assets/icons/cowled.svg'
 import biceps from '@/assets/icons/biceps.svg'
-import backpack from '@/assets/icons/backpack.svg'
+import backpack from '@/assets/icons/knapsack.svg'
 import leapfrog from '@/assets/icons/leapfrog.svg'
 import spellBook from '@/assets/icons/spell-book.svg'
 import talk from '@/assets/icons/talk.svg'

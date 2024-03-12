@@ -91,7 +91,6 @@ function updateCharacterDetails(args) {
     // items: a.items,
     // inventory: a.inventory
   }
-  console.log(info)
   game.socket.emit(MODNAME, info)
 }
 function rollCheck(args) {

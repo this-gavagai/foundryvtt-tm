@@ -31,6 +31,8 @@ export interface FeatCategory {
 export interface System {
   skills: [Skill]
   build: { attributes: any }
+  resources: any
+  attributes: any
 }
 
 export interface Skill {

@@ -11959,6 +11959,7 @@ function setupSocketListenersForActor(actorId, actor) {
         if (args.actorId === actorId) {
           actor.value = args.actor;
           mergeDeep(actor.value.system, args.system);
+          actor.value.feats = args.feats;
           if (!window.actor)
             window.actor = actor.value;
         }
@@ -12079,7 +12080,7 @@ function _processCreates(actor, results) {
 }
 const cowled = "/modules/tablemate/assets/cowled-48ae9a0c.svg";
 const biceps = "/modules/tablemate/assets/biceps-e17f9ce7.svg";
-const backpack = "/modules/tablemate/assets/backpack-0f960096.svg";
+const backpack = "/modules/tablemate/assets/knapsack-97dd194a.svg";
 const leapfrog = "/modules/tablemate/assets/leapfrog-01b964a5.svg";
 const spellBook = "/modules/tablemate/assets/spell-book-f886ae80.svg";
 const talk = "/modules/tablemate/assets/talk-d715f64d.svg";
@@ -12678,16 +12679,17 @@ const _hoisted_3$a = { class: "mt-4 first:mt-0" };
 const _hoisted_4$a = { class: "flex justify-between align-bottom bg-gray-300" };
 const _hoisted_5$9 = { class: "underline text-xl" };
 const _hoisted_6$8 = { class: "pl-1 text-xs" };
-const _hoisted_7$7 = { class: "mt-2 first:mt-0" };
-const _hoisted_8$6 = { class: "text-sm italic flex justify-between align-bottom bg-gray-200" };
-const _hoisted_9$3 = { class: "pr-1" };
-const _hoisted_10$3 = { class: "text-md" };
+const _hoisted_7$7 = { class: "text-sm italic flex justify-between align-bottom bg-gray-200" };
+const _hoisted_8$6 = { class: "pr-1" };
+const _hoisted_9$3 = { class: "empty:hidden" };
+const _hoisted_10$3 = { class: "flex justify-between" };
 const _hoisted_11$3 = ["onClick"];
 const _hoisted_12$2 = { class: "pl-1 text-md pf2-icon" };
-const _hoisted_13$2 = ["innerHTML"];
-const _hoisted_14$1 = { class: "text-sm" };
-const _hoisted_15$1 = ["innerHTML"];
+const _hoisted_13$2 = { key: 1 };
+const _hoisted_14$1 = ["innerHTML"];
+const _hoisted_15$1 = { class: "text-sm" };
 const _hoisted_16$1 = ["innerHTML"];
+const _hoisted_17$1 = ["innerHTML"];
 const _sfc_main$e = /* @__PURE__ */ defineComponent({
   __name: "Spells",
   setup(__props) {
@@ -12696,7 +12698,7 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
     const viewedItem = computed(
       () => {
         var _a;
-        return (_a = actor.value.items) == null ? void 0 : _a.find((i2) => {
+        return (_a = actor == null ? void 0 : actor.value.items) == null ? void 0 : _a.find((i2) => {
           var _a2;
           return i2._id === ((_a2 = infoModal == null ? void 0 : infoModal.value) == null ? void 0 : _a2.itemId);
         });
@@ -12705,20 +12707,37 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
     const spellbook = computed(() => {
       var _a;
       let sb = {};
-      (_a = actor.value.items) == null ? void 0 : _a.filter((i2) => (i2 == null ? void 0 : i2.type) === "spellcastingEntry").forEach((se) => {
+      (_a = actor == null ? void 0 : actor.value.items) == null ? void 0 : _a.filter((i2) => (i2 == null ? void 0 : i2.type) === "spellcastingEntry").forEach((se) => {
         const location2 = se._id;
-        sb[location2] = {};
-        actor.value.items.filter((i2) => i2.type === "spell" && i2.system.location.value === location2).map(
-          (s2) => s2.system.traits.value.includes("cantrip") ? "0" : String(s2.system.level.value)
-        ).sort().filter((itm, pos, ary) => !pos || itm != ary[pos - 1]).forEach((level) => {
-          sb[location2][level] = [];
-          actor.value.items.filter((i2) => i2.type === "spell" && i2.system.location.value === location2).filter((s2) => {
-            return level === "0" ? s2.system.traits.value.includes("cantrip") : (s2.system.level.value === Number(level) || s2.system.level.value < Number(level) && s2.system.location.signature) && !s2.system.traits.value.includes("cantrip");
-          }).forEach((s2) => {
-            sb[location2][level].push(s2);
-          });
-        });
+        sb[location2] = { "0": [], "1": [], "2": [], "3": [], "4": [], "5": [], "6": [], "7": [], "8": [], "9": [], "10": [] };
       });
+      for (const locationId of Object.keys(sb)) {
+        const location2 = actor == null ? void 0 : actor.value.items.find((i2) => i2._id === locationId);
+        if ((location2 == null ? void 0 : location2.system.prepared.value) === "prepared") {
+          Object.values(location2.system.slots).forEach((slot, slotLevel) => {
+            const preparedSpells = slot.prepared.map(
+              (slotSpell) => actor == null ? void 0 : actor.value.items.find((i2) => i2._id === slotSpell.id)
+            );
+            const spellSlots = Object.assign(new Array(slot.max), preparedSpells);
+            sb[locationId][slotLevel] = spellSlots;
+          });
+        } else {
+          const spellsForLocation = actor == null ? void 0 : actor.value.items.filter(
+            (i2) => i2.type === "spell" && i2.system.location.value === locationId
+          );
+          spellsForLocation == null ? void 0 : spellsForLocation.forEach((s2) => {
+            const level = s2.system.traits.value.includes("cantrip") ? "0" : String(s2.system.level.value);
+            sb[locationId][level].push(s2);
+            if (s2.system.location.signature) {
+              Object.values(location2 == null ? void 0 : location2.system.slots).forEach((slot, slotLevel) => {
+                if (slot.max && slotLevel > s2.system.level.value) {
+                  sb[locationId][slotLevel].push(s2);
+                }
+              });
+            }
+          });
+        }
+      }
       return sb;
     });
     return (_ctx, _cache) => {
@@ -12727,7 +12746,7 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
         createBaseVNode("div", _hoisted_1$e, [
           createBaseVNode("ul", _hoisted_2$a, [
             (openBlock(true), createElementBlock(Fragment, null, renderList((_b = (_a = unref(actor)) == null ? void 0 : _a.items) == null ? void 0 : _b.filter((x2) => (x2 == null ? void 0 : x2.type) === "spellcastingEntry"), (location2) => {
-              var _a2, _b2, _c2, _d2, _e2, _f, _g;
+              var _a2, _b2, _c2, _d2, _e2, _f, _g, _h, _i, _j;
               return openBlock(), createElementBlock("li", _hoisted_3$a, [
                 createBaseVNode("h3", _hoisted_4$a, [
                   createBaseVNode("span", _hoisted_5$9, toDisplayString(location2.name), 1),
@@ -12735,23 +12754,25 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
                     ((_a2 = location2.system) == null ? void 0 : _a2.prepared.value) === "focus" ? (openBlock(), createBlock(_sfc_main$f, {
                       key: 0,
                       class: "relative bottom-[-5px] text-sm",
-                      value: unref(actor).system.resources.focus.value,
-                      max: unref(actor).system.resources.focus.max
+                      value: (_b2 = unref(actor)) == null ? void 0 : _b2.system.resources.focus.value,
+                      max: (_c2 = unref(actor)) == null ? void 0 : _c2.system.resources.focus.max
                     }, null, 8, ["value", "max"])) : createCommentVNode("", true),
-                    ((_b2 = location2.system) == null ? void 0 : _b2.prepared.value) === "charge" ? (openBlock(), createBlock(_sfc_main$f, {
+                    ((_d2 = location2.system) == null ? void 0 : _d2.prepared.value) === "charge" ? (openBlock(), createBlock(_sfc_main$f, {
                       key: 1,
                       class: "relative bottom-[-5px] text-sm",
-                      value: (_e2 = (_d2 = (_c2 = location2.flags) == null ? void 0 : _c2["pf2e-dailies"]) == null ? void 0 : _d2.staff) == null ? void 0 : _e2.charges
+                      value: (_g = (_f = (_e2 = location2.flags) == null ? void 0 : _e2["pf2e-dailies"]) == null ? void 0 : _f.staff) == null ? void 0 : _g.charges
                     }, null, 8, ["value"])) : createCommentVNode("", true)
                   ])
                 ]),
-                createBaseVNode("div", null, " Spell DC " + toDisplayString(location2.system.spelldc.dc || ((_g = (_f = unref(actor).system.attributes) == null ? void 0 : _f.classOrSpellDC) == null ? void 0 : _g.value)), 1),
+                createBaseVNode("div", null, " Spell DC " + toDisplayString(location2.system.spelldc.dc || ((_j = (_i = (_h = unref(actor)) == null ? void 0 : _h.system.attributes) == null ? void 0 : _i.classOrSpellDC) == null ? void 0 : _j.value)), 1),
                 createBaseVNode("ul", null, [
                   (openBlock(true), createElementBlock(Fragment, null, renderList(spellbook.value[location2._id], (spells, level) => {
                     var _a3;
-                    return openBlock(), createElementBlock("li", _hoisted_7$7, [
-                      createBaseVNode("h4", _hoisted_8$6, [
-                        createBaseVNode("span", _hoisted_9$3, toDisplayString(level == "0" ? "Cantrips" : "Rank " + level), 1),
+                    return openBlock(), createElementBlock("li", {
+                      class: normalizeClass(["mt-2 first:mt-0", { hidden: !spells.length }])
+                    }, [
+                      createBaseVNode("h4", _hoisted_7$7, [
+                        createBaseVNode("span", _hoisted_8$6, toDisplayString(level == "0" ? "Cantrips" : "Rank " + level), 1),
                         ((_a3 = location2.system) == null ? void 0 : _a3.prepared.value) === "spontaneous" ? (openBlock(), createBlock(_sfc_main$f, {
                           key: 0,
                           class: "relative bottom-[-1px] text-sm",
@@ -12759,22 +12780,34 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
                           max: location2.system.slots["slot" + level].max
                         }, null, 8, ["value", "max"])) : createCommentVNode("", true)
                       ]),
-                      createBaseVNode("ul", null, [
-                        (openBlock(true), createElementBlock(Fragment, null, renderList(spells, (spell) => {
-                          return openBlock(), createElementBlock("li", null, [
-                            createBaseVNode("div", _hoisted_10$3, [
-                              createBaseVNode("span", {
+                      createBaseVNode("ul", _hoisted_9$3, [
+                        (openBlock(true), createElementBlock(Fragment, null, renderList(spells, (spell, index) => {
+                          var _a4, _b3, _c3, _d3, _e3;
+                          return openBlock(), createElementBlock("li", _hoisted_10$3, [
+                            createBaseVNode("div", {
+                              class: normalizeClass(["text-md", {
+                                "bg-blue-50": ((_b3 = (_a4 = spell == null ? void 0 : spell.system) == null ? void 0 : _a4.location) == null ? void 0 : _b3.signature) && ((_c3 = spell == null ? void 0 : spell.system) == null ? void 0 : _c3.level.value) !== Number(level)
+                              }])
+                            }, [
+                              spell ? (openBlock(), createElementBlock("span", {
+                                key: 0,
                                 onClick: ($event) => infoModal.value.open(spell == null ? void 0 : spell._id),
                                 class: "cursor-pointer"
                               }, [
                                 createBaseVNode("span", null, toDisplayString(spell == null ? void 0 : spell.name), 1),
-                                createBaseVNode("span", _hoisted_12$2, toDisplayString(spell == null ? void 0 : spell.system.time.value.replace("to", " - ").replace("free", "f")), 1)
-                              ], 8, _hoisted_11$3)
-                            ])
+                                createBaseVNode("span", _hoisted_12$2, toDisplayString((_d3 = spell == null ? void 0 : spell.system) == null ? void 0 : _d3.time.value.replace("to", " - ").replace("free", "f")), 1)
+                              ], 8, _hoisted_11$3)) : (openBlock(), createElementBlock("span", _hoisted_13$2, "(empty)"))
+                            ], 2),
+                            ((_e3 = location2.system) == null ? void 0 : _e3.prepared.value) === "prepared" ? (openBlock(), createBlock(_sfc_main$f, {
+                              key: 0,
+                              class: "relative bottom-[-1px] text-sm",
+                              value: location2.system.slots["slot" + level].prepared[index].expended ? 0 : 1,
+                              max: 1
+                            }, null, 8, ["value"])) : createCommentVNode("", true)
                           ]);
                         }), 256))
                       ])
-                    ]);
+                    ], 2);
                   }), 256))
                 ])
               ]);
@@ -12797,16 +12830,14 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
                   innerHTML: unref(makeActionIcons)(
                     (_c2 = (_b2 = viewedItem.value) == null ? void 0 : _b2.system) == null ? void 0 : _c2.time.value.replace("to", " - ").replace("free", "f")
                   )
-                }, null, 8, _hoisted_13$2)
+                }, null, 8, _hoisted_14$1)
               ];
             }),
             description: withCtx(() => {
               var _a2, _b2, _c2;
               return [
-                createTextVNode(toDisplayString((((_a2 = viewedItem.value) == null ? void 0 : _a2.system.traits.value.includes("cantrip")) ? `Cantrip` : `Rank
-        ${(_b2 = viewedItem.value) == null ? void 0 : _b2.system.level.value}`) + `
-        `) + " ", 1),
-                createBaseVNode("span", _hoisted_14$1, toDisplayString(unref(capitalize)((_c2 = viewedItem.value) == null ? void 0 : _c2.system.traits.rarity)), 1)
+                createTextVNode(toDisplayString(((_a2 = viewedItem.value) == null ? void 0 : _a2.system.traits.value.includes("cantrip")) ? `Cantrip` : `Rank ${(_b2 = viewedItem.value) == null ? void 0 : _b2.system.level.value}`) + " ", 1),
+                createBaseVNode("span", _hoisted_15$1, toDisplayString(unref(capitalize)((_c2 = viewedItem.value) == null ? void 0 : _c2.system.traits.rarity)), 1)
               ];
             }),
             body: withCtx(() => {
@@ -12814,10 +12845,10 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
               return [
                 createBaseVNode("div", {
                   innerHTML: unref(makePropertiesHtml)(viewedItem.value)
-                }, null, 8, _hoisted_15$1),
+                }, null, 8, _hoisted_16$1),
                 createBaseVNode("div", {
                   innerHTML: unref(removeUUIDs)((_a2 = viewedItem.value) == null ? void 0 : _a2.system.description.value)
-                }, null, 8, _hoisted_16$1)
+                }, null, 8, _hoisted_17$1)
               ];
             }),
             _: 1
@@ -14350,4 +14381,4 @@ const _sfc_main = /* @__PURE__ */ defineComponent({
 });
 const app = createApp(_sfc_main);
 app.mount("#app");
-//# sourceMappingURL=index-f204a0c1.js.map
+//# sourceMappingURL=index-64573727.js.map
