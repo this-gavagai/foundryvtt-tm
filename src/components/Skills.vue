@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// TODO: set up some kind of additional filter system for skill actions, for things like bon mot that have other requirements
 import type { Actor, Skill } from '@/utils/pf2e-types'
 
 import { SignedNumber } from '@/utils/utilities'
@@ -10,7 +9,7 @@ import Statistic from './Statistic.vue'
 // import CheckModifiers from '@/components/CheckModifiers.vue'
 // import SkillsMacros from '@/components/SkillsMacros.vue'
 
-const actor: Actor | undefined = inject('actor')
+const actor: Actor = inject('actor')!
 // const infoModal: any = inject('infoModal')
 // const { socket } = useServer()
 // const macros: any = {
@@ -35,7 +34,6 @@ const actor: Actor | undefined = inject('actor')
 //     //       checkSubtype: skill.slug
 //     //     },
 //     //     actionMethod: (params: {}) => {
-//     //       // todo: manage slotId (for prepared) and level (for heighted) as params
 //     //       socket.value.emit('module.tablemate', params)
 //     //       infoModal.value.close()
 //     //     },
@@ -48,7 +46,6 @@ const actor: Actor | undefined = inject('actor')
 </script>
 <template>
   <div class="px-6 py-4 border-b empty:hidden">
-    <h3 class="underline text-2xl">Skill Actions</h3>
     <!-- <Macro compendium="xdy-pf2e-workbench.asymonous-benefactor-macros" macro="i6YqLOlgMY6oqQ9t"
       >Recall Knowledge</Macro
     > -->
@@ -68,7 +65,7 @@ const actor: Actor | undefined = inject('actor')
           v-for="skill in Object.values(actor?.system?.skills ?? {}).filter(
             (s: Skill) => !s.lore === isNonLore
           )"
-          class="cursor-pointer mb-4 text-lg break-inside-avoid"
+          class="cursor-pointer mb-2 text-lg break-inside-avoid"
         >
           <Statistic :heading="skill.label" :proficiency="skill.rank">
             {{ SignedNumber.format(skill.totalModifier) }}

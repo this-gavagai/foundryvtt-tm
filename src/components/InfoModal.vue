@@ -14,14 +14,17 @@ import { XMarkIcon } from '@heroicons/vue/24/outline'
 
 const props = defineProps(['imageUrl', 'traits'])
 const itemId = ref()
+const options = ref()
 
 const isOpen = ref(false)
-function open(newItemId: string) {
+function open(newItemId: string, newOptions: {} | null) {
   itemId.value = newItemId
+  options.value = newOptions
   isOpen.value = true
 }
 function close() {
   itemId.value = null
+  options.value = null
   isOpen.value = false
 }
 
@@ -29,7 +32,7 @@ function swipeClose(item: any, i: any) {
   close()
 }
 
-defineExpose({ open, close, itemId })
+defineExpose({ open, close, itemId, options })
 </script>
 <template>
   <TransitionRoot appear :show="isOpen" as="template">

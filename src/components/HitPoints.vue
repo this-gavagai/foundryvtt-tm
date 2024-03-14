@@ -8,19 +8,27 @@ import Modal from '@/components/Modal.vue'
 
 const actor: any = inject('actor')
 const hitpointsModal = ref()
+const hpStat = ref()
+const focusTarget = ref(null)
 
 function updateHitPoints(hp_input: string, temp_input: string) {
-  let newHP = parseIncrement(hp_input, actor.value.system.attributes.hp.value)
+  let newHP = parseIncrement(hp_input, actor.value.system?.attributes.hp.value)
   newHP = Math.max(Math.min(newHP, actor.value.system?.attributes.hp.max), 0)
 
-  let newTemp = parseIncrement(temp_input, actor.value.system.attributes.hp.temp)
+  let newTemp = parseIncrement(temp_input, actor.value.system?.attributes.hp.temp)
   newTemp = Math.max(newTemp, 0)
 
   updateActor(actor, { system: { attributes: { hp: { value: newHP, temp: newTemp } } } }, null)
 }
 </script>
 <template>
-  <Statistic heading="Hit Points" @click="hitpointsModal.open()">
+  <Statistic
+    heading="Hit Points"
+    @click="hitpointsModal.open()"
+    ref="hpStat"
+    :modifiers="actor.system?.attributes?.hp._modifiers"
+    :preventInfoModal="true"
+  >
     {{ actor.system?.attributes.hp.value ?? '??' }}
     <span v-if="actor.system?.attributes.hp.temp" class="text-blue-600"
       >+ {{ actor.system?.attributes.hp.temp }}</span
@@ -30,7 +38,17 @@ function updateHitPoints(hp_input: string, temp_input: string) {
     </span>
   </Statistic>
   <Teleport to="#modals">
-    <Modal ref="hitpointsModal" title="Hit Points">
+    <Modal
+      ref="hitpointsModal"
+      title="Hit Points"
+      :focusTarget="focusTarget"
+      :infoButton="
+        () => {
+          hitpointsModal.close()
+          hpStat.infoModal.open()
+        }
+      "
+    >
       <form
         @submit.prevent="
           (e: any) => {
@@ -42,13 +60,13 @@ function updateHitPoints(hp_input: string, temp_input: string) {
         <div class="w-full pt-4 pb-1 flex justify-center items-center">
           <div class="w-1/3">Standard:</div>
           <input
+            ref="focusTarget"
             class="text-3xl border-2 border-black w-1/3 p-1 mr-4 text-right ml-[32px]"
             name="hp"
             type="number"
             pattern="[+-]{0,1}[0-9]*"
             :placeholder="actor.system?.attributes.hp.value"
             @focus="(e: any) => e.target.select()"
-            focus-target
           />
           <div class="text-xl w-1/3">/ {{ actor.system?.attributes.hp.max }}</div>
         </div>

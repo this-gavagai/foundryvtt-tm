@@ -1,10 +1,8 @@
-// TODO: have more robust way of detecting observer in isObserver method
-// TODO: have more robust way of detecting sheet in 'init' hook
+// TODO: have more robust way of detecting observer in iAmObserver method
 const MODNAME = 'module.tablemate'
 
 export function setupCharSheet() {
-  const user = game.data.users.find((x) => x._id === game.userId)
-  console.log('TABLEMATE ready:', user)
+  announceSelf()
 
   game.socket.onAnyOutgoing((event, ...args) => {
     if (
@@ -14,54 +12,45 @@ export function setupCharSheet() {
       (event.match('module.') && !event.match('module.tablemate'))
     )
       return
-    console.log(`SEND ${event}`, args)
+    console.log(`TM.SEND ${event}`, args)
   })
 
   game.socket.on('modifyDocument', (args) => console.log(args))
-
-  game.socket.on(MODNAME, (args) => {
-    console.log('RECV', args)
+  game.socket.on(MODNAME, (args, ack, zoo) => {
+    console.log('TM.RECV', args)
     switch (args.action) {
       case 'anybodyHome':
         announceSelf()
         break
       case 'requestCharacterDetails':
-        if (isFirstGm()) updateCharacterDetails(args)
+        if (iAmObserverOrFallbackGM()) updateCharacterDetails(args)
         break
       case 'rollCheck':
-        if (isObserverOrTryGm()) rollCheck(args)
+        if (iAmObserverOrFallbackGM()) rollCheck(args)
         break
       case 'castSpell':
-        if (isObserverOrTryGm()) castSpell(args)
+        if (iAmObserverOrFallbackGM()) castSpell(args)
         break
       case 'makeStrike':
-        if (isObserverOrTryGm()) makeStrike(args)
+        if (iAmObserverOrFallbackGM()) makeStrike(args)
         break
       case 'rollInitiative':
-        if (isObserverOrTryGm()) rollInitiative(args)
+        if (iAmObserverOrFallbackGM()) rollInitiative(args)
         break
       case 'rollConfirm':
         if (game.user._id === args.userId) rollConfirm(args)
         break
       case 'runMacro':
-        if (isObserverOrTryGm()) runMacro(args)
+        if (iAmObserverOrFallbackGM()) runMacro(args)
         break
       default:
         console.log('event not caught', args.action, args)
     }
   })
-  announceSelf()
 }
 
 // utility functions
-function announceSelf() {
-  if (isFirstGm()) {
-    game.socket.emit(MODNAME, {
-      action: 'gmOnline'
-    })
-  }
-}
-function isFirstGm() {
+function iAmFirstGM() {
   return (
     game.user.isGM &&
     !game.users
@@ -69,17 +58,24 @@ function isFirstGm() {
       .some((other) => other._id < game.user._id)
   )
 }
-function isObserver() {
+function iAmObserver() {
   return game.user.name === 'Observer'
 }
-function isObserverOrTryGm() {
-  return isObserver() || (!isObserverOnline() && isFirstGm())
-}
-function isObserverOnline() {
+function observerIsOnline() {
   return game.users.filter((user) => user.name === 'Observer' && user.active).length > 0
+}
+function iAmObserverOrFallbackGM() {
+  return iAmObserver() || (!observerIsOnline() && iAmFirstGM())
 }
 
 // content functions
+function announceSelf() {
+  if (iAmFirstGM()) {
+    game.socket.emit(MODNAME, {
+      action: 'gmOnline'
+    })
+  }
+}
 function updateCharacterDetails(args) {
   const a = game.actors.find((x) => x._id === args.actorId)
   const info = {
@@ -87,7 +83,7 @@ function updateCharacterDetails(args) {
     actorId: a._id,
     actor: a,
     system: a.system,
-    feats: a.feats.set('unorganized', a.feats.bonus)
+    feats: a.feats //.set('unorganized', a.feats.bonus)
     // items: a.items,
     // inventory: a.inventory
   }
@@ -99,14 +95,20 @@ function rollCheck(args) {
     case 'skill':
       actor.skills[args.checkSubtype].check.roll()
       break
+    case 'save':
+      actor.saves[args.checkSubtype].check.roll()
+      break
+    case 'perception':
+      actor.perception.check.roll()
+      break
   }
 }
 function castSpell(args) {
   const actor = game.actors.get(args.characterId, { strict: true })
   const item = actor.items.get(args.id, { strict: true })
   const spellLocation = actor.items.get(item.system.location.value)
-  let a = spellLocation.cast(item, { slot: NaN, level: args.level })
-  a.then((m) => console.log(m))
+  spellLocation.cast(item, { rank: args.rank, slotId: args.slotId })
+  game.socket.emit(MODNAME, { action: 'acknowledged', uuid: args.uuid })
 }
 function makeStrike(args) {
   const actor = game.actors.get(args.characterId, { strict: true })

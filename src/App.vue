@@ -64,7 +64,7 @@ declare global {
           />
         </TabList>
         <TabPanels>
-          <TabPanel :unmount="false" v-for="characterId in characterIds">
+          <TabPanel :unmount="false" v-for="characterId in characterIds" tabindex="-1">
             <Character :characterId="characterId" />
           </TabPanel>
         </TabPanels>

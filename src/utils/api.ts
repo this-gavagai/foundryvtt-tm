@@ -7,19 +7,11 @@ import { mergeDeep } from '@/utils/utilities'
 import { useServer } from '@/utils/server'
 import { useThrottleFn } from '@vueuse/core'
 
+interface AckQueue {
+  [key: string]: Function
+}
 const { socket } = useServer()
-
-export const requestCharacterDetails = useThrottleFn(
-  (actorId: string) => {
-    socket.value.emit('module.tablemate', {
-      action: 'requestCharacterDetails',
-      actorId: actorId
-    })
-  },
-  3000,
-  true,
-  true
-)
+const ackQueue: AckQueue = {}
 
 export function setupSocketListenersForActor(actorId: string, actor: Actor) {
   socket.value.on('module.tablemate', (args: any) => {
@@ -37,6 +29,10 @@ export function setupSocketListenersForActor(actorId: string, actor: Actor) {
           // actor.value.inventory = args.inventory
           if (!window.actor) window.actor = actor.value
         }
+        break
+      case 'acknowledged':
+        ackQueue[args.uuid]()
+        delete ackQueue[args.uuid]
         break
       default:
         console.log('roll not managed locally: ', args.action)
@@ -65,79 +61,15 @@ export function setupSocketListenersForActor(actorId: string, actor: Actor) {
             _processDeletes(actor, mods.result)
             break
           default:
-            console.log('item action not handled', mods.request.action)
+            console.log('item action not handled', mods.request.action, mods)
         }
         break
+      case 'ChatMessage':
+        break
       default:
-        console.log('request type not handled', mods.request.action)
+        console.log('request type not handled', mods.request.action, mods)
     }
   })
-}
-
-export function deleteActorItem(actor: Actor, itemId: string) {
-  console.log(actor)
-  socket.value.emit(
-    'modifyDocument',
-    {
-      action: 'delete',
-      type: 'Item',
-      ids: [itemId],
-      parentUuid: 'Actor.' + actor.value._id
-    },
-    (r: any) => {
-      _processDeletes(actor, r.result)
-      requestCharacterDetails(actor.value._id)
-    }
-  )
-}
-
-export function updateActorItem(
-  actor: any,
-  itemId: string,
-  update: {},
-  additionalOptions: {} | null
-) {
-  socket.value.emit(
-    'modifyDocument',
-    {
-      action: 'update',
-      type: 'Item',
-      options: { diff: true, render: true, ...additionalOptions },
-      parentUuid: 'Actor.' + actor.value._id,
-      updates: [
-        {
-          _id: itemId,
-          ...update
-        }
-      ]
-    },
-    (r: any) => {
-      _processUpdates(actor, r.result)
-      requestCharacterDetails(actor.value._id)
-    }
-  )
-}
-
-export function updateActor(actor: any, update: {}, additionalOptions: {} | null) {
-  socket.value.emit(
-    'modifyDocument',
-    {
-      action: 'update',
-      type: 'Actor',
-      options: { diff: true, render: true },
-      updates: [
-        {
-          _id: actor.value._id,
-          ...update
-        }
-      ]
-    },
-    (r: any) => {
-      r.result.forEach((change: any) => {
-        mergeDeep(actor.value, change)
-      })
-    }
-  )
 }
 
 function _processDeletes(actor: any, results: []) {
@@ -159,4 +91,148 @@ function _processCreates(actor: any, results: []) {
   results.forEach((c: any) => {
     actor.value.items.push(c)
   })
+}
+
+export function updateActor(actor: any, update: {}, additionalOptions = null): Promise<any> {
+  const promise = new Promise((resolve, reject) => {
+    socket.value.emit(
+      'modifyDocument',
+      {
+        action: 'update',
+        type: 'Actor',
+        options: { diff: true, render: true },
+        updates: [
+          {
+            _id: actor.value._id,
+            ...update
+          }
+        ]
+      },
+      (r: any) => {
+        r.result.forEach((change: any) => {
+          mergeDeep(actor.value, change)
+        })
+        resolve(r)
+      }
+    )
+  })
+  return promise
+}
+
+interface OptionsBlock {
+  [key: string]: any
+}
+export function updateActorItem(
+  actor: Actor,
+  itemId: string,
+  update: {},
+  additionalOptions: OptionsBlock
+): Promise<any> {
+  const promise = new Promise((resolve, reject) => {
+    socket.value.emit(
+      'modifyDocument',
+      {
+        action: 'update',
+        type: 'Item',
+        options: { diff: true, render: true, ...additionalOptions },
+        parentUuid: 'Actor.' + actor.value._id,
+        updates: [
+          {
+            _id: itemId,
+            ...update
+          }
+        ]
+      },
+      (r: any) => {
+        _processUpdates(actor, r.result)
+        requestCharacterDetails(actor.value._id)
+        resolve(r)
+      }
+    )
+  })
+  return promise
+}
+
+export function deleteActorItem(actor: Actor, itemId: string): Promise<any> {
+  const promise = new Promise((resolve, reject) => {
+    console.log(actor)
+    socket.value.emit(
+      'modifyDocument',
+      {
+        action: 'delete',
+        type: 'Item',
+        ids: [itemId],
+        parentUuid: 'Actor.' + actor.value._id
+      },
+      (r: any) => {
+        _processDeletes(actor, r.result)
+        requestCharacterDetails(actor.value._id)
+        resolve(r)
+      }
+    )
+  })
+  return promise
+}
+
+export const requestCharacterDetails = useThrottleFn(
+  (actorId: string): Promise<any> => {
+    const uuid = crypto.randomUUID()
+    const promise = new Promise((resolve, reject) => {
+      socket.value.emit('module.tablemate', {
+        action: 'requestCharacterDetails',
+        actorId: actorId,
+        uuid
+      })
+      ackQueue[uuid] = () => resolve('spell cast')
+    })
+    return promise
+  },
+  3000,
+  true,
+  true
+)
+
+export function castSpell(
+  actor: Actor,
+  spellId: string,
+  castingLevel: number,
+  castingSlot: number
+): Promise<any> {
+  const promise = new Promise((resolve, reject) => {
+    const uuid = crypto.randomUUID()
+    socket.value.emit(
+      'module.tablemate',
+      {
+        action: 'castSpell',
+        id: spellId,
+        characterId: actor._id,
+        rank: castingLevel,
+        slotId: castingSlot,
+        uuid: uuid
+      },
+      (err: any, resp: any) => {
+        console.log('RESPONDERS!', err, resp)
+      }
+    )
+    ackQueue[uuid] = () => resolve('spell cast')
+  })
+  return promise
+}
+
+export function rollCheck(
+  actor: Actor,
+  checkType: string,
+  checkSubtype: string,
+  modifiers: any
+): Promise<any> {
+  const promise = new Promise((resolve, reject) => {
+    socket.value.emit('module.tablemate', {
+      action: 'rollCheck',
+      characterId: actor._id,
+      checkType,
+      checkSubtype,
+      modifiers
+    })
+  })
+  return promise
 }

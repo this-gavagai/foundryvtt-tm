@@ -3,28 +3,27 @@ import { ref } from 'vue'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
 
 import { XMarkIcon } from '@heroicons/vue/24/outline'
+import { InformationCircleIcon } from '@heroicons/vue/24/solid'
 
-const props = defineProps(['title'])
+const props = defineProps(['title', 'focusTarget', 'infoButton'])
 const isOpen = ref(false)
 const content: any = ref()
+const options = ref()
 
+function open(newOptions = null) {
+  isOpen.value = true
+  options.value = newOptions
+}
 function close() {
   isOpen.value = false
+  options.value = null
 }
-function open() {
-  isOpen.value = true
-
-  setTimeout(() => {
-    const target = content.value.querySelector('[focus-target]')
-    if (target) target.focus()
-  }, 50)
-}
-defineExpose({ open, close })
+defineExpose({ open, close, options })
 </script>
 
 <template>
   <TransitionRoot appear :show="isOpen" as="template">
-    <Dialog as="div" @close="close" class="relative z-10">
+    <Dialog as="div" @close="close" class="relative z-10" :initial-focus="props.focusTarget">
       <TransitionChild
         as="template"
         enter="duration-300 ease-out"
@@ -51,8 +50,16 @@ defineExpose({ open, close })
             <DialogPanel
               class="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all"
             >
-              <DialogTitle as="h3" class="text-lg font-medium leading-6 text-gray-900">
+              <DialogTitle
+                as="h3"
+                class="text-lg font-medium leading-6 text-gray-900 flex gap-1 items-center"
+              >
                 {{ props.title }}
+                <InformationCircleIcon
+                  class="h-5 w-5"
+                  v-if="props.infoButton"
+                  @click="props.infoButton()"
+                />
               </DialogTitle>
               <div class="absolute right-0 top-0 pr-4 pt-4 sm:block">
                 <button

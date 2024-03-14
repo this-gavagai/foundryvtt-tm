@@ -16,7 +16,6 @@ const viewedItem = computed(
 </script>
 <template>
   <div class="px-6 py-4">
-    <h3 class="underline text-2xl">Feats</h3>
     <dl v-if="actor?.feats" v-for="category in actor?.feats">
       <dt class="underline text-lg only:hidden pt-2">
         {{ featCategoryLabels.get(category.label) ?? category.label }}

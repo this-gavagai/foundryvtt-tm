@@ -12,6 +12,7 @@ import backpack from '@/assets/icons/knapsack.svg'
 import leapfrog from '@/assets/icons/leapfrog.svg'
 import spellBook from '@/assets/icons/spell-book.svg'
 import talk from '@/assets/icons/talk.svg'
+import skills from '@/assets/icons/skills.svg'
 
 import CharacterTab from '@/components/CharacterTab.vue'
 import CharacterHeader from '@/components/CharacterHeader.vue'
@@ -24,6 +25,7 @@ import Resources from '@/components/Resources.vue'
 import Feats from '@/components/Feats.vue'
 import Equipment from '@/components/Equipment.vue'
 import Strikes from '@/components/Strikes.vue'
+import Armor from '@/components/Armor.vue'
 import Initiative from '@/components/Initiative.vue'
 import IWR from '@/components/IWR.vue'
 
@@ -74,43 +76,47 @@ declare global {
     <div class="p-0">
       <CharacterHeader />
       <TabGroup>
-        <TabPanels class="mb-16 focus:ring-color-red-100">
-          <TabPanel class="mb-16 focus:ring-color-red-100">
+        <TabPanels class="mb-16" tabindex="-1">
+          <TabPanel tabindex="-1">
             <Resources />
             <Effects />
-            <Attributes />
             <Initiative />
+            <Attributes />
+            <Armor />
             <IWR />
           </TabPanel>
-          <TabPanel>
-            <Feats />
-          </TabPanel>
-          <TabPanel>
-            <Equipment />
-          </TabPanel>
-          <TabPanel>
-            <Strikes />
-            <Actions />
+          <TabPanel tabindex="-1">
             <Skills />
           </TabPanel>
-          <TabPanel>
+          <TabPanel tabindex="-1">
+            <Feats />
+          </TabPanel>
+          <TabPanel tabindex="-1">
+            <Equipment />
+          </TabPanel>
+          <TabPanel tabindex="-1">
+            <Strikes />
+            <Actions />
+          </TabPanel>
+          <TabPanel tabindex="-1">
             <Spells />
           </TabPanel>
-          <TabPanel>
+          <!-- <TabPanel tabindex="-1">
             <div class="px-6 py-4">
               <div v-for="message in world.messages">
                 <div v-html="message.flavor" class="border m-2 p-2"></div>
               </div>
             </div>
-          </TabPanel>
+          </TabPanel> -->
         </TabPanels>
         <TabList class="fixed bottom-0 grid grid-cols-6 w-full gap-0 border border-gray-300">
           <CharacterTab :src="cowled" label="Character" />
+          <CharacterTab :src="skills" label="Skills" />
           <CharacterTab :src="biceps" label="Feats" />
           <CharacterTab :src="backpack" label="Equipment" />
           <CharacterTab :src="leapfrog" label="Actions" />
           <CharacterTab :src="spellBook" label="Spells" />
-          <CharacterTab :src="talk" label="Chat" />
+          <!-- <CharacterTab :src="talk" label="Chat" /> -->
         </TabList>
       </TabGroup>
     </div>

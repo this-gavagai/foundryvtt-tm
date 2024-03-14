@@ -1,21 +1,84 @@
 <script setup lang="ts">
-const props = defineProps(['heading', 'proficiency'])
-const proficiencies = [
-  'text-black',
-  'text-blue-800',
-  'text-purple-800',
-  'text-yellow-800',
-  'text-red-800'
-]
+import { ref } from 'vue'
+import { Popover, PopoverButton, PopoverPanel } from '@headlessui/vue'
+import { SignedNumber } from '@/utils/utilities'
+import { proficiencies } from '@/utils/constants'
+import InfoModal from './InfoModal.vue'
+
+const props = defineProps([
+  'heading',
+  'proficiency',
+  'modifiers',
+  'preventInfoModal',
+  'allowRoll',
+  'rollAction'
+])
+const infoModal = ref()
+defineExpose({ infoModal })
 </script>
 <template>
-  <div class="cursor-pointer">
+  <div>
     <div
-      class="text-[0.8rem] uppercase whitespace-nowrap"
-      :class="proficiencies[props.proficiency]"
+      class="cursor-pointer"
+      @click="
+        () => {
+          console.log(preventInfoModal)
+          if (props?.modifiers && !preventInfoModal) infoModal.open()
+        }
+      "
     >
-      {{ heading }}
+      <!-- <Popover class="relative"> -->
+      <!-- <PopoverButton> -->
+      <div
+        class="text-[0.8rem] uppercase whitespace-nowrap"
+        :class="proficiencies[props.proficiency]?.color"
+      >
+        {{ heading }}
+      </div>
+      <div class="text-lg">
+        <slot></slot>
+      </div>
     </div>
-    <div class="text-lg"><slot></slot></div>
+    <InfoModal ref="infoModal">
+      <template #default>
+        <h3 class="text-xl mb-2">
+          {{ heading }}
+          <span
+            v-if="props.proficiency"
+            :class="proficiencies[props.proficiency].color"
+            class="text-sm"
+          >
+            ({{ proficiencies[props.proficiency].label }})
+          </span>
+        </h3>
+        <ul>
+          <li
+            v-for="mod in props.modifiers"
+            class="flex gap-2"
+            :class="{ 'text-gray-300': !mod.enabled }"
+          >
+            <div class="w-8 text-right">
+              {{ SignedNumber.format(mod.modifier) }}
+            </div>
+            <div>{{ mod.label }}</div>
+          </li>
+        </ul>
+      </template>
+      <template #actionButtons>
+        <button
+          v-if="allowRoll"
+          type="button"
+          class="bg-blue-200 hover:bg-blue-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
+          @click="
+            () => {
+              rollAction()
+              infoModal.close()
+            }
+          "
+        >
+          Roll
+        </button>
+      </template>
+    </InfoModal>
   </div>
 </template>

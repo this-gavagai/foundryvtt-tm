@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// todo: filter for worn?
 import { ref, inject, computed } from 'vue'
 import { Listbox } from '@headlessui/vue'
 

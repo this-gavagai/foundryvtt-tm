@@ -61,7 +61,6 @@ export function printPrice(price: { gp: Number; sp: Number; cp: Number }) {
 export function removeUUIDs(description: string | undefined) {
   // todo: remove [[]] (shocking grasp)
   // todo: give tooltip on linked object?
-  // todo: move this to utility
   return description?.replace(
     /@(UUID|Compendium)\[.*?\]\{(.*?)\}/gm,
     '<span class="text-red-900">$2</span>'
@@ -71,6 +70,9 @@ export function removeUUIDs(description: string | undefined) {
 export const SignedNumber = new Intl.NumberFormat('en-US', {
   signDisplay: 'always'
 })
+export function formatModifier(n: number) {
+  return isNaN(n) ? '??' : SignedNumber.format(n)
+}
 
 export function getPath(path: string) {
   // console.log('input path', path)

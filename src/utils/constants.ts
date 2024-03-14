@@ -63,3 +63,20 @@ export const featCategoryLabels = new Map([
   ['PF2E.FeatGeneralHeader', 'General Feats'],
   ['PF2E.FeatBonusHeader', 'Bonus Feats']
 ])
+
+export const proficiencies = [
+  { label: 'Untrained', color: 'text-black' },
+  { label: 'Trained', color: 'text-blue-800' },
+  { label: 'Expert', color: 'text-purple-800' },
+  { label: 'Master', color: 'text-yellow-800' },
+  { label: 'Legendary', color: 'text-red-800' }
+]
+
+export const attributes = [
+  { heading: 'Str', abbr: 'str' },
+  { heading: 'Dex', abbr: 'dex' },
+  { heading: 'Con', abbr: 'con' },
+  { heading: 'Int', abbr: 'int' },
+  { heading: 'Wis', abbr: 'wis' },
+  { heading: 'Cha', abbr: 'cha' }
+]
