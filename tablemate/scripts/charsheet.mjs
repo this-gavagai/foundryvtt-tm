@@ -90,18 +90,24 @@ function updateCharacterDetails(args) {
   game.socket.emit(MODNAME, info)
 }
 function rollCheck(args) {
+  //https://github.com/foundryvtt/pf2e/blob/68988e12fbec7ea8359b9bee9b0c43eb6964ca3f/src/module/system/statistic/statistic.ts#L617
   const actor = game.actors.get(args.characterId, { strict: true })
+  const modifiers = args.modifiers.map((m) => {
+    return new game.pf2e.Modifier(m)
+  })
+  const params = { skipDialog: args.skipDialog, modifiers: modifiers }
   switch (args.checkType) {
     case 'skill':
-      actor.skills[args.checkSubtype].check.roll()
+      actor.skills[args.checkSubtype].check.roll(params)
       break
     case 'save':
-      actor.saves[args.checkSubtype].check.roll()
+      actor.saves[args.checkSubtype].check.roll(params)
       break
     case 'perception':
-      actor.perception.check.roll()
+      actor.perception.check.roll(params)
       break
   }
+  game.socket.emit(MODNAME, { action: 'acknowledged', uuid: args.uuid })
 }
 function castSpell(args) {
   const actor = game.actors.get(args.characterId, { strict: true })
@@ -110,59 +116,59 @@ function castSpell(args) {
   spellLocation.cast(item, { rank: args.rank, slotId: args.slotId })
   game.socket.emit(MODNAME, { action: 'acknowledged', uuid: args.uuid })
 }
-function makeStrike(args) {
-  const actor = game.actors.get(args.characterId, { strict: true })
-  const strike = actor.system.actions.find((a) => a.slug === args.strikeSlug)
-  strike.variants[args.strikeVariant].roll()
-}
-function rollInitiative(args) {
-  const combatantId = game.combat.combatants.find((c) => c.actorId === args.characterId)?._id
-  console.log(combatantId)
-  if (combatantId) game.combat.rollInitiative([combatantId], { updateTurn: false })
-}
-function rollConfirm(args) {
-  if (args.roll) {
-    ui.windows?.[args.appId].resolve(true)
-    ui.windows[args.appId].isResolved = true
-  }
-  ui.windows?.[args.appId].close()
-}
-function runMacro(args) {
-  const actor = game.actors.get(args.characterId)
-  const tokenId = canvas.tokens.documentCollection.find((t) => t.actorId === args.characterId).id
-  const token = canvas.tokens.get(tokenId)
-  console.log('run macro using: ', token)
-  const controlled = token.control({ releaseOthers: true }) // it'd be nice to not release others, but need a way to ensure new token is "first"
-  console.log('now controlled', controlled)
-  console.log('macro', args.characterId, actor)
-  game.packs
-    .get(args.compendium)
-    .getDocument(args.macroId)
-    .then((m) => {
-      m.execute({ actors: actor })
-      //token.release()
-    })
-}
+// function makeStrike(args) {
+//   const actor = game.actors.get(args.characterId, { strict: true })
+//   const strike = actor.system.actions.find((a) => a.slug === args.strikeSlug)
+//   strike.variants[args.strikeVariant].roll()
+// }
+// function rollInitiative(args) {
+//   const combatantId = game.combat.combatants.find((c) => c.actorId === args.characterId)?._id
+//   console.log(combatantId)
+//   if (combatantId) game.combat.rollInitiative([combatantId], { updateTurn: false })
+// }
+// function rollConfirm(args) {
+//   if (args.roll) {
+//     ui.windows?.[args.appId].resolve(true)
+//     ui.windows[args.appId].isResolved = true
+//   }
+//   ui.windows?.[args.appId].close()
+// }
+// function runMacro(args) {
+//   const actor = game.actors.get(args.characterId)
+//   const tokenId = canvas.tokens.documentCollection.find((t) => t.actorId === args.characterId).id
+//   const token = canvas.tokens.get(tokenId)
+//   console.log('run macro using: ', token)
+//   const controlled = token.control({ releaseOthers: true }) // it'd be nice to not release others, but need a way to ensure new token is "first"
+//   console.log('now controlled', controlled)
+//   console.log('macro', args.characterId, actor)
+//   game.packs
+//     .get(args.compendium)
+//     .getDocument(args.macroId)
+//     .then((m) => {
+//       m.execute({ actors: actor })
+//       //token.release()
+//     })
+// }
 
 // roll management
-Hooks.on('renderCheckModifiersDialog', (application, html, data) => {
-  console.log('roll', application.appId)
-  game.socket.emit(MODNAME, {
-    action: 'rollReady',
-    characterId: application.context.actor._id,
-    userId: game.user._id,
-    appId: application.appId,
-    application: application
-  })
-  // application.context.substitutions.push({
-  //   label: 'Manual Roll',
-  //   required: true,
-  //   selected: true,
-  //   slug: 'manualroll',
-  //   value: 14
-  // })
-  // application.render()
-})
+// Hooks.on('renderCheckModifiersDialog', (application, html, data) => {
+//   console.log('roll', application.appId)
+//   game.socket.emit(MODNAME, {
+//     action: 'rollReady',
+//     characterId: application.context.actor._id,
+//     userId: game.user._id,
+//     appId: application.appId,
+//     application: application
+//   })
+//   // application.context.substitutions.push({
+//   //   label: 'Manual Roll',
+//   //   required: true,
+//   //   selected: true,
+//   //   slug: 'manualroll',
+//   //   value: 14
+//   // })
+//   // application.render()
+// })
 // Hooks.on('renderManualResolver', (application, html, data) => {
 //   console.log('manual', application.appId)
 //   console.log(application, html, data)

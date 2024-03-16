@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Popover, PopoverButton, PopoverPanel } from '@headlessui/vue'
 import { SignedNumber } from '@/utils/utilities'
 import { proficiencies } from '@/utils/constants'
 import InfoModal from './InfoModal.vue'
@@ -22,7 +21,6 @@ defineExpose({ infoModal })
       class="cursor-pointer"
       @click="
         () => {
-          console.log(preventInfoModal)
           if (props?.modifiers && !preventInfoModal) infoModal.open()
         }
       "
@@ -60,7 +58,7 @@ defineExpose({ infoModal })
             <div class="w-8 text-right">
               {{ SignedNumber.format(mod.modifier) }}
             </div>
-            <div>{{ mod.label }}</div>
+            <div class="whitespace-nowrap overflow-hidden text-ellipsis">{{ mod.label }}</div>
           </li>
         </ul>
       </template>

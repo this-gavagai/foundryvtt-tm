@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { ref, watch, provide, inject } from 'vue'
+import { ref, provide, inject } from 'vue'
 import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
 
 import { useServer } from '@/utils/server'
-import { mergeDeep } from '@/utils/utilities'
 import { requestCharacterDetails, setupSocketListenersForActor } from '@/utils/api'
 
 import cowled from '@/assets/icons/cowled.svg'
@@ -21,7 +20,7 @@ import Actions from '@/components/Actions.vue'
 import Attributes from '@/components/Attributes.vue'
 import Spells from '@/components/Spells.vue'
 import Effects from '@/components/Effects.vue'
-import Resources from '@/components/Resources.vue'
+import Background from '@/components/Background.vue'
 import Feats from '@/components/Feats.vue'
 import Equipment from '@/components/Equipment.vue'
 import Strikes from '@/components/Strikes.vue'
@@ -36,18 +35,20 @@ const world: any = inject('world')
 const actor = ref<any>({})
 provide('actor', actor)
 
+// pretty sure vvvthisvvv is redundant now
 // watch world for changes and update actor base
-watch(
-  world,
-  () => {
-    if (world.value?.actors) {
-      const worldActor = world.value.actors.find((a: any) => a._id == props.characterId)
-      const synthActor = mergeDeep(worldActor, actor.value)
-      actor.value = synthActor
-    }
-  },
-  { immediate: true }
-)
+// watch(
+//   // TODO: something is happening here where the actor gets wiped out very briefly, throwing errors and requiring unnecessary ?. operators
+//   world,
+//   () => {
+//     if (world.value?.actors) {
+//       // const worldActor = world.value.actors.find((a: any) => a._id == props.characterId)
+//       // const synthActor = mergeDeep(worldActor, actor.value)
+//       // actor.value = synthActor
+//     }
+//   },
+//   { immediate: true }
+// )
 
 // await new socket
 const { socket } = useServer()
@@ -76,9 +77,9 @@ declare global {
     <div class="p-0">
       <CharacterHeader />
       <TabGroup>
-        <TabPanels class="mb-16" tabindex="-1">
+        <TabPanels class="mb-8" tabindex="-1">
           <TabPanel tabindex="-1">
-            <Resources />
+            <Background />
             <Effects />
             <Initiative />
             <Attributes />
@@ -101,13 +102,6 @@ declare global {
           <TabPanel tabindex="-1">
             <Spells />
           </TabPanel>
-          <!-- <TabPanel tabindex="-1">
-            <div class="px-6 py-4">
-              <div v-for="message in world.messages">
-                <div v-html="message.flavor" class="border m-2 p-2"></div>
-              </div>
-            </div>
-          </TabPanel> -->
         </TabPanels>
         <TabList class="fixed bottom-0 grid grid-cols-6 w-full gap-0 border border-gray-300">
           <CharacterTab :src="cowled" label="Character" />
@@ -116,11 +110,8 @@ declare global {
           <CharacterTab :src="backpack" label="Equipment" />
           <CharacterTab :src="leapfrog" label="Actions" />
           <CharacterTab :src="spellBook" label="Spells" />
-          <!-- <CharacterTab :src="talk" label="Chat" /> -->
         </TabList>
       </TabGroup>
     </div>
   </div>
 </template>
-
-<style scoped></style>

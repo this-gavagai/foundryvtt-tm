@@ -144,13 +144,6 @@ const toggleSet = [
 </script>
 <template>
   <div class="px-6 py-4">
-    <h3 class="text-2xl">
-      <span class="underline">Equipment</span>
-      <span class="cursor-pointer text-sm text-gray-500" @click="investedModal.open()">
-        ({{ actor.items.filter((i: Item) => i.system?.equipped?.invested).length }}/10 Invested)
-      </span>
-    </h3>
-
     <ul>
       <li
         v-for="item in actor.items.filter((i: Item) => i.system?.equipped?.handsHeld > 0)"
@@ -169,6 +162,11 @@ const toggleSet = [
         <span>{{ item.name }}</span>
       </li>
     </ul>
+    <div>
+      <span class="cursor-pointer text-sm text-gray-500" @click="investedModal.open()">
+        ({{ actor.items.filter((i: Item) => i.system?.equipped?.invested).length }}/10 Invested)
+      </span>
+    </div>
     <dl v-for="inventoryType in inventoryTypes" class="pt-4 whitespace-nowrap">
       <dt class="underline text-lg only:hidden">{{ inventoryType.title }}</dt>
       <dd

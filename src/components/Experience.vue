@@ -1,55 +1,19 @@
 <script setup lang="ts">
 import { inject, ref } from 'vue'
-import { useServer } from '@/utils/server'
-import { mergeDeep } from '@/utils/utilities'
+import { parseIncrement } from '@/utils/utilities'
+import { updateActor } from '@/utils/api'
 
 import Statistic from '@/components/Statistic.vue'
-import EditValueModal from '@/components/Modal.vue'
+import Modal from '@/components/Modal.vue'
 
 const actor: any = inject('actor')
 const experienceModal = ref()
+const focusTarget = ref()
 
-const { socket } = useServer()
-
-function updateExperience(input: String) {
-  const transform = [...input.matchAll(/([+-]){0,1}([0-9]+)$/g)]?.[0]
-  if (!transform) return
-
-  let newValue: number
-  if (transform[1] === '+') {
-    newValue = Number(actor.value.system?.details.xp.value) + (Number(transform[2]) ?? 0)
-  } else if (transform[1] === '-') {
-    newValue = actor.value.system?.details.xp.value - (Number(transform[2]) ?? 0)
-  } else {
-    newValue = Number(transform[2]) ?? actor.value.system?.details.xp.value
-  }
+function updateExperience(input: string) {
+  let newValue: number = parseIncrement(input, actor.value.system?.details.xp.value)
   newValue = Math.max(newValue, 0)
-
-  socket.value.emit(
-    'modifyDocument',
-    {
-      action: 'update',
-      type: 'Actor',
-      options: { diff: true, render: true },
-      updates: [
-        {
-          _id: actor.value._id,
-          system: {
-            details: {
-              xp: {
-                value: newValue
-              }
-            }
-          }
-        }
-      ]
-    },
-    (r: any) => {
-      r.result.forEach((change: any) => {
-        mergeDeep(actor.value, change)
-      })
-    }
-  )
+  updateActor(actor, { system: { details: { xp: { value: newValue } } } })
 }
 </script>
 <template>
@@ -75,7 +39,7 @@ function updateExperience(input: String) {
     </div>
   </Statistic>
   <Teleport to="#modals">
-    <EditValueModal ref="experienceModal" title="Experience Points">
+    <Modal ref="experienceModal" title="Experience Points" :focusTarget="focusTarget">
       <form
         @submit.prevent="
           (e: any) => {
@@ -92,7 +56,7 @@ function updateExperience(input: String) {
             pattern="[+-]{0,1}[0-9]*"
             :placeholder="actor.system?.details.xp.value"
             @focus="(e: any) => e.target.select()"
-            focus-target
+            ref="focusTarget"
           />
         </div>
         <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
@@ -104,6 +68,6 @@ function updateExperience(input: String) {
           </button>
         </div>
       </form>
-    </EditValueModal>
+    </Modal>
   </Teleport>
 </template>

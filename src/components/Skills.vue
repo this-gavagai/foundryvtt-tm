@@ -4,48 +4,17 @@ import type { Actor, Skill } from '@/utils/pf2e-types'
 import { SignedNumber } from '@/utils/utilities'
 import { inject } from 'vue'
 import Statistic from './Statistic.vue'
+import { rollCheck } from '@/utils/api'
 
 // import Macro from '@/components/Macro.vue'
 // import CheckModifiers from '@/components/CheckModifiers.vue'
 // import SkillsMacros from '@/components/SkillsMacros.vue'
 
 const actor: Actor = inject('actor')!
-// const infoModal: any = inject('infoModal')
-// const { socket } = useServer()
-// const macros: any = {
-//   deception: [{ name: 'Feint' }],
-//   intimidation: [{ name: 'Demoralize' }]
-// }
-// function skillInfo(skill: any) {
-//   console.log('Skill: ', skill)
-//   if (!skill) return
-//   infoModal.value?.open({
-//     title: skill.label,
-//     description: ['Untrained', 'Trained', 'Expert', 'Master', 'Legendary'][skill.rank],
-//     // component: SkillsMacros,
-//     // componentProps: { skill: skill, actor: actor },
-//     iconPath: skill?.img
-//     // actionButtons: [
-//     //   {
-//     //     actionParams: {
-//     //       action: 'rollCheck',
-//     //       characterId: actor.value._id,
-//     //       checkType: 'skill',
-//     //       checkSubtype: skill.slug
-//     //     },
-//     //     actionMethod: (params: {}) => {
-//     //       socket.value.emit('module.tablemate', params)
-//     //       infoModal.value.close()
-//     //     },
-//     //     buttonClasses: 'bg-blue-200 hover:bg-blue-300',
-//     //     buttonText: 'Roll Check'
-//     //   }
-//     // ]
-//   })
-// }
+// const mods = [{ label: 'test', modifier: 3 }]
 </script>
 <template>
-  <div class="px-6 py-4 border-b empty:hidden">
+  <div class="px-6 py-4 empty:hidden">
     <!-- <Macro compendium="xdy-pf2e-workbench.asymonous-benefactor-macros" macro="i6YqLOlgMY6oqQ9t"
       >Recall Knowledge</Macro
     > -->
@@ -58,16 +27,22 @@ const actor: Actor = inject('actor')!
     </ul> -->
     <div>
       <ul
-        class="empty:hidden columns-2 border-t first:border-t-0 pt-2"
+        class="empty:hidden columns-2 border-t first:border-t-0 pt-4 first:p-0"
         v-for="isNonLore in [true, false]"
       >
         <li
           v-for="skill in Object.values(actor?.system?.skills ?? {}).filter(
             (s: Skill) => !s.lore === isNonLore
           )"
-          class="cursor-pointer mb-2 text-lg break-inside-avoid"
+          class="cursor-pointer mb-4 text-lg break-inside-avoid leading-4"
         >
-          <Statistic :heading="skill.label" :proficiency="skill.rank">
+          <Statistic
+            :heading="skill.label"
+            :proficiency="skill.rank"
+            :modifiers="skill.modifiers"
+            :allowRoll="true"
+            :rollAction="() => rollCheck(actor, 'skill', skill.slug, [])"
+          >
             {{ SignedNumber.format(skill.totalModifier) }}
           </Statistic>
         </li>

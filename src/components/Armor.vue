@@ -8,7 +8,7 @@ const actor: Actor = inject('actor')!
 <template>
   <div class="px-6 py-4 flex justify-between border-b">
     <Statistic heading="AC" :modifiers="actor.system?.attributes.ac?.modifiers">
-      {{ actor.system?.attributes?.ac?.value }}
+      {{ actor.system?.attributes?.ac?.value ?? 0 }}
     </Statistic>
     <div class="border border-gray-200"></div>
     <div>No shield</div>

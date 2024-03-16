@@ -31,8 +31,10 @@ export function setupSocketListenersForActor(actorId: string, actor: Actor) {
         }
         break
       case 'acknowledged':
-        ackQueue[args.uuid]()
-        delete ackQueue[args.uuid]
+        if (ackQueue[args.uuid]) {
+          ackQueue[args.uuid]()
+          delete ackQueue[args.uuid]
+        }
         break
       default:
         console.log('roll not managed locally: ', args.action)
@@ -155,7 +157,6 @@ export function updateActorItem(
 
 export function deleteActorItem(actor: Actor, itemId: string): Promise<any> {
   const promise = new Promise((resolve, reject) => {
-    console.log(actor)
     socket.value.emit(
       'modifyDocument',
       {
@@ -200,39 +201,44 @@ export function castSpell(
 ): Promise<any> {
   const promise = new Promise((resolve, reject) => {
     const uuid = crypto.randomUUID()
-    socket.value.emit(
-      'module.tablemate',
-      {
-        action: 'castSpell',
-        id: spellId,
-        characterId: actor._id,
-        rank: castingLevel,
-        slotId: castingSlot,
-        uuid: uuid
-      },
-      (err: any, resp: any) => {
-        console.log('RESPONDERS!', err, resp)
-      }
-    )
+    socket.value.emit('module.tablemate', {
+      action: 'castSpell',
+      id: spellId,
+      characterId: actor._id,
+      rank: castingLevel,
+      slotId: castingSlot,
+      uuid: uuid
+    })
     ackQueue[uuid] = () => resolve('spell cast')
   })
   return promise
+}
+
+interface ModifierTemplate {
+  label: string
+  modifier: number
 }
 
 export function rollCheck(
   actor: Actor,
   checkType: string,
   checkSubtype: string,
-  modifiers: any
+  modifiers: ModifierTemplate[]
 ): Promise<any> {
   const promise = new Promise((resolve, reject) => {
+    const uuid = crypto.randomUUID()
     socket.value.emit('module.tablemate', {
       action: 'rollCheck',
       characterId: actor._id,
       checkType,
       checkSubtype,
-      modifiers
+      modifiers,
+      skipDialog: true,
+      uuid: uuid
     })
+    ackQueue[uuid] = () => {
+      resolve('check rolled')
+    }
   })
   return promise
 }

@@ -33,6 +33,9 @@ export interface System {
   build: { attributes: any }
   resources: any
   attributes: any
+  abilities: any
+  saves: any
+  perception: any
 }
 
 export interface Skill {
@@ -40,4 +43,6 @@ export interface Skill {
   label: string
   rank: number
   totalModifier: number
+  modifiers: [any]
+  slug: string
 }

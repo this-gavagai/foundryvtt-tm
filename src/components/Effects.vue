@@ -29,13 +29,13 @@ function incrementEffectValue(effectId: any, change: number) {
 }
 </script>
 <template>
-  <div class="border border-t-0 px-6 py-4 flex gap-2 empty:hidden">
+  <div class="border border-t-0 px-6 py-4 flex gap-2 empty:hidden flex-wrap">
     <div
       class="cursor-pointer"
       v-for="effect in actor?.items?.filter((i: Item) => ['effect', 'condition'].includes(i?.type))"
       @click="infoModal.open(effect._id)"
     >
-      <div class="w-12">
+      <div class="w-10">
         <div class="relative">
           <div
             v-if="effect.system?.value?.isValued"
@@ -43,9 +43,9 @@ function incrementEffectValue(effectId: any, change: number) {
           >
             {{ effect.system?.value?.value }}
           </div>
-          <img :src="getPath(effect.img)" class="h-12 w-12 rounded-full" />
+          <img :src="getPath(effect.img)" class="rounded-full" />
         </div>
-        <div class="text-[0.5rem] whitespace-nowrap overflow-hidden w-12 text-center">
+        <div class="text-[0.5rem] whitespace-nowrap overflow-hidden text-center">
           {{ effect.name.replace('Effect: ', '') }}
         </div>
       </div>

@@ -7,7 +7,13 @@ import {
   ListboxOptions,
   ListboxOption
 } from '@headlessui/vue'
+
 import { getPath } from '@/utils/utilities'
+import HitPoints from './HitPoints.vue'
+import HeroPoints from './HeroPoints.vue'
+
+// import Bed from '@/assets/icons/night-sleep.svg'
+import { Bars3Icon } from '@heroicons/vue/24/solid'
 
 defineEmits(['changeCharacter'])
 
@@ -28,12 +34,12 @@ function reloadPage() {
 <template>
   <div class="flex border p-4 items-center">
     <a class="h-24 w-24" @click="reloadPage()">
-      <!-- :href="reloadUrl" -->
       <img
         v-if="actor.prototypeToken?.texture?.src"
         :src="getPath(actor.prototypeToken?.texture?.src)"
+        class="h-24 w-24"
       />
-      <div v-else class="h-full">
+      <div v-else class="h-full min-h-24">
         <svg
           aria-hidden="true"
           class="w-full h-full mr-2 p-4 text-gray-200 animate-spin dark:text-gray-100 fill-gray-400"
@@ -52,8 +58,8 @@ function reloadPage() {
         </svg>
       </div>
     </a>
-    <div class="pl-2">
-      <h3 class="text-2xl whitespace-nowrap overflow-hidden">
+    <div class="pl-2 flex-1">
+      <h3 class="text-2xl whitespace-nowrap overflow-hidden mb-2">
         <Listbox>
           <ListboxButton>{{ actor?.name ?? 'Loading...' }}</ListboxButton>
           <ListboxOptions
@@ -86,15 +92,11 @@ function reloadPage() {
           </ListboxOptions>
         </Listbox>
       </h3>
-      <div class="text-md whitespace-nowrap overflow-hidden">
-        <span>{{ actor.items?.find((x: any) => x.type === 'ancestry')?.name ?? '-' }}&nbsp;</span>
-        <span>{{ actor.items?.find((x: any) => x.type === 'background')?.name }}</span>
-      </div>
-      <div class="text-md whitespace-nowrap overflow-hidden">
-        <span>{{ actor.items?.find((x: any) => x.type === 'class')?.name ?? '-' }}</span>
-        <span v-if="actor.system?.details.level.value">{{
-          ` (Level ${actor.system?.details.level.value})`
-        }}</span>
+      <!-- <AncestryBackgroundClass /> -->
+      <div class="flex justify-between align-middle">
+        <HitPoints />
+        <HeroPoints />
+        <Bars3Icon class="h-8 w-8 my-auto text-gray-800 border border-gray-800 rounded-md p-1" />
       </div>
     </div>
   </div>
