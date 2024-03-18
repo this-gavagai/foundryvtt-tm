@@ -80,9 +80,12 @@ export function getPath(path: string) {
 }
 
 export function parseIncrement(input: string, startingValue: number): number {
+  console.log(input)
   const transform = [...input.matchAll(/([+-]){0,1}([0-9]+)$/g)]?.[0]
   if (!transform) return startingValue
 
+  console.log('here', input, transform)
+  console.log([...input.matchAll(/^([+-]){0,1}([0-9]+)$/g)])
   let newValue: number
   if (transform[1] === '+') {
     newValue = startingValue + (Number(transform[2]) ?? 0)

@@ -5,10 +5,11 @@ import { TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle } fro
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 import { InformationCircleIcon } from '@heroicons/vue/24/solid'
 
-const props = defineProps(['title', 'focusTarget', 'infoButton'])
+const props = defineProps(['title', 'focusTarget', 'infoButton', 'noX'])
 const isOpen = ref(false)
 const content: any = ref()
 const options = ref()
+const xButton = ref()
 
 function open(newOptions = null) {
   isOpen.value = true
@@ -16,14 +17,19 @@ function open(newOptions = null) {
 }
 function close() {
   isOpen.value = false
-  options.value = null
+  // options.value = null
 }
 defineExpose({ open, close, options })
 </script>
 
 <template>
   <TransitionRoot appear :show="isOpen" as="template">
-    <Dialog as="div" @close="close" class="relative z-10" :initial-focus="props.focusTarget">
+    <Dialog
+      as="div"
+      @close="close"
+      class="relative z-10"
+      :initial-focus="props.focusTarget ?? xButton"
+    >
       <TransitionChild
         as="template"
         enter="duration-300 ease-out"
@@ -66,9 +72,10 @@ defineExpose({ open, close, options })
                   type="button"
                   class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none"
                   @click="close"
+                  ref="xButton"
                 >
                   <span class="sr-only">Close</span>
-                  <XMarkIcon class="h-6 w-6" aria-hidden="true" />
+                  <XMarkIcon class="h-6 w-6" aria-hidden="true" v-if="!noX" />
                 </button>
               </div>
               <div ref="content">

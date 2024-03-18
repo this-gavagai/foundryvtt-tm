@@ -15,15 +15,6 @@ const actor: Actor = inject('actor')!
     </Statistic>
   </div>
   <div class="px-6 py-4 flex justify-between border-b">
-    <!-- <Statistic
-      v-for="save in actor.system?.saves"
-      :heading="save.label"
-      :proficiency="save.rank"
-      :modifiers="save.modifiers"
-      :allowRoll="true"
-    >
-      {{ SignedNumber.format(save.totalModifier) }}
-    </Statistic> -->
     <Statistic
       heading="Fortitude"
       :proficiency="actor.system?.saves.fortitude?.rank"
@@ -31,7 +22,7 @@ const actor: Actor = inject('actor')!
       :allowRoll="true"
       :rollAction="() => rollCheck(actor, 'save', 'fortitude', [])"
     >
-      {{ formatModifier(actor.system?.saves.fortitude.totalModifier) }}
+      {{ formatModifier(actor.system?.saves.fortitude?.totalModifier) }}
     </Statistic>
     <Statistic
       heading="Reflex"
@@ -40,7 +31,7 @@ const actor: Actor = inject('actor')!
       :allowRoll="true"
       :rollAction="() => rollCheck(actor, 'save', 'reflex', [])"
     >
-      {{ formatModifier(actor.system?.saves.reflex.totalModifier) }}
+      {{ formatModifier(actor.system?.saves.reflex?.totalModifier) }}
     </Statistic>
     <Statistic
       heading="Will"
@@ -49,7 +40,7 @@ const actor: Actor = inject('actor')!
       :allowRoll="true"
       :rollAction="() => rollCheck(actor, 'save', 'will', [])"
     >
-      {{ formatModifier(actor.system?.saves.will.totalModifier) }}
+      {{ formatModifier(actor.system?.saves.will?.totalModifier) }}
     </Statistic>
     <div class="border border-gray-200"></div>
     <Statistic

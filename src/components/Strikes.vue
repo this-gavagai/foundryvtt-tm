@@ -1,50 +1,57 @@
 <script setup lang="ts">
 // TODO: Handle unarmed strike (null strike on infomodal)
-import type { Item } from '@/utils/pf2e-types'
-import { inject } from 'vue'
-import { useServer } from '@/utils/server'
-import { capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
+import type { Item, Actor } from '@/utils/pf2e-types'
+import { inject, ref, computed } from 'vue'
+import { formatModifier } from '@/utils/utilities'
+import { rollCheck } from '@/utils/api'
 
-const infoModal: any = inject('infoModal')
-const actor: any = inject('actor')
+import InfoModal from './InfoModal.vue'
+// import { useServer } from '@/utils/server'
+// import { capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
 
-const { socket } = useServer()
+// const infoModal: any = inject('infoModal')
+const strikeModal = ref()
+const actor: Actor = inject('actor')!
 
-function infoStrike(strike: any) {
-  if (!strike) return
-  infoModal.value?.open({
-    title: strike?.label ?? strike?.item?.name,
-    description: /*HTML*/ `
-      <span class="border p-1 mr-2 text-xs">
-        <span class="pf2-icon text-lg pr-1">1</span>Strike ${strike.variants[0].label}
-      </span>
-      <span class="border p-1 mr-2 text-xs">${strike.variants[1].label}</span>
-      <span class="border p-1 mr-2 text-xs">${strike.variants[2].label}</span>
-    `,
-    traits: strike?.weaponTraits.map((t: any) => t.label),
-    body: /*HTML*/ `
-      <div>
-        HI
-      </div>
-    `,
-    iconPath: strike?.imageUrl ?? strike?.item?.img
-  })
-}
-function makeStrike(slug: string, variant: number) {
-  socket.value.emit('module.tablemate', {
-    action: 'makeStrike',
-    characterId: actor.value._id,
-    strikeSlug: slug,
-    strikeVariant: variant
-  })
-}
+const viewedItem = computed(() => actor.value.system.actions?.[strikeModal.value?.itemId])
+
+// const { socket } = useServer()
+
+// function infoStrike(strike: any) {
+//   if (!strike) return
+//   infoModal.value?.open({
+//     title: strike?.label ?? strike?.item?.name,
+//     description: /*HTML*/ `
+//       <span class="border p-1 mr-2 text-xs">
+//         <span class="pf2-icon text-lg pr-1">1</span>Strike ${strike.variants[0].label}
+//       </span>
+//       <span class="border p-1 mr-2 text-xs">${strike.variants[1].label}</span>
+//       <span class="border p-1 mr-2 text-xs">${strike.variants[2].label}</span>
+//     `,
+//     traits: strike?.weaponTraits.map((t: any) => t.label),
+//     body: /*HTML*/ `
+//       <div>
+//         HI
+//       </div>
+//     `,
+//     iconPath: strike?.imageUrl ?? strike?.item?.img
+//   })
+// }
+// function makeStrike(slug: string, variant: number) {
+//   socket.value.emit('module.tablemate', {
+//     action: 'makeStrike',
+//     characterId: actor.value._id,
+//     strikeSlug: slug,
+//     strikeVariant: variant
+//   })
+// }
 </script>
 <template>
   <div class="px-6">
     <h3 class="underline text-2xl py-2">Strikes</h3>
     <ul>
       <li
-        v-for="strike in actor.system?.actions
+        v-for="(strike, i) in actor.system?.actions
           ?.filter((a: any) => a.type === 'strike')
           .map((a: any) => {
             a['item'] = actor.items.find((i: Item) => i.system?.slug === a?.slug)
@@ -54,7 +61,7 @@ function makeStrike(slug: string, variant: number) {
             (a: any) => a.item?.system?.equipped?.carryType === 'held' || a.item === undefined
           )"
         class="cursor-pointer text-xl pb-2"
-        @click="infoStrike(strike)"
+        @click="strikeModal.open(i, {})"
       >
         <!-- <div class="text-xs border p-1 w-8 mr-1 text-right">
           {{ SignedNumber.format(strike?.totalModifier) }}
@@ -75,4 +82,41 @@ function makeStrike(slug: string, variant: number) {
       </li>
     </ul>
   </div>
+  <Teleport to="#modals">
+    <InfoModal
+      ref="strikeModal"
+      :traits="
+        viewedItem?.traits
+          .map((t: any) => t.label)
+          .concat(viewedItem?.weaponTraits.map((t: any) => t.label))
+      "
+      :imageUrl="viewedItem?.item?.img ?? 'icons/skills/melee/unarmed-punch-fist.webp'"
+    >
+      <template #title>{{ viewedItem?.label }}</template>
+      <template #default>
+        <ul>
+          <li
+            v-for="mod in viewedItem?._modifiers"
+            class="flex gap-2"
+            :class="{ 'text-gray-300': !mod.enabled }"
+          >
+            <div class="w-8 text-right">
+              {{ formatModifier(mod.modifier) }}
+            </div>
+            <div class="whitespace-nowrap overflow-hidden text-ellipsis">{{ mod.label }}</div>
+          </li>
+        </ul>
+      </template>
+      <template #actionButtons>
+        <button
+          v-for="(variant, i) in viewedItem?.variants"
+          type="button"
+          class="bg-blue-600 hover:bg-blue-500 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-white focus:outline-none"
+          @click="rollCheck(actor, 'strike', `${strikeModal.itemId},${i}`, [])"
+        >
+          Strike {{ variant.label.match(/[+-][0-9]*/g)[0] }}
+        </button>
+      </template>
+    </InfoModal>
+  </Teleport>
 </template>

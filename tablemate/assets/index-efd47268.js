@@ -11733,9 +11733,12 @@ function getPath(path) {
 }
 function parseIncrement(input, startingValue) {
   var _a;
+  console.log(input);
   const transform = (_a = [...input.matchAll(/([+-]){0,1}([0-9]+)$/g)]) == null ? void 0 : _a[0];
   if (!transform)
     return startingValue;
+  console.log("here", input, transform);
+  console.log([...input.matchAll(/^([+-]){0,1}([0-9]+)$/g)]);
   let newValue;
   if (transform[1] === "+") {
     newValue = startingValue + (Number(transform[2]) ?? 0);
@@ -11959,7 +11962,7 @@ function setupSocketListenersForActor(actorId, actor) {
         break;
       case "acknowledged":
         if (ackQueue[args.uuid]) {
-          ackQueue[args.uuid]();
+          ackQueue[args.uuid](args);
           delete ackQueue[args.uuid];
         }
         break;
@@ -11975,6 +11978,7 @@ function setupSocketListenersForActor(actorId, actor) {
             mergeDeep(actor.value, change);
           }
         });
+        requestCharacterDetails(actor.value._id);
         break;
       case "Item":
         if (mods.request.parentUuid !== "Actor." + actorId)
@@ -12008,6 +12012,7 @@ function _processDeletes(actor, results) {
       actor.value.items.splice(index, 1);
     }
   });
+  requestCharacterDetails(actor.value._id);
 }
 function _processUpdates(actor, results) {
   results.forEach((change) => {
@@ -12015,11 +12020,13 @@ function _processUpdates(actor, results) {
     if (item)
       mergeDeep(item, change);
   });
+  requestCharacterDetails(actor.value._id);
 }
 function _processCreates(actor, results) {
   results.forEach((c2) => {
     actor.value.items.push(c2);
   });
+  requestCharacterDetails(actor.value._id);
 }
 function updateActor(actor, update, additionalOptions = null) {
   const promise = new Promise((resolve2, reject) => {
@@ -12064,7 +12071,6 @@ function updateActorItem(actor, itemId, update, additionalOptions) {
       },
       (r2) => {
         _processUpdates(actor, r2.result);
-        requestCharacterDetails(actor.value._id);
         resolve2(r2);
       }
     );
@@ -12083,7 +12089,6 @@ function deleteActorItem(actor, itemId) {
       },
       (r2) => {
         _processDeletes(actor, r2.result);
-        requestCharacterDetails(actor.value._id);
         resolve2(r2);
       }
     );
@@ -12118,11 +12123,13 @@ function castSpell(actor, spellId, castingLevel, castingSlot) {
       slotId: castingSlot,
       uuid
     });
-    ackQueue[uuid] = () => resolve2("spell cast");
+    ackQueue[uuid] = (args) => {
+      resolve2(args);
+    };
   });
   return promise;
 }
-function rollCheck(actor, checkType, checkSubtype, modifiers) {
+function rollCheck(actor, checkType, checkSubtype = "", modifiers = [], options = {}) {
   const promise = new Promise((resolve2, reject) => {
     const uuid = crypto.randomUUID();
     socket.value.emit("module.tablemate", {
@@ -12131,11 +12138,28 @@ function rollCheck(actor, checkType, checkSubtype, modifiers) {
       checkType,
       checkSubtype,
       modifiers,
+      options,
       skipDialog: true,
       uuid
     });
-    ackQueue[uuid] = () => {
-      resolve2("check rolled");
+    ackQueue[uuid] = (args) => {
+      resolve2(args);
+    };
+  });
+  return promise;
+}
+function characterAction(actor, characterAction2, options = {}) {
+  const promise = new Promise((resolve2, reject) => {
+    const uuid = crypto.randomUUID();
+    socket.value.emit("module.tablemate", {
+      action: "characterAction",
+      characterId: actor._id,
+      characterAction: characterAction2,
+      options,
+      uuid
+    });
+    ackQueue[uuid] = (args) => {
+      resolve2(args);
     };
   });
   return promise;
@@ -12146,9 +12170,9 @@ const backpack = "/modules/tablemate/assets/knapsack-97dd194a.svg";
 const leapfrog = "/modules/tablemate/assets/leapfrog-01b964a5.svg";
 const spellBook = "/modules/tablemate/assets/spell-book-f886ae80.svg";
 const skills = "/modules/tablemate/assets/skills-e0ca928e.svg";
-const _hoisted_1$n = ["src"];
-const _hoisted_2$k = { class: "text-[.5rem]" };
-const _sfc_main$o = /* @__PURE__ */ defineComponent({
+const _hoisted_1$o = ["src"];
+const _hoisted_2$l = { class: "text-[.5rem]" };
+const _sfc_main$p = /* @__PURE__ */ defineComponent({
   __name: "CharacterTab",
   props: ["src", "label"],
   setup(__props) {
@@ -12159,14 +12183,74 @@ const _sfc_main$o = /* @__PURE__ */ defineComponent({
           createBaseVNode("img", {
             src: props.src,
             class: "m-auto max-h-14"
-          }, null, 8, _hoisted_1$n),
-          createBaseVNode("span", _hoisted_2$k, toDisplayString(__props.label), 1)
+          }, null, 8, _hoisted_1$o),
+          createBaseVNode("span", _hoisted_2$l, toDisplayString(__props.label), 1)
         ]),
         _: 1
       });
     };
   }
 });
+function render$8(_ctx, _cache) {
+  return openBlock(), createElementBlock("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    viewBox: "0 0 24 24",
+    fill: "currentColor",
+    "aria-hidden": "true",
+    "data-slot": "icon"
+  }, [
+    createBaseVNode("path", {
+      "fill-rule": "evenodd",
+      d: "M3 6.75A.75.75 0 0 1 3.75 6h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 6.75ZM3 12a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 12Zm0 5.25a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Z",
+      "clip-rule": "evenodd"
+    })
+  ]);
+}
+function render$7(_ctx, _cache) {
+  return openBlock(), createElementBlock("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    viewBox: "0 0 24 24",
+    fill: "currentColor",
+    "aria-hidden": "true",
+    "data-slot": "icon"
+  }, [
+    createBaseVNode("path", {
+      "fill-rule": "evenodd",
+      d: "M19.916 4.626a.75.75 0 0 1 .208 1.04l-9 13.5a.75.75 0 0 1-1.154.114l-6-6a.75.75 0 0 1 1.06-1.06l5.353 5.353 8.493-12.74a.75.75 0 0 1 1.04-.207Z",
+      "clip-rule": "evenodd"
+    })
+  ]);
+}
+function render$6(_ctx, _cache) {
+  return openBlock(), createElementBlock("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    viewBox: "0 0 24 24",
+    fill: "currentColor",
+    "aria-hidden": "true",
+    "data-slot": "icon"
+  }, [
+    createBaseVNode("path", {
+      "fill-rule": "evenodd",
+      d: "M11.47 4.72a.75.75 0 0 1 1.06 0l3.75 3.75a.75.75 0 0 1-1.06 1.06L12 6.31 8.78 9.53a.75.75 0 0 1-1.06-1.06l3.75-3.75Zm-3.75 9.75a.75.75 0 0 1 1.06 0L12 17.69l3.22-3.22a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0l-3.75-3.75a.75.75 0 0 1 0-1.06Z",
+      "clip-rule": "evenodd"
+    })
+  ]);
+}
+function render$5(_ctx, _cache) {
+  return openBlock(), createElementBlock("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    viewBox: "0 0 24 24",
+    fill: "currentColor",
+    "aria-hidden": "true",
+    "data-slot": "icon"
+  }, [
+    createBaseVNode("path", {
+      "fill-rule": "evenodd",
+      d: "M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 0 1 .67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 1 1-.671-1.34l.041-.022ZM12 9a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z",
+      "clip-rule": "evenodd"
+    })
+  ]);
+}
 const featCategoryLabels = /* @__PURE__ */ new Map([
   ["PF2E.FeaturesAncestryHeader", "Ancestry Features"],
   ["PF2E.FeaturesClassHeader", "Class Features"],
@@ -12192,7 +12276,16 @@ const attributes = [
   { heading: "Wis", abbr: "wis" },
   { heading: "Cha", abbr: "cha" }
 ];
-function render$6(_ctx, _cache) {
+const inventoryTypes = [
+  { type: "weapon", title: "Weapons" },
+  { type: "consumable", title: "Consumables" },
+  { type: "equipment", title: "Equipment" },
+  { type: "armor", title: "Armor" },
+  { type: "treasure", title: "Treasure" },
+  { type: "backpack", title: "" }
+];
+const _imports_0 = "/modules/tablemate/assets/dice-twenty-faces-twenty-8434c911.svg";
+function render$4(_ctx, _cache) {
   return openBlock(), createElementBlock("svg", {
     xmlns: "http://www.w3.org/2000/svg",
     fill: "none",
@@ -12209,7 +12302,7 @@ function render$6(_ctx, _cache) {
     })
   ]);
 }
-function render$5(_ctx, _cache) {
+function render$3(_ctx, _cache) {
   return openBlock(), createElementBlock("svg", {
     xmlns: "http://www.w3.org/2000/svg",
     fill: "none",
@@ -12226,7 +12319,7 @@ function render$5(_ctx, _cache) {
     })
   ]);
 }
-function render$4(_ctx, _cache) {
+function render$2(_ctx, _cache) {
   return openBlock(), createElementBlock("svg", {
     xmlns: "http://www.w3.org/2000/svg",
     fill: "none",
@@ -12243,22 +12336,152 @@ function render$4(_ctx, _cache) {
     })
   ]);
 }
+const _hoisted_1$n = /* @__PURE__ */ createBaseVNode("div", { class: "fixed inset-0 bg-black/25" }, null, -1);
+const _hoisted_2$k = { class: "fixed inset-0 overflow-y-auto" };
+const _hoisted_3$j = { class: "flex min-h-full items-center justify-center p-4 text-center" };
+const _hoisted_4$f = { class: "absolute right-0 top-0 pr-4 pt-4 sm:block" };
+const _hoisted_5$e = /* @__PURE__ */ createBaseVNode("span", { class: "sr-only" }, "Close", -1);
+const _sfc_main$o = /* @__PURE__ */ defineComponent({
+  __name: "Modal",
+  props: ["title", "focusTarget", "infoButton", "noX"],
+  setup(__props, { expose: __expose }) {
+    const props = __props;
+    const isOpen = ref(false);
+    const content = ref();
+    const options = ref();
+    const xButton = ref();
+    function open(newOptions = null) {
+      isOpen.value = true;
+      options.value = newOptions;
+    }
+    function close() {
+      isOpen.value = false;
+    }
+    __expose({ open, close, options });
+    return (_ctx, _cache) => {
+      return openBlock(), createBlock(unref(Se), {
+        appear: "",
+        show: isOpen.value,
+        as: "template"
+      }, {
+        default: withCtx(() => [
+          createVNode(unref(Ue$1), {
+            as: "div",
+            onClose: close,
+            class: "relative z-10",
+            "initial-focus": props.focusTarget ?? xButton.value
+          }, {
+            default: withCtx(() => [
+              createVNode(unref(he), {
+                as: "template",
+                enter: "duration-300 ease-out",
+                "enter-from": "opacity-0",
+                "enter-to": "opacity-100",
+                leave: "duration-200 ease-in",
+                "leave-from": "opacity-100",
+                "leave-to": "opacity-0"
+              }, {
+                default: withCtx(() => [
+                  _hoisted_1$n
+                ]),
+                _: 1
+              }),
+              createBaseVNode("div", _hoisted_2$k, [
+                createBaseVNode("div", _hoisted_3$j, [
+                  createVNode(unref(he), {
+                    as: "template",
+                    enter: "duration-300 ease-out",
+                    "enter-from": "opacity-0 scale-95",
+                    "enter-to": "opacity-100 scale-100",
+                    leave: "duration-200 ease-in",
+                    "leave-from": "opacity-100 scale-100",
+                    "leave-to": "opacity-0 scale-95"
+                  }, {
+                    default: withCtx(() => [
+                      createVNode(unref(Ge), { class: "w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all" }, {
+                        default: withCtx(() => [
+                          createVNode(unref(Ve), {
+                            as: "h3",
+                            class: "text-lg font-medium leading-6 text-gray-900 flex gap-1 items-center"
+                          }, {
+                            default: withCtx(() => [
+                              createTextVNode(toDisplayString(props.title) + " ", 1),
+                              props.infoButton ? (openBlock(), createBlock(unref(render$5), {
+                                key: 0,
+                                class: "h-5 w-5",
+                                onClick: _cache[0] || (_cache[0] = ($event) => props.infoButton())
+                              })) : createCommentVNode("", true)
+                            ]),
+                            _: 1
+                          }),
+                          createBaseVNode("div", _hoisted_4$f, [
+                            createBaseVNode("button", {
+                              type: "button",
+                              class: "rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none",
+                              onClick: close,
+                              ref_key: "xButton",
+                              ref: xButton
+                            }, [
+                              _hoisted_5$e,
+                              !__props.noX ? (openBlock(), createBlock(unref(render$2), {
+                                key: 0,
+                                class: "h-6 w-6",
+                                "aria-hidden": "true"
+                              })) : createCommentVNode("", true)
+                            ], 512)
+                          ]),
+                          createBaseVNode("div", {
+                            ref_key: "content",
+                            ref: content
+                          }, [
+                            renderSlot(_ctx.$slots, "default")
+                          ], 512)
+                        ]),
+                        _: 3
+                      })
+                    ]),
+                    _: 3
+                  })
+                ])
+              ])
+            ]),
+            _: 3
+          }, 8, ["initial-focus"])
+        ]),
+        _: 3
+      }, 8, ["show"]);
+    };
+  }
+});
 const _hoisted_1$m = /* @__PURE__ */ createBaseVNode("div", { class: "fixed inset-0 bg-black bg-opacity-25" }, null, -1);
 const _hoisted_2$j = { class: "fixed inset-x-0 bottom-0 overflow-y-auto" };
 const _hoisted_3$i = { class: "flex bottom items-bottom justify-center p-0 pb-0 text-center" };
 const _hoisted_4$e = { class: "max-h-[70vh] overflow-auto" };
-const _hoisted_5$c = { class: "flex space-x-2" };
-const _hoisted_6$a = ["src"];
-const _hoisted_7$9 = { class: "absolute right-0 top-0 pr-4 pt-4 sm:block" };
-const _hoisted_8$7 = /* @__PURE__ */ createBaseVNode("span", { class: "sr-only" }, "Close", -1);
-const _hoisted_9$5 = ["innerHTML"];
-const _hoisted_10$4 = { class: "mt-2 text-sm [&_p]:my-2" };
+const _hoisted_5$d = { class: "flex space-x-2" };
+const _hoisted_6$b = ["src"];
+const _hoisted_7$b = { class: "absolute right-0 top-0 pr-4 pt-4 sm:block" };
+const _hoisted_8$a = /* @__PURE__ */ createBaseVNode("span", { class: "sr-only" }, "Close", -1);
+const _hoisted_9$7 = ["innerHTML"];
+const _hoisted_10$6 = { class: "mt-2 text-sm [&_p]:my-2" };
 const _hoisted_11$4 = { class: "mt-4 flex items-end justify-end gap-2" };
+const _hoisted_12$3 = { class: "flex" };
+const _hoisted_13$2 = { class: "m-auto" };
+const _hoisted_14$2 = { class: "m-auto" };
+const _hoisted_15$2 = { class: "flex items-center justify-center" };
+const _hoisted_16$1 = { class: "text-2xl" };
+const _hoisted_17$1 = /* @__PURE__ */ createBaseVNode("img", {
+  src: _imports_0,
+  class: "ml-1 h-6 w-6"
+}, null, -1);
+const _hoisted_18$1 = { class: "m-auto" };
+const _hoisted_19 = { class: "text-6xl" };
 const _sfc_main$n = /* @__PURE__ */ defineComponent({
   __name: "InfoModal",
   props: ["imageUrl", "traits"],
-  setup(__props, { expose: __expose }) {
+  emits: ["closing"],
+  setup(__props, { expose: __expose, emit: emit2 }) {
     const props = __props;
+    const rollResultModal = ref();
     const itemId = ref();
     const options = ref();
     const isOpen = ref(false);
@@ -12271,132 +12494,160 @@ const _sfc_main$n = /* @__PURE__ */ defineComponent({
       itemId.value = null;
       options.value = null;
       isOpen.value = false;
+      emit2("closing");
     }
     function swipeClose(item, i2) {
       close();
     }
-    __expose({ open, close, itemId, options });
+    __expose({ open, close, itemId, options, rollResultModal });
     return (_ctx, _cache) => {
       const _directive_touch = resolveDirective("touch");
-      return openBlock(), createBlock(unref(Se), {
-        appear: "",
-        show: isOpen.value,
-        as: "template"
-      }, {
-        default: withCtx(() => [
-          createVNode(unref(Ue$1), {
-            as: "div",
-            onClose: close,
-            class: "relative z-10"
-          }, {
-            default: withCtx(() => [
-              createVNode(unref(he), {
-                as: "template",
-                enter: "duration-300 ease-out",
-                "enter-from": "opacity-0",
-                "enter-to": "opacity-100",
-                leave: "duration-100 ease-in",
-                "leave-from": "opacity-100",
-                "leave-to": "opacity-0"
-              }, {
-                default: withCtx(() => [
-                  _hoisted_1$m
-                ]),
-                _: 1
-              }),
-              createBaseVNode("div", _hoisted_2$j, [
-                createBaseVNode("div", _hoisted_3$i, [
-                  createVNode(unref(he), {
-                    as: "template",
-                    enter: "duration-300 ease-out",
-                    "enter-from": "translate-y-full",
-                    "enter-to": "translate-y-0",
-                    leave: "duration-200 ease-in",
-                    "leave-from": "translate-y-0",
-                    "leave-to": "translate-y-full"
-                  }, {
-                    default: withCtx(() => [
-                      withDirectives((openBlock(), createBlock(unref(Ge), { class: "w-full max-w-md transform overflow-hidden bg-white p-6 text-left shadow-xl transition-all" }, {
-                        default: withCtx(() => [
-                          createBaseVNode("div", _hoisted_4$e, [
-                            createBaseVNode("div", _hoisted_5$c, [
+      return openBlock(), createElementBlock(Fragment, null, [
+        createVNode(unref(Se), {
+          appear: "",
+          show: isOpen.value,
+          as: "template"
+        }, {
+          default: withCtx(() => [
+            createVNode(unref(Ue$1), {
+              as: "div",
+              onClose: close,
+              class: "relative z-10"
+            }, {
+              default: withCtx(() => [
+                createVNode(unref(he), {
+                  as: "template",
+                  enter: "duration-300 ease-out",
+                  "enter-from": "opacity-0",
+                  "enter-to": "opacity-100",
+                  leave: "duration-100 ease-in",
+                  "leave-from": "opacity-100",
+                  "leave-to": "opacity-0"
+                }, {
+                  default: withCtx(() => [
+                    _hoisted_1$m
+                  ]),
+                  _: 1
+                }),
+                createBaseVNode("div", _hoisted_2$j, [
+                  createBaseVNode("div", _hoisted_3$i, [
+                    createVNode(unref(he), {
+                      as: "template",
+                      enter: "duration-300 ease-out",
+                      "enter-from": "translate-y-full",
+                      "enter-to": "translate-y-0",
+                      leave: "duration-200 ease-in",
+                      "leave-from": "translate-y-0",
+                      "leave-to": "translate-y-full"
+                    }, {
+                      default: withCtx(() => [
+                        withDirectives((openBlock(), createBlock(unref(Ge), { class: "w-full max-w-md transform overflow-hidden bg-white p-6 text-left shadow-xl transition-all" }, {
+                          default: withCtx(() => [
+                            createBaseVNode("div", _hoisted_4$e, [
+                              createBaseVNode("div", _hoisted_5$d, [
+                                createBaseVNode("div", null, [
+                                  props.imageUrl ? (openBlock(), createElementBlock("img", {
+                                    key: 0,
+                                    class: "w-12",
+                                    src: unref(getPath)(props.imageUrl)
+                                  }, null, 8, _hoisted_6$b)) : createCommentVNode("", true)
+                                ]),
+                                createBaseVNode("div", null, [
+                                  createVNode(unref(Ve), {
+                                    as: "h3",
+                                    class: "text-lg font-medium leading-6 text-gray-900"
+                                  }, {
+                                    default: withCtx(() => [
+                                      renderSlot(_ctx.$slots, "title")
+                                    ]),
+                                    _: 3
+                                  }),
+                                  createBaseVNode("div", _hoisted_7$b, [
+                                    createBaseVNode("button", {
+                                      type: "button",
+                                      class: "rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none",
+                                      onClick: close
+                                    }, [
+                                      _hoisted_8$a,
+                                      createVNode(unref(render$2), {
+                                        class: "h-6 w-6",
+                                        "aria-hidden": "true"
+                                      })
+                                    ])
+                                  ]),
+                                  createVNode(unref(We), null, {
+                                    default: withCtx(() => [
+                                      renderSlot(_ctx.$slots, "description")
+                                    ]),
+                                    _: 3
+                                  })
+                                ])
+                              ]),
+                              props.traits ? (openBlock(), createElementBlock("div", {
+                                key: 0,
+                                class: "mt-2 text-sm [&_p]:my-2",
+                                innerHTML: unref(makeTraits)(props.traits)
+                              }, null, 8, _hoisted_9$7)) : createCommentVNode("", true),
                               createBaseVNode("div", null, [
-                                props.imageUrl ? (openBlock(), createElementBlock("img", {
-                                  key: 0,
-                                  class: "w-12",
-                                  src: unref(getPath)(props.imageUrl)
-                                }, null, 8, _hoisted_6$a)) : createCommentVNode("", true)
+                                renderSlot(_ctx.$slots, "beforeBody")
+                              ]),
+                              createBaseVNode("div", _hoisted_10$6, [
+                                renderSlot(_ctx.$slots, "body")
                               ]),
                               createBaseVNode("div", null, [
-                                createVNode(unref(Ve), {
-                                  as: "h3",
-                                  class: "text-lg font-medium leading-6 text-gray-900"
-                                }, {
-                                  default: withCtx(() => [
-                                    renderSlot(_ctx.$slots, "title")
-                                  ]),
-                                  _: 3
-                                }),
-                                createBaseVNode("div", _hoisted_7$9, [
-                                  createBaseVNode("button", {
-                                    type: "button",
-                                    class: "rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none",
-                                    onClick: close
-                                  }, [
-                                    _hoisted_8$7,
-                                    createVNode(unref(render$4), {
-                                      class: "h-6 w-6",
-                                      "aria-hidden": "true"
-                                    })
-                                  ])
-                                ]),
-                                createVNode(unref(We), null, {
-                                  default: withCtx(() => [
-                                    renderSlot(_ctx.$slots, "description")
-                                  ]),
-                                  _: 3
-                                })
+                                renderSlot(_ctx.$slots, "default")
                               ])
                             ]),
-                            props.traits ? (openBlock(), createElementBlock("div", {
-                              key: 0,
-                              class: "mt-2 text-sm [&_p]:my-2",
-                              innerHTML: unref(makeTraits)(props.traits)
-                            }, null, 8, _hoisted_9$5)) : createCommentVNode("", true),
-                            createBaseVNode("div", null, [
-                              renderSlot(_ctx.$slots, "beforeBody")
-                            ]),
-                            createBaseVNode("div", _hoisted_10$4, [
-                              renderSlot(_ctx.$slots, "body")
-                            ]),
-                            createBaseVNode("div", null, [
-                              renderSlot(_ctx.$slots, "default")
+                            createBaseVNode("div", _hoisted_11$4, [
+                              renderSlot(_ctx.$slots, "actionButtons")
                             ])
                           ]),
-                          createBaseVNode("div", _hoisted_11$4, [
-                            renderSlot(_ctx.$slots, "actionButtons")
-                          ])
-                        ]),
-                        _: 3
-                      })), [
-                        [
-                          _directive_touch,
-                          swipeClose,
-                          "swipe",
-                          { bottom: true }
-                        ]
-                      ])
-                    ]),
-                    _: 3
-                  })
+                          _: 3
+                        })), [
+                          [
+                            _directive_touch,
+                            swipeClose,
+                            "swipe",
+                            { bottom: true }
+                          ]
+                        ])
+                      ]),
+                      _: 3
+                    })
+                  ])
                 ])
-              ])
-            ]),
-            _: 3
-          })
-        ]),
-        _: 3
-      }, 8, ["show"]);
+              ]),
+              _: 3
+            })
+          ]),
+          _: 3
+        }, 8, ["show"]),
+        (openBlock(), createBlock(Teleport, { to: "#modals" }, [
+          createVNode(_sfc_main$o, {
+            ref_key: "rollResultModal",
+            ref: rollResultModal
+          }, {
+            default: withCtx(() => {
+              var _a, _b, _c, _d, _e, _f;
+              return [
+                createBaseVNode("div", _hoisted_12$3, [
+                  createBaseVNode("div", _hoisted_13$2, [
+                    createBaseVNode("div", _hoisted_14$2, toDisplayString((_b = (_a = rollResultModal.value) == null ? void 0 : _a.options) == null ? void 0 : _b.formula), 1),
+                    createBaseVNode("div", _hoisted_15$2, [
+                      createBaseVNode("div", _hoisted_16$1, toDisplayString((_d = (_c = rollResultModal.value) == null ? void 0 : _c.options) == null ? void 0 : _d.dice[0].results[0].result), 1),
+                      _hoisted_17$1
+                    ])
+                  ]),
+                  createBaseVNode("div", _hoisted_18$1, [
+                    createBaseVNode("div", _hoisted_19, toDisplayString((_f = (_e = rollResultModal.value) == null ? void 0 : _e.options) == null ? void 0 : _f.total), 1)
+                  ])
+                ])
+              ];
+            }),
+            _: 1
+          }, 512)
+        ]))
+      ], 64);
     };
   }
 });
@@ -12435,240 +12686,72 @@ const _sfc_main$m = /* @__PURE__ */ defineComponent({
             renderSlot(_ctx.$slots, "default")
           ])
         ]),
-        createVNode(_sfc_main$n, {
-          ref_key: "infoModal",
-          ref: infoModal
-        }, {
-          default: withCtx(() => [
-            createBaseVNode("h3", _hoisted_2$i, [
-              createTextVNode(toDisplayString(__props.heading) + " ", 1),
-              props.proficiency ? (openBlock(), createElementBlock("span", {
-                key: 0,
-                class: normalizeClass([unref(proficiencies)[props.proficiency].color, "text-sm"])
-              }, " (" + toDisplayString(unref(proficiencies)[props.proficiency].label) + ") ", 3)) : createCommentVNode("", true)
+        (openBlock(), createBlock(Teleport, { to: "#modals" }, [
+          createVNode(_sfc_main$n, {
+            ref_key: "infoModal",
+            ref: infoModal
+          }, {
+            default: withCtx(() => [
+              createBaseVNode("div", null, [
+                createBaseVNode("h3", _hoisted_2$i, [
+                  createTextVNode(toDisplayString(__props.heading) + " ", 1),
+                  props.proficiency ? (openBlock(), createElementBlock("span", {
+                    key: 0,
+                    class: normalizeClass([unref(proficiencies)[props.proficiency].color, "text-sm"])
+                  }, " (" + toDisplayString(unref(proficiencies)[props.proficiency].label) + ") ", 3)) : createCommentVNode("", true)
+                ]),
+                createBaseVNode("ul", null, [
+                  (openBlock(true), createElementBlock(Fragment, null, renderList(props.modifiers, (mod) => {
+                    return openBlock(), createElementBlock("li", {
+                      class: normalizeClass(["flex gap-2", { "text-gray-300": !mod.enabled }])
+                    }, [
+                      createBaseVNode("div", _hoisted_3$h, toDisplayString(unref(SignedNumber).format(mod.modifier)), 1),
+                      createBaseVNode("div", _hoisted_4$d, toDisplayString(mod.label), 1)
+                    ], 2);
+                  }), 256))
+                ])
+              ])
             ]),
-            createBaseVNode("ul", null, [
-              (openBlock(true), createElementBlock(Fragment, null, renderList(props.modifiers, (mod) => {
-                return openBlock(), createElementBlock("li", {
-                  class: normalizeClass(["flex gap-2", { "text-gray-300": !mod.enabled }])
-                }, [
-                  createBaseVNode("div", _hoisted_3$h, toDisplayString(unref(SignedNumber).format(mod.modifier)), 1),
-                  createBaseVNode("div", _hoisted_4$d, toDisplayString(mod.label), 1)
-                ], 2);
-              }), 256))
-            ])
-          ]),
-          actionButtons: withCtx(() => [
-            __props.allowRoll ? (openBlock(), createElementBlock("button", {
-              key: 0,
-              type: "button",
-              class: "bg-blue-200 hover:bg-blue-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none",
-              onClick: _cache[1] || (_cache[1] = () => {
-                __props.rollAction();
-                infoModal.value.close();
-              })
-            }, " Roll ")) : createCommentVNode("", true)
-          ]),
-          _: 1
-        }, 512)
+            actionButtons: withCtx(() => [
+              __props.allowRoll ? (openBlock(), createElementBlock("button", {
+                key: 0,
+                type: "button",
+                class: "bg-blue-600 hover:bg-blue-500 text-white inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium focus:outline-none",
+                onClick: _cache[1] || (_cache[1] = () => {
+                  __props.rollAction().then((r2) => {
+                    infoModal.value.rollResultModal.open(r2);
+                    infoModal.value.close();
+                  });
+                })
+              }, " Roll ")) : createCommentVNode("", true)
+            ]),
+            _: 1
+          }, 512)
+        ]))
       ]);
     };
   }
 });
-function render$3(_ctx, _cache) {
-  return openBlock(), createElementBlock("svg", {
-    xmlns: "http://www.w3.org/2000/svg",
-    viewBox: "0 0 24 24",
-    fill: "currentColor",
-    "aria-hidden": "true",
-    "data-slot": "icon"
-  }, [
-    createBaseVNode("path", {
-      "fill-rule": "evenodd",
-      d: "M3 6.75A.75.75 0 0 1 3.75 6h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 6.75ZM3 12a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 12Zm0 5.25a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Z",
-      "clip-rule": "evenodd"
-    })
-  ]);
-}
-function render$2(_ctx, _cache) {
-  return openBlock(), createElementBlock("svg", {
-    xmlns: "http://www.w3.org/2000/svg",
-    viewBox: "0 0 24 24",
-    fill: "currentColor",
-    "aria-hidden": "true",
-    "data-slot": "icon"
-  }, [
-    createBaseVNode("path", {
-      "fill-rule": "evenodd",
-      d: "M19.916 4.626a.75.75 0 0 1 .208 1.04l-9 13.5a.75.75 0 0 1-1.154.114l-6-6a.75.75 0 0 1 1.06-1.06l5.353 5.353 8.493-12.74a.75.75 0 0 1 1.04-.207Z",
-      "clip-rule": "evenodd"
-    })
-  ]);
-}
-function render$1(_ctx, _cache) {
-  return openBlock(), createElementBlock("svg", {
-    xmlns: "http://www.w3.org/2000/svg",
-    viewBox: "0 0 24 24",
-    fill: "currentColor",
-    "aria-hidden": "true",
-    "data-slot": "icon"
-  }, [
-    createBaseVNode("path", {
-      "fill-rule": "evenodd",
-      d: "M11.47 4.72a.75.75 0 0 1 1.06 0l3.75 3.75a.75.75 0 0 1-1.06 1.06L12 6.31 8.78 9.53a.75.75 0 0 1-1.06-1.06l3.75-3.75Zm-3.75 9.75a.75.75 0 0 1 1.06 0L12 17.69l3.22-3.22a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0l-3.75-3.75a.75.75 0 0 1 0-1.06Z",
-      "clip-rule": "evenodd"
-    })
-  ]);
-}
-function render(_ctx, _cache) {
-  return openBlock(), createElementBlock("svg", {
-    xmlns: "http://www.w3.org/2000/svg",
-    viewBox: "0 0 24 24",
-    fill: "currentColor",
-    "aria-hidden": "true",
-    "data-slot": "icon"
-  }, [
-    createBaseVNode("path", {
-      "fill-rule": "evenodd",
-      d: "M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 0 1 .67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 1 1-.671-1.34l.041-.022ZM12 9a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z",
-      "clip-rule": "evenodd"
-    })
-  ]);
-}
-const _hoisted_1$k = /* @__PURE__ */ createBaseVNode("div", { class: "fixed inset-0 bg-black/25" }, null, -1);
-const _hoisted_2$h = { class: "fixed inset-0 overflow-y-auto" };
-const _hoisted_3$g = { class: "flex min-h-full items-center justify-center p-4 text-center" };
-const _hoisted_4$c = { class: "absolute right-0 top-0 pr-4 pt-4 sm:block" };
-const _hoisted_5$b = /* @__PURE__ */ createBaseVNode("span", { class: "sr-only" }, "Close", -1);
-const _sfc_main$l = /* @__PURE__ */ defineComponent({
-  __name: "Modal",
-  props: ["title", "focusTarget", "infoButton"],
-  setup(__props, { expose: __expose }) {
-    const props = __props;
-    const isOpen = ref(false);
-    const content = ref();
-    const options = ref();
-    function open(newOptions = null) {
-      isOpen.value = true;
-      options.value = newOptions;
-    }
-    function close() {
-      isOpen.value = false;
-      options.value = null;
-    }
-    __expose({ open, close, options });
-    return (_ctx, _cache) => {
-      return openBlock(), createBlock(unref(Se), {
-        appear: "",
-        show: isOpen.value,
-        as: "template"
-      }, {
-        default: withCtx(() => [
-          createVNode(unref(Ue$1), {
-            as: "div",
-            onClose: close,
-            class: "relative z-10",
-            "initial-focus": props.focusTarget
-          }, {
-            default: withCtx(() => [
-              createVNode(unref(he), {
-                as: "template",
-                enter: "duration-300 ease-out",
-                "enter-from": "opacity-0",
-                "enter-to": "opacity-100",
-                leave: "duration-200 ease-in",
-                "leave-from": "opacity-100",
-                "leave-to": "opacity-0"
-              }, {
-                default: withCtx(() => [
-                  _hoisted_1$k
-                ]),
-                _: 1
-              }),
-              createBaseVNode("div", _hoisted_2$h, [
-                createBaseVNode("div", _hoisted_3$g, [
-                  createVNode(unref(he), {
-                    as: "template",
-                    enter: "duration-300 ease-out",
-                    "enter-from": "opacity-0 scale-95",
-                    "enter-to": "opacity-100 scale-100",
-                    leave: "duration-200 ease-in",
-                    "leave-from": "opacity-100 scale-100",
-                    "leave-to": "opacity-0 scale-95"
-                  }, {
-                    default: withCtx(() => [
-                      createVNode(unref(Ge), { class: "w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all" }, {
-                        default: withCtx(() => [
-                          createVNode(unref(Ve), {
-                            as: "h3",
-                            class: "text-lg font-medium leading-6 text-gray-900 flex gap-1 items-center"
-                          }, {
-                            default: withCtx(() => [
-                              createTextVNode(toDisplayString(props.title) + " ", 1),
-                              props.infoButton ? (openBlock(), createBlock(unref(render), {
-                                key: 0,
-                                class: "h-5 w-5",
-                                onClick: _cache[0] || (_cache[0] = ($event) => props.infoButton())
-                              })) : createCommentVNode("", true)
-                            ]),
-                            _: 1
-                          }),
-                          createBaseVNode("div", _hoisted_4$c, [
-                            createBaseVNode("button", {
-                              type: "button",
-                              class: "rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none",
-                              onClick: close
-                            }, [
-                              _hoisted_5$b,
-                              createVNode(unref(render$4), {
-                                class: "h-6 w-6",
-                                "aria-hidden": "true"
-                              })
-                            ])
-                          ]),
-                          createBaseVNode("div", {
-                            ref_key: "content",
-                            ref: content
-                          }, [
-                            renderSlot(_ctx.$slots, "default")
-                          ], 512)
-                        ]),
-                        _: 3
-                      })
-                    ]),
-                    _: 3
-                  })
-                ])
-              ])
-            ]),
-            _: 3
-          }, 8, ["initial-focus"])
-        ]),
-        _: 3
-      }, 8, ["show"]);
-    };
-  }
-});
-const _hoisted_1$j = {
+const _hoisted_1$k = {
   key: 0,
   class: "text-blue-600"
 };
-const _hoisted_2$g = { key: 1 };
-const _hoisted_3$f = { class: "w-full pt-4 pb-1 flex justify-center items-center" };
-const _hoisted_4$b = /* @__PURE__ */ createBaseVNode("div", { class: "w-1/3" }, "Standard:", -1);
-const _hoisted_5$a = ["placeholder"];
-const _hoisted_6$9 = { class: "text-xl w-1/3" };
-const _hoisted_7$8 = { class: "w-full pb-4 pt-1 flex justify-center items-center" };
-const _hoisted_8$6 = /* @__PURE__ */ createBaseVNode("div", { class: "w-1/3 text-blue-600" }, "Temporary:", -1);
-const _hoisted_9$4 = ["placeholder"];
-const _hoisted_10$3 = /* @__PURE__ */ createBaseVNode("div", { class: "w-1/3" }, null, -1);
+const _hoisted_2$h = { key: 1 };
+const _hoisted_3$g = { class: "w-full pt-4 pb-1 flex justify-center items-center" };
+const _hoisted_4$c = /* @__PURE__ */ createBaseVNode("div", { class: "w-1/3" }, "Standard:", -1);
+const _hoisted_5$c = ["placeholder"];
+const _hoisted_6$a = { class: "text-xl w-1/3" };
+const _hoisted_7$a = { class: "w-full pb-4 pt-1 flex justify-center items-center" };
+const _hoisted_8$9 = /* @__PURE__ */ createBaseVNode("div", { class: "w-1/3 text-blue-600" }, "Temporary:", -1);
+const _hoisted_9$6 = ["placeholder"];
+const _hoisted_10$5 = /* @__PURE__ */ createBaseVNode("div", { class: "w-1/3" }, null, -1);
 const _hoisted_11$3 = /* @__PURE__ */ createBaseVNode("div", { class: "mt-5 sm:mt-4 sm:flex sm:flex-row-reverse" }, [
   /* @__PURE__ */ createBaseVNode("button", {
     type: "submit",
-    class: "inline-flex w-full justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:ml-3 sm:w-auto"
+    class: "inline-flex w-full justify-center bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:ml-3 sm:w-auto"
   }, " Update ")
 ], -1);
-const _sfc_main$k = /* @__PURE__ */ defineComponent({
+const _sfc_main$l = /* @__PURE__ */ defineComponent({
   __name: "HitPoints",
   setup(__props) {
     const actor = inject("actor");
@@ -12698,14 +12781,14 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
             var _a2, _b2, _c, _d, _e;
             return [
               createTextVNode(toDisplayString(((_a2 = unref(actor).system) == null ? void 0 : _a2.attributes.hp.value) ?? "??") + " ", 1),
-              ((_b2 = unref(actor).system) == null ? void 0 : _b2.attributes.hp.temp) ? (openBlock(), createElementBlock("span", _hoisted_1$j, "+ " + toDisplayString((_c = unref(actor).system) == null ? void 0 : _c.attributes.hp.temp), 1)) : createCommentVNode("", true),
-              !((_d = unref(actor).system) == null ? void 0 : _d.attributes.hp.temp) ? (openBlock(), createElementBlock("span", _hoisted_2$g, " / " + toDisplayString(((_e = unref(actor).system) == null ? void 0 : _e.attributes.hp.max) ?? "??"), 1)) : createCommentVNode("", true)
+              ((_b2 = unref(actor).system) == null ? void 0 : _b2.attributes.hp.temp) ? (openBlock(), createElementBlock("span", _hoisted_1$k, "+ " + toDisplayString((_c = unref(actor).system) == null ? void 0 : _c.attributes.hp.temp), 1)) : createCommentVNode("", true),
+              !((_d = unref(actor).system) == null ? void 0 : _d.attributes.hp.temp) ? (openBlock(), createElementBlock("span", _hoisted_2$h, " / " + toDisplayString(((_e = unref(actor).system) == null ? void 0 : _e.attributes.hp.max) ?? "??"), 1)) : createCommentVNode("", true)
             ];
           }),
           _: 1
         }, 8, ["modifiers"]),
         (openBlock(), createBlock(Teleport, { to: "#modals" }, [
-          createVNode(_sfc_main$l, {
+          createVNode(_sfc_main$o, {
             ref_key: "hitpointsModal",
             ref: hitpointsModal,
             title: "Hit Points",
@@ -12727,31 +12810,31 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
                     ["prevent"]
                   ))
                 }, [
-                  createBaseVNode("div", _hoisted_3$f, [
-                    _hoisted_4$b,
+                  createBaseVNode("div", _hoisted_3$g, [
+                    _hoisted_4$c,
                     createBaseVNode("input", {
                       ref_key: "focusTarget",
                       ref: focusTarget,
                       class: "text-3xl border-2 border-black w-1/3 p-1 mr-4 text-right ml-[32px]",
                       name: "hp",
-                      type: "number",
+                      type: "input",
                       pattern: "[+-]{0,1}[0-9]*",
                       placeholder: (_a2 = unref(actor).system) == null ? void 0 : _a2.attributes.hp.value,
                       onFocus: _cache[1] || (_cache[1] = (e2) => e2.target.select())
-                    }, null, 40, _hoisted_5$a),
-                    createBaseVNode("div", _hoisted_6$9, "/ " + toDisplayString((_b2 = unref(actor).system) == null ? void 0 : _b2.attributes.hp.max), 1)
+                    }, null, 40, _hoisted_5$c),
+                    createBaseVNode("div", _hoisted_6$a, "/ " + toDisplayString((_b2 = unref(actor).system) == null ? void 0 : _b2.attributes.hp.max), 1)
                   ]),
-                  createBaseVNode("div", _hoisted_7$8, [
-                    _hoisted_8$6,
+                  createBaseVNode("div", _hoisted_7$a, [
+                    _hoisted_8$9,
                     createBaseVNode("input", {
                       class: "text-xl border-2 border-black text-blue-600 w-1/3 p-1 mr-4 text-right ml-[32px]",
                       name: "temp_hp",
-                      type: "number",
+                      type: "input",
                       pattern: "[+-]{0,1}[0-9]*",
                       placeholder: (_c = unref(actor).system) == null ? void 0 : _c.attributes.hp.temp,
                       onFocus: _cache[2] || (_cache[2] = (e2) => e2.target.select())
-                    }, null, 40, _hoisted_9$4),
-                    _hoisted_10$3
+                    }, null, 40, _hoisted_9$6),
+                    _hoisted_10$5
                   ]),
                   _hoisted_11$3
                 ], 32)
@@ -12764,10 +12847,10 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$i = { class: "w-full py-8 text-3xl flex justify-between" };
-const _hoisted_2$f = ["disabled"];
-const _hoisted_3$e = ["disabled"];
-const _sfc_main$j = /* @__PURE__ */ defineComponent({
+const _hoisted_1$j = { class: "w-full py-8 text-3xl flex justify-between" };
+const _hoisted_2$g = ["disabled"];
+const _hoisted_3$f = ["disabled"];
+const _sfc_main$k = /* @__PURE__ */ defineComponent({
   __name: "Counter",
   props: {
     value: {},
@@ -12804,20 +12887,20 @@ const _sfc_main$j = /* @__PURE__ */ defineComponent({
           }), 256)) : createCommentVNode("", true)
         ]),
         (openBlock(), createBlock(Teleport, { to: "#modals" }, [
-          createVNode(_sfc_main$l, {
+          createVNode(_sfc_main$o, {
             ref_key: "counterModal",
             ref: counterModal,
             title: props.title
           }, {
             default: withCtx(() => [
-              createBaseVNode("div", _hoisted_1$i, [
+              createBaseVNode("div", _hoisted_1$j, [
                 createBaseVNode("button", {
                   disabled: props.value < 1,
                   class: "text-gray-500 disabled:invisible",
                   onClick: _cache[0] || (_cache[0] = ($event) => changeCount(-1))
                 }, [
-                  createVNode(unref(render$6), { class: "h-8 w-8 mr-4" })
-                ], 8, _hoisted_2$f),
+                  createVNode(unref(render$4), { class: "h-8 w-8 mr-4" })
+                ], 8, _hoisted_2$g),
                 createBaseVNode("div", null, [
                   (openBlock(true), createElementBlock(Fragment, null, renderList(Number(props.value ?? 0), (i2) => {
                     return openBlock(), createElementBlock("span", null, "●");
@@ -12831,8 +12914,8 @@ const _sfc_main$j = /* @__PURE__ */ defineComponent({
                   class: "text-gray-500 disabled:invisible",
                   onClick: _cache[1] || (_cache[1] = ($event) => changeCount(1))
                 }, [
-                  createVNode(unref(render$5), { class: "h-8 w-8 ml-4" })
-                ], 8, _hoisted_3$e)
+                  createVNode(unref(render$3), { class: "h-8 w-8 ml-4" })
+                ], 8, _hoisted_3$f)
               ])
             ]),
             _: 1
@@ -12842,7 +12925,7 @@ const _sfc_main$j = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _sfc_main$i = /* @__PURE__ */ defineComponent({
+const _sfc_main$j = /* @__PURE__ */ defineComponent({
   __name: "HeroPoints",
   setup(__props) {
     const actor = inject("actor");
@@ -12861,7 +12944,7 @@ const _sfc_main$i = /* @__PURE__ */ defineComponent({
         default: withCtx(() => {
           var _a, _b;
           return [
-            createVNode(_sfc_main$j, {
+            createVNode(_sfc_main$k, {
               ref_key: "counter",
               ref: counter,
               title: "Hero Points",
@@ -12877,13 +12960,14 @@ const _sfc_main$i = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$h = { class: "flex border p-4 items-center" };
-const _hoisted_2$e = ["src"];
-const _hoisted_3$d = {
+const _hoisted_1$i = { class: "flex gap-2 border p-4 items-center" };
+const _hoisted_2$f = { class: "h-24 w-24" };
+const _hoisted_3$e = ["src"];
+const _hoisted_4$b = {
   key: 1,
   class: "h-full min-h-24"
 };
-const _hoisted_4$a = /* @__PURE__ */ createBaseVNode("svg", {
+const _hoisted_5$b = /* @__PURE__ */ createBaseVNode("svg", {
   "aria-hidden": "true",
   class: "w-full h-full mr-2 p-4 text-gray-200 animate-spin dark:text-gray-100 fill-gray-400",
   viewBox: "0 0 100 101",
@@ -12899,43 +12983,31 @@ const _hoisted_4$a = /* @__PURE__ */ createBaseVNode("svg", {
     fill: "currentFill"
   })
 ], -1);
-const _hoisted_5$9 = [
-  _hoisted_4$a
+const _hoisted_6$9 = [
+  _hoisted_5$b
 ];
-const _hoisted_6$8 = { class: "pl-2 flex-1" };
-const _hoisted_7$7 = { class: "text-2xl whitespace-nowrap overflow-hidden mb-2" };
-const _hoisted_8$5 = /* @__PURE__ */ createBaseVNode("div", { class: "text-gray-400 relative select-none py-2 pl-6 pr-4" }, " Loading... ", -1);
-const _hoisted_9$3 = { class: "flex justify-between align-middle" };
-const _sfc_main$h = /* @__PURE__ */ defineComponent({
+const _hoisted_7$9 = { class: "flex-1" };
+const _hoisted_8$8 = { class: "text-2xl whitespace-nowrap overflow-hidden mb-2" };
+const _hoisted_9$5 = /* @__PURE__ */ createBaseVNode("div", { class: "text-gray-400 relative select-none py-2 pl-6 pr-4" }, " Loading... ", -1);
+const _hoisted_10$4 = { class: "flex gap-8 align-middle" };
+const _sfc_main$i = /* @__PURE__ */ defineComponent({
   __name: "CharacterHeader",
-  emits: ["changeCharacter"],
   setup(__props) {
     const actor = inject("actor");
     const world = inject("world");
     const changeChar = inject("changeChar");
-    let reloadUrl = ref(`${window.location.origin}/modules/tablemate/index.html?id=${actor.value._id}`);
-    watch(actor, () => {
-      reloadUrl.value = `${window.location.origin}/modules/tablemate/index.html?id=${actor.value._id}`;
-    });
-    function reloadPage() {
-      console.log(reloadUrl.value);
-      window.location.href = reloadUrl.value;
-    }
     return (_ctx, _cache) => {
       var _a, _b, _c, _d;
-      return openBlock(), createElementBlock("div", _hoisted_1$h, [
-        createBaseVNode("a", {
-          class: "h-24 w-24",
-          onClick: _cache[0] || (_cache[0] = ($event) => reloadPage())
-        }, [
+      return openBlock(), createElementBlock("div", _hoisted_1$i, [
+        createBaseVNode("div", _hoisted_2$f, [
           ((_b = (_a = unref(actor).prototypeToken) == null ? void 0 : _a.texture) == null ? void 0 : _b.src) ? (openBlock(), createElementBlock("img", {
             key: 0,
             src: unref(getPath)((_d = (_c = unref(actor).prototypeToken) == null ? void 0 : _c.texture) == null ? void 0 : _d.src),
             class: "h-24 w-24"
-          }, null, 8, _hoisted_2$e)) : (openBlock(), createElementBlock("div", _hoisted_3$d, _hoisted_5$9))
+          }, null, 8, _hoisted_3$e)) : (openBlock(), createElementBlock("div", _hoisted_4$b, _hoisted_6$9))
         ]),
-        createBaseVNode("div", _hoisted_6$8, [
-          createBaseVNode("h3", _hoisted_7$7, [
+        createBaseVNode("div", _hoisted_7$9, [
+          createBaseVNode("h3", _hoisted_8$8, [
             createVNode(unref(Be), null, {
               default: withCtx(() => [
                 createVNode(unref(Ne), null, {
@@ -12953,11 +13025,11 @@ const _sfc_main$h = /* @__PURE__ */ defineComponent({
                     return [
                       !unref(world).actors ? (openBlock(), createBlock(unref(Ue), { key: 0 }, {
                         default: withCtx(() => [
-                          _hoisted_8$5
+                          _hoisted_9$5
                         ]),
                         _: 1
                       })) : createCommentVNode("", true),
-                      (openBlock(true), createElementBlock(Fragment, null, renderList((_b2 = (_a2 = unref(world).actors) == null ? void 0 : _a2.filter((a2) => a2.ownership[unref(world).userId] === 3)) == null ? void 0 : _b2.filter((a2) => a2._id !== unref(actor)._id), (character, index) => {
+                      (openBlock(true), createElementBlock(Fragment, null, renderList((_b2 = (_a2 = unref(world).actors) == null ? void 0 : _a2.filter((a2) => a2.ownership[unref(world).userId] === 3)) == null ? void 0 : _b2.filter((a2) => a2._id !== unref(actor)._id), (character) => {
                         return openBlock(), createBlock(unref(Ue), {
                           key: character == null ? void 0 : character._id,
                           value: character,
@@ -12967,7 +13039,7 @@ const _sfc_main$h = /* @__PURE__ */ defineComponent({
                           default: withCtx(({ active, selected }) => [
                             createBaseVNode("div", {
                               class: normalizeClass([
-                                active ? "bg-amber-100 text-amber-900" : "text-gray-900",
+                                active ? "bg-blue-100 text-blue-900" : "text-gray-900",
                                 "relative select-none py-2 pl-6 pr-4 cursor-pointer"
                               ])
                             }, toDisplayString(character == null ? void 0 : character.name), 3)
@@ -12983,33 +13055,33 @@ const _sfc_main$h = /* @__PURE__ */ defineComponent({
               _: 1
             })
           ]),
-          createBaseVNode("div", _hoisted_9$3, [
-            createVNode(_sfc_main$k),
-            createVNode(_sfc_main$i),
-            createVNode(unref(render$3), { class: "h-8 w-8 my-auto text-gray-800 border border-gray-800 rounded-md p-1" })
+          createBaseVNode("div", _hoisted_10$4, [
+            createVNode(_sfc_main$l),
+            createVNode(_sfc_main$j)
           ])
-        ])
+        ]),
+        createVNode(unref(render$8), { class: "h-10 w-10 my-auto text-gray-600 border-2 border-gray-600 rounded-md p-1" })
       ]);
     };
   }
 });
-const _hoisted_1$g = { class: "px-6 py-4 empty:hidden" };
-const _hoisted_2$d = { class: "empty:hidden columns-2 border-t first:border-t-0 pt-4 first:p-0" };
-const _hoisted_3$c = { class: "cursor-pointer mb-4 text-lg break-inside-avoid leading-4" };
-const _sfc_main$g = /* @__PURE__ */ defineComponent({
+const _hoisted_1$h = { class: "px-6 py-4 empty:hidden" };
+const _hoisted_2$e = { class: "empty:hidden columns-2 border-t first:border-t-0 pt-4 first:p-0" };
+const _hoisted_3$d = { class: "cursor-pointer mb-4 text-lg break-inside-avoid leading-4" };
+const _sfc_main$h = /* @__PURE__ */ defineComponent({
   __name: "Skills",
   setup(__props) {
     const actor = inject("actor");
     return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", _hoisted_1$g, [
+      return openBlock(), createElementBlock("div", _hoisted_1$h, [
         createBaseVNode("div", null, [
           (openBlock(), createElementBlock(Fragment, null, renderList([true, false], (isNonLore) => {
             var _a, _b;
-            return createBaseVNode("ul", _hoisted_2$d, [
+            return createBaseVNode("ul", _hoisted_2$e, [
               (openBlock(true), createElementBlock(Fragment, null, renderList(Object.values(((_b = (_a = unref(actor)) == null ? void 0 : _a.system) == null ? void 0 : _b.skills) ?? {}).filter(
                 (s2) => !s2.lore === isNonLore
               ), (skill) => {
-                return openBlock(), createElementBlock("li", _hoisted_3$c, [
+                return openBlock(), createElementBlock("li", _hoisted_3$d, [
                   createVNode(_sfc_main$m, {
                     heading: skill.label,
                     proficiency: skill.rank,
@@ -13031,18 +13103,140 @@ const _sfc_main$g = /* @__PURE__ */ defineComponent({
     };
   }
 });
+function render$1(_ctx, _cache) {
+  return openBlock(), createElementBlock("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    viewBox: "0 0 20 20",
+    fill: "currentColor",
+    "aria-hidden": "true",
+    "data-slot": "icon"
+  }, [
+    createBaseVNode("path", {
+      "fill-rule": "evenodd",
+      d: "M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z",
+      "clip-rule": "evenodd"
+    })
+  ]);
+}
+function render(_ctx, _cache) {
+  return openBlock(), createElementBlock("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    viewBox: "0 0 20 20",
+    fill: "currentColor",
+    "aria-hidden": "true",
+    "data-slot": "icon"
+  }, [
+    createBaseVNode("path", {
+      "fill-rule": "evenodd",
+      d: "M10.53 3.47a.75.75 0 0 0-1.06 0L6.22 6.72a.75.75 0 0 0 1.06 1.06L10 5.06l2.72 2.72a.75.75 0 1 0 1.06-1.06l-3.25-3.25Zm-4.31 9.81 3.25 3.25a.75.75 0 0 0 1.06 0l3.25-3.25a.75.75 0 1 0-1.06-1.06L10 14.94l-2.72-2.72a.75.75 0 0 0-1.06 1.06Z",
+      "clip-rule": "evenodd"
+    })
+  ]);
+}
+const _hoisted_1$g = { class: "w-48" };
+const _hoisted_2$d = { class: "relative" };
+const _hoisted_3$c = { class: "block truncate" };
+const _hoisted_4$a = { class: "pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2" };
+const _hoisted_5$a = {
+  key: 0,
+  class: "absolute inset-y-0 left-0 flex items-center pl-3 text-blue-700"
+};
+const _sfc_main$g = /* @__PURE__ */ defineComponent({
+  __name: "SkillSelector",
+  setup(__props, { expose: __expose }) {
+    const actor = inject("actor");
+    const skills2 = Object.values(actor.value.system.skills);
+    const selected = ref(skills2[0]);
+    __expose({ selected });
+    return (_ctx, _cache) => {
+      return openBlock(), createElementBlock("div", _hoisted_1$g, [
+        createVNode(unref(Be), {
+          modelValue: selected.value,
+          "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => selected.value = $event),
+          onChange: _cache[1] || (_cache[1] = ($event) => console.log("help"))
+        }, {
+          default: withCtx(() => [
+            createBaseVNode("div", _hoisted_2$d, [
+              createVNode(unref(Ne), { class: "relative w-full cursor-default rounded-lg bg-white border border-gray-300 py-2 pl-3 pr-10 text-left focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm" }, {
+                default: withCtx(() => {
+                  var _a;
+                  return [
+                    createBaseVNode("span", _hoisted_3$c, toDisplayString((_a = selected.value) == null ? void 0 : _a.label), 1),
+                    createBaseVNode("span", _hoisted_4$a, [
+                      createVNode(unref(render), {
+                        class: "h-5 w-5 text-gray-400",
+                        "aria-hidden": "true"
+                      })
+                    ])
+                  ];
+                }),
+                _: 1
+              }),
+              createVNode(Transition, {
+                "leave-active-class": "transition duration-100 ease-in",
+                "leave-from-class": "opacity-100",
+                "leave-to-class": "opacity-0"
+              }, {
+                default: withCtx(() => [
+                  createVNode(unref(He), { class: "absolute bottom-12 mt-1 max-h-96 w-full overflow-auto shadow-md rounded-md bg-white py-1 text-base ring-1 ring-black/5 focus:outline-none sm:text-sm" }, {
+                    default: withCtx(() => [
+                      (openBlock(true), createElementBlock(Fragment, null, renderList(unref(skills2), (skill) => {
+                        return openBlock(), createBlock(unref(Ue), {
+                          key: skill == null ? void 0 : skill.label,
+                          value: skill,
+                          as: "template"
+                        }, {
+                          default: withCtx(({ active, selected: selected2 }) => [
+                            createBaseVNode("li", {
+                              class: normalizeClass([
+                                active ? "bg-blue-100 text-gray-900" : "text-gray-900",
+                                "relative cursor-default select-none py-2 pl-10 pr-4"
+                              ])
+                            }, [
+                              createBaseVNode("span", {
+                                class: normalizeClass([selected2 ? "font-medium" : "font-normal", "block truncate"])
+                              }, toDisplayString(skill == null ? void 0 : skill.label), 3),
+                              selected2 ? (openBlock(), createElementBlock("span", _hoisted_5$a, [
+                                createVNode(unref(render$1), {
+                                  class: "h-5 w-5",
+                                  "aria-hidden": "true"
+                                })
+                              ])) : createCommentVNode("", true)
+                            ], 2)
+                          ]),
+                          _: 2
+                        }, 1032, ["value"]);
+                      }), 128))
+                    ]),
+                    _: 1
+                  })
+                ]),
+                _: 1
+              })
+            ])
+          ]),
+          _: 1
+        }, 8, ["modelValue"])
+      ]);
+    };
+  }
+});
 const _hoisted_1$f = { class: "px-6 py-4" };
 const _hoisted_2$c = /* @__PURE__ */ createBaseVNode("h3", { class: "underline text-2xl" }, "Actions", -1);
 const _hoisted_3$b = ["onClick"];
 const _hoisted_4$9 = /* @__PURE__ */ createBaseVNode("h3", { class: "underline text-2xl pt-2" }, "Reactions", -1);
-const _hoisted_5$8 = ["onClick"];
-const _hoisted_6$7 = { class: "text-sm" };
-const _hoisted_7$6 = ["innerHTML"];
+const _hoisted_5$9 = ["onClick"];
+const _hoisted_6$8 = /* @__PURE__ */ createBaseVNode("h3", { class: "underline text-2xl pt-2" }, "Skill Actions", -1);
+const _hoisted_7$8 = ["onClick"];
+const _hoisted_8$7 = { class: "text-sm" };
+const _hoisted_9$4 = ["innerHTML"];
+const _hoisted_10$3 = { class: "flex align-items-center gap-2" };
 const _sfc_main$f = /* @__PURE__ */ defineComponent({
   __name: "Actions",
   props: ["actor"],
   setup(__props) {
     const infoModal = ref();
+    const skillSelector = ref();
     const actor = inject("actor");
     const action = computed(
       () => {
@@ -13053,6 +13247,38 @@ const _sfc_main$f = /* @__PURE__ */ defineComponent({
         });
       }
     );
+    const options = computed(() => {
+      var _a;
+      if (((_a = action.value.system) == null ? void 0 : _a.slug) === "aid")
+        return { statistic: skillSelector.value.selected.slug };
+      else
+        return {};
+    });
+    const actionDefs = /* @__PURE__ */ new Map([
+      ["administer-first-aid", { skill: "medicine" }],
+      ["aid", { skill: null, skillSelector: "statistic" }],
+      ["demoralize", { skill: "intimidation" }],
+      ["tumble-through", { skill: "acrobatics" }],
+      ["battle-medicine", { alias: "legacy.treatWounds", skill: "medicine" }],
+      ["treat-wounds", { alias: "legacy.treatWounds", skill: "medicine" }],
+      ["bon-mot", { skill: "diplomacy" }],
+      ["create-a-diversion", { skill: "deception" }],
+      ["disable-device", { skill: "thievery" }],
+      ["disarm", { skill: "athletics" }],
+      ["escape", { skill: "athletics" }],
+      ["feint", { skill: "deception" }],
+      ["grapple", { skill: "athletics" }],
+      ["hide", { skill: "stealth" }],
+      ["high-jump", { skill: "athletics" }],
+      ["long-jump", { skill: "athletics" }],
+      ["raise-a-shield", { skill: null }],
+      ["reposition", { skill: "athletics" }],
+      ["rest-for-the-night", { skill: null }],
+      ["sense-motive", { skill: "perception" }],
+      ["shove", { skill: "athletics" }],
+      ["sneak", { skill: "stealth" }],
+      ["trip", { skill: "athletics" }]
+    ]);
     return (_ctx, _cache) => {
       var _a, _b;
       return openBlock(), createElementBlock(Fragment, null, [
@@ -13062,7 +13288,12 @@ const _sfc_main$f = /* @__PURE__ */ defineComponent({
             (openBlock(true), createElementBlock(Fragment, null, renderList(unref(actor).items.filter((i2) => {
               var _a2;
               return ((_a2 = i2.system.actionType) == null ? void 0 : _a2.value) === "action";
-            }), (feat) => {
+            }).filter(
+              (i2) => {
+                var _a2;
+                return !i2.system.traits.value.includes("skill") && !((_a2 = unref(actionDefs).get(i2.system.slug)) == null ? void 0 : _a2.skill);
+              }
+            ), (feat) => {
               return openBlock(), createElementBlock("li", {
                 class: "cursor-pointer",
                 onClick: ($event) => infoModal.value.open(feat._id)
@@ -13078,7 +13309,24 @@ const _sfc_main$f = /* @__PURE__ */ defineComponent({
               return openBlock(), createElementBlock("li", {
                 class: "cursor-pointer",
                 onClick: ($event) => infoModal.value.open(feat._id)
-              }, toDisplayString(feat.name), 9, _hoisted_5$8);
+              }, toDisplayString(feat.name), 9, _hoisted_5$9);
+            }), 256))
+          ]),
+          _hoisted_6$8,
+          createBaseVNode("ul", null, [
+            (openBlock(true), createElementBlock(Fragment, null, renderList(unref(actor).items.filter((i2) => {
+              var _a2;
+              return ((_a2 = i2.system.actionType) == null ? void 0 : _a2.value) === "action";
+            }).filter(
+              (i2) => {
+                var _a2;
+                return i2.system.traits.value.includes("skill") || ((_a2 = unref(actionDefs).get(i2.system.slug)) == null ? void 0 : _a2.skill);
+              }
+            ), (feat) => {
+              return openBlock(), createElementBlock("li", {
+                class: "cursor-pointer",
+                onClick: ($event) => infoModal.value.open(feat._id)
+              }, toDisplayString(feat.name), 9, _hoisted_7$8);
             }), 256))
           ])
         ]),
@@ -13099,15 +13347,44 @@ const _sfc_main$f = /* @__PURE__ */ defineComponent({
               var _a2, _b2, _c, _d, _e;
               return [
                 createTextVNode(" Level " + toDisplayString(((_b2 = (_a2 = action.value) == null ? void 0 : _a2.system.level) == null ? void 0 : _b2.value) ?? 0) + " ", 1),
-                createBaseVNode("span", _hoisted_6$7, "(" + toDisplayString(unref(capitalize)((_e = (_d = (_c = action.value) == null ? void 0 : _c.system) == null ? void 0 : _d.traits) == null ? void 0 : _e.rarity)) + ")", 1)
+                createBaseVNode("span", _hoisted_8$7, "(" + toDisplayString(unref(capitalize)((_e = (_d = (_c = action.value) == null ? void 0 : _c.system) == null ? void 0 : _d.traits) == null ? void 0 : _e.rarity)) + ")", 1)
               ];
             }),
             body: withCtx(() => {
               var _a2;
               return [
                 createBaseVNode("div", {
-                  innerHTML: (_a2 = action.value) == null ? void 0 : _a2.system.description.value
-                }, null, 8, _hoisted_7$6)
+                  innerHTML: unref(removeUUIDs)((_a2 = action.value) == null ? void 0 : _a2.system.description.value)
+                }, null, 8, _hoisted_9$4)
+              ];
+            }),
+            actionButtons: withCtx(() => {
+              var _a2, _b2, _c;
+              return [
+                createBaseVNode("div", _hoisted_10$3, [
+                  ((_b2 = unref(actionDefs).get((_a2 = action.value) == null ? void 0 : _a2.system.slug)) == null ? void 0 : _b2.skillSelector) ? (openBlock(), createBlock(_sfc_main$g, {
+                    key: 0,
+                    ref_key: "skillSelector",
+                    ref: skillSelector
+                  }, null, 512)) : createCommentVNode("", true),
+                  unref(actionDefs).get((_c = action.value) == null ? void 0 : _c.system.slug) ? (openBlock(), createElementBlock("button", {
+                    key: 1,
+                    type: "button",
+                    class: "bg-blue-600 hover:bg-blue-500 text-white inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium focus:outline-none",
+                    onClick: _cache[0] || (_cache[0] = () => {
+                      var _a3, _b3, _c2, _d, _e;
+                      unref(actionDefs).get(action.value.system.slug)["options"] = options.value;
+                      unref(characterAction)(
+                        unref(actor),
+                        ((_b3 = unref(actionDefs).get((_a3 = action.value) == null ? void 0 : _a3.system.slug)) == null ? void 0 : _b3.alias) ?? ((_c2 = action.value) == null ? void 0 : _c2.system.slug),
+                        (_e = unref(actionDefs).get((_d = action.value) == null ? void 0 : _d.system.slug)) == null ? void 0 : _e.options
+                      ).then((r2) => {
+                        infoModal.value.rollResultModal.open(r2);
+                        infoModal.value.close();
+                      });
+                    })
+                  }, " Roll ")) : createCommentVNode("", true)
+                ])
               ];
             }),
             _: 1
@@ -13151,9 +13428,9 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
             rollAction: () => unref(rollCheck)(unref(actor), "save", "fortitude", [])
           }, {
             default: withCtx(() => {
-              var _a2;
+              var _a2, _b2;
               return [
-                createTextVNode(toDisplayString(unref(formatModifier)((_a2 = unref(actor).system) == null ? void 0 : _a2.saves.fortitude.totalModifier)), 1)
+                createTextVNode(toDisplayString(unref(formatModifier)((_b2 = (_a2 = unref(actor).system) == null ? void 0 : _a2.saves.fortitude) == null ? void 0 : _b2.totalModifier)), 1)
               ];
             }),
             _: 1
@@ -13166,9 +13443,9 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
             rollAction: () => unref(rollCheck)(unref(actor), "save", "reflex", [])
           }, {
             default: withCtx(() => {
-              var _a2;
+              var _a2, _b2;
               return [
-                createTextVNode(toDisplayString(unref(formatModifier)((_a2 = unref(actor).system) == null ? void 0 : _a2.saves.reflex.totalModifier)), 1)
+                createTextVNode(toDisplayString(unref(formatModifier)((_b2 = (_a2 = unref(actor).system) == null ? void 0 : _a2.saves.reflex) == null ? void 0 : _b2.totalModifier)), 1)
               ];
             }),
             _: 1
@@ -13181,9 +13458,9 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
             rollAction: () => unref(rollCheck)(unref(actor), "save", "will", [])
           }, {
             default: withCtx(() => {
-              var _a2;
+              var _a2, _b2;
               return [
-                createTextVNode(toDisplayString(unref(formatModifier)((_a2 = unref(actor).system) == null ? void 0 : _a2.saves.will.totalModifier)), 1)
+                createTextVNode(toDisplayString(unref(formatModifier)((_b2 = (_a2 = unref(actor).system) == null ? void 0 : _a2.saves.will) == null ? void 0 : _b2.totalModifier)), 1)
               ];
             }),
             _: 1
@@ -13213,11 +13490,11 @@ const _hoisted_1$d = { class: "px-6 py-4" };
 const _hoisted_2$a = { class: "" };
 const _hoisted_3$9 = { class: "mt-4 first:mt-0" };
 const _hoisted_4$8 = { class: "flex justify-between align-bottom bg-gray-300" };
-const _hoisted_5$7 = { class: "underline text-xl" };
-const _hoisted_6$6 = { class: "pl-1" };
-const _hoisted_7$5 = { class: "text-sm italic flex justify-between align-bottom bg-gray-200" };
-const _hoisted_8$4 = { class: "pr-1" };
-const _hoisted_9$2 = { class: "empty:hidden" };
+const _hoisted_5$8 = { class: "underline text-xl" };
+const _hoisted_6$7 = { class: "pl-1" };
+const _hoisted_7$7 = { class: "text-sm italic flex justify-between align-bottom bg-gray-200" };
+const _hoisted_8$6 = { class: "pr-1" };
+const _hoisted_9$3 = { class: "empty:hidden" };
 const _hoisted_10$2 = { class: "flex justify-between" };
 const _hoisted_11$2 = ["onClick"];
 const _hoisted_12$2 = { class: "pl-1 text-md pf2-icon" };
@@ -13347,9 +13624,9 @@ const _sfc_main$d = /* @__PURE__ */ defineComponent({
               var _a2, _b2, _c2, _d2, _e, _f, _g;
               return openBlock(), createElementBlock("li", _hoisted_3$9, [
                 createBaseVNode("h3", _hoisted_4$8, [
-                  createBaseVNode("span", _hoisted_5$7, toDisplayString(location2.name), 1),
-                  createBaseVNode("span", _hoisted_6$6, [
-                    ((_a2 = location2.system) == null ? void 0 : _a2.prepared.value) === "focus" ? (openBlock(), createBlock(_sfc_main$j, {
+                  createBaseVNode("span", _hoisted_5$8, toDisplayString(location2.name), 1),
+                  createBaseVNode("span", _hoisted_6$7, [
+                    ((_a2 = location2.system) == null ? void 0 : _a2.prepared.value) === "focus" ? (openBlock(), createBlock(_sfc_main$k, {
                       key: 0,
                       class: "relative bottom-[-2px] text-sm mr-2",
                       value: unref(actor).system.resources.focus.value,
@@ -13358,7 +13635,7 @@ const _sfc_main$d = /* @__PURE__ */ defineComponent({
                       editable: "",
                       onChangeCount: _cache[0] || (_cache[0] = (newTotal) => updateSpellCharges(newTotal, { type: "focus" }))
                     }, null, 8, ["value", "max"])) : createCommentVNode("", true),
-                    ((_b2 = location2.system) == null ? void 0 : _b2.prepared.value) === "charge" ? (openBlock(), createBlock(_sfc_main$j, {
+                    ((_b2 = location2.system) == null ? void 0 : _b2.prepared.value) === "charge" ? (openBlock(), createBlock(_sfc_main$k, {
                       key: 1,
                       class: "relative bottom-[-2px] text-sm mr-2",
                       value: (_e = (_d2 = (_c2 = location2.flags) == null ? void 0 : _c2["pf2e-dailies"]) == null ? void 0 : _d2.staff) == null ? void 0 : _e.charges,
@@ -13375,9 +13652,9 @@ const _sfc_main$d = /* @__PURE__ */ defineComponent({
                     return openBlock(), createElementBlock("li", {
                       class: normalizeClass(["mt-2 first:mt-0", { hidden: !spells.length }])
                     }, [
-                      createBaseVNode("h4", _hoisted_7$5, [
-                        createBaseVNode("span", _hoisted_8$4, toDisplayString(rank == "0" ? "Cantrips" : "Rank " + rank), 1),
-                        ((_a3 = location2.system) == null ? void 0 : _a3.prepared.value) === "spontaneous" ? (openBlock(), createBlock(_sfc_main$j, {
+                      createBaseVNode("h4", _hoisted_7$7, [
+                        createBaseVNode("span", _hoisted_8$6, toDisplayString(rank == "0" ? "Cantrips" : "Rank " + rank), 1),
+                        ((_a3 = location2.system) == null ? void 0 : _a3.prepared.value) === "spontaneous" ? (openBlock(), createBlock(_sfc_main$k, {
                           key: 0,
                           class: "relative bottom-[-1px] text-sm mr-2",
                           value: location2.system.slots["slot" + rank].value,
@@ -13391,7 +13668,7 @@ const _sfc_main$d = /* @__PURE__ */ defineComponent({
                           })
                         }, null, 8, ["value", "max", "title", "onChangeCount"])) : createCommentVNode("", true)
                       ]),
-                      createBaseVNode("ul", _hoisted_9$2, [
+                      createBaseVNode("ul", _hoisted_9$3, [
                         (openBlock(true), createElementBlock(Fragment, null, renderList(spells, (spell, index) => {
                           var _a4, _b3, _c3, _d3, _e2, _f2;
                           return openBlock(), createElementBlock("li", _hoisted_10$2, [
@@ -13421,7 +13698,7 @@ const _sfc_main$d = /* @__PURE__ */ defineComponent({
                                 class: "cursor-pointer"
                               }, "(empty)", 8, _hoisted_13$1))
                             ], 2),
-                            ((_e2 = location2.system) == null ? void 0 : _e2.prepared.value) === "prepared" ? (openBlock(), createBlock(_sfc_main$j, {
+                            ((_e2 = location2.system) == null ? void 0 : _e2.prepared.value) === "prepared" ? (openBlock(), createBlock(_sfc_main$k, {
                               key: 0,
                               class: "relative bottom-[-1px] text-sm mr-2",
                               value: ((_f2 = location2.system.slots["slot" + rank].prepared[index]) == null ? void 0 : _f2.expended) === false ? 1 : 0,
@@ -13457,7 +13734,7 @@ const _sfc_main$d = /* @__PURE__ */ defineComponent({
               return [
                 createTextVNode(toDisplayString((_a2 = viewedSpell.value) == null ? void 0 : _a2.name) + " ", 1),
                 createBaseVNode("span", {
-                  class: "text-2xl absolute pl-1 -mt-[.3rem]",
+                  class: "text-2xl relative pl-1 -mt-[.3rem]",
                   innerHTML: unref(makeActionIcons)(
                     (_c2 = (_b2 = viewedSpell.value) == null ? void 0 : _b2.system) == null ? void 0 : _c2.time.value.replace("to", " - ").replace("free", "f")
                   )
@@ -13507,7 +13784,7 @@ const _sfc_main$d = /* @__PURE__ */ defineComponent({
                 }, " Remove ")) : createCommentVNode("", true),
                 createBaseVNode("button", {
                   type: "button",
-                  class: "bg-green-200 hover:bg-green-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none",
+                  class: "bg-blue-600 hover:bg-blue-500 text-white inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium focus:outline-none",
                   onClick: _cache[2] || (_cache[2] = () => {
                     var _a3, _b2;
                     unref(castSpell)(
@@ -13522,41 +13799,41 @@ const _sfc_main$d = /* @__PURE__ */ defineComponent({
               ];
             }),
             _: 1
-          }, 8, ["imageUrl", "traits"])
-        ])),
-        createVNode(_sfc_main$l, {
-          ref_key: "spellSelectionModal",
-          ref: spellSelectionModal,
-          title: "Select a spell"
-        }, {
-          default: withCtx(() => [
-            createBaseVNode("ul", null, [
-              (openBlock(true), createElementBlock(Fragment, null, renderList(unref(actor).items.filter(
-                (i2) => {
-                  var _a2;
-                  return i2.type === "spell" && i2.system.location.value === ((_a2 = spellSelectionModal.value.options) == null ? void 0 : _a2.entry) && i2.system.level.value <= spellSelectionModal.value.options.castingRank;
-                }
-              ), (spell) => {
-                return openBlock(), createElementBlock("li", {
-                  class: "cursor-pointer",
-                  onClick: () => {
-                    setSpell(
-                      unref(actor).items.find((i2) => {
-                        var _a2;
-                        return i2._id === ((_a2 = spellSelectionModal.value.options) == null ? void 0 : _a2.entry);
-                      }),
-                      spellSelectionModal.value.options.castingRank,
-                      spellSelectionModal.value.options.castingSlot,
-                      spell._id
-                    );
-                    spellSelectionModal.value.close();
+          }, 8, ["imageUrl", "traits"]),
+          createVNode(_sfc_main$o, {
+            ref_key: "spellSelectionModal",
+            ref: spellSelectionModal,
+            title: "Select a spell"
+          }, {
+            default: withCtx(() => [
+              createBaseVNode("ul", null, [
+                (openBlock(true), createElementBlock(Fragment, null, renderList(unref(actor).items.filter(
+                  (i2) => {
+                    var _a2;
+                    return i2.type === "spell" && i2.system.location.value === ((_a2 = spellSelectionModal.value.options) == null ? void 0 : _a2.entry) && i2.system.level.value <= spellSelectionModal.value.options.castingRank;
                   }
-                }, toDisplayString(spell.name), 9, _hoisted_18);
-              }), 256))
-            ])
-          ]),
-          _: 1
-        }, 512)
+                ), (spell) => {
+                  return openBlock(), createElementBlock("li", {
+                    class: "cursor-pointer",
+                    onClick: () => {
+                      setSpell(
+                        unref(actor).items.find((i2) => {
+                          var _a2;
+                          return i2._id === ((_a2 = spellSelectionModal.value.options) == null ? void 0 : _a2.entry);
+                        }),
+                        spellSelectionModal.value.options.castingRank,
+                        spellSelectionModal.value.options.castingSlot,
+                        spell._id
+                      );
+                      spellSelectionModal.value.close();
+                    }
+                  }, toDisplayString(spell.name), 9, _hoisted_18);
+                }), 256))
+              ])
+            ]),
+            _: 1
+          }, 512)
+        ]))
       ], 64);
     };
   }
@@ -13565,13 +13842,13 @@ const _hoisted_1$c = { class: "border border-t-0 px-6 py-4 flex gap-2 empty:hidd
 const _hoisted_2$9 = ["onClick"];
 const _hoisted_3$8 = { class: "w-10" };
 const _hoisted_4$7 = { class: "relative" };
-const _hoisted_5$6 = {
+const _hoisted_5$7 = {
   key: 0,
   class: "absolute right-0 bottom-0 bg-[#FFFFFFCC] border border-black px-1 text-xs"
 };
-const _hoisted_6$5 = ["src"];
-const _hoisted_7$4 = { class: "text-[0.5rem] whitespace-nowrap overflow-hidden text-center" };
-const _hoisted_8$3 = ["innerHTML"];
+const _hoisted_6$6 = ["src"];
+const _hoisted_7$6 = { class: "text-[0.5rem] whitespace-nowrap overflow-hidden text-center" };
+const _hoisted_8$5 = ["innerHTML"];
 const _sfc_main$c = /* @__PURE__ */ defineComponent({
   __name: "Effects",
   setup(__props) {
@@ -13614,13 +13891,13 @@ const _sfc_main$c = /* @__PURE__ */ defineComponent({
             }, [
               createBaseVNode("div", _hoisted_3$8, [
                 createBaseVNode("div", _hoisted_4$7, [
-                  ((_b2 = (_a2 = effect.system) == null ? void 0 : _a2.value) == null ? void 0 : _b2.isValued) ? (openBlock(), createElementBlock("div", _hoisted_5$6, toDisplayString((_d = (_c2 = effect.system) == null ? void 0 : _c2.value) == null ? void 0 : _d.value), 1)) : createCommentVNode("", true),
+                  ((_b2 = (_a2 = effect.system) == null ? void 0 : _a2.value) == null ? void 0 : _b2.isValued) ? (openBlock(), createElementBlock("div", _hoisted_5$7, toDisplayString((_d = (_c2 = effect.system) == null ? void 0 : _c2.value) == null ? void 0 : _d.value), 1)) : createCommentVNode("", true),
                   createBaseVNode("img", {
                     src: unref(getPath)(effect.img),
                     class: "rounded-full"
-                  }, null, 8, _hoisted_6$5)
+                  }, null, 8, _hoisted_6$6)
                 ]),
-                createBaseVNode("div", _hoisted_7$4, toDisplayString(effect.name.replace("Effect: ", "")), 1)
+                createBaseVNode("div", _hoisted_7$6, toDisplayString(effect.name.replace("Effect: ", "")), 1)
               ])
             ], 8, _hoisted_2$9);
           }), 256))
@@ -13648,7 +13925,7 @@ const _sfc_main$c = /* @__PURE__ */ defineComponent({
               return [
                 createBaseVNode("div", {
                   innerHTML: unref(removeUUIDs)((_c2 = (_b2 = (_a2 = viewedItem.value) == null ? void 0 : _a2.system) == null ? void 0 : _b2.description) == null ? void 0 : _c2.value)
-                }, null, 8, _hoisted_8$3)
+                }, null, 8, _hoisted_8$5)
               ];
             }),
             actionButtons: withCtx(() => {
@@ -13701,19 +13978,19 @@ const _hoisted_4$6 = /* @__PURE__ */ createBaseVNode("rect", {
   height: "18",
   style: { "fill": "transparent", "stroke-width": "3", "stroke": "rgb(0, 0, 0)" }
 }, null, -1);
-const _hoisted_5$5 = {
+const _hoisted_5$6 = {
   y: "12",
   x: "31",
   stroke: "black",
   "font-size": "7pt",
   "font-weight": "lighter"
 };
-const _hoisted_6$4 = { class: "w-full pt-4 text-3xl flex justify-center items-center" };
-const _hoisted_7$3 = ["placeholder"];
-const _hoisted_8$2 = /* @__PURE__ */ createBaseVNode("div", { class: "mt-5 sm:mt-4 sm:flex sm:flex-row-reverse" }, [
+const _hoisted_6$5 = { class: "w-full pt-4 text-3xl flex justify-center items-center" };
+const _hoisted_7$5 = ["placeholder"];
+const _hoisted_8$4 = /* @__PURE__ */ createBaseVNode("div", { class: "mt-5 sm:mt-4 sm:flex sm:flex-row-reverse" }, [
   /* @__PURE__ */ createBaseVNode("button", {
     type: "submit",
-    class: "inline-flex w-full justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:ml-3 sm:w-auto"
+    class: "inline-flex w-full justify-center bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:ml-3 sm:w-auto"
   }, " Update ")
 ], -1);
 const _sfc_main$b = /* @__PURE__ */ defineComponent({
@@ -13745,7 +14022,7 @@ const _sfc_main$b = /* @__PURE__ */ defineComponent({
                     style: { "fill": "#ccc" }
                   }, null, 8, _hoisted_3$7),
                   _hoisted_4$6,
-                  createBaseVNode("text", _hoisted_5$5, toDisplayString((_c = unref(actor).system) == null ? void 0 : _c.details.xp.value), 1)
+                  createBaseVNode("text", _hoisted_5$6, toDisplayString((_c = unref(actor).system) == null ? void 0 : _c.details.xp.value), 1)
                 ]))
               ])
             ];
@@ -13753,7 +14030,7 @@ const _sfc_main$b = /* @__PURE__ */ defineComponent({
           _: 1
         }),
         (openBlock(), createBlock(Teleport, { to: "#modals" }, [
-          createVNode(_sfc_main$l, {
+          createVNode(_sfc_main$o, {
             ref_key: "experienceModal",
             ref: experienceModal,
             title: "Experience Points",
@@ -13771,7 +14048,7 @@ const _sfc_main$b = /* @__PURE__ */ defineComponent({
                     ["prevent"]
                   ))
                 }, [
-                  createBaseVNode("div", _hoisted_6$4, [
+                  createBaseVNode("div", _hoisted_6$5, [
                     createBaseVNode("input", {
                       class: "text-3xl border-2 border-black w-36 p-1 mr-4 text-right",
                       name: "xp",
@@ -13781,9 +14058,9 @@ const _sfc_main$b = /* @__PURE__ */ defineComponent({
                       onFocus: _cache[1] || (_cache[1] = (e2) => e2.target.select()),
                       ref_key: "focusTarget",
                       ref: focusTarget
-                    }, null, 40, _hoisted_7$3)
+                    }, null, 40, _hoisted_7$5)
                   ]),
-                  _hoisted_8$2
+                  _hoisted_8$4
                 ], 32)
               ];
             }),
@@ -13794,27 +14071,106 @@ const _sfc_main$b = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$a = { class: "text-md whitespace-nowrap overflow-hidden" };
-const _hoisted_2$7 = /* @__PURE__ */ createBaseVNode("div", { class: "text-md whitespace-nowrap overflow-hidden" }, null, -1);
-const _hoisted_3$6 = { class: "text-md whitespace-nowrap overflow-hidden" };
-const _hoisted_4$5 = { key: 0 };
+const _hoisted_1$a = { class: "text-md whitespace-nowrap overflow-hidden cursor-pointer" };
+const _hoisted_2$7 = { key: 0 };
+const _hoisted_3$6 = { class: "text-sm" };
+const _hoisted_4$5 = ["innerHTML"];
+const _hoisted_5$5 = /* @__PURE__ */ createBaseVNode("hr", null, null, -1);
+const _hoisted_6$4 = {
+  key: 0,
+  class: "mt-2"
+};
+const _hoisted_7$4 = { class: "text-lg" };
+const _hoisted_8$3 = ["innerHTML"];
 const _sfc_main$a = /* @__PURE__ */ defineComponent({
   __name: "AncestryBackgroundClass",
   setup(__props) {
+    const infoModal = ref();
     const actor = inject("actor");
+    const ancestry = computed(() => {
+      var _a;
+      return (_a = actor.value.items) == null ? void 0 : _a.find((x2) => x2.type === "ancestry");
+    });
+    const heritage = computed(() => {
+      var _a;
+      return (_a = actor.value.items) == null ? void 0 : _a.find((x2) => x2.type === "heritage");
+    });
+    const background = computed(() => {
+      var _a;
+      return (_a = actor.value.items) == null ? void 0 : _a.find((x2) => x2.type === "background");
+    });
+    const gameclass = computed(() => {
+      var _a;
+      return (_a = actor.value.items) == null ? void 0 : _a.find((x2) => x2.type === "class");
+    });
+    const viewedItem = computed(
+      () => {
+        var _a;
+        return (_a = actor.value.items) == null ? void 0 : _a.find((i2) => {
+          var _a2;
+          return i2._id === ((_a2 = infoModal == null ? void 0 : infoModal.value) == null ? void 0 : _a2.itemId);
+        });
+      }
+    );
     return (_ctx, _cache) => {
-      var _a, _b, _c, _d, _e, _f, _g, _h;
-      return openBlock(), createElementBlock("div", null, [
-        createBaseVNode("div", _hoisted_1$a, [
-          createBaseVNode("span", null, toDisplayString(((_b = (_a = unref(actor).items) == null ? void 0 : _a.find((x2) => x2.type === "ancestry")) == null ? void 0 : _b.name) ?? "-") + " ", 1),
-          createBaseVNode("span", null, toDisplayString((_d = (_c = unref(actor).items) == null ? void 0 : _c.find((x2) => x2.type === "background")) == null ? void 0 : _d.name), 1)
+      var _a, _b, _c, _d, _e, _f, _g;
+      return openBlock(), createElementBlock(Fragment, null, [
+        createBaseVNode("div", null, [
+          createBaseVNode("div", _hoisted_1$a, [
+            createBaseVNode("span", {
+              onClick: _cache[0] || (_cache[0] = ($event) => infoModal.value.open(ancestry.value._id))
+            }, toDisplayString(((_a = ancestry.value) == null ? void 0 : _a.name) ?? "-") + " ", 1),
+            createBaseVNode("span", {
+              onClick: _cache[1] || (_cache[1] = ($event) => infoModal.value.open(background.value._id))
+            }, toDisplayString((_b = background.value) == null ? void 0 : _b.name), 1)
+          ]),
+          createBaseVNode("div", {
+            class: "text-md whitespace-nowrap overflow-hidden cursor-pointer",
+            onClick: _cache[2] || (_cache[2] = ($event) => infoModal.value.open(gameclass.value._id))
+          }, [
+            createBaseVNode("span", null, toDisplayString(((_c = gameclass.value) == null ? void 0 : _c.name) ?? "-"), 1),
+            ((_d = unref(actor).system) == null ? void 0 : _d.details.level.value) ? (openBlock(), createElementBlock("span", _hoisted_2$7, toDisplayString(` (Level ${(_e = unref(actor).system) == null ? void 0 : _e.details.level.value})`), 1)) : createCommentVNode("", true)
+          ])
         ]),
-        _hoisted_2$7,
-        createBaseVNode("div", _hoisted_3$6, [
-          createBaseVNode("span", null, toDisplayString(((_f = (_e = unref(actor).items) == null ? void 0 : _e.find((x2) => x2.type === "class")) == null ? void 0 : _f.name) ?? "-"), 1),
-          ((_g = unref(actor).system) == null ? void 0 : _g.details.level.value) ? (openBlock(), createElementBlock("span", _hoisted_4$5, toDisplayString(` (Level ${(_h = unref(actor).system) == null ? void 0 : _h.details.level.value})`), 1)) : createCommentVNode("", true)
-        ])
-      ]);
+        (openBlock(), createBlock(Teleport, { to: "#modals" }, [
+          createVNode(_sfc_main$n, {
+            ref_key: "infoModal",
+            ref: infoModal,
+            imageUrl: (_f = viewedItem.value) == null ? void 0 : _f.img,
+            traits: (_g = viewedItem.value) == null ? void 0 : _g.system.traits.value
+          }, {
+            title: withCtx(() => {
+              var _a2;
+              return [
+                createTextVNode(toDisplayString((_a2 = viewedItem.value) == null ? void 0 : _a2.name), 1)
+              ];
+            }),
+            description: withCtx(() => {
+              var _a2, _b2, _c2, _d2;
+              return [
+                createTextVNode(" Level " + toDisplayString(((_c2 = (_b2 = (_a2 = viewedItem.value) == null ? void 0 : _a2.system) == null ? void 0 : _b2.level) == null ? void 0 : _c2.value) ?? "-") + " ", 1),
+                createBaseVNode("span", _hoisted_3$6, "(" + toDisplayString(unref(capitalize)((_d2 = viewedItem.value) == null ? void 0 : _d2.system.traits.rarity)) + ")", 1)
+              ];
+            }),
+            body: withCtx(() => {
+              var _a2, _b2;
+              return [
+                createBaseVNode("div", {
+                  innerHTML: unref(removeUUIDs)((_a2 = viewedItem.value) == null ? void 0 : _a2.system.description.value)
+                }, null, 8, _hoisted_4$5),
+                _hoisted_5$5,
+                ((_b2 = viewedItem.value) == null ? void 0 : _b2.type) === "ancestry" ? (openBlock(), createElementBlock("div", _hoisted_6$4, [
+                  createBaseVNode("h3", _hoisted_7$4, toDisplayString(heritage.value.name), 1),
+                  createBaseVNode("div", {
+                    innerHTML: heritage.value.system.description.value
+                  }, null, 8, _hoisted_8$3)
+                ])) : createCommentVNode("", true)
+              ];
+            }),
+            _: 1
+          }, 8, ["imageUrl", "traits"])
+        ]))
+      ], 64);
     };
   }
 });
@@ -13836,9 +14192,9 @@ const _hoisted_3$5 = ["onClick"];
 const _hoisted_4$4 = { class: "text-xs text-gray-500 absolute text-right w-4 pt-1" };
 const _hoisted_5$4 = { class: "pl-6 cursor-pointer" };
 const _hoisted_6$3 = ["onClick"];
-const _hoisted_7$2 = { key: 1 };
-const _hoisted_8$1 = ["onClick"];
-const _hoisted_9$1 = { class: "text-xs text-gray-500 absolute text-right w-4 pt-1" };
+const _hoisted_7$3 = { key: 1 };
+const _hoisted_8$2 = ["onClick"];
+const _hoisted_9$2 = { class: "text-xs text-gray-500 absolute text-right w-4 pt-1" };
 const _hoisted_10$1 = { class: "pl-6 cursor-pointer" };
 const _hoisted_11$1 = { class: "text-sm" };
 const _hoisted_12$1 = ["innerHTML"];
@@ -13883,7 +14239,7 @@ const _sfc_main$8 = /* @__PURE__ */ defineComponent({
                 ]);
               }), 256))
             ]);
-          }), 256)) : (openBlock(), createElementBlock("div", _hoisted_7$2, [
+          }), 256)) : (openBlock(), createElementBlock("div", _hoisted_7$3, [
             createBaseVNode("ul", null, [
               (openBlock(true), createElementBlock(Fragment, null, renderList((_c = unref(actor)) == null ? void 0 : _c.items.filter((i2) => i2.type === "feat").sort((a2, b2) => {
                 return (a2.system.level.taken ?? a2.system.level.value) - (b2.system.level.taken ?? b2.system.level.value);
@@ -13894,9 +14250,9 @@ const _sfc_main$8 = /* @__PURE__ */ defineComponent({
                     class: "relative",
                     onClick: ($event) => infoModal.value.open(feat._id)
                   }, [
-                    createBaseVNode("span", _hoisted_9$1, toDisplayString(((_b2 = (_a2 = feat.system) == null ? void 0 : _a2.level) == null ? void 0 : _b2.taken) ?? ((_d2 = (_c2 = feat.system) == null ? void 0 : _c2.level) == null ? void 0 : _d2.value)), 1),
+                    createBaseVNode("span", _hoisted_9$2, toDisplayString(((_b2 = (_a2 = feat.system) == null ? void 0 : _a2.level) == null ? void 0 : _b2.taken) ?? ((_d2 = (_c2 = feat.system) == null ? void 0 : _c2.level) == null ? void 0 : _d2.value)), 1),
                     createBaseVNode("span", _hoisted_10$1, toDisplayString(feat == null ? void 0 : feat.name), 1)
-                  ], 8, _hoisted_8$1)
+                  ], 8, _hoisted_8$2)
                 ]);
               }), 256))
             ])
@@ -13999,12 +14355,12 @@ const _hoisted_3$4 = { class: "pr-1" };
 const _hoisted_4$3 = { class: "pt-4 whitespace-nowrap" };
 const _hoisted_5$3 = { class: "underline text-lg only:hidden" };
 const _hoisted_6$2 = { class: "cursor-pointer" };
-const _hoisted_7$1 = ["onClick"];
-const _hoisted_8 = {
+const _hoisted_7$2 = ["onClick"];
+const _hoisted_8$1 = {
   key: 0,
   class: "text-xs"
 };
-const _hoisted_9 = {
+const _hoisted_9$1 = {
   key: 0,
   class: "pb-2"
 };
@@ -14052,14 +14408,6 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
         }
       );
     }
-    const inventoryTypes = [
-      { type: "weapon", title: "Weapons" },
-      { type: "consumable", title: "Consumables" },
-      { type: "equipment", title: "Equipment" },
-      { type: "armor", title: "Armor" },
-      { type: "treasure", title: "Treasure" },
-      { type: "backpack", title: "" }
-    ];
     const toggleSet = [
       {
         toggleText: "1-Hand",
@@ -14164,8 +14512,8 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
               return (_b2 = (_a2 = i2.system) == null ? void 0 : _a2.equipped) == null ? void 0 : _b2.invested;
             }).length) + "/10 Invested) ", 1)
           ]),
-          (openBlock(), createElementBlock(Fragment, null, renderList(inventoryTypes, (inventoryType) => {
-            return createBaseVNode("dl", _hoisted_4$3, [
+          (openBlock(true), createElementBlock(Fragment, null, renderList(unref(inventoryTypes), (inventoryType) => {
+            return openBlock(), createElementBlock("dl", _hoisted_4$3, [
               createBaseVNode("dt", _hoisted_5$3, toDisplayString(inventoryType.title), 1),
               (openBlock(true), createElementBlock(Fragment, null, renderList(unref(actor).items.filter(
                 (i2) => {
@@ -14183,9 +14531,9 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
                     onClick: ($event) => infoModal.value.open(item2._id)
                   }, [
                     createBaseVNode("span", null, toDisplayString(item2.name), 1),
-                    item2.type !== "backpack" ? (openBlock(), createElementBlock("span", _hoisted_8, " x" + toDisplayString(item2.system.quantity), 1)) : createCommentVNode("", true)
-                  ], 10, _hoisted_7$1),
-                  item2.type === "backpack" ? (openBlock(), createElementBlock("ul", _hoisted_9, [
+                    item2.type !== "backpack" ? (openBlock(), createElementBlock("span", _hoisted_8$1, " x" + toDisplayString(item2.system.quantity), 1)) : createCommentVNode("", true)
+                  ], 10, _hoisted_7$2),
+                  item2.type === "backpack" ? (openBlock(), createElementBlock("ul", _hoisted_9$1, [
                     (openBlock(true), createElementBlock(Fragment, null, renderList(unref(actor).items.filter((i2) => {
                       var _a3;
                       return ((_a3 = i2.system) == null ? void 0 : _a3.containerId) === item2._id;
@@ -14201,10 +14549,10 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
                 ]);
               }), 256))
             ]);
-          }), 64))
+          }), 256))
         ]),
         (openBlock(), createBlock(Teleport, { to: "#modals" }, [
-          createVNode(_sfc_main$l, {
+          createVNode(_sfc_main$o, {
             ref_key: "investedModal",
             ref: investedModal,
             title: "Invested Items"
@@ -14267,81 +14615,105 @@ const _hoisted_5$2 = {
   class: "pf2-icon text-lg pr-1"
 };
 const _hoisted_6$1 = { key: 1 };
+const _hoisted_7$1 = { class: "w-8 text-right" };
+const _hoisted_8 = { class: "whitespace-nowrap overflow-hidden text-ellipsis" };
+const _hoisted_9 = ["onClick"];
 const _sfc_main$5 = /* @__PURE__ */ defineComponent({
   __name: "Strikes",
   setup(__props) {
-    const infoModal = inject("infoModal");
+    const strikeModal = ref();
     const actor = inject("actor");
-    function infoStrike(strike) {
-      var _a, _b, _c;
-      if (!strike)
-        return;
-      (_c = infoModal.value) == null ? void 0 : _c.open({
-        title: (strike == null ? void 0 : strike.label) ?? ((_a = strike == null ? void 0 : strike.item) == null ? void 0 : _a.name),
-        description: (
-          /*HTML*/
-          `
-      <span class="border p-1 mr-2 text-xs">
-        <span class="pf2-icon text-lg pr-1">1</span>Strike ${strike.variants[0].label}
-      </span>
-      <span class="border p-1 mr-2 text-xs">${strike.variants[1].label}</span>
-      <span class="border p-1 mr-2 text-xs">${strike.variants[2].label}</span>
-    `
-        ),
-        traits: strike == null ? void 0 : strike.weaponTraits.map((t2) => t2.label),
-        body: (
-          /*HTML*/
-          `
-      <div>
-        HI
-      </div>
-    `
-        ),
-        iconPath: (strike == null ? void 0 : strike.imageUrl) ?? ((_b = strike == null ? void 0 : strike.item) == null ? void 0 : _b.img)
-      });
-    }
-    return (_ctx, _cache) => {
+    const viewedItem = computed(() => {
       var _a, _b;
-      return openBlock(), createElementBlock("div", _hoisted_1$5, [
-        _hoisted_2$4,
-        createBaseVNode("ul", null, [
-          (openBlock(true), createElementBlock(Fragment, null, renderList((_b = (_a = unref(actor).system) == null ? void 0 : _a.actions) == null ? void 0 : _b.filter((a2) => a2.type === "strike").map((a2) => {
-            a2["item"] = unref(actor).items.find((i2) => {
+      return (_b = actor.value.system.actions) == null ? void 0 : _b[(_a = strikeModal.value) == null ? void 0 : _a.itemId];
+    });
+    return (_ctx, _cache) => {
+      var _a, _b, _c, _d, _e, _f;
+      return openBlock(), createElementBlock(Fragment, null, [
+        createBaseVNode("div", _hoisted_1$5, [
+          _hoisted_2$4,
+          createBaseVNode("ul", null, [
+            (openBlock(true), createElementBlock(Fragment, null, renderList((_b = (_a = unref(actor).system) == null ? void 0 : _a.actions) == null ? void 0 : _b.filter((a2) => a2.type === "strike").map((a2) => {
+              a2["item"] = unref(actor).items.find((i2) => {
+                var _a2;
+                return ((_a2 = i2.system) == null ? void 0 : _a2.slug) === (a2 == null ? void 0 : a2.slug);
+              });
+              return a2;
+            }).filter(
+              (a2) => {
+                var _a2, _b2, _c2;
+                return ((_c2 = (_b2 = (_a2 = a2.item) == null ? void 0 : _a2.system) == null ? void 0 : _b2.equipped) == null ? void 0 : _c2.carryType) === "held" || a2.item === void 0;
+              }
+            ), (strike, i2) => {
               var _a2;
-              return ((_a2 = i2.system) == null ? void 0 : _a2.slug) === (a2 == null ? void 0 : a2.slug);
-            });
-            return a2;
-          }).filter(
-            (a2) => {
-              var _a2, _b2, _c;
-              return ((_c = (_b2 = (_a2 = a2.item) == null ? void 0 : _a2.system) == null ? void 0 : _b2.equipped) == null ? void 0 : _c.carryType) === "held" || a2.item === void 0;
-            }
-          ), (strike) => {
-            var _a2;
-            return openBlock(), createElementBlock("li", {
-              class: "cursor-pointer text-xl pb-2",
-              onClick: ($event) => infoStrike(strike)
-            }, [
-              createBaseVNode("div", null, toDisplayString(((_a2 = strike == null ? void 0 : strike.item) == null ? void 0 : _a2.name) ?? (strike == null ? void 0 : strike.label)), 1),
-              createBaseVNode("div", null, [
-                (openBlock(true), createElementBlock(Fragment, null, renderList(strike.variants, (variant, index) => {
-                  return openBlock(), createElementBlock("span", _hoisted_4$2, [
-                    !index ? (openBlock(), createElementBlock("span", _hoisted_5$2, "1")) : createCommentVNode("", true),
-                    !index ? (openBlock(), createElementBlock("span", _hoisted_6$1, "Strike ")) : createCommentVNode("", true),
-                    createBaseVNode("span", null, toDisplayString(variant.label), 1)
-                  ]);
+              return openBlock(), createElementBlock("li", {
+                class: "cursor-pointer text-xl pb-2",
+                onClick: ($event) => strikeModal.value.open(i2, {})
+              }, [
+                createBaseVNode("div", null, toDisplayString(((_a2 = strike == null ? void 0 : strike.item) == null ? void 0 : _a2.name) ?? (strike == null ? void 0 : strike.label)), 1),
+                createBaseVNode("div", null, [
+                  (openBlock(true), createElementBlock(Fragment, null, renderList(strike.variants, (variant, index) => {
+                    return openBlock(), createElementBlock("span", _hoisted_4$2, [
+                      !index ? (openBlock(), createElementBlock("span", _hoisted_5$2, "1")) : createCommentVNode("", true),
+                      !index ? (openBlock(), createElementBlock("span", _hoisted_6$1, "Strike ")) : createCommentVNode("", true),
+                      createBaseVNode("span", null, toDisplayString(variant.label), 1)
+                    ]);
+                  }), 256))
+                ])
+              ], 8, _hoisted_3$3);
+            }), 256))
+          ])
+        ]),
+        (openBlock(), createBlock(Teleport, { to: "#modals" }, [
+          createVNode(_sfc_main$n, {
+            ref_key: "strikeModal",
+            ref: strikeModal,
+            traits: (_d = viewedItem.value) == null ? void 0 : _d.traits.map((t2) => t2.label).concat((_c = viewedItem.value) == null ? void 0 : _c.weaponTraits.map((t2) => t2.label)),
+            imageUrl: ((_f = (_e = viewedItem.value) == null ? void 0 : _e.item) == null ? void 0 : _f.img) ?? "icons/skills/melee/unarmed-punch-fist.webp"
+          }, {
+            title: withCtx(() => {
+              var _a2;
+              return [
+                createTextVNode(toDisplayString((_a2 = viewedItem.value) == null ? void 0 : _a2.label), 1)
+              ];
+            }),
+            default: withCtx(() => {
+              var _a2;
+              return [
+                createBaseVNode("ul", null, [
+                  (openBlock(true), createElementBlock(Fragment, null, renderList((_a2 = viewedItem.value) == null ? void 0 : _a2._modifiers, (mod) => {
+                    return openBlock(), createElementBlock("li", {
+                      class: normalizeClass(["flex gap-2", { "text-gray-300": !mod.enabled }])
+                    }, [
+                      createBaseVNode("div", _hoisted_7$1, toDisplayString(unref(formatModifier)(mod.modifier)), 1),
+                      createBaseVNode("div", _hoisted_8, toDisplayString(mod.label), 1)
+                    ], 2);
+                  }), 256))
+                ])
+              ];
+            }),
+            actionButtons: withCtx(() => {
+              var _a2;
+              return [
+                (openBlock(true), createElementBlock(Fragment, null, renderList((_a2 = viewedItem.value) == null ? void 0 : _a2.variants, (variant, i2) => {
+                  return openBlock(), createElementBlock("button", {
+                    type: "button",
+                    class: "bg-blue-600 hover:bg-blue-500 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-white focus:outline-none",
+                    onClick: ($event) => unref(rollCheck)(unref(actor), "strike", `${strikeModal.value.itemId},${i2}`, [])
+                  }, " Strike " + toDisplayString(variant.label.match(/[+-][0-9]*/g)[0]), 9, _hoisted_9);
                 }), 256))
-              ])
-            ], 8, _hoisted_3$3);
-          }), 256))
-        ])
-      ]);
+              ];
+            }),
+            _: 1
+          }, 8, ["traits", "imageUrl"])
+        ]))
+      ], 64);
     };
   }
 });
-const _hoisted_1$4 = { class: "px-6 py-4 flex justify-between border-b" };
+const _hoisted_1$4 = { class: "px-6 py-4 flex gap-4 border-b" };
 const _hoisted_2$3 = /* @__PURE__ */ createBaseVNode("div", { class: "border border-gray-200" }, null, -1);
-const _hoisted_3$2 = /* @__PURE__ */ createBaseVNode("div", null, "No shield", -1);
+const _hoisted_3$2 = /* @__PURE__ */ createBaseVNode("div", { class: "my-auto" }, "No shield", -1);
 const _sfc_main$4 = /* @__PURE__ */ defineComponent({
   __name: "Armor",
   setup(__props) {
@@ -14429,7 +14801,7 @@ const _sfc_main$3 = /* @__PURE__ */ defineComponent({
                       return (s2 == null ? void 0 : s2.slug) === ((_a4 = unref(actor).system) == null ? void 0 : _a4.initiative.statistic);
                     })) == null ? void 0 : _a3.label) ?? "..."), 1),
                     createBaseVNode("span", _hoisted_4$1, [
-                      createVNode(unref(render$1), {
+                      createVNode(unref(render$6), {
                         class: "h-5 w-5 text-gray-400",
                         "aria-hidden": "true"
                       })
@@ -14463,7 +14835,7 @@ const _sfc_main$3 = /* @__PURE__ */ defineComponent({
                                 class: normalizeClass([selected2 ? "font-medium" : "font-normal", "block truncate"])
                               }, toDisplayString(skill.label) + " (" + toDisplayString(unref(formatModifier)(skill.totalModifier)) + ") ", 3),
                               selected2 ? (openBlock(), createElementBlock("span", _hoisted_5$1, [
-                                createVNode(unref(render$2), {
+                                createVNode(unref(render$7), {
                                   class: "h-5 w-5",
                                   "aria-hidden": "true"
                                 })
@@ -14528,12 +14900,20 @@ const _hoisted_2 = { class: "p-0" };
 const _sfc_main$1 = /* @__PURE__ */ defineComponent({
   __name: "Character",
   props: ["characterId"],
-  async setup(__props) {
+  async setup(__props, { expose: __expose }) {
     let __temp, __restore;
     const props = __props;
-    inject("world");
+    const world = inject("world");
     const actor = ref({});
     provide("actor", actor);
+    watch(world, () => {
+      var _a, _b;
+      if (((_a = world.value) == null ? void 0 : _a.actors) && !((_b = actor.value) == null ? void 0 : _b._id)) {
+        console.log("using world value");
+        const worldActor = world.value.actors.find((a2) => a2._id == props.characterId);
+        actor.value = worldActor;
+      }
+    });
     const { socket: socket2 } = useServer();
     [__temp, __restore] = withAsyncContext(() => new Promise(function(resolve2) {
       (function waitForSocket() {
@@ -14545,10 +14925,11 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
     })), await __temp, __restore();
     requestCharacterDetails(props.characterId);
     setupSocketListenersForActor(props.characterId, actor);
+    __expose({ actor });
     return (_ctx, _cache) => {
       return openBlock(), createElementBlock("div", _hoisted_1$1, [
         createBaseVNode("div", _hoisted_2, [
-          createVNode(_sfc_main$h),
+          createVNode(_sfc_main$i),
           createVNode(unref(xe), null, {
             default: withCtx(() => [
               createVNode(unref(Se$1), {
@@ -14569,7 +14950,7 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
                   }),
                   createVNode(unref(ge$1), { tabindex: "-1" }, {
                     default: withCtx(() => [
-                      createVNode(_sfc_main$g)
+                      createVNode(_sfc_main$h)
                     ]),
                     _: 1
                   }),
@@ -14603,27 +14984,27 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
               }),
               createVNode(unref(Ie), { class: "fixed bottom-0 grid grid-cols-6 w-full gap-0 border border-gray-300" }, {
                 default: withCtx(() => [
-                  createVNode(_sfc_main$o, {
+                  createVNode(_sfc_main$p, {
                     src: unref(cowled),
                     label: "Character"
                   }, null, 8, ["src"]),
-                  createVNode(_sfc_main$o, {
+                  createVNode(_sfc_main$p, {
                     src: unref(skills),
                     label: "Skills"
                   }, null, 8, ["src"]),
-                  createVNode(_sfc_main$o, {
+                  createVNode(_sfc_main$p, {
                     src: unref(biceps),
                     label: "Feats"
                   }, null, 8, ["src"]),
-                  createVNode(_sfc_main$o, {
+                  createVNode(_sfc_main$p, {
                     src: unref(backpack),
                     label: "Equipment"
                   }, null, 8, ["src"]),
-                  createVNode(_sfc_main$o, {
+                  createVNode(_sfc_main$p, {
                     src: unref(leapfrog),
                     label: "Actions"
                   }, null, 8, ["src"]),
-                  createVNode(_sfc_main$o, {
+                  createVNode(_sfc_main$p, {
                     src: unref(spellBook),
                     label: "Spells"
                   }, null, 8, ["src"])
@@ -14645,16 +15026,13 @@ const _sfc_main = /* @__PURE__ */ defineComponent({
     const wakeLock = reactive(useWakeLock());
     wakeLock.request("screen");
     console.log("wakelock", wakeLock.isActive, wakeLock.isSupported, wakeLock);
+    const characterComponents = ref([]);
     const urlParams = new URLSearchParams(window.location.search);
     const urlId = urlParams.get("id");
     const { socket: socket2, connectToServer: connectToServer2 } = useServer();
     const selectedTab = ref(0);
     const world = ref({});
     provide("world", world);
-    function changeChar(id) {
-      selectedTab.value = characterIds.value.indexOf(id);
-    }
-    provide("changeChar", changeChar);
     const characterIds = computed(() => {
       var _a, _b, _c;
       let characters = [];
@@ -14663,6 +15041,10 @@ const _sfc_main = /* @__PURE__ */ defineComponent({
       (_c = (_b = (_a = world.value) == null ? void 0 : _a.actors) == null ? void 0 : _b.filter((a2) => a2.ownership[world.value.userId] === 3)) == null ? void 0 : _c.filter((a2) => a2._id !== urlId).forEach((a2) => characters.push(a2._id));
       return characters;
     });
+    function changeChar(id) {
+      selectedTab.value = characterIds.value.indexOf(id);
+    }
+    provide("changeChar", changeChar);
     connectToServer2(window.location.origin).then(() => {
       socket2.value.emit("world", (r2) => {
         console.log("TM-RECV world", r2);
@@ -14687,7 +15069,9 @@ const _sfc_main = /* @__PURE__ */ defineComponent({
                 ]),
                 _: 1
               }),
-              createVNode(unref(Se$1), null, {
+              createVNode(unref(Se$1), {
+                onClick: _cache[0] || (_cache[0] = ($event) => console.log(characterComponents.value))
+              }, {
                 default: withCtx(() => [
                   (openBlock(true), createElementBlock(Fragment, null, renderList(characterIds.value, (characterId) => {
                     return openBlock(), createBlock(unref(ge$1), {
@@ -14695,7 +15079,12 @@ const _sfc_main = /* @__PURE__ */ defineComponent({
                       tabindex: "-1"
                     }, {
                       default: withCtx(() => [
-                        createVNode(_sfc_main$1, { characterId }, null, 8, ["characterId"])
+                        createVNode(_sfc_main$1, {
+                          characterId,
+                          ref_for: true,
+                          ref_key: "characterComponents",
+                          ref: characterComponents
+                        }, null, 8, ["characterId"])
                       ]),
                       _: 2
                     }, 1024);
@@ -14717,4 +15106,4 @@ const _sfc_main = /* @__PURE__ */ defineComponent({
 });
 const app = createApp(_sfc_main);
 app.mount("#app");
-//# sourceMappingURL=index-da8a4d99.js.map
+//# sourceMappingURL=index-efd47268.js.map

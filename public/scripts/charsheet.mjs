@@ -31,18 +31,18 @@ export function setupCharSheet() {
       case 'castSpell':
         if (iAmObserverOrFallbackGM()) castSpell(args)
         break
-      case 'makeStrike':
-        if (iAmObserverOrFallbackGM()) makeStrike(args)
+      case 'characterAction':
+        if (iAmObserverOrFallbackGM()) characterAction(args)
         break
-      case 'rollInitiative':
-        if (iAmObserverOrFallbackGM()) rollInitiative(args)
-        break
-      case 'rollConfirm':
-        if (game.user._id === args.userId) rollConfirm(args)
-        break
-      case 'runMacro':
-        if (iAmObserverOrFallbackGM()) runMacro(args)
-        break
+      // case 'rollInitiative':
+      //   if (iAmObserverOrFallbackGM()) rollInitiative(args)
+      //   break
+      // case 'rollConfirm':
+      //   if (game.user._id === args.userId) rollConfirm(args)
+      //   break
+      // case 'runMacro':
+      //   if (iAmObserverOrFallbackGM()) runMacro(args)
+      //   break
       default:
         console.log('event not caught', args.action, args)
     }
@@ -96,18 +96,55 @@ function rollCheck(args) {
     return new game.pf2e.Modifier(m)
   })
   const params = { skipDialog: args.skipDialog, modifiers: modifiers }
+  let roll
   switch (args.checkType) {
+    case 'strike':
+      const [action, variant] = args.checkSubtype.split(',')
+      roll = actor.system.actions[action].variants[variant].roll(params)
+      break
     case 'skill':
-      actor.skills[args.checkSubtype].check.roll(params)
+      roll = actor.skills[args.checkSubtype].check.roll(params)
       break
     case 'save':
-      actor.saves[args.checkSubtype].check.roll(params)
+      roll = actor.saves[args.checkSubtype].check.roll(params)
       break
     case 'perception':
-      actor.perception.check.roll(params)
+      roll = actor.perception.check.roll(params)
       break
   }
-  game.socket.emit(MODNAME, { action: 'acknowledged', uuid: args.uuid })
+  roll.then((r) => {
+    game.socket.emit(MODNAME, {
+      action: 'acknowledged',
+      uuid: args.uuid,
+      formula: r.formula,
+      result: r.result,
+      total: r.total,
+      dice: r.dice
+    })
+  })
+}
+function characterAction(args) {
+  const actor = game.actors.get(args.characterId, { strict: true })
+  const params = { ...args.options, actors: actor }
+  let promise
+  if (args.characterAction.match('legacy.')) {
+    const actionKey = args.characterAction.replace('legacy.', '')
+    promise = game.pf2e.actions[actionKey](params)
+  } else {
+    promise = game.pf2e.actions.get(args.characterAction).use(params)
+  }
+  promise.then((r) => {
+    console.log(r)
+    game.socket.emit(MODNAME, {
+      action: 'acknowledged',
+      uuid: args.uuid,
+      test: 'hi',
+      formula: r[0].roll.formula,
+      result: r[0].roll.result,
+      total: r[0].roll.total,
+      dice: r[0].roll.dice
+    })
+  })
 }
 function castSpell(args) {
   const actor = game.actors.get(args.characterId, { strict: true })
@@ -116,11 +153,7 @@ function castSpell(args) {
   spellLocation.cast(item, { rank: args.rank, slotId: args.slotId })
   game.socket.emit(MODNAME, { action: 'acknowledged', uuid: args.uuid })
 }
-// function makeStrike(args) {
-//   const actor = game.actors.get(args.characterId, { strict: true })
-//   const strike = actor.system.actions.find((a) => a.slug === args.strikeSlug)
-//   strike.variants[args.strikeVariant].roll()
-// }
+
 // function rollInitiative(args) {
 //   const combatantId = game.combat.combatants.find((c) => c.actorId === args.characterId)?._id
 //   console.log(combatantId)
@@ -138,7 +171,8 @@ function castSpell(args) {
 //   const tokenId = canvas.tokens.documentCollection.find((t) => t.actorId === args.characterId).id
 //   const token = canvas.tokens.get(tokenId)
 //   console.log('run macro using: ', token)
-//   const controlled = token.control({ releaseOthers: true }) // it'd be nice to not release others, but need a way to ensure new token is "first"
+//   const controlled = token.control({ releaseOthers: true })
+// it'd be nice to not release others, but need a way to ensure new token is "first"
 //   console.log('now controlled', controlled)
 //   console.log('macro', args.characterId, actor)
 //   game.packs

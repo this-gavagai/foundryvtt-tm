@@ -18,7 +18,7 @@ export interface Item {
   _id: string
   name: string
   type: string
-  system: any
+  system: System
   img: string
   flags: any
 }
@@ -36,6 +36,17 @@ export interface System {
   abilities: any
   saves: any
   perception: any
+  actions: any
+  slug: string
+  actionType: any
+  traits: any
+  location: any
+  level: any
+  prepared: any
+  description: any
+  time: any
+  spelldc: any
+  slots: any
 }
 
 export interface Skill {

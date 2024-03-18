@@ -63,7 +63,7 @@ function updateHitPoints(hp_input: string, temp_input: string) {
             ref="focusTarget"
             class="text-3xl border-2 border-black w-1/3 p-1 mr-4 text-right ml-[32px]"
             name="hp"
-            type="number"
+            type="input"
             pattern="[+-]{0,1}[0-9]*"
             :placeholder="actor.system?.attributes.hp.value"
             @focus="(e: any) => e.target.select()"
@@ -75,7 +75,7 @@ function updateHitPoints(hp_input: string, temp_input: string) {
           <input
             class="text-xl border-2 border-black text-blue-600 w-1/3 p-1 mr-4 text-right ml-[32px]"
             name="temp_hp"
-            type="number"
+            type="input"
             pattern="[+-]{0,1}[0-9]*"
             :placeholder="actor.system?.attributes.hp.temp"
             @focus="(e: any) => e.target.select()"
@@ -85,7 +85,7 @@ function updateHitPoints(hp_input: string, temp_input: string) {
         <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
           <button
             type="submit"
-            class="inline-flex w-full justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:ml-3 sm:w-auto"
+            class="inline-flex w-full justify-center bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:ml-3 sm:w-auto"
           >
             Update
           </button>

@@ -9,16 +9,18 @@
 // TODO: (feature) add ability to change quantity of items
 // TODO: (feature) add ability to remove items
 // TODO: (feature) add ability to add new items
-
-import EquipmentInvested from '@/components/EquipmentInvested.vue'
-import Modal from '@/components/Modal.vue'
-import InfoModal from '@/components/InfoModal.vue'
+// TODO: (feature) add weight, encumbrance, etc.
 
 import type { Item, FeatCategory, Actor } from '@/utils/pf2e-types'
 import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
 import { useServer } from '@/utils/server'
 import { mergeDeep } from '@/utils/utilities'
+import { inventoryTypes } from '@/utils/constants'
+
+import EquipmentInvested from '@/components/EquipmentInvested.vue'
+import Modal from '@/components/Modal.vue'
+import InfoModal from '@/components/InfoModal.vue'
 
 const { socket } = useServer()
 const actor: any = inject('actor')
@@ -50,28 +52,6 @@ function updateCarry(item: Item, systemUpdate: {}) {
     }
   )
 }
-
-function infoInvested() {
-  const invested = actor.value.items
-    .filter(
-      (i: Item) => i.system?.equipped?.invested === true || i.system?.equipped?.invested === false
-    )
-    .map((i: Item) => `<li class="cursor-pointer">${i.name}</li>`)
-  infoModal.value.open({
-    title: 'Invested Items',
-    component: EquipmentInvested,
-    componentProps: { actor: actor }
-  })
-}
-
-const inventoryTypes = [
-  { type: 'weapon', title: 'Weapons' },
-  { type: 'consumable', title: 'Consumables' },
-  { type: 'equipment', title: 'Equipment' },
-  { type: 'armor', title: 'Armor' },
-  { type: 'treasure', title: 'Treasure' },
-  { type: 'backpack', title: '' }
-]
 
 const toggleSet = [
   {

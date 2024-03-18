@@ -1,6 +1,7 @@
 // todo: is there any way to refactor setupSocketListernsForActor so both actorId and actor aren't needed? right now, need both because actor may be empty
 // TODO: convert everything to a promises based architecture to better support UI
-
+// TODO: figure out how to make typed optional parameters so I don't need so many blank params in the code
+// TODO: create a custom call that requests owned characters, to replace dependency on 'world' function for this
 import type { Actor } from './pf2e-types'
 
 import { mergeDeep } from '@/utils/utilities'
@@ -25,14 +26,12 @@ export function setupSocketListenersForActor(actorId: string, actor: Actor) {
           actor.value = args.actor
           mergeDeep(actor.value.system, args.system)
           actor.value.feats = args.feats
-          // actor.value.items = args.items
-          // actor.value.inventory = args.inventory
           if (!window.actor) window.actor = actor.value
         }
         break
       case 'acknowledged':
         if (ackQueue[args.uuid]) {
-          ackQueue[args.uuid]()
+          ackQueue[args.uuid](args)
           delete ackQueue[args.uuid]
         }
         break
@@ -48,6 +47,7 @@ export function setupSocketListenersForActor(actorId: string, actor: Actor) {
             mergeDeep(actor.value, change)
           }
         })
+        requestCharacterDetails(actor.value._id)
         break
       case 'Item':
         // handle item types
@@ -82,17 +82,20 @@ function _processDeletes(actor: any, results: []) {
       actor.value.items.splice(index, 1)
     }
   })
+  requestCharacterDetails(actor.value._id)
 }
 function _processUpdates(actor: any, results: []) {
   results.forEach((change: any) => {
     let item = actor.value.items.find((a: any) => a._id == change._id)
     if (item) mergeDeep(item, change)
   })
+  requestCharacterDetails(actor.value._id)
 }
 function _processCreates(actor: any, results: []) {
   results.forEach((c: any) => {
     actor.value.items.push(c)
   })
+  requestCharacterDetails(actor.value._id)
 }
 
 export function updateActor(actor: any, update: {}, additionalOptions = null): Promise<any> {
@@ -147,7 +150,7 @@ export function updateActorItem(
       },
       (r: any) => {
         _processUpdates(actor, r.result)
-        requestCharacterDetails(actor.value._id)
+        // requestCharacterDetails(actor.value._id)
         resolve(r)
       }
     )
@@ -167,7 +170,7 @@ export function deleteActorItem(actor: Actor, itemId: string): Promise<any> {
       },
       (r: any) => {
         _processDeletes(actor, r.result)
-        requestCharacterDetails(actor.value._id)
+        // requestCharacterDetails(actor.value._id)
         resolve(r)
       }
     )
@@ -209,21 +212,23 @@ export function castSpell(
       slotId: castingSlot,
       uuid: uuid
     })
-    ackQueue[uuid] = () => resolve('spell cast')
+    ackQueue[uuid] = (args: any) => {
+      resolve(args)
+    }
   })
   return promise
 }
 
-interface ModifierTemplate {
-  label: string
-  modifier: number
-}
-
+// interface ModifierTemplate {
+//   label: string
+//   modifier: number
+// }
 export function rollCheck(
   actor: Actor,
   checkType: string,
-  checkSubtype: string,
-  modifiers: ModifierTemplate[]
+  checkSubtype = '',
+  modifiers = [],
+  options = {}
 ): Promise<any> {
   const promise = new Promise((resolve, reject) => {
     const uuid = crypto.randomUUID()
@@ -233,11 +238,29 @@ export function rollCheck(
       checkType,
       checkSubtype,
       modifiers,
+      options,
       skipDialog: true,
-      uuid: uuid
+      uuid
     })
-    ackQueue[uuid] = () => {
-      resolve('check rolled')
+    ackQueue[uuid] = (args: any) => {
+      resolve(args)
+    }
+  })
+  return promise
+}
+
+export function characterAction(actor: Actor, characterAction: string, options = {}): Promise<any> {
+  const promise = new Promise((resolve, reject) => {
+    const uuid = crypto.randomUUID()
+    socket.value.emit('module.tablemate', {
+      action: 'characterAction',
+      characterId: actor._id,
+      characterAction,
+      options,
+      uuid
+    })
+    ackQueue[uuid] = (args: any) => {
+      resolve(args)
     }
   })
   return promise

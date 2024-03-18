@@ -284,7 +284,7 @@ const spellbook = computed((): Spellbook => {
       <template #title>
         {{ viewedSpell?.name }}
         <span
-          class="text-2xl absolute pl-1 -mt-[.3rem]"
+          class="text-2xl relative pl-1 -mt-[.3rem]"
           v-html="
             makeActionIcons(
               viewedSpell?.system?.time.value.replace('to', ' - ').replace('free', 'f')
@@ -328,7 +328,7 @@ const spellbook = computed((): Spellbook => {
         </button>
         <button
           type="button"
-          class="bg-green-200 hover:bg-green-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
+          class="bg-blue-600 hover:bg-blue-500 text-white inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium focus:outline-none"
           @click="
             () => {
               castSpell(
@@ -345,31 +345,31 @@ const spellbook = computed((): Spellbook => {
         </button>
       </template>
     </InfoModal>
+    <Modal ref="spellSelectionModal" title="Select a spell">
+      <ul>
+        <li
+          class="cursor-pointer"
+          v-for="spell in actor.items.filter(
+            (i) =>
+              i.type === 'spell' &&
+              i.system.location.value === spellSelectionModal.options?.entry &&
+              i.system.level.value <= spellSelectionModal.options.castingRank
+          )"
+          @click="
+            () => {
+              setSpell(
+                actor.items.find((i) => i._id === spellSelectionModal.options?.entry),
+                spellSelectionModal.options.castingRank,
+                spellSelectionModal.options.castingSlot,
+                spell._id
+              )
+              spellSelectionModal.close()
+            }
+          "
+        >
+          {{ spell.name }}
+        </li>
+      </ul>
+    </Modal>
   </Teleport>
-  <Modal ref="spellSelectionModal" title="Select a spell">
-    <ul>
-      <li
-        class="cursor-pointer"
-        v-for="spell in actor.items.filter(
-          (i) =>
-            i.type === 'spell' &&
-            i.system.location.value === spellSelectionModal.options?.entry &&
-            i.system.level.value <= spellSelectionModal.options.castingRank
-        )"
-        @click="
-          () => {
-            setSpell(
-              actor.items.find((i) => i._id === spellSelectionModal.options?.entry),
-              spellSelectionModal.options.castingRank,
-              spellSelectionModal.options.castingSlot,
-              spell._id
-            )
-            spellSelectionModal.close()
-          }
-        "
-      >
-        {{ spell.name }}
-      </li>
-    </ul>
-  </Modal>
 </template>

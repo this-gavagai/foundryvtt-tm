@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// TODO: provide better interface when falling back on world data by providing a computed variable that approximates the default sorting?
 import type { Item, Actor } from '@/utils/pf2e-types'
 import { inject, ref, computed, watch } from 'vue'
 import { capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
@@ -39,7 +40,6 @@ const viewedItem = computed(
     <div v-else>
       <ul>
         <!-- fallback for no actor details. some redundancy with above -->
-        <!-- TODO: maybe better to do this by providing a computed variable that approximates the default sorting? -->
         <li
           v-for="feat in actor?.items
             .filter((i: Item) => i.type === 'feat')

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// TODO: Implement hamburger menu popout, with settings and meta-options like "Rest"
 import { inject, computed, watch, ref } from 'vue'
 import {
   Listbox,
@@ -7,33 +8,19 @@ import {
   ListboxOptions,
   ListboxOption
 } from '@headlessui/vue'
-
 import { getPath } from '@/utils/utilities'
+import { Bars3Icon } from '@heroicons/vue/24/solid'
 import HitPoints from './HitPoints.vue'
 import HeroPoints from './HeroPoints.vue'
-
-// import Bed from '@/assets/icons/night-sleep.svg'
-import { Bars3Icon } from '@heroicons/vue/24/solid'
-
-defineEmits(['changeCharacter'])
 
 const actor: any = inject('actor')
 const world: any = inject('world')
 const changeChar: any = inject('changeChar')
-
-let reloadUrl = ref(`${window.location.origin}/modules/tablemate/index.html?id=${actor.value._id}`)
-watch(actor, () => {
-  reloadUrl.value = `${window.location.origin}/modules/tablemate/index.html?id=${actor.value._id}`
-})
-function reloadPage() {
-  console.log(reloadUrl.value)
-  window.location.href = reloadUrl.value
-}
 </script>
 
 <template>
-  <div class="flex border p-4 items-center">
-    <a class="h-24 w-24" @click="reloadPage()">
+  <div class="flex gap-2 border p-4 items-center">
+    <div class="h-24 w-24">
       <img
         v-if="actor.prototypeToken?.texture?.src"
         :src="getPath(actor.prototypeToken?.texture?.src)"
@@ -57,8 +44,8 @@ function reloadPage() {
           />
         </svg>
       </div>
-    </a>
-    <div class="pl-2 flex-1">
+    </div>
+    <div class="flex-1">
       <h3 class="text-2xl whitespace-nowrap overflow-hidden mb-2">
         <Listbox>
           <ListboxButton>{{ actor?.name ?? 'Loading...' }}</ListboxButton>
@@ -72,7 +59,7 @@ function reloadPage() {
             >
             <ListboxOption
               v-slot="{ active, selected }"
-              v-for="(character, index) in world.actors
+              v-for="character in world.actors
                 ?.filter((a: any) => a.ownership[world.userId] === 3)
                 ?.filter((a: any) => a._id !== actor._id)"
               :key="character?._id"
@@ -82,7 +69,7 @@ function reloadPage() {
             >
               <div
                 :class="[
-                  active ? 'bg-amber-100 text-amber-900' : 'text-gray-900',
+                  active ? 'bg-blue-100 text-blue-900' : 'text-gray-900',
                   'relative select-none py-2 pl-6 pr-4 cursor-pointer'
                 ]"
               >
@@ -93,11 +80,11 @@ function reloadPage() {
         </Listbox>
       </h3>
       <!-- <AncestryBackgroundClass /> -->
-      <div class="flex justify-between align-middle">
+      <div class="flex gap-8 align-middle">
         <HitPoints />
         <HeroPoints />
-        <Bars3Icon class="h-8 w-8 my-auto text-gray-800 border border-gray-800 rounded-md p-1" />
       </div>
     </div>
+    <Bars3Icon class="h-10 w-10 my-auto text-gray-600 border-2 border-gray-600 rounded-md p-1" />
   </div>
 </template>

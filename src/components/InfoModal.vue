@@ -11,8 +11,10 @@ import {
 import { getPath } from '@/utils/utilities'
 import { makeTraits } from '@/utils/utilities'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
+import Modal from './Modal.vue'
 
 const props = defineProps(['imageUrl', 'traits'])
+const rollResultModal = ref()
 const itemId = ref()
 const options = ref()
 
@@ -26,13 +28,15 @@ function close() {
   itemId.value = null
   options.value = null
   isOpen.value = false
+  emit('closing')
 }
 
 function swipeClose(item: any, i: any) {
   close()
 }
 
-defineExpose({ open, close, itemId, options })
+const emit = defineEmits(['closing'])
+defineExpose({ open, close, itemId, options, rollResultModal })
 </script>
 <template>
   <TransitionRoot appear :show="isOpen" as="template">
@@ -112,4 +116,20 @@ defineExpose({ open, close, itemId, options })
       </div>
     </Dialog>
   </TransitionRoot>
+  <Teleport to="#modals">
+    <Modal ref="rollResultModal">
+      <div class="flex">
+        <div class="m-auto">
+          <div class="m-auto">{{ rollResultModal?.options?.formula }}</div>
+          <div class="flex items-center justify-center">
+            <div class="text-2xl">{{ rollResultModal?.options?.dice[0].results[0].result }}</div>
+            <img src="@/assets/icons/dice-twenty-faces-twenty.svg" class="ml-1 h-6 w-6" />
+          </div>
+        </div>
+        <div class="m-auto">
+          <div class="text-6xl">{{ rollResultModal?.options?.total }}</div>
+        </div>
+      </div>
+    </Modal>
+  </Teleport>
 </template>

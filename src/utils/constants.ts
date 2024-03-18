@@ -80,3 +80,12 @@ export const attributes = [
   { heading: 'Wis', abbr: 'wis' },
   { heading: 'Cha', abbr: 'cha' }
 ]
+
+export const inventoryTypes = [
+  { type: 'weapon', title: 'Weapons' },
+  { type: 'consumable', title: 'Consumables' },
+  { type: 'equipment', title: 'Equipment' },
+  { type: 'armor', title: 'Armor' },
+  { type: 'treasure', title: 'Treasure' },
+  { type: 'backpack', title: '' }
+]

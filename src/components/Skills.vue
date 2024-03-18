@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// TODO: (feature) allow players to access skill actions that aren't on here
 import type { Actor, Skill } from '@/utils/pf2e-types'
 
 import { SignedNumber } from '@/utils/utilities'

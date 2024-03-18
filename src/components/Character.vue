@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, provide, inject } from 'vue'
+import { ref, provide, inject, watch } from 'vue'
 import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
 
 import { useServer } from '@/utils/server'
@@ -35,20 +35,14 @@ const world: any = inject('world')
 const actor = ref<any>({})
 provide('actor', actor)
 
-// pretty sure vvvthisvvv is redundant now
-// watch world for changes and update actor base
-// watch(
-//   // TODO: something is happening here where the actor gets wiped out very briefly, throwing errors and requiring unnecessary ?. operators
-//   world,
-//   () => {
-//     if (world.value?.actors) {
-//       // const worldActor = world.value.actors.find((a: any) => a._id == props.characterId)
-//       // const synthActor = mergeDeep(worldActor, actor.value)
-//       // actor.value = synthActor
-//     }
-//   },
-//   { immediate: true }
-// )
+// load character from world value if no character details received
+watch(world, () => {
+  if (world.value?.actors && !actor.value?._id) {
+    console.log('using world value')
+    const worldActor = world.value.actors.find((a: any) => a._id == props.characterId)
+    actor.value = worldActor
+  }
+})
 
 // await new socket
 const { socket } = useServer()
@@ -59,18 +53,11 @@ await new Promise(function (resolve: any) {
     setTimeout(waitForSocket, 100)
   })()
 })
+
 requestCharacterDetails(props.characterId)
 setupSocketListenersForActor(props.characterId, actor)
 
-// debugging conveniences
-declare global {
-  interface Window {
-    socket: any
-    actor: any
-    world: any
-    altCharacters: any
-  }
-}
+defineExpose({ actor })
 </script>
 <template>
   <div class="pb-14">

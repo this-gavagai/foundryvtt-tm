@@ -9,19 +9,15 @@ const wakeLock = reactive(useWakeLock())
 wakeLock.request('screen')
 console.log('wakelock', wakeLock.isActive, wakeLock.isSupported, wakeLock)
 
+const characterComponents = ref([])
+
 const urlParams = new URLSearchParams(window.location.search)
 const urlId = urlParams.get('id')
 
 const { socket, connectToServer } = useServer()
 const selectedTab = ref(0)
-// const charRefs = ref<any[]>([])
 const world = ref<any>({})
 provide('world', world)
-
-function changeChar(id: string): void {
-  selectedTab.value = characterIds.value.indexOf(id)
-}
-provide('changeChar', changeChar)
 
 const characterIds = computed(() => {
   let characters = []
@@ -33,6 +29,12 @@ const characterIds = computed(() => {
   return characters
 })
 
+function changeChar(id: string): void {
+  selectedTab.value = characterIds.value.indexOf(id)
+}
+provide('changeChar', changeChar)
+
+// TODO: is gathering the world value really useful anymore? Better to use it just as a fallback?
 connectToServer(window.location.origin).then(() => {
   socket.value.emit('world', (r: any) => {
     console.log('TM-RECV world', r)
@@ -63,9 +65,9 @@ declare global {
             :key="c"
           />
         </TabList>
-        <TabPanels>
+        <TabPanels @click="console.log(characterComponents)">
           <TabPanel :unmount="false" v-for="characterId in characterIds" tabindex="-1">
-            <Character :characterId="characterId" />
+            <Character :characterId="characterId" ref="characterComponents" />
           </TabPanel>
         </TabPanels>
       </TabGroup>
