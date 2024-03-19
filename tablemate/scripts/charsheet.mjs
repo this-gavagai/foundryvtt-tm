@@ -113,13 +113,11 @@ function rollCheck(args) {
       break
   }
   roll.then((r) => {
+    console.log(r)
     game.socket.emit(MODNAME, {
       action: 'acknowledged',
       uuid: args.uuid,
-      formula: r.formula,
-      result: r.result,
-      total: r.total,
-      dice: r.dice
+      roll: { formula: r.formula, result: r.result, total: r.total, dice: r.dice }
     })
   })
 }
@@ -138,11 +136,13 @@ function characterAction(args) {
     game.socket.emit(MODNAME, {
       action: 'acknowledged',
       uuid: args.uuid,
-      test: 'hi',
-      formula: r[0].roll.formula,
-      result: r[0].roll.result,
-      total: r[0].roll.total,
-      dice: r[0].roll.dice
+      roll: {
+        // TODO: This assumes a single die, which isn't should be made more robust
+        formula: r[0].roll.formula,
+        result: r[0].roll.result,
+        total: r[0].roll.total,
+        dice: r[0].roll.dice
+      }
     })
   })
 }

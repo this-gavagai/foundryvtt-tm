@@ -1,40 +1,39 @@
 <script setup lang="ts">
+import type { Ref } from 'vue'
+import type { Actor } from '@/utils/pf2e-types'
 import { computed, watch, ref, inject } from 'vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'
-import { useServer } from '@/utils/server'
 import { formatModifier } from '@/utils/utilities'
 import { updateActor, requestCharacterDetails } from '@/utils/api'
 import Statistic from '@/components/Statistic.vue'
 
-const { socket } = useServer()
-const props = defineProps(['actor'])
-const actor: any = inject('actor')
+const actor = inject<Ref<Actor>>('actor')!
+const world: any = inject('world')!
 
 const initSkills: any = computed(() => {
-  const skills = Object.values(actor.value.system?.skills ?? {})
-  skills.unshift(actor.value.system?.perception)
+  const skills = Object.values(actor?.value?.system?.skills ?? {})
+  skills.unshift(actor.value?.system?.perception)
   return skills
 })
 const selected = ref(actor.value?.system?.initiative?.statistic)
 watch(selected, async (newSkill, oldSkill) => {
   updateActor(actor, { system: { initiative: { statistic: newSkill } } }).then((r) => {
-    requestCharacterDetails(actor.value._id) // needed because initiative changes have lateral effects to modifiers set
+    requestCharacterDetails(actor.value._id!) // needed because initiative changes have lateral effects to modifiers set
   })
 })
-function rollInitiative() {
-  socket.value.emit('module.tablemate', {
-    action: 'rollInitiative',
-    characterId: actor.value._id
-  })
-}
+
+const activeScene = computed(() => {
+  return world.value?.scenes?.find((s: any) => s.active)
+})
 </script>
 <template>
+  <div>{{ activeScene?.name }}</div>
   <div class="px-6 py-4 border-b flex gap-4">
-    <Statistic heading="Initiative" :modifiers="actor.system?.initiative?.modifiers">
+    <Statistic heading="Initiative" :modifiers="actor?.system?.initiative?.modifiers">
       {{
         formatModifier(
-          initSkills.find((s: any) => s?.slug === actor.system?.initiative.statistic)
+          initSkills.find((s: any) => s?.slug === actor?.system?.initiative.statistic)
             ?.totalModifier ?? 0
         )
       }}
@@ -45,7 +44,7 @@ function rollInitiative() {
           class="relative w-full cursor-default rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
         >
           <span class="block truncate">{{
-            initSkills.find((s: any) => s?.slug === actor.system?.initiative.statistic)?.label ??
+            initSkills.find((s: any) => s?.slug === actor?.system?.initiative.statistic)?.label ??
             '...'
           }}</span>
           <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">

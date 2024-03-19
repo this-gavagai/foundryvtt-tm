@@ -27,8 +27,8 @@ function updateHeroPoints(newTotal: number): void {
     <Counter
       ref="counter"
       title="Hero Points"
-      :value="actor.system?.resources.heroPoints.value ?? '0'"
-      :max="actor.system?.resources.heroPoints.max ?? '0'"
+      :value="actor?.system?.resources.heroPoints.value ?? '0'"
+      :max="actor?.system?.resources.heroPoints.max ?? '0'"
       editable
       @change-count="(newTotal) => updateHeroPoints(newTotal)"
     />

@@ -2,7 +2,7 @@
 // TODO: (ux) some kind of feedback on the carry toggle on click
 
 // TODO: (bug) figure out how the parenthetical worn style works (system.usage.value: 'worngloves', etc.)
-// TODO: (bug) stowed items sometimes show up as "worn" in the togglebar. Why?
+// TODO: (bug) stowed items sometimes show up as "worn" in the togglebar. Why? Figure out how equipment dynamics work
 // TODO: (refactor) switch over to API
 
 // TODO: (feature) Move between multiple backpacks?

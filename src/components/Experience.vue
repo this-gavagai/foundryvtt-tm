@@ -11,7 +11,7 @@ const experienceModal = ref()
 const focusTarget = ref()
 
 function updateExperience(input: string) {
-  let newValue: number = parseIncrement(input, actor.value.system?.details.xp.value)
+  let newValue: number = parseIncrement(input, actor.value?.system?.details.xp.value)
   newValue = Math.max(newValue, 0)
   updateActor(actor, { system: { details: { xp: { value: newValue } } } })
 }
@@ -22,7 +22,7 @@ function updateExperience(input: string) {
       <svg width="75" height="18">
         <rect
           :width="
-            75 * ((actor.system?.details.xp.value ?? 0) / (actor.system?.details.xp.max ?? 1))
+            75 * ((actor?.system?.details.xp.value ?? 0) / (actor?.system?.details.xp.max ?? 1))
           "
           height="18"
           style="fill: #ccc"
@@ -33,7 +33,7 @@ function updateExperience(input: string) {
           style="fill: transparent; stroke-width: 3; stroke: rgb(0, 0, 0)"
         />
         <text y="12" x="31" stroke="black" font-size="7pt" font-weight="lighter">
-          {{ actor.system?.details.xp.value }}
+          {{ actor?.system?.details.xp.value }}
         </text>
       </svg>
     </div>
@@ -54,7 +54,7 @@ function updateExperience(input: string) {
             name="xp"
             type="number"
             pattern="[+-]{0,1}[0-9]*"
-            :placeholder="actor.system?.details.xp.value"
+            :placeholder="actor?.system?.details.xp.value"
             @focus="(e: any) => e.target.select()"
             ref="focusTarget"
           />

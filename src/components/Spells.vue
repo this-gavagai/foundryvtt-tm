@@ -3,6 +3,7 @@
 // todo: wands
 // TODO: (bug?) spell DC tends to pull from actor.system.attributes?.classOrSpellDC since the spellcastingEntry dc is rarely (never?) defined. is this okay?
 // TODO: do something better with optionsblock type. We can do better.
+// TODO: make sure fallback is graceful if pf2e-dailies module does not exist (for staves)
 
 import type { Item, Actor } from '@/utils/pf2e-types'
 import { inject, computed, ref } from 'vue'

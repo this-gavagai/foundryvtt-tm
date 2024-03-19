@@ -1,18 +1,10 @@
-interface ActorBase {
-  _id: string
-  feats: [FeatCategory]
-  items: [Item]
-  inventory: any
-  system: System
+export interface Actor {
+  _id?: string
+  feats?: [FeatCategory]
+  items?: [Item]
+  inventory?: any
+  system?: System
 }
-interface ActorBaseReactive {
-  value: ActorBase
-}
-export interface Actor extends ActorBase, ActorBaseReactive {}
-
-// export interface ActorReactive {
-//   value: Actor
-// }
 
 export interface Item {
   _id: string
@@ -47,6 +39,9 @@ export interface System {
   time: any
   spelldc: any
   slots: any
+  initiative: any
+  equipped: any
+  containerId: any
 }
 
 export interface Skill {
@@ -56,4 +51,15 @@ export interface Skill {
   totalModifier: number
   modifiers: [any]
   slug: string
+}
+
+// debugging conveniences
+declare global {
+  interface Window {
+    socket: any
+    actor: any
+    world: any
+    altCharacters: any
+    link: any
+  }
 }

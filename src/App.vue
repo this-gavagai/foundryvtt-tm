@@ -1,24 +1,23 @@
 <script setup lang="ts">
-import { ref, provide, computed, nextTick, reactive } from 'vue'
-import { useServer } from './utils/server'
-import Character from '@/components/Character.vue'
+import { ref, provide, computed, reactive, watch } from 'vue'
 import { useWakeLock } from '@vueuse/core'
-import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
+import { useServer } from './utils/server'
 
+import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
+import Character from '@/components/Character.vue'
+
+const urlId = new URLSearchParams(window.location.search).get('id')
+
+// TODO: figure out why this isn't working correctly
 const wakeLock = reactive(useWakeLock())
 wakeLock.request('screen')
-console.log('wakelock', wakeLock.isActive, wakeLock.isSupported, wakeLock)
-
-const characterComponents = ref([])
-
-const urlParams = new URLSearchParams(window.location.search)
-const urlId = urlParams.get('id')
 
 const { socket, connectToServer } = useServer()
-const selectedTab = ref(0)
 const world = ref<any>({})
 provide('world', world)
 
+const selectedTab = ref(0)
+const characterPanels = ref<any[]>([])
 const characterIds = computed(() => {
   let characters = []
   if (urlId) characters.push(urlId)
@@ -28,6 +27,21 @@ const characterIds = computed(() => {
     .forEach((a: any) => characters.push(a._id))
   return characters
 })
+watch(
+  // set window variables. This watch can be deleted on production
+  characterIds,
+  (newValue, oldValue) => {
+    window.altCharacters = new Map([])
+    setTimeout(() => {
+      characterPanels.value.forEach((panel: any) => {
+        const id = panel.actor?._id
+        if (id && id === newValue[0]) window.actor = panel.actor
+        else window.altCharacters.set(id, panel.actor)
+      })
+    }, 100)
+  },
+  { immediate: true }
+)
 
 function changeChar(id: string): void {
   selectedTab.value = characterIds.value.indexOf(id)
@@ -38,43 +52,23 @@ provide('changeChar', changeChar)
 connectToServer(window.location.origin).then(() => {
   socket.value.emit('world', (r: any) => {
     console.log('TM-RECV world', r)
-    world.value = r
-    window.world = world.value
-    nextTick()
+    window.world = world.value = r
   })
 })
-
-// debugging conveniences
-declare global {
-  interface Window {
-    socket: any
-    actor: any
-    world: any
-    altCharacters: any
-  }
-}
 </script>
 <template>
-  <Suspense>
-    <template #default>
-      <TabGroup :selectedIndex="selectedTab">
-        <TabList class="h-12 bg-white gap-0 border border-gray-300 text-xl hidden">
-          <Tab
-            class="p-2 ui-selected:bg-blue-300 focus:outline-none relative top-0"
-            v-for="c in characterIds"
-            :key="c"
-          />
-        </TabList>
-        <TabPanels @click="console.log(characterComponents)">
-          <TabPanel :unmount="false" v-for="characterId in characterIds" tabindex="-1">
-            <Character :characterId="characterId" ref="characterComponents" />
-          </TabPanel>
-        </TabPanels>
-      </TabGroup>
-    </template>
-    <template #fallback>
-      <div>Loading...</div>
-    </template>
-  </Suspense>
+  <TabGroup :selectedIndex="selectedTab" @change="console.log('character changed!')">
+    <TabList class="h-12 bg-white gap-0 border border-gray-300 text-xl hidden">
+      <Tab
+        class="p-2 ui-selected:bg-blue-300 focus:outline-none relative top-0"
+        v-for="c in characterIds"
+        :key="c"
+      />
+    </TabList>
+    <TabPanels>
+      <TabPanel v-for="(c, index) in characterIds" :key="c" :unmount="false" tabindex="-1">
+        <Character :characterId="c" :ref="(el: any) => (characterPanels[index] = el)" />
+      </TabPanel>
+    </TabPanels>
+  </TabGroup>
 </template>
-<style scoped></style>

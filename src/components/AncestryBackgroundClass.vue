@@ -5,12 +5,12 @@ import InfoModal from '@/components/InfoModal.vue'
 const infoModal = ref()
 
 const actor: any = inject('actor')!
-const ancestry = computed(() => actor.value.items?.find((x: any) => x.type === 'ancestry'))
-const heritage = computed(() => actor.value.items?.find((x: any) => x.type === 'heritage'))
-const background = computed(() => actor.value.items?.find((x: any) => x.type === 'background'))
-const gameclass = computed(() => actor.value.items?.find((x: any) => x.type === 'class'))
+const ancestry = computed(() => actor.value?.items?.find((x: any) => x.type === 'ancestry'))
+const heritage = computed(() => actor.value?.items?.find((x: any) => x.type === 'heritage'))
+const background = computed(() => actor.value?.items?.find((x: any) => x.type === 'background'))
+const gameclass = computed(() => actor.value?.items?.find((x: any) => x.type === 'class'))
 const viewedItem: any = computed(
-  () => actor.value.items?.find((i: any) => i._id === infoModal?.value?.itemId)
+  () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
 )
 </script>
 <template>
@@ -24,8 +24,8 @@ const viewedItem: any = computed(
       @click="infoModal.open(gameclass._id)"
     >
       <span>{{ gameclass?.name ?? '-' }}</span>
-      <span v-if="actor.system?.details.level.value">{{
-        ` (Level ${actor.system?.details.level.value})`
+      <span v-if="actor?.system?.details.level.value">{{
+        ` (Level ${actor?.system?.details.level.value})`
       }}</span>
     </div>
   </div>
@@ -47,7 +47,7 @@ const viewedItem: any = computed(
         <hr />
         <div v-if="viewedItem?.type === 'ancestry'" class="mt-2">
           <h3 class="text-lg">{{ heritage.name }}</h3>
-          <div v-html="heritage.system.description.value"></div>
+          <div v-html="heritage?.system.description.value"></div>
         </div>
       </template>
     </InfoModal>

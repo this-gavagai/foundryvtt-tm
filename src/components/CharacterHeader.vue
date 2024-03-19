@@ -22,7 +22,7 @@ const changeChar: any = inject('changeChar')
   <div class="flex gap-2 border p-4 items-center">
     <div class="h-24 w-24">
       <img
-        v-if="actor.prototypeToken?.texture?.src"
+        v-if="actor?.prototypeToken?.texture?.src"
         :src="getPath(actor.prototypeToken?.texture?.src)"
         class="h-24 w-24"
       />

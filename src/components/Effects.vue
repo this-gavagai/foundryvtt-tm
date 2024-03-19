@@ -9,7 +9,7 @@ import { capitalize, removeUUIDs, getPath } from '@/utils/utilities'
 const infoModal = ref()
 const actor: any = inject('actor')
 const viewedItem = computed(
-  () => actor.value.items?.find((i: any) => i._id === infoModal?.value?.itemId)
+  () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
 )
 
 function deleteEffect(effectId: string) {

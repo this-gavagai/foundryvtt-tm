@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref, provide, inject, watch } from 'vue'
+import type { Actor } from '@/utils/pf2e-types'
+import type { Ref } from 'vue'
+import { ref, provide, inject, watch, onMounted } from 'vue'
 import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
 
 import { useServer } from '@/utils/server'
@@ -32,30 +34,28 @@ const props = defineProps(['characterId'])
 
 // base data
 const world: any = inject('world')
-const actor = ref<any>({})
+const actor: Ref<Actor | undefined> = ref()
 provide('actor', actor)
 
 // load character from world value if no character details received
 watch(world, () => {
   if (world.value?.actors && !actor.value?._id) {
     console.log('using world value')
-    const worldActor = world.value.actors.find((a: any) => a._id == props.characterId)
-    actor.value = worldActor
+    actor.value = world.value.actors.find((a: any) => a._id == props.characterId)
   }
 })
-
 // await new socket
 const { socket } = useServer()
-await new Promise(function (resolve: any) {
+new Promise(function (resolve: any) {
   ;(function waitForSocket() {
     if (socket.value) return resolve()
     console.log('waiting on socket...')
     setTimeout(waitForSocket, 100)
   })()
+}).then(() => {
+  requestCharacterDetails(props.characterId)
+  setupSocketListenersForActor(props.characterId, actor)
 })
-
-requestCharacterDetails(props.characterId)
-setupSocketListenersForActor(props.characterId, actor)
 
 defineExpose({ actor })
 </script>

@@ -12,10 +12,10 @@ const hpStat = ref()
 const focusTarget = ref(null)
 
 function updateHitPoints(hp_input: string, temp_input: string) {
-  let newHP = parseIncrement(hp_input, actor.value.system?.attributes.hp.value)
-  newHP = Math.max(Math.min(newHP, actor.value.system?.attributes.hp.max), 0)
+  let newHP = parseIncrement(hp_input, actor.value?.system?.attributes.hp.value)
+  newHP = Math.max(Math.min(newHP, actor.value?.system?.attributes.hp.max), 0)
 
-  let newTemp = parseIncrement(temp_input, actor.value.system?.attributes.hp.temp)
+  let newTemp = parseIncrement(temp_input, actor.value?.system?.attributes.hp.temp)
   newTemp = Math.max(newTemp, 0)
 
   updateActor(actor, { system: { attributes: { hp: { value: newHP, temp: newTemp } } } }, null)
@@ -26,15 +26,15 @@ function updateHitPoints(hp_input: string, temp_input: string) {
     heading="Hit Points"
     @click="hitpointsModal.open()"
     ref="hpStat"
-    :modifiers="actor.system?.attributes?.hp._modifiers"
+    :modifiers="actor?.system?.attributes?.hp._modifiers"
     :preventInfoModal="true"
   >
-    {{ actor.system?.attributes.hp.value ?? '??' }}
-    <span v-if="actor.system?.attributes.hp.temp" class="text-blue-600"
-      >+ {{ actor.system?.attributes.hp.temp }}</span
+    {{ actor?.system?.attributes.hp.value ?? '??' }}
+    <span v-if="actor?.system?.attributes.hp.temp" class="text-blue-600"
+      >+ {{ actor?.system?.attributes.hp.temp }}</span
     >
-    <span v-if="!actor.system?.attributes.hp.temp">
-      / {{ actor.system?.attributes.hp.max ?? '??' }}
+    <span v-if="!actor?.system?.attributes.hp.temp">
+      / {{ actor?.system?.attributes.hp.max ?? '??' }}
     </span>
   </Statistic>
   <Teleport to="#modals">
@@ -65,10 +65,10 @@ function updateHitPoints(hp_input: string, temp_input: string) {
             name="hp"
             type="input"
             pattern="[+-]{0,1}[0-9]*"
-            :placeholder="actor.system?.attributes.hp.value"
+            :placeholder="actor?.system?.attributes.hp.value"
             @focus="(e: any) => e.target.select()"
           />
-          <div class="text-xl w-1/3">/ {{ actor.system?.attributes.hp.max }}</div>
+          <div class="text-xl w-1/3">/ {{ actor?.system?.attributes.hp.max }}</div>
         </div>
         <div class="w-full pb-4 pt-1 flex justify-center items-center">
           <div class="w-1/3 text-blue-600">Temporary:</div>
@@ -77,7 +77,7 @@ function updateHitPoints(hp_input: string, temp_input: string) {
             name="temp_hp"
             type="input"
             pattern="[+-]{0,1}[0-9]*"
-            :placeholder="actor.system?.attributes.hp.temp"
+            :placeholder="actor?.system?.attributes.hp.temp"
             @focus="(e: any) => e.target.select()"
           />
           <div class="w-1/3"></div>

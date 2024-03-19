@@ -120,14 +120,16 @@ defineExpose({ open, close, itemId, options, rollResultModal })
     <Modal ref="rollResultModal">
       <div class="flex">
         <div class="m-auto">
-          <div class="m-auto">{{ rollResultModal?.options?.formula }}</div>
+          <div class="m-auto">{{ rollResultModal?.options?.roll.formula }}</div>
           <div class="flex items-center justify-center">
-            <div class="text-2xl">{{ rollResultModal?.options?.dice[0].results[0].result }}</div>
+            <div class="text-2xl">
+              {{ rollResultModal?.options?.roll.dice[0].results[0].result }}
+            </div>
             <img src="@/assets/icons/dice-twenty-faces-twenty.svg" class="ml-1 h-6 w-6" />
           </div>
         </div>
         <div class="m-auto">
-          <div class="text-6xl">{{ rollResultModal?.options?.total }}</div>
+          <div class="text-6xl">{{ rollResultModal?.options?.roll.total }}</div>
         </div>
       </div>
     </Modal>
