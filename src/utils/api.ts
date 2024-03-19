@@ -12,10 +12,22 @@ import { useThrottleFn } from '@vueuse/core'
 interface AckQueue {
   [key: string]: Function
 }
-const { socket } = useServer()
 const ackQueue: AckQueue = {}
 
-export function setupSocketListenersForActor(actorId: string, actor: Ref<Actor | undefined>) {
+const { socket } = useServer()
+function socketReady() {
+  // resolve when socket is ready
+  return new Promise(function (resolve: any) {
+    ;(function waitForSocket() {
+      if (socket.value) return resolve()
+      console.log('waiting on socket...')
+      setTimeout(waitForSocket, 100)
+    })()
+  })
+}
+
+export async function setupSocketListenersForActor(actorId: string, actor: Ref<Actor | undefined>) {
+  await socketReady()
   socket.value.on('module.tablemate', (args: any) => {
     switch (args.action) {
       case 'gmOnline':
@@ -68,7 +80,6 @@ export function setupSocketListenersForActor(actorId: string, actor: Ref<Actor |
       case 'Combat':
       case 'Combatant':
         console.log('combat input')
-
       case 'ChatMessage':
         break
       default:
@@ -182,7 +193,8 @@ export function deleteActorItem(actor: Ref<Actor>, itemId: string): Promise<any>
 }
 
 export const requestCharacterDetails = useThrottleFn(
-  (actorId: string): Promise<any> => {
+  async (actorId: string): Promise<any> => {
+    await socketReady()
     const uuid = crypto.randomUUID()
     const promise = new Promise((resolve, reject) => {
       socket.value.emit('module.tablemate', {

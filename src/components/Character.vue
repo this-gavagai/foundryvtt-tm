@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { Actor } from '@/utils/pf2e-types'
 import type { Ref } from 'vue'
-import { ref, provide, inject, watch, onMounted } from 'vue'
+import { ref, provide, watch } from 'vue'
 import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
 
-import { useServer } from '@/utils/server'
+import { useWorld } from '@/composables/world'
 import { requestCharacterDetails, setupSocketListenersForActor } from '@/utils/api'
 
 import cowled from '@/assets/icons/cowled.svg'
@@ -12,7 +12,6 @@ import biceps from '@/assets/icons/biceps.svg'
 import backpack from '@/assets/icons/knapsack.svg'
 import leapfrog from '@/assets/icons/leapfrog.svg'
 import spellBook from '@/assets/icons/spell-book.svg'
-import talk from '@/assets/icons/talk.svg'
 import skills from '@/assets/icons/skills.svg'
 
 import CharacterTab from '@/components/CharacterTab.vue'
@@ -33,7 +32,7 @@ import IWR from '@/components/IWR.vue'
 const props = defineProps(['characterId'])
 
 // base data
-const world: any = inject('world')
+const { world } = useWorld()
 const actor: Ref<Actor | undefined> = ref()
 provide('actor', actor)
 
@@ -44,18 +43,9 @@ watch(world, () => {
     actor.value = world.value.actors.find((a: any) => a._id == props.characterId)
   }
 })
-// await new socket
-const { socket } = useServer()
-new Promise(function (resolve: any) {
-  ;(function waitForSocket() {
-    if (socket.value) return resolve()
-    console.log('waiting on socket...')
-    setTimeout(waitForSocket, 100)
-  })()
-}).then(() => {
-  requestCharacterDetails(props.characterId)
-  setupSocketListenersForActor(props.characterId, actor)
-})
+
+requestCharacterDetails(props.characterId)
+setupSocketListenersForActor(props.characterId, actor)
 
 defineExpose({ actor })
 </script>

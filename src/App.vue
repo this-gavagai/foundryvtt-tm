@@ -2,6 +2,7 @@
 import { ref, provide, computed, reactive, watch } from 'vue'
 import { useWakeLock } from '@vueuse/core'
 import { useServer } from './utils/server'
+import { useWorld } from './composables/world'
 
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 import Character from '@/components/Character.vue'
@@ -13,8 +14,8 @@ const wakeLock = reactive(useWakeLock())
 wakeLock.request('screen')
 
 const { socket, connectToServer } = useServer()
-const world = ref<any>({})
-provide('world', world)
+const { world } = useWorld()
+// provide('world', world)
 
 const selectedTab = ref(0)
 const characterPanels = ref<any[]>([])
@@ -32,6 +33,7 @@ watch(
   characterIds,
   (newValue, oldValue) => {
     window.altCharacters = new Map([])
+    console.log('chars', newValue)
     setTimeout(() => {
       characterPanels.value.forEach((panel: any) => {
         const id = panel.actor?._id
@@ -49,12 +51,12 @@ function changeChar(id: string): void {
 provide('changeChar', changeChar)
 
 // TODO: is gathering the world value really useful anymore? Better to use it just as a fallback?
-connectToServer(window.location.origin).then(() => {
-  socket.value.emit('world', (r: any) => {
-    console.log('TM-RECV world', r)
-    window.world = world.value = r
-  })
-})
+// connectToServer(window.location.origin).then(() => {
+//   socket.value.emit('world', (r: any) => {
+//     console.log('TM-RECV world', r)
+//     window.world = world.value = r
+//   })
+// })
 </script>
 <template>
   <TabGroup :selectedIndex="selectedTab" @change="console.log('character changed!')">

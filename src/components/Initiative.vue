@@ -9,7 +9,6 @@ import { updateActor, requestCharacterDetails } from '@/utils/api'
 import Statistic from '@/components/Statistic.vue'
 
 const actor = inject<Ref<Actor>>('actor')!
-const world: any = inject('world')!
 
 const initSkills: any = computed(() => {
   const skills = Object.values(actor?.value?.system?.skills ?? {})
@@ -23,12 +22,11 @@ watch(selected, async (newSkill, oldSkill) => {
   })
 })
 
-const activeScene = computed(() => {
-  return world.value?.scenes?.find((s: any) => s.active)
-})
+// const activeScene = computed(() => {
+//   return world.value?.scenes?.find((s: any) => s.active)
+// })
 </script>
 <template>
-  <div>{{ activeScene?.name }}</div>
   <div class="px-6 py-4 border-b flex gap-4">
     <Statistic heading="Initiative" :modifiers="actor?.system?.initiative?.modifiers">
       {{
