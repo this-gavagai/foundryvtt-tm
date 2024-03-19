@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { useServer } from '@/utils/server'
+import { useServer } from '@/composables/server'
 
 console.log('loaded')
 

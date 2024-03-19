@@ -1,5 +1,7 @@
 <script setup lang="ts">
 // TODO: Implement hamburger menu popout, with settings and meta-options like "Rest"
+import type { Ref } from 'vue'
+import type { Actor } from '@/utils/pf2e-types'
 import { inject, computed, watch, ref } from 'vue'
 import {
   Listbox,
@@ -15,7 +17,7 @@ import HitPoints from './HitPoints.vue'
 import HeroPoints from './HeroPoints.vue'
 
 const { world } = useWorld()
-const actor: any = inject('actor')
+const actor: Ref<Actor | undefined> = inject('actor')!
 const changeChar: any = inject('changeChar')
 </script>
 
@@ -62,7 +64,7 @@ const changeChar: any = inject('changeChar')
               v-slot="{ active, selected }"
               v-for="character in world.actors
                 ?.filter((a: any) => a.ownership[world.userId] === 3)
-                ?.filter((a: any) => a._id !== actor._id)"
+                ?.filter((a: any) => a._id !== actor?._id)"
               :key="character?._id"
               :value="character"
               :disabled="character?.unavailable"

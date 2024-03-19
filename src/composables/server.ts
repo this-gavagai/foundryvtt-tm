@@ -1,8 +1,8 @@
 import { ref } from 'vue'
 import io, { Socket } from 'socket.io-client'
-import { type EventsMap } from './foundry-types'
+// import { type EventsMap } from './foundry-types'
 
-type FoundrySocket = Socket<EventsMap, EventsMap>
+// type FoundrySocket = Socket<EventsMap, EventsMap>
 
 const socket = ref<Socket>()
 
@@ -25,7 +25,7 @@ function getCookiesMap(cookiesString: string) {
 
 function connectToFoundry(url: URL, sessionId: string, keepAlive = false) {
   // console.log('connecting...')
-  return new Promise<FoundrySocket>((ful, rej) => {
+  return new Promise<Socket>((ful, rej) => {
     const socketIoUrl = new URL('./socket.io', url)
     const socket = io(socketIoUrl.origin, {
       upgrade: false,

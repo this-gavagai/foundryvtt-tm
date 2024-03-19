@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useServer } from '@/utils/server'
+import { useServer } from '@/composables/server'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
 import { SignedNumber } from '@/utils/utilities'
 
@@ -96,3 +96,4 @@ defineExpose({ openModal, closeModal })
     </Dialog>
   </TransitionRoot>
 </template>
+@/composables/server

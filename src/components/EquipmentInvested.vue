@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { inject } from 'vue'
+import type { Ref } from 'vue'
 import type { Item, Actor } from '@/utils/pf2e-types'
-import { useServer } from '@/utils/server'
+import { inject } from 'vue'
+import { useServer } from '@/composables/server'
 import { mergeDeep } from '@/utils/utilities'
 
 const props = defineProps(['actor'])
-const actor: any = inject('actor')
+const actor: Ref<Actor | undefined> = inject('actor')!
 
 const { socket } = useServer()
 
 function toggleInvested(item: Item) {
+  if (!actor.value) return
   socket.value.emit(
     'modifyDocument',
     {
@@ -31,7 +33,7 @@ function toggleInvested(item: Item) {
     (x: any) => {
       console.log(x)
       x.result.forEach((change: any) => {
-        let inventoryItem = actor.value.items.find((a: any) => a._id == change._id)
+        let inventoryItem = actor.value?.items.find((a: any) => a._id == change._id)
         mergeDeep(inventoryItem, change)
       })
     }
@@ -41,7 +43,7 @@ function toggleInvested(item: Item) {
 <template>
   <ul>
     <li
-      v-for="i in actor.items.filter(
+      v-for="i in actor?.items.filter(
         (i: Item) => i.system?.equipped?.invested === true || i.system?.equipped?.invested === false
       )"
       :class="i.system?.equipped?.invested ? 'text-black' : 'text-gray-300'"
@@ -53,3 +55,4 @@ function toggleInvested(item: Item) {
     </li>
   </ul>
 </template>
+@/composables/server

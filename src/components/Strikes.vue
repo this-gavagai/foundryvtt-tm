@@ -1,19 +1,20 @@
 <script setup lang="ts">
 // TODO: Handle unarmed strike (null strike on infomodal)
+import type { Ref } from 'vue'
 import type { Item, Actor } from '@/utils/pf2e-types'
 import { inject, ref, computed } from 'vue'
 import { formatModifier } from '@/utils/utilities'
 import { rollCheck } from '@/utils/api'
 
 import InfoModal from './InfoModal.vue'
-// import { useServer } from '@/utils/server'
+// import { useServer } from '@/composables/server'
 // import { capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
 
 // const infoModal: any = inject('infoModal')
 const strikeModal = ref()
-const actor: Actor = inject('actor')!
+const actor: Ref<Actor> = inject('actor')!
 
-const viewedItem = computed(() => actor.value.system.actions?.[strikeModal.value?.itemId])
+const viewedItem = computed(() => actor.value?.system?.actions?.[strikeModal.value?.itemId])
 
 // const { socket } = useServer()
 
@@ -51,10 +52,10 @@ const viewedItem = computed(() => actor.value.system.actions?.[strikeModal.value
     <h3 class="underline text-2xl py-2">Strikes</h3>
     <ul>
       <li
-        v-for="(strike, i) in actor.system?.actions
+        v-for="(strike, i) in actor?.system?.actions
           ?.filter((a: any) => a.type === 'strike')
           .map((a: any) => {
-            a['item'] = actor.items.find((i: Item) => i.system?.slug === a?.slug)
+            a['item'] = actor.items?.find((i: Item) => i.system?.slug === a?.slug)
             return a
           })
           .filter(

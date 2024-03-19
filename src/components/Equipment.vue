@@ -11,10 +11,11 @@
 // TODO: (feature) add ability to add new items
 // TODO: (feature) add weight, encumbrance, etc.
 
+import type { Ref } from 'vue'
 import type { Item, FeatCategory, Actor } from '@/utils/pf2e-types'
 import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
-import { useServer } from '@/utils/server'
+import { useServer } from '@/composables/server'
 import { mergeDeep } from '@/utils/utilities'
 import { inventoryTypes } from '@/utils/constants'
 
@@ -23,18 +24,21 @@ import Modal from '@/components/Modal.vue'
 import InfoModal from '@/components/InfoModal.vue'
 
 const { socket } = useServer()
-const actor: any = inject('actor')
+const actor: Ref<Actor | undefined> = inject('actor')!
 const infoModal = ref()
 const investedModal = ref()
-const item = computed(() => actor.value.items?.find((i: any) => i._id === infoModal?.value?.itemId))
+const item = computed(
+  () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
+)
 
-function updateCarry(item: Item, systemUpdate: {}) {
+function updateCarry(item: Item | undefined, systemUpdate: {}) {
+  if (!item) return
   socket.value.emit(
     'modifyDocument',
     {
       action: 'update',
       type: 'Item',
-      parentUuid: 'Actor.' + actor.value._id,
+      parentUuid: 'Actor.' + actor.value?._id,
       options: { diff: true, render: true },
       updates: [
         {
@@ -46,7 +50,7 @@ function updateCarry(item: Item, systemUpdate: {}) {
     (x: any) => {
       console.log(x)
       x.result.forEach((change: any) => {
-        let inventoryItem = actor.value.items.find((a: any) => a._id == change._id)
+        let inventoryItem = actor.value?.items.find((a: any) => a._id == change._id)
         mergeDeep(inventoryItem, change)
       })
     }
@@ -99,7 +103,7 @@ const toggleSet = [
     toggleTrigger: () => {
       console.log(actor)
       updateCarry(item.value, {
-        containerId: actor.value.items.find((i: any) => i.type === 'backpack')?._id,
+        containerId: actor.value?.items.find((i: any) => i.type === 'backpack')?._id,
         equipped: {
           carryType: 'stowed',
           handsHeld: 0
@@ -126,7 +130,7 @@ const toggleSet = [
   <div class="px-6 py-4">
     <ul>
       <li
-        v-for="item in actor.items.filter((i: Item) => i.system?.equipped?.handsHeld > 0)"
+        v-for="item in actor?.items.filter((i: Item) => i.system?.equipped?.handsHeld > 0)"
         @click="infoModal.open(item._id)"
         class="cursor-pointer text-2xl whitespace-nowrap"
       >
@@ -144,13 +148,13 @@ const toggleSet = [
     </ul>
     <div>
       <span class="cursor-pointer text-sm text-gray-500" @click="investedModal.open()">
-        ({{ actor.items.filter((i: Item) => i.system?.equipped?.invested).length }}/10 Invested)
+        ({{ actor?.items.filter((i: Item) => i.system?.equipped?.invested).length }}/10 Invested)
       </span>
     </div>
     <dl v-for="inventoryType in inventoryTypes" class="pt-4 whitespace-nowrap">
       <dt class="underline text-lg only:hidden">{{ inventoryType.title }}</dt>
       <dd
-        v-for="item in actor.items.filter(
+        v-for="item in actor?.items.filter(
           (i: Item) => i.type === inventoryType.type && !i.system?.containerId
         )"
         class="cursor-pointer"
@@ -167,7 +171,7 @@ const toggleSet = [
         </div>
         <ul class="pb-2" v-if="item.type === 'backpack'">
           <li
-            v-for="stowed in actor.items.filter((i: Item) => i.system?.containerId === item._id)"
+            v-for="stowed in actor?.items.filter((i: Item) => i.system?.containerId === item._id)"
             @click="infoModal.open(stowed._id)"
           >
             {{ stowed.name }}<span class="text-xs"> x{{ stowed.system.quantity }}</span>
@@ -210,3 +214,4 @@ const toggleSet = [
     </InfoModal>
   </Teleport>
 </template>
+@/composables/server

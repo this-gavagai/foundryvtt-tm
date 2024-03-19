@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { Ref } from 'vue'
+import type { Actor } from '@/utils/pf2e-types'
 import { inject, ref, computed } from 'vue'
 import type { Item } from '@/utils/pf2e-types'
 import InfoModal from '@/components/InfoModal.vue'
@@ -7,17 +9,17 @@ import { deleteActorItem, updateActorItem } from '@/utils/api'
 import { capitalize, removeUUIDs, getPath } from '@/utils/utilities'
 
 const infoModal = ref()
-const actor: any = inject('actor')
+const actor: Ref<Actor | undefined> = inject('actor')!
 const viewedItem = computed(
   () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
 )
 
-function deleteEffect(effectId: string) {
-  deleteActorItem(actor, effectId)
+function deleteEffect(effectId: string | undefined) {
+  if (actor.value && effectId) deleteActorItem(actor as Ref<Actor>, effectId)
 }
-function incrementEffectValue(effectId: any, change: number) {
-  const effect = actor.value.items.find((i: any) => i._id === effectId)
-  const newValue = effect.system?.value?.value + change
+function incrementEffectValue(effectId: string | undefined, change: number) {
+  const effect = actor.value?.items.find((i: any) => i._id === effectId)
+  const newValue = effect?.system?.value.value + change
   const update = {
     system: {
       value: {
@@ -25,7 +27,8 @@ function incrementEffectValue(effectId: any, change: number) {
       }
     }
   }
-  updateActorItem(actor, effectId, update, { conditionValue: newValue })
+  if (actor.value && effectId)
+    updateActorItem(actor as Ref<Actor>, effectId, update, { conditionValue: newValue })
 }
 </script>
 <template>

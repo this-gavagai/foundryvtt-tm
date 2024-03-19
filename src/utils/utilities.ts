@@ -15,8 +15,8 @@ export function mergeDeep(target: any, source: any) {
   return target
 }
 
-export function capitalize(s: string) {
-  return s?.[0]?.toUpperCase() + s?.slice(1)
+export function capitalize(s: string | undefined) {
+  return s ? s?.[0]?.toUpperCase() + s?.slice(1) : null
 }
 export function makeTraits(traits: string[] | undefined): string {
   // todo: on boost eidolon spell: traits for "Arcane" and "Concentrate" are missing

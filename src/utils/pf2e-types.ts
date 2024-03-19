@@ -1,9 +1,11 @@
 export interface Actor {
-  _id?: string
-  feats?: [FeatCategory]
-  items?: [Item]
-  inventory?: any
-  system?: System
+  _id: string
+  name: string
+  feats: [FeatCategory]
+  items: [Item]
+  inventory: any
+  system: System
+  prototypeToken: any
 }
 
 export interface Item {
@@ -42,6 +44,10 @@ export interface System {
   initiative: any
   equipped: any
   containerId: any
+  details: any
+  value: any
+  quantity: any
+  price: any
 }
 
 export interface Skill {

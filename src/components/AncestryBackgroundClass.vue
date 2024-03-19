@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import type { Ref } from 'vue'
+import type { Actor } from '@/utils/pf2e-types'
 import { inject, computed, watch, ref } from 'vue'
 import { capitalize, removeUUIDs } from '@/utils/utilities'
 import InfoModal from '@/components/InfoModal.vue'
 const infoModal = ref()
 
-const actor: any = inject('actor')!
+const actor: Ref<Actor | undefined> = inject('actor')!
 const ancestry = computed(() => actor.value?.items?.find((x: any) => x.type === 'ancestry'))
 const heritage = computed(() => actor.value?.items?.find((x: any) => x.type === 'heritage'))
 const background = computed(() => actor.value?.items?.find((x: any) => x.type === 'background'))
@@ -16,12 +18,12 @@ const viewedItem: any = computed(
 <template>
   <div>
     <div class="text-md whitespace-nowrap overflow-hidden cursor-pointer">
-      <span @click="infoModal.open(ancestry._id)">{{ ancestry?.name ?? '-' }}&nbsp;</span>
-      <span @click="infoModal.open(background._id)">{{ background?.name }}</span>
+      <span @click="infoModal.open(ancestry?._id)">{{ ancestry?.name ?? '-' }}&nbsp;</span>
+      <span @click="infoModal.open(background?._id)">{{ background?.name }}</span>
     </div>
     <div
       class="text-md whitespace-nowrap overflow-hidden cursor-pointer"
-      @click="infoModal.open(gameclass._id)"
+      @click="infoModal.open(gameclass?._id)"
     >
       <span>{{ gameclass?.name ?? '-' }}</span>
       <span v-if="actor?.system?.details.level.value">{{
@@ -46,7 +48,7 @@ const viewedItem: any = computed(
         <div v-html="removeUUIDs(viewedItem?.system.description.value)"></div>
         <hr />
         <div v-if="viewedItem?.type === 'ancestry'" class="mt-2">
-          <h3 class="text-lg">{{ heritage.name }}</h3>
+          <h3 class="text-lg">{{ heritage?.name }}</h3>
           <div v-html="heritage?.system.description.value"></div>
         </div>
       </template>

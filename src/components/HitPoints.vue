@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { Ref } from 'vue'
+import type { Actor } from '@/utils/pf2e-types'
 import { inject, ref } from 'vue'
 import { updateActor } from '@/utils/api'
 import { parseIncrement } from '@/utils/utilities'
@@ -6,7 +8,7 @@ import { parseIncrement } from '@/utils/utilities'
 import Statistic from '@/components/Statistic.vue'
 import Modal from '@/components/Modal.vue'
 
-const actor: any = inject('actor')
+const actor: Ref<Actor | undefined> = inject('actor')!
 const hitpointsModal = ref()
 const hpStat = ref()
 const focusTarget = ref(null)

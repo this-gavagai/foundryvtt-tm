@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import type { Ref } from 'vue'
+import type { Actor } from '@/utils/pf2e-types'
 import { inject, ref } from 'vue'
-import { useServer } from '@/utils/server'
+import { useServer } from '@/composables/server'
 import { mergeDeep } from '@/utils/utilities'
 import { updateActor } from '@/utils/api'
 
@@ -10,7 +12,7 @@ import Modal from '@/components/Modal.vue'
 
 import { PlusCircleIcon, MinusCircleIcon } from '@heroicons/vue/24/outline'
 
-const actor: any = inject('actor')
+const actor: Ref<Actor | undefined> = inject('actor')!
 const heropointsModal = ref()
 const counter = ref()
 
@@ -34,3 +36,4 @@ function updateHeroPoints(newTotal: number): void {
     />
   </Statistic>
 </template>
+@/composables/server

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // TODO: (feature) get modifiers onto skill actions (somehow?
-
-import type { Item } from '@/utils/pf2e-types'
+import type { Ref } from 'vue'
+import type { Actor, Item } from '@/utils/pf2e-types'
 const props = defineProps(['actor'])
 import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
@@ -13,9 +13,9 @@ import SkillSelector from './SkillSelector.vue'
 const infoModal = ref()
 const skillSelector = ref()
 
-const actor: any = inject('actor')
+const actor: Ref<Actor | undefined> = inject('actor')!
 const action: any = computed(
-  () => actor.value.items?.find((i: any) => i._id === infoModal?.value?.itemId)
+  () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
 )
 const options: any = computed(() => {
   if (action.value.system?.slug === 'aid') return { statistic: skillSelector.value.selected.slug }
@@ -49,12 +49,12 @@ const actionDefs = new Map<string, any>([
 </script>
 
 <template>
-  <div class="px-6 py-4">
+  <div class="px-6 py-4" v-if="actor">
     <h3 class="underline text-2xl">Actions</h3>
     <ul>
       <li
         v-for="feat in actor.items
-          .filter((i: Item) => i.system.actionType?.value === 'action')
+          ?.filter((i: Item) => i.system.actionType?.value === 'action')
           .filter(
             (i: Item) =>
               !i.system.traits.value.includes('skill') && !actionDefs.get(i.system.slug)?.skill
@@ -68,7 +68,7 @@ const actionDefs = new Map<string, any>([
     <h3 class="underline text-2xl pt-2">Reactions</h3>
     <ul>
       <li
-        v-for="feat in actor.items.filter((i: Item) => i.system.actionType?.value === 'reaction')"
+        v-for="feat in actor.items?.filter((i: Item) => i.system.actionType?.value === 'reaction')"
         class="cursor-pointer"
         @click="infoModal.open(feat._id)"
       >
@@ -78,8 +78,8 @@ const actionDefs = new Map<string, any>([
     <h3 class="underline text-2xl pt-2">Skill Actions</h3>
     <ul>
       <li
-        v-for="feat in actor.items
-          .filter((i: Item) => i.system.actionType?.value === 'action')
+        v-for="feat in actor?.items
+          ?.filter((i: Item) => i.system.actionType?.value === 'action')
           .filter(
             (i: Item) =>
               i.system.traits.value.includes('skill') || actionDefs.get(i.system.slug)?.skill
@@ -110,14 +110,14 @@ const actionDefs = new Map<string, any>([
             ref="skillSelector"
           />
           <button
-            v-if="actionDefs.get(action?.system.slug)"
+            v-if="actor && actionDefs.get(action?.system.slug)"
             type="button"
             class="bg-blue-600 hover:bg-blue-500 text-white inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium focus:outline-none"
             @click="
               () => {
                 actionDefs.get(action.system.slug)['options'] = options
                 characterAction(
-                  actor,
+                  actor!,
                   actionDefs.get(action?.system.slug)?.alias ?? action?.system.slug,
                   actionDefs.get(action?.system.slug)?.options
                 ).then((r) => {

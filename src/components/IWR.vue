@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import type { Ref } from 'vue'
+import type { Actor } from '@/utils/pf2e-types'
 import { inject } from 'vue'
 import { capitalize } from '@/utils/utilities'
 
-const actor: any = inject('actor')
+const actor: Ref<Actor | undefined> = inject('actor')!
 </script>
 <template>
   <div class="px-6 py-4 flex justify-between border-b empty:hidden">

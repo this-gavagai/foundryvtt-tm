@@ -2,11 +2,11 @@
 // TODO: convert everything to a promises based architecture to better support UI
 // TODO: figure out how to make typed optional parameters so I don't need so many blank params in the code
 // TODO: create a custom call that requests owned characters, to replace dependency on 'world' function for this
-import type { Actor } from './pf2e-types'
 import type { Ref } from 'vue'
+import type { Actor } from '@/utils/pf2e-types'
 
 import { mergeDeep } from '@/utils/utilities'
-import { useServer } from '@/utils/server'
+import { useServer } from '@/composables/server'
 import { useThrottleFn } from '@vueuse/core'
 
 interface AckQueue {
@@ -63,15 +63,16 @@ export async function setupSocketListenersForActor(actorId: string, actor: Ref<A
       case 'Item':
         // handle item types
         if (mods.request.parentUuid !== 'Actor.' + actorId) break
+        if (!actor.value) break
         switch (mods.request.action) {
           case 'update':
-            _processUpdates(actor, mods.result)
+            _processUpdates(actor as Ref<Actor>, mods.result)
             break
           case 'create':
-            _processCreates(actor, mods.result)
+            _processCreates(actor as Ref<Actor>, mods.result)
             break
           case 'delete':
-            _processDeletes(actor, mods.result)
+            _processDeletes(actor as Ref<Actor>, mods.result)
             break
           default:
             console.log('item action not handled', mods.request.action, mods)
@@ -88,7 +89,7 @@ export async function setupSocketListenersForActor(actorId: string, actor: Ref<A
   })
 }
 
-function _processDeletes(actor: any, results: []) {
+function _processDeletes(actor: Ref<Actor>, results: []) {
   results.forEach((d: string) => {
     const item = actor.value.items.find((i: any) => i._id === d)
     if (item) {
@@ -98,21 +99,21 @@ function _processDeletes(actor: any, results: []) {
   })
   requestCharacterDetails(actor.value._id)
 }
-function _processUpdates(actor: any, results: []) {
+function _processUpdates(actor: Ref<Actor>, results: []) {
   results.forEach((change: any) => {
     let item = actor.value.items.find((a: any) => a._id == change._id)
     if (item) mergeDeep(item, change)
   })
   requestCharacterDetails(actor.value._id)
 }
-function _processCreates(actor: any, results: []) {
+function _processCreates(actor: Ref<Actor>, results: []) {
   results.forEach((c: any) => {
     actor.value.items.push(c)
   })
   requestCharacterDetails(actor.value._id)
 }
 
-export function updateActor(actor: any, update: {}, additionalOptions = null): Promise<any> {
+export function updateActor(actor: Ref<Actor>, update: {}, additionalOptions = null): Promise<any> {
   const promise = new Promise((resolve, reject) => {
     socket.value.emit(
       'modifyDocument',

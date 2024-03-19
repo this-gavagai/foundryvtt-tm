@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, provide, computed, reactive, watch } from 'vue'
 import { useWakeLock } from '@vueuse/core'
-import { useServer } from './utils/server'
+import { useServer } from './composables/server'
 import { useWorld } from './composables/world'
 
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
@@ -74,3 +74,4 @@ provide('changeChar', changeChar)
     </TabPanels>
   </TabGroup>
 </template>
+./composables/server
