@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 import type { Actor } from '@/utils/pf2e-types'
-import { mergeDeep } from '../utilities'
+import { merge } from 'lodash-es'
 import { requestCharacterDetails } from './setup'
 
 export function _processDeletes(actor: Ref<Actor>, results: []) {
@@ -16,7 +16,7 @@ export function _processDeletes(actor: Ref<Actor>, results: []) {
 export function _processUpdates(actor: Ref<Actor>, results: []) {
   results.forEach((change: any) => {
     let item = actor.value.items.find((a: any) => a._id == change._id)
-    if (item) mergeDeep(item, change)
+    if (item) merge(item, change)
   })
   requestCharacterDetails(actor.value._id)
 }

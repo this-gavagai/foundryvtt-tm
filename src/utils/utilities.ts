@@ -1,20 +1,3 @@
-function isObject(item: any) {
-  return item && typeof item === 'object' && !Array.isArray(item) && item !== null
-}
-export function mergeDeep(target: any, source: any) {
-  if (isObject(target) && isObject(source)) {
-    for (const key in source) {
-      if (isObject(source[key])) {
-        if (!target[key]) Object.assign(target, { [key]: {} })
-        mergeDeep(target[key], source[key])
-      } else {
-        Object.assign(target, { [key]: source[key] })
-      }
-    }
-  }
-  return target
-}
-
 export function capitalize(s: string | undefined) {
   return s ? s?.[0]?.toUpperCase() + s?.slice(1) : null
 }
@@ -80,12 +63,8 @@ export function getPath(path: string) {
 }
 
 export function parseIncrement(input: string, startingValue: number): number {
-  console.log(input)
   const transform = [...input.matchAll(/([+-]){0,1}([0-9]+)$/g)]?.[0]
   if (!transform) return startingValue
-
-  console.log('here', input, transform)
-  console.log([...input.matchAll(/^([+-]){0,1}([0-9]+)$/g)])
   let newValue: number
   if (transform[1] === '+') {
     newValue = startingValue + (Number(transform[2]) ?? 0)

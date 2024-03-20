@@ -2,7 +2,6 @@ import type { Ref } from 'vue'
 import type { Actor } from '@/utils/pf2e-types'
 import { useServer } from '@/composables/server'
 import { _processCreates, _processUpdates, _processDeletes } from './_helpers'
-import { mergeDeep } from '@/utils/utilities'
 import { merge } from 'lodash-es'
 // import * as _ from 'lodash-es'
 

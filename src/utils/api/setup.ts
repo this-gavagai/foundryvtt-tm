@@ -2,7 +2,7 @@ import type { Ref } from 'vue'
 import type { Actor } from '@/utils/pf2e-types'
 import { useThrottleFn } from '@vueuse/core'
 
-import { mergeDeep } from '@/utils/utilities'
+import { merge } from 'lodash-es'
 import { useServer } from '@/composables/server'
 import { _processCreates, _processUpdates, _processDeletes } from './_helpers'
 
@@ -22,7 +22,7 @@ export async function setupSocketListenersForActor(actorId: string, actor: Ref<A
       case 'updateCharacterDetails':
         if (args.actorId === actorId) {
           actor.value = args.actor
-          mergeDeep(actor.value!.system, args.system)
+          merge(actor.value!.system, args.system)
           actor.value!.feats = args.feats
         }
         break
@@ -41,7 +41,7 @@ export async function setupSocketListenersForActor(actorId: string, actor: Ref<A
       case 'Actor':
         mods.result.forEach((change: any) => {
           if (actor && change._id === actor.value?._id) {
-            mergeDeep(actor.value, change)
+            merge(actor.value, change)
           }
         })
         if (actor.value) requestCharacterDetails(actor.value!._id!)

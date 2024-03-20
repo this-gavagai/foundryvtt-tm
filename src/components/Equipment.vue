@@ -16,7 +16,7 @@ import type { Item, FeatCategory, Actor } from '@/utils/pf2e-types'
 import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
 import { useServer } from '@/composables/server'
-import { mergeDeep } from '@/utils/utilities'
+import { merge } from 'lodash-es'
 import { inventoryTypes } from '@/utils/constants'
 
 import EquipmentInvested from '@/components/EquipmentInvested.vue'
@@ -51,7 +51,7 @@ function updateCarry(item: Item | undefined, systemUpdate: {}) {
       console.log(x)
       x.result.forEach((change: any) => {
         let inventoryItem = actor.value?.items.find((a: any) => a._id == change._id)
-        mergeDeep(inventoryItem, change)
+        merge(inventoryItem, change)
       })
     }
   )
