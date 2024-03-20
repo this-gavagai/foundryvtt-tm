@@ -7,14 +7,14 @@ import { useCharacterPicker } from './composables/characterPicker'
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 import Character from '@/components/Character.vue'
 
-const urlId = new URLSearchParams(window.location.search).get('id')
-const { connectToServer } = useServer()
-
 // TODO: figure out why this isn't working correctly
 const wakeLock = reactive(useWakeLock())
 wakeLock.request('screen')
 
+const urlId = new URLSearchParams(window.location.search).get('id')
 const world = ref()
+
+const { connectToServer } = useServer()
 connectToServer(window.location.origin).then((socket: any) => {
   socket.value.emit('world', (r: any) => {
     console.log('TM-RECV world', r)
@@ -24,19 +24,11 @@ connectToServer(window.location.origin).then((socket: any) => {
 })
 provide('world', world)
 
-const selectedTab = ref(0)
+const { characterList, activeIndex } = useCharacterPicker(urlId, world)
 const characterPanels = ref<any[]>([])
-const characterIds = computed(() => {
-  let characters = new Set<string>()
-  if (urlId) characters.add(urlId)
-  world.value?.actors
-    ?.filter((a: any) => a.ownership[world.value.userId] === 3)
-    .forEach((a: any) => characters.add(a._id))
-  return [...characters]
-})
 watch(
   // set window variables. This watch can be deleted on production
-  characterIds,
+  characterList,
   (newValue, oldValue) => {
     window.altCharacters = new Map([])
     console.log('chars', newValue)
@@ -50,23 +42,18 @@ watch(
   },
   { immediate: true }
 )
-
-function changeChar(id: string): void {
-  selectedTab.value = characterIds.value.indexOf(id)
-}
-provide('changeChar', changeChar)
 </script>
 <template>
-  <TabGroup :selectedIndex="selectedTab" @change="console.log('character changed!')">
+  <TabGroup :selectedIndex="activeIndex" @change="console.log('character changed!')">
     <TabList class="h-12 bg-white gap-0 border border-gray-300 text-xl hidden">
       <Tab
         class="p-2 ui-selected:bg-blue-300 focus:outline-none relative top-0"
-        v-for="c in characterIds"
+        v-for="c in characterList"
         :key="c"
       />
     </TabList>
     <TabPanels>
-      <TabPanel v-for="(c, index) in characterIds" :key="c" :unmount="false" tabindex="-1">
+      <TabPanel v-for="(c, index) in characterList" :key="c" :unmount="false" tabindex="-1">
         <Character :characterId="c" :ref="(el: any) => (characterPanels[index] = el)" />
       </TabPanel>
     </TabPanels>

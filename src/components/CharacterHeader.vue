@@ -3,13 +3,8 @@
 import type { Ref } from 'vue'
 import type { Actor } from '@/utils/pf2e-types'
 import { inject, computed, watch, ref } from 'vue'
-import {
-  Listbox,
-  ListboxLabel,
-  ListboxButton,
-  ListboxOptions,
-  ListboxOption
-} from '@headlessui/vue'
+import { useCharacterPicker } from '@/composables/characterPicker'
+import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { getPath } from '@/utils/utilities'
 import { Bars3Icon } from '@heroicons/vue/24/solid'
 import HitPoints from './HitPoints.vue'
@@ -18,6 +13,7 @@ import HeroPoints from './HeroPoints.vue'
 const world: any = inject('world')
 const actor: Ref<Actor | undefined> = inject('actor')!
 const changeChar: any = inject('changeChar')
+const { characterList, pickCharacter } = useCharacterPicker()
 </script>
 
 <template>
@@ -54,12 +50,12 @@ const changeChar: any = inject('changeChar')
           <ListboxOptions
             class="absolute mt-1 empty:hidden max-h-60 w-6/12 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
           >
-            <ListboxOption v-if="!world.actors"
+            <ListboxOption v-if="!world?.actors"
               ><div class="text-gray-400 relative select-none py-2 pl-6 pr-4">
                 Loading...
               </div></ListboxOption
             >
-            <ListboxOption
+            <!-- <ListboxOption
               v-slot="{ active, selected }"
               v-for="character in world.actors
                 ?.filter((a: any) => a.ownership[world.userId] === 3)
@@ -68,6 +64,15 @@ const changeChar: any = inject('changeChar')
               :value="character"
               :disabled="character?.unavailable"
               @click="changeChar(character._id)"
+            > -->
+            <ListboxOption
+              v-slot="{ active, selected }"
+              v-for="character in characterList
+                .filter((c: string) => c !== actor?._id)
+                .map((c: string) => world?.actors.find((a: Actor) => a._id === c))"
+              :key="character._id"
+              :value="character"
+              @click="pickCharacter(character._id)"
             >
               <div
                 :class="[
@@ -81,7 +86,6 @@ const changeChar: any = inject('changeChar')
           </ListboxOptions>
         </Listbox>
       </h3>
-      <!-- <AncestryBackgroundClass /> -->
       <div class="flex gap-8 align-middle">
         <HitPoints />
         <HeroPoints />
