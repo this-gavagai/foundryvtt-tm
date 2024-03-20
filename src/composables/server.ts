@@ -1,11 +1,11 @@
+// TODO: connectToFoundry and connectToServer can be consolidated
+
 import { ref } from 'vue'
 import io, { Socket } from 'socket.io-client'
 // import { type EventsMap } from './foundry-types'
-
 // type FoundrySocket = Socket<EventsMap, EventsMap>
 
 const socket = ref<Socket>()
-
 const foundryUrl = ref<URL>(new URL('http://localhost'))
 const sessionId = ref<String>('')
 const foundryUsername = ref<String>('')
@@ -73,6 +73,24 @@ async function connectToServer(url: URL) {
     })
 }
 
+function getSocket() {
+  return new Promise(function (resolve: any) {
+    ;(function waitForSocket() {
+      if (socket.value) return resolve(socket.value)
+      console.log('waiting on socket...')
+      setTimeout(waitForSocket, 100)
+    })()
+  })
+}
+
 export function useServer(): any {
-  return { foundryUrl, sessionId, foundryUsername, foundryPassword, socket, connectToServer }
+  return {
+    foundryUrl,
+    sessionId,
+    foundryUsername,
+    foundryPassword,
+    socket,
+    connectToServer,
+    getSocket
+  }
 }

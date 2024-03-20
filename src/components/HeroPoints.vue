@@ -3,7 +3,6 @@ import type { Ref } from 'vue'
 import type { Actor } from '@/utils/pf2e-types'
 import { inject, ref } from 'vue'
 import { useServer } from '@/composables/server'
-import { mergeDeep } from '@/utils/utilities'
 import { updateActor } from '@/utils/api'
 
 import Statistic from '@/components/Statistic.vue'
@@ -19,9 +18,8 @@ const counter = ref()
 const { socket } = useServer()
 
 function updateHeroPoints(newTotal: number): void {
-  updateActor(actor, { system: { resources: { heroPoints: { value: newTotal } } } }).then((r) =>
-    console.log(r)
-  )
+  if (actor.value)
+    updateActor(actor as Ref<Actor>, { system: { resources: { heroPoints: { value: newTotal } } } })
 }
 </script>
 <template>
