@@ -2,7 +2,7 @@ import type { Actor } from '@/utils/pf2e-types'
 import { useServer } from '@/composables/server'
 import { pushToAckQueue } from './setup'
 
-const { socket, getSocket } = useServer()
+const { getSocket } = useServer()
 
 export async function castSpell(
   actor: Actor,

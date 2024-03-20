@@ -5,16 +5,21 @@ import { _processCreates, _processUpdates, _processDeletes } from './_helpers'
 import { merge } from 'lodash-es'
 // import * as _ from 'lodash-es'
 
-const { socket, getSocket } = useServer()
+const { getSocket } = useServer()
 
-export function updateActor(actor: Ref<Actor>, update: {}, additionalOptions = null): Promise<any> {
+export async function updateActor(
+  actor: Ref<Actor>,
+  update: {},
+  additionalOptions: null | { [key: string]: any } = null
+): Promise<any> {
+  const socket = await getSocket()
   const promise = new Promise((resolve, reject) => {
-    socket.value.emit(
+    socket.emit(
       'modifyDocument',
       {
         action: 'update',
         type: 'Actor',
-        options: { diff: true, render: true },
+        options: { diff: true, render: true, ...additionalOptions },
         updates: [
           {
             _id: actor.value._id,
@@ -33,14 +38,15 @@ export function updateActor(actor: Ref<Actor>, update: {}, additionalOptions = n
   return promise
 }
 
-export function updateActorItem(
+export async function updateActorItem(
   actor: Ref<Actor>,
   itemId: string,
   update: {},
-  additionalOptions: { [key: string]: any }
+  additionalOptions: null | { [key: string]: any } = null
 ): Promise<any> {
+  const socket = await getSocket()
   const promise = new Promise((resolve, reject) => {
-    socket.value.emit(
+    socket.emit(
       'modifyDocument',
       {
         action: 'update',
@@ -63,9 +69,10 @@ export function updateActorItem(
   return promise
 }
 
-export function deleteActorItem(actor: Ref<Actor>, itemId: string): Promise<any> {
+export async function deleteActorItem(actor: Ref<Actor>, itemId: string): Promise<any> {
+  const socket = await getSocket()
   const promise = new Promise((resolve, reject) => {
-    socket.value.emit(
+    socket.emit(
       'modifyDocument',
       {
         action: 'delete',

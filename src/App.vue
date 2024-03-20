@@ -2,31 +2,37 @@
 import { ref, provide, computed, reactive, watch } from 'vue'
 import { useWakeLock } from '@vueuse/core'
 import { useServer } from './composables/server'
-import { useWorld } from './composables/world'
+import { useCharacterPicker } from './composables/characterPicker'
 
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 import Character from '@/components/Character.vue'
 
 const urlId = new URLSearchParams(window.location.search).get('id')
+const { connectToServer } = useServer()
 
 // TODO: figure out why this isn't working correctly
 const wakeLock = reactive(useWakeLock())
 wakeLock.request('screen')
 
-const { socket, connectToServer } = useServer()
-const { world } = useWorld()
-// provide('world', world)
+const world = ref()
+connectToServer(window.location.origin).then((socket: any) => {
+  socket.value.emit('world', (r: any) => {
+    console.log('TM-RECV world', r)
+    window.world = world.value = r
+  })
+  socket.value.emit('module.tablemate', { action: 'anybodyHome' })
+})
+provide('world', world)
 
 const selectedTab = ref(0)
 const characterPanels = ref<any[]>([])
 const characterIds = computed(() => {
-  let characters = []
-  if (urlId) characters.push(urlId)
+  let characters = new Set<string>()
+  if (urlId) characters.add(urlId)
   world.value?.actors
     ?.filter((a: any) => a.ownership[world.value.userId] === 3)
-    ?.filter((a: any) => a._id !== urlId)
-    .forEach((a: any) => characters.push(a._id))
-  return characters
+    .forEach((a: any) => characters.add(a._id))
+  return [...characters]
 })
 watch(
   // set window variables. This watch can be deleted on production
@@ -49,14 +55,6 @@ function changeChar(id: string): void {
   selectedTab.value = characterIds.value.indexOf(id)
 }
 provide('changeChar', changeChar)
-
-// TODO: is gathering the world value really useful anymore? Better to use it just as a fallback?
-// connectToServer(window.location.origin).then(() => {
-//   socket.value.emit('world', (r: any) => {
-//     console.log('TM-RECV world', r)
-//     window.world = world.value = r
-//   })
-// })
 </script>
 <template>
   <TabGroup :selectedIndex="selectedTab" @change="console.log('character changed!')">
@@ -74,4 +72,3 @@ provide('changeChar', changeChar)
     </TabPanels>
   </TabGroup>
 </template>
-./composables/server

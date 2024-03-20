@@ -10,13 +10,12 @@ import {
   ListboxOptions,
   ListboxOption
 } from '@headlessui/vue'
-import { useWorld } from '@/composables/world'
 import { getPath } from '@/utils/utilities'
 import { Bars3Icon } from '@heroicons/vue/24/solid'
 import HitPoints from './HitPoints.vue'
 import HeroPoints from './HeroPoints.vue'
 
-const { world } = useWorld()
+const world: any = inject('world')
 const actor: Ref<Actor | undefined> = inject('actor')!
 const changeChar: any = inject('changeChar')
 </script>

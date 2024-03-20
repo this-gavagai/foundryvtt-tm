@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { Actor } from '@/utils/pf2e-types'
 import type { Ref } from 'vue'
-import { ref, provide, watch } from 'vue'
+import { ref, provide, watch, inject } from 'vue'
 import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
 
-import { useWorld } from '@/composables/world'
+// import { useWorld } from '@/composables/world'
 import { requestCharacterDetails, setupSocketListenersForActor } from '@/utils/api'
 
 import cowled from '@/assets/icons/cowled.svg'
@@ -32,10 +32,10 @@ import IWR from '@/components/IWR.vue'
 const props = defineProps(['characterId'])
 
 // base data
-const { world } = useWorld()
 const actor: Ref<Actor | undefined> = ref()
 provide('actor', actor)
 
+const world: any = inject('world')
 // load character from world value if no character details received
 watch(world, () => {
   if (world.value?.actors && !actor.value?._id) {
