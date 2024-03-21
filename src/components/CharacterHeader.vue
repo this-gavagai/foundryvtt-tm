@@ -3,7 +3,7 @@
 import type { Ref } from 'vue'
 import type { Actor } from '@/utils/pf2e-types'
 import { inject, computed, watch, ref } from 'vue'
-import { useCharacterPicker } from '@/composables/characterPicker'
+import { useCharacterSelect } from '@/composables/characterSelect'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { getPath } from '@/utils/utilities'
 import { Bars3Icon } from '@heroicons/vue/24/solid'
@@ -13,7 +13,7 @@ import HeroPoints from './HeroPoints.vue'
 const world: any = inject('world')
 const actor: Ref<Actor | undefined> = inject('actor')!
 const changeChar: any = inject('changeChar')
-const { characterList, pickCharacter } = useCharacterPicker()
+const { characterList } = useCharacterSelect()
 </script>
 
 <template>
@@ -55,16 +55,6 @@ const { characterList, pickCharacter } = useCharacterPicker()
                 Loading...
               </div></ListboxOption
             >
-            <!-- <ListboxOption
-              v-slot="{ active, selected }"
-              v-for="character in world.actors
-                ?.filter((a: any) => a.ownership[world.userId] === 3)
-                ?.filter((a: any) => a._id !== actor?._id)"
-              :key="character?._id"
-              :value="character"
-              :disabled="character?.unavailable"
-              @click="changeChar(character._id)"
-            > -->
             <ListboxOption
               v-slot="{ active, selected }"
               v-for="character in characterList
@@ -72,7 +62,7 @@ const { characterList, pickCharacter } = useCharacterPicker()
                 .map((c: string) => world?.actors.find((a: Actor) => a._id === c))"
               :key="character._id"
               :value="character"
-              @click="pickCharacter(character._id)"
+              @click="$emit('pickCharacter', character._id)"
             >
               <div
                 :class="[
@@ -94,3 +84,4 @@ const { characterList, pickCharacter } = useCharacterPicker()
     <Bars3Icon class="h-10 w-10 my-auto text-gray-600 border-2 border-gray-600 rounded-md p-1" />
   </div>
 </template>
+@/composables/characterSelect

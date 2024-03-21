@@ -1,18 +1,20 @@
 <script setup lang="ts">
-import { ref, provide, computed, reactive, watch } from 'vue'
+import { ref, provide, reactive, watch, watchPostEffect } from 'vue'
 import { useWakeLock } from '@vueuse/core'
 import { useServer } from './composables/server'
-import { useCharacterPicker } from './composables/characterPicker'
+import { useCharacterSelect } from './composables/characterSelect'
 
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 import Character from '@/components/Character.vue'
 
 // TODO: figure out why this isn't working correctly
-const wakeLock = reactive(useWakeLock())
+// const wakeLock = reactive(useWakeLock())
+const wakeLock = useWakeLock()
 wakeLock.request('screen')
 
 const urlId = new URLSearchParams(window.location.search).get('id')
-const world = ref()
+const world: any = ref()
+provide('world', world)
 
 const { connectToServer } = useServer()
 connectToServer(window.location.origin).then((socket: any) => {
@@ -22,26 +24,18 @@ connectToServer(window.location.origin).then((socket: any) => {
   })
   socket.value.emit('module.tablemate', { action: 'anybodyHome' })
 })
-provide('world', world)
 
-const { characterList, activeIndex } = useCharacterPicker(urlId, world)
+const activeIndex = ref<number>(0)
+const { characterList } = useCharacterSelect(urlId, world)
 const characterPanels = ref<any[]>([])
-watch(
-  // set window variables. This watch can be deleted on production
-  characterList,
-  (newValue, oldValue) => {
-    window.altCharacters = new Map([])
-    console.log('chars', newValue)
-    setTimeout(() => {
-      characterPanels.value.forEach((panel: any) => {
-        const id = panel.actor?._id
-        if (id && id === newValue[0]) window.actor = panel.actor
-        else window.altCharacters.set(id, panel.actor)
-      })
-    }, 100)
-  },
-  { immediate: true }
-)
+// set window variables. This watchEffect can be removed on production
+watchPostEffect(() => {
+  window.altCharacters = new Map([])
+  characterPanels.value.forEach((panel: any) => {
+    if (panel.actor?._id === urlId) window.actor = panel.actor
+    else window.altCharacters.set(panel.actor?._id, panel.actor)
+  })
+})
 </script>
 <template>
   <TabGroup :selectedIndex="activeIndex" @change="console.log('character changed!')">
@@ -54,7 +48,11 @@ watch(
     </TabList>
     <TabPanels>
       <TabPanel v-for="(c, index) in characterList" :key="c" :unmount="false" tabindex="-1">
-        <Character :characterId="c" :ref="(el: any) => (characterPanels[index] = el)" />
+        <Character
+          :characterId="c"
+          :ref="(el: any) => (characterPanels[index] = el)"
+          @pickCharacter="(id: string) => (activeIndex = characterList.indexOf(id))"
+        />
       </TabPanel>
     </TabPanels>
   </TabGroup>

@@ -7,7 +7,6 @@ import { useServer } from '@/composables/server'
 import Macro from '@/components/Macro.vue'
 
 const actor: Ref<Actor | undefined> = inject('actor')!
-const { socket } = useServer()
 const props = defineProps(['skill', 'props'])
 </script>
 <template>

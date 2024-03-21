@@ -15,7 +15,7 @@ const viewedItem = computed(
 )
 
 function deleteEffect(effectId: string | undefined) {
-  if (actor.value && effectId) deleteActorItem(actor as Ref<Actor>, effectId)
+  if (actor.value && effectId) deleteActorItem(actor, effectId)
 }
 function incrementEffectValue(effectId: string | undefined, change: number) {
   const effect = actor.value?.items.find((i: any) => i._id === effectId)
@@ -28,7 +28,7 @@ function incrementEffectValue(effectId: string | undefined, change: number) {
     }
   }
   if (actor.value && effectId)
-    updateActorItem(actor as Ref<Actor>, effectId, update, { conditionValue: newValue })
+    updateActorItem(actor, effectId, update, { conditionValue: newValue })
 }
 </script>
 <template>

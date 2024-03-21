@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// TODO: Getting there with initiative, but it's not responsive now
 import type { Ref } from 'vue'
 import type { Actor } from '@/utils/pf2e-types'
 import { computed, watch, ref, inject } from 'vue'
@@ -7,8 +8,10 @@ import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'
 import { formatModifier } from '@/utils/utilities'
 import { updateActor, requestCharacterDetails } from '@/utils/api'
 import Statistic from '@/components/Statistic.vue'
+import { useCombat } from '@/composables/combat'
 
 const actor = inject<Ref<Actor>>('actor')!
+const world = inject('world')
 
 const initSkills: any = computed(() => {
   const skills = Object.values(actor?.value?.system?.skills ?? {})
@@ -22,13 +25,19 @@ watch(selected, async (newSkill, oldSkill) => {
   })
 })
 
-// const activeScene = computed(() => {
-//   return world.value?.scenes?.find((s: any) => s.active)
-// })
+const { activeScene, activeCombat } = useCombat(world)
+const isCombatant = computed(() => {
+  return activeCombat.value?.combatants.map((a: any) => a.actorId).includes(actor.value?._id)
+})
 </script>
 <template>
   <div class="px-6 py-4 border-b flex gap-4">
-    <Statistic heading="Initiative" :modifiers="actor?.system?.initiative?.modifiers">
+    <Statistic
+      heading="Initiative"
+      :modifiers="actor?.system?.initiative?.modifiers"
+      :allowRoll="isCombatant"
+      :rollAction="() => console.log('rollin')"
+    >
       {{
         formatModifier(
           initSkills.find((s: any) => s?.slug === actor?.system?.initiative.statistic)

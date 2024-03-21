@@ -20,7 +20,8 @@ function updateHitPoints(hp_input: string, temp_input: string) {
   let newTemp = parseIncrement(temp_input, actor.value?.system?.attributes.hp.temp)
   newTemp = Math.max(newTemp, 0)
 
-  updateActor(actor, { system: { attributes: { hp: { value: newHP, temp: newTemp } } } }, null)
+  if (actor.value !== undefined)
+    updateActor(actor, { system: { attributes: { hp: { value: newHP, temp: newTemp } } } }, null)
 }
 </script>
 <template>
@@ -66,7 +67,7 @@ function updateHitPoints(hp_input: string, temp_input: string) {
             class="text-3xl border-2 border-black w-1/3 p-1 mr-4 text-right ml-[32px]"
             name="hp"
             type="input"
-            pattern="[+-]{0,1}[0-9]*"
+            pattern="[\+\-]{0,1}[0-9]*"
             :placeholder="actor?.system?.attributes.hp.value"
             @focus="(e: any) => e.target.select()"
           />
@@ -78,7 +79,7 @@ function updateHitPoints(hp_input: string, temp_input: string) {
             class="text-xl border-2 border-black text-blue-600 w-1/3 p-1 mr-4 text-right ml-[32px]"
             name="temp_hp"
             type="input"
-            pattern="[+-]{0,1}[0-9]*"
+            pattern="[\+\-]{0,1}[0-9]*"
             :placeholder="actor?.system?.attributes.hp.temp"
             @focus="(e: any) => e.target.select()"
           />

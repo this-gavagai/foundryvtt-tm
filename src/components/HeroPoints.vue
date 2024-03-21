@@ -12,14 +12,11 @@ import Modal from '@/components/Modal.vue'
 import { PlusCircleIcon, MinusCircleIcon } from '@heroicons/vue/24/outline'
 
 const actor: Ref<Actor | undefined> = inject('actor')!
-const heropointsModal = ref()
 const counter = ref()
-
-const { socket } = useServer()
 
 function updateHeroPoints(newTotal: number): void {
   if (actor.value)
-    updateActor(actor as Ref<Actor>, { system: { resources: { heroPoints: { value: newTotal } } } })
+    updateActor(actor, { system: { resources: { heroPoints: { value: newTotal } } } })
 }
 </script>
 <template>

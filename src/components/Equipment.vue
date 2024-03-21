@@ -1,9 +1,9 @@
 <script setup lang="ts">
+// TODO: (refactor) switch over to API
 // TODO: (ux) some kind of feedback on the carry toggle on click
 
 // TODO: (bug) figure out how the parenthetical worn style works (system.usage.value: 'worngloves', etc.)
 // TODO: (bug) stowed items sometimes show up as "worn" in the togglebar. Why? Figure out how equipment dynamics work
-// TODO: (refactor) switch over to API
 
 // TODO: (feature) Move between multiple backpacks?
 // TODO: (feature) add ability to change quantity of items
@@ -12,18 +12,16 @@
 // TODO: (feature) add weight, encumbrance, etc.
 
 import type { Ref } from 'vue'
-import type { Item, FeatCategory, Actor } from '@/utils/pf2e-types'
+import type { Item, Actor } from '@/utils/pf2e-types'
 import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
-import { useServer } from '@/composables/server'
-import { merge } from 'lodash-es'
 import { inventoryTypes } from '@/utils/constants'
+import { updateActorItem } from '@/utils/api'
 
 import EquipmentInvested from '@/components/EquipmentInvested.vue'
 import Modal from '@/components/Modal.vue'
 import InfoModal from '@/components/InfoModal.vue'
 
-const { socket } = useServer()
 const actor: Ref<Actor | undefined> = inject('actor')!
 const infoModal = ref()
 const investedModal = ref()
@@ -33,28 +31,7 @@ const item = computed(
 
 function updateCarry(item: Item | undefined, systemUpdate: {}) {
   if (!item) return
-  socket.value.emit(
-    'modifyDocument',
-    {
-      action: 'update',
-      type: 'Item',
-      parentUuid: 'Actor.' + actor.value?._id,
-      options: { diff: true, render: true },
-      updates: [
-        {
-          _id: item._id,
-          system: systemUpdate
-        }
-      ]
-    },
-    (x: any) => {
-      console.log(x)
-      x.result.forEach((change: any) => {
-        let inventoryItem = actor.value?.items.find((a: any) => a._id == change._id)
-        merge(inventoryItem, change)
-      })
-    }
-  )
+  if (actor.value !== undefined) updateActorItem(actor, item._id, systemUpdate)
 }
 
 const toggleSet = [

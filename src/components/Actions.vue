@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// TODO: (feature) get modifiers onto skill actions (somehow?
+// TODO: (feature) get modifiers onto skill actions (somehow?)
 import type { Ref } from 'vue'
 import type { Actor, Item } from '@/utils/pf2e-types'
 const props = defineProps(['actor'])

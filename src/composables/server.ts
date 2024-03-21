@@ -33,10 +33,7 @@ function establishSocket(url: URL, sessionId: string, keepAlive = false) {
       },
       query: { session: sessionId }
     })
-    socket.on('connect', async () => {
-      ful(socket)
-      console.log('socket connected')
-    })
+    socket.on('connect', async () => ful(socket))
     socket.on('connect_error', (e) => rej(e))
   })
 }
@@ -51,14 +48,14 @@ async function connectToServer(url: URL) {
       socket.value.onAny((name, ...args) => {
         if (name === 'userActivity' || (name.match('module.') && !name.match('module.tablemate')))
           return
-        console.log('RECV-TM', name, ...args)
+        console.log('TM-RECV', name, ...args)
       })
       socket.value.onAnyOutgoing((name, ...args) => {
-        console.log('SEND-TM', name, ...args)
+        console.log('TM-SEND', name, ...args)
       })
     })
     .catch((e) => {
-      console.log(e)
+      console.log('Error loading socket: ', e)
     })
   return socket
 }
@@ -67,7 +64,6 @@ function getSocket() {
   return new Promise(function (resolve: any) {
     ;(function waitForSocket() {
       if (socket.value) return resolve(socket.value)
-      console.log('waiting on socket...')
       setTimeout(waitForSocket, 100)
     })()
   })

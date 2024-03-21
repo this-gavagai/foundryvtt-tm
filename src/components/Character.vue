@@ -52,7 +52,7 @@ defineExpose({ actor })
 <template>
   <div class="pb-14">
     <div class="p-0">
-      <CharacterHeader />
+      <CharacterHeader @pickCharacter="(id: string) => $emit('pickCharacter', id)" />
       <TabGroup>
         <TabPanels class="mb-8" tabindex="-1">
           <TabPanel tabindex="-1">

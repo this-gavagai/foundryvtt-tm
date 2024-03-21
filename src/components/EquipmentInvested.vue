@@ -1,43 +1,21 @@
 <script setup lang="ts">
+// TODO: Refactor - switch over to API
 import type { Ref } from 'vue'
 import type { Item, Actor } from '@/utils/pf2e-types'
 import { inject } from 'vue'
-import { useServer } from '@/composables/server'
-import { merge } from 'lodash-es'
+import { updateActorItem } from '@/utils/api'
 
-const props = defineProps(['actor'])
 const actor: Ref<Actor | undefined> = inject('actor')!
 
-const { socket } = useServer()
-
 function toggleInvested(item: Item) {
-  if (!actor.value) return
-  socket.value.emit(
-    'modifyDocument',
-    {
-      action: 'update',
-      type: 'Item',
-      parentUuid: 'Actor.' + actor.value._id,
-      options: { diff: true, render: true },
-      updates: [
-        {
-          _id: item._id,
-          system: {
-            equipped: {
-              invested: !item.system.equipped.invested
-            }
-          }
+  if (actor.value)
+    updateActorItem(actor as Ref<Actor>, item._id, {
+      system: {
+        equipped: {
+          invested: !item.system.equipped.invested
         }
-      ]
-    },
-    (x: any) => {
-      console.log(x)
-      x.result.forEach((change: any) => {
-        let inventoryItem = actor.value?.items.find((a: any) => a._id == change._id)
-        merge(inventoryItem, change)
-      })
-    }
-  )
+      }
+    })
 }
 </script>
 <template>
@@ -55,4 +33,3 @@ function toggleInvested(item: Item) {
     </li>
   </ul>
 </template>
-@/composables/server

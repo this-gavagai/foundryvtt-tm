@@ -15,7 +15,7 @@ const focusTarget = ref()
 function updateExperience(input: string) {
   let newValue: number = parseIncrement(input, actor.value?.system?.details.xp.value)
   newValue = Math.max(newValue, 0)
-  updateActor(actor, { system: { details: { xp: { value: newValue } } } })
+  if (actor.value) updateActor(actor, { system: { details: { xp: { value: newValue } } } })
 }
 </script>
 <template>
@@ -55,7 +55,7 @@ function updateExperience(input: string) {
             class="text-3xl border-2 border-black w-36 p-1 mr-4 text-right"
             name="xp"
             type="number"
-            pattern="[+-]{0,1}[0-9]*"
+            pattern="[\+\-]{0,1}[0-9]*"
             :placeholder="actor?.system?.details.xp.value"
             @focus="(e: any) => e.target.select()"
             ref="focusTarget"

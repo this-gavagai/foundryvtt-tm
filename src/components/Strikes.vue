@@ -7,45 +7,10 @@ import { formatModifier } from '@/utils/utilities'
 import { rollCheck } from '@/utils/api'
 
 import InfoModal from './InfoModal.vue'
-// import { useServer } from '@/composables/server'
-// import { capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
-
-// const infoModal: any = inject('infoModal')
 const strikeModal = ref()
 const actor: Ref<Actor> = inject('actor')!
 
 const viewedItem = computed(() => actor.value?.system?.actions?.[strikeModal.value?.itemId])
-
-// const { socket } = useServer()
-
-// function infoStrike(strike: any) {
-//   if (!strike) return
-//   infoModal.value?.open({
-//     title: strike?.label ?? strike?.item?.name,
-//     description: /*HTML*/ `
-//       <span class="border p-1 mr-2 text-xs">
-//         <span class="pf2-icon text-lg pr-1">1</span>Strike ${strike.variants[0].label}
-//       </span>
-//       <span class="border p-1 mr-2 text-xs">${strike.variants[1].label}</span>
-//       <span class="border p-1 mr-2 text-xs">${strike.variants[2].label}</span>
-//     `,
-//     traits: strike?.weaponTraits.map((t: any) => t.label),
-//     body: /*HTML*/ `
-//       <div>
-//         HI
-//       </div>
-//     `,
-//     iconPath: strike?.imageUrl ?? strike?.item?.img
-//   })
-// }
-// function makeStrike(slug: string, variant: number) {
-//   socket.value.emit('module.tablemate', {
-//     action: 'makeStrike',
-//     characterId: actor.value._id,
-//     strikeSlug: slug,
-//     strikeVariant: variant
-//   })
-// }
 </script>
 <template>
   <div class="px-6">
