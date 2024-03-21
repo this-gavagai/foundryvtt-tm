@@ -5,7 +5,7 @@ import type { Actor, Skill } from '@/utils/pf2e-types'
 import { SignedNumber } from '@/utils/utilities'
 import { inject } from 'vue'
 import Statistic from './Statistic.vue'
-import { rollCheck } from '@/utils/api'
+import { rollCheck } from '@/composables/api'
 
 // import Macro from '@/components/Macro.vue'
 // import CheckModifiers from '@/components/CheckModifiers.vue'
@@ -79,3 +79,4 @@ const actor: Actor = inject('actor')!
         </div> -->
   </div>
 </template>
+@/composables/api

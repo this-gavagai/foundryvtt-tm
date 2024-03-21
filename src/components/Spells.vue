@@ -5,9 +5,10 @@
 // TODO: do something better with optionsblock type. We can do better.
 // TODO: make sure fallback is graceful if pf2e-dailies module does not exist (for staves)
 
+import type { Ref } from 'vue'
 import type { Item, Actor } from '@/utils/pf2e-types'
 import { inject, computed, ref } from 'vue'
-import { castSpell, updateActor, updateActorItem } from '@/utils/api'
+import { castSpell, updateActor, updateActorItem } from '@/composables/api'
 import { capitalize, makeActionIcons, makePropertiesHtml, removeUUIDs } from '@/utils/utilities'
 
 import Counter from '@/components/Counter.vue'
@@ -28,7 +29,7 @@ interface OptionsBlock {
 const infoModal = ref()
 const spellSelectionModal = ref()
 
-const actor: Actor = inject('actor')!
+const actor: Ref<Actor> = inject('actor')!
 const viewedSpell = computed(
   () => actor.value.items?.find((i: any) => i._id === infoModal?.value?.itemId)
 )
@@ -374,3 +375,4 @@ const spellbook = computed((): Spellbook => {
     </Modal>
   </Teleport>
 </template>
+@/composables/api

@@ -16,7 +16,7 @@ import type { Item, Actor } from '@/utils/pf2e-types'
 import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
 import { inventoryTypes } from '@/utils/constants'
-import { updateActorItem } from '@/utils/api'
+import { updateActorItem } from '@/composables/api'
 
 import EquipmentInvested from '@/components/EquipmentInvested.vue'
 import Modal from '@/components/Modal.vue'
@@ -31,7 +31,7 @@ const item = computed(
 
 function updateCarry(item: Item | undefined, systemUpdate: {}) {
   if (!item) return
-  if (actor.value !== undefined) updateActorItem(actor, item._id, systemUpdate)
+  if (actor.value !== undefined) updateActorItem(actor as Ref<Actor>, item._id, systemUpdate)
 }
 
 const toggleSet = [
@@ -191,4 +191,3 @@ const toggleSet = [
     </InfoModal>
   </Teleport>
 </template>
-@/composables/server

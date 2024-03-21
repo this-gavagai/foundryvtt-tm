@@ -3,7 +3,7 @@
 import type { Ref } from 'vue'
 import type { Item, Actor } from '@/utils/pf2e-types'
 import { inject } from 'vue'
-import { updateActorItem } from '@/utils/api'
+import { updateActorItem } from '@/composables/api'
 
 const actor: Ref<Actor | undefined> = inject('actor')!
 

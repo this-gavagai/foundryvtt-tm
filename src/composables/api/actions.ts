@@ -1,3 +1,4 @@
+import type { Ref } from 'vue'
 import type { Actor } from '@/utils/pf2e-types'
 import { useServer } from '@/composables/server'
 import { pushToAckQueue } from './setup'

@@ -5,7 +5,7 @@ import type { Actor, Item } from '@/utils/pf2e-types'
 const props = defineProps(['actor'])
 import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
-import { characterAction } from '@/utils/api'
+import { characterAction } from '@/composables/api'
 
 import InfoModal from '@/components/InfoModal.vue'
 import SkillSelector from './SkillSelector.vue'
@@ -134,3 +134,4 @@ const actionDefs = new Map<string, any>([
     </InfoModal>
   </Teleport>
 </template>
+@/composables/api

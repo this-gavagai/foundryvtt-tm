@@ -3,7 +3,7 @@ import type { Ref } from 'vue'
 import type { Actor } from '@/utils/pf2e-types'
 import { inject, ref } from 'vue'
 import { parseIncrement } from '@/utils/utilities'
-import { updateActor } from '@/utils/api'
+import { updateActor } from '@/composables/api'
 
 import Statistic from '@/components/Statistic.vue'
 import Modal from '@/components/Modal.vue'
@@ -15,7 +15,8 @@ const focusTarget = ref()
 function updateExperience(input: string) {
   let newValue: number = parseIncrement(input, actor.value?.system?.details.xp.value)
   newValue = Math.max(newValue, 0)
-  if (actor.value) updateActor(actor, { system: { details: { xp: { value: newValue } } } })
+  if (actor.value)
+    updateActor(actor as Ref<Actor>, { system: { details: { xp: { value: newValue } } } })
 }
 </script>
 <template>
@@ -73,3 +74,4 @@ function updateExperience(input: string) {
     </Modal>
   </Teleport>
 </template>
+@/composables/api

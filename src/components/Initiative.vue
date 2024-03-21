@@ -6,7 +6,7 @@ import { computed, watch, ref, inject } from 'vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'
 import { formatModifier } from '@/utils/utilities'
-import { updateActor, requestCharacterDetails } from '@/utils/api'
+import { updateActor, requestCharacterDetails } from '@/composables/api'
 import Statistic from '@/components/Statistic.vue'
 import { useCombat } from '@/composables/combat'
 
@@ -101,3 +101,4 @@ const isCombatant = computed(() => {
     </Listbox>
   </div>
 </template>
+@/composables/api

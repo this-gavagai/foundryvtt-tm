@@ -2,7 +2,7 @@
 import type { Ref } from 'vue'
 import type { Actor } from '@/utils/pf2e-types'
 import { inject, ref } from 'vue'
-import { updateActor } from '@/utils/api'
+import { updateActor } from '@/composables/api'
 import { parseIncrement } from '@/utils/utilities'
 
 import Statistic from '@/components/Statistic.vue'
@@ -21,7 +21,11 @@ function updateHitPoints(hp_input: string, temp_input: string) {
   newTemp = Math.max(newTemp, 0)
 
   if (actor.value !== undefined)
-    updateActor(actor, { system: { attributes: { hp: { value: newHP, temp: newTemp } } } }, null)
+    updateActor(
+      actor as Ref<Actor>,
+      { system: { attributes: { hp: { value: newHP, temp: newTemp } } } },
+      null
+    )
 }
 </script>
 <template>
@@ -97,3 +101,4 @@ function updateHitPoints(hp_input: string, temp_input: string) {
     </Modal>
   </Teleport>
 </template>
+@/composables/api

@@ -3,7 +3,7 @@ import { inject } from 'vue'
 import { type Actor } from '@/utils/pf2e-types'
 import Statistic from './Statistic.vue'
 import { SignedNumber, formatModifier } from '@/utils/utilities'
-import { rollCheck } from '@/utils/api'
+import { rollCheck } from '@/composables/api'
 import { attributes } from '@/utils/constants'
 
 const actor: Actor = inject('actor')!

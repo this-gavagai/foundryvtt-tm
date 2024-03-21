@@ -5,7 +5,7 @@ import { ref, provide, watch, inject } from 'vue'
 import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
 
 // import { useWorld } from '@/composables/world'
-import { requestCharacterDetails, setupSocketListenersForActor } from '@/utils/api'
+import { requestCharacterDetails, setupSocketListenersForActor } from '@/composables/api'
 
 import cowled from '@/assets/icons/cowled.svg'
 import biceps from '@/assets/icons/biceps.svg'

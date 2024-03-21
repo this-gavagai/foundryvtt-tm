@@ -4,7 +4,7 @@ import type { Ref } from 'vue'
 import type { Item, Actor } from '@/utils/pf2e-types'
 import { inject, ref, computed } from 'vue'
 import { formatModifier } from '@/utils/utilities'
-import { rollCheck } from '@/utils/api'
+import { rollCheck } from '@/composables/api'
 
 import InfoModal from './InfoModal.vue'
 const strikeModal = ref()
@@ -86,3 +86,4 @@ const viewedItem = computed(() => actor.value?.system?.actions?.[strikeModal.val
     </InfoModal>
   </Teleport>
 </template>
+@/composables/api
