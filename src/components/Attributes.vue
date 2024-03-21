@@ -4,9 +4,10 @@ import type { Actor } from '@/types/pf2e-types'
 import { inject } from 'vue'
 import Statistic from './Statistic.vue'
 import { SignedNumber, formatModifier } from '@/utils/utilities'
-import { rollCheck } from '@/composables/api'
+import { useApi } from '@/composables/api'
 import { attributes } from '@/utils/constants'
 
+const { rollCheck } = useApi()
 const actor: Ref<Actor> = inject('actor')!
 function doStatCheck(type: string, subtype: string) {
   return rollCheck(actor, type, subtype)

@@ -3,7 +3,7 @@ import type { Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 import { inject, ref } from 'vue'
 import { useServer } from '@/composables/server'
-import { updateActor } from '@/composables/api'
+import { useApi } from '@/composables/api'
 
 import Statistic from '@/components/Statistic.vue'
 import Counter from '@/components/Counter.vue'
@@ -13,6 +13,7 @@ import { PlusCircleIcon, MinusCircleIcon } from '@heroicons/vue/24/outline'
 
 const actor: Ref<Actor | undefined> = inject('actor')!
 const counter = ref()
+const { updateActor } = useApi()
 
 function updateHeroPoints(newTotal: number): void {
   if (actor.value)

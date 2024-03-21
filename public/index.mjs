@@ -1,4 +1,4 @@
-// TODO: have more robust way of detecting sheet in 'init' hook
+// TODO: allow setting of "external_app" and "shared_display" flags externally
 
 import { setupTouch } from './scripts/touchmate.mjs'
 import { setupCharSheet } from './scripts/charsheet.mjs'
@@ -10,7 +10,7 @@ Hooks.on('init', function () {
   console.log('TABLEMATE initialized for user', user)
 
   console.log('TABLEMATE:', user.name)
-  if (user.name.match('Sheet')) {
+  if (user.getFlag('tablemate', 'external_app')) {
     window.location = `${window.location.origin}/modules/tablemate/index.html?id=${user.character}`
   }
 })
@@ -19,7 +19,7 @@ Hooks.on('ready', () => {
   console.log('TABLEMATE: READY TO ROLLS')
   const user = game.data.users.find((x) => x._id === game.userId)
 
-  if (user.name === 'Observer') {
+  if (user.getFlag('tablemate', 'shared_display')) {
     setupTouch()
   }
 

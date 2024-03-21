@@ -6,12 +6,13 @@ import type { Actor, Skill } from '@/types/pf2e-types'
 import { SignedNumber } from '@/utils/utilities'
 import { inject } from 'vue'
 import Statistic from './Statistic.vue'
-import { rollCheck } from '@/composables/api'
+import { useApi } from '@/composables/api'
 
 // import Macro from '@/components/Macro.vue'
 // import CheckModifiers from '@/components/CheckModifiers.vue'
 // import SkillsMacros from '@/components/SkillsMacros.vue'
 
+const { rollCheck } = useApi()
 const actor: Ref<Actor> = inject('actor')!
 // const mods = [{ label: 'test', modifier: 3 }]
 function doSkillCheck(slug: string) {

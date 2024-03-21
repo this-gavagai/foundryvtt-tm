@@ -3,13 +3,13 @@ import { ref, provide, reactive, watch, watchPostEffect } from 'vue'
 import { useWakeLock } from '@vueuse/core'
 import { useServer } from './composables/server'
 import { useCharacterSelect } from './composables/characterSelect'
+import { useApi } from './composables/api'
 
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 import Character from '@/components/Character.vue'
 
 // TODO: figure out why this isn't working correctly
-// const wakeLock = reactive(useWakeLock())
-const wakeLock = useWakeLock()
+const wakeLock = reactive(useWakeLock())
 wakeLock.request('screen')
 
 const urlId = new URLSearchParams(window.location.search).get('id')
@@ -17,24 +17,28 @@ const world: any = ref()
 provide('world', world)
 
 const { connectToServer } = useServer()
+const { setupSocketListenersForWorld } = useApi()
 connectToServer(window.location.origin).then((socket: any) => {
-  socket.value.emit('world', (r: any) => {
-    console.log('TM-RECV world', r)
-    window.world = world.value = r
+  socket.value.emit('world', (r: any) => (world.value = r))
+  setupSocketListenersForWorld(world).then(() => {
+    socket.value.emit('module.tablemate', { action: 'anybodyHome' })
   })
-  socket.value.emit('module.tablemate', { action: 'anybodyHome' })
 })
 
 const activeIndex = ref<number>(0)
 const { characterList } = useCharacterSelect(urlId, world)
 const characterPanels = ref<any[]>([])
-// set window variables. This watchEffect can be removed on production
+// set window variables. These watchEffect can be removed on production
 watchPostEffect(() => {
   window.altCharacters = new Map([])
   characterPanels.value.forEach((panel: any) => {
     if (panel.actor?._id === urlId) window.actor = panel.actor
     else window.altCharacters.set(panel.actor?._id, panel.actor)
   })
+})
+watchPostEffect(() => {
+  console.log('TM-RECV world', world.value)
+  window.world = world.value
 })
 </script>
 <template>

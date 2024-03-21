@@ -3,7 +3,7 @@ import type { Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 import { inject, ref } from 'vue'
 import { parseIncrement } from '@/utils/utilities'
-import { updateActor } from '@/composables/api'
+import { useApi } from '@/composables/api'
 
 import Statistic from '@/components/Statistic.vue'
 import Modal from '@/components/Modal.vue'
@@ -11,6 +11,7 @@ import Modal from '@/components/Modal.vue'
 const actor: Ref<Actor | undefined> = inject('actor')!
 const experienceModal = ref()
 const focusTarget = ref()
+const { updateActor } = useApi()
 
 function updateExperience(input: string) {
   let newValue: number = parseIncrement(input, actor.value?.system?.details.xp.value)

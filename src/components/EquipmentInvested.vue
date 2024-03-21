@@ -3,9 +3,10 @@
 import type { Ref } from 'vue'
 import type { Item, Actor } from '@/types/pf2e-types'
 import { inject } from 'vue'
-import { updateActorItem } from '@/composables/api'
+import { useApi } from '@/composables/api'
 
 const actor: Ref<Actor | undefined> = inject('actor')!
+const { updateActorItem } = useApi()
 
 function toggleInvested(item: Item) {
   if (actor.value)

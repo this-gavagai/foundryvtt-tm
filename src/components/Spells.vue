@@ -8,7 +8,7 @@
 import type { Ref } from 'vue'
 import type { Item, Actor } from '@/types/pf2e-types'
 import { inject, computed, ref } from 'vue'
-import { castSpell, updateActor, updateActorItem } from '@/composables/api'
+import { useApi } from '@/composables/api'
 import { capitalize, makeActionIcons, makePropertiesHtml, removeUUIDs } from '@/utils/utilities'
 
 import Counter from '@/components/Counter.vue'
@@ -28,11 +28,17 @@ interface OptionsBlock {
 
 const infoModal = ref()
 const spellSelectionModal = ref()
+const { updateActor, updateActorItem, castSpell } = useApi()
 
 const actor: Ref<Actor> = inject('actor')!
 const viewedSpell = computed(
   () => actor.value.items?.find((i: any) => i._id === infoModal?.value?.itemId)
 )
+
+function doSpell(spellId: string, castingRank: number, castingSlot: number) {
+  castSpell(actor, spellId, castingRank, castingSlot).then((r) => console.log(r))
+  infoModal.value.close()
+}
 
 function updateSpellCharges(newTotal: number, options: OptionsBlock) {
   console.log(newTotal, options)
@@ -332,15 +338,11 @@ const spellbook = computed((): Spellbook => {
           type="button"
           class="bg-blue-600 hover:bg-blue-500 text-white inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium focus:outline-none"
           @click="
-            () => {
-              castSpell(
-                actor,
-                viewedSpell!._id,
-                infoModal.options?.castingRank,
-                infoModal.options?.castingSlot
-              ).then((r) => console.log(r))
-              infoModal.close()
-            }
+            doSpell(
+              viewedSpell!._id,
+              infoModal.options?.castingRank,
+              infoModal.options?.castingSlot
+            )
           "
         >
           Cast!

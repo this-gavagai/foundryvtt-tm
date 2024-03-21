@@ -1,5 +1,6 @@
+// TODO: Make sure character request is getting called after all _process things
 import type { Ref } from 'vue'
-import type { Actor } from '@/types/pf2e-types'
+import type { Actor, World } from '@/types/pf2e-types'
 import { useThrottleFn } from '@vueuse/core'
 
 import { merge } from 'lodash-es'
@@ -8,14 +9,65 @@ import { useServer } from '@/composables/server'
 const { getSocket } = useServer()
 
 const ackQueue: { [key: string]: Function } = {}
-export function pushToAckQueue(uuid: string, callback: Function) {
+function pushToAckQueue(uuid: string, callback: Function) {
   ackQueue[uuid] = callback
 }
 
 ///////////////////////////////////////
 // Setup Methods                     //
 ///////////////////////////////////////
-export async function setupSocketListenersForActor(actorId: string, actor: Ref<Actor | undefined>) {
+async function setupSocketListenersForWorld(world: Ref<World>) {
+  const socket = await getSocket()
+  socket.on('module.tablemate', (args: any) => {
+    switch (args.action) {
+      case 'acknowledged':
+        if (ackQueue[args.uuid]) {
+          ackQueue[args.uuid](args)
+          delete ackQueue[args.uuid]
+        }
+        break
+    }
+  })
+  socket.on('modifyDocument', (args: any) => {
+    switch (args.request.type) {
+      case 'Combat':
+        socket.emit('world', (r: any) => (world.value = r))
+        switch (args.request.action) {
+          case 'create':
+            _processCreates2(world.value.combats, args.result)
+            break
+          case 'update':
+            _processUpdates2(world.value.combats, args.result)
+            break
+          case 'delete':
+            _processDeletes2(world.value.combats, args.result)
+            break
+        }
+        socket.emit('world', (r: any) => (world.value = r))
+        break
+      case 'Combatant':
+        const combatId = args.request.parentUuid.split('.')?.[1]
+        const combat = world.value?.combats.find((c: any) => c._id === combatId)
+        switch (args.request.action) {
+          case 'create':
+            _processCreates2(combat.combatants, args.result)
+            break
+          case 'update':
+            _processUpdates2(combat.combatants, args.result)
+            break
+          case 'delete':
+            combat.combatants(combat.combatants, args.result)
+            break
+        }
+        socket.emit('world', (r: any) => (world.value = r))
+        break
+      case 'ChatMessage':
+        break
+    }
+  })
+}
+
+async function setupSocketListenersForActor(actorId: string, actor: Ref<Actor | undefined>) {
   const socket = await getSocket()
   socket.on('module.tablemate', (args: any) => {
     switch (args.action) {
@@ -29,51 +81,34 @@ export async function setupSocketListenersForActor(actorId: string, actor: Ref<A
           actor.value!.feats = args.feats
         }
         break
-      case 'acknowledged':
-        if (ackQueue[args.uuid]) {
-          ackQueue[args.uuid](args)
-          delete ackQueue[args.uuid]
-        }
-        break
-      default:
-        console.log('action not managed locally: ', args.action)
     }
   })
-  socket.on('modifyDocument', (mods: any) => {
-    switch (mods.request.type) {
+  socket.on('modifyDocument', (args: any) => {
+    if (!actor.value) return
+    switch (args.request.type) {
       case 'Actor':
-        mods.result.forEach((change: any) => {
-          if (actor && change._id === actor.value?._id) {
+        args.result.forEach((change: any) => {
+          if (change._id === actor.value?._id) {
             merge(actor.value, change)
           }
         })
-        if (actor.value) requestCharacterDetails(actor.value!._id!)
+        requestCharacterDetails(actor.value._id)
         break
       case 'Item':
-        // handle item types
-        if (mods.request.parentUuid !== 'Actor.' + actorId) break
-        if (!actor.value) break
-        switch (mods.request.action) {
+        if (args.request.parentUuid !== 'Actor.' + actorId) break
+        switch (args.request.action) {
           case 'update':
-            _processUpdates(actor as Ref<Actor>, mods.result)
+            _processUpdates2(actor.value.items, args.result)
             break
           case 'create':
-            _processCreates(actor as Ref<Actor>, mods.result)
+            _processCreates2(actor.value.items, args.result)
             break
           case 'delete':
-            _processDeletes(actor as Ref<Actor>, mods.result)
+            _processDeletes2(actor.value.items, args.result)
             break
-          default:
-            console.log('item action not handled', mods.request.action, mods)
         }
+        requestCharacterDetails(actor.value._id)
         break
-      case 'Combat':
-      case 'Combatant':
-        console.log('combat input')
-      case 'ChatMessage':
-        break
-      default:
-        console.log('request type not handled', mods.request.action, mods)
     }
   })
 }
@@ -91,12 +126,12 @@ async function sendCharacterRequest(actorId: string): Promise<any> {
   })
   return promise
 }
-export const requestCharacterDetails = useThrottleFn(sendCharacterRequest, 3000, true, true)
+const requestCharacterDetails = useThrottleFn(sendCharacterRequest, 3000, true, true)
 
 ///////////////////////////////////////
 // Emit Methods                      //
 ///////////////////////////////////////
-export async function updateActor(
+async function updateActor(
   actor: Ref<Actor>,
   update: {},
   additionalOptions: null | { [key: string]: any } = null
@@ -119,6 +154,7 @@ export async function updateActor(
       (r: any) => {
         r.result.forEach((change: any) => {
           merge(actor.value, change)
+          requestCharacterDetails(actor.value._id)
         })
         resolve(r)
       }
@@ -127,7 +163,7 @@ export async function updateActor(
   return promise
 }
 
-export async function updateActorItem(
+async function updateActorItem(
   actor: Ref<Actor>,
   itemId: string,
   update: {},
@@ -150,7 +186,8 @@ export async function updateActorItem(
         ]
       },
       (r: any) => {
-        _processUpdates(actor, r.result)
+        _processUpdates2(actor.value.items, r.result)
+        requestCharacterDetails(actor.value._id)
         resolve(r)
       }
     )
@@ -158,7 +195,7 @@ export async function updateActorItem(
   return promise
 }
 
-export async function deleteActorItem(actor: Ref<Actor>, itemId: string): Promise<any> {
+async function deleteActorItem(actor: Ref<Actor>, itemId: string): Promise<any> {
   const socket = await getSocket()
   const promise = new Promise((resolve, reject) => {
     socket.emit(
@@ -170,7 +207,8 @@ export async function deleteActorItem(actor: Ref<Actor>, itemId: string): Promis
         parentUuid: 'Actor.' + actor.value?._id
       },
       (r: any) => {
-        _processDeletes(actor, r.result)
+        _processDeletes2(actor.value.items, r.result)
+        requestCharacterDetails(actor.value._id)
         resolve(r)
       }
     )
@@ -181,7 +219,7 @@ export async function deleteActorItem(actor: Ref<Actor>, itemId: string): Promis
 ///////////////////////////////////////
 // Action Request                    //
 ///////////////////////////////////////
-export async function castSpell(
+async function castSpell(
   actor: Ref<Actor>,
   spellId: string,
   castingLevel: number,
@@ -202,7 +240,7 @@ export async function castSpell(
   })
 }
 
-export async function rollCheck(
+async function rollCheck(
   actor: Ref<Actor>,
   checkType: string,
   checkSubtype = '',
@@ -226,7 +264,7 @@ export async function rollCheck(
   })
 }
 
-export async function characterAction(
+async function characterAction(
   actor: Ref<Actor>,
   characterAction: string,
   options = {}
@@ -245,26 +283,54 @@ export async function characterAction(
   })
 }
 
-export function _processDeletes(actor: Ref<Actor>, results: []) {
-  results.forEach((d: string) => {
-    const item = actor.value.items.find((i: any) => i._id === d)
-    if (item) {
-      const index = actor.value.items.indexOf(item)
-      actor.value.items.splice(index, 1)
-    }
+// function _processCreates(actor: Ref<Actor>, results: []) {
+//   results.forEach((c: any) => {
+//     actor.value.items.push(c)
+//   })
+// }
+function _processCreates2(set: any[], results: []) {
+  results.forEach((c: any) => {
+    set.push(c)
   })
-  requestCharacterDetails(actor.value._id)
 }
-export function _processUpdates(actor: Ref<Actor>, results: []) {
+// function _processUpdates(actor: Ref<Actor>, results: []) {
+//   results.forEach((change: any) => {
+//     let item = actor.value.items.find((a: any) => a._id == change._id)
+//     if (item) merge(item, change)
+//   })
+// }
+function _processUpdates2(set: any[], results: []) {
   results.forEach((change: any) => {
-    let item = actor.value.items.find((a: any) => a._id == change._id)
+    let item = set.find((a: any) => a._id == change._id)
     if (item) merge(item, change)
   })
-  requestCharacterDetails(actor.value._id)
 }
-export function _processCreates(actor: Ref<Actor>, results: []) {
-  results.forEach((c: any) => {
-    actor.value.items.push(c)
+// function _processDeletes(actor: Ref<Actor>, results: []) {
+//   results.forEach((d: string) => {
+//     const item = actor.value.items.find((i: any) => i._id === d)
+//     if (item) {
+//       const index = actor.value.items.indexOf(item)
+//       actor.value.items.splice(index, 1)
+//     }
+//   })
+// }
+function _processDeletes2(set: any[], results: []) {
+  results.forEach((d: string) => {
+    const index = set.find((i: any) => i._id === d)
+    if (index != -1) set.splice(index, 1)
   })
-  requestCharacterDetails(actor.value._id)
+}
+
+export function useApi() {
+  return {
+    setupSocketListenersForWorld,
+    setupSocketListenersForActor,
+    requestCharacterDetails,
+    updateActor,
+    updateActorItem,
+    deleteActorItem,
+    castSpell,
+    rollCheck,
+    characterAction
+  }
 }

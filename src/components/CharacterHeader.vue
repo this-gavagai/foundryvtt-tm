@@ -22,6 +22,7 @@ const { characterList } = useCharacterSelect()
       <img
         v-if="actor?.prototypeToken?.texture?.src"
         :src="getPath(actor.prototypeToken?.texture?.src)"
+        x
         class="h-24 w-24"
       />
       <div v-else class="h-full min-h-24">

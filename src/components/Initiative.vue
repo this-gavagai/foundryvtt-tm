@@ -1,17 +1,17 @@
 <script setup lang="ts">
-// TODO: Getting there with initiative, but it's not responsive now
 import type { Ref } from 'vue'
-import type { Actor } from '@/types/pf2e-types'
+import type { Actor, World } from '@/types/pf2e-types'
 import { computed, watch, ref, inject } from 'vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'
 import { formatModifier } from '@/utils/utilities'
-import { updateActor, requestCharacterDetails } from '@/composables/api'
+import { useApi } from '@/composables/api'
 import Statistic from '@/components/Statistic.vue'
 import { useCombat } from '@/composables/combat'
 
 const actor = inject<Ref<Actor>>('actor')!
-const world = inject('world')
+const world = inject<Ref<World>>('world')
+const { requestCharacterDetails, updateActor, rollCheck } = useApi()
 
 const initSkills: any = computed(() => {
   const skills = Object.values(actor?.value?.system?.skills ?? {})
@@ -26,17 +26,26 @@ watch(selected, async (newSkill, oldSkill) => {
 })
 
 const { activeScene, activeCombat } = useCombat(world)
-const isCombatant = computed(() => {
-  return activeCombat.value?.combatants.map((a: any) => a.actorId).includes(actor.value?._id)
+const initiativeReady = computed(() => {
+  const inActiveCombat = activeCombat.value?.combatants
+    .map((a: any) => a.actorId)
+    .includes(actor.value?._id)
+  const initiativeValue = activeCombat.value?.combatants.find(
+    (a: any) => a.actorId === actor.value?._id
+  )?.initiative
+  return inActiveCombat && !initiativeValue
 })
+function doInitiative() {
+  return rollCheck(actor, 'initiative')
+}
 </script>
 <template>
   <div class="px-6 py-4 border-b flex gap-4">
     <Statistic
       heading="Initiative"
       :modifiers="actor?.system?.initiative?.modifiers"
-      :allowRoll="isCombatant"
-      :rollAction="() => console.log('rollin')"
+      :allowRoll="initiativeReady"
+      :rollAction="() => doInitiative()"
     >
       {{
         formatModifier(

@@ -5,7 +5,7 @@ import type { Actor, Item } from '@/types/pf2e-types'
 const props = defineProps(['actor'])
 import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
-import { characterAction } from '@/composables/api'
+import { useApi } from '@/composables/api'
 
 import InfoModal from '@/components/InfoModal.vue'
 import SkillSelector from './SkillSelector.vue'
@@ -17,6 +17,7 @@ const actor: Ref<Actor | undefined> = inject('actor')!
 const action: any = computed(
   () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
 )
+const { characterAction } = useApi()
 // const options: any = computed(() => {
 //   if (action.value.system?.slug === 'aid') return { statistic: skillSelector.value.selected.slug }
 //   else return {}

@@ -4,12 +4,12 @@ import type { Ref } from 'vue'
 import type { Item, Actor } from '@/types/pf2e-types'
 import { inject, ref, computed } from 'vue'
 import { formatModifier } from '@/utils/utilities'
-import { rollCheck } from '@/composables/api'
+import { useApi } from '@/composables/api'
 
 import InfoModal from './InfoModal.vue'
 const strikeModal = ref()
 const actor: Ref<Actor> = inject('actor')!
-
+const { rollCheck } = useApi()
 const viewedItem = computed(() => actor.value?.system?.actions?.[strikeModal.value?.itemId])
 
 function doStrike(slug: string) {

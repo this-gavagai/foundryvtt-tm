@@ -1,6 +1,6 @@
 // TODO: connectToFoundry and connectToServer can be consolidated
 import { ref } from 'vue'
-import io, { Socket } from 'socket.io-client'
+import { io, Socket } from 'socket.io-client'
 
 const socket = ref<Socket>()
 const sessionId = ref<String>('')
@@ -60,8 +60,8 @@ async function connectToServer(url: URL) {
   return socket
 }
 
-function getSocket() {
-  return new Promise(function (resolve: any) {
+function getSocket(): Promise<Socket> {
+  return new Promise((resolve: any, reject: any) => {
     ;(function waitForSocket() {
       if (socket.value) return resolve(socket.value)
       setTimeout(waitForSocket, 100)
@@ -71,7 +71,7 @@ function getSocket() {
 
 export function useServer(): any {
   return {
-    socket,
+    // socket,
     connectToServer,
     getSocket
   }

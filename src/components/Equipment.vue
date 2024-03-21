@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// TODO: (refactor) switch over to API
 // TODO: (ux) some kind of feedback on the carry toggle on click
 
 // TODO: (bug) figure out how the parenthetical worn style works (system.usage.value: 'worngloves', etc.)
@@ -16,7 +15,7 @@ import type { Item, Actor } from '@/types/pf2e-types'
 import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
 import { inventoryTypes } from '@/utils/constants'
-import { updateActorItem } from '@/composables/api'
+import { useApi } from '@/composables/api'
 
 import EquipmentInvested from '@/components/EquipmentInvested.vue'
 import Modal from '@/components/Modal.vue'
@@ -28,6 +27,7 @@ const investedModal = ref()
 const item = computed(
   () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
 )
+const { updateActorItem } = useApi()
 
 function updateCarry(item: Item | undefined, systemUpdate: {}) {
   if (!item) return
@@ -78,7 +78,6 @@ const toggleSet = [
   {
     toggleText: 'Stowed',
     toggleTrigger: () => {
-      console.log(actor)
       updateCarry(item.value, {
         containerId: actor.value?.items.find((i: any) => i.type === 'backpack')?._id,
         equipped: {

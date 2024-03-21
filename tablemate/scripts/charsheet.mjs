@@ -1,4 +1,3 @@
-// TODO: have more robust way of detecting observer in iAmObserver method
 const MODNAME = 'module.tablemate'
 
 export function setupCharSheet() {
@@ -59,7 +58,7 @@ function iAmFirstGM() {
   )
 }
 function iAmObserver() {
-  return game.user.name === 'Observer'
+  return game.user.getFlag('tablemate', 'shared_display')
 }
 function observerIsOnline() {
   return game.users.filter((user) => user.name === 'Observer' && user.active).length > 0
@@ -111,9 +110,15 @@ function rollCheck(args) {
     case 'perception':
       roll = actor.perception.check.roll(params)
       break
+    case 'initiative':
+      const combatantId = game.combat.combatants.find((c) => c.actorId === args.characterId)?._id
+      console.log(combatantId)
+      if (combatantId) roll = actor.initiative.roll([combatantId], { updateTurn: false })
+      break
   }
-  roll.then((r) => {
+  roll?.then((r) => {
     console.log(r)
+    if (r.hasOwnProperty('roll')) r = r.roll
     game.socket.emit(MODNAME, {
       action: 'acknowledged',
       uuid: args.uuid,
@@ -137,7 +142,7 @@ function characterAction(args) {
       action: 'acknowledged',
       uuid: args.uuid,
       roll: {
-        // TODO: This assumes a single die, which isn't should be made more robust
+        // TODO: This assumes a single die, which isn't guaranteed and should be made more robust
         formula: r[0].roll.formula,
         result: r[0].roll.result,
         total: r[0].roll.total,

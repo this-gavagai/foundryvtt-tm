@@ -3,9 +3,7 @@ import type { Actor } from '@/types/pf2e-types'
 import type { Ref } from 'vue'
 import { ref, provide, watch, inject } from 'vue'
 import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
-
-// import { useWorld } from '@/composables/world'
-import { requestCharacterDetails, setupSocketListenersForActor } from '@/composables/api'
+import { useApi } from '@/composables/api'
 
 import cowled from '@/assets/icons/cowled.svg'
 import biceps from '@/assets/icons/biceps.svg'
@@ -34,6 +32,8 @@ const props = defineProps(['characterId'])
 // base data
 const actor: Ref<Actor | undefined> = ref()
 provide('actor', actor)
+
+const { requestCharacterDetails, setupSocketListenersForActor } = useApi()
 
 const world: any = inject('world')
 // load character from world value if no character details received

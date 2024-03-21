@@ -2,7 +2,7 @@
 import type { Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 import { inject, ref } from 'vue'
-import { updateActor } from '@/composables/api'
+import { useApi } from '@/composables/api'
 import { parseIncrement } from '@/utils/utilities'
 
 import Statistic from '@/components/Statistic.vue'
@@ -12,6 +12,8 @@ const actor: Ref<Actor | undefined> = inject('actor')!
 const hitpointsModal = ref()
 const hpStat = ref()
 const focusTarget = ref(null)
+
+const { updateActor } = useApi()
 
 function updateHitPoints(hp_input: string, temp_input: string) {
   let newHP = parseIncrement(hp_input, actor.value?.system?.attributes.hp.value)

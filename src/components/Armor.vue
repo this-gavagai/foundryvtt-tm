@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// TODO: Make min-width so it doesn't alter size on reload and jiggle
 import type { Actor, Skill } from '@/types/pf2e-types'
 import { inject, computed } from 'vue'
 import Statistic from './Statistic.vue'

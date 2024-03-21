@@ -4,7 +4,7 @@ import type { Actor } from '@/types/pf2e-types'
 import { inject, ref, computed } from 'vue'
 import type { Item } from '@/types/pf2e-types'
 import InfoModal from '@/components/InfoModal.vue'
-import { deleteActorItem, updateActorItem } from '@/composables/api'
+import { useApi } from '@/composables/api'
 
 import { capitalize, removeUUIDs, getPath } from '@/utils/utilities'
 
@@ -14,6 +14,7 @@ const viewedItem = computed(
   () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
 )
 
+const { deleteActorItem, updateActorItem } = useApi()
 function deleteEffect(effectId: string | undefined) {
   if (actor.value && effectId) deleteActorItem(actor as Ref<Actor>, effectId)
 }
