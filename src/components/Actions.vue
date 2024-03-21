@@ -17,35 +17,58 @@ const actor: Ref<Actor | undefined> = inject('actor')!
 const action: any = computed(
   () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
 )
-const options: any = computed(() => {
-  if (action.value.system?.slug === 'aid') return { statistic: skillSelector.value.selected.slug }
-  else return {}
+// const options: any = computed(() => {
+//   if (action.value.system?.slug === 'aid') return { statistic: skillSelector.value.selected.slug }
+//   else return {}
+// })
+function doAction(slug: string) {
+  // actionDefs.value.get(slug)['options'] = options
+  console.log('here', skillSelector.value.selected.slug)
+  characterAction(
+    actor as Ref<Actor>,
+    actionDefs.value.get(slug)?.alias ?? slug,
+    actionDefs.value.get(slug)?.options
+  ).then((r) => {
+    infoModal.value.rollResultModal.open(r)
+    infoModal.value.close()
+  })
+}
+
+// TODO: computing this semi-constant value this way is Super ugly
+const actionDefs = computed(() => {
+  return new Map<string, any>([
+    ['administer-first-aid', { skill: 'medicine' }],
+    [
+      'aid',
+      {
+        skill: null,
+        skillSelector: 'statistic',
+        options: { statistic: skillSelector.value?.selected?.slug }
+      }
+    ],
+    ['demoralize', { skill: 'intimidation' }],
+    ['tumble-through', { skill: 'acrobatics' }],
+    ['battle-medicine', { alias: 'legacy.treatWounds', skill: 'medicine' }],
+    ['treat-wounds', { alias: 'legacy.treatWounds', skill: 'medicine' }],
+    ['bon-mot', { skill: 'diplomacy' }],
+    ['create-a-diversion', { skill: 'deception' }],
+    ['disable-device', { skill: 'thievery' }],
+    ['disarm', { skill: 'athletics' }],
+    ['escape', { skill: 'athletics' }],
+    ['feint', { skill: 'deception' }],
+    ['grapple', { skill: 'athletics' }],
+    ['hide', { skill: 'stealth' }],
+    ['high-jump', { skill: 'athletics' }],
+    ['long-jump', { skill: 'athletics' }],
+    ['raise-a-shield', { skill: null }],
+    ['reposition', { skill: 'athletics' }],
+    ['rest-for-the-night', { skill: null }],
+    ['sense-motive', { skill: 'perception' }],
+    ['shove', { skill: 'athletics' }],
+    ['sneak', { skill: 'stealth' }],
+    ['trip', { skill: 'athletics' }]
+  ])
 })
-const actionDefs = new Map<string, any>([
-  ['administer-first-aid', { skill: 'medicine' }],
-  ['aid', { skill: null, skillSelector: 'statistic' }],
-  ['demoralize', { skill: 'intimidation' }],
-  ['tumble-through', { skill: 'acrobatics' }],
-  ['battle-medicine', { alias: 'legacy.treatWounds', skill: 'medicine' }],
-  ['treat-wounds', { alias: 'legacy.treatWounds', skill: 'medicine' }],
-  ['bon-mot', { skill: 'diplomacy' }],
-  ['create-a-diversion', { skill: 'deception' }],
-  ['disable-device', { skill: 'thievery' }],
-  ['disarm', { skill: 'athletics' }],
-  ['escape', { skill: 'athletics' }],
-  ['feint', { skill: 'deception' }],
-  ['grapple', { skill: 'athletics' }],
-  ['hide', { skill: 'stealth' }],
-  ['high-jump', { skill: 'athletics' }],
-  ['long-jump', { skill: 'athletics' }],
-  ['raise-a-shield', { skill: null }],
-  ['reposition', { skill: 'athletics' }],
-  ['rest-for-the-night', { skill: null }],
-  ['sense-motive', { skill: 'perception' }],
-  ['shove', { skill: 'athletics' }],
-  ['sneak', { skill: 'stealth' }],
-  ['trip', { skill: 'athletics' }]
-])
 </script>
 
 <template>
@@ -113,19 +136,7 @@ const actionDefs = new Map<string, any>([
             v-if="actor && actionDefs.get(action?.system.slug)"
             type="button"
             class="bg-blue-600 hover:bg-blue-500 text-white inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium focus:outline-none"
-            @click="
-              () => {
-                actionDefs.get(action.system.slug)['options'] = options
-                characterAction(
-                  actor!,
-                  actionDefs.get(action?.system.slug)?.alias ?? action?.system.slug,
-                  actionDefs.get(action?.system.slug)?.options
-                ).then((r) => {
-                  infoModal.rollResultModal.open(r)
-                  infoModal.close()
-                })
-              }
-            "
+            @click="doAction(action?.system.slug)"
           >
             Roll
           </button>

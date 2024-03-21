@@ -11,6 +11,10 @@ const strikeModal = ref()
 const actor: Ref<Actor> = inject('actor')!
 
 const viewedItem = computed(() => actor.value?.system?.actions?.[strikeModal.value?.itemId])
+
+function doStrike(slug: string) {
+  rollCheck(actor, 'strike', slug)
+}
 </script>
 <template>
   <div class="px-6">
@@ -78,7 +82,7 @@ const viewedItem = computed(() => actor.value?.system?.actions?.[strikeModal.val
           v-for="(variant, i) in viewedItem?.variants"
           type="button"
           class="bg-blue-600 hover:bg-blue-500 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-white focus:outline-none"
-          @click="rollCheck(actor, 'strike', `${strikeModal.itemId},${i}`, [])"
+          @click="doStrike(`${strikeModal.itemId},${i}`)"
         >
           Strike {{ variant.label.match(/[+-][0-9]*/g)[0] }}
         </button>

@@ -6,7 +6,7 @@ import { pushToAckQueue } from './setup'
 const { getSocket } = useServer()
 
 export async function castSpell(
-  actor: Actor,
+  actor: Ref<Actor>,
   spellId: string,
   castingLevel: number,
   castingSlot: number
@@ -17,7 +17,7 @@ export async function castSpell(
     socket.emit('module.tablemate', {
       action: 'castSpell',
       id: spellId,
-      characterId: actor._id,
+      characterId: actor.value._id,
       rank: castingLevel,
       slotId: castingSlot,
       uuid: uuid
@@ -27,7 +27,7 @@ export async function castSpell(
 }
 
 export async function rollCheck(
-  actor: Actor,
+  actor: Ref<Actor>,
   checkType: string,
   checkSubtype = '',
   modifiers = [],
@@ -38,7 +38,7 @@ export async function rollCheck(
   return new Promise((resolve, reject) => {
     socket.emit('module.tablemate', {
       action: 'rollCheck',
-      characterId: actor._id,
+      characterId: actor.value._id,
       checkType,
       checkSubtype,
       modifiers,
@@ -51,7 +51,7 @@ export async function rollCheck(
 }
 
 export async function characterAction(
-  actor: Actor,
+  actor: Ref<Actor>,
   characterAction: string,
   options = {}
 ): Promise<any> {
@@ -60,7 +60,7 @@ export async function characterAction(
   return new Promise((resolve, reject) => {
     socket.emit('module.tablemate', {
       action: 'characterAction',
-      characterId: actor._id,
+      characterId: actor.value._id,
       characterAction,
       options,
       uuid

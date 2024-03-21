@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // TODO: (feature) allow players to access skill actions that aren't on here
+import type { Ref } from 'vue'
 import type { Actor, Skill } from '@/utils/pf2e-types'
 
 import { SignedNumber } from '@/utils/utilities'
@@ -11,8 +12,11 @@ import { rollCheck } from '@/composables/api'
 // import CheckModifiers from '@/components/CheckModifiers.vue'
 // import SkillsMacros from '@/components/SkillsMacros.vue'
 
-const actor: Actor = inject('actor')!
+const actor: Ref<Actor> = inject('actor')!
 // const mods = [{ label: 'test', modifier: 3 }]
+function doSkillCheck(slug: string) {
+  return rollCheck(actor, 'skill', slug)
+}
 </script>
 <template>
   <div class="px-6 py-4 empty:hidden">
@@ -42,7 +46,7 @@ const actor: Actor = inject('actor')!
             :proficiency="skill.rank"
             :modifiers="skill.modifiers"
             :allowRoll="true"
-            :rollAction="() => rollCheck(actor, 'skill', skill.slug, [])"
+            :rollAction="() => doSkillCheck(skill.slug)"
           >
             {{ SignedNumber.format(skill.totalModifier) }}
           </Statistic>

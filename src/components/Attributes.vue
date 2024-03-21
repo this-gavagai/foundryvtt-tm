@@ -1,12 +1,16 @@
 <script setup lang="ts">
+import type { Ref } from 'vue'
+import type { Actor } from '@/utils/pf2e-types'
 import { inject } from 'vue'
-import { type Actor } from '@/utils/pf2e-types'
 import Statistic from './Statistic.vue'
 import { SignedNumber, formatModifier } from '@/utils/utilities'
 import { rollCheck } from '@/composables/api'
 import { attributes } from '@/utils/constants'
 
-const actor: Actor = inject('actor')!
+const actor: Ref<Actor> = inject('actor')!
+function doStatCheck(type: string, subtype: string) {
+  return rollCheck(actor, type, subtype)
+}
 </script>
 <template>
   <div class="px-6 py-4 flex justify-between border-b">
@@ -20,7 +24,7 @@ const actor: Actor = inject('actor')!
       :proficiency="actor?.system?.saves.fortitude?.rank"
       :modifiers="actor?.system?.saves.fortitude?.modifiers"
       :allowRoll="true"
-      :rollAction="() => rollCheck(actor, 'save', 'fortitude', [])"
+      :rollAction="() => doStatCheck('save', 'fortitude')"
     >
       {{ formatModifier(actor?.system?.saves.fortitude?.totalModifier) }}
     </Statistic>
@@ -29,7 +33,7 @@ const actor: Actor = inject('actor')!
       :proficiency="actor?.system?.saves.reflex?.rank"
       :modifiers="actor?.system?.saves.reflex?.modifiers"
       :allowRoll="true"
-      :rollAction="() => rollCheck(actor, 'save', 'reflex', [])"
+      :rollAction="() => doStatCheck('save', 'reflex')"
     >
       {{ formatModifier(actor?.system?.saves.reflex?.totalModifier) }}
     </Statistic>
@@ -38,7 +42,7 @@ const actor: Actor = inject('actor')!
       :proficiency="actor?.system?.saves.will?.rank"
       :modifiers="actor?.system?.saves.will?.modifiers"
       :allowRoll="true"
-      :rollAction="() => rollCheck(actor, 'save', 'will', [])"
+      :rollAction="() => doStatCheck('save', 'will')"
     >
       {{ formatModifier(actor?.system?.saves.will?.totalModifier) }}
     </Statistic>
@@ -48,7 +52,7 @@ const actor: Actor = inject('actor')!
       :proficiency="actor?.system?.perception?.rank"
       :modifiers="actor?.system?.perception?.modifiers"
       :allowRoll="true"
-      :rollAction="() => rollCheck(actor, 'perception', '', [])"
+      :rollAction="() => doStatCheck('perception', '')"
     >
       {{ formatModifier(actor?.system?.perception?.value) }}
     </Statistic>
