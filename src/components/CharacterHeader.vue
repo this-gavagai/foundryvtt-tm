@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // TODO: Implement hamburger menu popout, with settings and meta-options like "Rest"
 import type { Ref } from 'vue'
-import type { Actor } from '@/utils/pf2e-types'
+import type { Actor } from '@/types/pf2e-types'
 import { inject, computed, watch, ref } from 'vue'
 import { useCharacterSelect } from '@/composables/characterSelect'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
@@ -84,4 +84,4 @@ const { characterList } = useCharacterSelect()
     <Bars3Icon class="h-10 w-10 my-auto text-gray-600 border-2 border-gray-600 rounded-md p-1" />
   </div>
 </template>
-@/composables/characterSelect
+@/composables/characterSelect @/types/pf2e-types

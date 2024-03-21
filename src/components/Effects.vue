@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import type { Actor } from '@/utils/pf2e-types'
+import type { Actor } from '@/types/pf2e-types'
 import { inject, ref, computed } from 'vue'
-import type { Item } from '@/utils/pf2e-types'
+import type { Item } from '@/types/pf2e-types'
 import InfoModal from '@/components/InfoModal.vue'
 import { deleteActorItem, updateActorItem } from '@/composables/api'
 
@@ -99,4 +99,4 @@ function incrementEffectValue(effectId: string | undefined, change: number) {
     </InfoModal>
   </Teleport>
 </template>
-@/composables/api
+@/composables/api @/composables@/types/pf2e-types@/types/pf2e-types

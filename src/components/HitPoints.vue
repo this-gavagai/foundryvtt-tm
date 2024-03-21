@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import type { Actor } from '@/utils/pf2e-types'
+import type { Actor } from '@/types/pf2e-types'
 import { inject, ref } from 'vue'
 import { updateActor } from '@/composables/api'
 import { parseIncrement } from '@/utils/utilities'
@@ -101,4 +101,4 @@ function updateHitPoints(hp_input: string, temp_input: string) {
     </Modal>
   </Teleport>
 </template>
-@/composables/api
+@/composables/api@/composables@/types/pf2e-types

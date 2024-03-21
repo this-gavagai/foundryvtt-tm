@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import type { Actor } from '@/utils/pf2e-types'
+import type { Actor } from '@/types/pf2e-types'
 import { inject } from 'vue'
 import { useServer } from '@/composables/server'
 const { socket } = useServer()
@@ -23,3 +23,4 @@ function requestMacro(compendium: string, id: string) {
     <span class="cursor-pointer p-1 bg-blue-300 text-xs border border-blue-800"><slot></slot></span>
   </div>
 </template>
+@/types/pf2e-types

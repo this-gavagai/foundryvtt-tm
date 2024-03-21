@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import type { Actor } from '@/utils/pf2e-types'
+import type { Actor } from '@/types/pf2e-types'
 import { inject } from 'vue'
 import { capitalize } from '@/utils/utilities'
 
@@ -28,3 +28,4 @@ const actor: Ref<Actor | undefined> = inject('actor')!
     </dl>
   </div>
 </template>
+@/types/pf2e-types

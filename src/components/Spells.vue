@@ -6,7 +6,7 @@
 // TODO: make sure fallback is graceful if pf2e-dailies module does not exist (for staves)
 
 import type { Ref } from 'vue'
-import type { Item, Actor } from '@/utils/pf2e-types'
+import type { Item, Actor } from '@/types/pf2e-types'
 import { inject, computed, ref } from 'vue'
 import { castSpell, updateActor, updateActorItem } from '@/composables/api'
 import { capitalize, makeActionIcons, makePropertiesHtml, removeUUIDs } from '@/utils/utilities'
@@ -375,4 +375,4 @@ const spellbook = computed((): Spellbook => {
     </Modal>
   </Teleport>
 </template>
-@/composables/api
+@/composables/api @/composables@/types/pf2e-types

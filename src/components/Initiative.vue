@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // TODO: Getting there with initiative, but it's not responsive now
 import type { Ref } from 'vue'
-import type { Actor } from '@/utils/pf2e-types'
+import type { Actor } from '@/types/pf2e-types'
 import { computed, watch, ref, inject } from 'vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'
@@ -101,4 +101,4 @@ const isCombatant = computed(() => {
     </Listbox>
   </div>
 </template>
-@/composables/api
+@/composables/api @/composables@/types/pf2e-types

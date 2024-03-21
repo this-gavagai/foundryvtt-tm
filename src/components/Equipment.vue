@@ -12,7 +12,7 @@
 // TODO: (feature) add weight, encumbrance, etc.
 
 import type { Ref } from 'vue'
-import type { Item, Actor } from '@/utils/pf2e-types'
+import type { Item, Actor } from '@/types/pf2e-types'
 import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
 import { inventoryTypes } from '@/utils/constants'
@@ -191,3 +191,4 @@ const toggleSet = [
     </InfoModal>
   </Teleport>
 </template>
+@/composables@/types/pf2e-types

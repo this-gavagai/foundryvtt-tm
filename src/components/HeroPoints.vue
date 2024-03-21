@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import type { Actor } from '@/utils/pf2e-types'
+import type { Actor } from '@/types/pf2e-types'
 import { inject, ref } from 'vue'
 import { useServer } from '@/composables/server'
 import { updateActor } from '@/composables/api'
@@ -31,4 +31,4 @@ function updateHeroPoints(newTotal: number): void {
     />
   </Statistic>
 </template>
-@/composables/server @/composables/api
+@/composables/server @/composables/api @/composables@/types/pf2e-types

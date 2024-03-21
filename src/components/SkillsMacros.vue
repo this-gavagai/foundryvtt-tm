@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import type { Actor } from '@/utils/pf2e-types'
+import type { Actor } from '@/types/pf2e-types'
 import { inject } from 'vue'
 import { useServer } from '@/composables/server'
 
@@ -75,4 +75,4 @@ const props = defineProps(['skill', 'props'])
     <Macro compendium="pf2e.action-macros" macro="8YrH37NzKRuiKFbF">Pick a Lock</Macro>
   </div>
 </template>
-@/composables/server
+@/composables/server @/types/pf2e-types

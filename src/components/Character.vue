@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Actor } from '@/utils/pf2e-types'
+import type { Actor } from '@/types/pf2e-types'
 import type { Ref } from 'vue'
 import { ref, provide, watch, inject } from 'vue'
 import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
@@ -92,3 +92,4 @@ defineExpose({ actor })
     </div>
   </div>
 </template>
+@/composables@/types/pf2e-types

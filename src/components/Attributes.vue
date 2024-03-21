@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import type { Actor } from '@/utils/pf2e-types'
+import type { Actor } from '@/types/pf2e-types'
 import { inject } from 'vue'
 import Statistic from './Statistic.vue'
 import { SignedNumber, formatModifier } from '@/utils/utilities'
@@ -58,3 +58,4 @@ function doStatCheck(type: string, subtype: string) {
     </Statistic>
   </div>
 </template>
+@/composables@/types/pf2e-types

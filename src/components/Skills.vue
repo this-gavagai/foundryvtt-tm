@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // TODO: (feature) allow players to access skill actions that aren't on here
 import type { Ref } from 'vue'
-import type { Actor, Skill } from '@/utils/pf2e-types'
+import type { Actor, Skill } from '@/types/pf2e-types'
 
 import { SignedNumber } from '@/utils/utilities'
 import { inject } from 'vue'
@@ -83,4 +83,4 @@ function doSkillCheck(slug: string) {
         </div> -->
   </div>
 </template>
-@/composables/api
+@/composables/api@/composables@/types/pf2e-types

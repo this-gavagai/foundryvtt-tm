@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // TODO: (feature) get modifiers onto skill actions (somehow?)
 import type { Ref } from 'vue'
-import type { Actor, Item } from '@/utils/pf2e-types'
+import type { Actor, Item } from '@/types/pf2e-types'
 const props = defineProps(['actor'])
 import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
@@ -145,4 +145,4 @@ const actionDefs = computed(() => {
     </InfoModal>
   </Teleport>
 </template>
-@/composables/api
+@/composables/api@/composables@/types/pf2e-types

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import type { Actor } from '@/utils/pf2e-types'
+import type { Actor } from '@/types/pf2e-types'
 import { inject, computed, watch, ref } from 'vue'
 import { capitalize, removeUUIDs } from '@/utils/utilities'
 import InfoModal from '@/components/InfoModal.vue'
@@ -56,3 +56,4 @@ const viewedItem: any = computed(
     </InfoModal>
   </Teleport>
 </template>
+@/types/pf2e-types

@@ -22,6 +22,7 @@ export interface FeatCategory {
   feats: [any]
 }
 
+// TODO: this is piling together tons of System subtypes. Worth separating?
 export interface System {
   skills: [Skill]
   build: { attributes: any }
@@ -57,6 +58,39 @@ export interface Skill {
   totalModifier: number
   modifiers: [any]
   slug: string
+}
+
+export interface World {
+  userId: string
+  release: any
+  world: any
+  system: any
+  modules: any
+  demoMode: boolean
+  addresses: any
+  files: any
+  options: any
+  activeUsers: string[]
+  documentTypes: any
+  template: any
+  model: any
+  paused: boolean
+  users: any[]
+  actors: any[]
+  cards: any[]
+  messages: any[]
+  combats: any[]
+  folders: any[]
+  items: any[]
+  journal: any[]
+  macros: any[]
+  playlists: any[]
+  tables: any[]
+  scenes: any[]
+  packs: any[]
+  settings: any[]
+  coreUpdate: any
+  systemUpdate: any
 }
 
 // debugging conveniences

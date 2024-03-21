@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Actor, Skill } from '@/utils/pf2e-types'
+import type { Actor, Skill } from '@/types/pf2e-types'
 import { ref, inject } from 'vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/20/solid'
@@ -61,3 +61,4 @@ defineExpose({ selected })
     </Listbox>
   </div>
 </template>
+@/types/pf2e-types

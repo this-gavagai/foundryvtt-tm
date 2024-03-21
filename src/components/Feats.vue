@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // TODO: provide better interface when falling back on world data by providing a computed variable that approximates the default sorting?
-import type { Item, Actor } from '@/utils/pf2e-types'
+import type { Item, Actor } from '@/types/pf2e-types'
 import { inject, ref, computed, watch } from 'vue'
 import { capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
 import { featCategoryLabels } from '@/utils/constants'
@@ -79,3 +79,4 @@ const viewedItem = computed(
     </InfoModal>
   </Teleport>
 </template>
+@/types/pf2e-types

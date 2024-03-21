@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // TODO: Handle unarmed strike (null strike on infomodal)
 import type { Ref } from 'vue'
-import type { Item, Actor } from '@/utils/pf2e-types'
+import type { Item, Actor } from '@/types/pf2e-types'
 import { inject, ref, computed } from 'vue'
 import { formatModifier } from '@/utils/utilities'
 import { rollCheck } from '@/composables/api'
@@ -90,4 +90,4 @@ function doStrike(slug: string) {
     </InfoModal>
   </Teleport>
 </template>
-@/composables/api
+@/composables/api@/composables@/types/pf2e-types

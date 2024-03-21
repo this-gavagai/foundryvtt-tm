@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // TODO: Refactor - switch over to API
 import type { Ref } from 'vue'
-import type { Item, Actor } from '@/utils/pf2e-types'
+import type { Item, Actor } from '@/types/pf2e-types'
 import { inject } from 'vue'
 import { updateActorItem } from '@/composables/api'
 
@@ -33,3 +33,4 @@ function toggleInvested(item: Item) {
     </li>
   </ul>
 </template>
+@/composables@/types/pf2e-types
