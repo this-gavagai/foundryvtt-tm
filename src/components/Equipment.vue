@@ -1,6 +1,4 @@
 <script setup lang="ts">
-// TODO: (ux) some kind of feedback on the carry toggle on click
-
 // TODO: (bug) figure out how the parenthetical worn style works (system.usage.value: 'worngloves', etc.)
 // TODO: (bug) stowed items sometimes show up as "worn" in the togglebar. Why? Figure out how equipment dynamics work
 
@@ -16,6 +14,7 @@ import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
 import { inventoryTypes } from '@/utils/constants'
 import { useApi } from '@/composables/api'
+import { useInjectKeys } from '@/composables/injectKeys'
 
 import EquipmentInvested from '@/components/EquipmentInvested.vue'
 import Modal from '@/components/Modal.vue'
@@ -31,7 +30,7 @@ const { updateActorItem } = useApi()
 
 function updateCarry(item: Item | undefined, systemUpdate: {}) {
   if (!item) return
-  if (actor.value !== undefined) updateActorItem(actor as Ref<Actor>, item._id, systemUpdate)
+  if (actor.value) updateActorItem(actor as Ref<Actor>, item._id, systemUpdate)
 }
 
 const toggleSet = [

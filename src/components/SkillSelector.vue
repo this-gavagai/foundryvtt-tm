@@ -1,12 +1,15 @@
 <script setup lang="ts">
+import type { Ref } from 'vue'
 import type { Actor, Skill } from '@/types/pf2e-types'
 import { ref, inject } from 'vue'
+import { useInjectKeys } from '@/composables/injectKeys'
+
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/20/solid'
 
-const actor: Actor = inject('actor')!
+const actor: Ref<Actor> = inject('actor')!
 
-const skills = Object.values(actor.value.system.skills)
+const skills = Object.values(actor.value?.system.skills)
 const selected = ref(skills[0])
 defineExpose({ selected })
 </script>

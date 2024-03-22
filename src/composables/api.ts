@@ -1,4 +1,4 @@
-// TODO: Make sure character request is getting called after all _process things
+// TODO: (ux) some kind of feedback on clicks
 import type { Ref } from 'vue'
 import type { Actor, World } from '@/types/pf2e-types'
 import { useThrottleFn } from '@vueuse/core'

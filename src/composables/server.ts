@@ -1,4 +1,3 @@
-// TODO: connectToFoundry and connectToServer can be consolidated
 import { ref } from 'vue'
 import { io, Socket } from 'socket.io-client'
 
@@ -40,7 +39,9 @@ function establishSocket(url: URL, sessionId: string, keepAlive = false) {
 
 async function connectToServer(url: URL) {
   let sid = getCookiesMap(document.cookie)['session']
-  if (!sid) throw new Error('No Session ID found')
+  if (!sid) {
+    window.location.href = window.location.origin
+  }
   sessionId.value = sid
   await establishSocket(url, sid, true)
     .then((r) => {

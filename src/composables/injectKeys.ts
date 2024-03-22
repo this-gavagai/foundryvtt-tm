@@ -1,3 +1,4 @@
+// implement injection keys for world and actor
 import type { InjectionKey, Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 

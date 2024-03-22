@@ -6,6 +6,7 @@ const props = defineProps(['actor'])
 import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
 import { useApi } from '@/composables/api'
+import { useInjectKeys } from '@/composables/injectKeys'
 
 import InfoModal from '@/components/InfoModal.vue'
 import SkillSelector from './SkillSelector.vue'

@@ -2,6 +2,7 @@
 import type { Actor, Skill } from '@/types/pf2e-types'
 import { inject, computed } from 'vue'
 import Statistic from './Statistic.vue'
+import { useInjectKeys } from '@/composables/injectKeys'
 
 const actor: Actor = inject('actor')!
 </script>

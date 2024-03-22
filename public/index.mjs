@@ -10,7 +10,7 @@ Hooks.on('init', function () {
   console.log('TABLEMATE initialized for user', user)
 
   console.log('TABLEMATE:', user.name)
-  if (user.getFlag('tablemate', 'external_app')) {
+  if (user.flags?.['tablemate']?.['external_app']) {
     window.location = `${window.location.origin}/modules/tablemate/index.html?id=${user.character}`
   }
 })
@@ -19,7 +19,7 @@ Hooks.on('ready', () => {
   console.log('TABLEMATE: READY TO ROLLS')
   const user = game.data.users.find((x) => x._id === game.userId)
 
-  if (user.getFlag('tablemate', 'shared_display')) {
+  if (user.flags?.['tablemate']?.['shared_display']) {
     setupTouch()
   }
 

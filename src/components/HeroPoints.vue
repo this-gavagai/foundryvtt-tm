@@ -4,6 +4,7 @@ import type { Actor } from '@/types/pf2e-types'
 import { inject, ref } from 'vue'
 import { useServer } from '@/composables/server'
 import { useApi } from '@/composables/api'
+import { useInjectKeys } from '@/composables/injectKeys'
 
 import Statistic from '@/components/Statistic.vue'
 import Counter from '@/components/Counter.vue'

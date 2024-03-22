@@ -3,6 +3,8 @@ import type { Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 import { inject } from 'vue'
 import { useServer } from '@/composables/server'
+import { useInjectKeys } from '@/composables/injectKeys'
+
 const { socket } = useServer()
 
 const props = defineProps(['label', 'compendium', 'macro'])

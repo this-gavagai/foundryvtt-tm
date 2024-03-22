@@ -14,7 +14,7 @@ export function setupCharSheet() {
     console.log(`TM.SEND ${event}`, args)
   })
 
-  game.socket.on('modifyDocument', (args) => console.log(args))
+  // game.socket.on('modifyDocument', (args) => console.log(args))
   game.socket.on(MODNAME, (args, ack, zoo) => {
     console.log('TM.RECV', args)
     switch (args.action) {
@@ -33,9 +33,9 @@ export function setupCharSheet() {
       case 'characterAction':
         if (iAmObserverOrFallbackGM()) characterAction(args)
         break
-      // case 'rollInitiative':
-      //   if (iAmObserverOrFallbackGM()) rollInitiative(args)
-      //   break
+      case 'consumeItem':
+        if (iAmObserverOrFallbackGM()) consumeItem(args)
+        break
       // case 'rollConfirm':
       //   if (game.user._id === args.userId) rollConfirm(args)
       //   break
@@ -61,7 +61,10 @@ function iAmObserver() {
   return game.user.getFlag('tablemate', 'shared_display')
 }
 function observerIsOnline() {
-  return game.users.filter((user) => user.name === 'Observer' && user.active).length > 0
+  return (
+    game.users.filter((user) => user.flags?.['tablemate']?.['shared_display'] && user.active)
+      .length > 0
+  )
 }
 function iAmObserverOrFallbackGM() {
   return iAmObserver() || (!observerIsOnline() && iAmFirstGM())
@@ -112,12 +115,10 @@ function rollCheck(args) {
       break
     case 'initiative':
       const combatantId = game.combat.combatants.find((c) => c.actorId === args.characterId)?._id
-      console.log(combatantId)
       if (combatantId) roll = actor.initiative.roll([combatantId], { updateTurn: false })
       break
   }
   roll?.then((r) => {
-    console.log(r)
     if (r.hasOwnProperty('roll')) r = r.roll
     game.socket.emit(MODNAME, {
       action: 'acknowledged',
@@ -156,6 +157,12 @@ function castSpell(args) {
   const item = actor.items.get(args.id, { strict: true })
   const spellLocation = actor.items.get(item.system.location.value)
   spellLocation.cast(item, { rank: args.rank, slotId: args.slotId })
+  game.socket.emit(MODNAME, { action: 'acknowledged', uuid: args.uuid })
+}
+function consumeItem(args) {
+  const actor = game.actors.get(args.characterId, { strict: true })
+  const item = actor.items.get(args.id, { strict: true })
+  item.consume()
   game.socket.emit(MODNAME, { action: 'acknowledged', uuid: args.uuid })
 }
 

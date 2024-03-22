@@ -1,10 +1,10 @@
 <script setup lang="ts">
-// TODO: Handle unarmed strike (null strike on infomodal)
 import type { Ref } from 'vue'
 import type { Item, Actor } from '@/types/pf2e-types'
 import { inject, ref, computed } from 'vue'
 import { formatModifier } from '@/utils/utilities'
 import { useApi } from '@/composables/api'
+import { useInjectKeys } from '@/composables/injectKeys'
 
 import InfoModal from './InfoModal.vue'
 const strikeModal = ref()

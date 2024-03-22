@@ -49,6 +49,8 @@ export interface System {
   value: any
   quantity: any
   price: any
+  spell: any
+  uses: any
 }
 
 export interface Skill {

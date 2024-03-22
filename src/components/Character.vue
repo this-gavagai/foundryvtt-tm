@@ -4,6 +4,7 @@ import type { Ref } from 'vue'
 import { ref, provide, watch, inject } from 'vue'
 import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
 import { useApi } from '@/composables/api'
+import { useInjectKeys } from '@/composables/injectKeys'
 
 import cowled from '@/assets/icons/cowled.svg'
 import biceps from '@/assets/icons/biceps.svg'
@@ -32,6 +33,7 @@ const props = defineProps(['characterId'])
 // base data
 const actor: Ref<Actor | undefined> = ref()
 provide('actor', actor)
+provide(useInjectKeys().actorKey, actor)
 
 const { requestCharacterDetails, setupSocketListenersForActor } = useApi()
 

@@ -42,12 +42,9 @@ export function printPrice(price: { gp: Number; sp: Number; cp: Number }) {
 }
 
 export function removeUUIDs(description: string | undefined) {
-  // todo: remove [[]] (shocking grasp)
-  // todo: give tooltip on linked object?
-  return description?.replace(
-    /@(UUID|Compendium)\[.*?\]\{(.*?)\}/gm,
-    '<span class="text-red-900">$2</span>'
-  )
+  return description
+    ?.replace(/@(UUID|Compendium)\[.*?\]\{(.*?)\}/gm, '<span class="text-red-900">$2</span>')
+    ?.replace(/\[\[\/r (.*)\]\]/gm, '<span class="text-green-900">$1</span>')
 }
 
 export const SignedNumber = new Intl.NumberFormat('en-US', {

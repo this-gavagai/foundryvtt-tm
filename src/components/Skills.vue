@@ -7,6 +7,7 @@ import { SignedNumber } from '@/utils/utilities'
 import { inject } from 'vue'
 import Statistic from './Statistic.vue'
 import { useApi } from '@/composables/api'
+import { useInjectKeys } from '@/composables/injectKeys'
 
 // import Macro from '@/components/Macro.vue'
 // import CheckModifiers from '@/components/CheckModifiers.vue'

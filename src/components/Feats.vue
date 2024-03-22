@@ -1,16 +1,18 @@
 <script setup lang="ts">
 // TODO: provide better interface when falling back on world data by providing a computed variable that approximates the default sorting?
+import type { Ref } from 'vue'
 import type { Item, Actor } from '@/types/pf2e-types'
 import { inject, ref, computed, watch } from 'vue'
 import { capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
 import { featCategoryLabels } from '@/utils/constants'
+import { useInjectKeys } from '@/composables/injectKeys'
 
 import InfoModal from '@/components/InfoModal.vue'
 
 const infoModal = ref()
-const actor: Actor | undefined = inject('actor')
+const actor: Ref<Actor | undefined> = inject('actor')!
 const viewedItem = computed(
-  () => actor?.value.items?.find((i: Item) => i?._id === infoModal?.value?.itemId)
+  () => actor.value?.items?.find((i: Item) => i?._id === infoModal?.value?.itemId)
 )
 
 // watch(viewedItem, () => console.log(viewedItem))

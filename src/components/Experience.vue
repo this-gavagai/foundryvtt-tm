@@ -4,6 +4,7 @@ import type { Actor } from '@/types/pf2e-types'
 import { inject, ref } from 'vue'
 import { parseIncrement } from '@/utils/utilities'
 import { useApi } from '@/composables/api'
+import { useInjectKeys } from '@/composables/injectKeys'
 
 import Statistic from '@/components/Statistic.vue'
 import Modal from '@/components/Modal.vue'
