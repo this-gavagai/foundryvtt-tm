@@ -161,7 +161,7 @@ function castSpell(args) {
 }
 function consumeItem(args) {
   const actor = game.actors.get(args.characterId, { strict: true })
-  const item = actor.items.get(args.id, { strict: true })
+  const item = actor.items.get(args.consumableId, { strict: true })
   item.consume()
   game.socket.emit(MODNAME, { action: 'acknowledged', uuid: args.uuid })
 }

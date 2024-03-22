@@ -55,7 +55,7 @@ defineExpose({ infoModal })
             </h3>
             <ul>
               <li
-                v-for="mod in props.modifiers"
+                v-for="mod in props.modifiers.filter((m: any) => m.enabled || !m.hideIfDisabled)"
                 class="flex gap-2"
                 :class="{ 'text-gray-300': !mod.enabled }"
               >

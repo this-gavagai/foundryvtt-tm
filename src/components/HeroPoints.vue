@@ -4,7 +4,7 @@ import type { Actor } from '@/types/pf2e-types'
 import { inject, ref } from 'vue'
 import { useServer } from '@/composables/server'
 import { useApi } from '@/composables/api'
-import { useInjectKeys } from '@/composables/injectKeys'
+import { useKeys } from '@/composables/injectKeys'
 
 import Statistic from '@/components/Statistic.vue'
 import Counter from '@/components/Counter.vue'
@@ -12,7 +12,7 @@ import Modal from '@/components/Modal.vue'
 
 import { PlusCircleIcon, MinusCircleIcon } from '@heroicons/vue/24/outline'
 
-const actor: Ref<Actor | undefined> = inject('actor')!
+const actor = inject(useKeys().actorKey)!
 const counter = ref()
 const { updateActor } = useApi()
 

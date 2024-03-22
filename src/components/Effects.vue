@@ -5,11 +5,12 @@ import { inject, ref, computed } from 'vue'
 import type { Item } from '@/types/pf2e-types'
 import InfoModal from '@/components/InfoModal.vue'
 import { useApi } from '@/composables/api'
+import { useKeys } from '@/composables/injectKeys'
 
 import { capitalize, removeUUIDs, getPath } from '@/utils/utilities'
 
 const infoModal = ref()
-const actor = inject<Ref<Actor>>('actor')!
+const actor = inject(useKeys().actorKey)!
 const viewedItem = computed(
   () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
 )
@@ -22,14 +23,9 @@ function incrementEffectValue(effectId: string | undefined, change: number) {
   if (!actor.value || !effectId) return
   const effect = actor.value?.items.find((i: any) => i._id === effectId)
   const newValue = effect?.system?.value.value + change
-  const update = {
-    system: {
-      value: {
-        value: newValue
-      }
-    }
-  }
-  updateActorItem(actor, effectId, update, { conditionValue: newValue })
+  const update = { system: { value: { value: newValue } } }
+  if (actor.value)
+    updateActorItem(actor as Ref<Actor>, effectId, update, { conditionValue: newValue })
 }
 </script>
 <template>

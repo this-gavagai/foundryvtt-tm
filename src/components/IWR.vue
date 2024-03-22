@@ -3,9 +3,9 @@ import type { Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 import { inject } from 'vue'
 import { capitalize } from '@/utils/utilities'
-import { useInjectKeys } from '@/composables/injectKeys'
+import { useKeys } from '@/composables/injectKeys'
 
-const actor: Ref<Actor | undefined> = inject('actor')!
+const actor = inject(useKeys().actorKey)!
 </script>
 <template>
   <div class="px-6 py-4 flex justify-between border-b empty:hidden">

@@ -6,7 +6,7 @@ const props = defineProps(['actor'])
 import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
 import { useApi } from '@/composables/api'
-import { useInjectKeys } from '@/composables/injectKeys'
+import { useKeys } from '@/composables/injectKeys'
 
 import InfoModal from '@/components/InfoModal.vue'
 import SkillSelector from './SkillSelector.vue'
@@ -14,7 +14,7 @@ import SkillSelector from './SkillSelector.vue'
 const infoModal = ref()
 const skillSelector = ref()
 
-const actor: Ref<Actor | undefined> = inject('actor')!
+const actor = inject(useKeys().actorKey)!
 const action: any = computed(
   () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
 )

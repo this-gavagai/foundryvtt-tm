@@ -9,10 +9,10 @@ import { getPath } from '@/utils/utilities'
 import { Bars3Icon } from '@heroicons/vue/24/solid'
 import HitPoints from './HitPoints.vue'
 import HeroPoints from './HeroPoints.vue'
-import { useInjectKeys } from '@/composables/injectKeys'
+import { useKeys } from '@/composables/injectKeys'
 
 const world: any = inject('world')
-const actor: Ref<Actor | undefined> = inject('actor')!
+const actor = inject(useKeys().actorKey)!
 const changeChar: any = inject('changeChar')
 const { characterList } = useCharacterSelect()
 </script>

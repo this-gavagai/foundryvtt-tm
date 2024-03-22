@@ -56,7 +56,7 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
             _processUpdates2(combat.combatants, args.result)
             break
           case 'delete':
-            combat.combatants(combat.combatants, args.result)
+            _processDeletes2(combat.combatants, args.result)
             break
         }
         socket.emit('world', (r: any) => (world.value = r))
@@ -282,6 +282,20 @@ async function characterAction(
     pushToAckQueue(uuid, (args: any) => resolve(args))
   })
 }
+async function consumeItem(actor: Ref<Actor>, consumableId: string, options = {}) {
+  const socket = await getSocket()
+  const uuid = crypto.randomUUID()
+  return new Promise((resolve, reject) => {
+    socket.emit('module.tablemate', {
+      action: 'consumeItem',
+      characterId: actor.value._id,
+      consumableId,
+      options,
+      uuid
+    })
+    pushToAckQueue(uuid, (args: any) => resolve(args))
+  })
+}
 
 // function _processCreates(actor: Ref<Actor>, results: []) {
 //   results.forEach((c: any) => {
@@ -331,6 +345,7 @@ export function useApi() {
     deleteActorItem,
     castSpell,
     rollCheck,
+    consumeItem,
     characterAction
   }
 }

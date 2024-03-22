@@ -7,17 +7,17 @@ import { SignedNumber } from '@/utils/utilities'
 import { inject } from 'vue'
 import Statistic from './Statistic.vue'
 import { useApi } from '@/composables/api'
-import { useInjectKeys } from '@/composables/injectKeys'
+import { useKeys } from '@/composables/injectKeys'
 
 // import Macro from '@/components/Macro.vue'
 // import CheckModifiers from '@/components/CheckModifiers.vue'
 // import SkillsMacros from '@/components/SkillsMacros.vue'
 
 const { rollCheck } = useApi()
-const actor: Ref<Actor> = inject('actor')!
+const actor = inject(useKeys().actorKey)!
 // const mods = [{ label: 'test', modifier: 3 }]
 function doSkillCheck(slug: string) {
-  return rollCheck(actor, 'skill', slug)
+  if (actor.value) return rollCheck(actor as Ref<Actor>, 'skill', slug)
 }
 </script>
 <template>

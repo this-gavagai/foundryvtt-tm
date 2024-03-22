@@ -4,12 +4,12 @@ import type { Actor } from '@/types/pf2e-types'
 import { inject, ref } from 'vue'
 import { parseIncrement } from '@/utils/utilities'
 import { useApi } from '@/composables/api'
-import { useInjectKeys } from '@/composables/injectKeys'
+import { useKeys } from '@/composables/injectKeys'
 
 import Statistic from '@/components/Statistic.vue'
 import Modal from '@/components/Modal.vue'
 
-const actor: Ref<Actor | undefined> = inject('actor')!
+const actor = inject(useKeys().actorKey)!
 const experienceModal = ref()
 const focusTarget = ref()
 const { updateActor } = useApi()

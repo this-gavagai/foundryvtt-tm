@@ -6,10 +6,10 @@ import Statistic from './Statistic.vue'
 import { SignedNumber, formatModifier } from '@/utils/utilities'
 import { useApi } from '@/composables/api'
 import { attributes } from '@/utils/constants'
-import { useInjectKeys } from '@/composables/injectKeys'
+import { useKeys } from '@/composables/injectKeys'
 
 const { rollCheck } = useApi()
-const actor = inject(useInjectKeys().actorKey)!
+const actor = inject(useKeys().actorKey)!
 function doStatCheck(type: string, subtype: string) {
   if (actor.value) return rollCheck(actor as Ref<Actor>, type, subtype)
 }

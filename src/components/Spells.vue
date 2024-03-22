@@ -1,14 +1,11 @@
 <script setup lang="ts">
 // TODO: deal with flexible prepared casters
-// TODO: finish implementing wands
-// TODO: this needs a cleanup
-
 import type { Ref } from 'vue'
 import type { Item, Actor } from '@/types/pf2e-types'
 import { inject, computed, ref } from 'vue'
 import { useApi } from '@/composables/api'
 import { capitalize, makeActionIcons, makePropertiesHtml, removeUUIDs } from '@/utils/utilities'
-import { useInjectKeys } from '@/composables/injectKeys'
+import { useKeys } from '@/composables/injectKeys'
 
 import Counter from '@/components/Counter.vue'
 import Modal from '@/components/Modal.vue'
@@ -19,43 +16,36 @@ interface Spellbook {
 }
 const infoModal = ref()
 const spellSelectionModal = ref()
-const { updateActor, updateActorItem, castSpell } = useApi()
+const { updateActor, updateActorItem, castSpell, consumeItem } = useApi()
 
-const actor: Ref<Actor> = inject('actor')!
-const viewedSpell = computed(() => {
-  console.log(infoModal.value?.options?.entry)
-  console.log(
-    actor.value.items?.find((i: any) => i._id === infoModal?.value?.options?.entry)?.system?.spell
-  )
-  return actor.value.items?.find((i: any) => i._id === infoModal?.value?.itemId)
-  // return infoModal.value?.options?.consumable
-  //   ? actor.value.items?.find((i: any) => i._id === infoModal?.value?.options?.entry)?.system?.spell
-  //   : actor.value.items?.find((i: any) => i._id === infoModal?.value?.itemId)
-})
+const actor = inject(useKeys().actorKey)!
+const viewedSpell = computed(
+  () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
+)
 
 function doSpell(spellId: string, castingRank: number, castingSlot: number) {
-  castSpell(actor, spellId, castingRank, castingSlot).then((r) => console.log(r))
+  if (actor.value)
+    castSpell(actor as Ref<Actor>, spellId, castingRank, castingSlot).then((r) => console.log(r))
   infoModal.value.close()
 }
 function doConsumable(itemId: string) {
-  const spellId = ''
-  // castSpell(actor, spellId, 0, 0)
-  // infoModal.value.close()
+  if (actor.value) consumeItem(actor as Ref<Actor>, itemId)
+  infoModal.value.close()
 }
 
 function updateSpellCharges(newTotal: number, options: { [key: string]: any }) {
-  console.log(newTotal, options)
+  if (!actor.value) return
   switch (options.type) {
     case 'focus':
-      updateActor(actor, { system: { resources: { focus: { value: newTotal } } } })
+      updateActor(actor as Ref<Actor>, { system: { resources: { focus: { value: newTotal } } } })
       break
     case 'charge':
-      updateActorItem(actor, options.entry, {
+      updateActorItem(actor as Ref<Actor>, options.entry, {
         flags: { 'pf2e-dailies': { staff: { charges: newTotal } } }
       })
       break
     case 'spontaneous':
-      updateActorItem(actor, options.entry, {
+      updateActorItem(actor as Ref<Actor>, options.entry, {
         system: { slots: { ['slot' + options.rank]: { value: newTotal } } }
       })
       break
@@ -63,22 +53,24 @@ function updateSpellCharges(newTotal: number, options: { [key: string]: any }) {
       const location = actor.value.items.find((i) => i._id === options.entry)
       const prepped = location!.system.slots['slot' + options.rank].prepared
       prepped[options.slot].expended = newTotal === 0 ? true : false
-      updateActorItem(actor, options.entry, {
+      updateActorItem(actor as Ref<Actor>, options.entry, {
         system: { slots: { ['slot' + options.rank]: { prepared: prepped } } }
       })
+      break
+    case 'wand':
+      updateActorItem(actor as Ref<Actor>, options.itemId, {
+        system: { uses: { value: newTotal } }
+      })
+      break
   }
 }
 
-function assignSpellToSlot(
-  location: Item | undefined,
-  rank: number,
-  slot: number,
-  newSpellId: string | null
-) {
-  const prepared = location!.system.slots['slot' + rank]?.prepared
+function assignSpellToSlot(location: Item, rank: number, slot: number, newSpellId: string | null) {
+  if (!actor.value) return
+  const prepared = location.system.slots['slot' + rank]?.prepared
   if (!prepared[slot]) prepared[slot] = { id: null, expended: true }
   prepared[slot].id = newSpellId
-  updateActorItem(actor, location!._id, {
+  updateActorItem(actor as Ref<Actor>, location!._id, {
     system: { slots: { ['slot' + rank]: { prepared: prepared } } }
   })
 }
@@ -86,7 +78,7 @@ function assignSpellToSlot(
 const spellbook = computed((): Spellbook => {
   let sb: Spellbook = {} // {location - rank - spell}
   // set spellcastingEntry locations with empty ranks template
-  actor.value.items
+  actor.value?.items
     ?.filter((i: Item) => i?.type === 'spellcastingEntry')
     .forEach((se: { _id: string }) => {
       const location = se._id
@@ -95,17 +87,17 @@ const spellbook = computed((): Spellbook => {
     })
   // assign spells to spellbook ranks
   for (const locationId of Object.keys(sb)) {
-    const location = actor.value.items.find((i: Item) => i._id === locationId)
+    const location = actor.value?.items.find((i: Item) => i._id === locationId)
     if (location?.system.prepared.value === 'prepared') {
       Object.values(location.system.slots).forEach((slot: any, slotRank: number) => {
-        const preparedSpells = slot.prepared.map((slotSpell: any) =>
-          actor.value.items.find((i: Item) => i._id === slotSpell.id)
+        const preparedSpells = slot.prepared.map(
+          (slotSpell: any) => actor.value?.items.find((i: Item) => i._id === slotSpell.id)
         )
         const spellSlots = Object.assign(new Array(slot.max), preparedSpells.slice(0, slot.max))
         sb[locationId][slotRank] = spellSlots
       })
     } else {
-      const spellsForLocation = actor.value.items.filter(
+      const spellsForLocation = actor.value?.items.filter(
         (i: Item) => i.type === 'spell' && i.system.location.value === locationId
       )
       spellsForLocation?.forEach((s: Item) => {
@@ -138,7 +130,7 @@ const spellbook = computed((): Spellbook => {
   <div class="px-6 py-4">
     <ul class="">
       <li
-        v-for="location in actor.items?.filter((x: Item) => x?.type === 'spellcastingEntry')"
+        v-for="location in actor?.items?.filter((x: Item) => x?.type === 'spellcastingEntry')"
         class="mt-4 first:mt-0"
       >
         <h3 class="flex justify-between align-bottom bg-gray-300">
@@ -149,8 +141,8 @@ const spellbook = computed((): Spellbook => {
             <Counter
               v-if="location.system?.prepared.value === 'focus'"
               class="relative bottom-[-2px] text-sm mr-2"
-              :value="actor.system.resources.focus.value"
-              :max="actor.system.resources.focus.max"
+              :value="actor?.system.resources.focus.value"
+              :max="actor?.system.resources.focus.max"
               title="Focus Pool"
               editable
               @change-count="(newTotal) => updateSpellCharges(newTotal, { type: 'focus' })"
@@ -169,7 +161,7 @@ const spellbook = computed((): Spellbook => {
         </h3>
         <div>
           Spell DC
-          {{ location.system.spelldc.dc || actor.system.attributes?.classOrSpellDC?.value }}
+          {{ location.system.spelldc.dc || actor?.system.attributes?.classOrSpellDC?.value }}
         </div>
         <!-- Spell Ranks -->
         <ul>
@@ -270,11 +262,11 @@ const spellbook = computed((): Spellbook => {
         </h3>
         <div class="pb-1">
           Spell DC
-          {{ actor.system.attributes?.classOrSpellDC?.value }}
+          {{ actor?.system.attributes?.classOrSpellDC?.value }}
         </div>
         <ul>
           <li
-            v-for="spell in actor.items
+            v-for="spell in actor?.items
               .filter(
                 (i) =>
                   i.system.traits.value?.includes('scroll') ||
@@ -301,7 +293,9 @@ const spellbook = computed((): Spellbook => {
               :max="spell.system.uses.max"
               :title="spell.name"
               editable
-              @change-count=""
+              @change-count="
+                (newTotal) => updateSpellCharges(newTotal, { type: 'wand', itemId: spell._id })
+              "
             />
           </li>
         </ul>
@@ -334,21 +328,28 @@ const spellbook = computed((): Spellbook => {
         <span class="text-sm">{{ capitalize(viewedSpell?.system.traits.rarity) }}</span>
       </template>
       <template #body>
+        <div v-if="infoModal.options?.isConsumable">
+          <h4 class="text-xl">Spell Details</h4>
+          <div v-html="makePropertiesHtml(viewedSpell?.system.spell)"></div>
+          <div v-html="removeUUIDs(viewedSpell?.system.spell.system.description?.value)"></div>
+          <hr />
+          <h4 class="text-xl pt-1">Wand Details</h4>
+        </div>
         <div v-html="makePropertiesHtml(viewedSpell)"></div>
         <div v-html="removeUUIDs(viewedSpell?.system.description?.value)"></div>
       </template>
       <template #actionButtons>
         <button
           v-if="
-            actor.items.find((i) => i._id === infoModal.options?.entry)?.system.prepared?.value ===
+            actor?.items.find((i) => i._id === infoModal.options?.entry)?.system.prepared?.value ===
             'prepared'
           "
           type="button"
-          class="bg-red-200 hover:bg-red-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
+          class="bg-red-600 hover:bg-red-500 text-white inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium focus:outline-none"
           @click="
             () => {
               assignSpellToSlot(
-                actor.items.find((i) => i._id === infoModal.options?.entry),
+                actor?.items.find((i) => i._id === infoModal.options?.entry)!,
                 infoModal.options.castingRank,
                 infoModal.options.castingSlot,
                 null
@@ -387,7 +388,7 @@ const spellbook = computed((): Spellbook => {
       <ul>
         <li
           class="cursor-pointer"
-          v-for="spell in actor.items.filter(
+          v-for="spell in actor?.items.filter(
             (i) =>
               i.type === 'spell' &&
               i.system.location.value === spellSelectionModal.options?.entry &&
@@ -396,7 +397,7 @@ const spellbook = computed((): Spellbook => {
           @click="
             () => {
               assignSpellToSlot(
-                actor.items.find((i) => i._id === spellSelectionModal.options?.entry),
+                actor?.items.find((i) => i._id === spellSelectionModal.options?.entry)!,
                 spellSelectionModal.options.castingRank,
                 spellSelectionModal.options.castingSlot,
                 spell._id

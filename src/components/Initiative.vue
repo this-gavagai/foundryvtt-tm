@@ -8,8 +8,9 @@ import { formatModifier } from '@/utils/utilities'
 import { useApi } from '@/composables/api'
 import Statistic from '@/components/Statistic.vue'
 import { useCombat } from '@/composables/combat'
+import { useKeys } from '@/composables/injectKeys'
 
-const actor = inject<Ref<Actor>>('actor')!
+const actor = inject(useKeys().actorKey!)!
 const world = inject<Ref<World>>('world')
 const { requestCharacterDetails, updateActor, rollCheck } = useApi()
 
@@ -20,9 +21,12 @@ const initSkills: any = computed(() => {
 })
 const selected = ref(actor.value?.system?.initiative?.statistic)
 watch(selected, async (newSkill, oldSkill) => {
-  updateActor(actor, { system: { initiative: { statistic: newSkill } } }).then((r) => {
-    requestCharacterDetails(actor.value._id!) // needed because initiative changes have lateral effects to modifiers set
-  })
+  if (actor.value)
+    updateActor(actor as Ref<Actor>, { system: { initiative: { statistic: newSkill } } }).then(
+      () => {
+        requestCharacterDetails(actor.value?._id!) // needed because initiative changes have lateral effects to modifiers set
+      }
+    )
 })
 
 const { activeScene, activeCombat } = useCombat(world)
@@ -36,7 +40,7 @@ const initiativeReady = computed(() => {
   return inActiveCombat && !initiativeValue
 })
 function doInitiative() {
-  return rollCheck(actor, 'initiative')
+  if (actor.value) return rollCheck(actor as Ref<Actor>, 'initiative')
 }
 </script>
 <template>

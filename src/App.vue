@@ -4,6 +4,7 @@ import { useWakeLock } from '@vueuse/core'
 import { useServer } from './composables/server'
 import { useCharacterSelect } from './composables/characterSelect'
 import { useApi } from './composables/api'
+import { useKeys } from './composables/injectKeys'
 
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 import Character from '@/components/Character.vue'
@@ -15,6 +16,7 @@ wakeLock.request('screen')
 const urlId = new URLSearchParams(window.location.search).get('id')
 const world: any = ref()
 provide('world', world)
+provide(useKeys().worldKey, world)
 
 const { connectToServer } = useServer()
 const { setupSocketListenersForWorld } = useApi()

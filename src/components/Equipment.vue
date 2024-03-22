@@ -14,13 +14,13 @@ import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
 import { inventoryTypes } from '@/utils/constants'
 import { useApi } from '@/composables/api'
-import { useInjectKeys } from '@/composables/injectKeys'
+import { useKeys } from '@/composables/injectKeys'
 
 import EquipmentInvested from '@/components/EquipmentInvested.vue'
 import Modal from '@/components/Modal.vue'
 import InfoModal from '@/components/InfoModal.vue'
 
-const actor: Ref<Actor | undefined> = inject('actor')!
+const actor = inject(useKeys().actorKey)!
 const infoModal = ref()
 const investedModal = ref()
 const item = computed(

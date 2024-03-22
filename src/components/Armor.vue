@@ -2,9 +2,9 @@
 import type { Actor, Skill } from '@/types/pf2e-types'
 import { inject, computed } from 'vue'
 import Statistic from './Statistic.vue'
-import { useInjectKeys } from '@/composables/injectKeys'
+import { useKeys } from '@/composables/injectKeys'
 
-const actor: Actor = inject('actor')!
+const actor = inject(useKeys().actorKey)
 </script>
 <template>
   <div class="px-6 py-4 flex gap-4 border-b">

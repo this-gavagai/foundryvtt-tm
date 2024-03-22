@@ -3,12 +3,12 @@ import type { Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 import { inject } from 'vue'
 import { useServer } from '@/composables/server'
-import { useInjectKeys } from '@/composables/injectKeys'
+import { useKeys } from '@/composables/injectKeys'
 
 const { socket } = useServer()
 
 const props = defineProps(['label', 'compendium', 'macro'])
-const actor: Ref<Actor | undefined> = inject('actor')!
+const actor = inject(useKeys().actorKey)!
 function requestMacro(compendium: string, id: string) {
   if (!actor.value) return
   socket.value.emit('module.tablemate', {

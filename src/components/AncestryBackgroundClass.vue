@@ -4,11 +4,11 @@ import type { Actor } from '@/types/pf2e-types'
 import { inject, computed, watch, ref } from 'vue'
 import { capitalize, removeUUIDs } from '@/utils/utilities'
 import InfoModal from '@/components/InfoModal.vue'
-import { useInjectKeys } from '@/composables/injectKeys'
+import { useKeys } from '@/composables/injectKeys'
 
 const infoModal = ref()
 
-const actor: Ref<Actor | undefined> = inject('actor')!
+const actor = inject(useKeys().actorKey)!
 const ancestry = computed(() => actor.value?.items?.find((x: any) => x.type === 'ancestry'))
 const heritage = computed(() => actor.value?.items?.find((x: any) => x.type === 'heritage'))
 const background = computed(() => actor.value?.items?.find((x: any) => x.type === 'background'))

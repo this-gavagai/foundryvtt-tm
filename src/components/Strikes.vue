@@ -4,16 +4,16 @@ import type { Item, Actor } from '@/types/pf2e-types'
 import { inject, ref, computed } from 'vue'
 import { formatModifier } from '@/utils/utilities'
 import { useApi } from '@/composables/api'
-import { useInjectKeys } from '@/composables/injectKeys'
+import { useKeys } from '@/composables/injectKeys'
 
 import InfoModal from './InfoModal.vue'
 const strikeModal = ref()
-const actor: Ref<Actor> = inject('actor')!
+const actor = inject(useKeys().actorKey)!
 const { rollCheck } = useApi()
 const viewedItem = computed(() => actor.value?.system?.actions?.[strikeModal.value?.itemId])
 
 function doStrike(slug: string) {
-  rollCheck(actor, 'strike', slug)
+  if (actor.value) rollCheck(actor as Ref<Actor>, 'strike', slug)
 }
 </script>
 <template>
@@ -24,7 +24,7 @@ function doStrike(slug: string) {
         v-for="(strike, i) in actor?.system?.actions
           ?.filter((a: any) => a.type === 'strike')
           .map((a: any) => {
-            a['item'] = actor.items?.find((i: Item) => i.system?.slug === a?.slug)
+            a['item'] = actor?.items?.find((i: Item) => i.system?.slug === a?.slug)
             return a
           })
           .filter(
