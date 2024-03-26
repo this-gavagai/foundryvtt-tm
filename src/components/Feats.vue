@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// TODO: have better interface when falling back on world data by providing a computed variable that approximates the default sorting?
 import type { Ref } from 'vue'
 import type { Item, Actor } from '@/types/pf2e-types'
 import { inject, ref, computed, watch } from 'vue'

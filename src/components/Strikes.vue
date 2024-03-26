@@ -1,4 +1,7 @@
 <script setup lang="ts">
+// TODO: handle versatile damage types
+// TODO: (big feature) show damage modifiers in place of strike modifiers (can be down with "createMessage: false" prop on context object)
+// TODO: Improve dice representations for damage rolls (number and types)
 import type { Ref } from 'vue'
 import type { Item, Actor } from '@/types/pf2e-types'
 import { inject, ref, computed } from 'vue'
@@ -13,7 +16,21 @@ const { rollCheck } = useApi()
 const viewedItem = computed(() => actor.value?.system?.actions?.[strikeModal.value?.itemId])
 
 function doStrike(slug: string) {
-  if (actor.value) rollCheck(actor as Ref<Actor>, 'strike', slug)
+  if (actor.value)
+    rollCheck(actor as Ref<Actor>, 'strike', slug).then((r) => {
+      strikeModal.value.close()
+      strikeModal.value.rollResultModal.open(r)
+    })
+}
+function doDamage(slug: string, crit: number) {
+  if (actor.value)
+    rollCheck(actor as Ref<Actor>, 'damage', `${slug},${crit ? 'damage' : 'critical'}`).then(
+      (r) => {
+        strikeModal.value.close()
+        strikeModal.value.rollResultModal.open(r)
+        console.log(r)
+      }
+    )
 }
 </script>
 <template>
@@ -22,7 +39,7 @@ function doStrike(slug: string) {
     <ul>
       <li
         v-for="(strike, i) in actor?.system?.actions
-          ?.filter((a: any) => a.type === 'strike')
+          ?.filter((a: any) => a?.type === 'strike')
           .map((a: any) => {
             a['item'] = actor?.items?.find((i: Item) => i.system?.slug === a?.slug)
             return a
@@ -31,23 +48,33 @@ function doStrike(slug: string) {
             (a: any) => a.item?.system?.equipped?.carryType === 'held' || a.item === undefined
           )"
         class="cursor-pointer text-xl pb-2"
-        @click="strikeModal.open(i, {})"
       >
         <!-- <div class="text-xs border p-1 w-8 mr-1 text-right">
           {{ SignedNumber.format(strike?.totalModifier) }}
         </div> -->
         <div>{{ strike?.item?.name ?? strike?.label }}</div>
         <div>
-          <!-- <span
+          <span
             v-for="(variant, index) in strike.variants"
-            class="bg-blue-300 border border-blue-800 p-1 mr-2 text-xs"
-            @click="makeStrike(strike.slug, index)"
-          > -->
-          <span v-for="(variant, index) in strike.variants" class="border p-1 mr-2 text-xs">
+            class="border p-2 mr-1 text-xs bg-blue-600 hover:bg-blue-500 text-white"
+            @click="strikeModal.open(i, { type: 'strike', subtype: index })"
+          >
             <span v-if="!index" class="pf2-icon text-lg pr-1">1</span>
             <span v-if="!index">Strike </span>
             <span>{{ variant.label }}</span>
           </span>
+        </div>
+        <div class="text-white mt-2">
+          <span
+            class="border p-2 mr-1 text-xs bg-red-600 hover:bg-red-500"
+            @click="strikeModal.open(i, { type: 'damage', subtype: 0 })"
+            >Damage</span
+          >
+          <span
+            class="border p-2 mr-1 text-xs bg-red-600 hover:bg-red-500"
+            @click="strikeModal.open(i, { type: 'damage', subtype: 1 })"
+            >Critical</span
+          >
         </div>
       </li>
     </ul>
@@ -63,6 +90,7 @@ function doStrike(slug: string) {
       :imageUrl="viewedItem?.item?.img ?? 'icons/skills/melee/unarmed-punch-fist.webp'"
     >
       <template #title>{{ viewedItem?.label }}</template>
+      <template #description>{{ viewedItem?.tmDamageFormula.base }}</template>
       <template #default>
         <ul>
           <li
@@ -79,15 +107,32 @@ function doStrike(slug: string) {
       </template>
       <template #actionButtons>
         <button
-          v-for="(variant, i) in viewedItem?.variants"
+          v-if="strikeModal.options?.type === 'strike'"
           type="button"
           class="bg-blue-600 hover:bg-blue-500 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-white focus:outline-none"
-          @click="doStrike(`${strikeModal.itemId},${i}`)"
+          @click="doStrike(`${strikeModal.itemId},${strikeModal.options.subtype}`)"
         >
-          Strike {{ variant.label.match(/[+-][0-9]*/g)[0] }}
+          <span v-if="!strikeModal.options.subtype">Strike </span>
+          <span>{{ viewedItem?.variants[strikeModal.options.subtype].label }}</span>
+        </button>
+
+        <button
+          v-if="strikeModal.options?.type === 'damage' && strikeModal.options.subtype === 0"
+          type="button"
+          class="bg-red-600 hover:bg-red-500 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-white focus:outline-none"
+          @click="doDamage(strikeModal.itemId, strikeModal.options.subtype)"
+        >
+          Damage
+        </button>
+        <button
+          v-if="strikeModal.options?.type === 'damage' && strikeModal.options.subtype === 1"
+          type="button"
+          class="bg-red-600 hover:bg-red-500 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-white focus:outline-none"
+          @click="doDamage(strikeModal.itemId, strikeModal.options.subtype)"
+        >
+          Critical
         </button>
       </template>
     </InfoModal>
   </Teleport>
 </template>
-@/composables/api@/composables@/types/pf2e-types

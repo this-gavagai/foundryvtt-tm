@@ -1,5 +1,7 @@
 <script setup lang="ts">
 // TODO: deal with flexible prepared casters
+// TODO: make it so it's possible to cast from staves, using pf2e-dailies module (right now, window pops up)
+
 import type { Ref } from 'vue'
 import type { Item, Actor } from '@/types/pf2e-types'
 import { inject, computed, ref } from 'vue'
@@ -7,6 +9,7 @@ import { useApi } from '@/composables/api'
 import { capitalize, makeActionIcons, makePropertiesHtml, removeUUIDs } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 
+import Button from '@/components/Button.vue'
 import Counter from '@/components/Counter.vue'
 import Modal from '@/components/Modal.vue'
 import InfoModal from '@/components/InfoModal.vue'
@@ -14,25 +17,50 @@ import InfoModal from '@/components/InfoModal.vue'
 interface Spellbook {
   [key: string]: { [key: string]: [Item?] }
 }
-const infoModal = ref()
-const spellSelectionModal = ref()
-const { updateActor, updateActorItem, castSpell, consumeItem } = useApi()
+interface SpellInfo {
+  type?: 'focus' | 'charge' | 'spontaneous' | 'prepared' | 'wand'
+  entry?: Item
+  entryId?: string
+  castingRank?: number
+  castingSlot?: number
+  isConsumable?: boolean
+}
 
 const actor = inject(useKeys().actorKey)!
+const { updateActor, updateActorItem, castSpell, consumeItem } = useApi()
+
+const infoModal = ref()
+const spellSelectionModal = ref()
+
 const viewedSpell = computed(
   () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
 )
 
-function doSpell(spellId: string, castingRank: number, castingSlot: number) {
+function doSpell(spellId: string, info: SpellInfo) {
   if (actor.value)
-    castSpell(actor as Ref<Actor>, spellId, castingRank, castingSlot).then((r) => console.log(r))
+    castSpell(actor as Ref<Actor>, spellId, info.castingRank!, info.castingSlot!).then((r) =>
+      console.log(r)
+    )
   infoModal.value.close()
 }
 function doConsumable(itemId: string) {
   if (actor.value) consumeItem(actor as Ref<Actor>, itemId)
   infoModal.value.close()
 }
+function setSpellAndClose(info: SpellInfo, newSpellId: string | null) {
+  if (!actor.value) return
+  const prepared = info.entry?.system.slots['slot' + info.castingRank]?.prepared
+  if (!prepared[info.castingSlot ?? ''])
+    prepared[info.castingSlot ?? ''] = { id: null, expended: true }
+  prepared[info.castingSlot ?? ''].id = newSpellId
 
+  updateActorItem(actor as Ref<Actor>, info.entry!._id, {
+    system: { slots: { ['slot' + info.castingRank]: { prepared: prepared } } }
+  }).then((x: any) => {
+    infoModal.value.close()
+    spellSelectionModal.value.close()
+  })
+}
 function updateSpellCharges(newTotal: number, options: { [key: string]: any }) {
   if (!actor.value) return
   switch (options.type) {
@@ -40,20 +68,20 @@ function updateSpellCharges(newTotal: number, options: { [key: string]: any }) {
       updateActor(actor as Ref<Actor>, { system: { resources: { focus: { value: newTotal } } } })
       break
     case 'charge':
-      updateActorItem(actor as Ref<Actor>, options.entry, {
+      updateActorItem(actor as Ref<Actor>, options.entryId, {
         flags: { 'pf2e-dailies': { staff: { charges: newTotal } } }
       })
       break
     case 'spontaneous':
-      updateActorItem(actor as Ref<Actor>, options.entry, {
+      updateActorItem(actor as Ref<Actor>, options.entryId, {
         system: { slots: { ['slot' + options.rank]: { value: newTotal } } }
       })
       break
     case 'prepared':
-      const location = actor.value.items.find((i) => i._id === options.entry)
+      const location = actor.value.items.find((i) => i._id === options.entryId)
       const prepped = location!.system.slots['slot' + options.rank].prepared
       prepped[options.slot].expended = newTotal === 0 ? true : false
-      updateActorItem(actor as Ref<Actor>, options.entry, {
+      updateActorItem(actor as Ref<Actor>, options.entryId, {
         system: { slots: { ['slot' + options.rank]: { prepared: prepped } } }
       })
       break
@@ -63,16 +91,6 @@ function updateSpellCharges(newTotal: number, options: { [key: string]: any }) {
       })
       break
   }
-}
-
-function assignSpellToSlot(location: Item, rank: number, slot: number, newSpellId: string | null) {
-  if (!actor.value) return
-  const prepared = location.system.slots['slot' + rank]?.prepared
-  if (!prepared[slot]) prepared[slot] = { id: null, expended: true }
-  prepared[slot].id = newSpellId
-  updateActorItem(actor as Ref<Actor>, location!._id, {
-    system: { slots: { ['slot' + rank]: { prepared: prepared } } }
-  })
 }
 
 const spellbook = computed((): Spellbook => {
@@ -154,12 +172,13 @@ const spellbook = computed((): Spellbook => {
               :title="location.name"
               editable
               @change-count="
-                (newTotal) => updateSpellCharges(newTotal, { type: 'charge', entry: location._id })
+                (newTotal) =>
+                  updateSpellCharges(newTotal, { type: 'charge', entryId: location._id })
               "
             />
           </span>
         </h3>
-        <div>
+        <div v-if="location.system.spelldc.dc || actor?.system.attributes?.classOrSpellDC?.value">
           Spell DC
           {{ location.system.spelldc.dc || actor?.system.attributes?.classOrSpellDC?.value }}
         </div>
@@ -185,7 +204,7 @@ const spellbook = computed((): Spellbook => {
                   (newTotal) =>
                     updateSpellCharges(newTotal, {
                       type: 'spontaneous',
-                      entry: location._id,
+                      entryId: location._id,
                       rank: rank
                     })
                 "
@@ -206,10 +225,11 @@ const spellbook = computed((): Spellbook => {
                     v-if="spell"
                     @click="
                       infoModal.open(spell?._id, {
-                        entry: location._id,
+                        entry: location,
+                        entryId: location._id,
                         castingRank: Number(rank),
                         castingSlot: index
-                      })
+                      } as SpellInfo)
                     "
                     class="cursor-pointer"
                   >
@@ -222,12 +242,13 @@ const spellbook = computed((): Spellbook => {
                     v-else
                     @click="
                       spellSelectionModal.open({
-                        entry: location._id,
+                        entry: location,
+                        entryId: location._id,
                         castingRank: Number(rank),
                         castingSlot: index
-                      })
+                      } as SpellInfo)
                     "
-                    class="cursor-pointer"
+                    class="cursor-pointer text-gray-500"
                     >(empty)</span
                   >
                 </div>
@@ -244,7 +265,7 @@ const spellbook = computed((): Spellbook => {
                     (newTotal) =>
                       updateSpellCharges(newTotal, {
                         type: 'prepared',
-                        entry: location._id,
+                        entryId: location._id,
                         rank,
                         slot: index
                       })
@@ -256,15 +277,15 @@ const spellbook = computed((): Spellbook => {
         </ul>
       </li>
       <!-- Wands and Scrolls -->
-      <li class="mt-4 first:mt-0">
+      <li class="mt-4 first:mt-0 [&:not(:has(li))]:hidden">
         <h3 class="flex justify-between align-bottom bg-gray-300">
           <span class="underline text-xl"> Wands and Scrolls </span>
         </h3>
-        <div class="pb-1">
+        <div class="pb-1" v-if="actor?.system.attributes?.classOrSpellDC?.value">
           Spell DC
           {{ actor?.system.attributes?.classOrSpellDC?.value }}
         </div>
-        <ul>
+        <ul class="empty:hidden">
           <li
             v-for="spell in actor?.items
               .filter(
@@ -280,13 +301,12 @@ const spellbook = computed((): Spellbook => {
             <div>
               <span
                 v-if="spell"
-                @click="infoModal.open(spell?._id, { isConsumable: true })"
+                @click="infoModal.open(spell?._id, { isConsumable: true } as SpellInfo)"
                 class="cursor-pointer"
               >
                 {{ spell.name }}
               </span>
             </div>
-            <!-- TODO: implement @change-count below  -->
             <Counter
               class="relative bottom-[-1px] text-sm mr-2"
               :value="spell.system.uses.value"
@@ -339,49 +359,26 @@ const spellbook = computed((): Spellbook => {
         <div v-html="removeUUIDs(viewedSpell?.system.description?.value)"></div>
       </template>
       <template #actionButtons>
-        <button
-          v-if="
-            actor?.items.find((i) => i._id === infoModal.options?.entry)?.system.prepared?.value ===
-            'prepared'
-          "
-          type="button"
-          class="bg-red-600 hover:bg-red-500 text-white inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium focus:outline-none"
-          @click="
-            () => {
-              assignSpellToSlot(
-                actor?.items.find((i) => i._id === infoModal.options?.entry)!,
-                infoModal.options.castingRank,
-                infoModal.options.castingSlot,
-                null
-              )
-              infoModal.close()
-            }
-          "
-        >
-          Remove
-        </button>
-        <button
+        <Button
+          label="Remove"
+          class="!bg-red-600 hover:!bg-red-500"
+          v-if="infoModal.options?.entry?.system.prepared?.value === 'prepared'"
+          @click="setSpellAndClose(infoModal.options, null)"
+        />
+        <Button
+          label="Cast"
           v-if="!infoModal.options?.isConsumable"
           type="button"
-          class="bg-blue-600 hover:bg-blue-500 text-white inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium focus:outline-none"
-          @click="
-            doSpell(
-              viewedSpell!._id,
-              infoModal.options?.castingRank,
-              infoModal.options?.castingSlot
-            )
-          "
-        >
-          Cast!
-        </button>
-        <button
+          class="!bg-blue-600 hover:!bg-blue-500"
+          @click="doSpell(viewedSpell!._id, infoModal.options)"
+        />
+        <Button
+          label="Use"
           v-if="infoModal.options?.isConsumable"
           type="button"
-          class="bg-green-600 hover:bg-green-500 text-white inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium focus:outline-none"
+          class="!bg-green-600 hover:!bg-green-500"
           @click="doConsumable(viewedSpell!._id)"
-        >
-          Use!
-        </button>
+        />
       </template>
     </InfoModal>
     <Modal ref="spellSelectionModal" title="Select a spell">
@@ -391,20 +388,10 @@ const spellbook = computed((): Spellbook => {
           v-for="spell in actor?.items.filter(
             (i) =>
               i.type === 'spell' &&
-              i.system.location.value === spellSelectionModal.options?.entry &&
+              i.system.location.value === spellSelectionModal.options?.entryId &&
               i.system.level.value <= spellSelectionModal.options.castingRank
           )"
-          @click="
-            () => {
-              assignSpellToSlot(
-                actor?.items.find((i) => i._id === spellSelectionModal.options?.entry)!,
-                spellSelectionModal.options.castingRank,
-                spellSelectionModal.options.castingSlot,
-                spell._id
-              )
-              spellSelectionModal.close()
-            }
-          "
+          @click="setSpellAndClose(spellSelectionModal.options, spell._id)"
         >
           {{ spell.name }}
         </li>
@@ -412,3 +399,8 @@ const spellbook = computed((): Spellbook => {
     </Modal>
   </Teleport>
 </template>
+<style scoped>
+/* li.wands:has(li) {
+  background-color: purple;
+} */
+</style>

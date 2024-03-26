@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// TODO: (feature) add ability to add new effects
 import type { Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 import { inject, ref, computed } from 'vue'

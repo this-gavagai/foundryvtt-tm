@@ -1,4 +1,4 @@
-// TODO: allow setting of "external_app" and "shared_display" flags externally
+// TODO: allow setting of "external_app" and "shared_display" flags in-game
 
 import { setupTouch } from './scripts/touchmate.mjs'
 import { setupCharSheet } from './scripts/charsheet.mjs'

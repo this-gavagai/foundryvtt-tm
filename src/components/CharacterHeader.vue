@@ -11,7 +11,7 @@ import HitPoints from './HitPoints.vue'
 import HeroPoints from './HeroPoints.vue'
 import { useKeys } from '@/composables/injectKeys'
 
-const world: any = inject('world')
+const world: any = inject(useKeys().worldKey)
 const actor = inject(useKeys().actorKey)!
 const changeChar: any = inject('changeChar')
 const { characterList } = useCharacterSelect()
@@ -60,8 +60,8 @@ const { characterList } = useCharacterSelect()
             <ListboxOption
               v-slot="{ active, selected }"
               v-for="character in characterList
-                .filter((c: string) => c !== actor?._id)
-                .map((c: string) => world?.actors.find((a: Actor) => a._id === c))"
+                .filter((c: string) => c !== actor._id)
+                .map((c: string) => world.actors.find((a: Actor) => a._id === c))"
               :key="character._id"
               :value="character"
               @click="$emit('pickCharacter', character._id)"

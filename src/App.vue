@@ -15,7 +15,6 @@ wakeLock.request('screen')
 
 const urlId = new URLSearchParams(window.location.search).get('id')
 const world: any = ref()
-provide('world', world)
 provide(useKeys().worldKey, world)
 
 const { connectToServer } = useServer()
@@ -53,7 +52,7 @@ watchPostEffect(() => {
       />
     </TabList>
     <TabPanels>
-      <TabPanel v-for="(c, index) in characterList" :key="c" :unmount="false" tabindex="-1">
+      <TabPanel v-for="(c, index) in characterList" :key="c" :unmount="false" :tabIndex="-1">
         <Character
           :characterId="c"
           :ref="(el: any) => (characterPanels[index] = el)"

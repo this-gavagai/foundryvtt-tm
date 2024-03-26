@@ -1,4 +1,4 @@
-// TODO: (ux) some kind of feedback on clicks
+// TODO: add option to send chat message on certain api events
 import type { Ref } from 'vue'
 import type { Actor, World } from '@/types/pf2e-types'
 import { useThrottleFn } from '@vueuse/core'
@@ -297,37 +297,17 @@ async function consumeItem(actor: Ref<Actor>, consumableId: string, options = {}
   })
 }
 
-// function _processCreates(actor: Ref<Actor>, results: []) {
-//   results.forEach((c: any) => {
-//     actor.value.items.push(c)
-//   })
-// }
 function _processCreates2(set: any[], results: []) {
   results.forEach((c: any) => {
     set.push(c)
   })
 }
-// function _processUpdates(actor: Ref<Actor>, results: []) {
-//   results.forEach((change: any) => {
-//     let item = actor.value.items.find((a: any) => a._id == change._id)
-//     if (item) merge(item, change)
-//   })
-// }
 function _processUpdates2(set: any[], results: []) {
   results.forEach((change: any) => {
     let item = set.find((a: any) => a._id == change._id)
     if (item) merge(item, change)
   })
 }
-// function _processDeletes(actor: Ref<Actor>, results: []) {
-//   results.forEach((d: string) => {
-//     const item = actor.value.items.find((i: any) => i._id === d)
-//     if (item) {
-//       const index = actor.value.items.indexOf(item)
-//       actor.value.items.splice(index, 1)
-//     }
-//   })
-// }
 function _processDeletes2(set: any[], results: []) {
   results.forEach((d: string) => {
     const index = set.find((i: any) => i._id === d)

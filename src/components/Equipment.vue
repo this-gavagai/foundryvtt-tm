@@ -3,8 +3,6 @@
 // TODO: (bug) stowed items sometimes show up as "worn" in the togglebar. Why? Figure out how equipment dynamics work
 
 // TODO: (feature) Move between multiple backpacks?
-// TODO: (feature) add ability to change quantity of items
-// TODO: (feature) add ability to remove items
 // TODO: (feature) add ability to add new items
 // TODO: (feature) add weight, encumbrance, etc.
 
@@ -26,11 +24,24 @@ const investedModal = ref()
 const item = computed(
   () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
 )
-const { updateActorItem } = useApi()
+const { updateActorItem, deleteActorItem } = useApi()
 
 function updateCarry(item: Item | undefined, systemUpdate: {}) {
   if (!item) return
   if (actor.value) updateActorItem(actor as Ref<Actor>, item._id, systemUpdate)
+}
+
+function deleteItem(itemId: string) {
+  if (actor.value && itemId) deleteActorItem(actor as Ref<Actor>, itemId)
+}
+function incrementItemQty(itemId: string, change: number) {
+  console.log(itemId)
+  if (!actor.value || !itemId) return
+  const item = actor.value?.items.find((i: any) => i._id === itemId)
+  const newValue = item?.system?.quantity + change
+  const update = { system: { quantity: newValue } }
+  if (actor.value)
+    updateActorItem(actor as Ref<Actor>, itemId, update, { conditionValue: newValue })
 }
 
 const toggleSet = [
@@ -142,14 +153,16 @@ const toggleSet = [
           @click="infoModal.open(item._id)"
         >
           <span>{{ item.name }}</span>
-          <span v-if="item.type !== 'backpack'" class="text-xs"> x{{ item.system.quantity }}</span>
+          <span v-if="item.type !== 'backpack'" class="text-xs">
+            (x{{ item.system.quantity }})</span
+          >
         </div>
         <ul class="pb-2" v-if="item.type === 'backpack'">
           <li
             v-for="stowed in actor?.items.filter((i: Item) => i.system?.containerId === item._id)"
             @click="infoModal.open(stowed._id)"
           >
-            {{ stowed.name }}<span class="text-xs"> x{{ stowed.system.quantity }}</span>
+            {{ stowed.name }}<span class="text-xs"> (x{{ stowed.system.quantity }})</span>
           </li>
         </ul>
       </dd>
@@ -185,6 +198,35 @@ const toggleSet = [
       </template>
       <template #body>
         <div v-html="removeUUIDs(item?.system.description.value)"></div>
+      </template>
+      <template #actionButtons>
+        <div class="flex-1">Qty: {{ item?.system.quantity }}</div>
+        <button
+          type="button"
+          class="bg-red-200 hover:bg-red-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
+          @click="
+            () => {
+              deleteItem(item?._id)
+              infoModal.close()
+            }
+          "
+        >
+          Remove
+        </button>
+        <button
+          type="button"
+          class="bg-gray-200 hover:bg-gray-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
+          @click="() => incrementItemQty(item?._id, -1)"
+        >
+          -
+        </button>
+        <button
+          type="button"
+          class="bg-gray-200 hover:bg-gray-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
+          @click="() => incrementItemQty(item?._id, 1)"
+        >
+          +
+        </button>
       </template>
     </InfoModal>
   </Teleport>

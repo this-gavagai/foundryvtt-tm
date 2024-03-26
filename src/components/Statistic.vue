@@ -20,7 +20,7 @@ defineExpose({ infoModal })
 <template>
   <div>
     <div
-      class="cursor-pointer"
+      :class="{ 'cursor-pointer': props?.modifiers && !preventInfoModal }"
       @click="
         () => {
           if (props?.modifiers && !preventInfoModal) infoModal.open()

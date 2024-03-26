@@ -78,19 +78,33 @@ function announceSelf() {
     })
   }
 }
-function updateCharacterDetails(args) {
-  const a = game.actors.find((x) => x._id === args.actorId)
+
+async function updateCharacterDetails(args) {
+  const actor = game.actors.find((x) => x._id === args.actorId)
+
+  // add the damage formula into things
+  const damages = actor.system.actions.map((action) => action.damage({ getFormula: true }))
+  const criticals = actor.system.actions.map((action) => action.critical({ getFormula: true }))
+  await Promise.all([...damages, ...criticals]).then((values) => {
+    const damageValues = values.slice(0, values.length / 2)
+    const criticalValues = values.slice(values.length / 2)
+    damageValues.forEach((dmg, i) => {
+      actor.system.actions[i].tmDamageFormula = { base: dmg, critical: criticalValues[i] }
+    })
+  })
+
+  // compose sending data into object
   const info = {
     action: 'updateCharacterDetails',
-    actorId: a._id,
-    actor: a,
-    system: a.system,
-    feats: a.feats //.set('unorganized', a.feats.bonus)
-    // items: a.items,
-    // inventory: a.inventory
+    actorId: actor._id,
+    actor: actor,
+    system: actor.system,
+    feats: actor.feats
   }
   game.socket.emit(MODNAME, info)
 }
+
+// character actions
 function rollCheck(args) {
   //https://github.com/foundryvtt/pf2e/blob/68988e12fbec7ea8359b9bee9b0c43eb6964ca3f/src/module/system/statistic/statistic.ts#L617
   const actor = game.actors.get(args.characterId, { strict: true })
@@ -101,8 +115,12 @@ function rollCheck(args) {
   let roll
   switch (args.checkType) {
     case 'strike':
-      const [action, variant] = args.checkSubtype.split(',')
-      roll = actor.system.actions[action].variants[variant].roll(params)
+      const [actionIndex, variant] = args.checkSubtype.split(',')
+      roll = actor.system.actions[actionIndex].variants[variant].roll(params)
+      break
+    case 'damage':
+      const [damageIndex, crit] = args.checkSubtype.split(',')
+      roll = actor.system.actions[damageIndex][crit ? 'damage' : 'critical'](params)
       break
     case 'skill':
       roll = actor.skills[args.checkSubtype].check.roll(params)
@@ -127,6 +145,7 @@ function rollCheck(args) {
     })
   })
 }
+
 function characterAction(args) {
   const actor = game.actors.get(args.characterId, { strict: true })
   const params = { ...args.options, actors: actor }
@@ -143,7 +162,6 @@ function characterAction(args) {
       action: 'acknowledged',
       uuid: args.uuid,
       roll: {
-        // TODO: This assumes a single die, which isn't guaranteed and should be made more robust
         formula: r[0].roll.formula,
         result: r[0].roll.result,
         total: r[0].roll.total,
@@ -152,13 +170,25 @@ function characterAction(args) {
     })
   })
 }
+
 function castSpell(args) {
   const actor = game.actors.get(args.characterId, { strict: true })
   const item = actor.items.get(args.id, { strict: true })
   const spellLocation = actor.items.get(item.system.location.value)
+
+  // this is an ugly hack to deal with the pf2e-dailies dialog popup
+  if (
+    game.modules.get('pf2e-dailies')?.active &&
+    spellLocation?.system?.prepared.value === 'charge'
+  )
+    Hooks.once('renderDialog', (a, b, c) =>
+      setTimeout(() => b[0].querySelectorAll('button')[1].click(), 100)
+    )
+
   spellLocation.cast(item, { rank: args.rank, slotId: args.slotId })
   game.socket.emit(MODNAME, { action: 'acknowledged', uuid: args.uuid })
 }
+
 function consumeItem(args) {
   const actor = game.actors.get(args.characterId, { strict: true })
   const item = actor.items.get(args.consumableId, { strict: true })
@@ -166,11 +196,6 @@ function consumeItem(args) {
   game.socket.emit(MODNAME, { action: 'acknowledged', uuid: args.uuid })
 }
 
-// function rollInitiative(args) {
-//   const combatantId = game.combat.combatants.find((c) => c.actorId === args.characterId)?._id
-//   console.log(combatantId)
-//   if (combatantId) game.combat.rollInitiative([combatantId], { updateTurn: false })
-// }
 // function rollConfirm(args) {
 //   if (args.roll) {
 //     ui.windows?.[args.appId].resolve(true)

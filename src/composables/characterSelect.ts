@@ -13,7 +13,7 @@ export function useCharacterSelect(newUrl: string | null = null, world: any = nu
         if (urlId.value) characters.add(urlId.value)
         newValue?.actors
           ?.filter((a: any) => a.ownership[newValue.userId] === 3)
-          .forEach((a: any) => characters.add(a._id))
+          .forEach((a: any) => characters.add(a?._id))
         characterList.value = [...characters]
       },
       { immediate: true }

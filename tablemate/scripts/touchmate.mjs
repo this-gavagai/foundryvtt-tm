@@ -16,12 +16,6 @@ export function setupTouch() {
   hammer.on('pan', panHandler)
   hammer.on('pinch', pinchHandler)
 
-  // const reload = new Hammer.Press({ pointers: 4 })
-  // reload.on(() => {
-  //   location.reload()
-  // })
-  // hammer.add(reload)
-
   let base_scale = 1
   let scale_series = new Array(SMOOTH_LENGTH).fill(1)
   function getScale(ev) {
@@ -30,12 +24,10 @@ export function setupTouch() {
   function pinchStart(ev) {
     console.log('pinch start')
     getScale(ev)
-    // pinchStarted = true
   }
   function pinchEnd(ev) {
     console.log('pinch end')
     scale_series = new Array(SMOOTH_LENGTH).fill(1)
-    // pinchStarted = false
   }
 
   function pinchHandler(ev) {
@@ -60,6 +52,7 @@ export function setupTouch() {
     })
   }
 
+  // deal with a foundryvtt bug related to the handling of pointerup events not getting dispatched to tokens correctly
   canvas.tokens.addEventListener('pointerup', (e) => {
     console.log(e)
     if (e.pointerType === 'mouse') return

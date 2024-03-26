@@ -23,30 +23,30 @@ function doStatCheck(type: string, subtype: string) {
   <div class="px-6 py-4 flex justify-between border-b">
     <Statistic
       heading="Fortitude"
-      :proficiency="actor?.system?.saves.fortitude?.rank"
-      :modifiers="actor?.system?.saves.fortitude?.modifiers"
+      :proficiency="actor?.system?.saves?.fortitude?.rank"
+      :modifiers="actor?.system?.saves?.fortitude?.modifiers"
       :allowRoll="true"
       :rollAction="() => doStatCheck('save', 'fortitude')"
     >
-      {{ formatModifier(actor?.system?.saves.fortitude?.totalModifier) }}
+      {{ formatModifier(actor?.system?.saves?.fortitude?.totalModifier) }}
     </Statistic>
     <Statistic
       heading="Reflex"
-      :proficiency="actor?.system?.saves.reflex?.rank"
-      :modifiers="actor?.system?.saves.reflex?.modifiers"
+      :proficiency="actor?.system?.saves?.reflex?.rank"
+      :modifiers="actor?.system?.saves?.reflex?.modifiers"
       :allowRoll="true"
       :rollAction="() => doStatCheck('save', 'reflex')"
     >
-      {{ formatModifier(actor?.system?.saves.reflex?.totalModifier) }}
+      {{ formatModifier(actor?.system?.saves?.reflex?.totalModifier) }}
     </Statistic>
     <Statistic
       heading="Will"
-      :proficiency="actor?.system?.saves.will?.rank"
-      :modifiers="actor?.system?.saves.will?.modifiers"
+      :proficiency="actor?.system?.saves?.will?.rank"
+      :modifiers="actor?.system?.saves?.will?.modifiers"
       :allowRoll="true"
       :rollAction="() => doStatCheck('save', 'will')"
     >
-      {{ formatModifier(actor?.system?.saves.will?.totalModifier) }}
+      {{ formatModifier(actor?.system?.saves?.will?.totalModifier) }}
     </Statistic>
     <div class="border border-gray-200"></div>
     <Statistic

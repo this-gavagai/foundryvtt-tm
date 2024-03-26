@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// TODO: (Big feature) Make modifiers for rolls alterable
 import { ref } from 'vue'
 import {
   Dialog,
@@ -107,7 +108,7 @@ defineExpose({ open, close, itemId, options, rollResultModal })
                   <slot></slot>
                 </div>
               </div>
-              <div class="mt-4 flex items-end justify-end gap-2">
+              <div class="mt-4 flex items-end justify-end gap-2 flex-wrap items-center">
                 <slot name="actionButtons"></slot>
               </div>
             </DialogPanel>
@@ -121,9 +122,12 @@ defineExpose({ open, close, itemId, options, rollResultModal })
       <div class="flex">
         <div class="m-auto">
           <div class="m-auto">{{ rollResultModal?.options?.roll.formula }}</div>
-          <div class="flex items-center justify-center">
+          <div
+            class="flex items-center justify-center"
+            v-for="die in rollResultModal?.options?.roll.dice"
+          >
             <div class="text-2xl">
-              {{ rollResultModal?.options?.roll.dice[0].results[0].result }}
+              <span v-for="result in die.results"> {{ result.result }}&nbsp; </span>
             </div>
             <img src="@/assets/icons/dice-twenty-faces-twenty.svg" class="ml-1 h-6 w-6" />
           </div>

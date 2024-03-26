@@ -1,4 +1,7 @@
 <script setup lang="ts">
+// TODO: fall back on world data better
+// TODO: add languages
+// TODO: add speeds
 import type { Actor } from '@/types/pf2e-types'
 import type { Ref } from 'vue'
 import { ref, provide, watch, inject } from 'vue'
