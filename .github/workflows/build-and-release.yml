@@ -42,5 +42,5 @@ jobs:
           allowUpdates: false
           draft: false
           prerelease: false
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.WORKFLOW_KEY }}
           artifacts: './tablemate/module.json,./tablemate/tablemate.zip'
