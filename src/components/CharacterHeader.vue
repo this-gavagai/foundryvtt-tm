@@ -60,7 +60,7 @@ const { characterList } = useCharacterSelect()
             <ListboxOption
               v-slot="{ active, selected }"
               v-for="character in characterList
-                .filter((c: string) => c !== actor._id)
+                .filter((c: string) => c !== actor?._id)
                 .map((c: string) => world.actors.find((a: Actor) => a._id === c))"
               :key="character._id"
               :value="character"

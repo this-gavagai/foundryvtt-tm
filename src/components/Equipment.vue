@@ -199,14 +199,14 @@ const toggleSet = [
       <template #body>
         <div v-html="removeUUIDs(item?.system.description.value)"></div>
       </template>
-      <template #actionButtons>
+      <template #actionButtons v-if="item">
         <div class="flex-1">Qty: {{ item?.system.quantity }}</div>
         <button
           type="button"
           class="bg-red-200 hover:bg-red-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
           @click="
             () => {
-              deleteItem(item?._id)
+              deleteItem(item!._id)
               infoModal.close()
             }
           "
@@ -216,14 +216,14 @@ const toggleSet = [
         <button
           type="button"
           class="bg-gray-200 hover:bg-gray-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
-          @click="() => incrementItemQty(item?._id, -1)"
+          @click="() => incrementItemQty(item!._id, -1)"
         >
           -
         </button>
         <button
           type="button"
           class="bg-gray-200 hover:bg-gray-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
-          @click="() => incrementItemQty(item?._id, 1)"
+          @click="() => incrementItemQty(item!._id, 1)"
         >
           +
         </button>
