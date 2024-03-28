@@ -20,11 +20,11 @@ provide(useKeys().worldKey, world)
 const { connectToServer } = useServer()
 const { setupSocketListenersForWorld } = useApi()
 connectToServer(window.location.origin).then((socket: any) => {
-  // world.value = parent.game
-  socket.value.emit('world', (r: any) => (world.value = r))
-  setupSocketListenersForWorld(world).then(() => {
-    socket.value.emit('module.tablemate', { action: 'anybodyHome' })
-  })
+  world.value = parent.game
+  // socket.value.emit('world', (r: any) => (world.value = r))
+  // setupSocketListenersForWorld(world).then(() => {
+  //   socket.value.emit('module.tablemate', { action: 'anybodyHome' })
+  // })
 })
 // world.value = parent.game
 // console.log('parent game', parent.game)
