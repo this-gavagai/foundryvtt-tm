@@ -5,23 +5,36 @@ import { setupCharSheet } from './scripts/charsheet.mjs'
 
 const MODNAME = 'module.tablemate'
 
-Hooks.on('init', function () {
+Hooks.on('setup', function () {
   const user = game.data.users.find((x) => x._id === game.userId)
   console.log('TABLEMATE initialized for user', user)
 
   console.log('TABLEMATE:', user.name)
   if (user.flags?.['tablemate']?.['external_app']) {
-    window.location = `${window.location.origin}/modules/tablemate/index.html?id=${user.character}`
+    game.settings.set('core', 'noCanvas', true)
+
+    const app = document.createElement('iframe')
+    app.width = '100%'
+    app.src = `${window.location.origin}/modules/tablemate/index.html?id=${user.character}`
+    document.querySelector('body').appendChild(app)
+    document.querySelector('#pause').style.display = 'none'
+
+    // window.location = `${window.location.origin}/modules/tablemate/index.html?id=${user.character}`
+  }
+})
+
+Hooks.on('ready', function () {
+  const user = game.data.users.find((x) => x._id === game.userId)
+  if (user.flags?.['tablemate']?.['external_app']) {
+    document.querySelector('#pause').style.display = 'none'
+    document.querySelector('#notifications').style.display = 'none'
   }
 })
 
 Hooks.on('ready', () => {
-  console.log('TABLEMATE: READY TO ROLLS')
   const user = game.data.users.find((x) => x._id === game.userId)
-
   if (user.flags?.['tablemate']?.['shared_display']) {
     setupTouch()
   }
-
   setupCharSheet()
 })

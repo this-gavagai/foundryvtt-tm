@@ -75,11 +75,11 @@ async function setupSocketListenersForActor(actorId: string, actor: Ref<Actor | 
         requestCharacterDetails(actorId)
         break
       case 'updateCharacterDetails':
-        if (args.actorId === actorId) {
-          actor.value = args.actor
-          merge(actor.value!.system, args.system)
-          actor.value!.feats = args.feats
-        }
+        // if (args.actorId === actorId) {
+        //   actor.value = args.actor
+        //   merge(actor.value!.system, args.system)
+        //   actor.value!.feats = args.feats
+        // }
         break
     }
   })
