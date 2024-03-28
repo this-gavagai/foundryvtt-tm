@@ -1,0 +1,6 @@
+body *:not(iframe) {
+  display: none !important;
+}
+iframe {
+  width: 100%;
+}

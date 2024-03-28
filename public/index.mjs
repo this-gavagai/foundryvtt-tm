@@ -17,19 +17,23 @@ Hooks.on('setup', function () {
     app.width = '100%'
     app.src = `${window.location.origin}/modules/tablemate/index.html?id=${user.character}`
     document.querySelector('body').appendChild(app)
-    document.querySelector('#pause').style.display = 'none'
+
+    const styles = document.createElement('link')
+    styles.setAttribute('rel', 'stylesheet')
+    styles.setAttribute('href', '/modules/tablemate/tablemate.css')
+    document.head.appendChild(styles)
 
     // window.location = `${window.location.origin}/modules/tablemate/index.html?id=${user.character}`
   }
 })
 
-Hooks.on('ready', function () {
-  const user = game.data.users.find((x) => x._id === game.userId)
-  if (user.flags?.['tablemate']?.['external_app']) {
-    document.querySelector('#pause').style.display = 'none'
-    document.querySelector('#notifications').style.display = 'none'
-  }
-})
+// Hooks.on('ready', function () {
+//   const user = game.data.users.find((x) => x._id === game.userId)
+//   if (user.flags?.['tablemate']?.['external_app']) {
+//     document.querySelector('#pause').style.display = 'none'
+//     document.querySelector('#notifications').style.display = 'none'
+//   }
+// })
 
 Hooks.on('ready', () => {
   const user = game.data.users.find((x) => x._id === game.userId)
