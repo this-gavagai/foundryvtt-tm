@@ -28,5 +28,5 @@ coverage
 *.sw?
 
 # output files
-yarn.lock
-/tablemate
+package-lock.json
+tablemate/

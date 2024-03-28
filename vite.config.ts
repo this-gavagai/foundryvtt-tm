@@ -2,6 +2,7 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import FullReload from 'vite-plugin-full-reload'
+import generateFile from 'vite-plugin-generate-file'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -10,12 +11,13 @@ export default defineConfig({
   build: {
     outDir: 'tablemate',
     sourcemap: true,
-    minify: true,
-    watch: {
-      clearScreen: true
-    }
+    minify: true
   },
-  plugins: [vue(), FullReload(['./public/scripts/*.mjs'])],
+  plugins: [
+    vue(),
+    FullReload(['./public/scripts/*.mjs'])
+    // generateFile
+  ],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))

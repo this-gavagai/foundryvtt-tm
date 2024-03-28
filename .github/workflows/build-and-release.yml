@@ -1,0 +1,46 @@
+name: build-and-release
+run-name: ${{ github.actor }} triggered a build and release
+on:
+  push:
+    tags:
+      - '*'
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install
+        run: npm install
+      - name: Build
+        run: npm run build-only
+      - name: Zip Files
+        working-directory: ./tablemate
+        run: zip -r ./tablemate.zip ./*
+
+      - name: update package.json version info
+        uses: jossef/action-set-json-field@v2.1
+        with:
+          file: package.json
+          field: version
+          value: ${{ github.ref_name }}
+
+      - name: update module.json version info
+        uses: jossef/action-set-json-field@v2.1
+        with:
+          file: tablemate/module.json
+          field: version
+          value: ${{ github.ref_name }}
+
+      - name: Create Version Release
+        id: create_version_release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: false
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          artifacts: './tablemate/module.json,./tablemate/tablemate.zip'
