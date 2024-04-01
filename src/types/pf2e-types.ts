@@ -15,6 +15,7 @@ export interface Item {
   system: System
   img: string
   flags: any
+  contents: any
 }
 
 export interface FeatCategory {

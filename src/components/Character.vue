@@ -1,10 +1,9 @@
 <script setup lang="ts">
-// TODO: fall back on world data better
 // TODO: add languages
 // TODO: add speeds
 import type { Actor } from '@/types/pf2e-types'
 import type { Ref } from 'vue'
-import { ref, provide, watch, inject } from 'vue'
+import { ref, shallowRef, markRaw, reactive, provide, watch, inject } from 'vue'
 import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
 import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
@@ -31,16 +30,15 @@ import Armor from '@/components/Armor.vue'
 import Initiative from '@/components/Initiative.vue'
 import IWR from '@/components/IWR.vue'
 
+const { requestCharacterDetails, setupSocketListenersForActor } = useApi()
+
 const props = defineProps(['characterId'])
 
 // base data
 const actor: Ref<Actor | undefined> = ref()
 provide(useKeys().actorKey, actor)
-
-const { requestCharacterDetails, setupSocketListenersForActor } = useApi()
-
-// const world: any = inject('world')
 const world = inject(useKeys().worldKey)
+
 // load character from world value if no character details received
 watch(world, () => {
   if (world.value?.actors && !actor.value?._id) {

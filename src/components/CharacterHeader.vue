@@ -15,11 +15,14 @@ const world: any = inject(useKeys().worldKey)
 const actor = inject(useKeys().actorKey)!
 const changeChar: any = inject('changeChar')
 const { characterList } = useCharacterSelect()
+function reloadPage() {
+  window.location.reload()
+}
 </script>
 
 <template>
-  <div class="flex gap-2 border p-4 items-center">
-    <div class="h-24 w-24">
+  <div class="flex gap-2 border p-4 items-center cursor-pointer">
+    <div class="h-24 w-24" @click="reloadPage">
       <img
         v-if="actor?.prototypeToken?.texture?.src"
         :src="getPath(actor.prototypeToken?.texture?.src)"

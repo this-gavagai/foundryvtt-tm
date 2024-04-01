@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// TODO: remove socket for api interface
 import { ref } from 'vue'
 import { useServer } from '@/composables/server'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'

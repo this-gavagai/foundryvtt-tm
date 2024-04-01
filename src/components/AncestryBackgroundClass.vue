@@ -10,6 +10,7 @@ import { useKeys } from '@/composables/injectKeys'
 const infoModal = ref()
 
 const actor = inject(useKeys().actorKey)!
+
 const ancestry = computed(() => actor.value?.items?.find((x: any) => x.type === 'ancestry'))
 const heritage = computed(() => actor.value?.items?.find((x: any) => x.type === 'heritage'))
 const background = computed(() => actor.value?.items?.find((x: any) => x.type === 'background'))

@@ -24,6 +24,8 @@ export function setupCharSheet() {
       case 'requestCharacterDetails':
         if (iAmObserverOrFallbackGM()) updateCharacterDetails(args)
         break
+      case 'updateCharacterDetails':
+        break
       case 'rollCheck':
         if (iAmObserverOrFallbackGM()) rollCheck(args)
         break

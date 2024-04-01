@@ -34,13 +34,13 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
         socket.emit('world', (r: any) => (world.value = r))
         switch (args.request.action) {
           case 'create':
-            _processCreates2(world.value.combats, args.result)
+            _processCreates(world.value.combats, args.result)
             break
           case 'update':
-            _processUpdates2(world.value.combats, args.result)
+            _processUpdates(world.value.combats, args.result)
             break
           case 'delete':
-            _processDeletes2(world.value.combats, args.result)
+            _processDeletes(world.value.combats, args.result)
             break
         }
         socket.emit('world', (r: any) => (world.value = r))
@@ -50,13 +50,13 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
         const combat = world.value?.combats.find((c: any) => c._id === combatId)
         switch (args.request.action) {
           case 'create':
-            _processCreates2(combat.combatants, args.result)
+            _processCreates(combat.combatants, args.result)
             break
           case 'update':
-            _processUpdates2(combat.combatants, args.result)
+            _processUpdates(combat.combatants, args.result)
             break
           case 'delete':
-            _processDeletes2(combat.combatants, args.result)
+            _processDeletes(combat.combatants, args.result)
             break
         }
         socket.emit('world', (r: any) => (world.value = r))
@@ -75,11 +75,11 @@ async function setupSocketListenersForActor(actorId: string, actor: Ref<Actor | 
         requestCharacterDetails(actorId)
         break
       case 'updateCharacterDetails':
-        // if (args.actorId === actorId) {
-        //   actor.value = args.actor
-        //   merge(actor.value!.system, args.system)
-        //   actor.value!.feats = args.feats
-        // }
+        if (args.actorId === actorId) {
+          actor.value = args.actor
+          merge(actor.value!.system, args.system)
+          actor.value!.feats = args.feats
+        }
         break
     }
   })
@@ -98,13 +98,13 @@ async function setupSocketListenersForActor(actorId: string, actor: Ref<Actor | 
         if (args.request.parentUuid !== 'Actor.' + actorId) break
         switch (args.request.action) {
           case 'update':
-            _processUpdates2(actor.value.items, args.result)
+            _processUpdates(actor.value.items, args.result)
             break
           case 'create':
-            _processCreates2(actor.value.items, args.result)
+            _processCreates(actor.value.items, args.result)
             break
           case 'delete':
-            _processDeletes2(actor.value.items, args.result)
+            _processDeletes(actor.value.items, args.result)
             break
         }
         requestCharacterDetails(actor.value._id)
@@ -186,7 +186,7 @@ async function updateActorItem(
         ]
       },
       (r: any) => {
-        _processUpdates2(actor.value.items, r.result)
+        _processUpdates(actor.value.items, r.result)
         requestCharacterDetails(actor.value._id)
         resolve(r)
       }
@@ -207,7 +207,7 @@ async function deleteActorItem(actor: Ref<Actor>, itemId: string): Promise<any> 
         parentUuid: 'Actor.' + actor.value?._id
       },
       (r: any) => {
-        _processDeletes2(actor.value.items, r.result)
+        _processDeletes(actor.value.items, r.result)
         requestCharacterDetails(actor.value._id)
         resolve(r)
       }
@@ -297,18 +297,18 @@ async function consumeItem(actor: Ref<Actor>, consumableId: string, options = {}
   })
 }
 
-function _processCreates2(set: any[], results: []) {
+function _processCreates(set: any[], results: []) {
   results.forEach((c: any) => {
     set.push(c)
   })
 }
-function _processUpdates2(set: any[], results: []) {
+function _processUpdates(set: any[], results: []) {
   results.forEach((change: any) => {
     let item = set.find((a: any) => a._id == change._id)
     if (item) merge(item, change)
   })
 }
-function _processDeletes2(set: any[], results: []) {
+function _processDeletes(set: any[], results: []) {
   results.forEach((d: string) => {
     const index = set.find((i: any) => i._id === d)
     if (index != -1) set.splice(index, 1)

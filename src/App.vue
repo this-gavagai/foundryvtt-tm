@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref, provide, reactive, watch, watchPostEffect } from 'vue'
+// TODO: Abstract world access behind API call
+
+import { ref, shallowRef, provide, reactive, watch, watchPostEffect } from 'vue'
 import { useWakeLock } from '@vueuse/core'
 import { useServer } from './composables/server'
 import { useCharacterSelect } from './composables/characterSelect'
@@ -20,14 +22,11 @@ provide(useKeys().worldKey, world)
 const { connectToServer } = useServer()
 const { setupSocketListenersForWorld } = useApi()
 connectToServer(window.location.origin).then((socket: any) => {
-  world.value = parent.game
-  // socket.value.emit('world', (r: any) => (world.value = r))
-  // setupSocketListenersForWorld(world).then(() => {
-  //   socket.value.emit('module.tablemate', { action: 'anybodyHome' })
-  // })
+  socket.value.emit('world', (r: any) => (world.value = r))
+  setupSocketListenersForWorld(world).then(() => {
+    socket.value.emit('module.tablemate', { action: 'anybodyHome' })
+  })
 })
-// world.value = parent.game
-// console.log('parent game', parent.game)
 
 const activeIndex = ref<number>(0)
 const { characterList } = useCharacterSelect(urlId, world)

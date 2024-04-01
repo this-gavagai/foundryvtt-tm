@@ -2,7 +2,6 @@
 import type { Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 import { inject } from 'vue'
-import { useServer } from '@/composables/server'
 import { useKeys } from '@/composables/injectKeys'
 
 import Macro from '@/components/Macro.vue'

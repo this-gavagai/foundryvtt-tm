@@ -2,7 +2,6 @@
 import type { Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 import { inject, ref } from 'vue'
-import { useServer } from '@/composables/server'
 import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
 
