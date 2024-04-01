@@ -8,7 +8,9 @@ const MODNAME = 'module.tablemate'
 Hooks.on('init', function () {
   const user = game.data.users.find((x) => x._id === game.userId)
   console.log('TABLEMATE: init')
-  window.location = `${window.location.origin}/modules/tablemate/index.html?id=${user.character}`
+  if (user.flags?.['tablemate']?.['external_app']) {
+    window.location = `${window.location.origin}/modules/tablemate/index.html?id=${user.character}`
+  }
 })
 
 Hooks.on('setup', function () {
