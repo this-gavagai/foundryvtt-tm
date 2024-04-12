@@ -13,7 +13,6 @@ import { useKeys } from '@/composables/injectKeys'
 
 const world: any = inject(useKeys().worldKey)
 const actor = inject(useKeys().actorKey)!
-const changeChar: any = inject('changeChar')
 const { characterList } = useCharacterSelect()
 function reloadPage() {
   window.location.reload()
@@ -22,12 +21,10 @@ function reloadPage() {
 
 <template>
   <div class="flex gap-2 border p-4 items-center cursor-pointer">
-    <div class="h-24 w-24" @click="reloadPage">
+    <div class="h-24 w-24 items-center hidden 2xs:flex" @click="reloadPage">
       <img
         v-if="actor?.prototypeToken?.texture?.src"
         :src="getPath(actor.prototypeToken?.texture?.src)"
-        x
-        class="h-24 w-24"
       />
       <div v-else class="h-full min-h-24">
         <svg
@@ -81,7 +78,7 @@ function reloadPage() {
           </ListboxOptions>
         </Listbox>
       </h3>
-      <div class="flex gap-8 align-middle">
+      <div class="flex gap-6 align-middle">
         <HitPoints />
         <HeroPoints />
       </div>

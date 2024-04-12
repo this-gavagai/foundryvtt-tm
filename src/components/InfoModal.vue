@@ -67,7 +67,6 @@ defineExpose({ open, close, itemId, options, rollResultModal })
           >
             <DialogPanel
               class="w-full max-w-md transform overflow-hidden bg-white p-6 text-left shadow-xl transition-all"
-              v-touch:swipe.bottom="swipeClose"
             >
               <div class="max-h-[70vh] overflow-auto">
                 <div class="flex space-x-2">
@@ -126,10 +125,10 @@ defineExpose({ open, close, itemId, options, rollResultModal })
             class="flex items-center justify-center"
             v-for="die in rollResultModal?.options?.roll.dice"
           >
+            <img src="@/assets/icons/dice-twenty-faces-twenty.svg" class="mr-1 h-6 w-6" />
             <div class="text-2xl">
               <span v-for="result in die.results"> {{ result.result }}&nbsp; </span>
             </div>
-            <img src="@/assets/icons/dice-twenty-faces-twenty.svg" class="ml-1 h-6 w-6" />
           </div>
         </div>
         <div class="m-auto">

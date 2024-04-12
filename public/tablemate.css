@@ -3,4 +3,5 @@ body *:not(iframe) {
 }
 iframe {
   width: 100%;
+  border: none;
 }

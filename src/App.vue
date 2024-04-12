@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // TODO: Abstract world access behind API call
 
-import { ref, shallowRef, provide, reactive, watch, watchPostEffect } from 'vue'
+import { ref, provide, reactive, watch, watchPostEffect } from 'vue'
 import { useWakeLock } from '@vueuse/core'
 import { useServer } from './composables/server'
 import { useCharacterSelect } from './composables/characterSelect'
@@ -35,6 +35,7 @@ const characterPanels = ref<any[]>([])
 watchPostEffect(() => {
   window.altCharacters = new Map([])
   characterPanels.value.forEach((panel: any) => {
+    console.log(panel)
     if (panel.actor?._id === urlId) window.actor = panel.actor
     else window.altCharacters.set(panel.actor?._id, panel.actor)
   })

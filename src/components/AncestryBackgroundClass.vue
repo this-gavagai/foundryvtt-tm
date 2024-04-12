@@ -20,7 +20,7 @@ const viewedItem: any = computed(
 )
 </script>
 <template>
-  <div>
+  <div class="shrink">
     <div class="text-md whitespace-nowrap overflow-hidden cursor-pointer">
       <span @click="infoModal.open(ancestry?._id)">{{ ancestry?.name ?? '-' }}&nbsp;</span>
       <span @click="infoModal.open(background?._id)">{{ background?.name }}</span>

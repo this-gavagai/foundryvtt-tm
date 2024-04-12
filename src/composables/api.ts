@@ -2,9 +2,14 @@
 import type { Ref } from 'vue'
 import type { Actor, World } from '@/types/pf2e-types'
 import { useThrottleFn } from '@vueuse/core'
+import { ref, markRaw } from 'vue'
+
+import { getCharacterDetails } from '@/foundry/actions'
 
 import { merge } from 'lodash-es'
 import { useServer } from '@/composables/server'
+
+declare const game: any
 
 const { getSocket } = useServer()
 
@@ -72,14 +77,10 @@ async function setupSocketListenersForActor(actorId: string, actor: Ref<Actor | 
   socket.on('module.tablemate', (args: any) => {
     switch (args.action) {
       case 'gmOnline':
-        requestCharacterDetails(actorId)
+        requestCharacterDetails(actorId, actor)
         break
       case 'updateCharacterDetails':
-        if (args.actorId === actorId) {
-          actor.value = args.actor
-          merge(actor.value!.system, args.system)
-          actor.value!.feats = args.feats
-        }
+        parseActorData(actorId, actor, args)
         break
     }
   })
@@ -92,7 +93,7 @@ async function setupSocketListenersForActor(actorId: string, actor: Ref<Actor | 
             merge(actor.value, change)
           }
         })
-        requestCharacterDetails(actor.value._id)
+        requestCharacterDetails(actor.value._id, actor)
         break
       case 'Item':
         if (args.request.parentUuid !== 'Actor.' + actorId) break
@@ -107,26 +108,11 @@ async function setupSocketListenersForActor(actorId: string, actor: Ref<Actor | 
             _processDeletes(actor.value.items, args.result)
             break
         }
-        requestCharacterDetails(actor.value._id)
+        requestCharacterDetails(actor.value._id, actor)
         break
     }
   })
 }
-async function sendCharacterRequest(actorId: string): Promise<any> {
-  const socket = await getSocket()
-  const uuid = crypto.randomUUID()
-  const promise = new Promise((resolve, reject) => {
-    socket.emit('module.tablemate', {
-      action: 'requestCharacterDetails',
-      actorId: actorId,
-      uuid
-    })
-    // ackQueue[uuid] = (args: any) => resolve(args)
-    pushToAckQueue(uuid, (args: any) => resolve(args))
-  })
-  return promise
-}
-const requestCharacterDetails = useThrottleFn(sendCharacterRequest, 3000, true, true)
 
 ///////////////////////////////////////
 // Emit Methods                      //
@@ -153,8 +139,9 @@ async function updateActor(
       },
       (r: any) => {
         r.result.forEach((change: any) => {
+          console.log(change)
           merge(actor.value, change)
-          requestCharacterDetails(actor.value._id)
+          requestCharacterDetails(actor.value._id, actor)
         })
         resolve(r)
       }
@@ -187,7 +174,7 @@ async function updateActorItem(
       },
       (r: any) => {
         _processUpdates(actor.value.items, r.result)
-        requestCharacterDetails(actor.value._id)
+        requestCharacterDetails(actor.value._id, actor)
         resolve(r)
       }
     )
@@ -208,13 +195,46 @@ async function deleteActorItem(actor: Ref<Actor>, itemId: string): Promise<any> 
       },
       (r: any) => {
         _processDeletes(actor.value.items, r.result)
-        requestCharacterDetails(actor.value._id)
+        requestCharacterDetails(actor.value._id, actor)
         resolve(r)
       }
     )
   })
   return promise
 }
+
+///////////////////////////////////////
+// Character Build Methods           //
+///////////////////////////////////////
+// TODO: review call/response structure. Right now, this method doesn't use the ackQueue but instead listens to a separate response
+// not using ackQueue allows for updates pushed from server, but makes this method a bit weird
+async function sendCharacterRequest(actorId: string, actor: Ref<Actor | undefined> = ref()) {
+  if (parent.game) {
+    const details = await getCharacterDetails({ actorId: actorId })
+    parseActorData(actorId, actor, details)
+  } else {
+    const socket = await getSocket()
+    // const uuid = crypto.randomUUID()
+    // const promise = new Promise((resolve, reject) => {
+    socket.emit('module.tablemate', {
+      action: 'requestCharacterDetails',
+      actorId: actorId
+      // uuid
+    })
+    // ackQueue[uuid] = (args: any) => resolve(args)
+    // pushToAckQueue(uuid, (args: any) => resolve(args))
+    // })
+    // return promise
+  }
+}
+function parseActorData(actorId: string, actor: Ref<Actor | undefined>, args: any) {
+  if (args.actorId === actorId) {
+    actor.value = JSON.parse(args.actor)
+    merge(actor.value!.system, JSON.parse(args.system))
+    actor.value!.feats = JSON.parse(args.feats)
+  }
+}
+const requestCharacterDetails = useThrottleFn(sendCharacterRequest, 3000, true, true)
 
 ///////////////////////////////////////
 // Action Request                    //

@@ -104,5 +104,6 @@ declare global {
     world: any
     altCharacters: any
     link: any
+    game: any
   }
 }

@@ -35,7 +35,7 @@ defineExpose({ infoModal })
       >
         {{ heading }}
       </div>
-      <div class="text-lg">
+      <div class="text-lg whitespace-nowrap">
         <slot></slot>
       </div>
     </div>

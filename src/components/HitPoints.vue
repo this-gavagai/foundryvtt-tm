@@ -36,7 +36,7 @@ function updateHitPoints(hp_input: string, temp_input: string) {
 </script>
 <template>
   <Statistic
-    heading="Hit Points"
+    heading="Hit Pts"
     @click="hitpointsModal.open()"
     ref="hpStat"
     :modifiers="actor?.system?.attributes?.hp._modifiers"

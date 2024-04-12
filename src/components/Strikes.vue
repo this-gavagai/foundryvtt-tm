@@ -23,8 +23,9 @@ function doStrike(slug: string) {
     })
 }
 function doDamage(slug: string, crit: number) {
+  console.log('crit?', crit)
   if (actor.value)
-    rollCheck(actor as Ref<Actor>, 'damage', `${slug},${crit ? 'damage' : 'critical'}`).then(
+    rollCheck(actor as Ref<Actor>, 'damage', `${slug},${crit ? 'critical' : 'damage'}`).then(
       (r) => {
         strikeModal.value.close()
         strikeModal.value.rollResultModal.open(r)

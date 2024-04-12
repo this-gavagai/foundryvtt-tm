@@ -1,26 +1,48 @@
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import FullReload from 'vite-plugin-full-reload'
-import generateFile from 'vite-plugin-generate-file'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   base: '/modules/tablemate/',
-  // base: '/',
+  define: {
+    __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'true'
+  },
   build: {
     outDir: 'tablemate',
     sourcemap: true,
-    minify: true
+    minify: true,
+    rollupOptions: {
+      input: ['index.html', 'src/foundry/tablemate.ts'],
+      output: {
+        entryFileNames: (chunk) => {
+          console.log(chunk)
+          if (chunk.facadeModuleId?.endsWith('tablemate.ts')) {
+            return 'tablemate.mjs'
+          } else {
+            return 'assets/[name]-[hash].js'
+          }
+        }
+      }
+    }
   },
-  plugins: [
-    vue(),
-    FullReload(['./public/scripts/*.mjs'])
-    // generateFile
-  ],
+  plugins: [vue()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
+    }
+  },
+  server: {
+    port: 30001,
+    open: '/',
+    proxy: {
+      '/modules/tablemate/tablemate.mjs': 'http://localhost:30000/',
+      '^/modules/tablemate/assets/actions.*': 'http://localhost:30000/',
+      '^(?!/modules/tablemate/)': 'http://localhost:30000/',
+      '/socket.io': {
+        target: 'ws://localhost:30000',
+        ws: true
+      }
     }
   }
 })

@@ -47,7 +47,7 @@ watch(world, () => {
   }
 })
 
-requestCharacterDetails(props.characterId)
+requestCharacterDetails(props.characterId, actor)
 setupSocketListenersForActor(props.characterId, actor)
 
 defineExpose({ actor })

@@ -14,7 +14,7 @@
   },
   "socket": true,
   "esmodules": [
-    "index.mjs"
+    "tablemate.mjs"
   ],
   "scripts": [
     "libs/hammer.min.js"

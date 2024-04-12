@@ -1,4 +1,8 @@
 // touch tweaks
+
+declare const Hammer: any
+declare const canvas: any
+
 export function setupTouch() {
   console.log('TABLEMATE: touch tweaks')
   const ZOOM_SPEED = 0.5
@@ -18,19 +22,19 @@ export function setupTouch() {
 
   let base_scale = 1
   let scale_series = new Array(SMOOTH_LENGTH).fill(1)
-  function getScale(ev) {
+  function getScale(ev: any) {
     base_scale = canvas.stage.scale.x
   }
-  function pinchStart(ev) {
+  function pinchStart(ev: any) {
     console.log('pinch start')
     getScale(ev)
   }
-  function pinchEnd(ev) {
+  function pinchEnd(ev: any) {
     console.log('pinch end')
     scale_series = new Array(SMOOTH_LENGTH).fill(1)
   }
 
-  function pinchHandler(ev) {
+  function pinchHandler(ev: any) {
     canvas.controls.select.active = false
     scale_series.push(ev.scale)
     const smoothed_scale = scale_series
@@ -42,7 +46,7 @@ export function setupTouch() {
       duration: 50
     })
   }
-  function panHandler(ev) {
+  function panHandler(ev: any) {
     canvas.controls.select.active = false
     // canvas.animatePan({
     canvas.pan({
@@ -53,11 +57,11 @@ export function setupTouch() {
   }
 
   // deal with a foundryvtt bug related to the handling of pointerup events not getting dispatched to tokens correctly
-  canvas.tokens.addEventListener('pointerup', (e) => {
+  canvas.tokens.addEventListener('pointerup', (e: any) => {
     console.log(e)
     if (e.pointerType === 'mouse') return
-    canvas.tokens.children.forEach((c) => {
-      c.children.forEach((t) => {
+    canvas.tokens.children.forEach((c: any) => {
+      c.children.forEach((t: any) => {
         try {
           if (t.interactionState) t.dispatchEvent(e)
         } catch (err) {

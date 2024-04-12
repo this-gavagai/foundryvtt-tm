@@ -25,7 +25,7 @@ const { characterAction } = useApi()
 // })
 function doAction(slug: string) {
   // actionDefs.value.get(slug)['options'] = options
-  console.log('here', skillSelector.value.selected.slug)
+  console.log('here', skillSelector.value?.selected?.slug)
   characterAction(
     actor as Ref<Actor>,
     actionDefs.value.get(slug)?.alias ?? slug,

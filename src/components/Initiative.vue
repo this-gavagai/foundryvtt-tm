@@ -10,8 +10,8 @@ import Statistic from '@/components/Statistic.vue'
 import { useCombat } from '@/composables/combat'
 import { useKeys } from '@/composables/injectKeys'
 
-const actor = inject(useKeys().actorKey!)!
-const world = inject<Ref<World>>('world')
+const actor = inject(useKeys().actorKey)!
+const world = inject(useKeys().worldKey)!
 const { requestCharacterDetails, updateActor, rollCheck } = useApi()
 
 const initSkills: any = computed(() => {
@@ -24,7 +24,7 @@ watch(selected, async (newSkill, oldSkill) => {
   if (actor.value)
     updateActor(actor as Ref<Actor>, { system: { initiative: { statistic: newSkill } } }).then(
       () => {
-        requestCharacterDetails(actor.value?._id!) // needed because initiative changes have lateral effects to modifiers set
+        requestCharacterDetails(actor.value?._id!, actor) // needed because initiative changes have lateral effects to modifiers set
       }
     )
 })
