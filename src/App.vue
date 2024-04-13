@@ -33,11 +33,13 @@ const { characterList } = useCharacterSelect(urlId, world)
 const characterPanels = ref<any[]>([])
 // set window variables. These watchEffect can be removed on production
 watchPostEffect(() => {
+  // TODO: figure out why isn't this working on iframe environments?
   window.altCharacters = new Map([])
   characterPanels.value.forEach((panel: any) => {
-    console.log(panel)
-    if (panel.actor?._id === urlId) window.actor = panel.actor
-    else window.altCharacters.set(panel.actor?._id, panel.actor)
+    console.log(panel.actor?._id, urlId)
+    if (panel.actor?._id === urlId) {
+      globalThis.actor = panel.actor
+    } else window.altCharacters.set(panel.actor?._id, panel.actor)
   })
 })
 watchPostEffect(() => {

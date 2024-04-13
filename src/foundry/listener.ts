@@ -1,4 +1,10 @@
-import { getCharacterDetails, rollCheck, characterAction, castSpell, consumeItem } from './actions'
+import {
+  getCharacterDetails,
+  rollCheck,
+  characterAction,
+  foundryCastSpell,
+  consumeItem
+} from './actions'
 
 declare const game: any
 const MODNAME = 'module.tablemate'
@@ -37,7 +43,7 @@ export function setupListener() {
         characterAction(args).then((result) => game.socket.emit(MODNAME, result))
         break
       case 'castSpell':
-        castSpell(args).then((result) => game.socket.emit(MODNAME, result))
+        foundryCastSpell(args).then((result) => game.socket.emit(MODNAME, result))
         break
       case 'consumeItem':
         consumeItem(args).then((result) => game.socket.emit(MODNAME, result))

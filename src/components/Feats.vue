@@ -17,8 +17,8 @@ const viewedItem = computed(
 // watch(viewedItem, () => console.log(viewedItem))
 </script>
 <template>
-  <div class="px-6 py-4">
-    <dl v-if="actor?.feats" v-for="category in actor?.feats">
+  <div class="px-6 py-4 lg:columns-2">
+    <dl v-if="actor?.feats" v-for="category in actor?.feats" class="break-inside-avoid-column">
       <dt class="underline text-lg only:hidden pt-2">
         {{ featCategoryLabels.get(category.label) ?? category.label }}
       </dt>

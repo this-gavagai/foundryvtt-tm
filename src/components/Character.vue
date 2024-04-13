@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // TODO: add languages
 // TODO: add speeds
+// TODO: check that all the viewheight nonsense works in ios
 import type { Actor } from '@/types/pf2e-types'
 import type { Ref } from 'vue'
 import { ref, shallowRef, markRaw, reactive, provide, watch, inject } from 'vue'
@@ -53,12 +54,24 @@ setupSocketListenersForActor(props.characterId, actor)
 defineExpose({ actor })
 </script>
 <template>
-  <div class="pb-14">
-    <div class="p-0">
+  <div class="flex h-screen">
+    <div class="hidden md:block border-r overflow-scroll">
       <CharacterHeader @pickCharacter="(id: string) => $emit('pickCharacter', id)" />
+      <Background />
+      <Effects />
+      <Initiative />
+      <Attributes />
+      <Armor />
+      <IWR />
+    </div>
+    <div class="flex-1 overflow-scroll md:border-l w-full">
       <TabGroup>
-        <TabPanels class="mb-8" tabindex="-1">
-          <TabPanel tabindex="-1">
+        <TabPanels tabindex="-1" class="overflow-scroll h-[calc(100%-5rem)]">
+          <CharacterHeader
+            @pickCharacter="(id: string) => $emit('pickCharacter', id)"
+            class="md:hidden"
+          />
+          <TabPanel tabindex="-1" class="md:hidden">
             <Background />
             <Effects />
             <Initiative />
@@ -83,8 +96,8 @@ defineExpose({ actor })
             <Spells />
           </TabPanel>
         </TabPanels>
-        <TabList class="fixed bottom-0 grid grid-cols-6 w-full gap-0 border border-gray-300">
-          <CharacterTab :src="cowled" label="Character" />
+        <TabList class="border-t h-20 flex justify-around">
+          <CharacterTab :src="cowled" label="Character" class="md:hidden" />
           <CharacterTab :src="skills" label="Skills" />
           <CharacterTab :src="biceps" label="Feats" />
           <CharacterTab :src="backpack" label="Equipment" />

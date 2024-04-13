@@ -20,7 +20,7 @@ function reloadPage() {
 </script>
 
 <template>
-  <div class="flex gap-2 border p-4 items-center cursor-pointer">
+  <div class="flex gap-2 border-b p-4 items-center cursor-pointer">
     <div class="h-24 w-24 items-center hidden 2xs:flex" @click="reloadPage">
       <img
         v-if="actor?.prototypeToken?.texture?.src"

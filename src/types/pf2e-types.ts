@@ -105,5 +105,6 @@ declare global {
     altCharacters: any
     link: any
     game: any
+    Hooks: any
   }
 }

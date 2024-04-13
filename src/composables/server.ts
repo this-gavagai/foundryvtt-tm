@@ -1,3 +1,4 @@
+// TODO: does the socket need to be reactive here? It doesn't look like it. How did that happen anyway?
 import { ref } from 'vue'
 import { io, Socket } from 'socket.io-client'
 
@@ -46,6 +47,7 @@ async function connectToServer(url: URL) {
   await establishSocket(url, sid, true)
     .then((r) => {
       socket.value = r
+      socket.value.offAny()
       socket.value.onAny((name, ...args) => {
         if (name === 'userActivity' || (name.match('module.') && !name.match('module.tablemate')))
           return

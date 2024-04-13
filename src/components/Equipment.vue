@@ -1,8 +1,5 @@
 <script setup lang="ts">
-// TODO: (bug) figure out how the parenthetical worn style works (system.usage.value: 'worngloves', etc.)
-// TODO: (bug) stowed items sometimes show up as "worn" in the togglebar. Why? Figure out how equipment dynamics work
-
-// TODO: (feature) Move between multiple backpacks?
+// TODO: (feature) add sub-menu for "inSlot" and multiple backpacks
 // TODO: (feature) add ability to add new items
 // TODO: (feature) add weight, encumbrance, etc.
 
@@ -49,10 +46,12 @@ const toggleSet = [
     toggleText: '1-Hand',
     toggleTrigger: () =>
       updateCarry(item.value, {
-        containerId: null,
-        equipped: {
-          carryType: 'held',
-          handsHeld: 1
+        system: {
+          containerId: null,
+          equipped: {
+            carryType: 'held',
+            handsHeld: 1
+          }
         }
       }),
     toggleIsActive: () =>
@@ -63,10 +62,12 @@ const toggleSet = [
     toggleText: '2-Hands',
     toggleTrigger: () =>
       updateCarry(item.value, {
-        containerId: null,
-        equipped: {
-          carryType: 'held',
-          handsHeld: 2
+        system: {
+          containerId: null,
+          equipped: {
+            carryType: 'held',
+            handsHeld: 2
+          }
         }
       }),
     toggleIsActive: () =>
@@ -77,10 +78,13 @@ const toggleSet = [
     toggleText: 'Worn',
     toggleTrigger: () =>
       updateCarry(item.value, {
-        containerId: null,
-        equipped: {
-          carryType: 'worn',
-          handsHeld: 0
+        system: {
+          containerId: null,
+          equipped: {
+            carryType: 'worn',
+            handsHeld: 0,
+            inSlot: true
+          }
         }
       }),
     toggleIsActive: () => item.value?.system.equipped.carryType === 'worn'
@@ -89,10 +93,12 @@ const toggleSet = [
     toggleText: 'Stowed',
     toggleTrigger: () => {
       updateCarry(item.value, {
-        containerId: actor.value?.items.find((i: any) => i.type === 'backpack')?._id,
-        equipped: {
-          carryType: 'stowed',
-          handsHeld: 0
+        system: {
+          containerId: actor.value?.items.find((i: any) => i.type === 'backpack')?._id,
+          equipped: {
+            carryType: 'stowed',
+            handsHeld: 0
+          }
         }
       })
     },
@@ -102,10 +108,12 @@ const toggleSet = [
     toggleText: 'Dropped',
     toggleTrigger: () =>
       updateCarry(item.value, {
-        containerId: null,
-        equipped: {
-          carryType: 'dropped',
-          handsHeld: 0
+        system: {
+          containerId: null,
+          equipped: {
+            carryType: 'dropped',
+            handsHeld: 0
+          }
         }
       }),
     toggleIsActive: () => item.value?.system.equipped.carryType === 'dropped'
@@ -137,36 +145,41 @@ const toggleSet = [
         ({{ actor?.items.filter((i: Item) => i.system?.equipped?.invested).length }}/10 Invested)
       </span>
     </div>
-    <dl v-for="inventoryType in inventoryTypes" class="pt-4 whitespace-nowrap">
-      <dt class="underline text-lg only:hidden">{{ inventoryType.title }}</dt>
-      <dd
-        v-for="item in actor?.items.filter(
-          (i: Item) => i.type === inventoryType.type && !i.system?.containerId
-        )"
-        class="cursor-pointer"
+    <div class="lg:columns-2">
+      <dl
+        v-for="inventoryType in inventoryTypes"
+        class="pt-4 whitespace-nowrap break-inside-avoid-column"
       >
-        <div
-          :class="{
-            'text-gray-300': item.system?.equipped?.carryType === 'dropped',
-            'underline text-lg': item.type === 'backpack'
-          }"
-          @click="infoModal.open(item._id)"
+        <dt class="underline text-lg only:hidden">{{ inventoryType.title }}</dt>
+        <dd
+          v-for="item in actor?.items.filter(
+            (i: Item) => i.type === inventoryType.type && !i.system?.containerId
+          )"
+          class="cursor-pointer"
         >
-          <span>{{ item.name }}</span>
-          <span v-if="item.type !== 'backpack'" class="text-xs">
-            (x{{ item.system.quantity }})</span
+          <div
+            :class="{
+              'text-gray-300': item.system?.equipped?.carryType === 'dropped',
+              'underline text-lg': item.type === 'backpack'
+            }"
+            @click="infoModal.open(item._id)"
           >
-        </div>
-        <ul class="pb-2" v-if="item.type === 'backpack'">
-          <li
-            v-for="stowed in actor?.items.filter((i: Item) => i.system?.containerId === item._id)"
-            @click="infoModal.open(stowed._id)"
-          >
-            {{ stowed.name }}<span class="text-xs"> (x{{ stowed.system.quantity }})</span>
-          </li>
-        </ul>
-      </dd>
-    </dl>
+            <span>{{ item.name }}</span>
+            <span v-if="item.type !== 'backpack'" class="text-xs">
+              (x{{ item.system.quantity }})</span
+            >
+          </div>
+          <ul class="pb-2" v-if="item.type === 'backpack'">
+            <li
+              v-for="stowed in actor?.items.filter((i: Item) => i.system?.containerId === item._id)"
+              @click="infoModal.open(stowed._id)"
+            >
+              {{ stowed.name }}<span class="text-xs"> (x{{ stowed.system.quantity }})</span>
+            </li>
+          </ul>
+        </dd>
+      </dl>
+    </div>
   </div>
   <Teleport to="#modals">
     <Modal ref="investedModal" title="Invested Items">

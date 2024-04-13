@@ -4,7 +4,7 @@ import type { Actor, World } from '@/types/pf2e-types'
 import { useThrottleFn } from '@vueuse/core'
 import { ref, markRaw } from 'vue'
 
-import { getCharacterDetails } from '@/foundry/actions'
+import { getCharacterDetails, foundryCastSpell } from '@/foundry/actions'
 
 import { merge } from 'lodash-es'
 import { useServer } from '@/composables/server'
@@ -173,6 +173,7 @@ async function updateActorItem(
         ]
       },
       (r: any) => {
+        console.log(r)
         _processUpdates(actor.value.items, r.result)
         requestCharacterDetails(actor.value._id, actor)
         resolve(r)
@@ -214,17 +215,10 @@ async function sendCharacterRequest(actorId: string, actor: Ref<Actor | undefine
     parseActorData(actorId, actor, details)
   } else {
     const socket = await getSocket()
-    // const uuid = crypto.randomUUID()
-    // const promise = new Promise((resolve, reject) => {
     socket.emit('module.tablemate', {
       action: 'requestCharacterDetails',
       actorId: actorId
-      // uuid
     })
-    // ackQueue[uuid] = (args: any) => resolve(args)
-    // pushToAckQueue(uuid, (args: any) => resolve(args))
-    // })
-    // return promise
   }
 }
 function parseActorData(actorId: string, actor: Ref<Actor | undefined>, args: any) {
@@ -245,19 +239,24 @@ async function castSpell(
   castingLevel: number,
   castingSlot: number
 ): Promise<any> {
-  const socket = await getSocket()
   const uuid = crypto.randomUUID()
-  return new Promise((resolve, reject) => {
-    socket.emit('module.tablemate', {
-      action: 'castSpell',
-      id: spellId,
-      characterId: actor.value._id,
-      rank: castingLevel,
-      slotId: castingSlot,
-      uuid: uuid
+  const args = {
+    action: 'castSpell',
+    id: spellId,
+    characterId: actor.value._id,
+    rank: castingLevel,
+    slotId: castingSlot,
+    uuid
+  }
+  if (parent.game) {
+    return foundryCastSpell(args)
+  } else {
+    const socket = await getSocket()
+    return new Promise((resolve, reject) => {
+      socket.emit('module.tablemate', args)
+      pushToAckQueue(uuid, (args: any) => resolve(args))
     })
-    pushToAckQueue(uuid, (args: any) => resolve(args))
-  })
+  }
 }
 
 async function rollCheck(

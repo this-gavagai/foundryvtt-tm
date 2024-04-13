@@ -1,10 +1,7 @@
-declare const Hooks: any
-declare const game: any
-
 const MODNAME = 'module.tablemate'
+const source = typeof window.game === 'undefined' ? parent.game : window.game
 
 export async function getCharacterDetails(args: any) {
-  const source = typeof game === 'undefined' ? parent.game : game
   const actor = source.actors.find((x: any) => x._id === args.actorId)
 
   // add the damage formula into things
@@ -30,9 +27,9 @@ export async function getCharacterDetails(args: any) {
 
 export async function rollCheck(args: any) {
   //https://github.com/foundryvtt/pf2e/blob/68988e12fbec7ea8359b9bee9b0c43eb6964ca3f/src/module/system/statistic/statistic.ts#L617
-  const actor = game.actors.get(args.characterId, { strict: true })
+  const actor = source.actors.get(args.characterId, { strict: true })
   const modifiers = args.modifiers.map((m: any) => {
-    return new game.pf2e.Modifier(m)
+    return new source.pf2e.Modifier(m)
   })
   const params = { skipDialog: args.skipDialog, modifiers: modifiers }
   let roll
@@ -55,7 +52,7 @@ export async function rollCheck(args: any) {
       roll = actor.perception.check.roll(params)
       break
     case 'initiative':
-      const combatantId = game.combat.combatants.find((c: any) => c.actorId === args.characterId)
+      const combatantId = source.combat.combatants.find((c: any) => c.actorId === args.characterId)
         ?._id
       if (combatantId) roll = actor.initiative.roll([combatantId], { updateTurn: false })
       break
@@ -71,14 +68,14 @@ export async function rollCheck(args: any) {
 }
 
 export async function characterAction(args: any) {
-  const actor = game.actors.get(args.characterId, { strict: true })
+  const actor = source.actors.get(args.characterId, { strict: true })
   const params = { ...args.options, actors: actor }
   let promise
   if (args.characterAction.match('legacy.')) {
     const actionKey = args.characterAction.replace('legacy.', '')
-    promise = game.pf2e.actions[actionKey](params)
+    promise = source.pf2e.actions[actionKey](params)
   } else {
-    promise = game.pf2e.actions.get(args.characterAction).use(params)
+    promise = source.pf2e.actions.get(args.characterAction).use(params)
   }
   const r = await promise
   const { formula, result, total, dice } = r[0].roll
@@ -89,17 +86,17 @@ export async function characterAction(args: any) {
   }
 }
 
-export async function castSpell(args: any) {
-  const actor = game.actors.get(args.characterId, { strict: true })
+export async function foundryCastSpell(args: any) {
+  const actor = source.actors.get(args.characterId, { strict: true })
   const item = actor.items.get(args.id, { strict: true })
   const spellLocation = actor.items.get(item.system.location.value)
 
-  // this is an ugly hack to deal with the pf2e-dailies dialog popup
+  // this is an ugly hack to deal with the pf2e-dailies dialog popup for staves casting
   if (
-    game.modules.get('pf2e-dailies')?.active &&
+    source.modules.get('pf2e-dailies')?.active &&
     spellLocation?.system?.prepared.value === 'charge'
   )
-    Hooks.once('renderDialog', (a: any, b: any, c: any) =>
+    window.Hooks.once('renderDialog', (a: any, b: any, c: any) =>
       setTimeout(() => b[0].querySelectorAll('button')[1].click(), 100)
     )
 
@@ -109,7 +106,7 @@ export async function castSpell(args: any) {
 }
 
 export async function consumeItem(args: any) {
-  const actor = game.actors.get(args.characterId, { strict: true })
+  const actor = source.actors.get(args.characterId, { strict: true })
   const item = actor.items.get(args.consumableId, { strict: true })
   item.consume()
   return { action: 'acknowledged', uuid: args.uuid }
