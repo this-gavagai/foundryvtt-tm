@@ -2,6 +2,7 @@ const MODNAME = 'module.tablemate'
 const source = typeof window.game === 'undefined' ? parent.game : window.game
 
 export async function getCharacterDetails(args: any) {
+  const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.find((x: any) => x._id === args.actorId)
 
   // add the damage formula into things
@@ -26,7 +27,9 @@ export async function getCharacterDetails(args: any) {
 }
 
 export async function rollCheck(args: any) {
+  const source = typeof window.game === 'undefined' ? parent.game : window.game
   //https://github.com/foundryvtt/pf2e/blob/68988e12fbec7ea8359b9bee9b0c43eb6964ca3f/src/module/system/statistic/statistic.ts#L617
+  console.log(source)
   const actor = source.actors.get(args.characterId, { strict: true })
   const modifiers = args.modifiers.map((m: any) => {
     return new source.pf2e.Modifier(m)
@@ -68,6 +71,7 @@ export async function rollCheck(args: any) {
 }
 
 export async function characterAction(args: any) {
+  const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.get(args.characterId, { strict: true })
   const params = { ...args.options, actors: actor }
   let promise
@@ -87,6 +91,7 @@ export async function characterAction(args: any) {
 }
 
 export async function foundryCastSpell(args: any) {
+  const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.get(args.characterId, { strict: true })
   const item = actor.items.get(args.id, { strict: true })
   const spellLocation = actor.items.get(item.system.location.value)
@@ -106,6 +111,7 @@ export async function foundryCastSpell(args: any) {
 }
 
 export async function consumeItem(args: any) {
+  const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.get(args.characterId, { strict: true })
   const item = actor.items.get(args.consumableId, { strict: true })
   item.consume()
@@ -114,5 +120,6 @@ export async function consumeItem(args: any) {
 }
 
 export function testFunction() {
+  const source = typeof window.game === 'undefined' ? parent.game : window.game
   console.log('Hi, this is a test')
 }

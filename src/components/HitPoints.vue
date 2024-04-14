@@ -1,7 +1,5 @@
 <script setup lang="ts">
-// TODO: (bug) world data under-represents hp-max when playing with gradual ability boosts
 // TODO: (minor) allow hitpoints to be changed arbitrarily if max is not defined
-// TODO: (minor) old characters still have legacy max-hp data in world
 // TODO: (feature) add "full heal" button to hp modal
 import type { Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'

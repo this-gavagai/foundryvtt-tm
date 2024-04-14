@@ -2,6 +2,7 @@
 // TODO: (feature) add sub-menu for "inSlot" and multiple backpacks
 // TODO: (feature) add ability to add new items
 // TODO: (feature) add weight, encumbrance, etc.
+// TODO: (UX) feedback mechanism on toggle bar
 
 import type { Ref } from 'vue'
 import type { Item, Actor } from '@/types/pf2e-types'

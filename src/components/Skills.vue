@@ -9,10 +9,6 @@ import Statistic from './Statistic.vue'
 import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
 
-// import Macro from '@/components/Macro.vue'
-// import CheckModifiers from '@/components/CheckModifiers.vue'
-// import SkillsMacros from '@/components/SkillsMacros.vue'
-
 const { rollCheck } = useApi()
 const actor = inject(useKeys().actorKey)!
 function doSkillCheck(slug: string) {

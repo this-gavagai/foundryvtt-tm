@@ -1,4 +1,4 @@
-// TODO: does the socket need to be reactive here? It doesn't look like it. How did that happen anyway?
+// TODO: (refactor) does the socket need to be reactive here? It doesn't look like it. How did that happen anyway?
 import { ref } from 'vue'
 import { io, Socket } from 'socket.io-client'
 

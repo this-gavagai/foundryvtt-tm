@@ -1,4 +1,4 @@
-// TODO: add option to send chat message on certain api events
+// TODO: (feature+) add option to send chat message on certain api events
 import type { Ref } from 'vue'
 import type { Actor, World } from '@/types/pf2e-types'
 import { useThrottleFn } from '@vueuse/core'
@@ -228,7 +228,7 @@ function parseActorData(actorId: string, actor: Ref<Actor | undefined>, args: an
     actor.value!.feats = JSON.parse(args.feats)
   }
 }
-const requestCharacterDetails = useThrottleFn(sendCharacterRequest, 3000, true, true)
+const requestCharacterDetails = useThrottleFn(sendCharacterRequest, 500, true, false)
 
 ///////////////////////////////////////
 // Action Request                    //

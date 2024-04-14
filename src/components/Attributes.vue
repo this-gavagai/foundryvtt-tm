@@ -22,7 +22,7 @@ function doStatCheck(type: string, subtype: string) {
   </div>
   <div class="px-6 py-4 flex justify-between border-b">
     <Statistic
-      heading="Fortitude"
+      heading="Fort"
       :proficiency="actor?.system?.saves?.fortitude?.rank"
       :modifiers="actor?.system?.saves?.fortitude?.modifiers"
       :allowRoll="true"
@@ -31,7 +31,7 @@ function doStatCheck(type: string, subtype: string) {
       {{ formatModifier(actor?.system?.saves?.fortitude?.totalModifier) }}
     </Statistic>
     <Statistic
-      heading="Reflex"
+      heading="Refl"
       :proficiency="actor?.system?.saves?.reflex?.rank"
       :modifiers="actor?.system?.saves?.reflex?.modifiers"
       :allowRoll="true"
