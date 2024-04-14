@@ -71,7 +71,7 @@ Hooks.on('ready', () => {
     userForm.prepend(control)
     app._onChangeTab()
 
-    selector.value = data.user.getFlag('tablemate', 'character_sheet')
+    selector.value = data.user.getFlag('tablemate', 'character_sheet') ?? ''
     userForm.addEventListener(
       'submit',
       () => data.user.setFlag('tablemate', 'character_sheet', selector.value),

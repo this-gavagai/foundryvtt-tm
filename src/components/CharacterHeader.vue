@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// TODO: Implement hamburger menu popout, with settings and meta-options like "Rest"
+// TODO: (feature+) Implement hamburger menu popout, with settings and meta-options like "Rest"
 import type { Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 import { inject, computed, watch, ref } from 'vue'
@@ -50,7 +50,7 @@ function reloadPage() {
         <Listbox>
           <ListboxButton>{{ actor?.name ?? 'Loading...' }}</ListboxButton>
           <ListboxOptions
-            class="absolute mt-1 empty:hidden max-h-60 w-6/12 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+            class="absolute mt-1 empty:hidden max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
           >
             <ListboxOption v-if="!world?.actors"
               ><div class="text-gray-400 relative select-none py-2 pl-6 pr-4">

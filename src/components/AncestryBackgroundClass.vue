@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// TODO: Import the more comprehensive class info from journals somehow
+// TODO: (feature+) Allow fetching compendia to allow import the more comprehensive class info from journals somehow
 import type { Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 import { inject, computed, watch, ref } from 'vue'

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 // TODO: add languages
-// TODO: add speeds
 // TODO: check that all the viewheight nonsense works in ios
 import type { Actor } from '@/types/pf2e-types'
 import type { Ref } from 'vue'
@@ -8,6 +7,7 @@ import { ref, shallowRef, markRaw, reactive, provide, watch, inject } from 'vue'
 import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
 import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
+import { useWindowSize } from '@vueuse/core'
 
 import cowled from '@/assets/icons/cowled.svg'
 import biceps from '@/assets/icons/biceps.svg'
@@ -30,8 +30,10 @@ import Strikes from '@/components/Strikes.vue'
 import Armor from '@/components/Armor.vue'
 import Initiative from '@/components/Initiative.vue'
 import IWR from '@/components/IWR.vue'
+import Movement from '@/components/Movement.vue'
 
 const { requestCharacterDetails, setupSocketListenersForActor } = useApi()
+const { width } = useWindowSize()
 
 const props = defineProps(['characterId'])
 
@@ -63,9 +65,10 @@ defineExpose({ actor })
       <Attributes />
       <Armor />
       <IWR />
+      <Movement />
     </div>
     <div class="flex-1 overflow-scroll md:border-l w-full">
-      <TabGroup>
+      <TabGroup :defaultIndex="width >= 768 ? 1 : 0">
         <TabPanels tabindex="-1" class="overflow-scroll h-[calc(100%-5rem)]">
           <CharacterHeader
             @pickCharacter="(id: string) => $emit('pickCharacter', id)"
@@ -78,6 +81,7 @@ defineExpose({ actor })
             <Attributes />
             <Armor />
             <IWR />
+            <Movement />
           </TabPanel>
           <TabPanel tabindex="-1">
             <Skills />

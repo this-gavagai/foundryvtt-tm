@@ -2,7 +2,7 @@
 import type { Ref } from 'vue'
 import type { Actor, World } from '@/types/pf2e-types'
 import { useThrottleFn } from '@vueuse/core'
-import { ref, markRaw } from 'vue'
+import { ref } from 'vue'
 
 import { getCharacterDetails, foundryCastSpell } from '@/foundry/actions'
 
@@ -208,11 +208,13 @@ async function deleteActorItem(actor: Ref<Actor>, itemId: string): Promise<any> 
 // Character Build Methods           //
 ///////////////////////////////////////
 // TODO: review call/response structure. Right now, this method doesn't use the ackQueue but instead listens to a separate response
-// not using ackQueue allows for updates pushed from server, but makes this method a bit weird
+// not using ackQueue allows for updates pushed from server, but makes this method a bit weird (and needing a timeout to prevent race conditions)
 async function sendCharacterRequest(actorId: string, actor: Ref<Actor | undefined> = ref()) {
   if (parent.game) {
-    const details = await getCharacterDetails({ actorId: actorId })
-    parseActorData(actorId, actor, details)
+    setTimeout(async () => {
+      const details = await getCharacterDetails({ actorId: actorId })
+      parseActorData(actorId, actor, details)
+    }, 300)
   } else {
     const socket = await getSocket()
     socket.emit('module.tablemate', {
@@ -228,7 +230,9 @@ function parseActorData(actorId: string, actor: Ref<Actor | undefined>, args: an
     actor.value!.feats = JSON.parse(args.feats)
   }
 }
-const requestCharacterDetails = useThrottleFn(sendCharacterRequest, 500, true, false)
+// TODO: (bug) fix throttling here. was breaking because the throttle function doesn't know how to distinguish among characters
+// const requestCharacterDetails = useThrottleFn(sendCharacterRequest, 500, true, false)
+const requestCharacterDetails = sendCharacterRequest
 
 ///////////////////////////////////////
 // Action Request                    //

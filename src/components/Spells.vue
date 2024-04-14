@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// TODO: deal with flexible prepared casters
-// TODO: make it so it's possible to cast from staves, using pf2e-dailies module (right now, window pops up)
+// TODO: (feature) deal with flexible prepared casters
+// TODO: (feature+) figure out how to get staves in here, via integration with pf2e-dailies
 
 import type { Ref } from 'vue'
 import type { Item, Actor } from '@/types/pf2e-types'

@@ -149,7 +149,8 @@ const toggleSet = [
     <div class="lg:columns-2">
       <dl
         v-for="inventoryType in inventoryTypes"
-        class="pt-4 whitespace-nowrap break-inside-avoid-column"
+        class="pt-4 whitespace-nowrap break-inside-avoid-column break-before-avoid"
+        :class="{ 'break-before-column': inventoryType.type === 'backpack' }"
       >
         <dt class="underline text-lg only:hidden">{{ inventoryType.title }}</dt>
         <dd
@@ -245,4 +246,3 @@ const toggleSet = [
     </InfoModal>
   </Teleport>
 </template>
-@/composables@/types/pf2e-types

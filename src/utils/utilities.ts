@@ -60,9 +60,10 @@ export function getPath(path: string) {
 }
 
 export function parseIncrement(input: string, startingValue: number): number {
-  const transform = [...input.matchAll(/([+-]){0,1}([0-9]+)$/g)]?.[0]
+  const transform = [...input.matchAll(/([\+\-]){0,1}([0-9]+)$/g)]?.[0]
   if (!transform) return startingValue
   let newValue: number
+  // console.log([...input.matchAll(/([\+\-]){0,1}([0-9]+)$/g)])
   if (transform[1] === '+') {
     newValue = startingValue + (Number(transform[2]) ?? 0)
   } else if (transform[1] === '-') {

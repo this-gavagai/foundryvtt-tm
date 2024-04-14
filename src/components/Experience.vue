@@ -16,6 +16,7 @@ const { updateActor } = useApi()
 
 function updateExperience(input: string) {
   let newValue: number = parseIncrement(input, actor.value?.system?.details.xp.value)
+
   newValue = Math.max(newValue, 0)
   if (actor.value)
     updateActor(actor as Ref<Actor>, { system: { details: { xp: { value: newValue } } } })
@@ -57,7 +58,7 @@ function updateExperience(input: string) {
           <input
             class="text-3xl border-2 border-black w-36 p-1 mr-4 text-right"
             name="xp"
-            type="number"
+            type="input"
             pattern="[\+\-]{0,1}[0-9]*"
             :placeholder="actor?.system?.details.xp.value"
             @focus="(e: any) => e.target.select()"

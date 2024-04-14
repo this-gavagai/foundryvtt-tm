@@ -36,7 +36,7 @@ function doAction(slug: string) {
   })
 }
 
-// TODO: computing this semi-constant value this way is Super ugly
+// TODO: (refactor+) computing this semi-constant value this way is Super ugly; approach actions differently
 const actionDefs = computed(() => {
   return new Map<string, any>([
     ['administer-first-aid', { skill: 'medicine' }],
