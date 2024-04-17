@@ -23,7 +23,7 @@ export interface FeatCategory {
   feats: [any]
 }
 
-// TODO: this is piling together tons of System subtypes. Worth separating?
+// TODO: (refactor) this is piling together tons of System subtypes. Worth separating?
 export interface System {
   skills: [Skill]
   build: { attributes: any }

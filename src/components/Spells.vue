@@ -31,24 +31,33 @@ const { updateActor, updateActorItem, castSpell, consumeItem } = useApi()
 
 const infoModal = ref()
 const spellSelectionModal = ref()
+const castButton = ref()
+const consumeButton = ref()
+const removeButton = ref()
 
 const viewedSpell = computed(
   () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
 )
 
 function doSpell(spellId: string, info: SpellInfo) {
+  castButton.value.waiting = true
   if (actor.value)
-    castSpell(actor as Ref<Actor>, spellId, info.castingRank!, info.castingSlot!).then((r) =>
-      console.log(r)
-    )
-  infoModal.value.close()
+    castSpell(actor as Ref<Actor>, spellId, info.castingRank!, info.castingSlot!).then((r) => {
+      castButton.value.waiting = false
+      infoModal.value.close()
+    })
 }
 function doConsumable(itemId: string) {
-  if (actor.value) consumeItem(actor as Ref<Actor>, itemId)
-  infoModal.value.close()
+  consumeButton.value.waiting = true
+  if (actor.value)
+    consumeItem(actor as Ref<Actor>, itemId).then((r) => {
+      consumeButton.value.waiting = false
+      infoModal.value.close()
+    })
 }
 function setSpellAndClose(info: SpellInfo, newSpellId: string | null) {
   if (!actor.value) return
+  removeButton.value.waiting = true
   const prepared = info.entry?.system.slots['slot' + info.castingRank]?.prepared
   if (!prepared[info.castingSlot ?? ''])
     prepared[info.castingSlot ?? ''] = { id: null, expended: true }
@@ -57,6 +66,7 @@ function setSpellAndClose(info: SpellInfo, newSpellId: string | null) {
   updateActorItem(actor as Ref<Actor>, info.entry!._id, {
     system: { slots: { ['slot' + info.castingRank]: { prepared: prepared } } }
   }).then((x: any) => {
+    removeButton.value.waiting = false
     infoModal.value.close()
     spellSelectionModal.value.close()
   })
@@ -360,12 +370,14 @@ const spellbook = computed((): Spellbook => {
       </template>
       <template #actionButtons>
         <Button
+          ref="removeButton"
           label="Remove"
           class="!bg-red-600 hover:!bg-red-500"
           v-if="infoModal.options?.entry?.system.prepared?.value === 'prepared'"
           @click="setSpellAndClose(infoModal.options, null)"
         />
         <Button
+          ref="castButton"
           label="Cast"
           v-if="!infoModal.options?.isConsumable"
           type="button"
@@ -373,6 +385,7 @@ const spellbook = computed((): Spellbook => {
           @click="doSpell(viewedSpell!._id, infoModal.options)"
         />
         <Button
+          ref="consumeButton"
           label="Use"
           v-if="infoModal.options?.isConsumable"
           type="button"

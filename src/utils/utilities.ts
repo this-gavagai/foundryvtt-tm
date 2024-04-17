@@ -2,7 +2,6 @@ export function capitalize(s: string | undefined) {
   return s ? s?.[0]?.toUpperCase() + s?.slice(1) : null
 }
 export function makeTraits(traits: string[] | undefined): string {
-  // todo: (data) on boost eidolon spell: traits for "Arcane" and "Concentrate" are missing
   let list = traits?.reduce((list, t) => {
     return (list += `<span class="bg-[#5E0000] text-[0.5rem] text-white px-1 uppercase">${t}${'\n'}</span>`)
   }, '')

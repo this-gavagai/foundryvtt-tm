@@ -3,6 +3,7 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true
   },
+  "include": ["env.d.ts", "src/**/*", "src/**/*.vue", "src/**/*.ts", "src"],
   "files": [],
   "references": [
     {

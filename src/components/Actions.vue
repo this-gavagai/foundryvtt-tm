@@ -1,5 +1,7 @@
 <script setup lang="ts">
 // TODO: (feature) get modifiers onto skill actions (somehow?)
+// TODO: (refactor+) computing this semi-constant value this way is Super ugly; approach actions differently
+// TODO: (refactor+) completely rethink how action data is organized
 import type { Ref } from 'vue'
 import type { Actor, Item } from '@/types/pf2e-types'
 const props = defineProps(['actor'])
@@ -25,7 +27,6 @@ const { characterAction } = useApi()
 // })
 function doAction(slug: string) {
   // actionDefs.value.get(slug)['options'] = options
-  console.log('here', skillSelector.value?.selected?.slug)
   characterAction(
     actor as Ref<Actor>,
     actionDefs.value.get(slug)?.alias ?? slug,
@@ -36,15 +37,13 @@ function doAction(slug: string) {
   })
 }
 
-// TODO: (refactor+) computing this semi-constant value this way is Super ugly; approach actions differently
 const actionDefs = computed(() => {
   return new Map<string, any>([
     ['administer-first-aid', { skill: 'medicine' }],
     [
       'aid',
       {
-        skill: null,
-        skillSelector: 'statistic',
+        skill: '*',
         options: { statistic: skillSelector.value?.selected?.slug }
       }
     ],
@@ -131,7 +130,7 @@ const actionDefs = computed(() => {
       <template #actionButtons>
         <div class="flex align-items-center gap-2">
           <SkillSelector
-            v-if="actionDefs.get(action?.system.slug)?.skillSelector"
+            v-if="actionDefs.get(action?.system.slug)?.skill === '*'"
             ref="skillSelector"
           />
           <button

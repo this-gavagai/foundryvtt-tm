@@ -26,9 +26,11 @@ function open(newItemId: string, newOptions: {} | null) {
   isOpen.value = true
 }
 function close() {
-  itemId.value = null
-  options.value = null
   isOpen.value = false
+  setTimeout(() => {
+    itemId.value = null
+    options.value = null
+  }, 500)
   emit('closing')
 }
 
@@ -66,7 +68,7 @@ defineExpose({ open, close, itemId, options, rollResultModal })
             leave-to="translate-y-full"
           >
             <DialogPanel
-              class="w-full max-w-md transform overflow-hidden bg-white p-6 text-left shadow-xl transition-all"
+              class="w-full max-w-4xl transform overflow-hidden bg-white p-6 text-left shadow-xl transition-all"
             >
               <div class="max-h-[70vh] overflow-auto">
                 <div class="flex space-x-2">

@@ -1,4 +1,3 @@
-// TODO: allow setting of "character_sheet" and "shared_display" flags in-game
 import { setupTouch } from './touchmate'
 import { setupListener } from './listener'
 

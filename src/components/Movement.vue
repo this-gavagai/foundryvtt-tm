@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// TODO: (feature) add rolls to swim/climb movement types
+
 import type { Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 import { inject, computed } from 'vue'
@@ -11,24 +13,20 @@ import { useKeys } from '@/composables/injectKeys'
 const actor = inject(useKeys().actorKey)!
 const speedLand = computed(() => actor.value?.system.attributes.speed.total)
 const speedSwim = computed(() => {
-  const speed = actor.value?.system.attributes.speed.otherSpeeds.find((s: any) => s.type === 'swim')
-  return speed?.total ?? speed?.value
+  const spd = actor.value?.system.attributes.speed.otherSpeeds.find((s: any) => s.type === 'swim')
+  return spd?.total ?? spd?.value + spd?.totalModifier
 })
 const speedClimb = computed(() => {
-  const speed = actor.value?.system.attributes.speed.otherSpeeds.find(
-    (s: any) => s.type === 'climb'
-  )
-  return speed?.total ?? speed?.value
+  const spd = actor.value?.system.attributes.speed.otherSpeeds.find((s: any) => s.type === 'climb')
+  return (spd?.total ?? spd?.value + spd?.totalModifier) || undefined
 })
 const speedFly = computed(() => {
-  const speed = actor.value?.system.attributes.speed.otherSpeeds.find((s: any) => s.type === 'fly')
-  return speed?.total ?? speed?.value
+  const spd = actor.value?.system.attributes.speed.otherSpeeds.find((s: any) => s.type === 'fly')
+  return (spd?.total ?? spd?.value + spd?.totalModifier) || undefined
 })
 const speedBurrow = computed(() => {
-  const speed = actor.value?.system.attributes.speed.otherSpeeds.find(
-    (s: any) => s.type === 'burrow'
-  )
-  return speed?.total ?? speed?.value
+  const spd = actor.value?.system.attributes.speed.otherSpeeds.find((s: any) => s.type === 'burrow')
+  return (spd?.total ?? spd?.value + spd?.totalModifier) || undefined
 })
 </script>
 <template>

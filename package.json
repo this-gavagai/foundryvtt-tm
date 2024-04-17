@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "live": "vite build --watch",
     "hot": "run-p dev live",
     "build": "run-p type-check build-only",

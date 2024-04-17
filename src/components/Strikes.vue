@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// TODO: handle versatile damage types
-// TODO: (big feature) show damage modifiers in place of strike modifiers (can be down with "createMessage: false" prop on context object)
-// TODO: Improve dice representations for damage rolls (number and types)
+// TODO: (feature) handle versatile damage types
+// TODO: (feature+) show damage modifiers in place of strike modifiers (can be down with "createMessage: false" prop on context object)
+// TODO: (UX) Improve dice representations for damage rolls (number and types)
 import type { Ref } from 'vue'
 import type { Item, Actor } from '@/types/pf2e-types'
 import { inject, ref, computed } from 'vue'

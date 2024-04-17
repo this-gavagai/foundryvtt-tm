@@ -53,10 +53,9 @@ const viewedItem: any = computed(
         <hr />
         <div v-if="viewedItem?.type === 'ancestry'" class="mt-2">
           <h3 class="text-lg">{{ heritage?.name }}</h3>
-          <div v-html="heritage?.system.description.value"></div>
+          <div v-html="removeUUIDs(heritage?.system.description.value)"></div>
         </div>
       </template>
     </InfoModal>
   </Teleport>
 </template>
-@/types/pf2e-types

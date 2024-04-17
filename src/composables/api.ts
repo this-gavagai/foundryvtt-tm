@@ -29,6 +29,7 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
         if (ackQueue[args.uuid]) {
           ackQueue[args.uuid](args)
           delete ackQueue[args.uuid]
+          console.log('done')
         }
         break
     }

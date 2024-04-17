@@ -53,7 +53,7 @@ if (BUILD_MODE === 'development') {
 }
 </script>
 <template>
-  <TabGroup :selectedIndex="activeIndex" @change="console.log('character changed!')">
+  <TabGroup :selectedIndex="activeIndex" @change="console.log('character changed!')" as="div">
     <TabList class="h-12 bg-white gap-0 border border-gray-300 text-xl hidden">
       <Tab
         class="p-2 ui-selected:bg-blue-300 focus:outline-none relative top-0"
