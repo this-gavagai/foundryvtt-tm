@@ -1,13 +1,8 @@
 <script setup lang="ts">
 // TODO: (feature) add rolls to swim/climb movement types
 
-import type { Ref } from 'vue'
-import type { Actor } from '@/types/pf2e-types'
 import { inject, computed } from 'vue'
 import Statistic from './Statistic.vue'
-import { SignedNumber, formatModifier } from '@/utils/utilities'
-import { useApi } from '@/composables/api'
-import { attributes } from '@/utils/constants'
 import { useKeys } from '@/composables/injectKeys'
 
 const actor = inject(useKeys().actorKey)!

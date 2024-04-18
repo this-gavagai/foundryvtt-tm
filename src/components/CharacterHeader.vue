@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// TODO: (feature+) Implement hamburger menu popout, with settings and meta-options like "Rest"
 import type { Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 import { inject, computed, watch, ref } from 'vue'
@@ -11,10 +10,12 @@ import { useKeys } from '@/composables/injectKeys'
 import HitPoints from '@/components/HitPoints.vue'
 import HeroPoints from '@/components/HeroPoints.vue'
 import Spinner from '@/components/Spinner.vue'
+import SideMenu from '@/components/SideMenu.vue'
 
 const world: any = inject(useKeys().worldKey)
 const actor = inject(useKeys().actorKey)!
 const { characterList } = useCharacterSelect()
+const sideMenu = ref()
 function reloadPage() {
   window.location.reload()
 }
@@ -69,7 +70,10 @@ function reloadPage() {
         <HeroPoints />
       </div>
     </div>
-    <Bars3Icon class="md:hidden h-10 w-10 my-auto text-gray-500 border-gray-500 rounded-md p-1" />
+    <Bars3Icon
+      class="md:hidden h-10 w-10 my-auto text-gray-500 border-gray-500 rounded-md p-1"
+      @click="sideMenu.sidebarOpen = true"
+    />
+    <SideMenu ref="sideMenu" />
   </div>
 </template>
-@/composables/characterSelect @/types/pf2e-types

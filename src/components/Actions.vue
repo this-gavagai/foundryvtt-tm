@@ -1,7 +1,5 @@
 <script setup lang="ts">
-// TODO: (feature) get modifiers onto skill actions (somehow?)
-// TODO: (refactor+) computing this semi-constant value this way is Super ugly; approach actions differently
-// TODO: (refactor+) completely rethink how action data is organized
+// TODO: (refactor+) completely rethink how action data is organized, including modifiers
 import type { Ref } from 'vue'
 import type { Actor, Item } from '@/types/pf2e-types'
 const props = defineProps(['actor'])

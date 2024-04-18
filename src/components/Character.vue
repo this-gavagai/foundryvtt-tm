@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// TODO: add languages
-// TODO: check that all the viewheight nonsense works in ios
+// TODO: (bug) fix dvh/vh nonsense in iOS
+// TODO: (UX) scroll to top on tab change
+// TODO: (feature++) add some way to browse compendia, which can be used for adding new items to various contexts
 import type { Actor } from '@/types/pf2e-types'
 import type { Ref } from 'vue'
 import { ref, provide, watch, inject } from 'vue'
@@ -18,6 +19,7 @@ import leapfrog from '@/assets/icons/leapfrog.svg'
 import spellBook from '@/assets/icons/spell-book.svg'
 import skills from '@/assets/icons/skills.svg'
 
+import SideMenu from '@/components/SideMenu.vue'
 import CharacterTab from '@/components/CharacterTab.vue'
 import CharacterHeader from '@/components/CharacterHeader.vue'
 import FrontPage from '@/components/FrontPage.vue'
@@ -30,6 +32,7 @@ import Strikes from '@/components/Strikes.vue'
 
 const { requestCharacterDetails, setupSocketListenersForActor } = useApi()
 const { width } = useWindowSize()
+const sideMenu = ref()
 
 const props = defineProps(['characterId'])
 
@@ -53,7 +56,7 @@ defineExpose({ actor })
 </script>
 <template>
   <div class="flex h-screen">
-    <div class="hidden md:block border-r overflow-scroll">
+    <div class="hidden md:block border-r overflow-scroll md:w-[320px]">
       <CharacterHeader @pickCharacter="(id: string) => $emit('pickCharacter', id)" />
       <FrontPage />
     </div>
@@ -88,17 +91,18 @@ defineExpose({ actor })
         </TabPanels>
         <TabList class="border-t h-20 flex justify-around md:border-b">
           <CharacterTab :src="cowled" label="Character" class="md:hidden" />
-          <CharacterTab :src="skills" label="Skills" />
+          <CharacterTab :src="skills" label="Proficiencies" />
           <CharacterTab :src="biceps" label="Feats" />
           <CharacterTab :src="backpack" label="Equipment" />
           <CharacterTab :src="leapfrog" label="Actions" />
           <CharacterTab :src="spellBook" label="Spells" />
           <Bars3Icon
             class="hidden md:block h-10 w-10 my-auto text-gray-500 border-gray-500 rounded-md p-1 mx-4"
+            @click="sideMenu.sidebarOpen = true"
           />
         </TabList>
       </TabGroup>
     </div>
+    <SideMenu ref="sideMenu" />
   </div>
 </template>
-@/composables@/types/pf2e-types

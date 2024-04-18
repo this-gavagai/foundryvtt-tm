@@ -188,9 +188,9 @@ const spellbook = computed((): Spellbook => {
             />
           </span>
         </h3>
-        <div v-if="location.system.spelldc.dc || actor?.system.attributes?.classOrSpellDC?.value">
+        <div v-if="location.system.spelldc.dc || actor?.system.attributes?.spellDC?.value">
           Spell DC
-          {{ location.system.spelldc.dc || actor?.system.attributes?.classOrSpellDC?.value }}
+          {{ location.system.spelldc.dc || actor?.system.attributes?.spellDC?.value }}
         </div>
         <!-- Spell Ranks -->
         <ul>
@@ -291,9 +291,9 @@ const spellbook = computed((): Spellbook => {
         <h3 class="flex justify-between align-bottom bg-gray-300">
           <span class="underline text-xl"> Wands and Scrolls </span>
         </h3>
-        <div class="pb-1" v-if="actor?.system.attributes?.classOrSpellDC?.value">
+        <div class="pb-1" v-if="actor?.system.attributes?.spellDC?.value">
           Spell DC
-          {{ actor?.system.attributes?.classOrSpellDC?.value }}
+          {{ actor?.system.attributes?.spellDC?.value }}
         </div>
         <ul class="empty:hidden">
           <li

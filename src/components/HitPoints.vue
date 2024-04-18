@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// TODO: (minor) allow hitpoints to be changed arbitrarily if max is not defined
 // TODO: (feature) add "full heal" button to hp modal
+// TODO: (feature) check chat messages for most recent damage amount (and make button)
 import type { Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 import { inject, ref } from 'vue'

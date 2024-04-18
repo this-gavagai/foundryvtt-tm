@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// TODO: (feature+) Allow fetching compendia to allow import the more comprehensive class info from journals somehow
 import type { Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 import { inject, computed, watch, ref } from 'vue'
@@ -21,12 +20,12 @@ const viewedItem: any = computed(
 </script>
 <template>
   <div class="shrink">
-    <div class="text-md whitespace-nowrap overflow-hidden cursor-pointer">
+    <div class="text-sm whitespace-nowrap overflow-hidden cursor-pointer">
       <span @click="infoModal.open(ancestry?._id)">{{ ancestry?.name ?? '-' }}&nbsp;</span>
       <span @click="infoModal.open(background?._id)">{{ background?.name }}</span>
     </div>
     <div
-      class="text-md whitespace-nowrap overflow-hidden cursor-pointer"
+      class="text-sm whitespace-nowrap overflow-hidden cursor-pointer"
       @click="infoModal.open(gameclass?._id)"
     >
       <span>{{ gameclass?.name ?? '-' }}</span>
