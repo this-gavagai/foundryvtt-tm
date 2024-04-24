@@ -1,11 +1,10 @@
 <script setup lang="ts">
 // TODO: (bug) fix dvh/vh nonsense in iOS
-// TODO: (UX) scroll to top on tab change
-// TODO: (feature++) add some way to browse compendia, which can be used for adding new items to various contexts
 import type { Actor } from '@/types/pf2e-types'
 import type { Ref } from 'vue'
 import { ref, provide, watch, inject } from 'vue'
 import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
+import { useThrottleFn } from '@vueuse/core'
 import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
 import { useWindowSize } from '@vueuse/core'
@@ -30,16 +29,21 @@ import Feats from '@/components/Feats.vue'
 import Equipment from '@/components/Equipment.vue'
 import Strikes from '@/components/Strikes.vue'
 
-const { requestCharacterDetails, setupSocketListenersForActor } = useApi()
+const { sendCharacterRequest, setupSocketListenersForActor } = useApi()
 const { width } = useWindowSize()
 const sideMenu = ref()
 
 const props = defineProps(['characterId'])
 
+export interface CharacterRef<T> extends Ref<T> {
+  requestCharacterDetails?: any
+}
+
 // base data
-const actor: Ref<Actor | undefined> = ref()
+const actor: CharacterRef<Actor | undefined> = ref()
 provide(useKeys().actorKey, actor)
 const world = inject(useKeys().worldKey)
+const panels = ref()
 
 // load character from world value if no character details received
 watch(world, () => {
@@ -49,22 +53,25 @@ watch(world, () => {
   }
 })
 
-requestCharacterDetails(props.characterId, actor)
-setupSocketListenersForActor(props.characterId, actor)
+// requestCharacterDetails(props.characterId, actor)
+const throttledCharacterRequest = useThrottleFn(sendCharacterRequest, 1000, true, false)
+actor.requestCharacterDetails = async () => throttledCharacterRequest(props.characterId, actor)
+sendCharacterRequest(props.characterId, actor)
 
+setupSocketListenersForActor(props.characterId, actor)
 defineExpose({ actor })
 </script>
 <template>
   <div class="flex h-screen">
-    <div class="hidden md:block border-r overflow-scroll md:w-[320px]">
+    <div class="hidden overflow-scroll border-r md:block md:w-[320px]">
       <CharacterHeader @pickCharacter="(id: string) => $emit('pickCharacter', id)" />
       <FrontPage />
     </div>
     <div
-      class="flex-1 overflow-scroll md:border-l w-full flex flex-col justify-between md:justify-start"
+      class="flex w-full flex-1 flex-col justify-between overflow-scroll md:justify-start md:border-l"
     >
-      <TabGroup :defaultIndex="width >= 768 ? 1 : 0">
-        <TabPanels tabindex="-1" class="overflow-scroll md:order-last">
+      <TabGroup :defaultIndex="width >= 768 ? 1 : 0" @change="panels.$el.scrollTop = 0">
+        <TabPanels tabindex="-1" class="overflow-scroll md:order-last" ref="panels">
           <CharacterHeader
             @pickCharacter="(id: string) => $emit('pickCharacter', id)"
             class="md:hidden"
@@ -89,7 +96,7 @@ defineExpose({ actor })
             <Spells />
           </TabPanel>
         </TabPanels>
-        <TabList class="border-t h-20 flex justify-around md:border-b">
+        <TabList class="flex h-20 justify-around border-t md:border-b">
           <CharacterTab :src="cowled" label="Character" class="md:hidden" />
           <CharacterTab :src="skills" label="Proficiencies" />
           <CharacterTab :src="biceps" label="Feats" />
@@ -97,7 +104,7 @@ defineExpose({ actor })
           <CharacterTab :src="leapfrog" label="Actions" />
           <CharacterTab :src="spellBook" label="Spells" />
           <Bars3Icon
-            class="hidden md:block h-10 w-10 my-auto text-gray-500 border-gray-500 rounded-md p-1 mx-4"
+            class="mx-4 my-auto hidden h-10 w-10 rounded-md border-gray-500 p-1 text-gray-500 md:block"
             @click="sideMenu.sidebarOpen = true"
           />
         </TabList>

@@ -19,7 +19,7 @@ const viewedItem: any = computed(
 )
 </script>
 <template>
-  <div class="shrink">
+  <div class="shrink my-auto">
     <div class="text-sm whitespace-nowrap overflow-hidden cursor-pointer">
       <span @click="infoModal.open(ancestry?._id)">{{ ancestry?.name ?? '-' }}&nbsp;</span>
       <span @click="infoModal.open(background?._id)">{{ background?.name }}</span>
@@ -49,10 +49,12 @@ const viewedItem: any = computed(
       </template>
       <template #body>
         <div v-html="removeUUIDs(viewedItem?.system.description.value)"></div>
-        <hr />
-        <div v-if="viewedItem?.type === 'ancestry'" class="mt-2">
-          <h3 class="text-lg">{{ heritage?.name }}</h3>
-          <div v-html="removeUUIDs(heritage?.system.description.value)"></div>
+        <div v-if="viewedItem?.type === 'ancestry'">
+          <hr />
+          <div class="mt-2">
+            <h3 class="text-lg">{{ heritage?.name }}</h3>
+            <div v-html="removeUUIDs(heritage?.system.description.value)"></div>
+          </div>
         </div>
       </template>
     </InfoModal>

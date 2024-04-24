@@ -1,9 +1,9 @@
 import {
   getCharacterDetails,
-  rollCheck,
-  characterAction,
+  foundryRollCheck,
+  foundryCharacterAction,
   foundryCastSpell,
-  consumeItem
+  foundryConsumeItem
 } from './actions'
 
 declare const game: any
@@ -17,6 +17,7 @@ export function setupListener() {
       event === 'userActivity' ||
       event === 'template' ||
       event === 'manageFiles' ||
+      event.action === 'get' ||
       (event.match('module.') && !event.match('module.tablemate'))
     )
       return
@@ -37,16 +38,16 @@ export function setupListener() {
       case 'updateCharacterDetails':
         break
       case 'rollCheck':
-        rollCheck(args).then((result) => game.socket.emit(MODNAME, result))
+        foundryRollCheck(args).then((result) => game.socket.emit(MODNAME, result))
         break
       case 'characterAction':
-        characterAction(args).then((result) => game.socket.emit(MODNAME, result))
+        foundryCharacterAction(args).then((result) => game.socket.emit(MODNAME, result))
         break
       case 'castSpell':
         foundryCastSpell(args).then((result) => game.socket.emit(MODNAME, result))
         break
       case 'consumeItem':
-        consumeItem(args).then((result) => game.socket.emit(MODNAME, result))
+        foundryConsumeItem(args).then((result) => game.socket.emit(MODNAME, result))
         break
       default:
         console.log('event not caught', args.action, args)

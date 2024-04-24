@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // TODO: (feature) deal with flexible prepared casters
-// TODO: (feature+) figure out how to get staves in here, via integration with pf2e-dailies
+// TODO: (feature+) figure out how to get staves in here (integration with pf2e-dailies)
 
 import type { Ref } from 'vue'
 import type { Item, Actor } from '@/types/pf2e-types'
@@ -161,14 +161,14 @@ const spellbook = computed((): Spellbook => {
         v-for="location in actor?.items?.filter((x: Item) => x?.type === 'spellcastingEntry')"
         class="mt-4 first:mt-0"
       >
-        <h3 class="flex justify-between align-bottom bg-gray-300">
-          <span class="underline text-xl">
+        <h3 class="flex justify-between bg-gray-300 align-bottom">
+          <span class="text-xl underline">
             {{ location.name }}
           </span>
           <span class="pl-1">
             <Counter
               v-if="location.system?.prepared.value === 'focus'"
-              class="relative bottom-[-2px] text-sm mr-2"
+              class="relative bottom-[-2px] mr-2 text-sm"
               :value="actor?.system.resources.focus.value"
               :max="actor?.system.resources.focus.max"
               title="Focus Pool"
@@ -177,7 +177,7 @@ const spellbook = computed((): Spellbook => {
             />
             <Counter
               v-if="location.system?.prepared.value === 'charge'"
-              class="relative bottom-[-2px] text-sm mr-2"
+              class="relative bottom-[-2px] mr-2 text-sm"
               :value="location.flags?.['pf2e-dailies']?.staff?.charges"
               :title="location.name"
               editable
@@ -199,12 +199,12 @@ const spellbook = computed((): Spellbook => {
             class="mt-2 first:mt-0"
             :class="{ hidden: !spells.length }"
           >
-            <h4 class="text-sm italic flex justify-between align-bottom bg-gray-200">
+            <h4 class="flex justify-between bg-gray-200 align-bottom text-sm italic">
               <span class="pr-1">
                 {{ rank == '0' ? 'Cantrips' : 'Rank ' + rank }}
               </span>
               <Counter
-                class="relative bottom-[-1px] text-sm mr-2"
+                class="relative bottom-[-1px] mr-2 text-sm"
                 v-if="location.system?.prepared.value === 'spontaneous'"
                 :value="location.system.slots['slot' + rank].value"
                 :max="location.system.slots['slot' + rank].max"
@@ -244,7 +244,7 @@ const spellbook = computed((): Spellbook => {
                     class="cursor-pointer"
                   >
                     <span>{{ spell?.name }}</span>
-                    <span class="pl-1 text-md pf2-icon">{{
+                    <span class="text-md pf2-icon pl-1">{{
                       spell?.system?.time.value.replace('to', ' - ').replace('free', 'f')
                     }}</span>
                   </span>
@@ -263,7 +263,7 @@ const spellbook = computed((): Spellbook => {
                   >
                 </div>
                 <Counter
-                  class="relative bottom-[-1px] text-sm mr-2"
+                  class="relative bottom-[-1px] mr-2 text-sm"
                   v-if="location.system?.prepared.value === 'prepared'"
                   :value="
                     location.system.slots['slot' + rank].prepared[index]?.expended === false ? 1 : 0
@@ -288,8 +288,8 @@ const spellbook = computed((): Spellbook => {
       </li>
       <!-- Wands and Scrolls -->
       <li class="mt-4 first:mt-0 [&:not(:has(li))]:hidden">
-        <h3 class="flex justify-between align-bottom bg-gray-300">
-          <span class="underline text-xl"> Wands and Scrolls </span>
+        <h3 class="flex justify-between bg-gray-300 align-bottom">
+          <span class="text-xl underline"> Wands and Scrolls </span>
         </h3>
         <div class="pb-1" v-if="actor?.system.attributes?.spellDC?.value">
           Spell DC
@@ -318,7 +318,7 @@ const spellbook = computed((): Spellbook => {
               </span>
             </div>
             <Counter
-              class="relative bottom-[-1px] text-sm mr-2"
+              class="relative bottom-[-1px] mr-2 text-sm"
               :value="spell.system.uses.value"
               :max="spell.system.uses.max"
               :title="spell.name"
@@ -341,7 +341,7 @@ const spellbook = computed((): Spellbook => {
       <template #title>
         {{ viewedSpell?.name }}
         <span
-          class="text-2xl relative pl-1 -mt-[.5rem] leading-4"
+          class="relative -mt-[.5rem] pl-1 text-2xl leading-4"
           v-html="
             makeActionIcons(
               viewedSpell?.system?.time?.value.replace('to', ' - ').replace('free', 'f') ?? ''
@@ -363,7 +363,7 @@ const spellbook = computed((): Spellbook => {
           <div v-html="makePropertiesHtml(viewedSpell?.system.spell)"></div>
           <div v-html="removeUUIDs(viewedSpell?.system.spell.system.description?.value)"></div>
           <hr />
-          <h4 class="text-xl pt-1">Wand Details</h4>
+          <h4 class="pt-1 text-xl">Wand Details</h4>
         </div>
         <div v-html="makePropertiesHtml(viewedSpell)"></div>
         <div v-html="removeUUIDs(viewedSpell?.system.description?.value)"></div>

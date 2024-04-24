@@ -1,15 +1,22 @@
 // TODO: (feature+) add option to send chat message on certain api events
+// TODO: (feature++) add some way to browse compendia, which can be used for adding new items to various contexts
+
 import type { Ref } from 'vue'
 import type { Actor, World } from '@/types/pf2e-types'
+import type { CharacterRef } from '@/components/Character.vue'
 import { useThrottleFn } from '@vueuse/core'
 import { ref } from 'vue'
 
-import { getCharacterDetails, foundryCastSpell } from '@/foundry/actions'
+import {
+  getCharacterDetails,
+  foundryCastSpell,
+  foundryRollCheck,
+  foundryCharacterAction,
+  foundryConsumeItem
+} from '@/foundry/actions'
 
 import { merge } from 'lodash-es'
 import { useServer } from '@/composables/server'
-
-declare const game: any
 
 const { getSocket } = useServer()
 
@@ -37,7 +44,6 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
   socket.on('modifyDocument', (args: any) => {
     switch (args.request.type) {
       case 'Combat':
-        socket.emit('world', (r: any) => (world.value = r))
         switch (args.request.action) {
           case 'create':
             _processCreates(world.value.combats, args.result)
@@ -49,7 +55,7 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
             _processDeletes(world.value.combats, args.result)
             break
         }
-        socket.emit('world', (r: any) => (world.value = r))
+        requestWorldDetails(world)
         break
       case 'Combatant':
         const combatId = args.request.parentUuid.split('.')?.[1]
@@ -65,20 +71,35 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
             _processDeletes(combat.combatants, args.result)
             break
         }
-        socket.emit('world', (r: any) => (world.value = r))
+        requestWorldDetails(world)
         break
       case 'ChatMessage':
+        switch (args.request.action) {
+          case 'create':
+            _processCreates(world.value.messages, args.result)
+            break
+          case 'update':
+            _processUpdates(world.value.messages, args.result)
+            break
+          case 'delete':
+            _processDeletes(world.value.messages, args.result)
+            break
+        }
+        requestWorldDetails(world)
         break
     }
   })
 }
 
-async function setupSocketListenersForActor(actorId: string, actor: Ref<Actor | undefined>) {
+async function setupSocketListenersForActor(
+  actorId: string,
+  actor: CharacterRef<Actor | undefined>
+) {
   const socket = await getSocket()
   socket.on('module.tablemate', (args: any) => {
     switch (args.action) {
       case 'gmOnline':
-        requestCharacterDetails(actorId, actor)
+        actor.requestCharacterDetails()
         break
       case 'updateCharacterDetails':
         parseActorData(actorId, actor, args)
@@ -94,7 +115,7 @@ async function setupSocketListenersForActor(actorId: string, actor: Ref<Actor | 
             merge(actor.value, change)
           }
         })
-        requestCharacterDetails(actor.value._id, actor)
+        actor.requestCharacterDetails()
         break
       case 'Item':
         if (args.request.parentUuid !== 'Actor.' + actorId) break
@@ -109,7 +130,7 @@ async function setupSocketListenersForActor(actorId: string, actor: Ref<Actor | 
             _processDeletes(actor.value.items, args.result)
             break
         }
-        requestCharacterDetails(actor.value._id, actor)
+        actor.requestCharacterDetails()
         break
     }
   })
@@ -119,7 +140,7 @@ async function setupSocketListenersForActor(actorId: string, actor: Ref<Actor | 
 // Emit Methods                      //
 ///////////////////////////////////////
 async function updateActor(
-  actor: Ref<Actor>,
+  actor: CharacterRef<Actor>,
   update: {},
   additionalOptions: null | { [key: string]: any } = null
 ): Promise<any> {
@@ -133,7 +154,7 @@ async function updateActor(
         options: { diff: true, render: true, ...additionalOptions },
         updates: [
           {
-            _id: actor.value._id,
+            _id: actor.value!._id,
             ...update
           }
         ]
@@ -142,7 +163,7 @@ async function updateActor(
         r.result.forEach((change: any) => {
           console.log(change)
           merge(actor.value, change)
-          requestCharacterDetails(actor.value._id, actor)
+          actor.requestCharacterDetails()
         })
         resolve(r)
       }
@@ -152,7 +173,7 @@ async function updateActor(
 }
 
 async function updateActorItem(
-  actor: Ref<Actor>,
+  actor: CharacterRef<Actor>,
   itemId: string,
   update: {},
   additionalOptions: null | { [key: string]: any } = null
@@ -176,7 +197,7 @@ async function updateActorItem(
       (r: any) => {
         console.log(r)
         _processUpdates(actor.value.items, r.result)
-        requestCharacterDetails(actor.value._id, actor)
+        actor.requestCharacterDetails()
         resolve(r)
       }
     )
@@ -184,7 +205,7 @@ async function updateActorItem(
   return promise
 }
 
-async function deleteActorItem(actor: Ref<Actor>, itemId: string): Promise<any> {
+async function deleteActorItem(actor: CharacterRef<Actor>, itemId: string): Promise<any> {
   const socket = await getSocket()
   const promise = new Promise((resolve, reject) => {
     socket.emit(
@@ -197,7 +218,7 @@ async function deleteActorItem(actor: Ref<Actor>, itemId: string): Promise<any> 
       },
       (r: any) => {
         _processDeletes(actor.value.items, r.result)
-        requestCharacterDetails(actor.value._id, actor)
+        actor.requestCharacterDetails()
         resolve(r)
       }
     )
@@ -205,15 +226,18 @@ async function deleteActorItem(actor: Ref<Actor>, itemId: string): Promise<any> 
   return promise
 }
 
-///////////////////////////////////////
-// Character Build Methods           //
-///////////////////////////////////////
-// TODO: review call/response structure. Right now, this method doesn't use the ackQueue but instead listens to a separate response
+/////////////////////////////////////////////////
+// Character and World Build Methods           //
+/////////////////////////////////////////////////
+// TODO: (refactor?) review call/response structure. Right now, this method doesn't use the ackQueue but instead listens to a separate response
 // not using ackQueue allows for updates pushed from server, but makes this method a bit weird (and needing a timeout to prevent race conditions)
+// for the world calls, as well, we need to not send subsequent ones until current are resolved, but perhaps there's a cleaner way than throttling
 async function sendCharacterRequest(actorId: string, actor: Ref<Actor | undefined> = ref()) {
+  console.log('Huzzah', actorId, actor)
   if (parent.game) {
     setTimeout(async () => {
       const details = await getCharacterDetails({ actorId: actorId })
+      console.log(details)
       parseActorData(actorId, actor, details)
     }, 300)
   } else {
@@ -231,9 +255,12 @@ function parseActorData(actorId: string, actor: Ref<Actor | undefined>, args: an
     actor.value!.feats = JSON.parse(args.feats)
   }
 }
-// TODO: (bug) fix throttling here. was breaking because the throttle function doesn't know how to distinguish among characters
-// const requestCharacterDetails = useThrottleFn(sendCharacterRequest, 500, true, false)
-const requestCharacterDetails = sendCharacterRequest
+
+async function sendWorldRequest(world: Ref<World | undefined>) {
+  const socket = await getSocket()
+  socket.emit('world', (r: any) => (world.value = r))
+}
+const requestWorldDetails = useThrottleFn(sendWorldRequest, 8000, true, false)
 
 ///////////////////////////////////////
 // Action Request                    //
@@ -271,21 +298,26 @@ async function rollCheck(
   modifiers = [],
   options = {}
 ): Promise<any> {
-  const socket = await getSocket()
   const uuid = crypto.randomUUID()
-  return new Promise((resolve, reject) => {
-    socket.emit('module.tablemate', {
-      action: 'rollCheck',
-      characterId: actor.value._id,
-      checkType,
-      checkSubtype,
-      modifiers,
-      options,
-      skipDialog: true,
-      uuid
+  const args = {
+    action: 'rollCheck',
+    characterId: actor.value._id,
+    checkType,
+    checkSubtype,
+    modifiers,
+    options,
+    skipDialog: true,
+    uuid
+  }
+  if (parent.game) {
+    return foundryRollCheck(args)
+  } else {
+    const socket = await getSocket()
+    return new Promise((resolve, reject) => {
+      socket.emit('module.tablemate', args)
+      pushToAckQueue(uuid, (args: any) => resolve(args))
     })
-    pushToAckQueue(uuid, (args: any) => resolve(args))
-  })
+  }
 }
 
 async function characterAction(
@@ -293,34 +325,48 @@ async function characterAction(
   characterAction: string,
   options = {}
 ): Promise<any> {
-  const socket = await getSocket()
   const uuid = crypto.randomUUID()
-  return new Promise((resolve, reject) => {
-    socket.emit('module.tablemate', {
-      action: 'characterAction',
-      characterId: actor.value._id,
-      characterAction,
-      options,
-      uuid
+  const args = {
+    action: 'characterAction',
+    characterId: actor.value._id,
+    characterAction,
+    options,
+    uuid
+  }
+  if (parent.game) {
+    return foundryCharacterAction(args)
+  } else {
+    const socket = await getSocket()
+    return new Promise((resolve, reject) => {
+      socket.emit('module.tablemate', args)
+      pushToAckQueue(uuid, (args: any) => resolve(args))
     })
-    pushToAckQueue(uuid, (args: any) => resolve(args))
-  })
-}
-async function consumeItem(actor: Ref<Actor>, consumableId: string, options = {}) {
-  const socket = await getSocket()
-  const uuid = crypto.randomUUID()
-  return new Promise((resolve, reject) => {
-    socket.emit('module.tablemate', {
-      action: 'consumeItem',
-      characterId: actor.value._id,
-      consumableId,
-      options,
-      uuid
-    })
-    pushToAckQueue(uuid, (args: any) => resolve(args))
-  })
+  }
 }
 
+async function consumeItem(actor: Ref<Actor>, consumableId: string, options = {}) {
+  const uuid = crypto.randomUUID()
+  const args = {
+    action: 'consumeItem',
+    characterId: actor.value._id,
+    consumableId,
+    options,
+    uuid
+  }
+  if (parent.game) {
+    return foundryConsumeItem(args)
+  } else {
+    const socket = await getSocket()
+    return new Promise((resolve, reject) => {
+      socket.emit('module.tablemate', args)
+      pushToAckQueue(uuid, (args: any) => resolve(args))
+    })
+  }
+}
+
+///////////////////////////////////////
+// Processing Methods                //
+///////////////////////////////////////
 function _processCreates(set: any[], results: []) {
   results.forEach((c: any) => {
     set.push(c)
@@ -339,11 +385,14 @@ function _processDeletes(set: any[], results: []) {
   })
 }
 
+///////////////////////////////////////
+// Export                            //
+///////////////////////////////////////
 export function useApi() {
   return {
     setupSocketListenersForWorld,
     setupSocketListenersForActor,
-    requestCharacterDetails,
+    sendCharacterRequest,
     updateActor,
     updateActorItem,
     deleteActorItem,

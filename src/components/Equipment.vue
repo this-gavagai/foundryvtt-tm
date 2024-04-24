@@ -255,7 +255,7 @@ const toggleSet = [
           <div v-if="item?.system.equipped.carryType === 'worn' && itemWornType" class="flex">
             <Switch
               v-model="itemWorn"
-              :class="itemWorn ? 'bg-green-900' : 'bg-gray-500'"
+              :class="itemWorn ? 'bg-green-600' : 'bg-gray-500'"
               class="relative inline-flex h-[18px] w-[34px] shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-white/75"
             >
               <span class="sr-only">Item Worn in Slot?</span>
@@ -278,7 +278,7 @@ const toggleSet = [
           >
             <Switch
               v-model="itemInvested"
-              :class="itemInvested ? 'bg-green-900' : 'bg-gray-500'"
+              :class="itemInvested ? 'bg-green-600' : 'bg-gray-500'"
               class="relative inline-flex h-[18px] w-[34px] shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-white/75"
             >
               <span class="sr-only">Item invested?</span>

@@ -1,6 +1,8 @@
+body:after {
+  box-shadow: none !important;
+}
 body *:not(iframe) {
   display: none !important;
-  box-shadow: none !important;
 }
 iframe {
   width: 100%;

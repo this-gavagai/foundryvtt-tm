@@ -1,6 +1,4 @@
 <script setup lang="ts">
-// TODO: (feature) add rolls to swim/climb movement types
-
 import { inject, computed } from 'vue'
 import Statistic from './Statistic.vue'
 import { useKeys } from '@/composables/injectKeys'
@@ -9,7 +7,7 @@ const actor = inject(useKeys().actorKey)!
 const speedLand = computed(() => actor.value?.system.attributes.speed.total)
 const speedSwim = computed(() => {
   const spd = actor.value?.system.attributes.speed.otherSpeeds.find((s: any) => s.type === 'swim')
-  return spd?.total ?? spd?.value + spd?.totalModifier
+  return (spd?.total ?? spd?.value + spd?.totalModifier) || undefined
 })
 const speedClimb = computed(() => {
   const spd = actor.value?.system.attributes.speed.otherSpeeds.find((s: any) => s.type === 'climb')
@@ -25,7 +23,7 @@ const speedBurrow = computed(() => {
 })
 </script>
 <template>
-  <div class="px-6 py-4 flex justify-between border-b">
+  <div class="flex justify-between border-b px-6 py-4">
     <Statistic heading="Land">{{ speedLand ?? '--' }}</Statistic>
     <Statistic heading="Swim">{{ speedSwim ?? '--' }}</Statistic>
     <Statistic heading="Climb">{{ speedClimb ?? '--' }}</Statistic>

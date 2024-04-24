@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, provide, reactive, watch, watchPostEffect } from 'vue'
+import { ref, provide, watchPostEffect } from 'vue'
 import { useWakeLock } from '@vueuse/core'
 import { useServer } from './composables/server'
 import { useCharacterSelect } from './composables/characterSelect'
@@ -12,8 +12,8 @@ import Character from '@/components/Character.vue'
 declare const BUILD_MODE: string
 
 // TODO: (bug) figure out why this isn't working correctly
-const wakeLock = reactive(useWakeLock())
-wakeLock.request('screen')
+// const wakeLock = reactive(useWakeLock())
+// wakeLock.request('screen')
 
 const urlId = new URLSearchParams(document.location.search).get('id')
 const world: any = ref()
@@ -45,18 +45,19 @@ if (BUILD_MODE === 'development') {
     })
   })
   watchPostEffect(() => {
+    const globalLocation = typeof parent.game === 'undefined' ? window : parent
     if (world.value) {
       console.log('TM-RECV world')
-      window.world = world.value
+      globalLocation.world = world.value
     }
   })
 }
 </script>
 <template>
   <TabGroup :selectedIndex="activeIndex" @change="console.log('character changed!')" as="div">
-    <TabList class="h-12 bg-white gap-0 border border-gray-300 text-xl hidden">
+    <TabList class="hidden h-12 gap-0 border border-gray-300 bg-white text-xl">
       <Tab
-        class="p-2 ui-selected:bg-blue-300 focus:outline-none relative top-0"
+        class="relative top-0 p-2 focus:outline-none ui-selected:bg-blue-300"
         v-for="c in characterList"
         :key="c"
       />

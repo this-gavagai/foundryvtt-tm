@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// TODO: (feature) allow players to access skill actions that aren't explicitly on sheet
+// TODO: (feature+) allow players to access skill actions that aren't explicitly on sheet
 import type { Ref } from 'vue'
 import type { Actor, Skill } from '@/types/pf2e-types'
 
@@ -17,19 +17,19 @@ function doSkillCheck(slug: string) {
 }
 </script>
 <template>
-  <div class="py-4 empty:hidden md:flex md:justify-between">
+  <div class="py-4 empty:hidden lg:flex lg:justify-between">
     <div class="flex-1 px-6">
       <dl
-        class="empty:hidden border-t first:border-t-0 pt-4 first:p-0"
+        class="border-t pt-4 first:border-t-0 first:p-0 empty:hidden"
         v-for="isNonLore in [true, false]"
       >
-        <dt class="font-extralight pb-2">{{ isNonLore ? 'Skills' : 'Lore' }}</dt>
+        <dt class="pb-2 text-lg underline">{{ isNonLore ? 'Skills' : 'Lore' }}</dt>
         <div class="columns-2">
           <dd
             v-for="skill in Object.values(actor?.system?.skills ?? {}).filter(
               (s: Skill) => !s.lore === isNonLore
             )"
-            class="pb-4 text-lg break-inside-avoid leading-4"
+            class="break-inside-avoid pb-4 text-lg leading-4"
           >
             <Statistic
               :heading="skill.label"
@@ -44,14 +44,14 @@ function doSkillCheck(slug: string) {
         </div>
       </dl>
     </div>
-    <div class="border-t px-6 pt-4 md:border-0 md:pt-0 flex-1 md:border-l">
+    <div class="flex-1 border-t px-6 pt-4 lg:border-0 lg:border-l lg:pt-0">
       <div v-for="proficiencyType in ['attacks', 'defenses', 'classDCs']">
-        <dl class="empty:hidden pt-4 first:p-0">
-          <dt class="font-extralight pb-2">{{ capitalize(proficiencyType) }}</dt>
+        <dl class="pt-4 first:p-0 empty:hidden">
+          <dt class="pb-2 text-lg underline">{{ capitalize(proficiencyType) }}</dt>
           <div class="columns-2">
             <dd
-              v-for="(prof, key) in actor?.system.proficiencies[proficiencyType]"
-              class="pb-4 text-lg break-inside-avoid leading-4 empty:hidden"
+              v-for="(prof, key) in actor?.system?.proficiencies?.[proficiencyType]"
+              class="break-inside-avoid pb-4 text-lg leading-4 empty:hidden"
             >
               <Statistic
                 :heading="prof.label ?? key"
@@ -66,11 +66,11 @@ function doSkillCheck(slug: string) {
         </dl>
       </div>
       <dl
-        class="empty:hidden border-t first:border-t-0 pt-4 first:p-0"
-        v-if="actor?.system.proficiencies['spellcasting']?.rank"
+        class="border-t pt-4 first:border-t-0 first:p-0 empty:hidden"
+        v-if="actor?.system?.proficiencies?.['spellcasting']?.rank"
       >
-        <dt class="font-extralight pb-2">Spellcasting</dt>
-        <dd class="pb-4 text-lg break-inside-avoid leading-4 empty:hidden">
+        <dt class="pb-2 text-lg underline">Spellcasting</dt>
+        <dd class="break-inside-avoid pb-4 text-lg leading-4 empty:hidden">
           <Statistic
             heading="Spell DC"
             :proficiency="actor?.system.proficiencies['spellcasting'].rank"

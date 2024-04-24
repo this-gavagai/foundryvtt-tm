@@ -8,11 +8,19 @@ export async function getCharacterDetails(args: any) {
   // add the damage formula into things
   const damages = actor.system.actions.map((action: any) => action.damage({ getFormula: true }))
   const criticals = actor.system.actions.map((action: any) => action.critical({ getFormula: true }))
-  await Promise.all([...damages, ...criticals]).then((values) => {
-    const damageValues = values.slice(0, values.length / 2)
-    const criticalValues = values.slice(values.length / 2)
+  const modifiers = actor.system.actions.map((action: any) =>
+    action.damage({ createMessage: false, skipDialog: true })
+  )
+  await Promise.all([...damages, ...criticals, ...modifiers]).then((values) => {
+    const damageValues = values.slice(0, values.length / 3)
+    const criticalValues = values.slice(values.length / 3, 2 * (values.length / 3))
+    const modifiers = values.slice(2 * (values.length / 3), 3 * (values.length / 3))
     damageValues.forEach((dmg, i) => {
-      actor.system.actions[i].tmDamageFormula = { base: dmg, critical: criticalValues[i] }
+      actor.system.actions[i].tmDamageFormula = {
+        base: dmg,
+        critical: criticalValues[i],
+        _modifiers: modifiers[i]?.options?.damage?.modifiers
+      }
     })
   })
 
@@ -26,7 +34,7 @@ export async function getCharacterDetails(args: any) {
   }
 }
 
-export async function rollCheck(args: any) {
+export async function foundryRollCheck(args: any) {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   //https://github.com/foundryvtt/pf2e/blob/68988e12fbec7ea8359b9bee9b0c43eb6964ca3f/src/module/system/statistic/statistic.ts#L617
   console.log(source)
@@ -70,7 +78,7 @@ export async function rollCheck(args: any) {
   }
 }
 
-export async function characterAction(args: any) {
+export async function foundryCharacterAction(args: any) {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.get(args.characterId, { strict: true })
   const params = { ...args.options, actors: actor }
@@ -110,7 +118,7 @@ export async function foundryCastSpell(args: any) {
   // game.socket.emit(MODNAME, { action: 'acknowledged', uuid: args.uuid })
 }
 
-export async function consumeItem(args: any) {
+export async function foundryConsumeItem(args: any) {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.get(args.characterId, { strict: true })
   const item = actor.items.get(args.consumableId, { strict: true })

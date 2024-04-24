@@ -1,3 +1,5 @@
+// TODO: (code quality) get rid of all the any's
+
 export interface Actor {
   _id: string
   name: string
@@ -6,6 +8,7 @@ export interface Actor {
   inventory: any
   system: System
   prototypeToken: any
+  requestCharacterDetails: any
 }
 
 export interface Item {

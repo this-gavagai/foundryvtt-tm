@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
+import type { CharacterRef } from '@/components/Character.vue'
 import type { Actor, World } from '@/types/pf2e-types'
 import { computed, watch, ref, inject } from 'vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
@@ -12,7 +13,7 @@ import { useKeys } from '@/composables/injectKeys'
 
 const actor = inject(useKeys().actorKey)!
 const world = inject(useKeys().worldKey)!
-const { requestCharacterDetails, updateActor, rollCheck } = useApi()
+const { updateActor, rollCheck } = useApi()
 
 const initSkills: any = computed(() => {
   const skills = Object.values(actor?.value?.system?.skills ?? {})
@@ -22,11 +23,12 @@ const initSkills: any = computed(() => {
 const selected = ref(actor.value?.system?.initiative?.statistic)
 watch(selected, async (newSkill, oldSkill) => {
   if (actor.value)
-    updateActor(actor as Ref<Actor>, { system: { initiative: { statistic: newSkill } } }).then(
-      () => {
-        requestCharacterDetails(actor.value?._id!, actor) // needed because initiative changes have lateral effects to modifiers set
-      }
-    )
+    updateActor(actor as CharacterRef<Actor>, {
+      system: { initiative: { statistic: newSkill } }
+    }).then(() => {
+      actor.requestCharacterDetails()
+      // requestCharacterDetails(actor.value?._id!, actor) // needed because initiative changes have lateral effects to modifiers set
+    })
 })
 
 const { activeScene, activeCombat } = useCombat(world)
@@ -44,7 +46,7 @@ function doInitiative() {
 }
 </script>
 <template>
-  <div class="px-6 py-4 border-b flex gap-4">
+  <div class="flex gap-4 border-b px-6 py-4">
     <Statistic
       heading="Initiative"
       :modifiers="actor?.system?.initiative?.modifiers"
@@ -82,7 +84,7 @@ function doInitiative() {
           leave-to-class="opacity-0"
         >
           <ListboxOptions
-            class="absolute z-100000 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+            class="z-100000 absolute mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
           >
             <ListboxOption
               v-slot="{ active, selected }"

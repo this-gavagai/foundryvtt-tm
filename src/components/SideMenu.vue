@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// TODO: (feature++) gather in macros for use here
 import { ref } from 'vue'
 
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
@@ -59,13 +60,13 @@ defineExpose({ sidebarOpen })
               </div>
             </TransitionChild>
             <!-- Sidebar component, swap this element with another sidebar if you like -->
-            <div class="flex grow flex-col gap-y-5 overflow-y-auto px-6 pb-4 bg-white">
+            <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4">
               <nav class="flex flex-1 flex-col">
                 <ul role="list" class="flex flex-1 flex-col gap-y-7 pt-4">
                   <li>
                     <ul role="list" class="-mx-2 space-y-1">
-                      <li class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold">
-                        Menu functions will go here
+                      <li class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6">
+                        Custom macros will go here
                       </li>
                     </ul>
                   </li>

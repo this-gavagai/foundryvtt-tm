@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // TODO: (feature) handle versatile damage types
-// TODO: (feature+) show damage modifiers in place of strike modifiers (can be down with "createMessage: false" prop on context object)
+// TODO: (feature) show damage modifiers in place of strike modifiers (can be down with "createMessage: false" prop on context object)
 // TODO: (UX) Improve dice representations for damage rolls (number and types)
 import type { Ref } from 'vue'
 import type { Item, Actor } from '@/types/pf2e-types'
@@ -23,7 +23,6 @@ function doStrike(slug: string) {
     })
 }
 function doDamage(slug: string, crit: number) {
-  console.log('crit?', crit)
   if (actor.value)
     rollCheck(actor as Ref<Actor>, 'damage', `${slug},${crit ? 'critical' : 'damage'}`).then(
       (r) => {
@@ -36,7 +35,7 @@ function doDamage(slug: string, crit: number) {
 </script>
 <template>
   <div class="px-6">
-    <h3 class="underline text-2xl py-2">Strikes</h3>
+    <h3 class="py-2 text-lg underline">Strikes</h3>
     <ul>
       <li
         v-for="(strike, i) in actor?.system?.actions
@@ -48,35 +47,35 @@ function doDamage(slug: string, crit: number) {
           .filter(
             (a: any) => a.item?.system?.equipped?.carryType === 'held' || a.item === undefined
           )"
-        class="cursor-pointer text-xl pb-2"
+        class="cursor-pointer pb-2 text-xl"
       >
         <!-- <div class="text-xs border p-1 w-8 mr-1 text-right">
           {{ SignedNumber.format(strike?.totalModifier) }}
         </div> -->
         <div>{{ strike?.item?.name ?? strike?.label }}</div>
-        <div>
-          <span
-            v-for="(variant, index) in strike.variants"
-            class="border p-2 mr-1 text-xs bg-blue-600 hover:bg-blue-500 text-white"
-            @click="strikeModal.open(i, { type: 'strike', subtype: index })"
-          >
-            <span v-if="!index" class="pf2-icon text-lg pr-1">1</span>
-            <span v-if="!index">Strike </span>
-            <span>{{ variant.label }}</span>
-          </span>
-        </div>
-        <div class="text-white mt-2">
-          <span
-            class="border p-2 mr-1 text-xs bg-red-600 hover:bg-red-500"
-            @click="strikeModal.open(i, { type: 'damage', subtype: 0 })"
-            >Damage</span
-          >
-          <span
-            class="border p-2 mr-1 text-xs bg-red-600 hover:bg-red-500"
-            @click="strikeModal.open(i, { type: 'damage', subtype: 1 })"
-            >Critical</span
-          >
-        </div>
+        <!-- <div> -->
+        <span
+          v-for="(variant, index) in strike.variants"
+          class="mr-1 border bg-blue-600 p-2 text-xs text-white hover:bg-blue-500"
+          @click="strikeModal.open(i, { type: 'strike', subtype: index })"
+        >
+          <span v-if="!index" class="pf2-icon pr-1 text-lg">1</span>
+          <span v-if="!index">Strike </span>
+          <span>{{ variant.label }}</span>
+        </span>
+        <!-- </div> -->
+        <!-- <div class="mt-2"> -->
+        <span
+          class="mr-1 border bg-red-600 p-2 text-xs text-white hover:bg-red-500"
+          @click="strikeModal.open(i, { type: 'damage', subtype: 0 })"
+          >Damage ({{ strike?.tmDamageFormula?.base }})</span
+        >
+        <span
+          class="mr-1 border bg-red-600 p-2 text-xs text-white hover:bg-red-500"
+          @click="strikeModal.open(i, { type: 'damage', subtype: 1 })"
+          >Critical ({{ strike?.tmDamageFormula?.critical }})</span
+        >
+        <!-- </div> -->
       </li>
     </ul>
   </div>
@@ -95,14 +94,16 @@ function doDamage(slug: string, crit: number) {
       <template #default>
         <ul>
           <li
-            v-for="mod in viewedItem?._modifiers"
+            v-for="mod in strikeModal.options?.type === 'damage'
+              ? viewedItem?.tmDamageFormula._modifiers
+              : viewedItem?._modifiers"
             class="flex gap-2"
             :class="{ 'text-gray-300': !mod.enabled }"
           >
             <div class="w-8 text-right">
               {{ formatModifier(mod.modifier) }}
             </div>
-            <div class="whitespace-nowrap overflow-hidden text-ellipsis">{{ mod.label }}</div>
+            <div class="overflow-hidden text-ellipsis whitespace-nowrap">{{ mod.label }}</div>
           </li>
         </ul>
       </template>
@@ -110,7 +111,7 @@ function doDamage(slug: string, crit: number) {
         <button
           v-if="strikeModal.options?.type === 'strike'"
           type="button"
-          class="bg-blue-600 hover:bg-blue-500 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-white focus:outline-none"
+          class="inline-flex items-end justify-center border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 focus:outline-none"
           @click="doStrike(`${strikeModal.itemId},${strikeModal.options.subtype}`)"
         >
           <span v-if="!strikeModal.options.subtype">Strike </span>
@@ -120,7 +121,7 @@ function doDamage(slug: string, crit: number) {
         <button
           v-if="strikeModal.options?.type === 'damage' && strikeModal.options.subtype === 0"
           type="button"
-          class="bg-red-600 hover:bg-red-500 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-white focus:outline-none"
+          class="inline-flex items-end justify-center border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 focus:outline-none"
           @click="doDamage(strikeModal.itemId, strikeModal.options.subtype)"
         >
           Damage
@@ -128,7 +129,7 @@ function doDamage(slug: string, crit: number) {
         <button
           v-if="strikeModal.options?.type === 'damage' && strikeModal.options.subtype === 1"
           type="button"
-          class="bg-red-600 hover:bg-red-500 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-white focus:outline-none"
+          class="inline-flex items-end justify-center border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 focus:outline-none"
           @click="doDamage(strikeModal.itemId, strikeModal.options.subtype)"
         >
           Critical

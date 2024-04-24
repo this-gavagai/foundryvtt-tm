@@ -5,7 +5,7 @@ import Experience from '@/components/Experience.vue'
 import AncestryBackgroundClass from './AncestryBackgroundClass.vue'
 </script>
 <template>
-  <div class="border-b px-6 py-4 flex gap-2 justify-between">
+  <div class="border-b px-6 py-4 flex gap-2 justify-between align-bottom">
     <AncestryBackgroundClass />
     <Experience />
   </div>

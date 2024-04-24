@@ -58,7 +58,7 @@ defineExpose({ open, close, options })
             >
               <DialogTitle
                 as="h3"
-                class="text-lg font-medium leading-6 text-gray-900 flex gap-1 items-center"
+                class="flex items-center gap-1 text-lg font-medium leading-6 text-gray-900"
               >
                 {{ props.title }}
                 <InformationCircleIcon
