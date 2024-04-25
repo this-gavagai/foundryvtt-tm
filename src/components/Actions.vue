@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// TODO: (refactor+) completely rethink how action data is organized
+// TODO: (refactor++) completely rethink how action data is organized
 // TODO: (feature) get action modifiers on the card (somehow?)
 import type { Ref } from 'vue'
 import type { Actor, Item } from '@/types/pf2e-types'

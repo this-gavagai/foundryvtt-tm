@@ -36,6 +36,7 @@ export function setupListener() {
     )
       return
     console.log(`TM.SEND ${event}`, args)
+    console.log(event)
   })
 
   // game.socket.on('modifyDocument', (args) => console.log(args))

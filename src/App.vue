@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// TODO: (feature++) add some way to browse compendia, which can be used for adding new items to various contexts
+
 import { ref, type Ref, type VNodeRef, provide, watchPostEffect } from 'vue'
 import { useServer } from './composables/server'
 import { useCharacterSelect } from './composables/characterSelect'

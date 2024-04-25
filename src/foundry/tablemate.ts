@@ -19,12 +19,10 @@ Hooks.on('init', function () {
 Hooks.on('setup', function () {
   const user = game.data.users.find((x: any) => x._id === game.userId)
   if (user.flags?.['tablemate']?.['character_sheet'] === 'frame') {
-    // TODO: (bug) turn off dice roll preview settings
+    // TODO: (bug) turn off dice roll preview settings programmatically; character creation hangs otherwise
     game.settings.set('core', 'noCanvas', true)
     user.flags.settings.pf2e.settings.showCheckDialogs = false
     user.flags.settings.pf2e.settings.showDamageDialogs = false
-    user.settings.showCheckDialogs = false
-    user.settings.showDamageDialogs = false
 
     const app = document.createElement('iframe')
     app.width = '100%'

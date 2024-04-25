@@ -68,12 +68,12 @@ function doDamage(slug: string, crit: number) {
         <span
           class="mr-1 border bg-red-600 p-2 text-xs text-white hover:bg-red-500"
           @click="strikeModal.open(i, { type: 'damage', subtype: 0 })"
-          >Damage ({{ strike?.tmDamageFormula?.base }})</span
+          >Damage</span
         >
         <span
           class="mr-1 border bg-red-600 p-2 text-xs text-white hover:bg-red-500"
           @click="strikeModal.open(i, { type: 'damage', subtype: 1 })"
-          >Critical ({{ strike?.tmDamageFormula?.critical }})</span
+          >Critical</span
         >
         <!-- </div> -->
       </li>
@@ -90,7 +90,11 @@ function doDamage(slug: string, crit: number) {
       :imageUrl="viewedItem?.item?.img ?? 'icons/skills/melee/unarmed-punch-fist.webp'"
     >
       <template #title>{{ viewedItem?.label }}</template>
-      <template #description>{{ viewedItem?.tmDamageFormula.base }}</template>
+      <template #description>{{
+        strikeModal.options.subtype === 0
+          ? viewedItem?.tmDamageFormula.base
+          : viewedItem?.tmDamageFormula?.critical
+      }}</template>
       <template #default>
         <ul>
           <li

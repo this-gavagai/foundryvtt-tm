@@ -1,5 +1,4 @@
 // TODO: (feature+) add option to send chat message on certain api events
-// TODO: (feature++) add some way to browse compendia, which can be used for adding new items to various contexts
 
 import type { Ref } from 'vue'
 import type {

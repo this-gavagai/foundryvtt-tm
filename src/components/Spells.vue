@@ -248,14 +248,7 @@ const spellbook = computed((): Spellbook => {
             <!-- Spells -->
             <ul class="empty:hidden">
               <li v-for="(spell, index) in spells" class="flex justify-between">
-                <div
-                  class="text-md"
-                  :class="{
-                    'bg-blue-50':
-                      spell?.system?.location?.signature &&
-                      spell?.system?.level.value !== Number(rank)
-                  }"
-                >
+                <div class="text-md">
                   <span
                     v-if="spell"
                     @click="
@@ -268,6 +261,13 @@ const spellbook = computed((): Spellbook => {
                     "
                     class="cursor-pointer"
                   >
+                    <span
+                      v-if="
+                        spell?.system?.location?.signature &&
+                        spell?.system?.level.value !== Number(rank)
+                      "
+                      >*</span
+                    >
                     <span>{{ spell?.name }}</span>
                     <span class="text-md pf2-icon pl-1">{{
                       spell?.system?.time.value.replace('to', ' - ').replace('free', 'f')
