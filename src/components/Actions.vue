@@ -16,16 +16,11 @@ const infoModal = ref()
 const skillSelector = ref()
 
 const actor = inject(useKeys().actorKey)!
-const action: any = computed(
-  () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
+const action: Ref<Item | undefined> = computed(
+  () => actor.value?.items?.find((i: Item) => i._id === infoModal?.value?.itemId)
 )
 const { characterAction } = useApi()
-// const options: any = computed(() => {
-//   if (action.value.system?.slug === 'aid') return { statistic: skillSelector.value.selected.slug }
-//   else return {}
-// })
 function doAction(slug: string) {
-  // actionDefs.value.get(slug)['options'] = options
   characterAction(
     actor as Ref<Actor>,
     actionDefs.value.get(slug)?.alias ?? slug,
@@ -36,8 +31,17 @@ function doAction(slug: string) {
   })
 }
 
+interface actionOptions {
+  statistic: string
+}
+interface actionDef {
+  alias?: string
+  skill: string | null
+  options?: actionOptions
+}
+
 const actionDefs = computed(() => {
-  return new Map<string, any>([
+  return new Map<string, actionDef>([
     ['administer-first-aid', { skill: 'medicine' }],
     [
       'aid',
@@ -149,14 +153,14 @@ const actionDefs = computed(() => {
       <template #actionButtons>
         <div class="align-items-center flex gap-2">
           <SkillSelector
-            v-if="actionDefs.get(action?.system.slug)?.skill === '*'"
+            v-if="actionDefs.get(action?.system.slug ?? '')?.skill === '*'"
             ref="skillSelector"
           />
           <button
-            v-if="actor && actionDefs.get(action?.system.slug)"
+            v-if="actor && actionDefs.get(action?.system.slug ?? '')"
             type="button"
             class="inline-flex items-end justify-center border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 focus:outline-none"
-            @click="doAction(action?.system.slug)"
+            @click="doAction(action!.system.slug)"
           >
             Roll
           </button>

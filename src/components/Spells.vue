@@ -13,9 +13,18 @@ import Button from '@/components/Button.vue'
 import Counter from '@/components/Counter.vue'
 import Modal from '@/components/Modal.vue'
 import InfoModal from '@/components/InfoModal.vue'
+import type { NumberLiteralType } from 'typescript'
 
 interface Spellbook {
   [key: string]: { [key: string]: [Item?] }
+}
+interface SlotInfo {
+  value: number
+  max: number
+  prepared: PreparedSpellInfo[]
+}
+interface PreparedSpellInfo {
+  id: string
 }
 interface SpellInfo {
   type?: 'focus' | 'charge' | 'spontaneous' | 'prepared' | 'wand'
@@ -24,6 +33,13 @@ interface SpellInfo {
   castingRank?: number
   castingSlot?: number
   isConsumable?: boolean
+}
+interface SpellChargeOptions {
+  type: string
+  entryId?: string
+  rank?: number | string
+  slot?: number
+  itemId?: string
 }
 
 const actor = inject(useKeys().actorKey)!
@@ -36,7 +52,7 @@ const consumeButton = ref()
 const removeButton = ref()
 
 const viewedSpell = computed(
-  () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
+  () => actor.value?.items?.find((i: Item) => i._id === infoModal?.value?.itemId)
 )
 
 function doSpell(spellId: string, info: SpellInfo) {
@@ -65,38 +81,38 @@ function setSpellAndClose(info: SpellInfo, newSpellId: string | null) {
 
   updateActorItem(actor as Ref<Actor>, info.entry!._id, {
     system: { slots: { ['slot' + info.castingRank]: { prepared: prepared } } }
-  }).then((x: any) => {
+  }).then(() => {
     removeButton.value.waiting = false
     infoModal.value.close()
     spellSelectionModal.value.close()
   })
 }
-function updateSpellCharges(newTotal: number, options: { [key: string]: any }) {
+function updateSpellCharges(newTotal: number, options: SpellChargeOptions) {
   if (!actor.value) return
   switch (options.type) {
     case 'focus':
       updateActor(actor as Ref<Actor>, { system: { resources: { focus: { value: newTotal } } } })
       break
     case 'charge':
-      updateActorItem(actor as Ref<Actor>, options.entryId, {
+      updateActorItem(actor as Ref<Actor>, options.entryId!, {
         flags: { 'pf2e-dailies': { staff: { charges: newTotal } } }
       })
       break
     case 'spontaneous':
-      updateActorItem(actor as Ref<Actor>, options.entryId, {
+      updateActorItem(actor as Ref<Actor>, options.entryId!, {
         system: { slots: { ['slot' + options.rank]: { value: newTotal } } }
       })
       break
     case 'prepared':
       const location = actor.value.items.find((i) => i._id === options.entryId)
       const prepped = location!.system.slots['slot' + options.rank].prepared
-      prepped[options.slot].expended = newTotal === 0 ? true : false
-      updateActorItem(actor as Ref<Actor>, options.entryId, {
+      prepped[options.slot!].expended = newTotal === 0 ? true : false
+      updateActorItem(actor as Ref<Actor>, options.entryId!, {
         system: { slots: { ['slot' + options.rank]: { prepared: prepped } } }
       })
       break
     case 'wand':
-      updateActorItem(actor as Ref<Actor>, options.itemId, {
+      updateActorItem(actor as Ref<Actor>, options.itemId!, {
         system: { uses: { value: newTotal } }
       })
       break
@@ -117,13 +133,15 @@ const spellbook = computed((): Spellbook => {
   for (const locationId of Object.keys(sb)) {
     const location = actor.value?.items.find((i: Item) => i._id === locationId)
     if (location?.system.prepared.value === 'prepared') {
-      Object.values(location.system.slots).forEach((slot: any, slotRank: number) => {
-        const preparedSpells = slot.prepared.map(
-          (slotSpell: any) => actor.value?.items.find((i: Item) => i._id === slotSpell.id)
-        )
-        const spellSlots = Object.assign(new Array(slot.max), preparedSpells.slice(0, slot.max))
-        sb[locationId][slotRank] = spellSlots
-      })
+      Object.values(location.system.slots as SlotInfo[]).forEach(
+        (slot: SlotInfo, slotRank: number) => {
+          const preparedSpells = slot.prepared.map(
+            (slotSpell) => actor.value?.items.find((i: Item) => i._id === slotSpell.id)
+          )
+          const spellSlots = Object.assign(new Array(slot.max), preparedSpells.slice(0, slot.max))
+          sb[locationId][slotRank] = spellSlots as [Item]
+        }
+      )
     } else {
       const spellsForLocation = actor.value?.items.filter(
         (i: Item) => i.type === 'spell' && i.system.location.value === locationId
@@ -133,20 +151,27 @@ const spellbook = computed((): Spellbook => {
         sb[locationId][rank].push(s)
         // add signature spells by iterating through spellslots property
         if (s.system.location.signature) {
-          Object.values(location?.system.slots).forEach((slot: any, slotRank: number) => {
-            if (slot.max && slotRank > s.system.level.value) {
-              sb[locationId][slotRank].push(s)
+          Object.values(location?.system.slots as SlotInfo[]).forEach(
+            (slot: SlotInfo, slotRank: number) => {
+              if (slot.max && slotRank > s.system.level.value) {
+                sb[locationId][slotRank].push(s)
+              }
             }
-          })
+          )
         }
       })
       // put signature spells at the end
-      Object.entries(sb[locationId]).forEach((rank: any) => {
+      const spellRanks = Object.entries(sb[locationId]) as [string, [(Item | undefined)?]][]
+      spellRanks.forEach((rank: [string, [(Item | undefined)?]]) => {
         rank[1]
-          .sort((a: any, b: any) => a.system.level.value - b.system.level.value)
           .sort(
-            (a: any, b: any) =>
-              (a.system.level.value == rank[0] ? 0 : 1) - (b.system.level.value == rank[0] ? 0 : 1)
+            (a: Item | undefined, b: Item | undefined) =>
+              a?.system.level.value - b?.system.level.value
+          )
+          .sort(
+            (a: Item | undefined, b: Item | undefined) =>
+              (a?.system.level.value == rank[0] ? 0 : 1) -
+              (b?.system.level.value == rank[0] ? 0 : 1)
           )
       })
     }
@@ -365,7 +390,7 @@ const spellbook = computed((): Spellbook => {
           <hr />
           <h4 class="pt-1 text-xl">Wand Details</h4>
         </div>
-        <div v-html="makePropertiesHtml(viewedSpell)"></div>
+        <div v-html="makePropertiesHtml(viewedSpell!)"></div>
         <div v-html="removeUUIDs(viewedSpell?.system.description?.value)"></div>
       </template>
       <template #actionButtons>

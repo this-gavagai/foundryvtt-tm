@@ -1,42 +1,47 @@
 <script setup lang="ts">
-import { ref, provide, watchPostEffect } from 'vue'
-import { useWakeLock } from '@vueuse/core'
+import { ref, type Ref, type VNodeRef, provide, watchPostEffect } from 'vue'
 import { useServer } from './composables/server'
 import { useCharacterSelect } from './composables/characterSelect'
 import { useApi } from './composables/api'
 import { useKeys } from './composables/injectKeys'
+import type { Actor, World } from '@/types/pf2e-types'
+import { Socket } from 'socket.io-client'
 
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 import Character from '@/components/Character.vue'
 
 declare const BUILD_MODE: string
 
-// TODO: (bug) figure out why this isn't working correctly
-// const wakeLock = reactive(useWakeLock())
-// wakeLock.request('screen')
+interface CharacterPanel extends Ref {
+  actor: Actor
+}
 
 const urlId = new URLSearchParams(document.location.search).get('id')
-const world: any = ref()
+const world: Ref<World | undefined> = ref()
 provide(useKeys().worldKey, world)
 
 const { connectToServer } = useServer()
 const { setupSocketListenersForWorld } = useApi()
-connectToServer(window.location.origin).then((socket: any) => {
-  socket.value.emit('world', (r: any) => (world.value = r))
-  setupSocketListenersForWorld(world).then(() => {
-    socket.value.emit('module.tablemate', { action: 'anybodyHome' })
-  })
+const location = new URL(window.location.origin)
+connectToServer(location).then((socket) => {
+  socket.value?.emit('world', (r: World) => (world.value = r))
+  if (world.value) {
+    setupSocketListenersForWorld(world as Ref<World>).then(() => {
+      socket.value?.emit('module.tablemate', { action: 'anybodyHome' })
+    })
+  }
 })
 
 const activeIndex = ref<number>(0)
 const { characterList } = useCharacterSelect(urlId, world)
-const characterPanels = ref<any[]>([])
+// const characterPanels = ref<InstanceType<typeof Character>[]>([])
+const characterPanels = ref<CharacterPanel[]>([])
 
 if (BUILD_MODE === 'development') {
   watchPostEffect(() => {
     const globalLocation = typeof parent.game === 'undefined' ? window : parent
     globalLocation.altCharacters = new Map([])
-    characterPanels.value.forEach((panel: any) => {
+    characterPanels.value.forEach((panel: CharacterPanel) => {
       if (panel.actor?._id === urlId) {
         globalLocation.actor = panel.actor
       } else {
@@ -66,7 +71,7 @@ if (BUILD_MODE === 'development') {
       <TabPanel v-for="(c, index) in characterList" :key="c" :unmount="false" :tabIndex="-1">
         <Character
           :characterId="c"
-          :ref="(el: any) => (characterPanels[index] = el)"
+          :ref="(el: CharacterPanel) => (characterPanels[index] = el)"
           @pickCharacter="(id: string) => (activeIndex = characterList.indexOf(id))"
         />
       </TabPanel>

@@ -7,7 +7,7 @@ import { InformationCircleIcon } from '@heroicons/vue/24/solid'
 
 const props = defineProps(['title', 'focusTarget', 'infoButton', 'noX'])
 const isOpen = ref(false)
-const content: any = ref()
+const content = ref()
 const options = ref()
 const xButton = ref()
 

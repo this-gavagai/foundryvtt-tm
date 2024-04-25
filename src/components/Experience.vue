@@ -15,11 +15,19 @@ const focusTarget = ref()
 const { updateActor } = useApi()
 
 function updateExperience(input: string) {
+  if (!actor.value) return
   let newValue: number = parseIncrement(input, actor.value?.system?.details.xp.value)
-
+  actor.value.system.details.xp.value = newValue
   newValue = Math.max(newValue, 0)
   if (actor.value)
     updateActor(actor as Ref<Actor>, { system: { details: { xp: { value: newValue } } } })
+}
+
+interface FormData {
+  xp: { value: string }
+}
+interface InputSelect {
+  select: () => void
 }
 </script>
 <template>
@@ -48,20 +56,28 @@ function updateExperience(input: string) {
     <Modal ref="experienceModal" title="Experience Points" :focusTarget="focusTarget">
       <form
         @submit.prevent="
-          (e: any) => {
-            updateExperience(e.target[0].value)
+          (e: Event) => {
+            console.log(e)
+            const { xp } = e.target as EventTarget & FormData
+            if (e.target) updateExperience(xp.value)
             experienceModal.close()
           }
         "
       >
-        <div class="w-full pt-4 text-3xl flex justify-center items-center">
+        <div class="flex w-full items-center justify-center pt-4 text-3xl">
           <input
-            class="text-3xl border-2 border-black w-36 p-1 mr-4 text-right"
+            class="mr-4 w-36 border-2 border-black p-1 text-right text-3xl"
+            id="xp"
             name="xp"
             type="input"
             pattern="[\+\-]{0,1}[0-9]*"
-            :placeholder="actor?.system?.details.xp.value"
-            @focus="(e: any) => e.target.select()"
+            :value="actor?.system?.details.xp.value"
+            @focus="
+              (e: Event) => {
+                const field = e.target as EventTarget & InputSelect
+                field.select()
+              }
+            "
             ref="focusTarget"
           />
         </div>

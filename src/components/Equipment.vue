@@ -26,7 +26,7 @@ const investedModal = ref()
 const { updateActor, updateActorItem, deleteActorItem } = useApi()
 
 const item = computed(
-  () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
+  () => actor.value?.items?.find((i: Item) => i._id === infoModal?.value?.itemId)
 )
 const itemWornType = computed(() => {
   if (item.value?.type === 'armor') return 'Armor'
@@ -73,7 +73,7 @@ function deleteItem(itemId: string) {
 function incrementItemQty(itemId: string, change: number) {
   console.log(itemId)
   if (!actor.value || !itemId) return
-  const item = actor.value?.items.find((i: any) => i._id === itemId)
+  const item = actor.value?.items.find((i: Item) => i._id === itemId)
   const newValue = item?.system?.quantity + change
   const update = { system: { quantity: newValue } }
   if (actor.value)
@@ -133,7 +133,7 @@ const toggleSet = [
     toggleTrigger: () => {
       updateCarry(item.value, {
         system: {
-          containerId: actor.value?.items.find((i: any) => i.type === 'backpack')?._id,
+          containerId: actor.value?.items.find((i: Item) => i.type === 'backpack')?._id,
           equipped: {
             carryType: 'stowed',
             handsHeld: 0
@@ -165,7 +165,7 @@ const toggleSet = [
       <li
         v-for="item in actor?.items.filter((i: Item) => i.system?.equipped?.handsHeld > 0)"
         @click="infoModal.open(item._id)"
-        class="cursor-pointer text-2xl whitespace-nowrap"
+        class="cursor-pointer whitespace-nowrap text-2xl"
       >
         <span class="pr-1">{{
           item.system?.equipped?.handsHeld > 0
@@ -187,10 +187,10 @@ const toggleSet = [
     <div class="lg:columns-2">
       <dl
         v-for="inventoryType in inventoryTypes"
-        class="pt-4 whitespace-nowrap break-inside-avoid-column break-before-avoid"
+        class="break-before-avoid break-inside-avoid-column whitespace-nowrap pt-4"
         :class="{ 'break-before-column': inventoryType.type === 'backpack' }"
       >
-        <dt class="underline text-lg only:hidden">{{ inventoryType.title }}</dt>
+        <dt class="text-lg underline only:hidden">{{ inventoryType.title }}</dt>
         <dd
           v-for="item in actor?.items.filter(
             (i: Item) => i.type === inventoryType.type && !i.system?.containerId
@@ -200,7 +200,7 @@ const toggleSet = [
           <div
             :class="{
               'text-gray-300': item.system?.equipped?.carryType === 'dropped',
-              'underline text-lg': item.type === 'backpack'
+              'text-lg underline': item.type === 'backpack'
             }"
             @click="infoModal.open(item._id)"
           >
@@ -238,11 +238,11 @@ const toggleSet = [
       <template #beforeBody>
         <div class="my-2">
           <div
-            class="flex border-gray-400 basis-full justify-items-center empty:hidden border cursor-pointer rounded-md w-full text-xs mb-2"
+            class="mb-2 flex w-full basis-full cursor-pointer justify-items-center rounded-md border border-gray-400 text-xs empty:hidden"
           >
             <div
               v-for="t in toggleSet"
-              class="p-2 flex-auto border-l border-gray-300 first:border-none text-center"
+              class="flex-auto border-l border-gray-300 p-2 text-center first:border-none"
               @click="t?.toggleTrigger()"
               :class="{ 'bg-gray-300': t.toggleIsActive() }"
             >
@@ -265,7 +265,7 @@ const toggleSet = [
                 class="pointer-events-none inline-block h-[14px] w-[14px] transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out"
               />
             </Switch>
-            <span class="text-sm ml-2 pb-1 align-middle" :class="{ 'text-gray-400': !itemWorn }">{{
+            <span class="ml-2 pb-1 align-middle text-sm" :class="{ 'text-gray-400': !itemWorn }">{{
               itemWorn ? `Item equipped (${itemWornType})` : 'Item not equipped'
             }}</span>
           </div>
@@ -289,7 +289,7 @@ const toggleSet = [
               />
             </Switch>
             <span
-              class="text-sm ml-2 pb-1 align-middle"
+              class="ml-2 pb-1 align-middle text-sm"
               :class="{ 'text-gray-400': !itemInvested }"
               >{{ itemInvested ? `Item invested` : 'Item not invested' }}</span
             >
@@ -302,7 +302,7 @@ const toggleSet = [
           >
             <Listbox as="div" class="w-full" v-model="itemLocation">
               <ListboxButton
-                class="relative max-w-full w-full cursor-default rounded-lg bg-white border py-2 pl-3 pr-10 text-left focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
+                class="relative w-full max-w-full cursor-default rounded-lg border bg-white py-2 pl-3 pr-10 text-left focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
                 ><span class="block truncate">{{
                   actor?.items.find((i: Item) => i._id === item?.system.containerId)?.name
                 }}</span>
@@ -315,7 +315,7 @@ const toggleSet = [
                 leave-to-class="opacity-0"
               >
                 <ListboxOptions
-                  class="absolute w-[calc(100%-3rem)] max-h-20 mt-1 max-w-[53rem] overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm"
+                  class="absolute mt-1 max-h-20 w-[calc(100%-3rem)] max-w-[53rem] overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm"
                 >
                   <ListboxOption
                     v-slot="{ active, selected }"
@@ -353,7 +353,7 @@ const toggleSet = [
         <div class="flex-1">Qty: {{ item?.system.quantity }}</div>
         <button
           type="button"
-          class="bg-red-200 hover:bg-red-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
+          class="inline-flex items-end justify-center border border-transparent bg-red-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-red-300 focus:outline-none"
           @click="
             () => {
               deleteItem(item!._id)
@@ -365,14 +365,14 @@ const toggleSet = [
         </button>
         <button
           type="button"
-          class="bg-gray-200 hover:bg-gray-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
+          class="inline-flex items-end justify-center border border-transparent bg-gray-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-300 focus:outline-none"
           @click="() => incrementItemQty(item!._id, -1)"
         >
           -
         </button>
         <button
           type="button"
-          class="bg-gray-200 hover:bg-gray-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
+          class="inline-flex items-end justify-center border border-transparent bg-gray-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-300 focus:outline-none"
           @click="() => incrementItemQty(item!._id, 1)"
         >
           +

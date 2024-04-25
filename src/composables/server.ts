@@ -7,10 +7,8 @@ const sessionId = ref<String>('')
 function getCookiesMap(cookiesString: string) {
   return cookiesString
     .split(';')
-    .map(function (cookieString) {
-      return cookieString.trim().split('=')
-    })
-    .reduce(function (acc: any, curr: any) {
+    .map((cookieString): string[] => cookieString.trim().split('='))
+    .reduce((acc: { [key: string]: string }, curr: string[]) => {
       acc[curr[0]] = curr[1]
       return acc
     }, {})
@@ -63,7 +61,7 @@ async function connectToServer(url: URL) {
 }
 
 function getSocket(): Promise<Socket> {
-  return new Promise((resolve: any, reject: any) => {
+  return new Promise((resolve: Function, reject: Function) => {
     ;(function waitForSocket() {
       if (socket.value) return resolve(socket.value)
       setTimeout(waitForSocket, 100)
@@ -71,7 +69,7 @@ function getSocket(): Promise<Socket> {
   })
 }
 
-export function useServer(): any {
+export function useServer() {
   return {
     // socket,
     connectToServer,

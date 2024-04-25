@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import type { Actor } from '@/types/pf2e-types'
+import type { Actor, Item } from '@/types/pf2e-types'
 import { inject, computed, watch, ref } from 'vue'
 import { capitalize, removeUUIDs } from '@/utils/utilities'
 import InfoModal from '@/components/InfoModal.vue'
@@ -10,22 +10,22 @@ const infoModal = ref()
 
 const actor = inject(useKeys().actorKey)!
 
-const ancestry = computed(() => actor.value?.items?.find((x: any) => x.type === 'ancestry'))
-const heritage = computed(() => actor.value?.items?.find((x: any) => x.type === 'heritage'))
-const background = computed(() => actor.value?.items?.find((x: any) => x.type === 'background'))
-const gameclass = computed(() => actor.value?.items?.find((x: any) => x.type === 'class'))
-const viewedItem: any = computed(
-  () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
+const ancestry = computed(() => actor.value?.items?.find((x: Item) => x.type === 'ancestry'))
+const heritage = computed(() => actor.value?.items?.find((x: Item) => x.type === 'heritage'))
+const background = computed(() => actor.value?.items?.find((x: Item) => x.type === 'background'))
+const gameclass = computed(() => actor.value?.items?.find((x: Item) => x.type === 'class'))
+const viewedItem: Ref<Item | undefined> = computed(
+  () => actor.value?.items?.find((i: Item) => i._id === infoModal?.value?.itemId)
 )
 </script>
 <template>
-  <div class="shrink my-auto">
-    <div class="text-sm whitespace-nowrap overflow-hidden cursor-pointer">
+  <div class="my-auto shrink">
+    <div class="cursor-pointer overflow-hidden whitespace-nowrap text-sm">
       <span @click="infoModal.open(ancestry?._id)">{{ ancestry?.name ?? '-' }}&nbsp;</span>
       <span @click="infoModal.open(background?._id)">{{ background?.name }}</span>
     </div>
     <div
-      class="text-sm whitespace-nowrap overflow-hidden cursor-pointer"
+      class="cursor-pointer overflow-hidden whitespace-nowrap text-sm"
       @click="infoModal.open(gameclass?._id)"
     >
       <span>{{ gameclass?.name ?? '-' }}</span>

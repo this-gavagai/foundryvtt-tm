@@ -9,7 +9,14 @@ export interface Actor {
   system: System
   prototypeToken: any
   requestCharacterDetails: any
+  ownership: any
 }
+
+export interface Action {
+  damage: Function
+  critical: Function
+}
+export interface Modifier {}
 
 export interface Item {
   _id: string
@@ -19,6 +26,19 @@ export interface Item {
   img: string
   flags: any
   contents: any
+}
+
+export interface Scene {
+  _id: string
+  active: boolean
+}
+export interface Combat {
+  _id: string
+  active: boolean
+  scene: Scene
+}
+export interface Combatant {
+  actorId: string
 }
 
 export interface FeatCategory {
@@ -57,6 +77,11 @@ export interface System {
   uses: any
   proficiencies: any
   usage: any
+  duration?: any
+  target?: any
+  save?: any
+  area?: any
+  range?: any
 }
 
 export interface Skill {
@@ -101,6 +126,23 @@ export interface World {
   systemUpdate: any
 }
 
+export interface StatModifier {
+  enabled: boolean
+  hideIfDisabled: boolean
+}
+
+export interface RollResult {}
+
+export interface Action {
+  type: string
+  item: Item | undefined
+  slug: string
+}
+
+export interface Trait {
+  label: string
+}
+
 // debugging conveniences
 declare global {
   interface Window {
@@ -112,4 +154,58 @@ declare global {
     game: any
     Hooks: any
   }
+}
+
+/// socket and internal types
+export interface ResolutionArgs {}
+export interface EventArgs {
+  action: string
+  uuid: string
+  request: EventRequest
+  result: Item[] | string[]
+  actorId: string
+  characterId: string
+  modifiers: any
+}
+export interface CheckArgs {
+  action: string
+  characterId: string
+  checkType: string
+  checkSubtype: string
+  modifiers: any
+  options: any
+  skipDialog: boolean
+  uuid: string
+}
+export interface ActionArgs {
+  action: string
+  characterId: string
+  characterAction: any
+  options: any
+  uuid: string
+}
+export interface CastArgs {
+  action: string
+  id: string
+  characterId: string
+  rank: number
+  slotId: number
+  uuid: string
+}
+export interface ConsumeArgs {
+  action: string
+  characterId: string
+  consumableId: string
+  options: any
+  uuid: string
+}
+
+export interface EventRequest {
+  _id: string
+  type: string
+  action: string
+  parentUuid: string
+}
+export interface EventResponse {
+  result: EventRequest[]
 }

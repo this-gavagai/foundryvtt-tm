@@ -9,6 +9,17 @@ import { useKeys } from '@/composables/injectKeys'
 import Statistic from '@/components/Statistic.vue'
 import Modal from '@/components/Modal.vue'
 
+interface SubmissionEvent {
+  submitter: { name: string }
+}
+interface FormData {
+  hp: { value: string }
+  temp_hp: { value: string }
+}
+interface InputSelect {
+  select: () => void
+}
+
 const actor = inject(useKeys().actorKey)!
 const world = inject(useKeys().worldKey)!
 const hitpointsModal = ref()
@@ -74,16 +85,17 @@ const lastDamageAmount = computed(() => {
     >
       <form
         @submit.prevent="
-          (e: any) => {
-            if (e.submitter.name === 'update')
-              updateHitPoints(e.target.elements.hp.value, e.target.elements.temp_hp.value)
-            else if (e.submitter.name === 'reset')
+          (e: Event) => {
+            const event = e as Event & SubmissionEvent
+            const { hp, temp_hp } = e.target as EventTarget & FormData
+            if (event.submitter.name === 'update') updateHitPoints(hp.value, temp_hp.value)
+            else if (event.submitter.name === 'reset')
               updateHitPoints(actor?.system?.attributes.hp.max + '', '0')
-            else if (e.submitter.name === 'lastDamageMinus') {
+            else if (event.submitter.name === 'lastDamageMinus') {
               const newTempHP = Math.max(actor?.system?.attributes.hp.temp - lastDamageAmount, 0)
               const hpAdjustment = Math.max(lastDamageAmount - actor?.system?.attributes.hp.temp, 0)
               updateHitPoints('-' + hpAdjustment, newTempHP + '')
-            } else if (e.submitter.name === 'lastDamagePlus')
+            } else if (event.submitter.name === 'lastDamagePlus')
               updateHitPoints('+' + lastDamageAmount, actor?.system?.attributes.hp.temp + '')
             hitpointsModal.close()
           }
@@ -99,7 +111,12 @@ const lastDamageAmount = computed(() => {
             pattern="[\+\-]{0,1}[0-9]*"
             :placeholder="actor?.system?.attributes.hp.value"
             :value="actor!.system.attributes.hp.value"
-            @focus="(e: any) => e.currentTarget?.select()"
+            @focus="
+              (e: Event) => {
+                const field = e.target as EventTarget & InputSelect
+                field.select()
+              }
+            "
           />
           <div class="w-1/3 text-xl">/ {{ actor?.system?.attributes.hp.max }}</div>
         </div>
@@ -112,7 +129,12 @@ const lastDamageAmount = computed(() => {
             pattern="[\+\-]{0,1}[0-9]*"
             :placeholder="actor?.system?.attributes.hp.temp"
             :value="actor!.system.attributes.hp.temp"
-            @focus="(e: any) => e.currentTarget?.select()"
+            @focus="
+              (e: Event) => {
+                const field = e.target as EventTarget & InputSelect
+                field.select()
+              }
+            "
           />
           <div class="w-1/3"></div>
         </div>

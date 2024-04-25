@@ -2,7 +2,16 @@
 // TODO: (feature++) add some way to browse compendia, which can be used for adding new items to various contexts
 
 import type { Ref } from 'vue'
-import type { Actor, World } from '@/types/pf2e-types'
+import type {
+  Actor,
+  World,
+  Item,
+  Combat,
+  ResolutionArgs,
+  EventArgs,
+  EventRequest,
+  EventResponse
+} from '@/types/pf2e-types'
 import type { CharacterRef } from '@/components/Character.vue'
 import { useThrottleFn } from '@vueuse/core'
 import { ref } from 'vue'
@@ -30,45 +39,44 @@ function pushToAckQueue(uuid: string, callback: Function) {
 ///////////////////////////////////////
 async function setupSocketListenersForWorld(world: Ref<World>) {
   const socket = await getSocket()
-  socket.on('module.tablemate', (args: any) => {
+  socket.on('module.tablemate', (args: EventArgs) => {
     switch (args.action) {
       case 'acknowledged':
         if (ackQueue[args.uuid]) {
           ackQueue[args.uuid](args)
           delete ackQueue[args.uuid]
-          console.log('done')
         }
         break
     }
   })
-  socket.on('modifyDocument', (args: any) => {
+  socket.on('modifyDocument', (args: EventArgs) => {
     switch (args.request.type) {
       case 'Combat':
         switch (args.request.action) {
           case 'create':
-            _processCreates(world.value.combats, args.result)
+            _processCreates(world.value.combats, args.result as Item[])
             break
           case 'update':
-            _processUpdates(world.value.combats, args.result)
+            _processUpdates(world.value.combats, args.result as Item[])
             break
           case 'delete':
-            _processDeletes(world.value.combats, args.result)
+            _processDeletes(world.value.combats, args.result as string[])
             break
         }
         requestWorldDetails(world)
         break
       case 'Combatant':
         const combatId = args.request.parentUuid.split('.')?.[1]
-        const combat = world.value?.combats.find((c: any) => c._id === combatId)
+        const combat = world.value?.combats.find((c: Combat) => c._id === combatId)
         switch (args.request.action) {
           case 'create':
-            _processCreates(combat.combatants, args.result)
+            _processCreates(combat.combatants, args.result as Item[])
             break
           case 'update':
-            _processUpdates(combat.combatants, args.result)
+            _processUpdates(combat.combatants, args.result as Item[])
             break
           case 'delete':
-            _processDeletes(combat.combatants, args.result)
+            _processDeletes(combat.combatants, args.result as string[])
             break
         }
         requestWorldDetails(world)
@@ -76,13 +84,13 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
       case 'ChatMessage':
         switch (args.request.action) {
           case 'create':
-            _processCreates(world.value.messages, args.result)
+            _processCreates(world.value.messages, args.result as Item[])
             break
           case 'update':
-            _processUpdates(world.value.messages, args.result)
+            _processUpdates(world.value.messages, args.result as Item[])
             break
           case 'delete':
-            _processDeletes(world.value.messages, args.result)
+            _processDeletes(world.value.messages, args.result as string[])
             break
         }
         requestWorldDetails(world)
@@ -96,17 +104,18 @@ async function setupSocketListenersForActor(
   actor: CharacterRef<Actor | undefined>
 ) {
   const socket = await getSocket()
-  socket.on('module.tablemate', (args: any) => {
+  socket.on('module.tablemate', (args: EventArgs) => {
+    if (!actor.value) return
     switch (args.action) {
       case 'gmOnline':
-        actor.requestCharacterDetails()
+        actor.requestCharacterDetails!()
         break
       case 'updateCharacterDetails':
         parseActorData(actorId, actor, args)
         break
     }
   })
-  socket.on('modifyDocument', (args: any) => {
+  socket.on('modifyDocument', (args: EventArgs) => {
     if (!actor.value) return
     switch (args.request.type) {
       case 'Actor':
@@ -115,22 +124,23 @@ async function setupSocketListenersForActor(
             merge(actor.value, change)
           }
         })
-        actor.requestCharacterDetails()
+        actor.requestCharacterDetails!()
         break
       case 'Item':
+        if (!actor.value) return
         if (args.request.parentUuid !== 'Actor.' + actorId) break
         switch (args.request.action) {
           case 'update':
-            _processUpdates(actor.value.items, args.result)
+            _processUpdates(actor.value.items, args.result as Item[])
             break
           case 'create':
-            _processCreates(actor.value.items, args.result)
+            _processCreates(actor.value.items, args.result as Item[])
             break
           case 'delete':
-            _processDeletes(actor.value.items, args.result)
+            _processDeletes(actor.value.items, args.result as string[])
             break
         }
-        actor.requestCharacterDetails()
+        actor.requestCharacterDetails!()
         break
     }
   })
@@ -159,11 +169,10 @@ async function updateActor(
           }
         ]
       },
-      (r: any) => {
-        r.result.forEach((change: any) => {
-          console.log(change)
+      (r: EventResponse) => {
+        r.result.forEach((change: EventRequest) => {
           merge(actor.value, change)
-          actor.requestCharacterDetails()
+          actor.requestCharacterDetails!()
         })
         resolve(r)
       }
@@ -195,9 +204,8 @@ async function updateActorItem(
         ]
       },
       (r: any) => {
-        console.log(r)
         _processUpdates(actor.value.items, r.result)
-        actor.requestCharacterDetails()
+        actor.requestCharacterDetails!()
         resolve(r)
       }
     )
@@ -218,7 +226,7 @@ async function deleteActorItem(actor: CharacterRef<Actor>, itemId: string): Prom
       },
       (r: any) => {
         _processDeletes(actor.value.items, r.result)
-        actor.requestCharacterDetails()
+        actor.requestCharacterDetails!()
         resolve(r)
       }
     )
@@ -233,11 +241,9 @@ async function deleteActorItem(actor: CharacterRef<Actor>, itemId: string): Prom
 // not using ackQueue allows for updates pushed from server, but makes this method a bit weird (and needing a timeout to prevent race conditions)
 // for the world calls, as well, we need to not send subsequent ones until current are resolved, but perhaps there's a cleaner way than throttling
 async function sendCharacterRequest(actorId: string, actor: Ref<Actor | undefined> = ref()) {
-  console.log('Huzzah', actorId, actor)
   if (parent.game) {
     setTimeout(async () => {
       const details = await getCharacterDetails({ actorId: actorId })
-      console.log(details)
       parseActorData(actorId, actor, details)
     }, 300)
   } else {
@@ -270,7 +276,7 @@ async function castSpell(
   spellId: string,
   castingLevel: number,
   castingSlot: number
-): Promise<any> {
+): Promise<ResolutionArgs> {
   const uuid = crypto.randomUUID()
   const args = {
     action: 'castSpell',
@@ -286,7 +292,7 @@ async function castSpell(
     const socket = await getSocket()
     return new Promise((resolve, reject) => {
       socket.emit('module.tablemate', args)
-      pushToAckQueue(uuid, (args: any) => resolve(args))
+      pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
     })
   }
 }
@@ -297,7 +303,7 @@ async function rollCheck(
   checkSubtype = '',
   modifiers = [],
   options = {}
-): Promise<any> {
+): Promise<ResolutionArgs> {
   const uuid = crypto.randomUUID()
   const args = {
     action: 'rollCheck',
@@ -315,7 +321,7 @@ async function rollCheck(
     const socket = await getSocket()
     return new Promise((resolve, reject) => {
       socket.emit('module.tablemate', args)
-      pushToAckQueue(uuid, (args: any) => resolve(args))
+      pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
     })
   }
 }
@@ -324,7 +330,7 @@ async function characterAction(
   actor: Ref<Actor>,
   characterAction: string,
   options = {}
-): Promise<any> {
+): Promise<ResolutionArgs> {
   const uuid = crypto.randomUUID()
   const args = {
     action: 'characterAction',
@@ -359,7 +365,7 @@ async function consumeItem(actor: Ref<Actor>, consumableId: string, options = {}
     const socket = await getSocket()
     return new Promise((resolve, reject) => {
       socket.emit('module.tablemate', args)
-      pushToAckQueue(uuid, (args: any) => resolve(args))
+      pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
     })
   }
 }
@@ -367,18 +373,18 @@ async function consumeItem(actor: Ref<Actor>, consumableId: string, options = {}
 ///////////////////////////////////////
 // Processing Methods                //
 ///////////////////////////////////////
-function _processCreates(set: any[], results: []) {
-  results.forEach((c: any) => {
+function _processCreates<Type>(set: any[], results: Item[]) {
+  results.forEach((c: Item) => {
     set.push(c)
   })
 }
-function _processUpdates(set: any[], results: []) {
-  results.forEach((change: any) => {
+function _processUpdates<Type>(set: any[], results: Item[]) {
+  results.forEach((change: Item) => {
     let item = set.find((a: any) => a._id == change._id)
     if (item) merge(item, change)
   })
 }
-function _processDeletes(set: any[], results: []) {
+function _processDeletes<Type>(set: any[], results: string[]) {
   results.forEach((d: string) => {
     const index = set.find((i: any) => i._id === d)
     if (index != -1) set.splice(index, 1)

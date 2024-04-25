@@ -34,10 +34,6 @@ function close() {
   emit('closing')
 }
 
-function swipeClose(item: any, i: any) {
-  close()
-}
-
 const emit = defineEmits(['closing'])
 defineExpose({ open, close, itemId, options, rollResultModal })
 </script>
@@ -57,7 +53,7 @@ defineExpose({ open, close, itemId, options, rollResultModal })
       </TransitionChild>
 
       <div class="fixed inset-x-0 bottom-0 overflow-y-auto">
-        <div class="flex bottom items-bottom justify-center p-0 pb-0 text-center">
+        <div class="bottom items-bottom flex justify-center p-0 pb-0 text-center">
           <TransitionChild
             as="template"
             enter="duration-300 ease-out"
@@ -109,7 +105,7 @@ defineExpose({ open, close, itemId, options, rollResultModal })
                   <slot></slot>
                 </div>
               </div>
-              <div class="mt-4 flex items-end justify-end gap-2 flex-wrap items-center">
+              <div class="mt-4 flex flex-wrap items-end items-center justify-end gap-2">
                 <slot name="actionButtons"></slot>
               </div>
             </DialogPanel>

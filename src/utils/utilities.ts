@@ -1,3 +1,5 @@
+import type { Item } from '@/types/pf2e-types'
+
 export function capitalize(s: string | undefined) {
   return s ? s?.[0]?.toUpperCase() + s?.slice(1) : null
 }
@@ -11,7 +13,7 @@ export function makeTraits(traits: string[] | undefined): string {
 export function makeActionIcons(actionValue: string): string {
   return `<span class="pf2-icon">${actionValue?.replace('to', '-')}</span>`
 }
-export function makePropertiesHtml(item: any): string {
+export function makePropertiesHtml(item: Item): string {
   return (
     (item?.system?.duration?.value
       ? `<div><span class='font-bold'>Duration:</span> ${item?.system.duration?.value}</div>`

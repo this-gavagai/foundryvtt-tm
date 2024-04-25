@@ -19,15 +19,15 @@ const viewedItem = computed(
 <template>
   <div class="px-6 py-4 lg:columns-2">
     <dl v-if="actor?.feats" v-for="category in actor?.feats" class="break-inside-avoid-column">
-      <dt class="underline text-lg only:hidden pt-2">
+      <dt class="pt-2 text-lg underline only:hidden">
         {{ featCategoryLabels.get(category.label) ?? category.label }}
       </dt>
       <dd v-for="feat in category.feats">
         <div class="relative" @click="infoModal.open(feat.feat._id)">
-          <span class="text-xs text-gray-500 absolute text-right w-4 pt-1">{{
+          <span class="absolute w-4 pt-1 text-right text-xs text-gray-500">{{
             feat?.level ?? feat.feat.system?.level?.value
           }}</span
-          ><span class="pl-6 cursor-pointer">{{ feat.feat?.name }}</span>
+          ><span class="cursor-pointer pl-6">{{ feat.feat?.name }}</span>
         </div>
         <div
           v-for="grant in feat.feat?.flags?.pf2e?.itemGrants"
@@ -44,7 +44,7 @@ const viewedItem = computed(
         <li
           v-for="feat in actor?.items
             .filter((i: Item) => i.type === 'feat')
-            .sort((a: any, b: any) => {
+            .sort((a: Item, b: Item) => {
               return (
                 (a.system.level.taken ?? a.system.level.value) -
                 (b.system.level.taken ?? b.system.level.value)
@@ -52,10 +52,10 @@ const viewedItem = computed(
             })"
         >
           <div class="relative" @click="infoModal.open(feat._id)">
-            <span class="text-xs text-gray-500 absolute text-right w-4 pt-1">{{
+            <span class="absolute w-4 pt-1 text-right text-xs text-gray-500">{{
               feat.system?.level?.taken ?? feat.system?.level?.value
             }}</span
-            ><span class="pl-6 cursor-pointer">{{ feat?.name }}</span>
+            ><span class="cursor-pointer pl-6">{{ feat?.name }}</span>
           </div>
         </li>
       </ul>

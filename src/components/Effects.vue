@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import type { Actor } from '@/types/pf2e-types'
+import type { Actor, Item } from '@/types/pf2e-types'
 import { inject, ref, computed } from 'vue'
-import type { Item } from '@/types/pf2e-types'
 import InfoModal from '@/components/InfoModal.vue'
 import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
@@ -12,7 +11,7 @@ import { capitalize, removeUUIDs, getPath } from '@/utils/utilities'
 const infoModal = ref()
 const actor = inject(useKeys().actorKey)!
 const viewedItem = computed(
-  () => actor.value?.items?.find((i: any) => i._id === infoModal?.value?.itemId)
+  () => actor.value?.items?.find((i: Item) => i._id === infoModal?.value?.itemId)
 )
 
 const { deleteActorItem, updateActorItem } = useApi()
@@ -21,7 +20,7 @@ function deleteEffect(effectId: string | undefined) {
 }
 function incrementEffectValue(effectId: string | undefined, change: number) {
   if (!actor.value || !effectId) return
-  const effect = actor.value?.items.find((i: any) => i._id === effectId)
+  const effect = actor.value?.items.find((i: Item) => i._id === effectId)
   const newValue = effect?.system?.value.value + change
   const update = { system: { value: { value: newValue } } }
   if (actor.value)
@@ -29,7 +28,7 @@ function incrementEffectValue(effectId: string | undefined, change: number) {
 }
 </script>
 <template>
-  <div class="border border-t-0 px-6 py-4 flex gap-2 empty:hidden flex-wrap">
+  <div class="flex flex-wrap gap-2 border border-t-0 px-6 py-4 empty:hidden">
     <div
       class="cursor-pointer"
       v-for="effect in actor?.items?.filter((i: Item) => ['effect', 'condition'].includes(i?.type))"
@@ -39,13 +38,13 @@ function incrementEffectValue(effectId: string | undefined, change: number) {
         <div class="relative">
           <div
             v-if="effect.system?.value?.isValued"
-            class="absolute right-0 bottom-0 bg-[#FFFFFFCC] border border-black px-1 text-xs"
+            class="absolute bottom-0 right-0 border border-black bg-[#FFFFFFCC] px-1 text-xs"
           >
             {{ effect.system?.value?.value }}
           </div>
           <img :src="getPath(effect.img)" class="rounded-full" />
         </div>
-        <div class="text-[0.5rem] whitespace-nowrap overflow-hidden text-center">
+        <div class="overflow-hidden whitespace-nowrap text-center text-[0.5rem]">
           {{ effect.name.replace('Effect: ', '') }}
         </div>
       </div>
@@ -66,7 +65,7 @@ function incrementEffectValue(effectId: string | undefined, change: number) {
       <template #actionButtons>
         <button
           type="button"
-          class="bg-red-200 hover:bg-red-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
+          class="inline-flex items-end justify-center border border-transparent bg-red-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-red-300 focus:outline-none"
           @click="
             () => {
               deleteEffect(viewedItem?._id)
@@ -79,7 +78,7 @@ function incrementEffectValue(effectId: string | undefined, change: number) {
         <button
           type="button"
           v-if="viewedItem?.system?.value?.isValued"
-          class="bg-gray-200 hover:bg-gray-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
+          class="inline-flex items-end justify-center border border-transparent bg-gray-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-300 focus:outline-none"
           @click="() => incrementEffectValue(viewedItem?._id, -1)"
         >
           -
@@ -87,7 +86,7 @@ function incrementEffectValue(effectId: string | undefined, change: number) {
         <button
           type="button"
           v-if="viewedItem?.system?.value?.isValued"
-          class="bg-gray-200 hover:bg-gray-300 inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none"
+          class="inline-flex items-end justify-center border border-transparent bg-gray-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-300 focus:outline-none"
           @click="() => incrementEffectValue(viewedItem?._id, 1)"
         >
           +

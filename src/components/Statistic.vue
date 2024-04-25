@@ -4,6 +4,7 @@ import { SignedNumber } from '@/utils/utilities'
 import { proficiencies } from '@/utils/constants'
 import InfoModal from './InfoModal.vue'
 import Modal from './Modal.vue'
+import type { StatModifier, RollResult } from '@/types/pf2e-types'
 
 const props = defineProps([
   'heading',
@@ -30,12 +31,12 @@ defineExpose({ infoModal })
       <!-- <Popover class="relative"> -->
       <!-- <PopoverButton> -->
       <div
-        class="text-[0.8rem] uppercase whitespace-nowrap"
+        class="whitespace-nowrap text-[0.8rem] uppercase"
         :class="proficiencies[props.proficiency]?.color"
       >
         {{ heading }}
       </div>
-      <div class="text-lg whitespace-nowrap">
+      <div class="whitespace-nowrap text-lg">
         <slot></slot>
       </div>
     </div>
@@ -43,7 +44,7 @@ defineExpose({ infoModal })
       <InfoModal ref="infoModal">
         <template #default>
           <div>
-            <h3 class="text-xl mb-2">
+            <h3 class="mb-2 text-xl">
               {{ heading }}
               <span
                 v-if="props.proficiency"
@@ -55,14 +56,16 @@ defineExpose({ infoModal })
             </h3>
             <ul>
               <li
-                v-for="mod in props.modifiers.filter((m: any) => m.enabled || !m.hideIfDisabled)"
+                v-for="mod in props.modifiers.filter(
+                  (m: StatModifier) => m.enabled || !m.hideIfDisabled
+                )"
                 class="flex gap-2"
                 :class="{ 'text-gray-300': !mod.enabled }"
               >
                 <div class="w-8 text-right">
                   {{ SignedNumber.format(mod.modifier) }}
                 </div>
-                <div class="whitespace-nowrap overflow-hidden text-ellipsis">{{ mod.label }}</div>
+                <div class="overflow-hidden text-ellipsis whitespace-nowrap">{{ mod.label }}</div>
               </li>
             </ul>
           </div>
@@ -71,10 +74,10 @@ defineExpose({ infoModal })
           <button
             v-if="allowRoll"
             type="button"
-            class="bg-blue-600 hover:bg-blue-500 text-white inline-flex justify-center items-end border border-transparent px-4 py-2 text-sm font-medium focus:outline-none"
+            class="inline-flex items-end justify-center border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 focus:outline-none"
             @click="
               () => {
-                rollAction().then((r: any) => {
+                rollAction().then((r: RollResult) => {
                   infoModal.rollResultModal.open(r)
                   infoModal.close()
                 })

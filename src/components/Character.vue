@@ -36,7 +36,7 @@ const sideMenu = ref()
 const props = defineProps(['characterId'])
 
 export interface CharacterRef<T> extends Ref<T> {
-  requestCharacterDetails?: any
+  requestCharacterDetails?: Function
 }
 
 // base data
@@ -49,7 +49,7 @@ const panels = ref()
 watch(world, () => {
   if (world.value?.actors && !actor.value?._id) {
     console.log('using world value')
-    actor.value = world.value.actors.find((a: any) => a._id == props.characterId)
+    actor.value = world.value.actors.find((a: Actor) => a._id == props.characterId)
   }
 })
 

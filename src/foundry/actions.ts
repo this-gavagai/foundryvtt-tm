@@ -1,14 +1,27 @@
+import type {
+  Actor,
+  Action,
+  CheckArgs,
+  ActionArgs,
+  Modifier,
+  Combatant,
+  CastArgs,
+  ConsumeArgs
+} from '@/types/pf2e-types'
+
 const MODNAME = 'module.tablemate'
 const source = typeof window.game === 'undefined' ? parent.game : window.game
 
-export async function getCharacterDetails(args: any) {
+export async function getCharacterDetails(args: { actorId: string }) {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
-  const actor = source.actors.find((x: any) => x._id === args.actorId)
+  const actor = source.actors.find((x: Actor) => x._id === args.actorId)
 
   // add the damage formula into things
-  const damages = actor.system.actions.map((action: any) => action.damage({ getFormula: true }))
-  const criticals = actor.system.actions.map((action: any) => action.critical({ getFormula: true }))
-  const modifiers = actor.system.actions.map((action: any) =>
+  const damages = actor.system.actions.map((action: Action) => action.damage({ getFormula: true }))
+  const criticals = actor.system.actions.map((action: Action) =>
+    action.critical({ getFormula: true })
+  )
+  const modifiers = actor.system.actions.map((action: Action) =>
     action.damage({ createMessage: false, skipDialog: true })
   )
   await Promise.all([...damages, ...criticals, ...modifiers]).then((values) => {
@@ -34,12 +47,12 @@ export async function getCharacterDetails(args: any) {
   }
 }
 
-export async function foundryRollCheck(args: any) {
+export async function foundryRollCheck(args: CheckArgs) {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   //https://github.com/foundryvtt/pf2e/blob/68988e12fbec7ea8359b9bee9b0c43eb6964ca3f/src/module/system/statistic/statistic.ts#L617
   console.log(source)
   const actor = source.actors.get(args.characterId, { strict: true })
-  const modifiers = args.modifiers.map((m: any) => {
+  const modifiers = args.modifiers.map((m: Modifier) => {
     return new source.pf2e.Modifier(m)
   })
   const params = { skipDialog: args.skipDialog, modifiers: modifiers }
@@ -63,8 +76,9 @@ export async function foundryRollCheck(args: any) {
       roll = actor.perception.check.roll(params)
       break
     case 'initiative':
-      const combatantId = source.combat.combatants.find((c: any) => c.actorId === args.characterId)
-        ?._id
+      const combatantId = source.combat.combatants.find(
+        (c: Combatant) => c.actorId === args.characterId
+      )?._id
       if (combatantId) roll = actor.initiative.roll([combatantId], { updateTurn: false })
       break
   }
@@ -78,7 +92,7 @@ export async function foundryRollCheck(args: any) {
   }
 }
 
-export async function foundryCharacterAction(args: any) {
+export async function foundryCharacterAction(args: ActionArgs) {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.get(args.characterId, { strict: true })
   const params = { ...args.options, actors: actor }
@@ -98,27 +112,18 @@ export async function foundryCharacterAction(args: any) {
   }
 }
 
-export async function foundryCastSpell(args: any) {
+export async function foundryCastSpell(args: CastArgs) {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.get(args.characterId, { strict: true })
   const item = actor.items.get(args.id, { strict: true })
   const spellLocation = actor.items.get(item.system.location.value)
-
-  // this is an ugly hack to deal with the pf2e-dailies dialog popup for staves casting
-  if (
-    source.modules.get('pf2e-dailies')?.active &&
-    spellLocation?.system?.prepared.value === 'charge'
-  )
-    window.Hooks.once('renderDialog', (a: any, b: any, c: any) =>
-      setTimeout(() => b[0].querySelectorAll('button')[1].click(), 100)
-    )
 
   spellLocation.cast(item, { rank: args.rank, slotId: args.slotId })
   return { action: 'acknowledged', uuid: args.uuid }
   // game.socket.emit(MODNAME, { action: 'acknowledged', uuid: args.uuid })
 }
 
-export async function foundryConsumeItem(args: any) {
+export async function foundryConsumeItem(args: ConsumeArgs) {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.get(args.characterId, { strict: true })
   const item = actor.items.get(args.consumableId, { strict: true })

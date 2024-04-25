@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
 import type { CharacterRef } from '@/components/Character.vue'
-import type { Actor, World } from '@/types/pf2e-types'
+import type { Actor, World, Combatant } from '@/types/pf2e-types'
 import { computed, watch, ref, inject } from 'vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'
@@ -15,7 +15,13 @@ const actor = inject(useKeys().actorKey)!
 const world = inject(useKeys().worldKey)!
 const { updateActor, rollCheck } = useApi()
 
-const initSkills: any = computed(() => {
+interface SkillDef {
+  slug: string
+  label: string
+  totalModifier: number
+}
+
+const initSkills: Ref<SkillDef[]> = computed(() => {
   const skills = Object.values(actor?.value?.system?.skills ?? {})
   skills.unshift(actor.value?.system?.perception)
   return skills
@@ -26,7 +32,7 @@ watch(selected, async (newSkill, oldSkill) => {
     updateActor(actor as CharacterRef<Actor>, {
       system: { initiative: { statistic: newSkill } }
     }).then(() => {
-      actor.requestCharacterDetails()
+      actor.requestCharacterDetails!()
       // requestCharacterDetails(actor.value?._id!, actor) // needed because initiative changes have lateral effects to modifiers set
     })
 })
@@ -34,10 +40,10 @@ watch(selected, async (newSkill, oldSkill) => {
 const { activeScene, activeCombat } = useCombat(world)
 const initiativeReady = computed(() => {
   const inActiveCombat = activeCombat.value?.combatants
-    .map((a: any) => a.actorId)
+    .map((a: Combatant) => a.actorId)
     .includes(actor.value?._id)
   const initiativeValue = activeCombat.value?.combatants.find(
-    (a: any) => a.actorId === actor.value?._id
+    (a: Combatant) => a.actorId === actor.value?._id
   )?.initiative
   return inActiveCombat && !initiativeValue
 })
@@ -55,7 +61,7 @@ function doInitiative() {
     >
       {{
         formatModifier(
-          initSkills.find((s: any) => s?.slug === actor?.system?.initiative.statistic)
+          initSkills.find((s: SkillDef) => s?.slug === actor?.system?.initiative.statistic)
             ?.totalModifier ?? 0
         )
       }}
@@ -66,8 +72,8 @@ function doInitiative() {
           class="relative w-full cursor-default rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
         >
           <span class="block truncate">{{
-            initSkills.find((s: any) => s?.slug === actor?.system?.initiative.statistic)?.label ??
-            '...'
+            initSkills.find((s: SkillDef) => s?.slug === actor?.system?.initiative.statistic)
+              ?.label ?? '...'
           }}</span>
           <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
             <ChevronUpDownIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />

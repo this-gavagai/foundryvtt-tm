@@ -3,7 +3,7 @@
 // TODO: (feature) show damage modifiers in place of strike modifiers (can be down with "createMessage: false" prop on context object)
 // TODO: (UX) Improve dice representations for damage rolls (number and types)
 import type { Ref } from 'vue'
-import type { Item, Actor } from '@/types/pf2e-types'
+import type { Item, Actor, Action, Trait } from '@/types/pf2e-types'
 import { inject, ref, computed } from 'vue'
 import { formatModifier } from '@/utils/utilities'
 import { useApi } from '@/composables/api'
@@ -39,13 +39,13 @@ function doDamage(slug: string, crit: number) {
     <ul>
       <li
         v-for="(strike, i) in actor?.system?.actions
-          ?.filter((a: any) => a?.type === 'strike')
-          .map((a: any) => {
+          ?.filter((a: Action) => a?.type === 'strike')
+          .map((a: Action) => {
             a['item'] = actor?.items?.find((i: Item) => i.system?.slug === a?.slug)
             return a
           })
           .filter(
-            (a: any) => a.item?.system?.equipped?.carryType === 'held' || a.item === undefined
+            (a: Action) => a.item?.system?.equipped?.carryType === 'held' || a.item === undefined
           )"
         class="cursor-pointer pb-2 text-xl"
       >
@@ -84,8 +84,8 @@ function doDamage(slug: string, crit: number) {
       ref="strikeModal"
       :traits="
         viewedItem?.traits
-          .map((t: any) => t.label)
-          .concat(viewedItem?.weaponTraits.map((t: any) => t.label))
+          .map((t: Trait) => t.label)
+          .concat(viewedItem?.weaponTraits.map((t: Trait) => t.label))
       "
       :imageUrl="viewedItem?.item?.img ?? 'icons/skills/melee/unarmed-punch-fist.webp'"
     >

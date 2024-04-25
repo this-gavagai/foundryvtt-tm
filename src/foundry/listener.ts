@@ -5,8 +5,22 @@ import {
   foundryCastSpell,
   foundryConsumeItem
 } from './actions'
+import { Socket } from 'socket.io-client'
 
-declare const game: any
+interface Game {
+  socket: Socket
+  user: User
+  users: User[]
+}
+interface User {
+  _id: string
+  getFlag: Function
+  isGM: boolean
+  active: boolean
+  flags: { [key: string]: any }
+}
+
+declare const game: Game
 const MODNAME = 'module.tablemate'
 
 export function setupListener() {
@@ -17,7 +31,7 @@ export function setupListener() {
       event === 'userActivity' ||
       event === 'template' ||
       event === 'manageFiles' ||
-      event.action === 'get' ||
+      event?.[0]?.action === 'get' ||
       (event.match('module.') && !event.match('module.tablemate'))
     )
       return
@@ -60,8 +74,8 @@ function iAmFirstGM() {
   return (
     game.user.isGM &&
     !game.users
-      .filter((user: any) => user.isGM && user.active)
-      .some((other: any) => other._id < game.user._id)
+      .filter((user: User) => user.isGM && user.active)
+      .some((other: User) => other._id < game.user._id)
   )
 }
 function iAmObserver() {
@@ -69,7 +83,7 @@ function iAmObserver() {
 }
 function observerIsOnline() {
   return (
-    game.users.filter((user: any) => user.flags?.['tablemate']?.['shared_display'] && user.active)
+    game.users.filter((user: User) => user.flags?.['tablemate']?.['shared_display'] && user.active)
       .length > 0
   )
 }
