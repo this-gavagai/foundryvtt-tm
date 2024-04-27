@@ -397,7 +397,7 @@ const spellbook = computed((): Spellbook => {
         <Button
           ref="removeButton"
           label="Remove"
-          class="!bg-red-600 hover:!bg-red-500"
+          class="!bg-red-600 !text-white hover:!bg-red-500"
           v-if="infoModal.options?.entry?.system.prepared?.value === 'prepared'"
           @click="setSpellAndClose(infoModal.options, null)"
         />
@@ -406,7 +406,7 @@ const spellbook = computed((): Spellbook => {
           label="Cast"
           v-if="!infoModal.options?.isConsumable"
           type="button"
-          class="!bg-blue-600 hover:!bg-blue-500"
+          class="!bg-blue-600 !text-white hover:!bg-blue-500"
           @click="doSpell(viewedSpell!._id, infoModal.options)"
         />
         <Button
@@ -414,7 +414,7 @@ const spellbook = computed((): Spellbook => {
           label="Use"
           v-if="infoModal.options?.isConsumable"
           type="button"
-          class="!bg-green-600 hover:!bg-green-500"
+          class="!bg-green-600 !text-white hover:!bg-green-500"
           @click="doConsumable(viewedSpell!._id)"
         />
       </template>
@@ -437,8 +437,3 @@ const spellbook = computed((): Spellbook => {
     </Modal>
   </Teleport>
 </template>
-<style scoped>
-/* li.wands:has(li) {
-  background-color: purple;
-} */
-</style>

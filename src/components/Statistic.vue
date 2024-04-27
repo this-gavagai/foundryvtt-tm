@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { SignedNumber } from '@/utils/utilities'
 import { proficiencies } from '@/utils/constants'
 import InfoModal from './InfoModal.vue'
-import Modal from './Modal.vue'
+import Button from '@/components/Button.vue'
 import type { StatModifier, RollResult } from '@/types/pf2e-types'
 
 const props = defineProps([
@@ -15,6 +15,18 @@ const props = defineProps([
   'rollAction'
 ])
 const infoModal = ref()
+const rollButton = ref()
+
+function makeRoll() {
+  rollButton.value.waiting = true
+  // setTimeout(() => {
+  props.rollAction().then((r: RollResult) => {
+    infoModal.value.rollResultModal.open(r)
+    infoModal.value.close()
+    rollButton.value.waiting = false
+  })
+  // }, 3000)
+}
 
 defineExpose({ infoModal })
 </script>
@@ -71,7 +83,7 @@ defineExpose({ infoModal })
           </div>
         </template>
         <template #actionButtons>
-          <button
+          <!-- <button
             v-if="allowRoll"
             type="button"
             class="inline-flex items-end justify-center border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 focus:outline-none"
@@ -85,7 +97,15 @@ defineExpose({ infoModal })
             "
           >
             Roll
-          </button>
+          </button> -->
+          <Button
+            v-if="allowRoll"
+            ref="rollButton"
+            type="button"
+            class="bg-blue-600 text-white hover:bg-blue-500"
+            label="Roll"
+            @click="() => makeRoll()"
+          />
         </template>
       </InfoModal>
     </Teleport>

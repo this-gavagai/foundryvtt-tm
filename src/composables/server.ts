@@ -57,6 +57,15 @@ async function connectToServer(url: URL) {
     .catch((e) => {
       console.log('Error loading socket: ', e)
     })
+
+  // if (socket.value) {
+  //   const emitFn = socket.value?.emit
+  //   socket.value.emit = (...args) =>
+  //     setTimeout(() => {
+  //       emitFn.apply(socket, args)
+  //     }, 3000)
+  // }
+
   return socket
 }
 

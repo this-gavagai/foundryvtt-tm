@@ -2,8 +2,16 @@
 import { ref } from 'vue'
 import Modal from '@/components/Modal.vue'
 import { PlusCircleIcon, MinusCircleIcon } from '@heroicons/vue/24/outline'
+import Button from '@/components/Button.vue'
+import Spinner from '@/components/Spinner.vue'
 
-const props = defineProps<{ value: number; max?: number; editable?: boolean; title?: string }>()
+const props = defineProps<{
+  value: number
+  max?: number
+  editable?: boolean
+  title?: string
+  updating?: boolean
+}>()
 const counterModal = ref()
 const emit = defineEmits<{
   (e: 'changeCount', change: number): void
@@ -17,7 +25,11 @@ function changeCount(change: number) {
 function click() {
   if (props.editable) counterModal.value.open()
 }
-defineExpose({ click })
+function close() {
+  counterModal.value.close()
+}
+
+defineExpose({ click, close })
 </script>
 <template>
   <div @click="click" class="cursor-pointer">
@@ -27,25 +39,36 @@ defineExpose({ click })
     </span>
     <Teleport to="#modals">
       <Modal ref="counterModal" :title="props.title">
-        <div class="w-full py-8 text-3xl flex justify-between">
-          <button
-            :disabled="props.value < 1"
+        <div class="flex w-full justify-between py-8 text-3xl">
+          <Button
+            :disabled="updating || props.value < 1"
             class="text-gray-500 disabled:invisible"
             @click="changeCount(-1)"
           >
-            <MinusCircleIcon class="h-8 w-8 mr-4" />
-          </button>
-          <div>
-            <span v-for="i in Number(props.value ?? 0)">●</span>
-            <span v-if="props.max" v-for="i in Number(props.max - props.value)">○</span>
+            <MinusCircleIcon class="mr-4 h-8 w-8" />
+          </Button>
+          <div class="grid grid-cols-1 grid-rows-1">
+            <div
+              class="relative row-start-1 row-end-1 py-2 transition-opacity delay-200 ease-in"
+              :class="{ 'opacity-0': updating }"
+            >
+              <span v-for="i in Number(props.value ?? 0)">●</span>
+              <span v-if="props.max" v-for="i in Number(props.max - props.value)">○</span>
+            </div>
+            <div class="absolute row-start-1 row-end-1 px-7">
+              <Spinner
+                class="mx-auto h-12 flex-1 py-2 transition-opacity delay-200 ease-out"
+                :class="{ 'opacity-0': !updating }"
+              />
+            </div>
           </div>
-          <button
-            :disabled="props.value >= (props.max ?? 1000)"
+          <Button
+            :disabled="updating || (props.max && props.value >= props.max)"
             class="text-gray-500 disabled:invisible"
             @click="changeCount(+1)"
           >
-            <PlusCircleIcon class="h-8 w-8 ml-4" />
-          </button>
+            <PlusCircleIcon class="ml-4 h-8 w-8" />
+          </Button>
         </div>
       </Modal>
     </Teleport>

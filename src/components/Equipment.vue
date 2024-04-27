@@ -18,7 +18,6 @@ import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/20/solid'
 import EquipmentInvested from '@/components/EquipmentInvested.vue'
 import Modal from '@/components/Modal.vue'
 import InfoModal from '@/components/InfoModal.vue'
-import { useGamepad } from '@vueuse/core'
 
 const actor = inject(useKeys().actorKey)!
 const infoModal = ref()
@@ -256,16 +255,16 @@ const toggleSet = [
             <Switch
               v-model="itemWorn"
               :class="itemWorn ? 'bg-green-600' : 'bg-gray-500'"
-              class="relative inline-flex h-[18px] w-[34px] shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-white/75"
+              class="relative inline-flex h-[24px] w-[40px] shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-white/75"
             >
               <span class="sr-only">Item Worn in Slot?</span>
               <span
                 aria-hidden="true"
                 :class="itemWorn ? 'translate-x-4' : 'translate-x-0'"
-                class="pointer-events-none inline-block h-[14px] w-[14px] transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out"
+                class="pointer-events-none inline-block h-[20px] w-[20px] transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out"
               />
             </Switch>
-            <span class="ml-2 pb-1 align-middle text-sm" :class="{ 'text-gray-400': !itemWorn }">{{
+            <span class="text-md ml-2 align-middle" :class="{ 'text-gray-400': !itemWorn }">{{
               itemWorn ? `Item equipped (${itemWornType})` : 'Item not equipped'
             }}</span>
           </div>
@@ -274,25 +273,23 @@ const toggleSet = [
               item?.system.equipped.carryType === 'worn' &&
               (item.system.equipped.invested === true || item.system.equipped.invested === false)
             "
-            class="flex"
+            class="flex py-1"
           >
             <Switch
               v-model="itemInvested"
               :class="itemInvested ? 'bg-green-600' : 'bg-gray-500'"
-              class="relative inline-flex h-[18px] w-[34px] shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-white/75"
+              class="relative inline-flex h-[24px] w-[40px] shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-white/75"
             >
               <span class="sr-only">Item invested?</span>
               <span
                 aria-hidden="true"
                 :class="itemInvested ? 'translate-x-4' : 'translate-x-0'"
-                class="pointer-events-none inline-block h-[14px] w-[14px] transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out"
+                class="pointer-events-none inline-block h-[20px] w-[20px] transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out"
               />
             </Switch>
-            <span
-              class="ml-2 pb-1 align-middle text-sm"
-              :class="{ 'text-gray-400': !itemInvested }"
-              >{{ itemInvested ? `Item invested` : 'Item not invested' }}</span
-            >
+            <span class="text-md ml-2 align-middle" :class="{ 'text-gray-400': !itemInvested }">{{
+              itemInvested ? `Item invested` : 'Item not invested'
+            }}</span>
           </div>
           <div
             v-if="

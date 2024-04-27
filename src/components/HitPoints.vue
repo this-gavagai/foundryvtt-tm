@@ -37,12 +37,14 @@ function updateHitPoints(hp_input: string, temp_input: string) {
   newTemp = Math.max(newTemp, 0)
   actor.value!.system.attributes.hp.temp = newTemp
 
-  if (actor.value !== undefined)
-    updateActor(
-      actor as Ref<Actor>,
-      { system: { attributes: { hp: { value: newHP, temp: newTemp } } } },
-      null
-    )
+  setTimeout(() => {
+    if (actor.value !== undefined)
+      updateActor(
+        actor as Ref<Actor>,
+        { system: { attributes: { hp: { value: newHP, temp: newTemp } } } },
+        null
+      )
+  }, 3000)
 }
 
 const lastDamageAmount = computed(() => {
