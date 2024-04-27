@@ -24,7 +24,6 @@ const actor = inject(useKeys().actorKey)!
 const world = inject(useKeys().worldKey)!
 const hitpointsModal = ref()
 const hpStat = ref()
-const focusTarget = ref(null)
 
 const { updateActor } = useApi()
 
@@ -77,7 +76,6 @@ const lastDamageAmount = computed(() => {
     <Modal
       ref="hitpointsModal"
       title="Hit Points"
-      :focusTarget="focusTarget"
       :infoButton="
         () => {
           hitpointsModal.close()
@@ -106,7 +104,6 @@ const lastDamageAmount = computed(() => {
         <div class="flex w-full items-center justify-center pb-1 pt-4">
           <div class="w-1/3">Standard:</div>
           <input
-            ref="focusTarget"
             class="ml-[32px] mr-4 w-1/3 border-2 border-black p-1 text-right text-3xl"
             name="hp"
             type="input"
