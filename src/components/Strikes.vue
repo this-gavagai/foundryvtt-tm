@@ -16,11 +16,12 @@ const { rollCheck } = useApi()
 const viewedItem = computed(() => actor.value?.system?.actions?.[strikeModal.value?.itemId])
 
 function doStrike(slug: string) {
-  if (actor.value)
+  if (actor.value) {
     rollCheck(actor as Ref<Actor>, 'strike', slug).then((r) => {
       strikeModal.value.close()
       strikeModal.value.rollResultModal.open(r)
     })
+  }
 }
 function doDamage(slug: string, crit: number) {
   if (actor.value)

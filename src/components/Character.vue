@@ -34,16 +34,16 @@ const { width } = useWindowSize()
 const sideMenu = ref()
 
 const props = defineProps(['characterId'])
+const panels = ref()
 
 export interface CharacterRef<T> extends Ref<T> {
   requestCharacterDetails?: Function
 }
 
 // base data
+const world = inject(useKeys().worldKey)!
 const actor: CharacterRef<Actor | undefined> = ref()
 provide(useKeys().actorKey, actor)
-const world = inject(useKeys().worldKey)
-const panels = ref()
 
 // load character from world value if no character details received
 watch(world, () => {
@@ -57,8 +57,8 @@ watch(world, () => {
 const throttledCharacterRequest = useThrottleFn(sendCharacterRequest, 1000, true, false)
 actor.requestCharacterDetails = async () => throttledCharacterRequest(props.characterId, actor)
 sendCharacterRequest(props.characterId, actor)
-
 setupSocketListenersForActor(props.characterId, actor)
+
 defineExpose({ actor })
 </script>
 <template>

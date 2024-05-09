@@ -5,7 +5,7 @@ import { ref, watchEffect } from 'vue'
 const activeScene = ref()
 const activeCombat = ref()
 
-export function useCombat(world: Ref<World> | null = null) {
+export function useCombat(world: Ref<World | undefined> | null = null) {
   if (world) {
     watchEffect(() => {
       activeScene.value = world.value?.scenes?.find((s: Scene) => s.active)

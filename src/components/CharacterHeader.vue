@@ -12,7 +12,7 @@ import HeroPoints from '@/components/HeroPoints.vue'
 import Spinner from '@/components/Spinner.vue'
 import SideMenu from '@/components/SideMenu.vue'
 
-const world: Ref<World> = inject(useKeys().worldKey)
+const world = inject(useKeys().worldKey)
 const actor = inject(useKeys().actorKey)!
 const { characterList } = useCharacterSelect()
 const sideMenu = ref()
@@ -48,7 +48,7 @@ function reloadPage() {
               v-slot="{ active, selected }"
               v-for="character in characterList
                 .filter((c: string) => c !== actor?._id)
-                .map((c: string) => world.actors.find((a: Actor) => a._id === c))"
+                .map((c: string) => world?.actors.find((a: Actor) => a._id === c))"
               :key="character._id"
               :value="character"
               @click="$emit('pickCharacter', character._id)"

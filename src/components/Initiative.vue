@@ -50,6 +50,7 @@ const initiativeReady = computed(() => {
 function doInitiative() {
   if (actor.value) return rollCheck(actor as Ref<Actor>, 'initiative')
 }
+// parent.initiative = { activeCombat, initiativeReady }
 </script>
 <template>
   <div class="flex gap-4 border-b px-6 py-4">

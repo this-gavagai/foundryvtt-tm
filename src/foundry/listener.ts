@@ -5,22 +5,10 @@ import {
   foundryCastSpell,
   foundryConsumeItem
 } from './actions'
-import { Socket } from 'socket.io-client'
-
-interface Game {
-  socket: Socket
-  user: User
-  users: User[]
-}
-interface User {
-  _id: string
-  getFlag: Function
-  isGM: boolean
-  active: boolean
-  flags: { [key: string]: any }
-}
+import type { Game, User } from '@/types/pf2e-types'
 
 declare const game: Game
+declare const Hooks: any
 const MODNAME = 'module.tablemate'
 
 export function setupListener() {
@@ -31,21 +19,21 @@ export function setupListener() {
       event === 'userActivity' ||
       event === 'template' ||
       event === 'manageFiles' ||
-      event?.[0]?.action === 'get' ||
+      args?.[0]?.action === 'get' ||
       (event.match('module.') && !event.match('module.tablemate'))
     )
       return
     console.log(`TM.SEND ${event}`, args)
-    console.log(event)
   })
 
   // game.socket.on('modifyDocument', (args) => console.log(args))
   game.socket.on(MODNAME, (args: any) => {
-    console.log('TM.RECV', args)
+    console.log('TM.RECV (listener)', args)
     if (!iAmObserverOrFallbackGM()) return
     switch (args.action) {
       case 'anybodyHome':
         announceSelf()
+        if (game.user.flags?.['tablemate']?.['shared_display']) broadcastTargets()
         break
       case 'requestCharacterDetails':
         getCharacterDetails(args).then((result) => game.socket.emit(MODNAME, result))
@@ -68,6 +56,11 @@ export function setupListener() {
         console.log('event not caught', args.action, args)
     }
   })
+  if (game.user.flags?.['tablemate']?.['shared_display']) {
+    Hooks.on('targetToken', (user: any, token: any, targeted: boolean) => {
+      broadcastTargets()
+    })
+  }
 }
 
 // utility functions
@@ -94,6 +87,15 @@ function iAmObserverOrFallbackGM() {
 
 function announceSelf() {
   game.socket.emit(MODNAME, {
-    action: 'gmOnline'
+    action: 'listenerOnline',
+    user: game.user._id
+  })
+}
+
+function broadcastTargets() {
+  game.socket.emit('module.tablemate', {
+    action: 'shareTarget',
+    userId: game.user._id,
+    targets: game.user.targets.ids
   })
 }

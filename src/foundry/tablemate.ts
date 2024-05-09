@@ -38,46 +38,66 @@ Hooks.on('setup', function () {
 
 Hooks.on('ready', () => {
   const user = game.data.users.find((x: any) => x._id === game.userId)
+  if (user.flags?.['tablemate']?.['character_sheet'] === 'frame') {
+    if (!game.audio.locked) game.audio.context.stop()
+  }
   if (user.flags?.['tablemate']?.['shared_display']) {
     setupTouch()
   }
-  setupListener()
-
   Hooks.on('renderUserConfigPF2e', (app: any, html: any, data: any) => {
-    const control = document.createDocumentFragment()
-    const wrapper = document.createElement('div')
-    wrapper.className = 'form-group'
-    const label = document.createElement('label')
-    label.textContent = 'Character Sheet'
-    wrapper.append(label)
-    const fields = document.createElement('div')
-    fields.className = 'form-fields'
-    wrapper.append(fields)
-    const selector = document.createElement('select')
-    fields.append(selector)
-    const sel_standard = document.createElement('option')
-    const sel_embedded = document.createElement('option')
-    const sel_external = document.createElement('option')
-    sel_standard.innerText = 'Foundry Default'
-    sel_embedded.innerText = 'Tablemate (Embedded)'
-    sel_external.innerText = 'Tablemate (External)'
-    sel_standard.value = ''
-    sel_embedded.value = 'frame'
-    sel_external.value = 'root'
-    selector.append(sel_standard)
-    selector.append(sel_embedded)
-    selector.append(sel_external)
-
-    control.appendChild(wrapper)
-    const userForm = html[0].querySelector('form')
-    userForm.prepend(control)
-    app._onChangeTab()
-
-    selector.value = data.user.getFlag('tablemate', 'character_sheet') ?? ''
-    userForm.addEventListener(
-      'submit',
-      () => data.user.setFlag('tablemate', 'character_sheet', selector.value),
-      false
-    )
+    addCharSheetFields(app, html, data)
   })
+  setupListener()
 })
+
+function newElement(tag: string, properties: any = {}) {
+  return Object.assign(document.createElement(tag), properties)
+}
+/////////
+function addCharSheetFields(app: any, html: any, data: any) {
+  // sheet selector
+  const sheetSelect = newElement('div', { className: 'form-group' })
+  const sheetLabel = newElement('label', { textContent: 'Character Sheet' })
+  const sheetFields = newElement('div', { className: 'form-fields' })
+  const sheetNote = newElement('p', {
+    className: 'notes',
+    innerText: 'Tablemate character sheet display mode'
+  })
+  const selector = newElement('select')
+  const sel_standard = newElement('option', { value: '', innerText: 'Foundry Default' })
+  const sel_embedded = newElement('option', { value: 'frame', innerText: 'Tablemate (Embedded)' })
+  const sel_external = newElement('option', { value: 'root', innerText: 'Tablemate (Extended)' })
+
+  sheetSelect.append(sheetLabel, sheetFields, sheetNote)
+  sheetFields.append(selector)
+  selector.append(sel_standard, sel_embedded, sel_external)
+
+  // shared display toggle
+  const displayToggle = newElement('div', { className: 'form-group' })
+  const displayLabel = newElement('label', { textContent: 'Shared Display?' })
+  const displayFields = newElement('div', { className: 'form-fields' })
+  const displayNote = newElement('p', {
+    className: 'notes',
+    innerText: 'Shared Display for Targetting Assistance and Proxying'
+  })
+  const toggle = newElement('input', { type: 'checkbox' })
+
+  displayToggle.append(displayLabel, displayFields, displayNote)
+  displayFields.append(toggle)
+
+  // append to form
+  const userForm = html[0].querySelector('form')
+  userForm.prepend(sheetSelect, displayToggle)
+  app._onChangeTab()
+
+  selector.value = data.user.getFlag('tablemate', 'character_sheet') ?? ''
+  toggle.checked = data.user.getFlag('tablemate', 'shared_display') ? true : false
+  userForm.addEventListener(
+    'submit',
+    () => {
+      data.user.setFlag('tablemate', 'character_sheet', selector.value)
+      data.user.setFlag('tablemate', 'shared_display', toggle.checked)
+    },
+    false
+  )
+}

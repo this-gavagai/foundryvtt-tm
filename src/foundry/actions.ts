@@ -6,8 +6,11 @@ import type {
   Modifier,
   Combatant,
   CastArgs,
-  ConsumeArgs
+  ConsumeArgs,
+  Game
 } from '@/types/pf2e-types'
+
+declare const game: Game
 
 const MODNAME = 'module.tablemate'
 const source = typeof window.game === 'undefined' ? parent.game : window.game
@@ -50,12 +53,19 @@ export async function getCharacterDetails(args: { actorId: string }) {
 export async function foundryRollCheck(args: CheckArgs) {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   //https://github.com/foundryvtt/pf2e/blob/68988e12fbec7ea8359b9bee9b0c43eb6964ca3f/src/module/system/statistic/statistic.ts#L617
-  console.log(source)
   const actor = source.actors.get(args.characterId, { strict: true })
   const modifiers = args.modifiers.map((m: Modifier) => {
     return new source.pf2e.Modifier(m)
   })
-  const params = { skipDialog: args.skipDialog, modifiers: modifiers }
+  const targetTokenDoc =
+    args.targets.map((t: string) => source.scenes.active.tokens.get(t))[0] ?? null
+  const params = {
+    modifiers: modifiers,
+    target: { document: targetTokenDoc }
+    // skipDialog: args.skipDialog,
+    // context: { target: args.options?.targets },
+  }
+  console.log('params', params)
   let roll
   switch (args.checkType) {
     case 'strike':

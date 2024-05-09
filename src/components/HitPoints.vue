@@ -50,6 +50,7 @@ const lastDamageAmount = computed(() => {
   const lastMessage = world.value?.messages?.slice(-1)?.[0]
   const lastRoll = lastMessage?.rolls?.[0]
   if (lastRoll && JSON.parse(lastRoll)?.class === 'DamageRoll') {
+    console.log(JSON.parse(lastRoll))
     return JSON.parse(lastRoll)?.total
   } else {
     return 0
@@ -173,4 +174,3 @@ const lastDamageAmount = computed(() => {
     </Modal>
   </Teleport>
 </template>
-@/composables/api@/composables@/types/pf2e-types

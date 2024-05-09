@@ -25,14 +25,16 @@ provide(useKeys().worldKey, world)
 const { connectToServer } = useServer()
 const { setupSocketListenersForWorld } = useApi()
 const location = new URL(window.location.origin)
-connectToServer(location).then((socket) => {
-  socket.value?.emit('world', (r: World) => (world.value = r))
-  if (world.value) {
-    setupSocketListenersForWorld(world as Ref<World>).then(() => {
-      socket.value?.emit('module.tablemate', { action: 'anybodyHome' })
+if (!world.value) {
+  connectToServer(location).then((socket) => {
+    socket.value?.emit('world', (r: World) => {
+      world.value = r
+      setupSocketListenersForWorld(world as Ref<World>).then(() => {
+        socket.value?.emit('module.tablemate', { action: 'anybodyHome' })
+      })
     })
-  }
-})
+  })
+}
 
 const activeIndex = ref<number>(0)
 const { characterList } = useCharacterSelect(urlId, world)

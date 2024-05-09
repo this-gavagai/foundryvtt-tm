@@ -25,6 +25,7 @@ import {
 
 import { merge } from 'lodash-es'
 import { useServer } from '@/composables/server'
+import { useTargetHelper } from '@/composables/targetHelper'
 
 const { getSocket } = useServer()
 
@@ -106,12 +107,18 @@ async function setupSocketListenersForActor(
   socket.on('module.tablemate', (args: EventArgs) => {
     if (!actor.value) return
     switch (args.action) {
-      case 'gmOnline':
-        actor.requestCharacterDetails!()
+      case 'listenerOnline':
+        if (!parent.game) actor.requestCharacterDetails!()
         break
       case 'updateCharacterDetails':
         parseActorData(actorId, actor, args)
         break
+      // case 'shareTarget':
+      //   // TODO: (feature) other use cases here: non-shared display, gm targeting, etc
+      //   if (parent.game) {
+      //     console.log(args.targets)
+      //     parent.game.user.updateTokenTargets(args.targets)
+      //   }
     }
   })
   socket.on('modifyDocument', (args: EventArgs) => {
@@ -303,10 +310,12 @@ async function rollCheck(
   modifiers = [],
   options = {}
 ): Promise<ResolutionArgs> {
+  const { targets } = useTargetHelper()
   const uuid = crypto.randomUUID()
   const args = {
     action: 'rollCheck',
     characterId: actor.value._id,
+    targets: targets.value,
     checkType,
     checkSubtype,
     modifiers,

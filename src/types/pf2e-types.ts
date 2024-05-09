@@ -1,5 +1,5 @@
 // TODO: (code quality) get rid of all the any's
-
+import { Socket } from 'socket.io-client'
 export interface Actor {
   _id: string
   name: string
@@ -10,6 +10,22 @@ export interface Actor {
   prototypeToken: any
   requestCharacterDetails: any
   ownership: any
+}
+
+export interface User {
+  _id: string
+  getFlag: Function
+  isGM: boolean
+  active: boolean
+  flags: { [key: string]: any }
+  targets: any
+}
+
+export interface Game {
+  socket: Socket
+  user: User
+  users: User[]
+  scenes: any
 }
 
 export interface Action {
@@ -166,6 +182,7 @@ export interface EventArgs {
   actorId: string
   characterId: string
   modifiers: any
+  targets: string[]
 }
 export interface CheckArgs {
   action: string
@@ -176,6 +193,7 @@ export interface CheckArgs {
   options: any
   skipDialog: boolean
   uuid: string
+  targets?: any
 }
 export interface ActionArgs {
   action: string

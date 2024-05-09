@@ -11,7 +11,6 @@ import Modal from '@/components/Modal.vue'
 
 const actor = inject(useKeys().actorKey)!
 const experienceModal = ref()
-const focusTarget = ref()
 const { updateActor } = useApi()
 
 function updateExperience(input: string) {
@@ -53,7 +52,7 @@ interface InputSelect {
     </div>
   </Statistic>
   <Teleport to="#modals">
-    <Modal ref="experienceModal" title="Experience Points" :focusTarget="focusTarget">
+    <Modal ref="experienceModal" title="Experience Points">
       <form
         @submit.prevent="
           (e: Event) => {
@@ -78,7 +77,6 @@ interface InputSelect {
                 field.select()
               }
             "
-            ref="focusTarget"
           />
         </div>
         <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
