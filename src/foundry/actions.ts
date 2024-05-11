@@ -61,7 +61,7 @@ export async function foundryRollCheck(args: CheckArgs) {
     args.targets.map((t: string) => source.scenes.active.tokens.get(t))[0] ?? null
   const params = {
     modifiers: modifiers,
-    target: { document: targetTokenDoc }
+    target: targetTokenDoc ? { document: targetTokenDoc } : null
     // skipDialog: args.skipDialog,
     // context: { target: args.options?.targets },
   }
