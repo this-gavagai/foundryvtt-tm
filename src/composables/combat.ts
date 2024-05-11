@@ -1,3 +1,5 @@
+//TODO: (feature) have more combat information on main screen
+
 import type { Ref } from 'vue'
 import type { World, Scene, Combat } from '@/types/pf2e-types'
 import { ref, watchEffect } from 'vue'

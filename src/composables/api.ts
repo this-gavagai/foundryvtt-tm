@@ -113,12 +113,6 @@ async function setupSocketListenersForActor(
       case 'updateCharacterDetails':
         parseActorData(actorId, actor, args)
         break
-      // case 'shareTarget':
-      //   // TODO: (feature) other use cases here: non-shared display, gm targeting, etc
-      //   if (parent.game) {
-      //     console.log(args.targets)
-      //     parent.game.user.updateTokenTargets(args.targets)
-      //   }
     }
   })
   socket.on('modifyDocument', (args: EventArgs) => {
@@ -283,11 +277,14 @@ async function castSpell(
   castingLevel: number,
   castingSlot: number
 ): Promise<ResolutionArgs> {
+  // TODO: (feature) add target assist to spells
+  const { targets } = useTargetHelper()
   const uuid = crypto.randomUUID()
   const args = {
     action: 'castSpell',
     id: spellId,
     characterId: actor.value._id,
+    targets: targets.value,
     rank: castingLevel,
     slotId: castingSlot,
     uuid
@@ -339,10 +336,13 @@ async function characterAction(
   characterAction: string,
   options = {}
 ): Promise<ResolutionArgs> {
+  // TODO: (feature) add target assist to actions
+  const { targets } = useTargetHelper()
   const uuid = crypto.randomUUID()
   const args = {
     action: 'characterAction',
     characterId: actor.value._id,
+    targets: targets.value,
     characterAction,
     options,
     uuid

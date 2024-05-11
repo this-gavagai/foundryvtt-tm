@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // TODO: (feature) deal with flexible prepared casters
-// TODO: (feature+) figure out how to get staves in here (integration with pf2e-dailies)
+// TODO: (feature+) figure out how to get staves in here (integration with pf2e-dailies?)
 
 import type { Ref } from 'vue'
 import type { Item, Actor } from '@/types/pf2e-types'

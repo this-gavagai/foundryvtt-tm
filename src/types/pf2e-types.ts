@@ -198,6 +198,7 @@ export interface CheckArgs {
 export interface ActionArgs {
   action: string
   characterId: string
+  targets: any
   characterAction: any
   options: any
   uuid: string

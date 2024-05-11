@@ -19,10 +19,10 @@ Hooks.on('init', function () {
 Hooks.on('setup', function () {
   const user = game.data.users.find((x: any) => x._id === game.userId)
   if (user.flags?.['tablemate']?.['character_sheet'] === 'frame') {
-    // TODO: (bug) turn off dice roll preview settings programmatically; character creation hangs otherwise
+    // TODO: (bug) turn off dice roll preview settings programmatically; character loading hangs otherwise
     game.settings.set('core', 'noCanvas', true)
-    //user.flags.settings.pf2e.settings.showCheckDialogs = false
-    //user.flags.settings.pf2e.settings.showDamageDialogs = false
+    user.flags.pf2e.settings.showCheckDialogs = false
+    user.flags.pf2e.settings.showDamageDialogs = false
 
     const app = document.createElement('iframe')
     app.width = '100%'
@@ -39,7 +39,7 @@ Hooks.on('setup', function () {
 Hooks.on('ready', () => {
   const user = game.data.users.find((x: any) => x._id === game.userId)
   if (user.flags?.['tablemate']?.['character_sheet'] === 'frame') {
-    if (!game.audio.locked) game.audio.context.stop()
+    if (!game.audio.locked) game.audio.context?.stop()
   }
   if (user.flags?.['tablemate']?.['shared_display']) {
     setupTouch()
@@ -66,7 +66,7 @@ function addCharSheetFields(app: any, html: any, data: any) {
   const selector = newElement('select')
   const sel_standard = newElement('option', { value: '', innerText: 'Foundry Default' })
   const sel_embedded = newElement('option', { value: 'frame', innerText: 'Tablemate (Embedded)' })
-  const sel_external = newElement('option', { value: 'root', innerText: 'Tablemate (Extended)' })
+  const sel_external = newElement('option', { value: 'root', innerText: 'Tablemate (External)' })
 
   sheetSelect.append(sheetLabel, sheetFields, sheetNote)
   sheetFields.append(selector)

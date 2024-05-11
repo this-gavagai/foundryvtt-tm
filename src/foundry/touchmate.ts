@@ -1,3 +1,4 @@
+//TODO: (feature) find a way to target friends
 // touch tweaks
 
 declare const Hammer: any

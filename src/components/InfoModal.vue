@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// TODO: (feature+) Make modifiers for rolls alterable
+// TODO: (feature++) Make modifiers for rolls alterable
 import { ref } from 'vue'
 import {
   Dialog,

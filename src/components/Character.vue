@@ -80,10 +80,10 @@ defineExpose({ actor })
             <FrontPage />
           </TabPanel>
           <TabPanel tabindex="-1">
-            <Skills />
+            <Feats />
           </TabPanel>
           <TabPanel tabindex="-1">
-            <Feats />
+            <Skills />
           </TabPanel>
           <TabPanel tabindex="-1">
             <Equipment />
@@ -98,8 +98,8 @@ defineExpose({ actor })
         </TabPanels>
         <TabList class="flex h-20 justify-around border-t md:border-b">
           <CharacterTab :src="cowled" label="Character" class="md:hidden" />
-          <CharacterTab :src="skills" label="Proficiencies" />
           <CharacterTab :src="biceps" label="Feats" />
+          <CharacterTab :src="skills" label="Proficiencies" />
           <CharacterTab :src="backpack" label="Equipment" />
           <CharacterTab :src="leapfrog" label="Actions" />
           <CharacterTab :src="spellBook" label="Spells" />

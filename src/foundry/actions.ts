@@ -105,12 +105,18 @@ export async function foundryRollCheck(args: CheckArgs) {
 export async function foundryCharacterAction(args: ActionArgs) {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.get(args.characterId, { strict: true })
+  const targetTokenDoc =
+    args.targets.map((t: string) => source.scenes.active.tokens.get(t))[0] ?? null
+  // TODO: (bug) find a way around pf2e's requirement for TokenPF2e objects in order to token (which isn't possible if canvas is off)
+  // problematic code: https://github.com/foundryvtt/pf2e/blob/2eaef272f3e17f340eba1b7f2dc82e857d8d296e/src/module/actor/actions/single-check.ts#L160
   const params = { ...args.options, actors: actor }
+  console.log('params', params)
   let promise
   if (args.characterAction.match('legacy.')) {
     const actionKey = args.characterAction.replace('legacy.', '')
     promise = source.pf2e.actions[actionKey](params)
   } else {
+    console.log('params', params)
     promise = source.pf2e.actions.get(args.characterAction).use(params)
   }
   const r = await promise

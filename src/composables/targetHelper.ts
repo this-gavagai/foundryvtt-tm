@@ -1,5 +1,3 @@
-// todo: (bug!) this seems to just fail when canvas is off. fundamental limitation?
-
 import type { Ref } from 'vue'
 import type { World, Scene, Combat, EventArgs } from '@/types/pf2e-types'
 import { ref, watchEffect, computed, inject } from 'vue'
