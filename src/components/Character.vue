@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // TODO: (bug) fix dvh/vh nonsense in iOS
+// TODO: abstract actor class to new interface (to simplify system-level changes to data structure)
 import type { Actor } from '@/types/pf2e-types'
 import type { Ref } from 'vue'
 import { ref, provide, watch, inject } from 'vue'
@@ -28,6 +29,7 @@ import Spells from '@/components/Spells.vue'
 import Feats from '@/components/Feats.vue'
 import Equipment from '@/components/Equipment.vue'
 import Strikes from '@/components/Strikes.vue'
+import { useWorld } from '@/composables/world'
 
 const { sendCharacterRequest, setupSocketListenersForActor } = useApi()
 const { width } = useWindowSize()
@@ -41,7 +43,7 @@ export interface CharacterRef<T> extends Ref<T> {
 }
 
 // base data
-const world = inject(useKeys().worldKey)!
+const { world } = useWorld()
 const actor: CharacterRef<Actor | undefined> = ref()
 provide(useKeys().actorKey, actor)
 
@@ -63,15 +65,15 @@ defineExpose({ actor })
 </script>
 <template>
   <div class="flex h-screen">
-    <div class="hidden overflow-scroll border-r md:block md:w-[320px]">
+    <div class="hidden border-r md:block md:h-screen md:w-[320px] md:overflow-scroll">
       <CharacterHeader @pickCharacter="(id: string) => $emit('pickCharacter', id)" />
       <FrontPage />
     </div>
     <div
-      class="flex w-full flex-1 flex-col justify-between overflow-scroll md:justify-start md:border-l"
+      class="flex w-full flex-1 flex-col justify-between md:h-screen md:justify-start md:border-l"
     >
       <TabGroup :defaultIndex="width >= 768 ? 1 : 0" @change="panels.$el.scrollTop = 0">
-        <TabPanels tabindex="-1" class="overflow-scroll md:order-last" ref="panels">
+        <TabPanels tabindex="-1" class="md:order-last md:overflow-scroll" ref="panels">
           <CharacterHeader
             @pickCharacter="(id: string) => $emit('pickCharacter', id)"
             class="md:hidden"

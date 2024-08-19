@@ -12,7 +12,7 @@ import type {
   EventResponse
 } from '@/types/pf2e-types'
 import type { CharacterRef } from '@/components/Character.vue'
-import { useThrottleFn } from '@vueuse/core'
+import { useThrottleFn, useDebounceFn } from '@vueuse/core'
 import { ref } from 'vue'
 
 import {
@@ -26,6 +26,7 @@ import {
 import { merge } from 'lodash-es'
 import { useServer } from '@/composables/server'
 import { useTargetHelper } from '@/composables/targetHelper'
+import { useWorld } from '@/composables/world'
 
 const { getSocket } = useServer()
 
@@ -34,11 +35,32 @@ function pushToAckQueue(uuid: string, callback: Function) {
   ackQueue[uuid] = callback
 }
 
+export function processChanges(args: any, dataRoot: any) {
+  switch (args.action) {
+    case 'create':
+      _processCreates(dataRoot, args.result as Item[])
+      break
+    case 'update':
+      _processUpdates(dataRoot, args.result as Item[])
+      break
+    case 'delete':
+      _processDeletes(dataRoot, args.result as string[])
+      break
+  }
+}
+
+function uuidv4() {
+  return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) =>
+    (+c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (+c / 4)))).toString(16)
+  )
+}
+
 ///////////////////////////////////////
 // Setup Methods                     //
 ///////////////////////////////////////
 async function setupSocketListenersForWorld(world: Ref<World>) {
   const socket = await getSocket()
+  const { refreshWorld } = useWorld()
   socket.on('module.tablemate', (args: EventArgs) => {
     switch (args.action) {
       case 'acknowledged':
@@ -50,52 +72,22 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
     }
   })
   socket.on('modifyDocument', (args: EventArgs) => {
-    switch (args.request.type) {
+    // let documentSource
+    switch (args.type) {
       case 'Combat':
-        switch (args.request.action) {
-          case 'create':
-            _processCreates(world.value.combats, args.result as Item[])
-            break
-          case 'update':
-            _processUpdates(world.value.combats, args.result as Item[])
-            break
-          case 'delete':
-            _processDeletes(world.value.combats, args.result as string[])
-            break
-        }
-        requestWorldDetails(world)
+        processChanges(args, world.value.combats)
         break
       case 'Combatant':
-        const combatId = args.request.parentUuid.split('.')?.[1]
+        const combatId = args.operation.parentUuid.split('.')?.[1]
         const combat = world.value?.combats.find((c: Combat) => c._id === combatId)
-        switch (args.request.action) {
-          case 'create':
-            _processCreates(combat.combatants, args.result as Item[])
-            break
-          case 'update':
-            _processUpdates(combat.combatants, args.result as Item[])
-            break
-          case 'delete':
-            _processDeletes(combat.combatants, args.result as string[])
-            break
-        }
-        requestWorldDetails(world)
+        processChanges(args, combat.combatants)
         break
       case 'ChatMessage':
-        switch (args.request.action) {
-          case 'create':
-            _processCreates(world.value.messages, args.result as Item[])
-            break
-          case 'update':
-            _processUpdates(world.value.messages, args.result as Item[])
-            break
-          case 'delete':
-            _processDeletes(world.value.messages, args.result as string[])
-            break
-        }
-        requestWorldDetails(world)
+        processChanges(args, world.value.messages)
         break
     }
+    // TODO: figure out if these refreshWorld calls are really necessary
+    refreshWorld()
   })
 }
 
@@ -105,19 +97,20 @@ async function setupSocketListenersForActor(
 ) {
   const socket = await getSocket()
   socket.on('module.tablemate', (args: EventArgs) => {
-    if (!actor.value) return
+    // if (!actor.value) return // why was this here?
     switch (args.action) {
       case 'listenerOnline':
         if (!parent.game) actor.requestCharacterDetails!()
         break
       case 'updateCharacterDetails':
+        console.log('updating', actorId)
         parseActorData(actorId, actor, args)
         break
     }
   })
   socket.on('modifyDocument', (args: EventArgs) => {
     if (!actor.value) return
-    switch (args.request.type) {
+    switch (args.type) {
       case 'Actor':
         args.result.forEach((change: any) => {
           if (change._id === actor.value?._id) {
@@ -128,18 +121,8 @@ async function setupSocketListenersForActor(
         break
       case 'Item':
         if (!actor.value) return
-        if (args.request.parentUuid !== 'Actor.' + actorId) break
-        switch (args.request.action) {
-          case 'update':
-            _processUpdates(actor.value.items, args.result as Item[])
-            break
-          case 'create':
-            _processCreates(actor.value.items, args.result as Item[])
-            break
-          case 'delete':
-            _processDeletes(actor.value.items, args.result as string[])
-            break
-        }
+        if (args.operation.parentUuid !== 'Actor.' + actorId) break
+        processChanges(args, actor.value.items)
         actor.requestCharacterDetails!()
         break
     }
@@ -161,13 +144,17 @@ async function updateActor(
       {
         action: 'update',
         type: 'Actor',
-        options: { diff: true, render: true, ...additionalOptions },
-        updates: [
-          {
-            _id: actor.value!._id,
-            ...update
-          }
-        ]
+        operation: {
+          diff: true,
+          render: true,
+          updates: [
+            {
+              _id: actor.value!._id,
+              ...update
+            }
+          ],
+          ...additionalOptions
+        }
       },
       (r: EventResponse) => {
         r.result.forEach((change: EventRequest) => {
@@ -194,14 +181,18 @@ async function updateActorItem(
       {
         action: 'update',
         type: 'Item',
-        options: { diff: true, render: true, ...additionalOptions },
-        parentUuid: 'Actor.' + actor.value?._id,
-        updates: [
-          {
-            _id: itemId,
-            ...update
-          }
-        ]
+        operation: {
+          diff: true,
+          render: true,
+          parentUuid: 'Actor.' + actor.value?._id,
+          updates: [
+            {
+              _id: itemId,
+              ...update
+            }
+          ],
+          ...additionalOptions
+        }
       },
       (r: any) => {
         _processUpdates(actor.value.items, r.result)
@@ -221,8 +212,10 @@ async function deleteActorItem(actor: CharacterRef<Actor>, itemId: string): Prom
       {
         action: 'delete',
         type: 'Item',
-        ids: [itemId],
-        parentUuid: 'Actor.' + actor.value?._id
+        operation: {
+          ids: [itemId],
+          parentUuid: 'Actor.' + actor.value?._id
+        }
       },
       (r: any) => {
         _processDeletes(actor.value.items, r.result)
@@ -262,11 +255,11 @@ function parseActorData(actorId: string, actor: Ref<Actor | undefined>, args: an
   }
 }
 
-async function sendWorldRequest(world: Ref<World | undefined>) {
-  const socket = await getSocket()
-  socket.emit('world', (r: any) => (world.value = r))
-}
-const requestWorldDetails = useThrottleFn(sendWorldRequest, 8000, true, false)
+// async function sendWorldRequest(world: Ref<World | undefined>) {
+//   const socket = await getSocket()
+//   socket.emit('world', (r: any) => (world.value = r))
+// }
+// const requestWorldDetails = useDebounceFn(sendWorldRequest, 1000)
 
 ///////////////////////////////////////
 // Action Request                    //
@@ -277,14 +270,13 @@ async function castSpell(
   castingLevel: number,
   castingSlot: number
 ): Promise<ResolutionArgs> {
-  // TODO: (feature) add target assist to spells
-  const { targets } = useTargetHelper()
-  const uuid = crypto.randomUUID()
+  const { getTargets } = useTargetHelper()
+  const uuid = uuidv4()
   const args = {
     action: 'castSpell',
     id: spellId,
     characterId: actor.value._id,
-    targets: targets.value,
+    targets: getTargets(),
     rank: castingLevel,
     slotId: castingSlot,
     uuid
@@ -307,12 +299,12 @@ async function rollCheck(
   modifiers = [],
   options = {}
 ): Promise<ResolutionArgs> {
-  const { targets } = useTargetHelper()
-  const uuid = crypto.randomUUID()
+  const { getTargets } = useTargetHelper()
+  const uuid = uuidv4()
   const args = {
     action: 'rollCheck',
     characterId: actor.value._id,
-    targets: targets.value,
+    targets: getTargets(),
     checkType,
     checkSubtype,
     modifiers,
@@ -336,13 +328,13 @@ async function characterAction(
   characterAction: string,
   options = {}
 ): Promise<ResolutionArgs> {
-  // TODO: (feature) add target assist to actions
-  const { targets } = useTargetHelper()
-  const uuid = crypto.randomUUID()
+  const { getTargets } = useTargetHelper()
+  console.log('here', getTargets())
+  const uuid = uuidv4()
   const args = {
     action: 'characterAction',
     characterId: actor.value._id,
-    targets: targets.value,
+    targets: getTargets(),
     characterAction,
     options,
     uuid
@@ -359,7 +351,7 @@ async function characterAction(
 }
 
 async function consumeItem(actor: Ref<Actor>, consumableId: string, options = {}) {
-  const uuid = crypto.randomUUID()
+  const uuid = uuidv4()
   const args = {
     action: 'consumeItem',
     characterId: actor.value._id,
@@ -388,14 +380,16 @@ function _processCreates<Type>(set: any[], results: Item[]) {
 }
 function _processUpdates<Type>(set: any[], results: Item[]) {
   results.forEach((change: Item) => {
-    let item = set.find((a: any) => a._id == change._id)
+    let item = set.find((a: any) => a._id === change._id)
     if (item) merge(item, change)
   })
 }
 function _processDeletes<Type>(set: any[], results: string[]) {
   results.forEach((d: string) => {
-    const index = set.find((i: any) => i._id === d)
-    if (index != -1) set.splice(index, 1)
+    const index = set.findIndex((i: any) => i._id === d)
+    if (index != -1) {
+      set.splice(index, 1)
+    }
   })
 }
 

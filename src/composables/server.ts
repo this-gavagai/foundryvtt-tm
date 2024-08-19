@@ -43,6 +43,7 @@ async function connectToServer(url: URL) {
   sessionId.value = sid
   await establishSocket(url, sid, true)
     .then((r) => {
+      console.log('setting socket')
       socket.value = r
       socket.value.offAny()
       socket.value.onAny((name, ...args) => {

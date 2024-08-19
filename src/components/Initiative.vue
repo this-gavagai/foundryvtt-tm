@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
 import type { CharacterRef } from '@/components/Character.vue'
-import type { Actor, World, Combatant } from '@/types/pf2e-types'
+import type { Actor, Combatant } from '@/types/pf2e-types'
 import { computed, watch, ref, inject } from 'vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'
@@ -12,7 +12,6 @@ import { useCombat } from '@/composables/combat'
 import { useKeys } from '@/composables/injectKeys'
 
 const actor = inject(useKeys().actorKey)!
-const world = inject(useKeys().worldKey)!
 const { updateActor, rollCheck } = useApi()
 
 interface SkillDef {
@@ -33,11 +32,10 @@ watch(selected, async (newSkill, oldSkill) => {
       system: { initiative: { statistic: newSkill } }
     }).then(() => {
       actor.requestCharacterDetails!()
-      // requestCharacterDetails(actor.value?._id!, actor) // needed because initiative changes have lateral effects to modifiers set
     })
 })
 
-const { activeScene, activeCombat } = useCombat(world)
+const { activeCombat } = useCombat()
 const initiativeReady = computed(() => {
   const inActiveCombat = activeCombat.value?.combatants
     .map((a: Combatant) => a.actorId)
@@ -80,11 +78,6 @@ function doInitiative() {
             <ChevronUpDownIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
           </span>
         </ListboxButton>
-
-        <!-- <div class="pl-2 pt-1 w-12 cursor-pointer" @click="rollInitiative()">
-              <img src="@/assets/icons/dice-twenty-faces-twenty.svg" />
-            </div> -->
-
         <transition
           leave-active-class="transition duration-100 ease-in"
           leave-from-class="opacity-100"
@@ -123,4 +116,3 @@ function doInitiative() {
     </Listbox>
   </div>
 </template>
-@/composables/api @/composables@/types/pf2e-types

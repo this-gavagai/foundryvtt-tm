@@ -2,45 +2,38 @@
 // TODO: (feature++) add some way to browse compendia, which can be used for adding new items to various contexts
 
 import { ref, type Ref, type VNodeRef, provide, watchPostEffect } from 'vue'
-import { useServer } from './composables/server'
-import { useCharacterSelect } from './composables/characterSelect'
-import { useApi } from './composables/api'
-import { useKeys } from './composables/injectKeys'
+import { useServer } from '@/composables/server'
+import { useCharacterSelect } from '@/composables/characterSelect'
 import type { Actor, World } from '@/types/pf2e-types'
-import { Socket } from 'socket.io-client'
 
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 import Character from '@/components/Character.vue'
-
-declare const BUILD_MODE: string
+import { useWorld } from '@/composables/world'
+import { useApi } from '@/composables/api'
 
 interface CharacterPanel extends Ref {
   actor: Actor
 }
 
 const urlId = new URLSearchParams(document.location.search).get('id')
-const world: Ref<World | undefined> = ref()
-provide(useKeys().worldKey, world)
+const { world, refreshWorld } = useWorld()
+
+const { setupSocketListenersForWorld } = useApi()
+refreshWorld().then(() => setupSocketListenersForWorld(world as Ref<World>))
 
 const { connectToServer } = useServer()
-const { setupSocketListenersForWorld } = useApi()
 const location = new URL(window.location.origin)
-if (!world.value) {
-  connectToServer(location).then((socket) => {
-    socket.value?.emit('world', (r: World) => {
-      world.value = r
-      setupSocketListenersForWorld(world as Ref<World>).then(() => {
-        socket.value?.emit('module.tablemate', { action: 'anybodyHome' })
-      })
-    })
-  })
-}
+
+connectToServer(location).then((socket) => {
+  socket.value?.emit('module.tablemate', { action: 'anybodyHome' })
+})
 
 const activeIndex = ref<number>(0)
-const { characterList } = useCharacterSelect(urlId, world)
+const { characterList } = useCharacterSelect(urlId)
 // const characterPanels = ref<InstanceType<typeof Character>[]>([])
 const characterPanels = ref<CharacterPanel[]>([])
 
+declare const BUILD_MODE: string
 if (BUILD_MODE === 'development') {
   watchPostEffect(() => {
     const globalLocation = typeof parent.game === 'undefined' ? window : parent

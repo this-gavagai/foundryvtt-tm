@@ -1,12 +1,15 @@
 <script setup lang="ts">
 // TODO: (feature++) gather in macros for use here
 import { ref } from 'vue'
-
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
 import { Cog6ToothIcon, XMarkIcon } from '@heroicons/vue/24/solid'
+import { useTargetHelper } from '@/composables/targetHelper'
+
+import Dropdown from '@/components/Dropdown.vue'
 
 const sidebarOpen = ref(false)
 defineExpose({ sidebarOpen })
+const { userList, getTargetingProxyId, updateProxyId } = useTargetHelper()
 </script>
 <template>
   <TransitionRoot as="template" :show="sidebarOpen">
@@ -64,13 +67,21 @@ defineExpose({ sidebarOpen })
               <nav class="flex flex-1 flex-col">
                 <ul role="list" class="flex flex-1 flex-col gap-y-7 pt-4">
                   <li>
+                    Targeting Proxy:
+                    <Dropdown
+                      :list="userList ?? []"
+                      :selectedId="userList.find((i: any) => i.id === getTargetingProxyId())?.id"
+                      @change="(newId: any) => updateProxyId(newId.id)"
+                    />
+                  </li>
+                  <li>
                     <ul role="list" class="-mx-2 space-y-1">
                       <li class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6">
                         Custom macros will go here
                       </li>
                     </ul>
                   </li>
-                  <li class="mt-auto">
+                  <!-- <li class="mt-auto">
                     <a
                       href="#"
                       class="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6"
@@ -78,7 +89,7 @@ defineExpose({ sidebarOpen })
                       <Cog6ToothIcon class="h-6 w-6 shrink-0" aria-hidden="true" />
                       Settings
                     </a>
-                  </li>
+                  </li> -->
                 </ul>
               </nav>
             </div>

@@ -1,5 +1,5 @@
 // TODO: (code quality) get rid of all the any's
-import { Socket } from 'socket.io-client'
+import type { Socket } from 'socket.io-client'
 export interface Actor {
   _id: string
   name: string
@@ -177,12 +177,14 @@ export interface ResolutionArgs {}
 export interface EventArgs {
   action: string
   uuid: string
-  request: EventRequest
+  // request: EventRequest
+  operation: EventOperation
   result: Item[] | string[]
   actorId: string
   characterId: string
   modifiers: any
   targets: string[]
+  type: string
 }
 export interface CheckArgs {
   action: string
@@ -220,6 +222,12 @@ export interface ConsumeArgs {
 }
 
 export interface EventRequest {
+  _id: string
+  type: string
+  action: string
+  parentUuid: string
+}
+export interface EventOperation {
   _id: string
   type: string
   action: string

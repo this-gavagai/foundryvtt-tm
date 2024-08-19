@@ -4,6 +4,7 @@
 // TODO: (refactor) refactor listbox into component, and give transaction feedback
 // TODO: (refactor) refactor Switch into component, and give transactionf eedback
 // TODO: (UX) ListboxOptions max-h and max-w properties are a mess
+// TODO: this tab seems to be too wide, and it's pushing the rest of the screen around
 
 import type { Ref } from 'vue'
 import type { Item, Actor } from '@/types/pf2e-types'

@@ -30,7 +30,7 @@ interface InputSelect {
 }
 </script>
 <template>
-  <Statistic heading="Experience" @click="experienceModal.open()">
+  <Statistic heading="Experience" @click="experienceModal.open()" class="cursor-pointer">
     <div class="py-1">
       <svg width="75" height="18">
         <rect

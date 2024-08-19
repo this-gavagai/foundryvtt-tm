@@ -8,6 +8,7 @@ import { useKeys } from '@/composables/injectKeys'
 
 import Statistic from '@/components/Statistic.vue'
 import Modal from '@/components/Modal.vue'
+import { useLastDamage } from '@/composables/lastDamage'
 
 interface SubmissionEvent {
   submitter: { name: string }
@@ -21,7 +22,6 @@ interface InputSelect {
 }
 
 const actor = inject(useKeys().actorKey)!
-const world = inject(useKeys().worldKey)!
 const hitpointsModal = ref()
 const hpStat = ref()
 
@@ -45,17 +45,7 @@ function updateHitPoints(hp_input: string, temp_input: string) {
       )
   }, 3000)
 }
-
-const lastDamageAmount = computed(() => {
-  const lastMessage = world.value?.messages?.slice(-1)?.[0]
-  const lastRoll = lastMessage?.rolls?.[0]
-  if (lastRoll && JSON.parse(lastRoll)?.class === 'DamageRoll') {
-    console.log(JSON.parse(lastRoll))
-    return JSON.parse(lastRoll)?.total
-  } else {
-    return 0
-  }
-})
+const { lastDamageAmount } = useLastDamage()
 </script>
 <template>
   <Statistic

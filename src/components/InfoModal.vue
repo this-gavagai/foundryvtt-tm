@@ -53,7 +53,7 @@ defineExpose({ open, close, itemId, options, rollResultModal })
       </TransitionChild>
 
       <div class="fixed inset-x-0 bottom-0 overflow-y-auto">
-        <div class="bottom items-bottom flex justify-center p-0 pb-0 text-center">
+        <div class="bottom items-bottom flex justify-center overflow-hidden p-0 pb-0 text-center">
           <TransitionChild
             as="template"
             enter="duration-300 ease-out"

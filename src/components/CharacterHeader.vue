@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import type { Actor, World } from '@/types/pf2e-types'
+import type { Actor } from '@/types/pf2e-types'
 import { inject, computed, watch, ref } from 'vue'
 import { useCharacterSelect } from '@/composables/characterSelect'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
@@ -12,9 +12,8 @@ import HeroPoints from '@/components/HeroPoints.vue'
 import Spinner from '@/components/Spinner.vue'
 import SideMenu from '@/components/SideMenu.vue'
 
-const world = inject(useKeys().worldKey)
 const actor = inject(useKeys().actorKey)!
-const { characterList } = useCharacterSelect()
+const { characterList, characterObjects } = useCharacterSelect()
 const sideMenu = ref()
 function reloadPage() {
   window.location.reload()
@@ -39,7 +38,7 @@ function reloadPage() {
           <ListboxOptions
             class="absolute mt-1 max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 empty:hidden focus:outline-none sm:text-sm"
           >
-            <ListboxOption v-if="!world?.actors"
+            <ListboxOption v-if="!characterList"
               ><div class="relative select-none py-2 pl-6 pr-4 text-gray-400">
                 Loading...
               </div></ListboxOption
@@ -48,7 +47,7 @@ function reloadPage() {
               v-slot="{ active, selected }"
               v-for="character in characterList
                 .filter((c: string) => c !== actor?._id)
-                .map((c: string) => world?.actors.find((a: Actor) => a._id === c))"
+                .map((c: string) => characterObjects.find((a: Actor) => a._id === c))"
               :key="character._id"
               :value="character"
               @click="$emit('pickCharacter', character._id)"
