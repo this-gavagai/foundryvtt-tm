@@ -1,5 +1,7 @@
 import { ref } from 'vue'
 import { io, Socket } from 'socket.io-client'
+import type { EventArgs } from '@/types/pf2e-types'
+import { useUserId } from '@/composables/user'
 
 const socket = ref<Socket>()
 const sessionId = ref<String>('')
@@ -54,18 +56,14 @@ async function connectToServer(url: URL) {
       socket.value.onAnyOutgoing((name, ...args) => {
         console.log('TM-SEND', name, ...args)
       })
+      socket.value.on('session', (args: EventArgs) => {
+        const { setUserId } = useUserId()
+        setUserId(args?.userId)
+      })
     })
     .catch((e) => {
       console.log('Error loading socket: ', e)
     })
-
-  // if (socket.value) {
-  //   const emitFn = socket.value?.emit
-  //   socket.value.emit = (...args) =>
-  //     setTimeout(() => {
-  //       emitFn.apply(socket, args)
-  //     }, 3000)
-  // }
 
   return socket
 }

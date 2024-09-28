@@ -7,11 +7,14 @@ import {
 } from './actions'
 import type { Game, User } from '@/types/pf2e-types'
 
+// TODO: getting ridiculous numbers of requestUserDetails for unknown reasons. Fixed only by reloading
+
 declare const game: Game
 declare const Hooks: any
 const MODNAME = 'module.tablemate'
 
 export function setupListener() {
+  console.log('TABLEMATE: Setting up listener')
   if (iAmObserverOrFallbackGM()) announceSelf()
 
   game.socket.onAnyOutgoing((event: any, ...args: any) => {

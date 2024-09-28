@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // TODO: (feature++) gather in macros for use here
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
 import { Cog6ToothIcon, XMarkIcon } from '@heroicons/vue/24/solid'
 import { useTargetHelper } from '@/composables/targetHelper'
@@ -9,7 +9,12 @@ import Dropdown from '@/components/Dropdown.vue'
 
 const sidebarOpen = ref(false)
 defineExpose({ sidebarOpen })
-const { userList, getTargetingProxyId, updateProxyId } = useTargetHelper()
+const { userList, getTargetingProxyId, targetingProxyId, updateProxyId } = useTargetHelper()
+console.log('here', targetingProxyId)
+const proxyId = computed(() => {
+  console.log('changed!')
+  return targetingProxyId.value
+})
 </script>
 <template>
   <TransitionRoot as="template" :show="sidebarOpen">
@@ -68,9 +73,14 @@ const { userList, getTargetingProxyId, updateProxyId } = useTargetHelper()
                 <ul role="list" class="flex flex-1 flex-col gap-y-7 pt-4">
                   <li>
                     Targeting Proxy:
+                    <!-- <Dropdown
+                      :list="userList ?? []"
+                      :selectedId="userList.find((i: any) => i.id === targetingProxyId)?.id ?? '0'"
+                      @change="(newId: any) => updateProxyId(newId.id)"
+                    /> -->
                     <Dropdown
                       :list="userList ?? []"
-                      :selectedId="userList.find((i: any) => i.id === getTargetingProxyId())?.id"
+                      :selectedId="proxyId ?? '0'"
                       @change="(newId: any) => updateProxyId(newId.id)"
                     />
                   </li>

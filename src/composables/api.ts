@@ -27,6 +27,7 @@ import { merge } from 'lodash-es'
 import { useServer } from '@/composables/server'
 import { useTargetHelper } from '@/composables/targetHelper'
 import { useWorld } from '@/composables/world'
+import { useUserId } from '@/composables/user'
 
 const { getSocket } = useServer()
 
@@ -85,9 +86,19 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
       case 'ChatMessage':
         processChanges(args, world.value.messages)
         break
+      case 'User':
+        console.log(args)
+        break
     }
     // TODO: figure out if these refreshWorld calls are really necessary
     refreshWorld()
+  })
+  socket.on('userActivity', (user: string, args: EventArgs) => {
+    console.log(user, args)
+    if (args.targets) {
+      const { updateTargets } = useTargetHelper()
+      updateTargets(user, args.targets)
+    }
   })
 }
 
@@ -103,7 +114,6 @@ async function setupSocketListenersForActor(
         if (!parent.game) actor.requestCharacterDetails!()
         break
       case 'updateCharacterDetails':
-        console.log('updating', actorId)
         parseActorData(actorId, actor, args)
         break
     }
@@ -225,6 +235,33 @@ async function deleteActorItem(actor: CharacterRef<Actor>, itemId: string): Prom
     )
   })
   return promise
+}
+
+async function updateUserTargetingProxy(userId: string, proxyId: string) {
+  const socket = await getSocket()
+  const promise = new Promise((resolve, reject) => {
+    socket.emit(
+      'modifyDocument',
+      {
+        action: 'update',
+        type: 'User',
+        operation: {
+          updates: [
+            {
+              _id: userId,
+              flags: { tablemate: { targeting_proxy: proxyId } }
+            }
+          ]
+        }
+      },
+      (r: any) => {
+        // _processDeletes(actor.value.items, r.result)
+        // actor.requestCharacterDetails!()
+        // TODO: add something here to update local data?
+        resolve(r)
+      }
+    )
+  })
 }
 
 /////////////////////////////////////////////////
@@ -404,6 +441,7 @@ export function useApi() {
     updateActor,
     updateActorItem,
     deleteActorItem,
+    updateUserTargetingProxy,
     castSpell,
     rollCheck,
     consumeItem,

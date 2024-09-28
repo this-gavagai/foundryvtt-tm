@@ -1,43 +1,64 @@
 import type { Ref } from 'vue'
+import { ref } from 'vue'
 import type { World } from '@/types/pf2e-types'
 import { computed } from 'vue'
 import { useWorld } from './world'
+import { useUserId } from '@/composables/user'
+import { useApi } from '@/composables/api'
 
-// TODO: make this work using world rather than direct environment access, to facilitate remote use
-// possibly set up some type of socket communication to communicate targeting changes?
+// TODO: targets only update on change. need a way to request targets on load/proxy-change
+// TODO: Sidebar value in
 
 const { world } = useWorld()
+const { getUserId, userId } = useUserId()
+const { updateUserTargetingProxy } = useApi()
 
+const targets = ref<string[]>([])
 const userList = computed(() => {
-  if (!parent.game) return []
-  return parent.game.users.map((u: any) => ({ id: u._id, name: u.name })) ?? []
-  //return [{ id: 0, name: 'nobody' }]
+  return world.value?.users.map((u: any) => ({ id: u._id, name: u.name })) ?? []
+})
+const targetingProxyId = computed(() => {
+  const proxy = world.value?.users.find((u) => u._id === userId.value)?.flags?.tablemate
+    ?.targeting_proxy
+  console.log('targeting!', userId.value, proxy)
+  return proxy
 })
 
-let targetingProxyId = parent?.game?.user?.getFlag('tablemate', 'targeting_proxy')
-
 function getTargetingProxyId() {
-  return parent?.game.user.getFlag('tablemate', 'targeting_proxy')
+  const proxy = world.value?.users.find((u) => u._id === getUserId())?.flags?.tablemate
+    ?.targeting_proxy
+  console.log('PROXY: ', proxy, getUserId())
+  return proxy
 }
 function updateProxyId(newId: string) {
-  parent?.game.user.setFlag('tablemate', 'targeting_proxy', newId)
-  targetingProxyId = newId
+  if (!world.value) return
+  world.value.users.find((u) => u._id === getUserId()).flags.tablemate.targeting_proxy = newId
+  updateUserTargetingProxy(getUserId(), newId)
+}
+
+function updateTargets(user: string, newTargets: string[]) {
+  if (user === getTargetingProxyId()) {
+    console.log('TABLEMATE new targets', newTargets)
+    targets.value = newTargets
+  }
 }
 
 function getTargets() {
-  if (!parent.game) return []
-  const targetIds = parent.game.users.find((u: any) => u._id === targetingProxyId.value)?.targets
-    ?.ids
-  console.log('tablemate current target', targetIds)
-  return targetIds
+  // if (!parent.game) return []
+  // const targetIds = parent.game.users.find((u: any) => u._id === targetingProxyId?.value)?.targets
+  //   ?.ids
+  // console.log('tablemate current target', targetIds)
+  // return targetIds
+  return targets.value
 }
 
-export function useTargetHelper(world: Ref<World | undefined> | null = null) {
+export function useTargetHelper() {
   return {
     getTargets,
     userList,
     targetingProxyId,
     getTargetingProxyId,
-    updateProxyId
+    updateProxyId,
+    updateTargets
   }
 }

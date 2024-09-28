@@ -65,7 +65,7 @@ defineExpose({ actor })
 </script>
 <template>
   <div class="flex h-screen">
-    <div class="hidden border-r md:block md:h-screen md:w-[320px] md:overflow-scroll">
+    <div class="hidden border-r md:block md:h-screen md:w-[320px] md:overflow-auto">
       <CharacterHeader @pickCharacter="(id: string) => $emit('pickCharacter', id)" />
       <FrontPage />
     </div>
@@ -73,7 +73,7 @@ defineExpose({ actor })
       class="flex w-full flex-1 flex-col justify-between md:h-screen md:justify-start md:border-l"
     >
       <TabGroup :defaultIndex="width >= 768 ? 1 : 0" @change="panels.$el.scrollTop = 0">
-        <TabPanels tabindex="-1" class="md:order-last md:overflow-scroll" ref="panels">
+        <TabPanels tabindex="-1" class="md:order-last md:overflow-auto" ref="panels">
           <CharacterHeader
             @pickCharacter="(id: string) => $emit('pickCharacter', id)"
             class="md:hidden"
