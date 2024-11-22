@@ -32,5 +32,7 @@ There are some limitations to this approach. Mainly, the character sheet doesn't
 # How does it work?
 Once the module is installed, GMs should see a setting menu that allows them to indicate which players will use the new Character Sheet. From then on, when those players login, they should be automatically routed to the sheet.
 
+Manifest is here: https://github.com/this-gavagai/foundryvtt-tm/releases/latest/download/module.json
+
 # A note of caution
 I'm sharing this module in good faith. I use it in my own games, and I'm not aware of anything that would seriously mess up your game data. That said, I'm not particularly knowledgable as a programmer, and it's very possible I've done something stupid. Use at your own risk. Backups are good.
