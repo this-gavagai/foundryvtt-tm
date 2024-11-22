@@ -22,8 +22,6 @@ export async function getCharacterDetails(args: { actorId: string }) {
   // add the damage formula into things; wish there was a better way
   const damages = actor.system.actions.map((action: Action) => action.damage({ getFormula: true }))
   const crits = actor.system.actions.map((action: Action) => action.critical({ getFormula: true }))
-  // TODO: damage modifiers aren't viable right now because the skipDialog is getting ignored
-  // const modifiers: any[] = []
   const modifiers = actor.system.actions.map((action: Action) =>
     action.damage({ createMessage: false, skipDialog: true, event: fakeEvent })
   )
@@ -59,7 +57,7 @@ export async function foundryRollCheck(args: CheckArgs) {
     metaKey: false,
     shiftKey: source.user.settings['showDamageDialogs']
   }
-  console.log('tablemate', args)
+  console.log('tablemate roll', args)
   //https://github.com/foundryvtt/pf2e/blob/68988e12fbec7ea8359b9bee9b0c43eb6964ca3f/src/module/system/statistic/statistic.ts#L617
   const actor = source.actors.get(args.characterId, { strict: true })
   const modifiers = args.modifiers.map((m: Modifier) => {
@@ -67,17 +65,11 @@ export async function foundryRollCheck(args: CheckArgs) {
   })
   const targetTokenDoc =
     args.targets?.map((t: string) => source.scenes.active.tokens.get(t))[0] ?? null
-  console.log('token doc', targetTokenDoc)
   const params = {
     modifiers: modifiers,
-    // target: targetTokenDoc ? { document: targetTokenDoc } : null
     target: targetTokenDoc?.object,
-    // target: targetTokenDoc
-    // target: targetTokenDoc?.actor
-    // skipDialog: args.skipDialog,
     skipDialog: true,
     event: fakeEvent
-    // context: { target: args.options?.targets },
   }
   console.log('params', params)
   let roll
@@ -102,10 +94,12 @@ export async function foundryRollCheck(args: CheckArgs) {
       roll = actor.perception.check.roll(params)
       break
     case 'initiative':
-      const combatantId = source.combat.combatants.find(
-        (c: Combatant) => c.actorId === args.characterId
-      )?._id
-      if (combatantId) roll = actor.initiative.roll([combatantId], { updateTurn: false })
+      // Not sure why I thought it needed to be this complicated. Seems to be working with just roll(params)
+      // const combatantId = source.combat.combatants.find(
+      //   (c: Combatant) => c.actorId === args.characterId
+      // )?._id
+      // if (combatantId) roll = actor.initiative.roll([combatantId], { updateTurn: false, ...params })
+      roll = actor.initiative.roll(params)
       break
   }
   console.log('tablemate', roll)
@@ -131,7 +125,7 @@ export async function foundryCharacterAction(args: ActionArgs) {
   const actor = source.actors.get(args.characterId, { strict: true })
   const targetTokenDoc =
     args.targets.map((t: string) => source.scenes.active.tokens.get(t))[0] ?? null
-  // problematic code: https://github.com/foundryvtt/pf2e/blob/2eaef272f3e17f340eba1b7f2dc82e857d8d296e/src/module/actor/actions/single-check.ts#L160
+  // tricky code: https://github.com/foundryvtt/pf2e/blob/2eaef272f3e17f340eba1b7f2dc82e857d8d296e/src/module/actor/actions/single-check.ts#L160
   console.log('token key', targetTokenDoc)
   const params = {
     ...args.options,

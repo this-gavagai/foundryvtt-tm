@@ -1,9 +1,11 @@
 import { setupTouch } from './touchmate'
 import { setupListener } from './listener'
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api
 
 declare const Hooks: any
 declare const game: any
 declare const canvas: any
+declare const foundry: any
 
 console.log('tablemate initializing...')
 
@@ -17,16 +19,15 @@ Hooks.on('init', function () {
 })
 
 Hooks.on('setup', function () {
-  console.log('setup hook')
+  // this is legacy code, from back when the app opened in a frame.
   const user = game.data.users.find((x: any) => x._id === game.userId)
   if (user.flags?.['tablemate']?.['character_sheet'] === 'frame') {
     console.log('TABLEMATE: Loading in frame')
-    // TODO: (bug) turn off dice roll preview settings programmatically; character loading hangs otherwise
     user.flags.pf2e.settings.showCheckDialogs = false
     user.flags.pf2e.settings.showDamageDialogs = false
 
     Hooks.once('canvasReady', function () {
-      console.log('tablemate canvas state zzz', canvas.ready)
+      console.log('tablemate canvas state', canvas.ready)
       canvas.app.stop()
     })
 
@@ -55,15 +56,67 @@ Hooks.on('ready', () => {
   // })
   setupListener()
 
-  // game.settings.registerMenu('tablemate', 'userMenu', {
-  //   name: 'My Settings Submenu',
-  //   label: 'Settings Menu Label', // The text label used in the button
-  //   hint: 'A description of what will occur in the submenu dialog.',
-  //   icon: 'fas fa-bars', // A Font Awesome icon used in the submenu button
-  //   // type: MySubmenuApplicationClass, // A FormApplication subclass
-  //   restricted: true // Restrict this submenu to gamemaster only?
-  // })
+  console.log('tablemate hello')
+  game.settings.registerMenu('tablemate', 'playerSelectMenu', {
+    name: 'User Select',
+    label: 'Select Character Sheet users',
+    hint: 'Select which users will load the alternate Character Sheet instead of the standard Foundry environment',
+    type: PlayerSelectMenu,
+    icon: 'fas fa-user',
+    restricted: true
+  })
 })
+
+class PlayerSelectMenu extends HandlebarsApplicationMixin(ApplicationV2) {
+  static DEFAULT_OPTIONS = {
+    id: 'PlayerSelectMenu',
+    actions: {
+      myAction: PlayerSelectMenu.updateUserFlags
+    },
+    window: {
+      title: 'Character Sheet mode',
+      icon: 'fas fa-user'
+    },
+    tag: 'form',
+    form: {
+      handler: PlayerSelectMenu.updateUserFlags,
+      submitOnChange: true,
+      closeOnSubmit: false
+    }
+  }
+  static PARTS = {
+    form: {
+      template: 'modules/tablemate/templates/userSelect.hbs'
+    },
+    footer: {
+      template: 'templates/generic/form-footer.hbs'
+    }
+  }
+  _prepareContext() {
+    const users = game.users.filter((u: any) => !u.isGM)
+    users.forEach((s: any) => {
+      s.sheeted = s.getFlag('tablemate', 'character_sheet') === 'root'
+    })
+    const buttons = [
+      { type: 'button', action: 'close', label: 'Close' }
+      // { type: "reset", action: "reset", icon: "fa-solid fa-undo", label: "SETTINGS.Reset" },
+    ]
+    return { users, buttons }
+  }
+  static async updateUserFlags(event: any, form: any, formData: any) {
+    // Do things with the returned FormData
+    for (let id in formData.object) {
+      let usr = game.users.get(id)
+      if (formData.object[id]) {
+        if (usr.getFlag('tablemate', 'character_sheet') !== 'root')
+          usr.setFlag('tablemate', 'character_sheet', 'root')
+      } else {
+        if (usr.getFlag('tablemate', 'character_sheet'))
+          usr.unsetFlag('tablemate', 'character_sheet')
+      }
+    }
+  }
+}
 
 /////////////////////
 // settings config //

@@ -1,9 +1,7 @@
 //TODO: (feature) have more combat information on main screen
-
-import { type Ref, inject } from 'vue'
+import { type Ref } from 'vue'
 import type { World, Scene, Combat } from '@/types/pf2e-types'
 import { ref, watchEffect } from 'vue'
-import { useKeys } from '@/composables/injectKeys'
 import { useWorld } from './world'
 
 const { world } = useWorld()

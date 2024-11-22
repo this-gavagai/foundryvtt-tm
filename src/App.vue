@@ -1,15 +1,17 @@
 <script setup lang="ts">
 // TODO: (feature++) add some way to browse compendia, which can be used for adding new items to various contexts
 
-import { ref, type Ref, type VNodeRef, provide, watchPostEffect } from 'vue'
-import { useServer } from '@/composables/server'
-import { useCharacterSelect } from '@/composables/characterSelect'
+import { ref, type Ref, watchPostEffect } from 'vue'
+import { io, Socket } from 'socket.io-client'
 import type { Actor, World } from '@/types/pf2e-types'
-
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
-import Character from '@/components/Character.vue'
-import { useWorld } from '@/composables/world'
+
 import { useApi } from '@/composables/api'
+import { useServer } from '@/composables/server'
+import { useWorld } from '@/composables/world'
+import { useCharacterSelect } from '@/composables/characterSelect'
+
+import Character from '@/components/Character.vue'
 
 interface CharacterPanel extends Ref {
   actor: Actor
@@ -24,13 +26,12 @@ refreshWorld().then(() => setupSocketListenersForWorld(world as Ref<World>))
 const { connectToServer } = useServer()
 const location = new URL(window.location.origin)
 
-connectToServer(location).then((socket) => {
+connectToServer(location).then((socket: any) => {
   socket.value?.emit('module.tablemate', { action: 'anybodyHome' })
 })
 
 const activeIndex = ref<number>(0)
 const { characterList } = useCharacterSelect(urlId)
-// const characterPanels = ref<InstanceType<typeof Character>[]>([])
 const characterPanels = ref<CharacterPanel[]>([])
 
 declare const BUILD_MODE: string

@@ -7,7 +7,6 @@ import { useUserId } from '@/composables/user'
 import { useApi } from '@/composables/api'
 
 // TODO: targets only update on change. need a way to request targets on load/proxy-change
-// TODO: Sidebar value in
 
 const { world } = useWorld()
 const { getUserId, userId } = useUserId()
@@ -44,11 +43,6 @@ function updateTargets(user: string, newTargets: string[]) {
 }
 
 function getTargets() {
-  // if (!parent.game) return []
-  // const targetIds = parent.game.users.find((u: any) => u._id === targetingProxyId?.value)?.targets
-  //   ?.ids
-  // console.log('tablemate current target', targetIds)
-  // return targetIds
   return targets.value
 }
 

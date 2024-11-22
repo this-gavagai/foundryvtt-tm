@@ -1,0 +1,7 @@
+<div class="standard-form" style="padding-bottom: 1rem">
+	{{#each users}}
+	<div>
+	<label><input type="checkbox" name="{{this._id}}" {{#if this.sheeted}}checked{{/if}}>{{this.name}}</label>
+	</div>
+	{{/each}}
+</div>

@@ -1,11 +1,17 @@
 <script setup lang="ts">
-// TODO: (refactor++) completely rethink how action data is organized
+// TODO: (refactor) rethink how action data is organized
 // TODO: (feature) get action modifiers on the card (somehow?)
 import type { Ref } from 'vue'
 import type { Actor, Item } from '@/types/pf2e-types'
 const props = defineProps(['actor'])
 import { inject, ref, computed } from 'vue'
-import { capitalize, removeUUIDs, printPrice, SignedNumber } from '@/utils/utilities'
+import {
+  capitalize,
+  removeUUIDs,
+  printPrice,
+  SignedNumber,
+  makeActionIcons
+} from '@/utils/utilities'
 import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
 
@@ -87,10 +93,14 @@ const actionDefs = computed(() => {
               (i: Item) =>
                 !i.system.traits.value.includes('skill') && !actionDefs.get(i.system.slug)?.skill
             )"
-          class="cursor-pointer"
-          @click="infoModal.open(feat._id)"
         >
-          {{ feat.name }}
+          <a class="cursor-pointer" @click="infoModal.open(feat._id)">
+            {{ feat.name }}
+            <span
+              class="relative -mt-[.5rem] pl-1 text-2xl leading-4"
+              v-html="makeActionIcons(feat?.system?.actions.value + '')"
+            ></span>
+          </a>
         </li>
       </ul>
     </div>
@@ -101,22 +111,28 @@ const actionDefs = computed(() => {
           v-for="feat in actor.items?.filter(
             (i: Item) => i.system.actionType?.value === 'reaction'
           )"
-          class="cursor-pointer"
-          @click="infoModal.open(feat._id)"
         >
-          {{ feat.name }}
+          <a class="cursor-pointer" @click="infoModal.open(feat._id)">
+            {{ feat.name }}
+            <span
+              class="relative -mt-[.5rem] pl-1 text-2xl leading-4"
+              v-html="makeActionIcons('r')"
+            ></span>
+          </a>
         </li>
       </ul>
     </div>
     <div class="[&:not(:has(li))]:hidden">
       <h3 class="pt-2 text-lg underline">Free Actions</h3>
       <ul>
-        <li
-          v-for="feat in actor.items?.filter((i: Item) => i.system.actionType?.value === 'free')"
-          class="cursor-pointer"
-          @click="infoModal.open(feat._id)"
-        >
-          {{ feat.name }}
+        <li v-for="feat in actor.items?.filter((i: Item) => i.system.actionType?.value === 'free')">
+          <a class="cursor-pointer" @click="infoModal.open(feat._id)">
+            {{ feat.name }}
+            <span
+              class="relative -mt-[.5rem] pl-1 text-2xl leading-4"
+              v-html="makeActionIcons(feat?.system?.actions.value + '')"
+            ></span>
+          </a>
         </li>
       </ul>
     </div>
@@ -130,10 +146,14 @@ const actionDefs = computed(() => {
               (i: Item) =>
                 i.system.traits.value.includes('skill') || actionDefs.get(i.system.slug)?.skill
             )"
-          class="cursor-pointer"
-          @click="infoModal.open(feat._id)"
         >
-          {{ feat.name }}
+          <a class="cursor-pointer" @click="infoModal.open(feat._id)">
+            {{ feat.name }}
+            <span
+              class="relative -mt-[.5rem] pl-1 text-2xl leading-4"
+              v-html="makeActionIcons(feat?.system?.actions.value + '')"
+            ></span>
+          </a>
         </li>
       </ul>
     </div>

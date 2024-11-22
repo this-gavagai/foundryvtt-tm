@@ -26,11 +26,11 @@ function toggleInvested(item: Item) {
         (i: Item) => i.system?.equipped?.invested === true || i.system?.equipped?.invested === false
       )"
       :class="i.system?.equipped?.invested ? 'text-black' : 'text-gray-300'"
-      class="cursor-pointer"
-      @click="toggleInvested(i)"
     >
-      <span>{{ i.system?.equipped?.invested ? '✓' : 'ｘ' }}</span>
-      <span>{{ i.name }}</span>
+      <a class="cursor-pointer" @click="toggleInvested(i)">
+        <span>{{ i.system?.equipped?.invested ? '✓' : 'ｘ' }}</span>
+        <span>{{ i.name }}</span>
+      </a>
     </li>
   </ul>
 </template>

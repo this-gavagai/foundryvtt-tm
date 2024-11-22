@@ -19,13 +19,11 @@ const rollButton = ref()
 
 function makeRoll() {
   rollButton.value.waiting = true
-  // setTimeout(() => {
   props.rollAction().then((r: RollResult) => {
     infoModal.value.rollResultModal.open(r)
     infoModal.value.close()
     rollButton.value.waiting = false
   })
-  // }, 3000)
 }
 
 defineExpose({ infoModal })
@@ -33,6 +31,7 @@ defineExpose({ infoModal })
 <template>
   <div>
     <div
+      class="fit-content"
       :class="{ 'cursor-pointer': props?.modifiers && !preventInfoModal }"
       @click="
         () => {
@@ -83,21 +82,6 @@ defineExpose({ infoModal })
           </div>
         </template>
         <template #actionButtons>
-          <!-- <button
-            v-if="allowRoll"
-            type="button"
-            class="inline-flex items-end justify-center border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 focus:outline-none"
-            @click="
-              () => {
-                rollAction().then((r: RollResult) => {
-                  infoModal.rollResultModal.open(r)
-                  infoModal.close()
-                })
-              }
-            "
-          >
-            Roll
-          </button> -->
           <Button
             v-if="allowRoll"
             ref="rollButton"

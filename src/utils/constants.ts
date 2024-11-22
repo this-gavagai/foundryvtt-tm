@@ -56,20 +56,26 @@ export const skillMacros = [
 export const featCategoryLabels = new Map([
   ['PF2E.FeaturesAncestryHeader', 'Ancestry Features'],
   ['PF2E.FeaturesClassHeader', 'Class Features'],
+  ['PF2E.Actor.Character.FeatSlot.ClassFeaturesHeader', 'Class Features'],
   ['PF2E.FeatAncestryHeader', 'Ancestry Feats'],
+  ['PF2E.Actor.Character.FeatSlot.AncestryHeader', 'Ancestry Feats'],
   ['PF2E.FeatClassHeader', 'Class Feats'],
+  ['PF2E.Actor.Character.FeatSlot.ClassHeader', 'Class Feats'],
   ['PF2E.FeatArchetypeHeader', 'Archetype Feats'],
+  ['PF2E.Actor.Character.FeatSlot.ArchetypeHeader', 'Archetype Feats'],
   ['PF2E.FeatSkillHeader', 'Skill Feats'],
+  ['PF2E.Actor.Character.FeatSlot.SkillHeader', 'Skill Feats'],
   ['PF2E.FeatGeneralHeader', 'General Feats'],
+  ['PF2E.Actor.Character.FeatSlot.GeneralHeader', 'General Feats'],
   ['PF2E.FeatBonusHeader', 'Bonus Feats']
 ])
 
 export const proficiencies = [
-  { label: 'Untrained', color: 'text-black' },
-  { label: 'Trained', color: 'text-blue-800' },
-  { label: 'Expert', color: 'text-purple-800' },
-  { label: 'Master', color: 'text-yellow-800' },
-  { label: 'Legendary', color: 'text-red-800' }
+  { label: 'Untrained', color: 'text-black', dots: '' },
+  { label: 'Trained', color: 'text-blue-800', dots: '⠄' },
+  { label: 'Expert', color: 'text-purple-800', dots: '⠆' },
+  { label: 'Master', color: 'text-yellow-800', dots: '⠦' },
+  { label: 'Legendary', color: 'text-red-800', dots: '⠶' }
 ]
 
 export const attributes = [

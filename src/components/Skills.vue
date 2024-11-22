@@ -9,6 +9,7 @@ import Statistic from './Statistic.vue'
 import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
 import { formatTimeAgo } from '@vueuse/core'
+import { proficiencies } from '@/utils/constants'
 
 const { rollCheck } = useApi()
 const actor = inject(useKeys().actorKey)!
@@ -39,6 +40,9 @@ function doSkillCheck(slug: string) {
               :rollAction="() => doSkillCheck(skill.slug)"
             >
               {{ formatModifier(skill.totalModifier) }}
+              <!-- <span class="text-3xl">
+                {{ proficiencies[skill.rank]?.dots }}
+              </span> -->
             </Statistic>
           </dd>
         </div>

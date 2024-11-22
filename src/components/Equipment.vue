@@ -4,7 +4,6 @@
 // TODO: (refactor) refactor listbox into component, and give transaction feedback
 // TODO: (refactor) refactor Switch into component, and give transactionf eedback
 // TODO: (UX) ListboxOptions max-h and max-w properties are a mess
-// TODO: this tab seems to be too wide, and it's pushing the rest of the screen around
 
 import type { Ref } from 'vue'
 import type { Item, Actor } from '@/types/pf2e-types'
@@ -164,19 +163,20 @@ const toggleSet = [
     <ul>
       <li
         v-for="item in actor?.items.filter((i: Item) => i.system?.equipped?.handsHeld > 0)"
-        @click="infoModal.open(item._id)"
-        class="cursor-pointer whitespace-nowrap text-2xl"
+        class="whitespace-nowrap text-2xl"
       >
-        <span class="pr-1">{{
-          item.system?.equipped?.handsHeld > 0
-            ? item.system?.equipped?.handsHeld === 1
-              ? '❶'
-              : '❷'
-            : item.system?.equipped?.carryType === 'dropped'
-            ? '⌵'
-            : 'Ⓦ'
-        }}</span>
-        <span>{{ item.name }}</span>
+        <a class="cursor-pointer" @click="infoModal.open(item._id)">
+          <span class="pr-1">{{
+            item.system?.equipped?.handsHeld > 0
+              ? item.system?.equipped?.handsHeld === 1
+                ? '❶'
+                : '❷'
+              : item.system?.equipped?.carryType === 'dropped'
+              ? '⌵'
+              : 'Ⓦ'
+          }}</span>
+          <span>{{ item.name }}</span>
+        </a>
       </li>
     </ul>
     <div>
@@ -195,26 +195,27 @@ const toggleSet = [
           v-for="item in actor?.items.filter(
             (i: Item) => i.type === inventoryType.type && !i.system?.containerId
           )"
-          class="cursor-pointer"
         >
           <div
             :class="{
               'text-gray-300': item.system?.equipped?.carryType === 'dropped',
               'text-lg underline': item.type === 'backpack'
             }"
-            @click="infoModal.open(item._id)"
           >
-            <span>{{ item.name }}</span>
-            <span v-if="item.type !== 'backpack'" class="text-xs">
-              (x{{ item.system.quantity }})</span
-            >
+            <a class="cursor-pointer" @click="infoModal.open(item._id)">
+              <span>{{ item.name }}</span>
+              <span v-if="item.type !== 'backpack'" class="text-xs">
+                (x{{ item.system.quantity }})</span
+              >
+            </a>
           </div>
           <ul class="pb-2" v-if="item.type === 'backpack'">
             <li
               v-for="stowed in actor?.items.filter((i: Item) => i.system?.containerId === item._id)"
-              @click="infoModal.open(stowed._id)"
             >
-              {{ stowed.name }}<span class="text-xs"> (x{{ stowed.system.quantity }})</span>
+              <a class="cursor-pointer" @click="infoModal.open(stowed._id)">
+                {{ stowed.name }}<span class="text-xs"> (x{{ stowed.system.quantity }})</span>
+              </a>
             </li>
           </ul>
         </dd>
@@ -238,13 +239,13 @@ const toggleSet = [
       <template #beforeBody>
         <div class="my-2">
           <div
-            class="mb-2 flex w-full basis-full cursor-pointer justify-items-center rounded-md border border-gray-400 text-xs empty:hidden"
+            class="mb-2 flex w-full basis-full justify-items-center rounded-md border border-gray-400 text-xs empty:hidden"
           >
             <div
               v-for="t in toggleSet"
-              class="flex-auto border-l border-gray-300 p-2 text-center first:border-none"
-              @click="t?.toggleTrigger()"
+              class="flex-auto cursor-pointer border-l border-gray-300 p-2 text-center first:border-none"
               :class="{ 'bg-gray-300': t.toggleIsActive() }"
+              @click="t?.toggleTrigger()"
             >
               <span>{{ t.toggleText }}</span>
               <!-- <span v-if="t.toggleText === 'Worn' && itemWornType">

@@ -11,7 +11,9 @@ export function makeTraits(traits: string[] | undefined): string {
   return list
 }
 export function makeActionIcons(actionValue: string): string {
-  return `<span class="pf2-icon">${actionValue?.replace('to', '-')}</span>`
+  return `<span class="pf2-icon">${
+    actionValue?.replace('to', '-').replace('free', 'f') ?? ''
+  }</span>`
 }
 export function makePropertiesHtml(item: Item): string {
   return (

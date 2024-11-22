@@ -10,9 +10,8 @@ import Dropdown from '@/components/Dropdown.vue'
 const sidebarOpen = ref(false)
 defineExpose({ sidebarOpen })
 const { userList, getTargetingProxyId, targetingProxyId, updateProxyId } = useTargetHelper()
-console.log('here', targetingProxyId)
 const proxyId = computed(() => {
-  console.log('changed!')
+  console.log('target changed!', targetingProxyId.value)
   return targetingProxyId.value
 })
 </script>

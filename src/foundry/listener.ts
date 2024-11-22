@@ -36,7 +36,7 @@ export function setupListener() {
     switch (args.action) {
       case 'anybodyHome':
         announceSelf()
-        if (game.user.flags?.['tablemate']?.['shared_display']) broadcastTargets()
+        broadcastTargets()
         break
       case 'requestCharacterDetails':
         getCharacterDetails(args).then((result) => game.socket.emit(MODNAME, result))

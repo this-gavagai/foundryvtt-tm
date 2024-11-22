@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // TODO: (feature) deal with flexible prepared casters
-// TODO: (feature+) figure out how to get staves in here (integration with pf2e-dailies?)
+// TODO: (feature+) figure out how to get staves in here (with pf2e-dailies?)
 
 import type { Ref } from 'vue'
 import type { Item, Actor } from '@/types/pf2e-types'
@@ -367,11 +367,7 @@ const spellbook = computed((): Spellbook => {
         {{ viewedSpell?.name }}
         <span
           class="relative -mt-[.5rem] pl-1 text-2xl leading-4"
-          v-html="
-            makeActionIcons(
-              viewedSpell?.system?.time?.value.replace('to', ' - ').replace('free', 'f') ?? ''
-            )
-          "
+          v-html="makeActionIcons(viewedSpell?.system?.time?.value)"
         ></span>
       </template>
       <template #description>

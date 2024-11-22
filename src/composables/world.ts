@@ -1,4 +1,4 @@
-import { ref, type Ref, type VNodeRef, provide, watchPostEffect } from 'vue'
+import { ref, type Ref, type VNodeRef, watchPostEffect } from 'vue'
 import type { Actor, World } from '@/types/pf2e-types'
 import { useApi } from '@/composables/api'
 import { useServer } from '@/composables/server'
@@ -9,7 +9,6 @@ const world = ref<World | null>(null)
 const { getSocket } = useServer()
 
 async function sendWorldRequest() {
-  // TODO: if using embedded mode, get world directly from game object
   const socket = await getSocket()
   socket.emit('world', (r: World) => (world.value = r))
 }

@@ -3,7 +3,7 @@
 // TODO: abstract actor class to new interface (to simplify system-level changes to data structure)
 import type { Actor } from '@/types/pf2e-types'
 import type { Ref } from 'vue'
-import { ref, provide, watch, inject } from 'vue'
+import { ref, provide, watch, inject, computed } from 'vue'
 import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
 import { useThrottleFn } from '@vueuse/core'
 import { useApi } from '@/composables/api'
@@ -47,6 +47,9 @@ const { world } = useWorld()
 const actor: CharacterRef<Actor | undefined> = ref()
 provide(useKeys().actorKey, actor)
 
+const character: any = ref({})
+character.value.hp = computed(() => actor.value?.system?.attributes?.hp?.value)
+
 // load character from world value if no character details received
 watch(world, () => {
   if (world.value?.actors && !actor.value?._id) {
@@ -73,7 +76,7 @@ defineExpose({ actor })
       class="flex w-full flex-1 flex-col justify-between md:h-screen md:justify-start md:border-l"
     >
       <TabGroup :defaultIndex="width >= 768 ? 1 : 0" @change="panels.$el.scrollTop = 0">
-        <TabPanels tabindex="-1" class="md:order-last md:overflow-auto" ref="panels">
+        <TabPanels tabindex="-1" class="overflow-auto md:order-last" ref="panels">
           <CharacterHeader
             @pickCharacter="(id: string) => $emit('pickCharacter', id)"
             class="md:hidden"

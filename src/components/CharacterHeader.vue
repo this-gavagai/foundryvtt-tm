@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// todo (bug): header image is getting shrunk at certain widths. Need different breakpoints?
 import type { Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 import { inject, computed, watch, ref } from 'vue'
@@ -22,10 +23,14 @@ function reloadPage() {
 
 <template>
   <div class="flex cursor-pointer items-center gap-2 border-b p-4">
-    <div class="hidden h-24 w-24 items-center 2xs:flex" @click="reloadPage">
+    <div
+      class="hidden h-24 w-24 items-center overflow-hidden rounded-full border-2 border-gray-300 2xs:flex"
+      @click="reloadPage"
+    >
       <img
         v-if="actor?.prototypeToken?.texture?.src"
         :src="getPath(actor.prototypeToken?.texture?.src)"
+        class="scale-150"
       />
       <div v-else class="min-h-24 h-full">
         <Spinner class="mr-2 h-full w-full p-4" />

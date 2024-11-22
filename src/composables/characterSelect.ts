@@ -1,7 +1,6 @@
-import { ref, watch, inject } from 'vue'
+import { ref, watch } from 'vue'
 import type { World, Actor } from '@/types/pf2e-types'
 import type { Ref } from 'vue'
-import { useKeys } from '@/composables/injectKeys'
 import { useWorld } from './world'
 
 const { world } = useWorld()

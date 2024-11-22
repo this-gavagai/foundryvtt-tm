@@ -23,18 +23,18 @@ const viewedItem = computed(
         {{ featCategoryLabels.get(category.label) ?? category.label }}
       </dt>
       <dd v-for="feat in category.feats">
-        <div class="relative" @click="infoModal.open(feat.feat._id)">
-          <span class="absolute w-4 pt-1 text-right text-xs text-gray-500">{{
-            feat?.level ?? feat.feat.system?.level?.value
-          }}</span
-          ><span class="cursor-pointer pl-6">{{ feat.feat?.name }}</span>
+        <div class="relative">
+          <a class="cursor-pointer" @click="infoModal.open(feat.feat._id)">
+            <span class="absolute w-4 pt-1 text-right text-xs text-gray-500">{{
+              feat?.level ?? feat.feat.system?.level?.value
+            }}</span
+            ><span class="pl-6">{{ feat.feat?.name }}</span>
+          </a>
         </div>
-        <div
-          v-for="grant in feat.feat?.flags?.pf2e?.itemGrants"
-          class="ml-10 cursor-pointer"
-          @click="infoModal.open(grant.id)"
-        >
-          {{ actor?.items.find((i: Item) => i._id == grant.id)?.name }}
+        <div v-for="grant in feat.feat?.flags?.pf2e?.itemGrants" class="ml-10">
+          <a class="cursor-pointer" @click="infoModal.open(grant.id)">
+            {{ actor?.items.find((i: Item) => i._id == grant.id)?.name }}
+          </a>
         </div>
       </dd>
     </dl>
@@ -51,11 +51,13 @@ const viewedItem = computed(
               )
             })"
         >
-          <div class="relative" @click="infoModal.open(feat._id)">
-            <span class="absolute w-4 pt-1 text-right text-xs text-gray-500">{{
-              feat.system?.level?.taken ?? feat.system?.level?.value
-            }}</span
-            ><span class="cursor-pointer pl-6">{{ feat?.name }}</span>
+          <div class="relative">
+            <a class="cursor-pointer" @click="infoModal.open(feat._id)">
+              <span class="absolute w-4 pt-1 text-right text-xs text-gray-500">{{
+                feat.system?.level?.taken ?? feat.system?.level?.value
+              }}</span
+              ><span class="pl-6">{{ feat?.name }}</span>
+            </a>
           </div>
         </li>
       </ul>
