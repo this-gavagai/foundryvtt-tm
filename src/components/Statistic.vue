@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// todo: allow details view for non-rollable statistics, like AC
 import { ref } from 'vue'
 import { SignedNumber } from '@/utils/utilities'
 import { proficiencies } from '@/utils/constants'
@@ -8,6 +9,7 @@ import type { StatModifier, RollResult } from '@/types/pf2e-types'
 
 const props = defineProps([
   'heading',
+  'subheading',
   'proficiency',
   'modifiers',
   'preventInfoModal',
@@ -65,6 +67,7 @@ defineExpose({ infoModal })
                 ({{ proficiencies[props.proficiency].label }})
               </span>
             </h3>
+            <h4 class="text-l mb-2">{{ subheading }}</h4>
             <ul>
               <li
                 v-for="mod in props.modifiers.filter(

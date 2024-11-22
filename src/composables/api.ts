@@ -1,5 +1,5 @@
 // TODO: (feature+) add option to send chat message on certain api events
-
+// TODO: need a way to slow request character details after change, to prevent ping pong updates
 import type { Ref } from 'vue'
 import type {
   Actor,
@@ -169,7 +169,7 @@ async function updateActor(
       (r: EventResponse) => {
         r.result.forEach((change: EventRequest) => {
           merge(actor.value, change)
-          actor.requestCharacterDetails!()
+          actor.requestCharacterDetails!() // todo: this is inefficient and it causes cache flashing
         })
         resolve(r)
       }

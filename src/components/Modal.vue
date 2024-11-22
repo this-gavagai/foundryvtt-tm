@@ -19,7 +19,7 @@ function close() {
   isOpen.value = false
   // options.value = null
 }
-defineExpose({ open, close, options })
+defineExpose({ open, close, options, isOpen })
 </script>
 
 <template>

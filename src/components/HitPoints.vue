@@ -1,6 +1,6 @@
 <script setup lang="ts">
+// todo: loading indicator to communicate change in process? right now text just fades to white. Might seem non-responsive on slower connections
 import type { Ref } from 'vue'
-import type { Actor } from '@/types/pf2e-types'
 import { inject, ref, computed } from 'vue'
 import { useApi } from '@/composables/api'
 import { parseIncrement } from '@/utils/utilities'
@@ -21,47 +21,36 @@ interface InputSelect {
   select: () => void
 }
 
-const actor = inject(useKeys().actorKey)!
-const hitpointsModal = ref()
 const hpStat = ref()
+const hitpointsModal = ref()
 
-const { updateActor } = useApi()
+const character = inject(useKeys().characterKey)
+const { current: hpCurrent, max: hpMax, temp: hpTemp, modifiers: hpModifiers } = character.hp
+const { lastDamageAmount } = useLastDamage()
 
 function updateHitPoints(hp_input: string, temp_input: string) {
-  let newHP = parseIncrement(hp_input, actor.value?.system?.attributes.hp.value)
-  newHP = Math.max(Math.min(newHP, actor.value?.system?.attributes.hp.max), 0)
-  actor.value!.system.attributes.hp.value = newHP
-
-  let newTemp = parseIncrement(temp_input, actor.value?.system?.attributes.hp.temp)
+  if (!temp_input) temp_input = '0'
+  let newHP = parseIncrement(hp_input, hpCurrent.value)
+  newHP = Math.max(Math.min(newHP, hpMax.value), 0)
+  let newTemp = parseIncrement(temp_input, hpTemp.value)
   newTemp = Math.max(newTemp, 0)
-  actor.value!.system.attributes.hp.temp = newTemp
 
-  setTimeout(() => {
-    if (actor.value !== undefined)
-      updateActor(
-        actor as Ref<Actor>,
-        { system: { attributes: { hp: { value: newHP, temp: newTemp } } } },
-        null
-      )
-  }, 3000)
+  hpCurrent.value = newHP
+  hpTemp.value = newTemp
 }
-const { lastDamageAmount } = useLastDamage()
 </script>
 <template>
   <Statistic
     heading="Hit Points"
+    :subheading="`(Total Max: ${hpMax})`"
     @click="hitpointsModal.open()"
     ref="hpStat"
-    :modifiers="actor?.system?.attributes?.hp._modifiers"
+    :modifiers="hpModifiers"
     :preventInfoModal="true"
   >
-    {{ actor?.system?.attributes.hp.value ?? '??' }}
-    <span v-if="actor?.system?.attributes.hp.temp" class="text-blue-600"
-      >+ {{ actor?.system?.attributes.hp.temp }}</span
-    >
-    <span v-if="!actor?.system?.attributes.hp.temp">
-      / {{ actor?.system?.attributes.hp.max ?? '??' }}
-    </span>
+    {{ hpCurrent ?? '??' }}
+    <span v-if="hpTemp" class="text-blue-600">+ {{ hpTemp }}</span>
+    <span v-else> / {{ hpMax ?? '??' }} </span>
   </Statistic>
   <Teleport to="#modals">
     <Modal
@@ -80,14 +69,13 @@ const { lastDamageAmount } = useLastDamage()
             const event = e as Event & SubmissionEvent
             const { hp, temp_hp } = e.target as EventTarget & FormData
             if (event.submitter.name === 'update') updateHitPoints(hp.value, temp_hp.value)
-            else if (event.submitter.name === 'reset')
-              updateHitPoints(actor?.system?.attributes.hp.max + '', '0')
+            else if (event.submitter.name === 'reset') updateHitPoints(hpMax + '', '0')
             else if (event.submitter.name === 'lastDamageMinus') {
-              const newTempHP = Math.max(actor?.system?.attributes.hp.temp - lastDamageAmount, 0)
-              const hpAdjustment = Math.max(lastDamageAmount - actor?.system?.attributes.hp.temp, 0)
+              const newTempHP = Math.max(hpTemp - lastDamageAmount, 0)
+              const hpAdjustment = Math.max(lastDamageAmount - hpTemp, 0)
               updateHitPoints('-' + hpAdjustment, newTempHP + '')
             } else if (event.submitter.name === 'lastDamagePlus')
-              updateHitPoints('+' + lastDamageAmount, actor?.system?.attributes.hp.temp + '')
+              updateHitPoints('+' + lastDamageAmount, hpTemp + '')
             hitpointsModal.close()
           }
         "
@@ -99,8 +87,8 @@ const { lastDamageAmount } = useLastDamage()
             name="hp"
             type="input"
             pattern="[\+\-]{0,1}[0-9]*"
-            :placeholder="actor?.system?.attributes.hp.value"
-            :value="actor!.system.attributes.hp.value"
+            :placeholder="hpCurrent"
+            :value="hpCurrent"
             @focus="
               (e: Event) => {
                 const field = e.target as EventTarget & InputSelect
@@ -108,7 +96,7 @@ const { lastDamageAmount } = useLastDamage()
               }
             "
           />
-          <div class="w-1/3 text-xl">/ {{ actor?.system?.attributes.hp.max }}</div>
+          <div class="w-1/3 text-xl">/ {{ hpMax }}</div>
         </div>
         <div class="flex w-full items-center justify-center pb-4 pt-1">
           <div class="w-1/3">Temporary:</div>
@@ -117,8 +105,8 @@ const { lastDamageAmount } = useLastDamage()
             name="temp_hp"
             type="input"
             pattern="[\+\-]{0,1}[0-9]*"
-            :placeholder="actor?.system?.attributes.hp.temp"
-            :value="actor!.system.attributes.hp.temp"
+            :placeholder="hpTemp"
+            :value="hpTemp"
             @focus="
               (e: Event) => {
                 const field = e.target as EventTarget & InputSelect

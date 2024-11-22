@@ -105,8 +105,16 @@ export interface Skill {
   label: string
   rank: number
   totalModifier: number
-  modifiers: [any]
+  modifiers: any[]
   slug: string
+}
+
+export interface Modifier {
+  slug: string
+  label: string
+  modifier: number
+  enabled: boolean
+  hideIfDisabled: boolean
 }
 
 export interface World {
@@ -169,6 +177,7 @@ declare global {
     link: any
     game: any
     Hooks: any
+    character: any
   }
 }
 

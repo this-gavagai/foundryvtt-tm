@@ -5,7 +5,8 @@ import type { Actor } from '@/types/pf2e-types'
 import type { Ref } from 'vue'
 import { ref, provide, watch, inject, computed } from 'vue'
 import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
-import { useThrottleFn } from '@vueuse/core'
+import { useThrottleFn, useDebounceFn } from '@vueuse/core'
+import { useCharacter } from '@/composables/character'
 import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
 import { useWindowSize } from '@vueuse/core'
@@ -44,11 +45,13 @@ export interface CharacterRef<T> extends Ref<T> {
 
 // base data
 const { world } = useWorld()
+
 const actor: CharacterRef<Actor | undefined> = ref()
 provide(useKeys().actorKey, actor)
 
-const character: any = ref({})
-character.value.hp = computed(() => actor.value?.system?.attributes?.hp?.value)
+const { character } = useCharacter(actor)
+provide(useKeys().characterKey, character)
+console.log('here!', character)
 
 // load character from world value if no character details received
 watch(world, () => {
@@ -58,9 +61,8 @@ watch(world, () => {
   }
 })
 
-// requestCharacterDetails(props.characterId, actor)
-const throttledCharacterRequest = useThrottleFn(sendCharacterRequest, 1000, true, false)
-actor.requestCharacterDetails = async () => throttledCharacterRequest(props.characterId, actor)
+const debouncededCharacterRequest = useDebounceFn(sendCharacterRequest, 2000)
+actor.requestCharacterDetails = async () => debouncededCharacterRequest(props.characterId, actor)
 sendCharacterRequest(props.characterId, actor)
 setupSocketListenersForActor(props.characterId, actor)
 
