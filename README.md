@@ -19,14 +19,14 @@ There are some limitations to this approach. Mainly, the character sheet doesn't
 - Fill in small pieces of missing functionality, like sending items to chat, using shields, etc.
 - Provide a way to change modifiers before making rolls
 - Provide a way to trigger GM-provided macros
-- Integration with bluetooth dice, if I can get my hands on some
+- Integration with bluetooth dice (if I can get my hands on some)
 - Continue improving UX, especially the sheet's responsiveness
 - Some backend work, especially some data abstraction and better use of typing
 
 ## Things further down the list:
 - A more intersting look, including support for theming
 - Some way to browse items and add them to the character sheet
-- More functionality when a GM is not available, and more graceful degredation for the things that aren't possible
+- More functionality when a GM is not available, and more graceful degredation for the things that aren't possible without a GM logged in
 
 # How does it work?
 Once the module is installed, GMs should see a setting menu that allows them to indicate which players will use the new Character Sheet. From then on, when those players login, they should be automatically routed to the sheet.
