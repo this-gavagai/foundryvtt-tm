@@ -189,4 +189,3 @@ const actionDefs = computed(() => {
     </InfoModal>
   </Teleport>
 </template>
-@/composables/api@/composables@/types/pf2e-types

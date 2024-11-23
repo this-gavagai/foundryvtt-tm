@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import type { Actor } from '@/types/pf2e-types'
 import { inject, ref } from 'vue'
 import { parseIncrement } from '@/utils/utilities'
 import { useApi } from '@/composables/api'
@@ -9,44 +8,36 @@ import { useKeys } from '@/composables/injectKeys'
 import Statistic from '@/components/Statistic.vue'
 import Modal from '@/components/Modal.vue'
 
-const actor = inject(useKeys().actorKey)!
-const experienceModal = ref()
-const { updateActor } = useApi()
-
-function updateExperience(input: string) {
-  if (!actor.value) return
-  let newValue: number = parseIncrement(input, actor.value?.system?.details.xp.value)
-  actor.value.system.details.xp.value = newValue
-  newValue = Math.max(newValue, 0)
-  if (actor.value)
-    updateActor(actor as Ref<Actor>, { system: { details: { xp: { value: newValue } } } })
-}
-
 interface FormData {
   xp: { value: string }
 }
 interface InputSelect {
   select: () => void
 }
+
+const experienceModal = ref()
+
+const character = inject(useKeys().characterKey)
+const { current: xpCurrent, max: xpMax } = character.xp
+
+function updateExperience(input: string) {
+  let newValue: number = parseIncrement(input, actor.value?.system?.details.xp.value)
+  newValue = Math.max(newValue, 0)
+  xpCurrent.value = newValue
+}
 </script>
 <template>
   <Statistic heading="Experience" @click="experienceModal.open()" class="cursor-pointer">
     <div class="py-1">
       <svg width="75" height="18">
-        <rect
-          :width="
-            75 * ((actor?.system?.details.xp.value ?? 0) / (actor?.system?.details.xp.max ?? 1))
-          "
-          height="18"
-          style="fill: #ccc"
-        />
+        <rect :width="75 * ((xpCurrent ?? 0) / (xpMax ?? 1))" height="18" style="fill: #ccc" />
         <rect
           width="75"
           height="18"
           style="fill: transparent; stroke-width: 3; stroke: rgb(0, 0, 0)"
         />
         <text y="12" x="31" stroke="black" font-size="7pt" font-weight="lighter">
-          {{ actor?.system?.details.xp.value }}
+          {{ xpCurrent }}
         </text>
       </svg>
     </div>
@@ -70,7 +61,7 @@ interface InputSelect {
             name="xp"
             type="input"
             pattern="[\+\-]{0,1}[0-9]*"
-            :value="actor?.system?.details.xp.value"
+            :value="xpCurrent"
             @focus="
               (e: Event) => {
                 const field = e.target as EventTarget & InputSelect
@@ -91,4 +82,3 @@ interface InputSelect {
     </Modal>
   </Teleport>
 </template>
-@/composables/api @/composables@/types/pf2e-types

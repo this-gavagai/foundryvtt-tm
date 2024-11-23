@@ -45,26 +45,29 @@ export interface CharacterRef<T> extends Ref<T> {
 
 // base data
 const { world } = useWorld()
-
 const actor: CharacterRef<Actor | undefined> = ref()
 provide(useKeys().actorKey, actor)
-
 const { character } = useCharacter(actor)
 provide(useKeys().characterKey, character)
-console.log('here!', character)
 
 // load character from world value if no character details received
 watch(world, () => {
+  // todo: this seems to load only once, since after first load actor value is not null. need to track gmOnline somehow?
   if (world.value?.actors && !actor.value?._id) {
     console.log('using world value')
     actor.value = world.value.actors.find((a: Actor) => a._id == props.characterId)
   }
 })
 
-const debouncededCharacterRequest = useDebounceFn(sendCharacterRequest, 2000)
-actor.requestCharacterDetails = async () => debouncededCharacterRequest(props.characterId, actor)
-sendCharacterRequest(props.characterId, actor)
+// TODO: evaluate whether this should be here or in API. it's still getting hammered. why??
+console.log('initiating character', props.characterId)
 setupSocketListenersForActor(props.characterId, actor)
+sendCharacterRequest(props.characterId, actor)
+const debouncededCharacterRequest = useDebounceFn(sendCharacterRequest, 2000)
+actor.requestCharacterDetails = async () => {
+  console.log('calling...')
+  debouncededCharacterRequest(props.characterId, actor)
+}
 
 defineExpose({ actor })
 </script>

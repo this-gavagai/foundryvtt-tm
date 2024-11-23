@@ -83,14 +83,15 @@ export async function foundryRollCheck(args: CheckArgs) {
       roll = actor.system.actions[damageIndex][crit](params)
       break
     case 'skill':
-      params.target = null // TODO: Figure out why this is necessary?
+      params.target = null
       roll = actor.skills[args.checkSubtype].check.roll(params)
       break
     case 'save':
+      params.target = null
       roll = actor.saves[args.checkSubtype].check.roll(params)
       break
     case 'perception':
-      params.target = null // TODO: Figure out why this is necessary?
+      params.target = null
       roll = actor.perception.check.roll(params)
       break
     case 'initiative':
@@ -99,6 +100,7 @@ export async function foundryRollCheck(args: CheckArgs) {
       //   (c: Combatant) => c.actorId === args.characterId
       // )?._id
       // if (combatantId) roll = actor.initiative.roll([combatantId], { updateTurn: false, ...params })
+      params.target = null
       roll = actor.initiative.roll(params)
       break
   }

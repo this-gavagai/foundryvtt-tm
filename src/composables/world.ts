@@ -10,9 +10,15 @@ const { getSocket } = useServer()
 
 async function sendWorldRequest() {
   const socket = await getSocket()
+  console.log()
   socket.emit('world', (r: World) => (world.value = r))
 }
-const refreshWorld = useDebounceFn(sendWorldRequest, 1000)
+
+const debouncedWorldRequest = useDebounceFn(sendWorldRequest, 2000)
+const refreshWorld = () => {
+  console.log('requesting world!')
+  return debouncedWorldRequest()
+}
 
 export function useWorld() {
   return { world, refreshWorld }

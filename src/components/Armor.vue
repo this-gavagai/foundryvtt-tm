@@ -18,4 +18,3 @@ const actor = inject(useKeys().actorKey)
     <div class="my-auto">Shield stuff will go here</div>
   </div>
 </template>
-@/types/pf2e-types

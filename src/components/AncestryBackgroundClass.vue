@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import type { Actor, Item } from '@/types/pf2e-types'
+import type { Item } from '@/types/pf2e-types'
 import { inject, computed, watch, ref } from 'vue'
 import { capitalize, removeUUIDs } from '@/utils/utilities'
 import InfoModal from '@/components/InfoModal.vue'
@@ -8,15 +8,14 @@ import { useKeys } from '@/composables/injectKeys'
 
 const infoModal = ref()
 
-const actor = inject(useKeys().actorKey)!
+const character = inject(useKeys().characterKey)
+const { ancestry, heritage, background, classType, level } = character
 
-const ancestry = computed(() => actor.value?.items?.find((x: Item) => x.type === 'ancestry'))
-const heritage = computed(() => actor.value?.items?.find((x: Item) => x.type === 'heritage'))
-const background = computed(() => actor.value?.items?.find((x: Item) => x.type === 'background'))
-const gameclass = computed(() => actor.value?.items?.find((x: Item) => x.type === 'class'))
-const viewedItem: Ref<Item | undefined> = computed(
-  () => actor.value?.items?.find((i: Item) => i._id === infoModal?.value?.itemId)
-)
+const viewedItem: Ref<Item | undefined> = computed(() => {
+  return [ancestry.value, heritage.value, background.value, classType.value].find(
+    (i: Item) => i?._id === infoModal?.value?.itemId
+  )
+})
 </script>
 <template>
   <div class="my-auto shrink">
@@ -26,15 +25,37 @@ const viewedItem: Ref<Item | undefined> = computed(
     </div>
     <div
       class="cursor-pointer overflow-hidden whitespace-nowrap text-sm"
-      @click="infoModal.open(gameclass?._id)"
+      @click="infoModal.open(classType?._id)"
     >
-      <span>{{ gameclass?.name ?? '-' }}</span>
-      <span v-if="actor?.system?.details.level.value">{{
-        ` (Level ${actor?.system?.details.level.value})`
-      }}</span>
+      <span>{{ classType?.name ?? '-' }}</span>
+      <span v-if="level">{{ ` (Level ${level})` }}</span>
     </div>
   </div>
   <Teleport to="#modals">
+    <!-- <InfoModal
+      ref="infoModal"
+      :imageUrl="viewedItem?.img"
+      :traits="viewedItem?.system.traits.value"
+    >
+      <template #title>
+        {{ viewedItem?.name }}
+      </template>
+      <template #description>
+        Level {{ viewedItem?.system?.level?.value ?? '-' }}
+        <span class="text-sm">({{ capitalize(viewedItem?.system.traits.rarity) }})</span>
+      </template>
+      <template #body>
+        <div v-html="removeUUIDs(viewedItem?.system.description.value)"></div>
+        <div v-if="viewedItem?.type === 'ancestry'">
+          <hr />
+          <div class="mt-2">
+            <h3 class="text-lg">{{ heritage?.name }}</h3>
+            <div v-html="removeUUIDs(heritage?.system.description.value)"></div>
+          </div>
+        </div>
+      </template>
+    </InfoModal> -->
+
     <InfoModal
       ref="infoModal"
       :imageUrl="viewedItem?.img"

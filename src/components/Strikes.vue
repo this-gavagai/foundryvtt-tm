@@ -53,29 +53,29 @@ function doDamage(slug: string, crit: number) {
           {{ SignedNumber.format(strike?.totalModifier) }}
         </div> -->
         <div>{{ strike?.item?.name ?? strike?.label }}</div>
-        <!-- <div> -->
-        <span
-          v-for="(variant, index) in strike.variants"
-          class="mr-1 border bg-blue-600 p-2 text-xs text-white hover:bg-blue-500"
-          @click="strikeModal.open(i, { type: 'strike', subtype: index })"
-        >
-          <span v-if="!index" class="pf2-icon pr-1 text-lg">1</span>
-          <span v-if="!index">Strike </span>
-          <span>{{ variant.label }}</span>
-        </span>
-        <!-- </div> -->
-        <!-- <div class="mt-2"> -->
-        <span
-          class="mr-1 border bg-red-600 p-2 text-xs text-white hover:bg-red-500"
-          @click="strikeModal.open(i, { type: 'damage', subtype: 0 })"
-          >Damage</span
-        >
-        <span
-          class="mr-1 border bg-red-600 p-2 text-xs text-white hover:bg-red-500"
-          @click="strikeModal.open(i, { type: 'damage', subtype: 1 })"
-          >Critical</span
-        >
-        <!-- </div> -->
+        <div class="flex flex-wrap">
+          <span
+            v-for="(variant, index) in strike.variants"
+            class="mb-1 mr-1 break-inside-avoid border bg-blue-600 p-2 text-xs text-white hover:bg-blue-500"
+            @click="strikeModal.open(i, { type: 'strike', subtype: index })"
+          >
+            <span v-if="!index" class="pf2-icon pr-1 text-lg leading-none">1</span>
+            <span v-if="!index">Strike </span>
+            <span>{{ variant.label }}</span>
+          </span>
+          <!-- </div> -->
+          <!-- <div class="mt-2"> -->
+          <span
+            class="mr-1 break-inside-avoid border bg-red-600 p-2 text-xs text-white hover:bg-red-500"
+            @click="strikeModal.open(i, { type: 'damage', subtype: 0 })"
+            >Damage</span
+          >
+          <span
+            class="mr-1 break-inside-avoid border bg-red-600 p-2 text-xs text-white hover:bg-red-500"
+            @click="strikeModal.open(i, { type: 'damage', subtype: 1 })"
+            >Critical</span
+          >
+        </div>
       </li>
     </ul>
   </div>

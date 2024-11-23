@@ -23,7 +23,7 @@ import {
   foundryConsumeItem
 } from '@/foundry/actions'
 
-import { merge } from 'lodash-es'
+import { merge, mergeWith } from 'lodash-es'
 import { useServer } from '@/composables/server'
 import { useTargetHelper } from '@/composables/targetHelper'
 import { useWorld } from '@/composables/world'
@@ -91,7 +91,7 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
         break
     }
     // TODO: figure out if these refreshWorld calls are really necessary
-    refreshWorld()
+    // refreshWorld()
   })
   socket.on('userActivity', (user: string, args: EventArgs) => {
     console.log(user, args)
@@ -125,15 +125,16 @@ async function setupSocketListenersForActor(
         args.result.forEach((change: any) => {
           if (change._id === actor.value?._id) {
             merge(actor.value, change)
+            actor.requestCharacterDetails!()
           }
         })
-        actor.requestCharacterDetails!()
         break
       case 'Item':
         if (!actor.value) return
-        if (args.operation.parentUuid !== 'Actor.' + actorId) break
-        processChanges(args, actor.value.items)
-        actor.requestCharacterDetails!()
+        if (args.operation.parentUuid === 'Actor.' + actorId) {
+          processChanges(args, actor.value.items)
+          actor.requestCharacterDetails!()
+        }
         break
     }
   })
@@ -169,7 +170,7 @@ async function updateActor(
       (r: EventResponse) => {
         r.result.forEach((change: EventRequest) => {
           merge(actor.value, change)
-          actor.requestCharacterDetails!() // todo: this is inefficient and it causes cache flashing
+          actor.requestCharacterDetails!()
         })
         resolve(r)
       }
@@ -285,8 +286,18 @@ async function sendCharacterRequest(actorId: string, actor: Ref<Actor | undefine
   }
 }
 function parseActorData(actorId: string, actor: Ref<Actor | undefined>, args: any) {
+  // function customizer(objValue: any, srcValue: any, key: any, obj: any) {
+  //   if (objValue !== srcValue && typeof srcValue === 'undefined') {
+  //     obj[key] = srcValue
+  //   }
+  // }
   if (args.actorId === actorId) {
+    // TODO: (refactor) this is tricky. rewriting the actor.value procs a huge number of calculations, but merging is unreliable and limited
+    // if (!actor.value) actor.value = JSON.parse(args.actor)
+    // else mergeWith(actor.value, JSON.parse(args.actor), customizer)
     actor.value = JSON.parse(args.actor)
+
+    // todo: (refactor) is there any way avoid requiring these tedious things
     merge(actor.value!.system, JSON.parse(args.system))
     actor.value!.feats = JSON.parse(args.feats)
   }

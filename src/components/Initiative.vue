@@ -31,7 +31,7 @@ watch(selected, async (newSkill, oldSkill) => {
     updateActor(actor as CharacterRef<Actor>, {
       system: { initiative: { statistic: newSkill } }
     }).then(() => {
-      actor.requestCharacterDetails!()
+      // actor.requestCharacterDetails!() // TODO: get rid of this
     })
 })
 
