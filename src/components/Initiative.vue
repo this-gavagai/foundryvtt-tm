@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import type { CharacterRef } from '@/components/Character.vue'
+import type { CharacterRef } from '@/components/CharacterSheet.vue'
 import type { Actor, Combatant } from '@/types/pf2e-types'
 import { computed, watch, ref, inject } from 'vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'

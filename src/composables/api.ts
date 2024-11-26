@@ -11,9 +11,10 @@ import type {
   EventRequest,
   EventResponse
 } from '@/types/pf2e-types'
-import type { CharacterRef } from '@/components/Character.vue'
+import type { CharacterRef } from '@/components/CharacterSheet.vue'
 import { ref } from 'vue'
 
+// TODO: these are being imported for the old local modality; not needed anymore?
 import {
   getCharacterDetails,
   foundryCastSpell,
@@ -22,31 +23,16 @@ import {
   foundryConsumeItem
 } from '@/foundry/actions'
 
-import { merge, mergeWith } from 'lodash-es'
+import { merge } from 'lodash-es'
 import { useServer } from '@/composables/server'
 import { useTargetHelper } from '@/composables/targetHelper'
-import { useWorld } from '@/composables/world'
-import { useUserId } from '@/composables/user'
+// import { useWorld } from '@/composables/world'
 
 const { getSocket } = useServer()
-
 const ackQueue: { [key: string]: Function } = {}
+const requestCharacterDetails: { [key: string]: Function } = {}
 function pushToAckQueue(uuid: string, callback: Function) {
   ackQueue[uuid] = callback
-}
-
-export function processChanges(args: any, dataRoot: any) {
-  switch (args.action) {
-    case 'create':
-      _processCreates(dataRoot, args.result as Item[])
-      break
-    case 'update':
-      _processUpdates(dataRoot, args.result as Item[])
-      break
-    case 'delete':
-      _processDeletes(dataRoot, args.result as string[])
-      break
-  }
 }
 
 function uuidv4() {
@@ -60,7 +46,7 @@ function uuidv4() {
 ///////////////////////////////////////
 async function setupSocketListenersForWorld(world: Ref<World>) {
   const socket = await getSocket()
-  const { refreshWorld } = useWorld()
+  // const { refreshWorld } = useWorld()
   socket.on('module.tablemate', (args: EventArgs) => {
     switch (args.action) {
       case 'acknowledged':
@@ -77,11 +63,12 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
       case 'Combat':
         processChanges(args, world.value.combats)
         break
-      case 'Combatant':
+      case 'Combatant': {
         const combatId = args.operation.parentUuid.split('.')?.[1]
         const combat = world.value?.combats.find((c: Combat) => c._id === combatId)
         processChanges(args, combat.combatants)
         break
+      }
       case 'ChatMessage':
         processChanges(args, world.value.messages)
         break
@@ -103,14 +90,16 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
 
 async function setupSocketListenersForActor(
   actorId: string,
-  actor: CharacterRef<Actor | undefined>
+  actor: CharacterRef<Actor | undefined>,
+  refreshMethod: any
 ) {
   const socket = await getSocket()
+  requestCharacterDetails[actorId] = refreshMethod
   socket.on('module.tablemate', (args: EventArgs) => {
     // if (!actor.value) return // why was this here?
     switch (args.action) {
       case 'listenerOnline':
-        if (!parent.game) actor.requestCharacterDetails!()
+        if (!parent.game) requestCharacterDetails[actorId]()
         break
       case 'updateCharacterDetails':
         parseActorData(actorId, actor, args)
@@ -121,10 +110,10 @@ async function setupSocketListenersForActor(
     if (!actor.value) return
     switch (args.type) {
       case 'Actor':
-        args.result.forEach((change: any) => {
-          if (change._id === actor.value?._id) {
-            merge(actor.value, change)
-            actor.requestCharacterDetails!()
+        args.result.forEach((operation: any) => {
+          if (operation._id === actorId) {
+            merge(actor.value, operation)
+            requestCharacterDetails[actorId]()
           }
         })
         break
@@ -132,7 +121,7 @@ async function setupSocketListenersForActor(
         if (!actor.value) return
         if (args.operation.parentUuid === 'Actor.' + actorId) {
           processChanges(args, actor.value.items)
-          actor.requestCharacterDetails!()
+          requestCharacterDetails[actorId]()
         }
         break
     }
@@ -148,7 +137,7 @@ async function updateActor(
   additionalOptions: null | { [key: string]: any } = null
 ): Promise<any> {
   const socket = await getSocket()
-  const promise = new Promise((resolve, reject) => {
+  const promise = new Promise((resolve) => {
     socket.emit(
       'modifyDocument',
       {
@@ -169,7 +158,7 @@ async function updateActor(
       (r: EventResponse) => {
         r.result.forEach((change: EventRequest) => {
           merge(actor.value, change)
-          actor.requestCharacterDetails!()
+          requestCharacterDetails[actor.value._id]()
         })
         resolve(r)
       }
@@ -185,7 +174,7 @@ async function updateActorItem(
   additionalOptions: null | { [key: string]: any } = null
 ): Promise<any> {
   const socket = await getSocket()
-  const promise = new Promise((resolve, reject) => {
+  const promise = new Promise((resolve) => {
     socket.emit(
       'modifyDocument',
       {
@@ -206,7 +195,7 @@ async function updateActorItem(
       },
       (r: any) => {
         _processUpdates(actor.value.items, r.result)
-        actor.requestCharacterDetails!()
+        requestCharacterDetails[actor.value._id]()
         resolve(r)
       }
     )
@@ -216,7 +205,7 @@ async function updateActorItem(
 
 async function deleteActorItem(actor: CharacterRef<Actor>, itemId: string): Promise<any> {
   const socket = await getSocket()
-  const promise = new Promise((resolve, reject) => {
+  const promise = new Promise((resolve) => {
     socket.emit(
       'modifyDocument',
       {
@@ -229,7 +218,7 @@ async function deleteActorItem(actor: CharacterRef<Actor>, itemId: string): Prom
       },
       (r: any) => {
         _processDeletes(actor.value.items, r.result)
-        actor.requestCharacterDetails!()
+        requestCharacterDetails[actor.value._id]()
         resolve(r)
       }
     )
@@ -239,7 +228,7 @@ async function deleteActorItem(actor: CharacterRef<Actor>, itemId: string): Prom
 
 async function updateUserTargetingProxy(userId: string, proxyId: string) {
   const socket = await getSocket()
-  const promise = new Promise((resolve, reject) => {
+  const promise = new Promise((resolve) => {
     socket.emit(
       'modifyDocument',
       {
@@ -256,16 +245,17 @@ async function updateUserTargetingProxy(userId: string, proxyId: string) {
       },
       (r: any) => {
         // _processDeletes(actor.value.items, r.result)
-        // actor.requestCharacterDetails!()
+        // requestCharacterDetails[actor.value._id]()
         // TODO: add something here to update local data?
         resolve(r)
       }
     )
   })
+  return promise
 }
 
 /////////////////////////////////////////////////
-// Character and World Build Methods           //
+// Character Build Methods                     //
 /////////////////////////////////////////////////
 // TODO: (refactor?) review call/response structure. Right now, this method doesn't use the ackQueue but instead listens to a separate response
 // not using ackQueue allows for updates pushed from server, but makes this method a bit weird (and needing a timeout to prevent race conditions)
@@ -326,7 +316,7 @@ async function castSpell(
     return foundryCastSpell(args)
   } else {
     const socket = await getSocket()
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       socket.emit('module.tablemate', args)
       pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
     })
@@ -357,7 +347,7 @@ async function rollCheck(
     return foundryRollCheck(args)
   } else {
     const socket = await getSocket()
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       socket.emit('module.tablemate', args)
       pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
     })
@@ -384,7 +374,7 @@ async function characterAction(
     return foundryCharacterAction(args)
   } else {
     const socket = await getSocket()
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       socket.emit('module.tablemate', args)
       pushToAckQueue(uuid, (args: any) => resolve(args))
     })
@@ -404,7 +394,7 @@ async function consumeItem(actor: Ref<Actor>, consumableId: string, options = {}
     return foundryConsumeItem(args)
   } else {
     const socket = await getSocket()
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       socket.emit('module.tablemate', args)
       pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
     })
@@ -414,18 +404,32 @@ async function consumeItem(actor: Ref<Actor>, consumableId: string, options = {}
 ///////////////////////////////////////
 // Processing Methods                //
 ///////////////////////////////////////
-function _processCreates<Type>(set: any[], results: Item[]) {
+function processChanges(args: any, dataRoot: any) {
+  switch (args.action) {
+    case 'create':
+      _processCreates(dataRoot, args.result as Item[])
+      break
+    case 'update':
+      _processUpdates(dataRoot, args.result as Item[])
+      break
+    case 'delete':
+      _processDeletes(dataRoot, args.result as string[])
+      break
+  }
+}
+
+function _processCreates(set: any[], results: Item[]) {
   results.forEach((c: Item) => {
     set.push(c)
   })
 }
-function _processUpdates<Type>(set: any[], results: Item[]) {
+function _processUpdates(set: any[], results: Item[]) {
   results.forEach((change: Item) => {
-    let item = set.find((a: any) => a._id === change._id)
+    const item = set.find((a: any) => a._id === change._id)
     if (item) merge(item, change)
   })
 }
-function _processDeletes<Type>(set: any[], results: string[]) {
+function _processDeletes(set: any[], results: string[]) {
   results.forEach((d: string) => {
     const index = set.findIndex((i: any) => i._id === d)
     if (index != -1) {

@@ -3,7 +3,6 @@
 // TODO: rather than this @pickCharacter event, use a composable with app-level variable?
 
 import { ref, type Ref, watchPostEffect } from 'vue'
-import { io, Socket } from 'socket.io-client'
 import type { Actor, World } from '@/types/pf2e-types'
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 
@@ -12,11 +11,11 @@ import { useServer } from '@/composables/server'
 import { useWorld } from '@/composables/world'
 import { useCharacterSelect } from '@/composables/characterSelect'
 
-import Character from '@/components/Character.vue'
+import CharacterSheet from '@/components/CharacterSheet.vue'
 
-interface CharacterPanel extends Ref {
-  actor: Actor
-}
+// interface CharacterPanel extends Ref {
+//   actor: Actor
+// }
 
 const urlId = new URLSearchParams(document.location.search).get('id')
 const { world, refreshWorld } = useWorld()
@@ -29,33 +28,36 @@ const location = new URL(window.location.origin)
 
 connectToServer(location).then((socket: any) => {
   socket.value?.emit('module.tablemate', { action: 'anybodyHome' })
+  setInterval(() => {
+    socket.value?.emit('module.tablemate', { action: 'anybodyHome' })
+  }, 60000)
 })
 
 const activeIndex = ref<number>(0)
 const { characterList } = useCharacterSelect(urlId)
 const characterPanels = ref<CharacterPanel[]>([])
 
-declare const BUILD_MODE: string
-if (BUILD_MODE === 'development') {
-  watchPostEffect(() => {
-    const globalLocation = typeof parent.game === 'undefined' ? window : parent
-    globalLocation.altCharacters = new Map([])
-    characterPanels.value.forEach((panel: CharacterPanel) => {
-      if (panel.actor?._id === urlId) {
-        globalLocation.actor = panel.actor
-      } else {
-        globalLocation.altCharacters.set(panel.actor?._id, panel.actor)
-      }
-    })
-  })
-  watchPostEffect(() => {
-    const globalLocation = typeof parent.game === 'undefined' ? window : parent
-    if (world.value) {
-      console.log('TM-RECV world')
-      globalLocation.world = world.value
-    }
-  })
-}
+// declare const BUILD_MODE: string
+// if (BUILD_MODE === 'development') {
+//   watchPostEffect(() => {
+//     const globalLocation = typeof parent.game === 'undefined' ? window : parent
+//     globalLocation.altCharacters = new Map([])
+//     characterPanels.value.forEach((panel: CharacterPanel) => {
+//       if (panel.actor?._id === urlId) {
+//         globalLocation.actor = panel.actor
+//       } else {
+//         globalLocation.altCharacters.set(panel.actor?._id, panel.actor)
+//       }
+//     })
+//   })
+//   watchPostEffect(() => {
+//     const globalLocation = typeof parent.game === 'undefined' ? window : parent
+//     if (world.value) {
+//       console.log('TM-RECV world')
+//       globalLocation.world = world.value
+//     }
+//   })
+// }
 </script>
 <template>
   <TabGroup :selectedIndex="activeIndex" @change="console.log('character changed!')" as="div">
@@ -68,7 +70,7 @@ if (BUILD_MODE === 'development') {
     </TabList>
     <TabPanels>
       <TabPanel v-for="(c, index) in characterList" :key="c" :unmount="false" :tabIndex="-1">
-        <Character
+        <CharacterSheet
           :characterId="c"
           :ref="(el: CharacterPanel) => (characterPanels[index] = el)"
           @pickCharacter="(id: string) => (activeIndex = characterList.indexOf(id))"

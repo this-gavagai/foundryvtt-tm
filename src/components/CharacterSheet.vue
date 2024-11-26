@@ -38,6 +38,7 @@ const sideMenu = ref()
 const props = defineProps(['characterId'])
 const panels = ref()
 
+// TODO: get rid of this. Actor shouldn't be exposed
 export interface CharacterRef<T> extends Ref<T> {
   requestCharacterDetails?: Function
 }
@@ -51,28 +52,32 @@ provide(useKeys().characterKey, character)
 
 // load character from world value if no character details received
 watch(world, () => {
-  // todo: this seems to load only once, since after first load actor value is not null. need to track gmOnline somehow?
+  // TODO: this seems to load only once, since after first load actor value is not null. need to track gmOnline somehow? or just merge?
   if (world.value?.actors && !actor.value?._id) {
     console.log('using world value')
     actor.value = world.value.actors.find((a: Actor) => a._id == props.characterId)
   }
 })
 
+// setup refresh methods
+const { sendCharacterRequest, setupSocketListenersForActor } = useApi()
+const debouncededCharacterRequest = debounce(sendCharacterRequest, 2000)
+const requestCharacterDetails = async () => {
+  console.log('refreshing', props.characterId)
+  debouncededCharacterRequest(props.characterId, actor)
+}
+
 onMounted(() => {
   console.log('TABLEMATE: initiating character', props.characterId)
-  const { sendCharacterRequest, setupSocketListenersForActor } = useApi()
-  setupSocketListenersForActor(props.characterId, actor)
+  setupSocketListenersForActor(props.characterId, actor, requestCharacterDetails)
   sendCharacterRequest(props.characterId, actor)
-  const debouncededCharacterRequest = debounce(sendCharacterRequest, 2000)
-  // attaching this to the actor is lazy. It should be defined differently
-  actor.requestCharacterDetails = async () => {
-    debouncededCharacterRequest(props.characterId, actor)
-  }
+  // TODO: attaching this to the actor is lazy. It should be defined differently
+  // actor.requestCharacterDetails = requestCharacterDetails
 })
 onUnmounted(() => {
   console.log('unmounted actor: ', actor?.value?._id)
 })
-defineExpose({ actor })
+// defineExpose({ actor })
 </script>
 <template>
   <div class="flex h-screen">

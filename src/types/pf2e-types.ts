@@ -8,7 +8,6 @@ export interface Actor {
   inventory: any
   system: System
   prototypeToken: any
-  requestCharacterDetails: any
   ownership: any
 }
 
