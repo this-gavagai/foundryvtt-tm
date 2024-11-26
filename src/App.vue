@@ -2,7 +2,9 @@
 // TODO: (feature++) add some way to browse compendia, which can be used for adding new items to various contexts
 // TODO: rather than this @pickCharacter event, use a composable with app-level variable?
 
-import { ref, type Ref, watchPostEffect } from 'vue'
+import { ref, type Ref } from 'vue'
+// import { watchPostEffect } from 'vue'
+import { type Socket } from 'socket.io-client'
 import type { Actor, World } from '@/types/pf2e-types'
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 
@@ -27,7 +29,7 @@ const { connectToServer } = useServer()
 const location = new URL(window.location.origin)
 
 // connect to server and ping it periodically
-connectToServer(location).then((socket: any) => {
+connectToServer(location).then((socket: Ref<Socket | undefined>) => {
   socket.value?.emit('module.tablemate', { action: 'anybodyHome' })
   setInterval(() => {
     socket.value?.emit('module.tablemate', { action: 'anybodyHome' })
