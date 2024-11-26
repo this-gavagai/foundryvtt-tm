@@ -1,19 +1,21 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
 import type { Item } from '@/types/pf2e-types'
+import type { Character } from '@/composables/character'
 import { inject, computed, ref } from 'vue'
 import { capitalize, removeUUIDs } from '@/utils/utilities'
 import InfoModal from '@/components/InfoModal.vue'
 import { useKeys } from '@/composables/injectKeys'
 
 const infoModal = ref()
-
-const character = inject(useKeys().characterKey)
+const character = inject(useKeys().characterKey) as Character
 const { ancestry, heritage, background, classType, level } = character
 
 const viewedItem: Ref<Item | undefined> = computed(() => {
   return [ancestry.value, heritage.value, background.value, classType.value].find(
-    (i: Item) => i?._id === infoModal?.value?.itemId
+    (i: Item | undefined) => {
+      return i?._id === infoModal.value?.itemId
+    }
   )
 })
 </script>

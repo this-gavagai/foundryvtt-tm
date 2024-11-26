@@ -74,5 +74,5 @@ export function parseIncrement(input: string, startingValue: number): number {
   } else {
     newValue = Number(transform[2]) ?? startingValue
   }
-  return newValue
+  return newValue ?? startingValue
 }

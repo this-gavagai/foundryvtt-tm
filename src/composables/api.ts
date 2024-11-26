@@ -132,10 +132,11 @@ async function setupSocketListenersForActor(
 // Emit Methods                      //
 ///////////////////////////////////////
 async function updateActor(
-  actor: Ref<Actor>,
+  actor: Ref<Actor | undefined>,
   update: {},
   additionalOptions: null | { [key: string]: any } = null
 ): Promise<any> {
+  if (!actor.value) return
   const socket = await getSocket()
   const promise = new Promise((resolve) => {
     socket.emit(
@@ -158,7 +159,7 @@ async function updateActor(
       (r: EventResponse) => {
         r.result.forEach((change: EventRequest) => {
           merge(actor.value, change)
-          requestCharacterDetails[actor.value._id]()
+          requestCharacterDetails[actor.value!._id]()
         })
         resolve(r)
       }

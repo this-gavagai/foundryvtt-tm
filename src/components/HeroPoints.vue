@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
+import type { Character } from '@/composables/character'
 import { inject, ref } from 'vue'
 import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
@@ -11,7 +12,7 @@ import Modal from '@/components/Modal.vue'
 
 const counter = ref()
 
-const character = inject(useKeys().characterKey)
+const character = inject(useKeys().characterKey) as Character
 const { current: heroCurrent, max: heroMax } = character.heroPoints
 
 function updateHeroPoints(newTotal: number): void {

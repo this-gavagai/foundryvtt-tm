@@ -1,5 +1,6 @@
 // todo: is there a better way to do a complex object with many computed properties?
-import { type Ref, type ComputedRef, type WritableComputedRef, computed, watch } from 'vue'
+import type { Ref, ComputedRef, WritableComputedRef } from 'vue'
+import { computed, watch } from 'vue'
 import type { Actor, Modifier, Item } from '@/types/pf2e-types'
 import { useApi } from '@/composables/api'
 
@@ -8,29 +9,29 @@ export interface Character {
   heritage: ComputedRef<Item | undefined>
   background: ComputedRef<Item | undefined>
   classType: ComputedRef<Item | undefined>
-  level: ComputedRef<Number | undefined>
+  level: ComputedRef<number | undefined>
   xp: {
-    current: WritableComputedRef<Number | undefined>
-    max: ComputedRef<Number | undefined>
+    current: WritableComputedRef<number | undefined>
+    max: ComputedRef<number | undefined>
   }
   hp: {
-    current: WritableComputedRef<Number | undefined>
-    max: ComputedRef<Number | undefined>
-    temp: WritableComputedRef<Number | undefined>
+    current: WritableComputedRef<number | undefined>
+    max: ComputedRef<number | undefined>
+    temp: WritableComputedRef<number | undefined>
     modifiers: ComputedRef<Modifier[]>
   }
   heroPoints: {
-    current: WritableComputedRef<Number | undefined>
-    max: ComputedRef<Number | undefined>
+    current: WritableComputedRef<number | undefined>
+    max: ComputedRef<number | undefined>
   }
   ac: {
-    current: ComputedRef<Number | undefined>
+    current: ComputedRef<number | undefined>
     modifiers: ComputedRef<Modifier[]>
   }
 }
 
-export function useCharacter(actor: Ref<Actor>) {
-  watch(actor, () => console.log('actor changed', actor.value._id))
+export function useCharacter(actor: Ref<Actor | undefined>) {
+  watch(actor, () => console.log('actor changed', actor.value?._id))
   const { updateActor } = useApi()
   const character: Character = {
     ancestry: computed(() => actor?.value?.items?.find((x: Item) => x.type === 'ancestry')),
@@ -42,7 +43,7 @@ export function useCharacter(actor: Ref<Actor>) {
       current: computed({
         get: () => actor?.value?.system?.details?.xp?.value,
         set: (newValue) => {
-          actor.value.system.details.xp.value = newValue
+          actor.value!.system.details.xp.value = newValue
           updateActor(actor, { system: { details: { xp: { value: newValue } } } })
         }
       }),
@@ -55,7 +56,7 @@ export function useCharacter(actor: Ref<Actor>) {
           return actor?.value?.system?.attributes?.hp?.value
         },
         set: (newValue) => {
-          actor.value.system.attributes.hp.value = newValue
+          actor.value!.system.attributes.hp.value = newValue
           updateActor(actor, { system: { attributes: { hp: { value: newValue } } } })
         }
       }),
@@ -63,7 +64,7 @@ export function useCharacter(actor: Ref<Actor>) {
       temp: computed({
         get: () => actor?.value?.system?.attributes?.hp?.temp,
         set: (newValue) => {
-          actor.value.system.attributes.hp.temp = newValue
+          actor.value!.system.attributes.hp.temp = newValue
           updateActor(actor, { system: { attributes: { hp: { temp: newValue } } } })
         }
       }),
@@ -73,7 +74,7 @@ export function useCharacter(actor: Ref<Actor>) {
       current: computed({
         get: () => actor?.value?.system?.resources?.heroPoints?.value,
         set: (newValue) => {
-          actor.value.system.resources.heroPoints.value = newValue
+          actor.value!.system.resources.heroPoints.value = newValue
           updateActor(actor, { system: { resources: { heroPoints: { value: newValue } } } })
         }
       }),

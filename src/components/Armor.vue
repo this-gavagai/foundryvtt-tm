@@ -1,11 +1,12 @@
 <script setup lang="ts">
 //TODO (feature): shield stuff
 import type { Skill } from '@/types/pf2e-types'
+import type { Character } from '@/composables/character'
 import { inject, computed } from 'vue'
 import Statistic from './Statistic.vue'
 import { useKeys } from '@/composables/injectKeys'
 
-const character = inject(useKeys().characterKey)
+const character = inject(useKeys().characterKey) as Character
 const { current: acCurrent, modifiers: acModifiers } = character.ac
 </script>
 <template>

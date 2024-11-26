@@ -13,9 +13,9 @@ import { useCharacterSelect } from '@/composables/characterSelect'
 
 import CharacterSheet from '@/components/CharacterSheet.vue'
 
-// interface CharacterPanel extends Ref {
-//   actor: Actor
-// }
+interface CharacterPanel extends Ref {
+  actor: Actor
+}
 
 const urlId = new URLSearchParams(document.location.search).get('id')
 const { world, refreshWorld } = useWorld()

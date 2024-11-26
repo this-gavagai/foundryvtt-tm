@@ -39,7 +39,7 @@ const panels = ref()
 
 // base data
 const { world } = useWorld()
-const actor: Actor | undefined = ref()
+const actor: Ref<Actor | undefined> = ref()
 provide(useKeys().actorKey, actor)
 const { character } = useCharacter(actor)
 provide(useKeys().characterKey, character)
@@ -66,7 +66,7 @@ onMounted(() => {
 onUnmounted(() => {
   console.log('unmounted actor: ', actor?.value?._id)
 })
-// defineExpose({ actor })
+defineExpose({ actor })
 </script>
 <template>
   <div class="flex h-screen">

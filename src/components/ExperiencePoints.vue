@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import type { Ref } from 'vue'
+import type { Character } from '@/composables/character'
 import { inject, ref } from 'vue'
 import { parseIncrement } from '@/utils/utilities'
-import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
 
 import Statistic from '@/components/Statistic.vue'
@@ -16,12 +15,12 @@ interface InputSelect {
 }
 
 const experienceModal = ref()
-
-const character = inject(useKeys().characterKey)
+const character = inject(useKeys().characterKey) as Character
 const { current: xpCurrent, max: xpMax } = character.xp
 
 function updateExperience(input: string) {
-  let newValue: number = parseIncrement(input, actor.value?.system?.details.xp.value)
+  if (xpCurrent.value === undefined) return
+  let newValue: number = parseIncrement(input, xpCurrent.value)
   newValue = Math.max(newValue, 0)
   xpCurrent.value = newValue
 }

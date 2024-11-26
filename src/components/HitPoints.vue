@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // todo: loading indicator to communicate change in process? right now text just fades to white. Might seem non-responsive on slower connections
 import type { Ref } from 'vue'
+import type { Character } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
 import { useApi } from '@/composables/api'
 import { parseIncrement } from '@/utils/utilities'
@@ -24,11 +25,13 @@ interface InputSelect {
 const hpStat = ref()
 const hitpointsModal = ref()
 
-const character = inject(useKeys().characterKey)
+const character = inject(useKeys().characterKey) as Character
 const { current: hpCurrent, max: hpMax, temp: hpTemp, modifiers: hpModifiers } = character.hp
 const { lastDamageAmount } = useLastDamage()
 
 function updateHitPoints(hp_input: string, temp_input: string) {
+  if (hpCurrent.value === undefined || hpTemp.value === undefined || hpMax.value === undefined)
+    return
   if (!temp_input) temp_input = '0'
   let newHP = parseIncrement(hp_input, hpCurrent.value)
   newHP = Math.max(Math.min(newHP, hpMax.value), 0)
@@ -71,8 +74,8 @@ function updateHitPoints(hp_input: string, temp_input: string) {
             if (event.submitter.name === 'update') updateHitPoints(hp.value, temp_hp.value)
             else if (event.submitter.name === 'reset') updateHitPoints(hpMax + '', '0')
             else if (event.submitter.name === 'lastDamageMinus') {
-              const newTempHP = Math.max(hpTemp - lastDamageAmount, 0)
-              const hpAdjustment = Math.max(lastDamageAmount - hpTemp, 0)
+              const newTempHP = Math.max((hpTemp ?? 0) - lastDamageAmount, 0)
+              const hpAdjustment = Math.max(lastDamageAmount - (hpTemp ?? 0), 0)
               updateHitPoints('-' + hpAdjustment, newTempHP + '')
             } else if (event.submitter.name === 'lastDamagePlus')
               updateHitPoints('+' + lastDamageAmount, hpTemp + '')
@@ -87,7 +90,7 @@ function updateHitPoints(hp_input: string, temp_input: string) {
             name="hp"
             type="input"
             pattern="[\+\-]{0,1}[0-9]*"
-            :placeholder="hpCurrent"
+            :placeholder="hpCurrent + ''"
             :value="hpCurrent"
             @focus="
               (e: Event) => {
@@ -105,7 +108,7 @@ function updateHitPoints(hp_input: string, temp_input: string) {
             name="temp_hp"
             type="input"
             pattern="[\+\-]{0,1}[0-9]*"
-            :placeholder="hpTemp"
+            :placeholder="hpTemp + ''"
             :value="hpTemp"
             @focus="
               (e: Event) => {
