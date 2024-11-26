@@ -1,5 +1,6 @@
 // TODO: (feature+) add option to send chat message on certain api events
 // TODO: (known issue) this thing isn't triggering preUpdateActor hooks, as those are conventionally called only on the actor in question. May be a problem.
+// TODO: currently setting actor.value on each refresh. This triggers tons of recalculations. Any way to merge reliably?
 import type { Ref } from 'vue'
 import type {
   Actor,
@@ -11,7 +12,6 @@ import type {
   EventRequest,
   EventResponse
 } from '@/types/pf2e-types'
-import type { CharacterRef } from '@/components/CharacterSheet.vue'
 import { ref } from 'vue'
 
 // TODO: these are being imported for the old local modality; not needed anymore?
@@ -90,7 +90,7 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
 
 async function setupSocketListenersForActor(
   actorId: string,
-  actor: CharacterRef<Actor | undefined>,
+  actor: Ref<Actor | undefined>,
   refreshMethod: any
 ) {
   const socket = await getSocket()
@@ -132,7 +132,7 @@ async function setupSocketListenersForActor(
 // Emit Methods                      //
 ///////////////////////////////////////
 async function updateActor(
-  actor: CharacterRef<Actor>,
+  actor: Ref<Actor>,
   update: {},
   additionalOptions: null | { [key: string]: any } = null
 ): Promise<any> {
@@ -168,7 +168,7 @@ async function updateActor(
 }
 
 async function updateActorItem(
-  actor: CharacterRef<Actor>,
+  actor: Ref<Actor>,
   itemId: string,
   update: {},
   additionalOptions: null | { [key: string]: any } = null
@@ -203,7 +203,7 @@ async function updateActorItem(
   return promise
 }
 
-async function deleteActorItem(actor: CharacterRef<Actor>, itemId: string): Promise<any> {
+async function deleteActorItem(actor: Ref<Actor>, itemId: string): Promise<any> {
   const socket = await getSocket()
   const promise = new Promise((resolve) => {
     socket.emit(

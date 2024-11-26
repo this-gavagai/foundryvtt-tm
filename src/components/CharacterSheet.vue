@@ -6,6 +6,7 @@ import { type Ref, onUnmounted, onMounted } from 'vue'
 import { ref, provide, watch } from 'vue'
 import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
 import { debounce } from 'lodash-es'
+import { useWorld } from '@/composables/world'
 import { useCharacter } from '@/composables/character'
 import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
@@ -30,22 +31,15 @@ import Spells from '@/components/Spells.vue'
 import Feats from '@/components/Feats.vue'
 import Equipment from '@/components/Equipment.vue'
 import Strikes from '@/components/Strikes.vue'
-import { useWorld } from '@/composables/world'
 
 const { width } = useWindowSize()
 const sideMenu = ref()
-
 const props = defineProps(['characterId'])
 const panels = ref()
 
-// TODO: get rid of this. Actor shouldn't be exposed
-export interface CharacterRef<T> extends Ref<T> {
-  requestCharacterDetails?: Function
-}
-
 // base data
 const { world } = useWorld()
-const actor: CharacterRef<Actor | undefined> = ref()
+const actor: Actor | undefined = ref()
 provide(useKeys().actorKey, actor)
 const { character } = useCharacter(actor)
 provide(useKeys().characterKey, character)
@@ -62,17 +56,12 @@ watch(world, () => {
 // setup refresh methods
 const { sendCharacterRequest, setupSocketListenersForActor } = useApi()
 const debouncededCharacterRequest = debounce(sendCharacterRequest, 2000)
-const requestCharacterDetails = async () => {
-  console.log('refreshing', props.characterId)
-  debouncededCharacterRequest(props.characterId, actor)
-}
+const requestCharacterDetails = async () => debouncededCharacterRequest(props.characterId, actor)
 
 onMounted(() => {
   console.log('TABLEMATE: initiating character', props.characterId)
   setupSocketListenersForActor(props.characterId, actor, requestCharacterDetails)
   sendCharacterRequest(props.characterId, actor)
-  // TODO: attaching this to the actor is lazy. It should be defined differently
-  // actor.requestCharacterDetails = requestCharacterDetails
 })
 onUnmounted(() => {
   console.log('unmounted actor: ', actor?.value?._id)

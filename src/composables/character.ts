@@ -30,7 +30,7 @@ export interface Character {
 }
 
 export function useCharacter(actor: Ref<Actor>) {
-  watch(actor, () => console.log('actor changed'))
+  watch(actor, () => console.log('actor changed', actor.value._id))
   const { updateActor } = useApi()
   const character: Character = {
     ancestry: computed(() => actor?.value?.items?.find((x: Item) => x.type === 'ancestry')),

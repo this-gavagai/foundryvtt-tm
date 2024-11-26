@@ -69,7 +69,7 @@ async function connectToServer(url: URL) {
 }
 
 function getSocket(): Promise<Socket> {
-  return new Promise((resolve: Function, reject: Function) => {
+  return new Promise((resolve: Function) => {
     ;(function waitForSocket() {
       if (socket.value) return resolve(socket.value)
       setTimeout(waitForSocket, 100)

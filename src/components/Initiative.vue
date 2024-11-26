@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import type { CharacterRef } from '@/components/CharacterSheet.vue'
 import type { Actor, Combatant } from '@/types/pf2e-types'
 import { computed, watch, ref, inject } from 'vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
@@ -28,7 +27,7 @@ const initSkills: Ref<SkillDef[]> = computed(() => {
 const selected = ref(actor.value?.system?.initiative?.statistic)
 watch(selected, async (newSkill, oldSkill) => {
   if (actor.value)
-    updateActor(actor as CharacterRef<Actor>, {
+    updateActor(actor as Actor, {
       system: { initiative: { statistic: newSkill } }
     }).then(() => {
       // actor.requestCharacterDetails!() // TODO: get rid of this

@@ -26,6 +26,7 @@ refreshWorld().then(() => setupSocketListenersForWorld(world as Ref<World>))
 const { connectToServer } = useServer()
 const location = new URL(window.location.origin)
 
+// connect to server and ping it periodically
 connectToServer(location).then((socket: any) => {
   socket.value?.emit('module.tablemate', { action: 'anybodyHome' })
   setInterval(() => {
