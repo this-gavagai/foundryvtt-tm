@@ -2,10 +2,10 @@
 // TODO: (bug) fix dvh/vh nonsense in iOS
 // TODO: abstract actor class to new interface (to simplify system-level changes to data structure)
 import type { Actor } from '@/types/pf2e-types'
-import type { Ref } from 'vue'
-import { ref, provide, watch, inject, computed } from 'vue'
+import { type Ref, onUnmounted, onMounted } from 'vue'
+import { ref, provide, watch } from 'vue'
 import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
-import { useThrottleFn, useDebounceFn } from '@vueuse/core'
+import { debounce } from 'lodash-es'
 import { useCharacter } from '@/composables/character'
 import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
@@ -32,7 +32,6 @@ import Equipment from '@/components/Equipment.vue'
 import Strikes from '@/components/Strikes.vue'
 import { useWorld } from '@/composables/world'
 
-const { sendCharacterRequest, setupSocketListenersForActor } = useApi()
 const { width } = useWindowSize()
 const sideMenu = ref()
 
@@ -59,16 +58,20 @@ watch(world, () => {
   }
 })
 
-// TODO: evaluate whether this should be here or in API. it's still getting hammered. why??
-console.log('initiating character', props.characterId)
-setupSocketListenersForActor(props.characterId, actor)
-sendCharacterRequest(props.characterId, actor)
-const debouncededCharacterRequest = useDebounceFn(sendCharacterRequest, 2000)
-actor.requestCharacterDetails = async () => {
-  console.log('calling...')
-  debouncededCharacterRequest(props.characterId, actor)
-}
-
+onMounted(() => {
+  console.log('TABLEMATE: initiating character', props.characterId)
+  const { sendCharacterRequest, setupSocketListenersForActor } = useApi()
+  setupSocketListenersForActor(props.characterId, actor)
+  sendCharacterRequest(props.characterId, actor)
+  const debouncededCharacterRequest = debounce(sendCharacterRequest, 2000)
+  // attaching this to the actor is lazy. It should be defined differently
+  actor.requestCharacterDetails = async () => {
+    debouncededCharacterRequest(props.characterId, actor)
+  }
+})
+onUnmounted(() => {
+  console.log('unmounted actor: ', actor?.value?._id)
+})
 defineExpose({ actor })
 </script>
 <template>
@@ -77,9 +80,7 @@ defineExpose({ actor })
       <CharacterHeader @pickCharacter="(id: string) => $emit('pickCharacter', id)" />
       <FrontPage />
     </div>
-    <div
-      class="flex w-full flex-1 flex-col justify-between md:h-screen md:justify-start md:border-l"
-    >
+    <div class="flex w-0 flex-1 flex-col justify-between md:h-screen md:justify-start md:border-l">
       <TabGroup :defaultIndex="width >= 768 ? 1 : 0" @change="panels.$el.scrollTop = 0">
         <TabPanels tabindex="-1" class="overflow-auto md:order-last" ref="panels">
           <CharacterHeader

@@ -1,5 +1,5 @@
 // TODO: (feature+) add option to send chat message on certain api events
-// TODO: need a way to slow request character details after change, to prevent ping pong updates
+// TODO: (known issue) this thing isn't triggering preUpdateActor hooks, as those are conventionally called only on the actor in question. May be a problem.
 import type { Ref } from 'vue'
 import type {
   Actor,
@@ -12,7 +12,6 @@ import type {
   EventResponse
 } from '@/types/pf2e-types'
 import type { CharacterRef } from '@/components/Character.vue'
-import { useThrottleFn, useDebounceFn } from '@vueuse/core'
 import { ref } from 'vue'
 
 import {
@@ -302,12 +301,6 @@ function parseActorData(actorId: string, actor: Ref<Actor | undefined>, args: an
     actor.value!.feats = JSON.parse(args.feats)
   }
 }
-
-// async function sendWorldRequest(world: Ref<World | undefined>) {
-//   const socket = await getSocket()
-//   socket.emit('world', (r: any) => (world.value = r))
-// }
-// const requestWorldDetails = useDebounceFn(sendWorldRequest, 1000)
 
 ///////////////////////////////////////
 // Action Request                    //
