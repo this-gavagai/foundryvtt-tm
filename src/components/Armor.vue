@@ -1,17 +1,18 @@
 <script setup lang="ts">
 //TODO (feature): shield stuff
-import type { Actor, Skill } from '@/types/pf2e-types'
+import type { Skill } from '@/types/pf2e-types'
 import { inject, computed } from 'vue'
 import Statistic from './Statistic.vue'
 import { useKeys } from '@/composables/injectKeys'
 
-const actor = inject(useKeys().actorKey)
+const character = inject(useKeys().characterKey)
+const { current: acCurrent, modifiers: acModifiers } = character.ac
 </script>
 <template>
   <div class="flex gap-4 border-b px-6 py-4">
-    <Statistic heading="AC" :modifiers="actor?.system?.attributes.ac?.modifiers" class="">
+    <Statistic heading="AC" :modifiers="acModifiers" class="">
       <div class="w-8">
-        {{ actor?.system?.attributes?.ac?.value ?? '??' }}
+        {{ acCurrent ?? '??' }}
       </div>
     </Statistic>
     <div class="border border-gray-200"></div>

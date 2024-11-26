@@ -32,7 +32,7 @@ function reloadPage() {
         :src="getPath(actor.prototypeToken?.texture?.src)"
         class="scale-150"
       />
-      <div v-else class="min-h-24 h-full">
+      <div v-else class="h-full min-h-24">
         <Spinner class="mr-2 h-full w-full p-4" />
       </div>
     </div>
@@ -53,7 +53,6 @@ function reloadPage() {
               v-for="character in characterList
                 .filter((c: string) => c !== actor?._id)
                 .map((c: string) => characterObjects.find((a: Actor) => a._id === c))"
-              :key="character._id"
               :value="character"
               @click="$emit('pickCharacter', character._id)"
             >

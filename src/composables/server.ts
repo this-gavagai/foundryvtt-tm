@@ -38,14 +38,14 @@ function establishSocket(url: URL, sessionId: string, keepAlive = false) {
 }
 
 async function connectToServer(url: URL) {
-  let sid = getCookiesMap(document.cookie)['session']
+  const sid = getCookiesMap(document.cookie)['session']
   if (!sid) {
     window.location.href = window.location.origin
   }
   sessionId.value = sid
   await establishSocket(url, sid, true)
     .then((r) => {
-      console.log('setting socket')
+      console.log('TABLEMATE: establishing socket connection')
       socket.value = r
       socket.value.offAny()
       socket.value.onAny((name, ...args) => {

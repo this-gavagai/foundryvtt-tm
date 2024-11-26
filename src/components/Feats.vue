@@ -10,8 +10,8 @@ import InfoModal from '@/components/InfoModal.vue'
 
 const infoModal = ref()
 const actor = inject(useKeys().actorKey)!
-const viewedItem = computed(
-  () => actor.value?.items?.find((i: Item) => i?._id === infoModal?.value?.itemId)
+const viewedItem = computed(() =>
+  actor.value?.items?.find((i: Item) => i?._id === infoModal?.value?.itemId)
 )
 
 // watch(viewedItem, () => console.log(viewedItem))
@@ -73,8 +73,12 @@ const viewedItem = computed(
         {{ viewedItem?.name }}
       </template>
       <template #description>
-        Level {{ viewedItem?.system?.level?.value ?? '-' }}
-        <span class="text-sm">({{ capitalize(viewedItem?.system.traits.rarity) }})</span>
+        <span v-if="viewedItem?.system?.level?.value" class="inline-block">
+          Level {{ viewedItem?.system?.level?.value ?? '-' }}
+        </span>
+        <span v-if="viewedItem?.system?.traits?.rarity" class="inline-block">
+          <span class="text-sm">({{ capitalize(viewedItem?.system.traits.rarity) }})</span>
+        </span>
       </template>
       <template #body>
         <div v-html="removeUUIDs(viewedItem?.system.description.value)"></div>

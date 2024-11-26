@@ -55,6 +55,7 @@ export const skillMacros = [
 
 export const featCategoryLabels = new Map([
   ['PF2E.FeaturesAncestryHeader', 'Ancestry Features'],
+  ['PF2E.Actor.Character.FeatSlot.AncestryFeaturesHeader', 'Ancestry Features'],
   ['PF2E.FeaturesClassHeader', 'Class Features'],
   ['PF2E.Actor.Character.FeatSlot.ClassFeaturesHeader', 'Class Features'],
   ['PF2E.FeatAncestryHeader', 'Ancestry Feats'],

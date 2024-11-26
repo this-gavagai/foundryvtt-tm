@@ -2,7 +2,7 @@ import { ref, type Ref, type VNodeRef, watchPostEffect } from 'vue'
 import type { Actor, World } from '@/types/pf2e-types'
 import { useApi } from '@/composables/api'
 import { useServer } from '@/composables/server'
-import { useThrottleFn, useDebounceFn } from '@vueuse/core'
+import { debounce } from 'lodash-es'
 
 const world = ref<World | null>(null)
 
@@ -14,9 +14,9 @@ async function sendWorldRequest() {
   socket.emit('world', (r: World) => (world.value = r))
 }
 
-const debouncedWorldRequest = useDebounceFn(sendWorldRequest, 2000)
+const debouncedWorldRequest = debounce(sendWorldRequest, 2000, { leading: true })
 const refreshWorld = () => {
-  console.log('requesting world!')
+  console.log('TABLEMATE: requesting world!')
   return debouncedWorldRequest()
 }
 

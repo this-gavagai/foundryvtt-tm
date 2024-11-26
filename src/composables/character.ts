@@ -9,6 +9,10 @@ export interface Character {
   background: ComputedRef<Item | undefined>
   classType: ComputedRef<Item | undefined>
   level: ComputedRef<Number | undefined>
+  xp: {
+    current: WritableComputedRef<Number | undefined>
+    max: ComputedRef<Number | undefined>
+  }
   hp: {
     current: WritableComputedRef<Number | undefined>
     max: ComputedRef<Number | undefined>
@@ -19,9 +23,9 @@ export interface Character {
     current: WritableComputedRef<Number | undefined>
     max: ComputedRef<Number | undefined>
   }
-  xp: {
-    current: WritableComputedRef<Number | undefined>
-    max: ComputedRef<Number | undefined>
+  ac: {
+    current: ComputedRef<Number | undefined>
+    modifiers: ComputedRef<Modifier[]>
   }
 }
 
@@ -34,6 +38,16 @@ export function useCharacter(actor: Ref<Actor>) {
     heritage: computed(() => actor?.value?.items?.find((x: Item) => x.type === 'heritage')),
     classType: computed(() => actor?.value?.items?.find((x: Item) => x.type === 'class')),
     level: computed(() => actor?.value?.system?.details?.level?.value),
+    xp: {
+      current: computed({
+        get: () => actor?.value?.system?.details?.xp?.value,
+        set: (newValue) => {
+          actor.value.system.details.xp.value = newValue
+          updateActor(actor, { system: { details: { xp: { value: newValue } } } })
+        }
+      }),
+      max: computed(() => actor?.value?.system?.details?.xp?.max)
+    },
     hp: {
       current: computed({
         get: () => {
@@ -65,15 +79,9 @@ export function useCharacter(actor: Ref<Actor>) {
       }),
       max: computed(() => actor?.value?.system?.resources?.heroPoints?.max)
     },
-    xp: {
-      current: computed({
-        get: () => actor?.value?.system?.details?.xp?.value,
-        set: (newValue) => {
-          actor.value.system.details.xp.value = newValue
-          updateActor(actor, { system: { details: { xp: { value: newValue } } } })
-        }
-      }),
-      max: computed(() => actor?.value?.system?.details?.xp?.max)
+    ac: {
+      current: computed(() => actor?.value?.system?.attributes?.ac?.value),
+      modifiers: computed(() => actor?.value?.system?.attributes?.ac?.modifiers)
     }
   }
   window.character = character

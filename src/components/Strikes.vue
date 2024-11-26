@@ -66,12 +66,12 @@ function doDamage(slug: string, crit: number) {
           <!-- </div> -->
           <!-- <div class="mt-2"> -->
           <span
-            class="mr-1 break-inside-avoid border bg-red-600 p-2 text-xs text-white hover:bg-red-500"
+            class="mb-1 mr-1 break-inside-avoid border bg-red-600 p-2 text-xs text-white hover:bg-red-500"
             @click="strikeModal.open(i, { type: 'damage', subtype: 0 })"
             >Damage</span
           >
           <span
-            class="mr-1 break-inside-avoid border bg-red-600 p-2 text-xs text-white hover:bg-red-500"
+            class="mb-1 mr-1 break-inside-avoid border bg-red-600 p-2 text-xs text-white hover:bg-red-500"
             @click="strikeModal.open(i, { type: 'damage', subtype: 1 })"
             >Critical</span
           >

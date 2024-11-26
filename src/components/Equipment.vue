@@ -24,8 +24,8 @@ const infoModal = ref()
 const investedModal = ref()
 const { updateActor, updateActorItem, deleteActorItem } = useApi()
 
-const item = computed(
-  () => actor.value?.items?.find((i: Item) => i._id === infoModal?.value?.itemId)
+const item = computed(() =>
+  actor.value?.items?.find((i: Item) => i._id === infoModal?.value?.itemId)
 )
 const itemWornType = computed(() => {
   if (item.value?.type === 'armor') return 'Armor'
@@ -172,8 +172,8 @@ const toggleSet = [
                 ? '❶'
                 : '❷'
               : item.system?.equipped?.carryType === 'dropped'
-              ? '⌵'
-              : 'Ⓦ'
+                ? '⌵'
+                : 'Ⓦ'
           }}</span>
           <span>{{ item.name }}</span>
         </a>

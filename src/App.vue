@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // TODO: (feature++) add some way to browse compendia, which can be used for adding new items to various contexts
+// TODO: rather than this @pickCharacter event, use a composable with app-level variable?
 
 import { ref, type Ref, watchPostEffect } from 'vue'
 import { io, Socket } from 'socket.io-client'

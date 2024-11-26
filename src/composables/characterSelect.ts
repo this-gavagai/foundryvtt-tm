@@ -15,14 +15,14 @@ export function useCharacterSelect(newUrl: string | null = null) {
     watch(
       world,
       (newValue, oldValue) => {
-        let characters = new Set<string>()
+        const characters = new Set<string>()
         if (urlId.value) characters.add(urlId.value)
         newValue?.actors
           ?.filter((a: Actor) => a.ownership[newValue.userId] === 3)
           .forEach((a: Actor) => characters.add(a?._id))
         characterList.value = [...characters]
-        characterObjects.value = characterList.value.map(
-          (c: string) => world.value?.actors.find((a: Actor) => a._id === c)
+        characterObjects.value = characterList.value.map((c: string) =>
+          world.value?.actors.find((a: Actor) => a._id === c)
         )
       },
       { immediate: true }
