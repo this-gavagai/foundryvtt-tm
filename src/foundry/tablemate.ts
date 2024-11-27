@@ -105,8 +105,8 @@ class PlayerSelectMenu extends HandlebarsApplicationMixin(ApplicationV2) {
   }
   static async updateUserFlags(event: any, form: any, formData: any) {
     // Do things with the returned FormData
-    for (let id in formData.object) {
-      let usr = game.users.get(id)
+    for (const id in formData.object) {
+      const usr = game.users.get(id)
       if (formData.object[id]) {
         if (usr.getFlag('tablemate', 'character_sheet') !== 'root')
           usr.setFlag('tablemate', 'character_sheet', 'root')

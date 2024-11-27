@@ -1,10 +1,10 @@
 import { ref } from 'vue'
 import { io, Socket } from 'socket.io-client'
-import type { EventArgs } from '@/types/pf2e-types'
+import type { SessionEventArgs } from '@/types/foundry-types'
 import { useUserId } from '@/composables/user'
 
 const socket = ref<Socket>()
-const sessionId = ref<String>('')
+const sessionId = ref<string>('')
 
 function getCookiesMap(cookiesString: string) {
   return cookiesString
@@ -56,7 +56,7 @@ async function connectToServer(url: URL) {
       socket.value.onAnyOutgoing((name, ...args) => {
         console.log('TM-SEND', name, ...args)
       })
-      socket.value.on('session', (args: EventArgs) => {
+      socket.value.on('session', (args: SessionEventArgs) => {
         const { setUserId } = useUserId()
         setUserId(args?.userId)
       })

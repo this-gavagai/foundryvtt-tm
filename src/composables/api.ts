@@ -2,16 +2,15 @@
 // TODO: (known issue) this thing isn't triggering preUpdateActor hooks, as those are conventionally called only on the actor in question. May be a problem.
 // TODO: currently setting actor.value on each refresh. This triggers tons of recalculations. Any way to merge reliably?
 import type { Ref } from 'vue'
+import type { Actor, World, Item, Combat } from '@/types/pf2e-types'
+import type { ResolutionArgs, ModuleEventArgs, UpdateCharacterDetailsArgs } from '@/types/api-types'
 import type {
-  Actor,
-  World,
-  Item,
-  Combat,
-  ResolutionArgs,
-  EventArgs,
-  EventRequest,
-  EventResponse
-} from '@/types/pf2e-types'
+  DocumentEventArgs,
+  UpdateEventArgs,
+  DeleteEventArgs,
+  ModifyDocumentUpdate,
+  UserActivityEventArgs
+} from '@/types/foundry-types'
 import { ref } from 'vue'
 
 // TODO: these are being imported for the old local modality; not needed anymore?
@@ -26,19 +25,15 @@ import {
 import { merge } from 'lodash-es'
 import { useServer } from '@/composables/server'
 import { useTargetHelper } from '@/composables/targetHelper'
+import { uuidv4 } from '@/utils/utilities'
 // import { useWorld } from '@/composables/world'
 
 const { getSocket } = useServer()
-const ackQueue: { [key: string]: Function } = {}
-const requestCharacterDetails: { [key: string]: Function } = {}
-function pushToAckQueue(uuid: string, callback: Function) {
+// TODO: the resolve values for these functions isn't void, but I haven't defined proper types yet. (Many voids in this file that shouldn't be.)
+const requestCharacterDetails: { [key: string]: () => Promise<void> } = {}
+const ackQueue: { [key: string]: (args: ResolutionArgs) => void } = {}
+function pushToAckQueue(uuid: string, callback: (args: ResolutionArgs) => void) {
   ackQueue[uuid] = callback
-}
-
-function uuidv4() {
-  return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) =>
-    (+c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (+c / 4)))).toString(16)
-  )
 }
 
 ///////////////////////////////////////
@@ -47,7 +42,7 @@ function uuidv4() {
 async function setupSocketListenersForWorld(world: Ref<World>) {
   const socket = await getSocket()
   // const { refreshWorld } = useWorld()
-  socket.on('module.tablemate', (args: EventArgs) => {
+  socket.on('module.tablemate', (args: ModuleEventArgs) => {
     switch (args.action) {
       case 'acknowledged':
         if (ackQueue[args.uuid]) {
@@ -57,14 +52,14 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
         break
     }
   })
-  socket.on('modifyDocument', (args: EventArgs) => {
+  socket.on('modifyDocument', (args: DocumentEventArgs) => {
     // let documentSource
     switch (args.type) {
       case 'Combat':
         processChanges(args, world.value.combats)
         break
       case 'Combatant': {
-        const combatId = args.operation.parentUuid.split('.')?.[1]
+        const combatId = args.operation.parentUuid?.split('.')?.[1]
         const combat = world.value?.combats.find((c: Combat) => c._id === combatId)
         processChanges(args, combat.combatants)
         break
@@ -79,7 +74,7 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
     // TODO: figure out if these refreshWorld calls are really necessary
     // refreshWorld()
   })
-  socket.on('userActivity', (user: string, args: EventArgs) => {
+  socket.on('userActivity', (user: string, args: UserActivityEventArgs) => {
     console.log(user, args)
     if (args.targets) {
       const { updateTargets } = useTargetHelper()
@@ -91,11 +86,11 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
 async function setupSocketListenersForActor(
   actorId: string,
   actor: Ref<Actor | undefined>,
-  refreshMethod: any
+  refreshMethod: () => Promise<void>
 ) {
   const socket = await getSocket()
   requestCharacterDetails[actorId] = refreshMethod
-  socket.on('module.tablemate', (args: EventArgs) => {
+  socket.on('module.tablemate', (args: ModuleEventArgs) => {
     // if (!actor.value) return // why was this here?
     switch (args.action) {
       case 'listenerOnline':
@@ -106,14 +101,14 @@ async function setupSocketListenersForActor(
         break
     }
   })
-  socket.on('modifyDocument', (args: EventArgs) => {
+  socket.on('modifyDocument', (args: DocumentEventArgs) => {
     if (!actor.value) return
     switch (args.type) {
       case 'Actor':
-        args.result.forEach((operation: any) => {
-          if (operation._id === actorId) {
-            merge(actor.value, operation)
-            requestCharacterDetails[actorId]()
+        ;(args as UpdateEventArgs).result.forEach((result: ModifyDocumentUpdate) => {
+          if (result._id === actorId) {
+            merge(actor.value, result)
+            requestCharacterDetails[actorId]() // needs to be inside forloop, or else it procs for every character. shouldn't matter because its debounced
           }
         })
         break
@@ -131,14 +126,14 @@ async function setupSocketListenersForActor(
 ///////////////////////////////////////
 // Emit Methods                      //
 ///////////////////////////////////////
+// TODO: possible to define this "update" paramater type more explicitly?
 async function updateActor(
   actor: Ref<Actor | undefined>,
-  update: {},
-  additionalOptions: null | { [key: string]: any } = null
-): Promise<any> {
+  update: object
+): Promise<DocumentEventArgs | void> {
   if (!actor.value) return
   const socket = await getSocket()
-  const promise = new Promise((resolve) => {
+  const promise = new Promise<DocumentEventArgs>((resolve) => {
     socket.emit(
       'modifyDocument',
       {
@@ -152,15 +147,15 @@ async function updateActor(
               _id: actor.value!._id,
               ...update
             }
-          ],
-          ...additionalOptions
+          ]
         }
       },
-      (r: EventResponse) => {
-        r.result.forEach((change: EventRequest) => {
+      (r: UpdateEventArgs) => {
+        // TODO: possible to refactor this as processChanges?
+        r.result.forEach((change: ModifyDocumentUpdate) => {
           merge(actor.value, change)
-          requestCharacterDetails[actor.value!._id]()
         })
+        requestCharacterDetails[actor.value!._id]()
         resolve(r)
       }
     )
@@ -171,11 +166,11 @@ async function updateActor(
 async function updateActorItem(
   actor: Ref<Actor>,
   itemId: string,
-  update: {},
-  additionalOptions: null | { [key: string]: any } = null
-): Promise<any> {
+  update: object
+  // additionalOptions: null | { [key: string]: any } = null
+): Promise<DocumentEventArgs | void> {
   const socket = await getSocket()
-  const promise = new Promise((resolve) => {
+  const promise = new Promise<DocumentEventArgs>((resolve) => {
     socket.emit(
       'modifyDocument',
       {
@@ -190,12 +185,12 @@ async function updateActorItem(
               _id: itemId,
               ...update
             }
-          ],
-          ...additionalOptions
+          ]
+          // ...additionalOptions
         }
       },
-      (r: any) => {
-        _processUpdates(actor.value.items, r.result)
+      (r: UpdateEventArgs) => {
+        processChanges(r, actor.value.items)
         requestCharacterDetails[actor.value._id]()
         resolve(r)
       }
@@ -204,9 +199,9 @@ async function updateActorItem(
   return promise
 }
 
-async function deleteActorItem(actor: Ref<Actor>, itemId: string): Promise<any> {
+async function deleteActorItem(actor: Ref<Actor>, itemId: string): Promise<DeleteEventArgs | void> {
   const socket = await getSocket()
-  const promise = new Promise((resolve) => {
+  const promise = new Promise<DeleteEventArgs>((resolve) => {
     socket.emit(
       'modifyDocument',
       {
@@ -217,8 +212,8 @@ async function deleteActorItem(actor: Ref<Actor>, itemId: string): Promise<any> 
           parentUuid: 'Actor.' + actor.value?._id
         }
       },
-      (r: any) => {
-        _processDeletes(actor.value.items, r.result)
+      (r: DeleteEventArgs) => {
+        processChanges(r, actor.value.items)
         requestCharacterDetails[actor.value._id]()
         resolve(r)
       }
@@ -244,10 +239,7 @@ async function updateUserTargetingProxy(userId: string, proxyId: string) {
           ]
         }
       },
-      (r: any) => {
-        // _processDeletes(actor.value.items, r.result)
-        // requestCharacterDetails[actor.value._id]()
-        // TODO: add something here to update local data?
+      (r: DocumentEventArgs) => {
         resolve(r)
       }
     )
@@ -261,7 +253,10 @@ async function updateUserTargetingProxy(userId: string, proxyId: string) {
 // TODO: (refactor?) review call/response structure. Right now, this method doesn't use the ackQueue but instead listens to a separate response
 // not using ackQueue allows for updates pushed from server, but makes this method a bit weird (and needing a timeout to prevent race conditions)
 // for the world calls, as well, we need to not send subsequent ones until current are resolved, but perhaps there's a cleaner way than throttling
-async function sendCharacterRequest(actorId: string, actor: Ref<Actor | undefined> = ref()) {
+async function sendCharacterRequest(
+  actorId: string,
+  actor: Ref<Actor | undefined> = ref()
+): Promise<void> {
   if (parent.game) {
     setTimeout(async () => {
       const details = await getCharacterDetails({ actorId: actorId })
@@ -275,7 +270,11 @@ async function sendCharacterRequest(actorId: string, actor: Ref<Actor | undefine
     })
   }
 }
-function parseActorData(actorId: string, actor: Ref<Actor | undefined>, args: any) {
+function parseActorData(
+  actorId: string,
+  actor: Ref<Actor | undefined>,
+  args: UpdateCharacterDetailsArgs
+) {
   // function customizer(objValue: any, srcValue: any, key: any, obj: any) {
   //   if (objValue !== srcValue && typeof srcValue === 'undefined') {
   //     obj[key] = srcValue
@@ -361,7 +360,6 @@ async function characterAction(
   options = {}
 ): Promise<ResolutionArgs> {
   const { getTargets } = useTargetHelper()
-  console.log('here', getTargets())
   const uuid = uuidv4()
   const args = {
     action: 'characterAction',
@@ -377,7 +375,7 @@ async function characterAction(
     const socket = await getSocket()
     return new Promise((resolve) => {
       socket.emit('module.tablemate', args)
-      pushToAckQueue(uuid, (args: any) => resolve(args))
+      pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
     })
   }
 }
@@ -403,38 +401,39 @@ async function consumeItem(actor: Ref<Actor>, consumableId: string, options = {}
 }
 
 ///////////////////////////////////////
-// Processing Methods                //
+// Processing Methods for Items      //
 ///////////////////////////////////////
-function processChanges(args: any, dataRoot: any) {
+function processChanges(args: DocumentEventArgs, dataRoot: Item[]) {
+  console.log('process changes args', args)
   switch (args.action) {
     case 'create':
-      _processCreates(dataRoot, args.result as Item[])
+      _processCreates(args.result, dataRoot)
       break
     case 'update':
-      _processUpdates(dataRoot, args.result as Item[])
+      _processUpdates(args.result, dataRoot)
       break
     case 'delete':
-      _processDeletes(dataRoot, args.result as string[])
+      _processDeletes(args.result, dataRoot)
       break
   }
 }
 
-function _processCreates(set: any[], results: Item[]) {
+function _processCreates(results: ModifyDocumentUpdate[], root: Item[]) {
   results.forEach((c: Item) => {
-    set.push(c)
+    root.push(c)
   })
 }
-function _processUpdates(set: any[], results: Item[]) {
-  results.forEach((change: Item) => {
-    const item = set.find((a: any) => a._id === change._id)
+function _processUpdates(results: ModifyDocumentUpdate[], root: Item[]) {
+  results.forEach((change: ModifyDocumentUpdate) => {
+    const item = root.find((a: Item) => a._id === change._id)
     if (item) merge(item, change)
   })
 }
-function _processDeletes(set: any[], results: string[]) {
+function _processDeletes(results: string[], root: Item[]) {
   results.forEach((d: string) => {
-    const index = set.findIndex((i: any) => i._id === d)
+    const index = root.findIndex((i: Item) => i._id === d)
     if (index != -1) {
-      set.splice(index, 1)
+      root.splice(index, 1)
     }
   })
 }

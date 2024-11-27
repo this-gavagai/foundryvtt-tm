@@ -9,8 +9,11 @@ import type {
   ConsumeArgs,
   Game
 } from '@/types/pf2e-types'
+import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 
-export async function getCharacterDetails(args: { actorId: string }) {
+export async function getCharacterDetails(args: {
+  actorId: string
+}): Promise<UpdateCharacterDetailsArgs> {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const fakeEvent = {
     ctrlKey: false,

@@ -37,7 +37,7 @@ export function makePropertiesHtml(item: Item): string {
   )
 }
 
-export function printPrice(price: { gp: Number; sp: Number; cp: Number }) {
+export function printPrice(price: { gp: number; sp: number; cp: number }) {
   return [price?.gp, price?.sp, price?.cp]
     .map((x, i) => (x ? x + ['gp', 'sp', 'cp']?.[i] : undefined))
     .filter((x) => x !== undefined)
@@ -75,4 +75,10 @@ export function parseIncrement(input: string, startingValue: number): number {
     newValue = Number(transform[2]) ?? startingValue
   }
   return newValue ?? startingValue
+}
+
+export function uuidv4() {
+  return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) =>
+    (+c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (+c / 4)))).toString(16)
+  )
 }

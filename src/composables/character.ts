@@ -44,7 +44,8 @@ export function useCharacter(actor: Ref<Actor | undefined>) {
         get: () => actor?.value?.system?.details?.xp?.value,
         set: (newValue) => {
           actor.value!.system.details.xp.value = newValue
-          updateActor(actor, { system: { details: { xp: { value: newValue } } } })
+          const update = { system: { details: { xp: { value: newValue } } } }
+          updateActor(actor, update)
         }
       }),
       max: computed(() => actor?.value?.system?.details?.xp?.max)
@@ -57,7 +58,8 @@ export function useCharacter(actor: Ref<Actor | undefined>) {
         },
         set: (newValue) => {
           actor.value!.system.attributes.hp.value = newValue
-          updateActor(actor, { system: { attributes: { hp: { value: newValue } } } })
+          const update = { system: { attributes: { hp: { value: newValue } } } }
+          updateActor(actor, update)
         }
       }),
       max: computed(() => actor?.value?.system?.attributes?.hp?.max),
@@ -65,7 +67,8 @@ export function useCharacter(actor: Ref<Actor | undefined>) {
         get: () => actor?.value?.system?.attributes?.hp?.temp,
         set: (newValue) => {
           actor.value!.system.attributes.hp.temp = newValue
-          updateActor(actor, { system: { attributes: { hp: { temp: newValue } } } })
+          const update = { system: { attributes: { hp: { temp: newValue } } } }
+          updateActor(actor, update)
         }
       }),
       modifiers: computed(() => actor?.value?.system?.attributes?.hp?._modifiers)
@@ -75,7 +78,8 @@ export function useCharacter(actor: Ref<Actor | undefined>) {
         get: () => actor?.value?.system?.resources?.heroPoints?.value,
         set: (newValue) => {
           actor.value!.system.resources.heroPoints.value = newValue
-          updateActor(actor, { system: { resources: { heroPoints: { value: newValue } } } })
+          const update = { system: { resources: { heroPoints: { value: newValue } } } }
+          updateActor(actor, update)
         }
       }),
       max: computed(() => actor?.value?.system?.resources?.heroPoints?.max)

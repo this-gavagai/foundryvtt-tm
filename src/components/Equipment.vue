@@ -75,8 +75,11 @@ function incrementItemQty(itemId: string, change: number) {
   const item = actor.value?.items.find((i: Item) => i._id === itemId)
   const newValue = item?.system?.quantity + change
   const update = { system: { quantity: newValue } }
-  if (actor.value)
-    updateActorItem(actor as Ref<Actor>, itemId, update, { conditionValue: newValue })
+  if (actor.value) {
+    // TODO: why does this need a redundant fourth parameter?
+    // updateActorItem(actor as Ref<Actor>, itemId, update, { conditionValue: newValue })
+    updateActorItem(actor as Ref<Actor>, itemId, update)
+  }
 }
 
 const toggleSet = [

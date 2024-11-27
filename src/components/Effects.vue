@@ -10,8 +10,8 @@ import { capitalize, removeUUIDs, getPath } from '@/utils/utilities'
 
 const infoModal = ref()
 const actor = inject(useKeys().actorKey)!
-const viewedItem = computed(
-  () => actor.value?.items?.find((i: Item) => i._id === infoModal?.value?.itemId)
+const viewedItem = computed(() =>
+  actor.value?.items?.find((i: Item) => i._id === infoModal?.value?.itemId)
 )
 
 const { deleteActorItem, updateActorItem } = useApi()
@@ -23,8 +23,11 @@ function incrementEffectValue(effectId: string | undefined, change: number) {
   const effect = actor.value?.items.find((i: Item) => i._id === effectId)
   const newValue = effect?.system?.value.value + change
   const update = { system: { value: { value: newValue } } }
-  if (actor.value)
-    updateActorItem(actor as Ref<Actor>, effectId, update, { conditionValue: newValue })
+  if (actor.value) {
+    // TODO: why does this need a redundant fourth parameter?
+    // updateActorItem(actor as Ref<Actor>, effectId, update, { conditionValue: newValue })
+    updateActorItem(actor as Ref<Actor>, effectId, update)
+  }
 }
 </script>
 <template>

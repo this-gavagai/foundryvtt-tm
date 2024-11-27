@@ -1,5 +1,7 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+import tailwindcss from '@headlessui/tailwindcss'
+
+export default {
   content: ['./index.html', './src/**/*.{vue,js,ts,jsx,tsx}'],
   theme: {
     extend: {
@@ -9,5 +11,5 @@ module.exports = {
       }
     }
   },
-  plugins: [require('@headlessui/tailwindcss')]
+  plugins: [tailwindcss]
 }

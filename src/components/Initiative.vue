@@ -26,12 +26,12 @@ const initSkills: Ref<SkillDef[]> = computed(() => {
 })
 const selected = ref(actor.value?.system?.initiative?.statistic)
 watch(selected, async (newSkill, oldSkill) => {
-  if (actor.value)
-    updateActor(actor, {
-      system: { initiative: { statistic: newSkill } }
-    }).then(() => {
+  if (actor.value) {
+    const update = { system: { initiative: { statistic: newSkill } } }
+    updateActor(actor, update).then(() => {
       // actor.requestCharacterDetails!() // TODO: get rid of this
     })
+  }
 })
 
 const { activeCombat } = useCombat()

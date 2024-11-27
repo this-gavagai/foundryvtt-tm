@@ -51,8 +51,8 @@ const castButton = ref()
 const consumeButton = ref()
 const removeButton = ref()
 
-const viewedSpell = computed(
-  () => actor.value?.items?.find((i: Item) => i._id === infoModal?.value?.itemId)
+const viewedSpell = computed(() =>
+  actor.value?.items?.find((i: Item) => i._id === infoModal?.value?.itemId)
 )
 
 function doSpell(spellId: string, info: SpellInfo) {
@@ -91,7 +91,8 @@ function updateSpellCharges(newTotal: number, options: SpellChargeOptions) {
   if (!actor.value) return
   switch (options.type) {
     case 'focus':
-      updateActor(actor as Ref<Actor>, { system: { resources: { focus: { value: newTotal } } } })
+      const update = { system: { resources: { focus: { value: newTotal } } } }
+      updateActor(actor, update)
       break
     case 'charge':
       updateActorItem(actor as Ref<Actor>, options.entryId!, {
@@ -120,7 +121,7 @@ function updateSpellCharges(newTotal: number, options: SpellChargeOptions) {
 }
 
 const spellbook = computed((): Spellbook => {
-  let sb: Spellbook = {} // {location - rank - spell}
+  const sb: Spellbook = {} // {location - rank - spell}
   // set spellcastingEntry locations with empty ranks template
   actor.value?.items
     ?.filter((i: Item) => i?.type === 'spellcastingEntry')
@@ -135,8 +136,8 @@ const spellbook = computed((): Spellbook => {
     if (location?.system.prepared.value === 'prepared') {
       Object.values(location.system.slots as SlotInfo[]).forEach(
         (slot: SlotInfo, slotRank: number) => {
-          const preparedSpells = slot.prepared.map(
-            (slotSpell) => actor.value?.items.find((i: Item) => i._id === slotSpell.id)
+          const preparedSpells = slot.prepared.map((slotSpell) =>
+            actor.value?.items.find((i: Item) => i._id === slotSpell.id)
           )
           const spellSlots = Object.assign(new Array(slot.max), preparedSpells.slice(0, slot.max))
           sb[locationId][slotRank] = spellSlots as [Item]

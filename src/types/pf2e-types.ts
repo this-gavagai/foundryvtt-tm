@@ -1,4 +1,5 @@
-// TODO: (code quality) get rid of all the any's
+// TODO: (code quality) get rid of all the anys and refactor to represent subtypes, etc.
+// TODO: is this available from foundry/pf2e?
 import type { Socket } from 'socket.io-client'
 export interface Actor {
   _id: string
@@ -35,12 +36,12 @@ export interface Modifier {}
 
 export interface Item {
   _id: string
-  name: string
-  type: string
-  system: System
-  img: string
-  flags: any
-  contents: any
+  name?: string
+  type?: string
+  system?: System
+  img?: string
+  flags?: any
+  contents?: any
 }
 
 export interface Scene {
@@ -164,84 +165,4 @@ export interface Action {
 
 export interface Trait {
   label: string
-}
-
-// debugging conveniences
-declare global {
-  interface Window {
-    socket: any
-    actor: any
-    world: any
-    altCharacters: any
-    link: any
-    game: any
-    Hooks: any
-    character: any
-  }
-}
-
-/// socket and internal types
-export interface ResolutionArgs {}
-export interface EventArgs {
-  action: string
-  uuid: string
-  // request: EventRequest
-  operation: EventOperation
-  result: Item[] | string[]
-  actorId: string
-  characterId: string
-  modifiers: any
-  targets: string[]
-  type: string
-  userId: string
-}
-export interface CheckArgs {
-  action: string
-  characterId: string
-  checkType: string
-  checkSubtype: string
-  modifiers: any
-  options: any
-  skipDialog: boolean
-  uuid: string
-  targets?: any
-}
-export interface ActionArgs {
-  action: string
-  characterId: string
-  targets: any
-  characterAction: any
-  options: any
-  uuid: string
-}
-export interface CastArgs {
-  action: string
-  id: string
-  characterId: string
-  rank: number
-  slotId: number
-  uuid: string
-}
-export interface ConsumeArgs {
-  action: string
-  characterId: string
-  consumableId: string
-  options: any
-  uuid: string
-}
-
-export interface EventRequest {
-  _id: string
-  type: string
-  action: string
-  parentUuid: string
-}
-export interface EventOperation {
-  _id: string
-  type: string
-  action: string
-  parentUuid: string
-}
-export interface EventResponse {
-  result: EventRequest[]
 }
