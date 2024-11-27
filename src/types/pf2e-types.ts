@@ -1,6 +1,6 @@
 // TODO: (code quality) get rid of all the anys and refactor to represent subtypes, etc.
 // TODO: is this available from foundry/pf2e?
-import type { Socket } from 'socket.io-client'
+
 export interface Actor {
   _id: string
   name: string
@@ -10,22 +10,6 @@ export interface Actor {
   system: System
   prototypeToken: any
   ownership: any
-}
-
-export interface User {
-  _id: string
-  getFlag: Function
-  isGM: boolean
-  active: boolean
-  flags: { [key: string]: any }
-  targets: any
-}
-
-export interface Game {
-  socket: Socket
-  user: User
-  users: User[]
-  scenes: any
 }
 
 export interface Action {

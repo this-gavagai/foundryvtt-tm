@@ -3,6 +3,11 @@ export type ModuleEventArgs =
   | ListenderOnlineArgs
   | UpdateCharacterDetailsArgs
   | RequestCharacterDetailsArgs
+  | AnybodyHomeArgs
+  | RollCheckArgs
+  | CharacterActionArgs
+  | CastSpellArgs
+  | ConsumeItemArgs
 
 export interface AcknowledgementArgs {
   action: 'acknowledged'
@@ -22,10 +27,11 @@ export interface RequestCharacterDetailsArgs {
   action: 'requestCharacterDetails'
   actorId: string
 }
-
-export interface ResolutionArgs {}
-export interface CheckArgs {
-  action: string
+export interface AnybodyHomeArgs {
+  action: 'anybodyHome'
+}
+export interface RollCheckArgs {
+  action: 'rollCheck'
   characterId: string
   checkType: string
   checkSubtype: string
@@ -35,29 +41,32 @@ export interface CheckArgs {
   uuid: string
   targets?: any
 }
-export interface ActionArgs {
-  action: string
+export interface CharacterActionArgs {
+  action: 'characterAction'
   characterId: string
   targets: any
   characterAction: any
   options: any
   uuid: string
 }
-export interface CastArgs {
-  action: string
+export interface CastSpellArgs {
+  action: 'castSpell'
   id: string
   characterId: string
   rank: number
   slotId: number
   uuid: string
+  targets: string[]
 }
-export interface ConsumeArgs {
-  action: string
+export interface ConsumeItemArgs {
+  action: 'consumeItem'
   characterId: string
   consumableId: string
   options: any
   uuid: string
 }
+
+export interface ResolutionArgs {}
 
 // debugging conveniences
 declare global {

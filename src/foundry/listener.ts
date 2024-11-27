@@ -1,3 +1,11 @@
+import type {
+  CastSpellArgs,
+  CharacterActionArgs,
+  ConsumeItemArgs,
+  ModuleEventArgs,
+  RequestCharacterDetailsArgs,
+  RollCheckArgs
+} from '@/types/api-types'
 import {
   getCharacterDetails,
   foundryRollCheck,
@@ -5,19 +13,19 @@ import {
   foundryCastSpell,
   foundryConsumeItem
 } from './actions'
-import type { Game, User } from '@/types/pf2e-types'
+import type { Game, User, Hooks, GetEvent } from '@/types/foundry-types'
 
 // TODO: getting ridiculous numbers of requestUserDetails for unknown reasons. Fixed only by reloading
 
 declare const game: Game
-declare const Hooks: any
+declare const Hooks: Hooks
 const MODNAME = 'module.tablemate'
 
 export function setupListener() {
   console.log('TABLEMATE: Setting up listener')
   if (iAmObserverOrFallbackGM()) announceSelf()
 
-  game.socket.onAnyOutgoing((event: any, ...args: any) => {
+  game.socket.onAnyOutgoing((event: string, ...args: ModuleEventArgs[] | GetEvent[]) => {
     if (
       event === 'userActivity' ||
       event === 'template' ||
@@ -30,7 +38,7 @@ export function setupListener() {
   })
 
   // game.socket.on('modifyDocument', (args) => console.log(args))
-  game.socket.on(MODNAME, (args: any) => {
+  game.socket.on(MODNAME, (args: ModuleEventArgs) => {
     console.log('TM.RECV (listener)', args)
     if (!iAmObserverOrFallbackGM()) return
     switch (args.action) {
@@ -39,28 +47,34 @@ export function setupListener() {
         broadcastTargets()
         break
       case 'requestCharacterDetails':
-        getCharacterDetails(args).then((result) => game.socket.emit(MODNAME, result))
+        getCharacterDetails(args as RequestCharacterDetailsArgs).then((result) =>
+          game.socket.emit(MODNAME, result)
+        )
         break
       case 'updateCharacterDetails':
         break
       case 'rollCheck':
-        foundryRollCheck(args).then((result) => game.socket.emit(MODNAME, result))
+        foundryRollCheck(args as RollCheckArgs).then((result) => game.socket.emit(MODNAME, result))
         break
       case 'characterAction':
-        foundryCharacterAction(args).then((result) => game.socket.emit(MODNAME, result))
+        foundryCharacterAction(args as CharacterActionArgs).then((result) =>
+          game.socket.emit(MODNAME, result)
+        )
         break
       case 'castSpell':
-        foundryCastSpell(args).then((result) => game.socket.emit(MODNAME, result))
+        foundryCastSpell(args as CastSpellArgs).then((result) => game.socket.emit(MODNAME, result))
         break
       case 'consumeItem':
-        foundryConsumeItem(args).then((result) => game.socket.emit(MODNAME, result))
+        foundryConsumeItem(args as ConsumeItemArgs).then((result) =>
+          game.socket.emit(MODNAME, result)
+        )
         break
       default:
         console.log('event not caught', args.action, args)
     }
   })
   if (game.user.flags?.['tablemate']?.['shared_display']) {
-    Hooks.on('targetToken', (user: any, token: any, targeted: boolean) => {
+    Hooks.on('targetToken', () => {
       broadcastTargets()
     })
   }

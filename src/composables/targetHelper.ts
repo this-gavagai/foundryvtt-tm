@@ -1,10 +1,9 @@
-import type { Ref } from 'vue'
 import { ref } from 'vue'
-import type { World } from '@/types/pf2e-types'
 import { computed } from 'vue'
 import { useWorld } from './world'
 import { useUserId } from '@/composables/user'
 import { useApi } from '@/composables/api'
+import type { User } from '@/types/foundry-types'
 
 // TODO: targets only update on change. need a way to request targets on load/proxy-change
 
@@ -14,7 +13,7 @@ const { updateUserTargetingProxy } = useApi()
 
 const targets = ref<string[]>([])
 const userList = computed(() => {
-  return world.value?.users.map((u: any) => ({ id: u._id, name: u.name })) ?? []
+  return world.value?.users.map((u: User) => ({ id: u._id, name: u.name })) ?? []
 })
 const targetingProxyId = computed(() => {
   const proxy = world.value?.users.find((u) => u._id === userId.value)?.flags?.tablemate

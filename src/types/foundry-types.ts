@@ -1,4 +1,5 @@
 // TODO: this EventArgs structure needs a significant refactor
+import type { Socket } from 'socket.io-client'
 
 export type DocumentEventArgs = UpdateEventArgs | CreateEventArgs | DeleteEventArgs
 interface BaseDocumentEventArgs {
@@ -19,6 +20,9 @@ export interface DeleteEventArgs extends BaseDocumentEventArgs {
   action: 'delete'
   result: string[]
 }
+export interface GetEvent {
+  action: 'get'
+}
 
 export interface UserActivityEventArgs {
   targets: any
@@ -38,6 +42,41 @@ interface ModifyDocumentOperation {
 export interface ModifyDocumentUpdate {
   _id: string
   [key: string]: any
+}
+
+// Client components
+export interface Hooks {
+  on: Function
+  once: Function
+}
+export interface Canvas {
+  ready: boolean
+  app: any
+}
+export interface Foundry {
+  applications: any
+}
+export interface Game {
+  socket: Socket
+  user: User
+  users: {
+    get: Function
+    filter: Function
+  }
+  userId: string
+  scenes: any
+  data: any
+  audio: any
+  settings: any
+}
+export interface User {
+  _id: string
+  name: string
+  getFlag: Function
+  isGM: boolean
+  active: boolean
+  flags: { [key: string]: any }
+  targets: any
 }
 
 // // modify document socket operations

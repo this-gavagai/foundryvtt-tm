@@ -1,16 +1,24 @@
 import { setupTouch } from './touchmate'
 import { setupListener } from './listener'
+import type { Hooks, Game, Canvas, Foundry, User } from '@/types/foundry-types'
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api
 
-declare const Hooks: any
-declare const game: any
-declare const canvas: any
-declare const foundry: any
+declare const Hooks: Hooks
+declare const game: Game
+declare const canvas: Canvas
+declare const foundry: Foundry
+
+declare interface Form {
+  [key: string]: object
+}
+declare interface FormData {
+  object: { [key: string]: object }
+}
 
 console.log('tablemate initializing...')
 
 Hooks.on('init', function () {
-  const user = game.data.users.find((x: any) => x._id === game.userId)
+  const user = game.data.users.find((x: User) => x._id === game.userId)
   if (user.flags?.['tablemate']?.['character_sheet'] === 'root') {
     window.location.assign(
       `${window.location.origin}/modules/tablemate/index.html?id=${user.character}`
@@ -20,7 +28,7 @@ Hooks.on('init', function () {
 
 Hooks.on('setup', function () {
   // this is legacy code, from back when the app opened in a frame.
-  const user = game.data.users.find((x: any) => x._id === game.userId)
+  const user = game.data.users.find((x: User) => x._id === game.userId)
   if (user.flags?.['tablemate']?.['character_sheet'] === 'frame') {
     console.log('TABLEMATE: Loading in frame')
     user.flags.pf2e.settings.showCheckDialogs = false
@@ -44,7 +52,7 @@ Hooks.on('setup', function () {
 })
 
 Hooks.on('ready', () => {
-  const user = game.data.users.find((x: any) => x._id === game.userId)
+  const user = game.data.users.find((x: User) => x._id === game.userId)
   if (user.flags?.['tablemate']?.['character_sheet'] === 'frame') {
     if (!game.audio.locked) game.audio.context?.stop()
   }
@@ -93,17 +101,17 @@ class PlayerSelectMenu extends HandlebarsApplicationMixin(ApplicationV2) {
     }
   }
   _prepareContext() {
-    const users = game.users.filter((u: any) => !u.isGM)
-    users.forEach((s: any) => {
-      s.sheeted = s.getFlag('tablemate', 'character_sheet') === 'root'
-    })
+    const users = game.users.filter((u: User) => !u.isGM)
+    // users.forEach((s: User) => {
+    //   s.sheeted = s.getFlag('tablemate', 'character_sheet') === 'root'
+    // })
     const buttons = [
       { type: 'button', action: 'close', label: 'Close' }
       // { type: "reset", action: "reset", icon: "fa-solid fa-undo", label: "SETTINGS.Reset" },
     ]
     return { users, buttons }
   }
-  static async updateUserFlags(event: any, form: any, formData: any) {
+  static async updateUserFlags(event: Event, form: Form, formData: FormData) {
     // Do things with the returned FormData
     for (const id in formData.object) {
       const usr = game.users.get(id)

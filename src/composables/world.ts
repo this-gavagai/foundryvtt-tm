@@ -1,6 +1,5 @@
-import { ref, type Ref, type VNodeRef, watchPostEffect } from 'vue'
-import type { Actor, World } from '@/types/pf2e-types'
-import { useApi } from '@/composables/api'
+import { ref } from 'vue'
+import type { World } from '@/types/pf2e-types'
 import { useServer } from '@/composables/server'
 import { debounce } from 'lodash-es'
 

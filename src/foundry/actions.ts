@@ -1,14 +1,10 @@
+import type { Actor, Action, Modifier } from '@/types/pf2e-types'
 import type {
-  Actor,
-  Action,
-  CheckArgs,
-  ActionArgs,
-  Modifier,
-  Combatant,
-  CastArgs,
-  ConsumeArgs,
-  Game
-} from '@/types/pf2e-types'
+  RollCheckArgs,
+  CharacterActionArgs,
+  CastSpellArgs,
+  ConsumeItemArgs
+} from '@/types/api-types'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 
 export async function getCharacterDetails(args: {
@@ -53,7 +49,7 @@ export async function getCharacterDetails(args: {
   }
 }
 
-export async function foundryRollCheck(args: CheckArgs) {
+export async function foundryRollCheck(args: RollCheckArgs) {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const fakeEvent = {
     ctrlKey: false,
@@ -119,7 +115,7 @@ export async function foundryRollCheck(args: CheckArgs) {
   }
 }
 
-export async function foundryCharacterAction(args: ActionArgs) {
+export async function foundryCharacterAction(args: CharacterActionArgs) {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const fakeEvent = {
     ctrlKey: false,
@@ -155,7 +151,7 @@ export async function foundryCharacterAction(args: ActionArgs) {
   }
 }
 
-export async function foundryCastSpell(args: CastArgs) {
+export async function foundryCastSpell(args: CastSpellArgs) {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.get(args.characterId, { strict: true })
   const item = actor.items.get(args.id, { strict: true })
@@ -165,15 +161,10 @@ export async function foundryCastSpell(args: CastArgs) {
   return { action: 'acknowledged', uuid: args.uuid }
 }
 
-export async function foundryConsumeItem(args: ConsumeArgs) {
+export async function foundryConsumeItem(args: ConsumeItemArgs) {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.get(args.characterId, { strict: true })
   const item = actor.items.get(args.consumableId, { strict: true })
   item.consume()
   return { action: 'acknowledged', uuid: args.uuid }
-}
-
-export function testFunction() {
-  const source = typeof window.game === 'undefined' ? parent.game : window.game
-  console.log('Hi, this is a test')
 }

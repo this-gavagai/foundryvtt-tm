@@ -3,7 +3,15 @@
 // TODO: currently setting actor.value on each refresh. This triggers tons of recalculations. Any way to merge reliably?
 import type { Ref } from 'vue'
 import type { Actor, World, Item, Combat } from '@/types/pf2e-types'
-import type { ResolutionArgs, ModuleEventArgs, UpdateCharacterDetailsArgs } from '@/types/api-types'
+import type {
+  ResolutionArgs,
+  ModuleEventArgs,
+  UpdateCharacterDetailsArgs,
+  CastSpellArgs,
+  RollCheckArgs,
+  CharacterActionArgs,
+  ConsumeItemArgs
+} from '@/types/api-types'
 import type {
   DocumentEventArgs,
   UpdateEventArgs,
@@ -303,7 +311,7 @@ async function castSpell(
 ): Promise<ResolutionArgs> {
   const { getTargets } = useTargetHelper()
   const uuid = uuidv4()
-  const args = {
+  const args: CastSpellArgs = {
     action: 'castSpell',
     id: spellId,
     characterId: actor.value._id,
@@ -332,7 +340,7 @@ async function rollCheck(
 ): Promise<ResolutionArgs> {
   const { getTargets } = useTargetHelper()
   const uuid = uuidv4()
-  const args = {
+  const args: RollCheckArgs = {
     action: 'rollCheck',
     characterId: actor.value._id,
     targets: getTargets(),
@@ -361,7 +369,7 @@ async function characterAction(
 ): Promise<ResolutionArgs> {
   const { getTargets } = useTargetHelper()
   const uuid = uuidv4()
-  const args = {
+  const args: CharacterActionArgs = {
     action: 'characterAction',
     characterId: actor.value._id,
     targets: getTargets(),
@@ -382,7 +390,7 @@ async function characterAction(
 
 async function consumeItem(actor: Ref<Actor>, consumableId: string, options = {}) {
   const uuid = uuidv4()
-  const args = {
+  const args: ConsumeItemArgs = {
     action: 'consumeItem',
     characterId: actor.value._id,
     consumableId,

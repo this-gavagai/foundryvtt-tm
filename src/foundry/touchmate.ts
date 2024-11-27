@@ -25,14 +25,14 @@ export function setupTouch() {
 
   let base_scale = 1
   let scale_series = new Array(SMOOTH_LENGTH).fill(1)
-  function getScale(ev: any) {
+  function getScale() {
     base_scale = canvas.stage.scale.x
   }
   function pinchStart(ev: any) {
     console.log('pinch start')
     getScale(ev)
   }
-  function pinchEnd(ev: any) {
+  function pinchEnd() {
     console.log('pinch end')
     scale_series = new Array(SMOOTH_LENGTH).fill(1)
   }
@@ -60,7 +60,7 @@ export function setupTouch() {
   }
 
   // deal with a foundryvtt bug related to the handling of pointerup events not getting dispatched to tokens correctly
-  canvas.tokens.addEventListener('pointerup', (e: any) => {
+  canvas.tokens.addEventListener('pointerup', (e: PointerEvent) => {
     console.log(e)
     if (e.pointerType === 'mouse') return
     canvas.tokens.children.forEach((c: any) => {

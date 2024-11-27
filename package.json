@@ -10,8 +10,7 @@
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --build --force",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "lint2": "eslint . --fix",
+    "lint": "eslint . --fix",
     "format": "prettier --write src/"
   },
   "dependencies": {
@@ -20,6 +19,7 @@
     "@heroicons/vue": "^2.2.0",
     "@types/lodash-es": "^4.17.12",
     "@vueuse/core": "^11.3.0",
+    "eslint-formatter-summary": "^1.1.0",
     "lodash-es": "^4.17.21",
     "socket.io-client": "^4.8.1",
     "vue": "^3.5.12"

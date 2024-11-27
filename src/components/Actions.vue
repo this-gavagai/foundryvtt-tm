@@ -3,15 +3,9 @@
 // TODO: (feature) get action modifiers on the card (somehow?)
 import type { Ref } from 'vue'
 import type { Actor, Item } from '@/types/pf2e-types'
-const props = defineProps(['actor'])
+// const props = defineProps(['actor'])
 import { inject, ref, computed } from 'vue'
-import {
-  capitalize,
-  removeUUIDs,
-  printPrice,
-  SignedNumber,
-  makeActionIcons
-} from '@/utils/utilities'
+import { capitalize, removeUUIDs, makeActionIcons } from '@/utils/utilities'
 import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
 
@@ -22,8 +16,8 @@ const infoModal = ref()
 const skillSelector = ref()
 
 const actor = inject(useKeys().actorKey)!
-const action: Ref<Item | undefined> = computed(
-  () => actor.value?.items?.find((i: Item) => i._id === infoModal?.value?.itemId)
+const action: Ref<Item | undefined> = computed(() =>
+  actor.value?.items?.find((i: Item) => i._id === infoModal?.value?.itemId)
 )
 const { characterAction } = useApi()
 function doAction(slug: string) {
