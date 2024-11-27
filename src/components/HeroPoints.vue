@@ -1,14 +1,10 @@
 <script setup lang="ts">
-import type { Ref } from 'vue'
 import type { Character } from '@/composables/character'
 import { inject, ref } from 'vue'
-import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
 
 import Statistic from '@/components/Statistic.vue'
 import Counter from '@/components/Counter.vue'
-import Spinner from '@/components/Spinner.vue'
-import Modal from '@/components/Modal.vue'
 
 const counter = ref()
 
