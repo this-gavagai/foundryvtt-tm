@@ -20,7 +20,6 @@ export default [
       '**/foundry/touchmate.ts' // TODO: refactor touchmate at some point
     ]
   },
-
   ...pluginVue.configs['flat/essential'],
   ...vueTsEslintConfig(),
   skipFormatting

@@ -1,12 +1,6 @@
 <script setup lang="ts">
-import type { Ref } from 'vue'
-import type { Actor } from '@/types/pf2e-types'
-import { inject } from 'vue'
-import { useKeys } from '@/composables/injectKeys'
+import Macro from '@/components/MacroBox.vue'
 
-import Macro from '@/components/Macro.vue'
-
-const actor = inject(useKeys().actorKey)!
 const props = defineProps(['skill', 'props'])
 </script>
 <template>

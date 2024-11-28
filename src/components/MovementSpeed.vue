@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { inject, computed } from 'vue'
-import Statistic from './Statistic.vue'
+import StatBox from './StatBox.vue'
 import { useKeys } from '@/composables/injectKeys'
 
 interface SpeedType {
@@ -39,10 +39,10 @@ const speedBurrow = computed(() => {
 </script>
 <template>
   <div class="flex justify-between border-b px-6 py-4">
-    <Statistic heading="Land">{{ speedLand ?? '--' }}</Statistic>
-    <Statistic heading="Swim">{{ speedSwim ?? '--' }}</Statistic>
-    <Statistic heading="Climb">{{ speedClimb ?? '--' }}</Statistic>
-    <Statistic heading="Fly">{{ speedFly ?? '--' }}</Statistic>
-    <Statistic heading="Burrow">{{ speedBurrow ?? '--' }}</Statistic>
+    <StatBox heading="Land">{{ speedLand ?? '--' }}</StatBox>
+    <StatBox heading="Swim">{{ speedSwim ?? '--' }}</StatBox>
+    <StatBox heading="Climb">{{ speedClimb ?? '--' }}</StatBox>
+    <StatBox heading="Fly">{{ speedFly ?? '--' }}</StatBox>
+    <StatBox heading="Burrow">{{ speedBurrow ?? '--' }}</StatBox>
   </div>
 </template>

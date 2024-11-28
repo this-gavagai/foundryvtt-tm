@@ -5,8 +5,8 @@ import { inject, ref } from 'vue'
 import { parseIncrement } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 
-import Statistic from '@/components/Statistic.vue'
-import Modal from '@/components/Modal.vue'
+import StatBox from '@/components/StatBox.vue'
+import Modal from '@/components/ModalBox.vue'
 import { useLastDamage } from '@/composables/lastDamage'
 
 interface SubmissionEvent {
@@ -41,7 +41,7 @@ function updateHitPoints(hp_input: string, temp_input: string) {
 }
 </script>
 <template>
-  <Statistic
+  <StatBox
     heading="Hit Points"
     :subheading="`(Total Max: ${hpMax})`"
     @click="hitpointsModal.open()"
@@ -52,7 +52,7 @@ function updateHitPoints(hp_input: string, temp_input: string) {
     {{ hpCurrent ?? '??' }}
     <span v-if="hpTemp" class="text-blue-600">+ {{ hpTemp }}</span>
     <span v-else> / {{ hpMax ?? '??' }} </span>
-  </Statistic>
+  </StatBox>
   <Teleport to="#modals">
     <Modal
       ref="hitpointsModal"

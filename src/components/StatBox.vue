@@ -4,7 +4,7 @@ import { ref } from 'vue'
 import { SignedNumber } from '@/utils/utilities'
 import { proficiencies } from '@/utils/constants'
 import InfoModal from './InfoModal.vue'
-import Button from '@/components/Button.vue'
+import Button from '@/components/ButtonWidget.vue'
 import type { StatModifier, RollResult } from '@/types/pf2e-types'
 
 const props = defineProps([
@@ -22,6 +22,7 @@ const rollButton = ref()
 function makeRoll() {
   rollButton.value.waiting = true
   props.rollAction().then((r: RollResult) => {
+    console.log('results', r)
     infoModal.value.rollResultModal.open(r)
     infoModal.value.close()
     rollButton.value.waiting = false
@@ -75,6 +76,7 @@ defineExpose({ infoModal })
                 )"
                 class="flex gap-2"
                 :class="{ 'text-gray-300': !mod.enabled }"
+                :key="'mod_' + mod.slug"
               >
                 <div class="w-8 text-right">
                   {{ SignedNumber.format(mod.modifier) }}

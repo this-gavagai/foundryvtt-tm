@@ -16,13 +16,13 @@ import { Listbox, ListboxButton, ListboxOptions, ListboxOption, Switch } from '@
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/20/solid'
 
 import EquipmentInvested from '@/components/EquipmentInvested.vue'
-import Modal from '@/components/Modal.vue'
+import Modal from '@/components/ModalBox.vue'
 import InfoModal from '@/components/InfoModal.vue'
 
 const actor = inject(useKeys().actorKey)!
 const infoModal = ref()
 const investedModal = ref()
-const { updateActor, updateActorItem, deleteActorItem } = useApi()
+const { updateActorItem, deleteActorItem } = useApi()
 
 const item = computed(() =>
   actor.value?.items?.find((i: Item) => i._id === infoModal?.value?.itemId)
@@ -32,7 +32,7 @@ const itemWornType = computed(() => {
   const usage = item.value?.system.usage?.value
   if (usage.slice(0, 4) === 'worn' && usage.slice(4)) {
     return capitalize(usage.slice(4))
-  }
+  } else return null
 })
 
 watch(item, (newValue) => {
@@ -61,7 +61,7 @@ watch(itemInvested, (newValue) => {
     })
 })
 
-function updateCarry(item: Item | undefined, systemUpdate: {}) {
+function updateCarry(item: Item | undefined, systemUpdate: object) {
   if (!item) return
   if (actor.value) updateActorItem(actor as Ref<Actor>, item._id, systemUpdate)
 }
@@ -84,6 +84,7 @@ function incrementItemQty(itemId: string, change: number) {
 
 const toggleSet = [
   {
+    id: '1hand',
     toggleText: '1-Hand',
     toggleTrigger: () =>
       updateCarry(item.value, {
@@ -100,6 +101,7 @@ const toggleSet = [
       item.value?.system.equipped.handsHeld === 1
   },
   {
+    id: '2hands',
     toggleText: '2-Hands',
     toggleTrigger: () =>
       updateCarry(item.value, {
@@ -116,6 +118,7 @@ const toggleSet = [
       item.value?.system.equipped.handsHeld === 2
   },
   {
+    id: 'worn',
     toggleText: 'Worn',
     toggleTrigger: () =>
       updateCarry(item.value, {
@@ -131,6 +134,7 @@ const toggleSet = [
     toggleIsActive: () => item.value?.system.equipped.carryType === 'worn'
   },
   {
+    id: 'stowed',
     toggleText: 'Stowed',
     toggleTrigger: () => {
       updateCarry(item.value, {
@@ -146,6 +150,7 @@ const toggleSet = [
     toggleIsActive: () => item.value?.system.equipped.carryType === 'stowed'
   },
   {
+    id: 'dropped',
     toggleText: 'Dropped',
     toggleTrigger: () =>
       updateCarry(item.value, {
@@ -157,7 +162,7 @@ const toggleSet = [
           }
         }
       }),
-    toggleIsActive: () => item.value?.system.equipped.carryType === 'dropped'
+    toggleIsActive: () => item.value?.system?.equipped.carryType === 'dropped'
   }
 ]
 </script>
@@ -167,6 +172,7 @@ const toggleSet = [
       <li
         v-for="item in actor?.items.filter((i: Item) => i.system?.equipped?.handsHeld > 0)"
         class="whitespace-nowrap text-2xl"
+        :key="item._id"
       >
         <a class="cursor-pointer" @click="infoModal.open(item._id)">
           <span class="pr-1">{{
@@ -192,12 +198,14 @@ const toggleSet = [
         v-for="inventoryType in inventoryTypes"
         class="break-before-avoid break-inside-avoid-column whitespace-nowrap pt-4"
         :class="{ 'break-before-column': inventoryType.type === 'backpack' }"
+        :key="inventoryType.title"
       >
         <dt class="text-lg underline only:hidden">{{ inventoryType.title }}</dt>
         <dd
           v-for="item in actor?.items.filter(
             (i: Item) => i.type === inventoryType.type && !i.system?.containerId
           )"
+          :key="item._id"
         >
           <div
             :class="{
@@ -215,6 +223,7 @@ const toggleSet = [
           <ul class="pb-2" v-if="item.type === 'backpack'">
             <li
               v-for="stowed in actor?.items.filter((i: Item) => i.system?.containerId === item._id)"
+              :key="stowed._id"
             >
               <a class="cursor-pointer" @click="infoModal.open(stowed._id)">
                 {{ stowed.name }}<span class="text-xs"> (x{{ stowed.system.quantity }})</span>
@@ -249,6 +258,7 @@ const toggleSet = [
               class="flex-auto cursor-pointer border-l border-gray-300 p-2 text-center first:border-none"
               :class="{ 'bg-gray-300': t.toggleIsActive() }"
               @click="t?.toggleTrigger()"
+              :key="t.id"
             >
               <span>{{ t.toggleText }}</span>
               <!-- <span v-if="t.toggleText === 'Worn' && itemWornType">

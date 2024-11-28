@@ -1,4 +1,6 @@
 <script setup lang="ts">
-const props = defineProps(['feat'])
+// const props = defineProps(['feat'])
 </script>
-<template></template>
+<template>
+  <div></div>
+</template>

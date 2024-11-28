@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import Spinner from './Spinner.vue'
+import Spinner from './SpinnerWidget.vue'
 const props = defineProps<{ label?: string }>()
 const waiting = ref(false)
 

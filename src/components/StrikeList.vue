@@ -48,6 +48,7 @@ function doDamage(slug: string, crit: number) {
             (a: Action) => a.item?.system?.equipped?.carryType === 'held' || a.item === undefined
           )"
         class="cursor-pointer pb-2 text-xl"
+        :key="strike.slug"
       >
         <!-- <div class="text-xs border p-1 w-8 mr-1 text-right">
           {{ SignedNumber.format(strike?.totalModifier) }}
@@ -58,6 +59,7 @@ function doDamage(slug: string, crit: number) {
             v-for="(variant, index) in strike.variants"
             class="mb-1 mr-1 break-inside-avoid border bg-blue-600 p-2 text-xs text-white hover:bg-blue-500"
             @click="strikeModal.open(i, { type: 'strike', subtype: index })"
+            :key="'variant_' + index"
           >
             <span v-if="!index" class="pf2-icon pr-1 text-lg leading-none">1</span>
             <span v-if="!index">Strike </span>
@@ -103,6 +105,7 @@ function doDamage(slug: string, crit: number) {
               : viewedItem?._modifiers"
             class="flex gap-2"
             :class="{ 'text-gray-300': !mod.enabled }"
+            :key="mod.slug"
           >
             <div class="w-8 text-right">
               {{ formatModifier(mod.modifier) }}

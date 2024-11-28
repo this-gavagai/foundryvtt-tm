@@ -3,8 +3,8 @@ import type { Character } from '@/composables/character'
 import { inject, ref } from 'vue'
 import { useKeys } from '@/composables/injectKeys'
 
-import Statistic from '@/components/Statistic.vue'
-import Counter from '@/components/Counter.vue'
+import StatBox from '@/components/StatBox.vue'
+import CounterWidget from '@/components/CounterWidget.vue'
 
 const counter = ref()
 
@@ -17,8 +17,8 @@ function updateHeroPoints(newTotal: number): void {
 }
 </script>
 <template>
-  <Statistic heading="Hero Pts" @click="counter.click()">
-    <Counter
+  <StatBox heading="Hero Pts" @click="counter.click()">
+    <CounterWidget
       ref="counter"
       title="Hero Points"
       :value="heroCurrent ?? 0"
@@ -26,5 +26,5 @@ function updateHeroPoints(newTotal: number): void {
       editable
       @change-count="(newTotal) => updateHeroPoints(newTotal)"
     />
-  </Statistic>
+  </StatBox>
 </template>

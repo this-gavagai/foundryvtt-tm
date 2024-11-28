@@ -4,8 +4,8 @@ import { inject, ref } from 'vue'
 import { parseIncrement } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 
-import Statistic from '@/components/Statistic.vue'
-import Modal from '@/components/Modal.vue'
+import StatBox from '@/components/StatBox.vue'
+import Modal from '@/components/ModalBox.vue'
 
 interface FormData {
   xp: { value: string }
@@ -26,7 +26,7 @@ function updateExperience(input: string) {
 }
 </script>
 <template>
-  <Statistic heading="Experience" @click="experienceModal.open()" class="cursor-pointer">
+  <StatBox heading="Experience" @click="experienceModal.open()" class="cursor-pointer">
     <div class="py-1">
       <svg width="75" height="18">
         <rect :width="75 * ((xpCurrent ?? 0) / (xpMax ?? 1))" height="18" style="fill: #ccc" />
@@ -40,7 +40,7 @@ function updateExperience(input: string) {
         </text>
       </svg>
     </div>
-  </Statistic>
+  </StatBox>
   <Teleport to="#modals">
     <Modal ref="experienceModal" title="Experience Points">
       <form

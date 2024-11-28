@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import Modal from '@/components/Modal.vue'
+import Modal from '@/components/ModalBox.vue'
 import { PlusCircleIcon, MinusCircleIcon } from '@heroicons/vue/24/outline'
-import Button from '@/components/Button.vue'
-import Spinner from '@/components/Spinner.vue'
+import Button from '@/components/ButtonWidget.vue'
+import Spinner from '@/components/SpinnerWidget.vue'
 
 const props = defineProps<{
   value: number
@@ -34,8 +34,8 @@ defineExpose({ click, close })
 <template>
   <div @click="click" class="cursor-pointer">
     <span>
-      <span v-for="i in Number(props.value ?? 0)">●</span>
-      <span v-if="props.max" v-for="i in Number(props.max - props.value)">○</span>
+      <span v-for="i in Number(props.value ?? 0)" :key="'pip' + i">●</span>
+      <span v-for="i in props.max ? Number(props.max - props.value) : 0" :key="'emp' + i">○</span>
     </span>
     <Teleport to="#modals">
       <Modal ref="counterModal" :title="props.title">
@@ -52,8 +52,10 @@ defineExpose({ click, close })
               class="relative row-start-1 row-end-1 py-2 transition-opacity delay-200 ease-in"
               :class="{ 'opacity-0': updating }"
             >
-              <span v-for="i in Number(props.value ?? 0)">●</span>
-              <span v-if="props.max" v-for="i in Number(props.max - props.value)">○</span>
+              <span v-for="i in Number(props.value ?? 0)" :key="'pip' + i">●</span>
+              <span v-for="i in props.max ? Number(props.max - props.value) : 0" :key="'emp' + i"
+                >○</span
+              >
             </div>
             <div class="absolute row-start-1 row-end-1 px-7">
               <Spinner

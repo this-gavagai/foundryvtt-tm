@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import type { Ref } from 'vue'
-import type { Item, Actor } from '@/types/pf2e-types'
-import { inject, ref, computed, watch } from 'vue'
-import { capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
+import type { Item } from '@/types/pf2e-types'
+import { inject, ref, computed } from 'vue'
+import { capitalize, removeUUIDs } from '@/utils/utilities'
 import { featCategoryLabels } from '@/utils/constants'
 import { useKeys } from '@/composables/injectKeys'
 
@@ -18,26 +17,28 @@ const viewedItem = computed(() =>
 </script>
 <template>
   <div class="px-6 py-4 lg:columns-2">
-    <dl v-if="actor?.feats" v-for="category in actor?.feats" class="break-inside-avoid-column">
-      <dt class="pt-2 text-lg underline only:hidden">
-        {{ featCategoryLabels.get(category.label) ?? category.label }}
-      </dt>
-      <dd v-for="feat in category.feats">
-        <div class="relative">
-          <a class="cursor-pointer" @click="infoModal.open(feat.feat._id)">
-            <span class="absolute w-4 pt-1 text-right text-xs text-gray-500">{{
-              feat?.level ?? feat.feat.system?.level?.value
-            }}</span
-            ><span class="pl-6">{{ feat.feat?.name }}</span>
-          </a>
-        </div>
-        <div v-for="grant in feat.feat?.flags?.pf2e?.itemGrants" class="ml-10">
-          <a class="cursor-pointer" @click="infoModal.open(grant.id)">
-            {{ actor?.items.find((i: Item) => i._id == grant.id)?.name }}
-          </a>
-        </div>
-      </dd>
-    </dl>
+    <div v-if="actor?.feats">
+      <dl v-for="category in actor?.feats" class="break-inside-avoid-column" :key="category.id">
+        <dt class="pt-2 text-lg underline only:hidden">
+          {{ featCategoryLabels.get(category.label) ?? category.label }}
+        </dt>
+        <dd v-for="feat in category.feats" :key="feat._id">
+          <div class="relative">
+            <a class="cursor-pointer" @click="infoModal.open(feat.feat._id)">
+              <span class="absolute w-4 pt-1 text-right text-xs text-gray-500">{{
+                feat?.level ?? feat.feat.system?.level?.value
+              }}</span
+              ><span class="pl-6">{{ feat.feat?.name }}</span>
+            </a>
+          </div>
+          <div v-for="grant in feat.feat?.flags?.pf2e?.itemGrants" class="ml-10" :key="grant._id">
+            <a class="cursor-pointer" @click="infoModal.open(grant.id)">
+              {{ actor?.items.find((i: Item) => i._id == grant.id)?.name }}
+            </a>
+          </div>
+        </dd>
+      </dl>
+    </div>
     <div v-else>
       <ul>
         <!-- fallback for no actor details. some redundancy with above -->
@@ -50,6 +51,7 @@ const viewedItem = computed(() =>
                 (b.system.level.taken ?? b.system.level.value)
               )
             })"
+          :key="feat._id"
         >
           <div class="relative">
             <a class="cursor-pointer" @click="infoModal.open(feat._id)">

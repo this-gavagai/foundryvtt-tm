@@ -73,7 +73,7 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
         break
       }
       case 'ChatMessage':
-        processChanges(args, world.value.messages)
+        processChanges(args, world.value?.messages)
         break
       case 'User':
         console.log(args)

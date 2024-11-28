@@ -42,6 +42,7 @@ export interface Combatant {
 }
 
 export interface FeatCategory {
+  id: string
   label: string
   feats: [any]
 }

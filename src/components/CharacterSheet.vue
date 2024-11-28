@@ -25,12 +25,12 @@ import SideMenu from '@/components/SideMenu.vue'
 import CharacterTab from '@/components/CharacterTab.vue'
 import CharacterHeader from '@/components/CharacterHeader.vue'
 import FrontPage from '@/components/FrontPage.vue'
-import Skills from '@/components/Skills.vue'
-import Actions from '@/components/Actions.vue'
-import Spells from '@/components/Spells.vue'
-import Feats from '@/components/Feats.vue'
-import Equipment from '@/components/Equipment.vue'
-import Strikes from '@/components/Strikes.vue'
+import Skills from '@/components/SkillList.vue'
+import ActionsList from '@/components/ActionsList.vue'
+import SpellList from '@/components/SpellList.vue'
+import FeatsList from '@/components/FeatsList.vue'
+import EquipmentList from '@/components/EquipmentList.vue'
+import StrikeList from '@/components/StrikeList.vue'
 
 const { width } = useWindowSize()
 const sideMenu = ref()
@@ -85,20 +85,20 @@ defineExpose({ actor })
             <FrontPage />
           </TabPanel>
           <TabPanel tabindex="-1">
-            <Feats />
+            <FeatsList />
           </TabPanel>
           <TabPanel tabindex="-1">
             <Skills />
           </TabPanel>
           <TabPanel tabindex="-1">
-            <Equipment />
+            <EquipmentList />
           </TabPanel>
           <TabPanel tabindex="-1">
-            <Strikes />
-            <Actions />
+            <StrikeList />
+            <ActionsList />
           </TabPanel>
           <TabPanel tabindex="-1">
-            <Spells />
+            <SpellList />
           </TabPanel>
         </TabPanels>
         <TabList class="flex h-20 justify-around border-t md:border-b">

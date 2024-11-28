@@ -37,22 +37,22 @@ const viewedItem: Ref<Item | undefined> = computed(() => {
     <InfoModal
       ref="infoModal"
       :imageUrl="viewedItem?.img"
-      :traits="viewedItem?.system.traits.value"
+      :traits="viewedItem?.system?.traits.value"
     >
       <template #title>
         {{ viewedItem?.name }}
       </template>
       <template #description>
         Level {{ viewedItem?.system?.level?.value ?? '-' }}
-        <span class="text-sm">({{ capitalize(viewedItem?.system.traits.rarity) }})</span>
+        <span class="text-sm">({{ capitalize(viewedItem?.system?.traits.rarity) }})</span>
       </template>
       <template #body>
-        <div v-html="removeUUIDs(viewedItem?.system.description.value)"></div>
+        <div v-html="removeUUIDs(viewedItem?.system?.description.value)"></div>
         <div v-if="viewedItem?.type === 'ancestry'">
           <hr />
           <div class="mt-2">
             <h3 class="text-lg">{{ heritage?.name }}</h3>
-            <div v-html="removeUUIDs(heritage?.system.description.value)"></div>
+            <div v-html="removeUUIDs(heritage?.system?.description.value)"></div>
           </div>
         </div>
       </template>

@@ -1,8 +1,7 @@
 <script setup lang="ts">
 // todo (bug): header image is getting shrunk at certain widths. Need different breakpoints?
-import type { Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
-import { inject, computed, watch, ref } from 'vue'
+import { inject, ref } from 'vue'
 import { useCharacterSelect } from '@/composables/characterSelect'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { getPath } from '@/utils/utilities'
@@ -10,7 +9,7 @@ import { Bars3Icon } from '@heroicons/vue/24/solid'
 import { useKeys } from '@/composables/injectKeys'
 import HitPoints from '@/components/HitPoints.vue'
 import HeroPoints from '@/components/HeroPoints.vue'
-import Spinner from '@/components/Spinner.vue'
+import Spinner from '@/components/SpinnerWidget.vue'
 import SideMenu from '@/components/SideMenu.vue'
 
 const actor = inject(useKeys().actorKey)!
@@ -49,12 +48,13 @@ function reloadPage() {
               </div></ListboxOption
             >
             <ListboxOption
-              v-slot="{ active, selected }"
+              v-slot="{ active }"
               v-for="character in characterList
                 .filter((c: string) => c !== actor?._id)
                 .map((c: string) => characterObjects.find((a: Actor) => a._id === c))"
               :value="character"
               @click="$emit('pickCharacter', character._id)"
+              :key="character._id"
             >
               <div
                 :class="[

@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import Armor from '@/components/Armor.vue'
-import Attributes from '@/components/Attributes.vue'
-import BackgroundWrapper from '@/components/BackgroundWrapper.vue'
-import Effects from '@/components/Effects.vue'
-import Initiative from '@/components/Initiative.vue'
+import ArmorClass from '@/components/ArmorClass.vue'
+import AttributeScores from '@/components/AttributeScores.vue'
+import BackgroundExperience from '@/components/BackgroundExperience.vue'
+import EffectsAndConditions from '@/components/EffectsAndConditions.vue'
+import CombatInitiative from '@/components/CombatInitiative.vue'
 import IWR from '@/components/IWR.vue'
-import Movement from '@/components/Movement.vue'
-import Languages from '@/components/Languages.vue'
+import MovementSpeed from '@/components/MovementSpeed.vue'
+import LanguagesKnown from '@/components/LanguagesKnown.vue'
 </script>
 <template>
-  <BackgroundWrapper />
-  <Effects />
-  <Initiative />
-  <Attributes />
-  <Armor />
+  <BackgroundExperience />
+  <EffectsAndConditions />
+  <CombatInitiative />
+  <AttributeScores />
+  <ArmorClass />
   <IWR />
-  <Movement />
-  <Languages />
+  <MovementSpeed />
+  <LanguagesKnown />
 </template>

@@ -2,8 +2,8 @@
 import type { Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 import { inject } from 'vue'
-import Statistic from './Statistic.vue'
-import { SignedNumber, formatModifier } from '@/utils/utilities'
+import StatBox from './StatBox.vue'
+import { formatModifier } from '@/utils/utilities'
 import { useApi } from '@/composables/api'
 import { attributes } from '@/utils/constants'
 import { useKeys } from '@/composables/injectKeys'
@@ -15,13 +15,13 @@ function doStatCheck(type: string, subtype: string) {
 }
 </script>
 <template>
-  <div class="px-6 py-4 flex justify-between border-b">
-    <Statistic v-for="attr in attributes" :heading="attr.heading">
+  <div class="flex justify-between border-b px-6 py-4">
+    <StatBox v-for="attr in attributes" :heading="attr.heading" :key="'attr_' + attr">
       {{ formatModifier(actor?.system?.abilities?.[attr.abbr]?.mod) }}
-    </Statistic>
+    </StatBox>
   </div>
-  <div class="px-6 py-4 flex justify-between border-b">
-    <Statistic
+  <div class="flex justify-between border-b px-6 py-4">
+    <StatBox
       heading="Fort"
       :proficiency="actor?.system?.saves?.fortitude?.rank"
       :modifiers="actor?.system?.saves?.fortitude?.modifiers"
@@ -29,8 +29,8 @@ function doStatCheck(type: string, subtype: string) {
       :rollAction="() => doStatCheck('save', 'fortitude')"
     >
       {{ formatModifier(actor?.system?.saves?.fortitude?.totalModifier) }}
-    </Statistic>
-    <Statistic
+    </StatBox>
+    <StatBox
       heading="Refl"
       :proficiency="actor?.system?.saves?.reflex?.rank"
       :modifiers="actor?.system?.saves?.reflex?.modifiers"
@@ -38,8 +38,8 @@ function doStatCheck(type: string, subtype: string) {
       :rollAction="() => doStatCheck('save', 'reflex')"
     >
       {{ formatModifier(actor?.system?.saves?.reflex?.totalModifier) }}
-    </Statistic>
-    <Statistic
+    </StatBox>
+    <StatBox
       heading="Will"
       :proficiency="actor?.system?.saves?.will?.rank"
       :modifiers="actor?.system?.saves?.will?.modifiers"
@@ -47,9 +47,9 @@ function doStatCheck(type: string, subtype: string) {
       :rollAction="() => doStatCheck('save', 'will')"
     >
       {{ formatModifier(actor?.system?.saves?.will?.totalModifier) }}
-    </Statistic>
+    </StatBox>
     <div class="border border-gray-200"></div>
-    <Statistic
+    <StatBox
       heading="Perception"
       :proficiency="actor?.system?.perception?.rank"
       :modifiers="actor?.system?.perception?.modifiers"
@@ -57,7 +57,7 @@ function doStatCheck(type: string, subtype: string) {
       :rollAction="() => doStatCheck('perception', '')"
     >
       {{ formatModifier(actor?.system?.perception?.value) }}
-    </Statistic>
+    </StatBox>
   </div>
 </template>
 @/composables@/types/pf2e-types

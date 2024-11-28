@@ -3,13 +3,11 @@
 import type { Ref } from 'vue'
 import type { Actor, Skill } from '@/types/pf2e-types'
 
-import { SignedNumber, formatModifier, capitalize } from '@/utils/utilities'
+import { formatModifier, capitalize } from '@/utils/utilities'
 import { inject } from 'vue'
-import Statistic from './Statistic.vue'
+import StatBox from './StatBox.vue'
 import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
-import { formatTimeAgo } from '@vueuse/core'
-import { proficiencies } from '@/utils/constants'
 
 const { rollCheck } = useApi()
 const actor = inject(useKeys().actorKey)!
@@ -23,6 +21,7 @@ function doSkillCheck(slug: string) {
       <dl
         class="border-t pt-4 first:border-t-0 first:p-0 empty:hidden"
         v-for="isNonLore in [true, false]"
+        :key="isNonLore ? 'norm' : 'lore'"
       >
         <dt class="pb-2 text-lg underline">{{ isNonLore ? 'Skills' : 'Lore' }}</dt>
         <div class="columns-2">
@@ -31,8 +30,9 @@ function doSkillCheck(slug: string) {
               (s: Skill) => !s.lore === isNonLore
             )"
             class="break-inside-avoid pb-4 text-lg leading-4"
+            :key="skill.slug"
           >
-            <Statistic
+            <StatBox
               :heading="skill.label"
               :proficiency="skill.rank"
               :modifiers="skill.modifiers"
@@ -43,28 +43,29 @@ function doSkillCheck(slug: string) {
               <!-- <span class="text-3xl">
                 {{ proficiencies[skill.rank]?.dots }}
               </span> -->
-            </Statistic>
+            </StatBox>
           </dd>
         </div>
       </dl>
     </div>
     <div class="flex-1 border-t px-6 pt-4 lg:border-0 lg:border-l lg:pt-0">
-      <div v-for="proficiencyType in ['attacks', 'defenses', 'classDCs']">
+      <div v-for="proficiencyType in ['attacks', 'defenses', 'classDCs']" :key="proficiencyType">
         <dl class="pt-4 first:p-0 empty:hidden">
           <dt class="pb-2 text-lg underline">{{ capitalize(proficiencyType) }}</dt>
           <div class="columns-2">
             <dd
               v-for="(prof, key) in actor?.system?.proficiencies?.[proficiencyType]"
               class="break-inside-avoid pb-4 text-lg leading-4 empty:hidden"
+              :key="key"
             >
-              <Statistic
+              <StatBox
                 :heading="prof.label ?? key"
                 v-if="prof.rank > 0"
                 :proficiency="prof.rank"
                 :allowRoll="false"
               >
                 {{ proficiencyType === 'classDCs' ? prof.value : formatModifier(prof.value) }}
-              </Statistic>
+              </StatBox>
             </dd>
           </div>
         </dl>
@@ -75,13 +76,13 @@ function doSkillCheck(slug: string) {
       >
         <dt class="pb-2 text-lg underline">Spellcasting</dt>
         <dd class="break-inside-avoid pb-4 text-lg leading-4 empty:hidden">
-          <Statistic
+          <StatBox
             heading="Spell DC"
             :proficiency="actor?.system.proficiencies['spellcasting'].rank"
             :allowRoll="false"
           >
             {{ actor?.system.attributes?.classOrSpellDC?.value }}
-          </Statistic>
+          </StatBox>
         </dd>
       </dl>
     </div>

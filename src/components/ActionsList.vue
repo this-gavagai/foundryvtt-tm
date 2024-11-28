@@ -3,6 +3,7 @@
 // TODO: (feature) get action modifiers on the card (somehow?)
 import type { Ref } from 'vue'
 import type { Actor, Item } from '@/types/pf2e-types'
+// import type { Character } from '@/composables/character'
 // const props = defineProps(['actor'])
 import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs, makeActionIcons } from '@/utils/utilities'
@@ -16,6 +17,7 @@ const infoModal = ref()
 const skillSelector = ref()
 
 const actor = inject(useKeys().actorKey)!
+// const character = inject(useKeys().characterKey) as Character
 const action: Ref<Item | undefined> = computed(() =>
   actor.value?.items?.find((i: Item) => i._id === infoModal?.value?.itemId)
 )
@@ -87,6 +89,7 @@ const actionDefs = computed(() => {
               (i: Item) =>
                 !i.system.traits.value.includes('skill') && !actionDefs.get(i.system.slug)?.skill
             )"
+          :key="feat._id"
         >
           <a class="cursor-pointer" @click="infoModal.open(feat._id)">
             {{ feat.name }}
@@ -105,6 +108,7 @@ const actionDefs = computed(() => {
           v-for="feat in actor.items?.filter(
             (i: Item) => i.system.actionType?.value === 'reaction'
           )"
+          :key="feat._id"
         >
           <a class="cursor-pointer" @click="infoModal.open(feat._id)">
             {{ feat.name }}
@@ -119,7 +123,10 @@ const actionDefs = computed(() => {
     <div class="[&:not(:has(li))]:hidden">
       <h3 class="pt-2 text-lg underline">Free Actions</h3>
       <ul>
-        <li v-for="feat in actor.items?.filter((i: Item) => i.system.actionType?.value === 'free')">
+        <li
+          v-for="feat in actor.items?.filter((i: Item) => i.system.actionType?.value === 'free')"
+          :key="feat._id"
+        >
           <a class="cursor-pointer" @click="infoModal.open(feat._id)">
             {{ feat.name }}
             <span
@@ -140,6 +147,7 @@ const actionDefs = computed(() => {
               (i: Item) =>
                 i.system.traits.value.includes('skill') || actionDefs.get(i.system.slug)?.skill
             )"
+          :key="feat._id"
         >
           <a class="cursor-pointer" @click="infoModal.open(feat._id)">
             {{ feat.name }}

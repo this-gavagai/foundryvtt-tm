@@ -2,14 +2,14 @@
 // TODO: (feature++) gather in macros for use here
 import { ref, computed } from 'vue'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
-import { Cog6ToothIcon, XMarkIcon } from '@heroicons/vue/24/solid'
+import { XMarkIcon } from '@heroicons/vue/24/solid'
 import { useTargetHelper } from '@/composables/targetHelper'
 
-import Dropdown from '@/components/Dropdown.vue'
+import Dropdown from '@/components/DropdownWidget.vue'
 
 const sidebarOpen = ref(false)
 defineExpose({ sidebarOpen })
-const { userList, getTargetingProxyId, targetingProxyId, updateProxyId } = useTargetHelper()
+const { userList, targetingProxyId, updateProxyId } = useTargetHelper()
 const proxyId = computed(() => {
   console.log('target changed!', targetingProxyId.value)
   return targetingProxyId.value

@@ -12,7 +12,7 @@ import {
 import { getPath } from '@/utils/utilities'
 import { makeTraits } from '@/utils/utilities'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
-import Modal from './Modal.vue'
+import Modal from './ModalBox.vue'
 
 const props = defineProps(['imageUrl', 'traits'])
 const rollResultModal = ref()
@@ -20,7 +20,7 @@ const itemId = ref()
 const options = ref()
 
 const isOpen = ref(false)
-function open(newItemId: string, newOptions: {} | null) {
+function open(newItemId: string, newOptions: object | null) {
   itemId.value = newItemId
   options.value = newOptions
   isOpen.value = true
@@ -121,11 +121,14 @@ defineExpose({ open, close, itemId, options, rollResultModal })
           <div class="m-auto">{{ rollResultModal?.options?.roll.formula }}</div>
           <div
             class="flex items-center justify-center"
-            v-for="die in rollResultModal?.options?.roll.dice"
+            v-for="(die, i) in rollResultModal?.options?.roll.dice"
+            :key="'die_' + i"
           >
             <img src="@/assets/icons/dice-twenty-faces-twenty.svg" class="mr-1 h-6 w-6" />
             <div class="text-2xl">
-              <span v-for="result in die.results"> {{ result.result }}&nbsp; </span>
+              <span v-for="(result, j) in die.results" :key="'result_' + j">
+                {{ result.result }}&nbsp;</span
+              >
             </div>
           </div>
         </div>

@@ -6,7 +6,7 @@ import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headless
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'
 import { formatModifier } from '@/utils/utilities'
 import { useApi } from '@/composables/api'
-import Statistic from '@/components/Statistic.vue'
+import StatBox from '@/components/StatBox.vue'
 import { useCombat } from '@/composables/combat'
 import { useKeys } from '@/composables/injectKeys'
 
@@ -25,7 +25,7 @@ const initSkills: Ref<SkillDef[]> = computed(() => {
   return skills
 })
 const selected = ref(actor.value?.system?.initiative?.statistic)
-watch(selected, async (newSkill, oldSkill) => {
+watch(selected, async (newSkill) => {
   if (actor.value) {
     const update = { system: { initiative: { statistic: newSkill } } }
     updateActor(actor, update).then(() => {
@@ -51,7 +51,7 @@ function doInitiative() {
 </script>
 <template>
   <div class="flex gap-4 border-b px-6 py-4">
-    <Statistic
+    <StatBox
       heading="Initiative"
       :modifiers="actor?.system?.initiative?.modifiers"
       :allowRoll="initiativeReady"
@@ -63,7 +63,7 @@ function doInitiative() {
             ?.totalModifier ?? 0
         )
       }}
-    </Statistic>
+    </StatBox>
     <Listbox v-model="selected" class="w-full">
       <div class="relative mt-1">
         <ListboxButton

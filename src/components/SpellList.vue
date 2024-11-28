@@ -9,11 +9,10 @@ import { useApi } from '@/composables/api'
 import { capitalize, makeActionIcons, makePropertiesHtml, removeUUIDs } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 
-import Button from '@/components/Button.vue'
-import Counter from '@/components/Counter.vue'
-import Modal from '@/components/Modal.vue'
+import Button from '@/components/ButtonWidget.vue'
+import Counter from '@/components/CounterWidget.vue'
+import Modal from '@/components/ModalBox.vue'
 import InfoModal from '@/components/InfoModal.vue'
-import type { NumberLiteralType } from 'typescript'
 
 interface Spellbook {
   [key: string]: { [key: string]: [Item?] }
@@ -58,7 +57,7 @@ const viewedSpell = computed(() =>
 function doSpell(spellId: string, info: SpellInfo) {
   castButton.value.waiting = true
   if (actor.value)
-    castSpell(actor as Ref<Actor>, spellId, info.castingRank!, info.castingSlot!).then((r) => {
+    castSpell(actor as Ref<Actor>, spellId, info.castingRank!, info.castingSlot!).then(() => {
       castButton.value.waiting = false
       infoModal.value.close()
     })
@@ -66,7 +65,7 @@ function doSpell(spellId: string, info: SpellInfo) {
 function doConsumable(itemId: string) {
   consumeButton.value.waiting = true
   if (actor.value)
-    consumeItem(actor as Ref<Actor>, itemId).then((r) => {
+    consumeItem(actor as Ref<Actor>, itemId).then(() => {
       consumeButton.value.waiting = false
       infoModal.value.close()
     })
@@ -186,6 +185,7 @@ const spellbook = computed((): Spellbook => {
       <li
         v-for="location in actor?.items?.filter((x: Item) => x?.type === 'spellcastingEntry')"
         class="mt-4 first:mt-0"
+        :key="location._id"
       >
         <h3 class="flex justify-between bg-gray-300 align-bottom">
           <span class="text-xl underline">
@@ -224,6 +224,7 @@ const spellbook = computed((): Spellbook => {
             v-for="(spells, rank) in spellbook[location._id]"
             class="mt-2 first:mt-0"
             :class="{ hidden: !spells.length }"
+            :key="'rank' + rank"
           >
             <h4 class="flex justify-between bg-gray-200 align-bottom text-sm italic">
               <span class="pr-1">
@@ -248,7 +249,7 @@ const spellbook = computed((): Spellbook => {
             </h4>
             <!-- Spells -->
             <ul class="empty:hidden">
-              <li v-for="(spell, index) in spells" class="flex justify-between">
+              <li v-for="(spell, index) in spells" class="flex justify-between" :key="spell._id">
                 <div class="text-md">
                   <span
                     v-if="spell"
@@ -333,6 +334,7 @@ const spellbook = computed((): Spellbook => {
                 (a, b) => a.system.spell.system.level.value - b.system.spell.system.level.value
               )"
             class="flex justify-between"
+            :key="spell._id"
           >
             <div>
               <span
@@ -427,6 +429,7 @@ const spellbook = computed((): Spellbook => {
               i.system.level.value <= spellSelectionModal.options.castingRank
           )"
           @click="setSpellAndClose(spellSelectionModal.options, spell._id)"
+          :key="spell._id"
         >
           {{ spell.name }}
         </li>

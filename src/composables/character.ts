@@ -28,6 +28,7 @@ export interface Character {
     current: ComputedRef<number | undefined>
     modifiers: ComputedRef<Modifier[]>
   }
+  actions: ComputedRef<Item[] | undefined>
 }
 
 export function useCharacter(actor: Ref<Actor | undefined>) {
@@ -87,7 +88,13 @@ export function useCharacter(actor: Ref<Actor | undefined>) {
     ac: {
       current: computed(() => actor?.value?.system?.attributes?.ac?.value),
       modifiers: computed(() => actor?.value?.system?.attributes?.ac?.modifiers)
-    }
+    },
+    actions: computed(() => {
+      return actor.value?.items?.filter((i: Item) => i?.system?.actionType?.value === 'action')
+      // ?.filter(
+      //   (i: Item) => !i.system?.traits?.value?.includes('skill') && !actionDefs?.get(i.system.slug)?.skill
+      // )
+    })
   }
   window.character = character
   return { character }

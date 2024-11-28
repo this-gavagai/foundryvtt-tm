@@ -35,6 +35,7 @@ function incrementEffectValue(effectId: string | undefined, change: number) {
     <div
       class="cursor-pointer"
       v-for="effect in actor?.items?.filter((i: Item) => ['effect', 'condition'].includes(i?.type))"
+      :key="effect._id"
       @click="infoModal.open(effect._id)"
     >
       <div class="w-10">

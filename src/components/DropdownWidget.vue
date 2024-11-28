@@ -1,20 +1,25 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, watchEffect } from 'vue'
+import { ref, watch } from 'vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'
 
+interface ListChoice {
+  id: string
+  name: string
+}
+
 const props = defineProps<{
-  list: { id: string; name: string }[]
+  list: ListChoice[]
   selectedId: string
 }>()
 
-const initialSelected = props.list.find((i: any) => i.id === props.selectedId) ?? {
+const initialSelected = props.list.find((i: ListChoice) => i.id === props.selectedId) ?? {
   id: '',
   name: 'None'
 }
 const selected = ref(initialSelected)
 
-const emit = defineEmits()
+// const emit = defineEmits()
 watch(selected, () => {
   console.log(selected.value)
   emit('change', selected.value)
