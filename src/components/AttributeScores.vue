@@ -1,63 +1,70 @@
 <script setup lang="ts">
-import type { Ref } from 'vue'
-import type { Actor } from '@/types/pf2e-types'
+// TODO: statbox should allow a full-name parameter. Right now, Reflex is showing up in the modal as "Refl"
 import { inject } from 'vue'
 import StatBox from './StatBox.vue'
 import { formatModifier } from '@/utils/utilities'
-import { useApi } from '@/composables/api'
-import { attributes } from '@/utils/constants'
 import { useKeys } from '@/composables/injectKeys'
 
-const { rollCheck } = useApi()
-const actor = inject(useKeys().actorKey)!
-function doStatCheck(type: string, subtype: string) {
-  if (actor.value) return rollCheck(actor as Ref<Actor>, type, subtype)
-}
+const character = inject(useKeys().characterKey)!
+const { str, dex, con, int, wis, cha } = character.attributes
+const { fortitude, reflex, will } = character.saves
+const { perception } = character
 </script>
 <template>
   <div class="flex justify-between border-b px-6 py-4">
-    <StatBox v-for="attr in attributes" :heading="attr.heading" :key="'attr_' + attr">
-      {{ formatModifier(actor?.system?.abilities?.[attr.abbr]?.mod) }}
+    <StatBox heading="Str">
+      {{ formatModifier(str) }}
+    </StatBox>
+    <StatBox heading="Dex">
+      {{ formatModifier(dex) }}
+    </StatBox>
+    <StatBox heading="Con">
+      {{ formatModifier(con) }}
+    </StatBox>
+    <StatBox heading="Int">
+      {{ formatModifier(int) }}
+    </StatBox>
+    <StatBox heading="Wis">
+      {{ formatModifier(wis) }}
+    </StatBox>
+    <StatBox heading="Cha">
+      {{ formatModifier(cha) }}
     </StatBox>
   </div>
   <div class="flex justify-between border-b px-6 py-4">
     <StatBox
-      heading="Fort"
-      :proficiency="actor?.system?.saves?.fortitude?.rank"
-      :modifiers="actor?.system?.saves?.fortitude?.modifiers"
+      heading="Fortitude"
+      :proficiency="fortitude?.rank"
+      :modifiers="fortitude?.modifiers"
       :allowRoll="true"
-      :rollAction="() => doStatCheck('save', 'fortitude')"
+      :rollAction="fortitude?.roll"
     >
-      {{ formatModifier(actor?.system?.saves?.fortitude?.totalModifier) }}
+      {{ formatModifier(fortitude?.totalModifier) }}
     </StatBox>
     <StatBox
-      heading="Refl"
-      :proficiency="actor?.system?.saves?.reflex?.rank"
-      :modifiers="actor?.system?.saves?.reflex?.modifiers"
-      :allowRoll="true"
-      :rollAction="() => doStatCheck('save', 'reflex')"
+      heading="Reflex"
+      :proficiency="reflex?.rank"
+      :modifiers="reflex?.modifiers"
+      :rollAction="reflex?.roll"
     >
-      {{ formatModifier(actor?.system?.saves?.reflex?.totalModifier) }}
+      {{ formatModifier(reflex?.totalModifier) }}
     </StatBox>
     <StatBox
       heading="Will"
-      :proficiency="actor?.system?.saves?.will?.rank"
-      :modifiers="actor?.system?.saves?.will?.modifiers"
-      :allowRoll="true"
-      :rollAction="() => doStatCheck('save', 'will')"
+      :proficiency="will?.rank"
+      :modifiers="will?.modifiers"
+      :rollAction="will?.roll"
     >
-      {{ formatModifier(actor?.system?.saves?.will?.totalModifier) }}
+      {{ formatModifier(will?.totalModifier) }}
     </StatBox>
     <div class="border border-gray-200"></div>
     <StatBox
       heading="Perception"
-      :proficiency="actor?.system?.perception?.rank"
-      :modifiers="actor?.system?.perception?.modifiers"
-      :allowRoll="true"
-      :rollAction="() => doStatCheck('perception', '')"
+      :proficiency="perception?.rank"
+      :modifiers="perception?.modifiers"
+      :rollAction="perception?.roll"
     >
-      {{ formatModifier(actor?.system?.perception?.value) }}
+      {{ formatModifier(perception?.totalModifier) }}
     </StatBox>
   </div>
 </template>
-@/composables@/types/pf2e-types

@@ -88,7 +88,7 @@ defineExpose({ infoModal })
         </template>
         <template #actionButtons>
           <Button
-            v-if="allowRoll"
+            v-if="props.rollAction"
             ref="rollButton"
             type="button"
             class="bg-blue-600 text-white hover:bg-blue-500"

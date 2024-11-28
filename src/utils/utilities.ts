@@ -53,8 +53,8 @@ export function removeUUIDs(description: string | undefined) {
 export const SignedNumber = new Intl.NumberFormat('en-US', {
   signDisplay: 'always'
 })
-export function formatModifier(n: number) {
-  return isNaN(n) ? '??' : SignedNumber.format(n)
+export function formatModifier(n: unknown) {
+  return typeof n !== 'number' || isNaN(n) ? '??' : SignedNumber.format(n)
 }
 
 export function getPath(path: string) {

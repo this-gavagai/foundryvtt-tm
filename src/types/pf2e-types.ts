@@ -11,21 +11,36 @@ export interface Actor {
   prototypeToken: any
   ownership: any
 }
-
-export interface Action {
-  damage: Function
-  critical: Function
-}
-export interface Modifier {}
-
 export interface Item {
   _id: string
   name?: string
   type?: string
   system?: System
   img?: string
-  flags?: any
-  contents?: any
+  flags?: string[]
+  contents?: string
+}
+export interface IWR {
+  type: string
+  exceptions: string[]
+  definition: string
+  value?: number
+}
+export interface Save {
+  label: string
+  slug: string
+  attribute: string
+  rank: number
+  modifiers: Modifier[]
+  totalModifier: number
+  dc: number
+}
+export interface Perception {}
+
+/// needs work below
+export interface Action {
+  damage: Function
+  critical: Function
 }
 
 export interface Scene {
