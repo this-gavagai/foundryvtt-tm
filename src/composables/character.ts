@@ -5,56 +5,61 @@ import { computed, watch } from 'vue'
 import type { Actor, Item, IWR } from '@/types/pf2e-types'
 import { useApi } from '@/composables/api'
 
+type Field<T> = ComputedRef<T | undefined>
+type WritableField<T> = WritableComputedRef<T | undefined>
 export interface Character {
   // core
-  ancestry: ComputedRef<Item | undefined>
-  heritage: ComputedRef<Item | undefined>
-  background: ComputedRef<Item | undefined>
-  classType: ComputedRef<Item | undefined>
-  level: ComputedRef<number | undefined>
+  _id: Field<string>
+  name: Field<string>
+  portraitUrl: Field<string>
+  ancestry: Field<Item>
+  heritage: Field<Item>
+  background: Field<Item>
+  classType: Field<Item>
+  level: Field<number>
   xp: {
-    current: WritableComputedRef<number | undefined>
-    max: ComputedRef<number | undefined>
+    current: WritableField<number>
+    max: Field<number>
   }
   // stats
   attributes: {
-    str: ComputedRef<number | undefined>
-    dex: ComputedRef<number | undefined>
-    con: ComputedRef<number | undefined>
-    int: ComputedRef<number | undefined>
-    wis: ComputedRef<number | undefined>
-    cha: ComputedRef<number | undefined>
+    str: Field<number>
+    dex: Field<number>
+    con: Field<number>
+    int: Field<number>
+    wis: Field<number>
+    cha: Field<number>
   }
   saves: {
-    fortitude: ComputedRef<Stat | undefined>
-    reflex: ComputedRef<Stat | undefined>
-    will: ComputedRef<Stat | undefined>
+    fortitude: Field<Stat>
+    reflex: Field<Stat>
+    will: Field<Stat>
   }
-  perception: ComputedRef<Stat | undefined>
-  immunities: ComputedRef<IWR[] | undefined>
-  weaknesses: ComputedRef<IWR[] | undefined>
-  resistances: ComputedRef<IWR[] | undefined>
+  perception: Field<Stat>
+  immunities: Field<IWR[]>
+  weaknesses: Field<IWR[]>
+  resistances: Field<IWR[]>
 
   // resources
   hp: {
-    current: WritableComputedRef<number | undefined>
-    max: ComputedRef<number | undefined>
-    temp: WritableComputedRef<number | undefined>
-    modifiers: ComputedRef<Modifier[]>
+    current: WritableField<number>
+    max: Field<number>
+    temp: WritableField<number>
+    modifiers: Field<Modifier[]>
   }
   heroPoints: {
-    current: WritableComputedRef<number | undefined>
-    max: ComputedRef<number | undefined>
+    current: WritableField<number>
+    max: Field<number>
   }
   ac: {
-    current: ComputedRef<number | undefined>
-    modifiers: ComputedRef<Modifier[]>
+    current: Field<number>
+    modifiers: Field<Modifier[]>
   }
 
   // details
 
   // actions
-  actions: ComputedRef<Item[] | undefined>
+  actions: Field<Item[]>
 }
 
 // object shorthands
@@ -99,6 +104,9 @@ export function useCharacter(actor: Ref<Actor | undefined>) {
   watch(actor, () => console.log('actor changed', actor.value?._id))
   const { updateActor, rollCheck } = useApi()
   const character: Character = {
+    _id: computed(() => actor.value?._id),
+    name: computed(() => actor.value?.name),
+    portraitUrl: computed(() => actor.value?.prototypeToken?.texture?.src),
     ancestry: computed(() => actor.value?.items?.find((x: Item) => x.type === 'ancestry')),
     background: computed(() => actor.value?.items?.find((x: Item) => x.type === 'background')),
     heritage: computed(() => actor.value?.items?.find((x: Item) => x.type === 'heritage')),

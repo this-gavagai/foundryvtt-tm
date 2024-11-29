@@ -60,7 +60,7 @@ function doInitiative() {
       {{
         formatModifier(
           initSkills.find((s: SkillDef) => s?.slug === actor?.system?.initiative.statistic)
-            ?.totalModifier ?? 0
+            ?.totalModifier ?? NaN
         )
       }}
     </StatBox>

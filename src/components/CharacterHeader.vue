@@ -12,7 +12,9 @@ import HeroPoints from '@/components/HeroPoints.vue'
 import Spinner from '@/components/SpinnerWidget.vue'
 import SideMenu from '@/components/SideMenu.vue'
 
-const actor = inject(useKeys().actorKey)!
+const character = inject(useKeys().characterKey)!
+const { _id, name, portraitUrl } = character
+
 const { characterList, characterObjects } = useCharacterSelect()
 const sideMenu = ref()
 function reloadPage() {
@@ -26,11 +28,7 @@ function reloadPage() {
       class="hidden h-24 w-24 items-center overflow-hidden rounded-full border-2 border-gray-300 2xs:flex"
       @click="reloadPage"
     >
-      <img
-        v-if="actor?.prototypeToken?.texture?.src"
-        :src="getPath(actor.prototypeToken?.texture?.src)"
-        class="scale-150"
-      />
+      <img v-if="portraitUrl" :src="getPath(portraitUrl)" class="scale-150" />
       <div v-else class="h-full min-h-24">
         <Spinner class="mr-2 h-full w-full p-4" />
       </div>
@@ -38,7 +36,7 @@ function reloadPage() {
     <div class="flex-1">
       <h3 class="mb-2 overflow-hidden whitespace-nowrap text-2xl">
         <Listbox>
-          <ListboxButton>{{ actor?.name ?? 'Loading...' }}</ListboxButton>
+          <ListboxButton>{{ name ?? 'Loading...' }}</ListboxButton>
           <ListboxOptions
             class="absolute mt-1 max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 empty:hidden focus:outline-none sm:text-sm"
           >
@@ -50,11 +48,11 @@ function reloadPage() {
             <ListboxOption
               v-slot="{ active }"
               v-for="character in characterList
-                .filter((c: string) => c !== actor?._id)
+                .filter((c: string) => c !== _id)
                 .map((c: string) => characterObjects.find((a: Actor) => a._id === c))"
               :value="character"
-              @click="$emit('pickCharacter', character._id)"
-              :key="character._id"
+              @click="$emit('pickCharacter', character?._id)"
+              :key="character?._id"
             >
               <div
                 :class="[
