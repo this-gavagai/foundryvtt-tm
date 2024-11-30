@@ -79,6 +79,8 @@ export interface User {
   targets: any
 }
 
+export interface Roll {}
+
 // // modify document socket operations
 // export interface EventArgs {
 //   action: string

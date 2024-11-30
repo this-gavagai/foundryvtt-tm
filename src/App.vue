@@ -6,6 +6,7 @@ import { ref, type Ref } from 'vue'
 import { watchPostEffect } from 'vue'
 import { type Socket } from 'socket.io-client'
 import type { Actor, World } from '@/types/pf2e-types'
+import type { Character } from '@/composables/character'
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 
 import { useApi } from '@/composables/api'
@@ -15,8 +16,11 @@ import { useCharacterSelect } from '@/composables/characterSelect'
 
 import CharacterSheet from '@/components/CharacterSheet.vue'
 
+declare const BUILD_MODE: string
+
 interface CharacterPanel extends Ref {
   actor: Actor
+  character: Character
 }
 
 const urlId = new URLSearchParams(document.location.search).get('id')
@@ -31,9 +35,11 @@ const location = new URL(window.location.origin)
 // connect to server and ping it periodically
 connectToServer(location).then((socket: Ref<Socket | undefined>) => {
   socket.value?.emit('module.tablemate', { action: 'anybodyHome' })
-  setInterval(() => {
-    socket.value?.emit('module.tablemate', { action: 'anybodyHome' })
-  }, 60000)
+  if (BUILD_MODE !== 'development') {
+    setInterval(() => {
+      socket.value?.emit('module.tablemate', { action: 'anybodyHome' })
+    }, 60000)
+  }
 })
 
 const activeIndex = ref<number>(0)
@@ -41,7 +47,7 @@ const { characterList } = useCharacterSelect(urlId)
 const characterPanels = ref<CharacterPanel[]>([])
 
 // debugging tools
-declare const BUILD_MODE: string
+
 if (BUILD_MODE === 'development') {
   watchPostEffect(() => {
     const globalLocation = typeof parent.game === 'undefined' ? window : parent
@@ -49,6 +55,7 @@ if (BUILD_MODE === 'development') {
     characterPanels.value.forEach((panel: CharacterPanel) => {
       if (panel.actor?._id === urlId) {
         globalLocation.actor = panel.actor
+        globalLocation.character = panel.character
       } else {
         globalLocation.altCharacters.set(panel.actor?._id, panel.actor)
       }

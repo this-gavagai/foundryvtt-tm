@@ -1,5 +1,6 @@
 // TODO: (code quality) get rid of all the anys and refactor to represent subtypes, etc.
 // TODO: is this available from foundry/pf2e?
+// TODO: remove reference to this from everything except api and character
 
 export interface Actor {
   _id: string
@@ -36,6 +37,16 @@ export interface Save {
   dc: number
 }
 export interface Perception {}
+
+export interface Movement {
+  label: string
+  slug: string
+  type: string
+  total: number
+  value: number
+  totalModifier: number
+  _modifiers: Modifier[]
+}
 
 /// needs work below
 export interface Action {

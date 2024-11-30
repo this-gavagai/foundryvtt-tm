@@ -66,7 +66,7 @@ onMounted(() => {
 onUnmounted(() => {
   console.log('unmounted actor: ', actor?.value?._id)
 })
-defineExpose({ actor })
+defineExpose({ actor, character })
 </script>
 <template>
   <div class="flex h-screen">

@@ -10,6 +10,7 @@ import type { StatModifier, RollResult } from '@/types/pf2e-types'
 const props = defineProps([
   'heading',
   'subheading',
+  'modalHeading',
   'proficiency',
   'modifiers',
   'preventInfoModal',
@@ -59,7 +60,7 @@ defineExpose({ infoModal })
         <template #default>
           <div>
             <h3 class="mb-2 text-xl">
-              {{ heading }}
+              {{ modalHeading ?? heading }}
               <span
                 v-if="props.proficiency"
                 :class="proficiencies[props.proficiency].color"

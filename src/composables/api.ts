@@ -1,6 +1,7 @@
 // TODO: (feature+) add option to send chat message on certain api events
 // TODO: (known issue) this thing isn't triggering preUpdateActor hooks, as those are conventionally called only on the actor in question. May be a problem.
 // TODO: currently setting actor.value on each refresh. This triggers tons of recalculations. Any way to merge reliably?
+// TODO: get rid of resolution args and replace it with something more robust
 import type { Ref } from 'vue'
 import type { Actor, World, Item, Combat } from '@/types/pf2e-types'
 import type {
@@ -290,9 +291,9 @@ function parseActorData(
   // }
   if (args.actorId === actorId) {
     // TODO: (refactor) this is tricky. rewriting the actor.value procs a huge number of calculations, but merging is unreliable and limited
-    // if (!actor.value) actor.value = JSON.parse(args.actor)
-    // else mergeWith(actor.value, JSON.parse(args.actor), customizer)
-    actor.value = JSON.parse(args.actor)
+    if (!actor.value) actor.value = JSON.parse(args.actor)
+    else merge(actor.value, JSON.parse(args.actor))
+    // actor.value = JSON.parse(args.actor)
 
     // todo: (refactor) is there any way avoid requiring these tedious things
     merge(actor.value!.system, JSON.parse(args.system))

@@ -33,7 +33,8 @@ const { perception } = character
   </div>
   <div class="flex justify-between border-b px-6 py-4">
     <StatBox
-      heading="Fortitude"
+      heading="Fort"
+      modalHeading="Fortitude Save"
       :proficiency="fortitude?.rank"
       :modifiers="fortitude?.modifiers"
       :allowRoll="true"
@@ -42,7 +43,8 @@ const { perception } = character
       {{ formatModifier(fortitude?.totalModifier) }}
     </StatBox>
     <StatBox
-      heading="Reflex"
+      heading="Refl"
+      modalHeading="Reflex Save"
       :proficiency="reflex?.rank"
       :modifiers="reflex?.modifiers"
       :rollAction="reflex?.roll"
@@ -51,6 +53,7 @@ const { perception } = character
     </StatBox>
     <StatBox
       heading="Will"
+      modalHeading="Will Save"
       :proficiency="will?.rank"
       :modifiers="will?.modifiers"
       :rollAction="will?.roll"
