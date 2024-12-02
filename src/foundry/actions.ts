@@ -26,6 +26,7 @@ export async function getCharacterDetails(args: {
   )
 
   // await Promise.all([...damages, ...crits]).then((values) => {
+  // TODO: rebundle tmDamageFormula. Should not defined as part of type but rather as separate thing maybe?
   await Promise.all([...damages, ...crits, ...modifiers]).then((values) => {
     const damageValues = values.slice(0, values.length / 3)
     const criticalValues = values.slice(values.length / 3, 2 * (values.length / 3))
@@ -73,13 +74,16 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   console.log('params', params)
   let roll
   switch (args.checkType) {
+    // TODO: parameters for strike and damage feel fragile, dependent on index order
     case 'strike':
-      const [actionIndex, variant] = args.checkSubtype.split(',')
-      roll = actor.system.actions[actionIndex].variants[variant].roll(params)
+      const [actionSlug, variant] = args.checkSubtype.split(',')
+      roll = actor.system.actions
+        .find((a: Action) => a.slug === actionSlug)
+        .variants[variant].roll(params)
       break
     case 'damage':
-      const [damageIndex, crit] = args.checkSubtype.split(',')
-      roll = actor.system.actions[damageIndex][crit](params)
+      const [damageSlug, crit] = args.checkSubtype.split(',')
+      roll = actor.system.actions.find((a: Action) => a.slug === damageSlug)[crit](params)
       break
     case 'skill':
       params.target = null

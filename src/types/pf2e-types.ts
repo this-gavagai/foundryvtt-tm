@@ -30,9 +30,12 @@ export interface IWR {
 export interface Save {
   label: string
   slug: string
+  type: string
   attribute: string
   rank: number
   modifiers: Modifier[]
+  total: number
+  value: number
   totalModifier: number
   dc: number
 }
@@ -49,9 +52,17 @@ export interface Movement {
 }
 
 /// needs work below
+// TODO: rebundle tmDamageFormula. Should not defined as part of type
 export interface Action {
+  _id: string
+  label: string
   damage: Function
   critical: Function
+  variants: { label: string }[]
+  traits: { name: string; label: string; description: string }[]
+  weaponTraits: { name: string; label: string; description: string }[]
+  tmDamageFormula: { base: string; critical: string; _modifiers: Modifier[] }
+  _modifiers: Modifier[]
 }
 
 export interface Scene {

@@ -10,7 +10,8 @@ import type {
   Item as PF2eItem,
   Modifier as PF2eModifier,
   Movement as PF2eMovement,
-  Save as PF2eSave
+  Save as PF2eSave,
+  Action as PF2eAction
 } from '@/types/pf2e-types'
 import { actionDefs } from '@/utils/constants'
 import type { Roll } from '@/types/foundry-types'
@@ -20,6 +21,9 @@ type Field<T> = ComputedRef<T | undefined>
 type WritableField<T> = WritableComputedRef<T | undefined>
 type Prop<T> = T | undefined
 
+////////////////////////////////////////
+// character def                      //
+////////////////////////////////////////
 export interface Character {
   // core
   _id: Field<string>
@@ -73,11 +77,11 @@ export interface Character {
 
   // movement
   movement: {
-    land: Field<Movement>
-    swim: Field<Movement>
-    climb: Field<Movement>
-    fly: Field<Movement>
-    burrow: Field<Movement>
+    land: Field<Stat>
+    swim: Field<Stat>
+    climb: Field<Stat>
+    fly: Field<Stat>
+    burrow: Field<Stat>
   }
 
   // effects and conditions
@@ -85,9 +89,67 @@ export interface Character {
 
   // actions
   actions: Field<Action[]>
+  strikes: Field<Strike[]>
 }
 
-// object shorthands
+////////////////////////////////////////
+// object shorthands                  //
+////////////////////////////////////////
+export interface Item {
+  _id: Prop<string>
+  name: Prop<string>
+  type: Prop<string>
+  system: Prop<System>
+  img: Prop<string>
+  delete?: () => void
+  changeValue?: (newTotal: number) => void
+}
+export interface Action extends Item {
+  actionType: string | null
+  item: Item
+  doAction?: (options: object) => Promise<Roll> | null
+}
+export interface Strike {
+  label: Prop<string>
+  slug: Prop<string>
+  item?: Prop<Item>
+  variants: Prop<{ label: string }[]>
+  traits: Prop<Trait[]>
+  weaponTraits: Prop<{ name: string; label: string; description: string }[]>
+  tmDamageFormula: Prop<{ base: string; critical: string; _modifiers: Prop<Modifier[]> }>
+  _modifiers: Prop<Modifier[]>
+  doStrike?: (variant: number) => Promise<Roll> | null
+  doDamage?: (variant: number) => Promise<Roll> | null
+}
+export interface Stat {
+  label: Prop<string>
+  slug: Prop<string>
+  type: Prop<string>
+  attribute: Prop<string>
+  rank: Prop<number>
+  total: Prop<number>
+  value: Prop<number>
+  totalModifier: Prop<number>
+  modifiers: Prop<Modifier[]>
+  dc: Prop<number>
+  roll?: () => Promise<Roll> | null
+}
+export interface IWR {
+  type: Prop<string>
+  exceptions: Prop<string[]>
+  definition: Prop<string>
+  value?: Prop<number>
+}
+// export interface Movement {
+//   label: Prop<string>
+//   slug: Prop<string>
+//   type: Prop<string>
+//   total: Prop<number>
+//   value: Prop<number>
+//   totalModifier: Prop<number>
+//   modifiers: Prop<Modifier[]>
+// }
+
 export interface Modifier {
   slug: Prop<string>
   label: Prop<string>
@@ -102,50 +164,21 @@ export interface System {
   traits: { rarity: Prop<string>; value: Prop<string[]> }
   level: { value: Prop<number> }
   actions: { value: Prop<string> }
-}
-export interface Stat {
-  label: Prop<string>
-  slug: Prop<string>
-  attribute: Prop<string>
-  rank: Prop<number>
-  modifiers: Prop<Modifier[]>
-  totalModifier: Prop<number>
-  dc: Prop<number>
-  roll?: () => Promise<Roll> | null
-}
-export interface Item {
-  _id: Prop<string>
-  name: Prop<string>
-  type: Prop<string>
-  system: Prop<System>
-  img: Prop<string>
-  delete?: () => void
-  changeValue?: (newTotal: number) => void
-}
-export interface Action extends Item {
-  actionType: string | null
-  doAction?: (options: object) => Promise<Roll> | null
-}
-export interface IWR {
-  type: Prop<string>
-  exceptions: Prop<string[]>
-  definition: Prop<string>
-  value?: Prop<number>
-}
-export interface Movement {
-  label: Prop<string>
-  slug: Prop<string>
-  type: Prop<string>
-  total: Prop<number>
-  value: Prop<number>
-  totalModifier: Prop<number>
-  modifiers: Prop<Modifier[]>
+  equipped?: { carryType: string; invested: boolean; handsHeld: number }
 }
 
-// object-buidling macros
-function makeModifiers(root: PF2eModifier[] | undefined): Modifier[] | undefined {
-  if (!root) return undefined
-  return root?.map((m: PF2eModifier) => ({
+export interface Trait {
+  name: string
+  label: string
+  description: string
+}
+
+////////////////////////////////////////
+// object-building macros             //
+////////////////////////////////////////
+function makeModifiers(set: PF2eModifier[] | undefined): Modifier[] | undefined {
+  if (!set) return undefined
+  return set?.map((m: PF2eModifier) => ({
     slug: m.slug,
     label: m.label,
     modifier: m.modifier,
@@ -158,8 +191,11 @@ function makeStat(root: PF2eSave | undefined): Stat | undefined {
   return {
     slug: root?.slug,
     label: root?.label,
+    type: root?.type,
     attribute: root?.attribute,
     rank: root?.rank,
+    total: root?.total,
+    value: root?.value,
     totalModifier: root?.totalModifier,
     dc: root?.dc,
     modifiers: makeModifiers(root?.modifiers as PF2eModifier[])
@@ -178,13 +214,46 @@ function makeItem(root: PF2eItem | undefined): Item | undefined {
       value: { isValued: root?.system?.value?.isValued, value: root?.system?.value?.value },
       traits: { rarity: root?.system?.traits?.rarity, value: [...root?.system?.traits?.value] },
       level: { value: root?.system?.traits?.level },
-      actions: { value: root?.system?.actions?.value }
+      actions: { value: root?.system?.actions?.value },
+      equipped: {
+        carryType: root?.system?.equipped?.carryType,
+        invested: root?.system?.equipped?.invested,
+        handsHeld: root?.system?.equipped?.handsHeld
+      }
     },
     img: root?.img
     // flags: root?.flags,
     // contents: root?.contents
   }
 }
+
+function makeStrike(root: PF2eAction | undefined, item: PF2eItem | undefined): Strike | undefined {
+  if (!root) return undefined
+  console.log(root)
+  return {
+    label: root?.label,
+    slug: root?.slug,
+    item: makeItem(item),
+    variants: root?.variants.map((v) => ({ label: v?.label })),
+    traits: root?.traits?.map((t) => ({
+      name: t?.name,
+      label: t?.label,
+      description: t?.description
+    })),
+    weaponTraits: root?.weaponTraits?.map((t) => ({
+      name: t?.name,
+      label: t?.label,
+      description: t?.description
+    })),
+    tmDamageFormula: {
+      base: root?.tmDamageFormula?.base,
+      critical: root?.tmDamageFormula?.critical,
+      _modifiers: makeModifiers(root?.tmDamageFormula?._modifiers)
+    },
+    _modifiers: makeModifiers(root?._modifiers)
+  }
+}
+
 function makeIWRs(set: PF2eIWR[] | undefined): IWR[] | undefined {
   if (!set) return undefined
   return set?.map((e: PF2eIWR) => ({
@@ -194,18 +263,18 @@ function makeIWRs(set: PF2eIWR[] | undefined): IWR[] | undefined {
     value: e?.value
   }))
 }
-function makeMovement(root: PF2eMovement | undefined): Movement | undefined {
-  if (!root) return undefined
-  return {
-    label: root?.label,
-    slug: root?.slug,
-    type: root?.type,
-    total: root?.total,
-    value: root?.value,
-    totalModifier: root?.totalModifier,
-    modifiers: makeModifiers(root?._modifiers as PF2eModifier[])
-  }
-}
+// function makeMovement(root: PF2eMovement | undefined): Stat | undefined {
+//   if (!root) return undefined
+//   return {
+//     label: root?.label,
+//     slug: root?.slug,
+//     type: root?.type,
+//     total: root?.total,
+//     value: root?.value,
+//     totalModifier: root?.totalModifier,
+//     modifiers: makeModifiers(root?._modifiers as PF2eModifier[])
+//   }
+// }
 
 export function useCharacter(actor: Ref<Actor | undefined>) {
   watch(actor, () => console.log('actor changed', actor.value?._id))
@@ -314,30 +383,30 @@ export function useCharacter(actor: Ref<Actor | undefined>) {
 
     // movement
     movement: {
-      land: computed(() => makeMovement(actor.value?.system?.attributes?.speed)),
+      land: computed(() => makeStat(actor.value?.system?.attributes?.speed)),
       swim: computed(() =>
-        makeMovement(
+        makeStat(
           actor.value?.system.attributes.speed.otherSpeeds.find(
             (s: PF2eMovement) => s.type === 'swim'
           )
         )
       ),
       climb: computed(() =>
-        makeMovement(
+        makeStat(
           actor.value?.system.attributes.speed.otherSpeeds.find(
             (s: PF2eMovement) => s.type === 'climb'
           )
         )
       ),
       fly: computed(() =>
-        makeMovement(
+        makeStat(
           actor.value?.system.attributes.speed.otherSpeeds.find(
             (s: PF2eMovement) => s.type === 'fly'
           )
         )
       ),
       burrow: computed(() =>
-        makeMovement(
+        makeStat(
           actor.value?.system.attributes.speed.otherSpeeds.find(
             (s: PF2eMovement) => s.type === 'burrow'
           )
@@ -388,6 +457,18 @@ export function useCharacter(actor: Ref<Actor | undefined>) {
             else return null
           }
         }))
+    ),
+    strikes: computed(() =>
+      actor.value?.system?.actions?.map((action: PF2eAction) => ({
+        ...(makeStrike(
+          action,
+          actor.value?.items.find((i: PF2eItem) => i.system?.slug === action?.slug)
+        ) as Strike),
+        doStrike: (variant: number) =>
+          rollCheck(actor as Ref<Actor>, 'strike', `${action.slug},${variant}`),
+        doDamage: (crit: boolean) =>
+          rollCheck(actor as Ref<Actor>, 'damage', `${action.slug},${crit ? 'critical' : 'damage'}`)
+      }))
     )
   }
 
