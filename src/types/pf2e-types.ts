@@ -123,6 +123,7 @@ export interface System {
   save?: any
   area?: any
   range?: any
+  category?: any
 }
 
 export interface Skill {

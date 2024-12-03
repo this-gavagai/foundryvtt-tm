@@ -5,12 +5,10 @@
 // TODO: (refactor) refactor Switch into component, and give transactionf eedback
 // TODO: (UX) ListboxOptions max-h and max-w properties are a mess
 
-import type { Ref } from 'vue'
-import type { Item, Actor } from '@/types/pf2e-types'
+import type { Equipment } from '@/composables/character'
 import { inject, ref, computed, watch } from 'vue'
 import { capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
 import { inventoryTypes } from '@/utils/constants'
-import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption, Switch } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/20/solid'
@@ -19,149 +17,89 @@ import EquipmentInvested from '@/components/EquipmentInvested.vue'
 import Modal from '@/components/ModalBox.vue'
 import InfoModal from '@/components/InfoModal.vue'
 
-const actor = inject(useKeys().actorKey)!
 const infoModal = ref()
 const investedModal = ref()
-const { updateActorItem, deleteActorItem } = useApi()
+
+const character = inject(useKeys().characterKey)!
+const { inventory } = character
 
 const item = computed(() =>
-  actor.value?.items?.find((i: Item) => i._id === infoModal?.value?.itemId)
+  inventory.value?.find((i: Equipment) => i._id === infoModal?.value?.itemId)
 )
 const itemWornType = computed(() => {
   if (item.value?.type === 'armor') return 'Armor'
-  const usage = item.value?.system.usage?.value
-  if (usage.slice(0, 4) === 'worn' && usage.slice(4)) {
+  const usage = item.value?.system?.usage?.value
+  if (usage?.slice(0, 4) === 'worn' && usage.slice(4)) {
     return capitalize(usage.slice(4))
   } else return null
 })
 
 watch(item, (newValue) => {
-  itemLocation.value = newValue?.system.containerId
-  itemWorn.value = newValue?.system.equipped.inSlot
-  itemInvested.value = newValue?.system.equipped.invested
+  itemLocation.value = newValue?.system?.containerId
+  itemWorn.value = newValue?.system?.equipped?.inSlot
+  itemInvested.value = newValue?.system?.equipped.invested
 })
 
-const itemLocation = ref(item.value?.system.containerId)
+// values for v-model binding to toggles and widgets in infomodal
+const itemLocation = ref(item.value?.system?.containerId)
 watch(itemLocation, (newValue) => {
-  if (item.value)
-    updateActorItem(actor as Ref<Actor>, item.value._id, { system: { containerId: newValue } })
+  if (!item.value) return
+  const current = item.value?.system?.equipped
+  item.value?.changeCarry?.(current?.carryType, current?.handsHeld, newValue)
 })
-const itemWorn = ref(item.value?.system.equipped.inSlot)
+const itemWorn = ref(item.value?.system?.equipped?.inSlot)
 watch(itemWorn, (newValue) => {
-  if (item.value)
-    updateActorItem(actor as Ref<Actor>, item.value._id, {
-      system: { equipped: { inSlot: newValue } }
-    })
+  if (!item.value) return
+  const current = item.value?.system?.equipped
+  item.value?.changeCarry?.(
+    current?.carryType,
+    current?.handsHeld,
+    item.value?.system?.containerId,
+    newValue
+  )
 })
-const itemInvested = ref(item.value?.system.equipped.invested)
+const itemInvested = ref(item.value?.system?.equipped.invested)
 watch(itemInvested, (newValue) => {
-  if (item.value)
-    updateActorItem(actor as Ref<Actor>, item.value._id, {
-      system: { equipped: { invested: newValue } }
-    })
+  if (!item.value) return
+  item.value?.toggleInvested?.(newValue)
 })
-
-function updateCarry(item: Item | undefined, systemUpdate: object) {
-  if (!item) return
-  if (actor.value) updateActorItem(actor as Ref<Actor>, item._id, systemUpdate)
-}
-
-function deleteItem(itemId: string) {
-  if (actor.value && itemId) deleteActorItem(actor as Ref<Actor>, itemId)
-}
-function incrementItemQty(itemId: string, change: number) {
-  console.log(itemId)
-  if (!actor.value || !itemId) return
-  const item = actor.value?.items.find((i: Item) => i._id === itemId)
-  const newValue = item?.system?.quantity + change
-  const update = { system: { quantity: newValue } }
-  if (actor.value) {
-    // TODO: why does this need a redundant fourth parameter?
-    // updateActorItem(actor as Ref<Actor>, itemId, update, { conditionValue: newValue })
-    updateActorItem(actor as Ref<Actor>, itemId, update)
-  }
-}
 
 const toggleSet = [
   {
     id: '1hand',
     toggleText: '1-Hand',
-    toggleTrigger: () =>
-      updateCarry(item.value, {
-        system: {
-          containerId: null,
-          equipped: {
-            carryType: 'held',
-            handsHeld: 1
-          }
-        }
-      }),
+    toggleTrigger: () => item.value?.changeCarry?.('held', 1, null),
     toggleIsActive: () =>
-      item.value?.system.equipped.carryType === 'held' &&
-      item.value?.system.equipped.handsHeld === 1
+      item.value?.system?.equipped.carryType === 'held' &&
+      item.value?.system?.equipped.handsHeld === 1
   },
   {
     id: '2hands',
     toggleText: '2-Hands',
-    toggleTrigger: () =>
-      updateCarry(item.value, {
-        system: {
-          containerId: null,
-          equipped: {
-            carryType: 'held',
-            handsHeld: 2
-          }
-        }
-      }),
+    toggleTrigger: () => item.value?.changeCarry?.('held', 2, null),
     toggleIsActive: () =>
-      item.value?.system.equipped.carryType === 'held' &&
-      item.value?.system.equipped.handsHeld === 2
+      item.value?.system?.equipped.carryType === 'held' &&
+      item.value?.system?.equipped.handsHeld === 2
   },
   {
     id: 'worn',
     toggleText: 'Worn',
-    toggleTrigger: () =>
-      updateCarry(item.value, {
-        system: {
-          containerId: null,
-          equipped: {
-            carryType: 'worn',
-            handsHeld: 0
-            // inSlot: true // trying to understand "inSlot". Not totally clear to me how it works
-          }
-        }
-      }),
-    toggleIsActive: () => item.value?.system.equipped.carryType === 'worn'
+    toggleTrigger: () => item.value?.changeCarry?.('worn', 0, null),
+    toggleIsActive: () => item.value?.system?.equipped.carryType === 'worn'
   },
   {
     id: 'stowed',
     toggleText: 'Stowed',
     toggleTrigger: () => {
-      updateCarry(item.value, {
-        system: {
-          containerId: actor.value?.items.find((i: Item) => i.type === 'backpack')?._id,
-          equipped: {
-            carryType: 'stowed',
-            handsHeld: 0
-          }
-        }
-      })
+      const backpackId = inventory.value?.find((i: Equipment) => i.type === 'backpack')?._id
+      item.value?.changeCarry?.('stowed', 0, backpackId)
     },
-    toggleIsActive: () => item.value?.system.equipped.carryType === 'stowed'
+    toggleIsActive: () => item.value?.system?.equipped.carryType === 'stowed'
   },
   {
     id: 'dropped',
     toggleText: 'Dropped',
-    toggleTrigger: () =>
-      updateCarry(item.value, {
-        system: {
-          containerId: null,
-          equipped: {
-            carryType: 'dropped',
-            handsHeld: 0
-          }
-        }
-      }),
+    toggleTrigger: () => item.value?.changeCarry?.('dropped', 0, null),
     toggleIsActive: () => item.value?.system?.equipped.carryType === 'dropped'
   }
 ]
@@ -170,13 +108,13 @@ const toggleSet = [
   <div class="px-6 py-4">
     <ul>
       <li
-        v-for="item in actor?.items.filter((i: Item) => i.system?.equipped?.handsHeld > 0)"
+        v-for="item in inventory?.filter((i: Equipment) => i.system?.equipped?.handsHeld)"
         class="whitespace-nowrap text-2xl"
         :key="item._id"
       >
         <a class="cursor-pointer" @click="infoModal.open(item._id)">
           <span class="pr-1">{{
-            item.system?.equipped?.handsHeld > 0
+            item.system?.equipped?.handsHeld
               ? item.system?.equipped?.handsHeld === 1
                 ? '❶'
                 : '❷'
@@ -190,7 +128,8 @@ const toggleSet = [
     </ul>
     <div>
       <span class="cursor-pointer text-sm text-gray-500" @click="investedModal.open()">
-        (Invested: {{ actor?.items.filter((i: Item) => i.system?.equipped?.invested).length }} / 10)
+        (Invested: {{ inventory?.filter((i: Equipment) => i.system?.equipped?.invested).length }} /
+        10)
       </span>
     </div>
     <div class="lg:columns-2">
@@ -202,8 +141,8 @@ const toggleSet = [
       >
         <dt class="text-lg underline only:hidden">{{ inventoryType.title }}</dt>
         <dd
-          v-for="item in actor?.items.filter(
-            (i: Item) => i.type === inventoryType.type && !i.system?.containerId
+          v-for="item in inventory?.filter(
+            (i: Equipment) => i.type === inventoryType.type && !i.system?.containerId
           )"
           :key="item._id"
         >
@@ -216,17 +155,19 @@ const toggleSet = [
             <a class="cursor-pointer" @click="infoModal.open(item._id)">
               <span>{{ item.name }}</span>
               <span v-if="item.type !== 'backpack'" class="text-xs">
-                (x{{ item.system.quantity }})</span
+                (x{{ item?.system?.quantity }})</span
               >
             </a>
           </div>
           <ul class="pb-2" v-if="item.type === 'backpack'">
             <li
-              v-for="stowed in actor?.items.filter((i: Item) => i.system?.containerId === item._id)"
+              v-for="stowed in inventory?.filter(
+                (i: Equipment) => i.system?.containerId === item._id
+              )"
               :key="stowed._id"
             >
               <a class="cursor-pointer" @click="infoModal.open(stowed._id)">
-                {{ stowed.name }}<span class="text-xs"> (x{{ stowed.system.quantity }})</span>
+                {{ stowed.name }}<span class="text-xs"> (x{{ stowed.system?.quantity }})</span>
               </a>
             </li>
           </ul>
@@ -236,16 +177,17 @@ const toggleSet = [
   </div>
   <Teleport to="#modals">
     <Modal ref="investedModal" title="Invested Items">
-      <EquipmentInvested :actor="actor" />
+      <EquipmentInvested />
     </Modal>
-    <InfoModal ref="infoModal" :imageUrl="item?.img" :traits="item?.system.traits.value">
+    <InfoModal ref="infoModal" :imageUrl="item?.img" :traits="item?.system?.traits?.value">
       <template #title>
         {{ item?.name }}
       </template>
       <template #description>
-        Level {{ item?.system.level.value }}
+        Level {{ item?.system?.level?.value }}
         <span class="text-sm">
-          ({{ capitalize(item?.system.traits.rarity) }}), {{ printPrice(item?.system.price.value) }}
+          ({{ capitalize(item?.system?.traits?.rarity) }}),
+          {{ printPrice(item?.system?.price?.value) }}
         </span>
       </template>
       <template #beforeBody>
@@ -285,8 +227,9 @@ const toggleSet = [
           </div>
           <div
             v-if="
-              item?.system.equipped.carryType === 'worn' &&
-              (item.system.equipped.invested === true || item.system.equipped.invested === false)
+              item?.system?.equipped?.carryType === 'worn' &&
+              (item?.system?.equipped?.invested === true ||
+                item?.system?.equipped?.invested === false)
             "
             class="flex py-1"
           >
@@ -308,15 +251,15 @@ const toggleSet = [
           </div>
           <div
             v-if="
-              item?.system.equipped.carryType === 'stowed' &&
-              (actor?.items.filter((i: Item) => i.type === 'backpack').length ?? 0) > 1
+              item?.system?.equipped?.carryType === 'stowed' &&
+              (inventory?.filter((i: Equipment) => i.type === 'backpack').length ?? 0) > 1
             "
           >
             <Listbox as="div" class="w-full" v-model="itemLocation">
               <ListboxButton
                 class="relative w-full max-w-full cursor-default rounded-lg border bg-white py-2 pl-3 pr-10 text-left focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
                 ><span class="block truncate">{{
-                  actor?.items.find((i: Item) => i._id === item?.system.containerId)?.name
+                  inventory?.find((i: Equipment) => i._id === item?.system?.containerId)?.name
                 }}</span>
                 <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
                   <ChevronUpDownIcon class="h-5 w-5 text-gray-400" aria-hidden="true" /> </span
@@ -331,7 +274,7 @@ const toggleSet = [
                 >
                   <ListboxOption
                     v-slot="{ active, selected }"
-                    v-for="container in actor?.items.filter((i: Item) => i.type === 'backpack')"
+                    v-for="container in inventory?.filter((i: Equipment) => i.type === 'backpack')"
                     :key="container._id"
                     :value="container._id"
                   >
@@ -359,16 +302,16 @@ const toggleSet = [
         </div>
       </template>
       <template #body>
-        <div v-html="removeUUIDs(item?.system.description.value)"></div>
+        <div v-html="removeUUIDs(item?.system?.description.value)"></div>
       </template>
       <template #actionButtons v-if="item">
-        <div class="flex-1">Qty: {{ item?.system.quantity }}</div>
+        <div class="flex-1">Qty: {{ item?.system?.quantity }}</div>
         <button
           type="button"
           class="inline-flex items-end justify-center border border-transparent bg-red-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-red-300 focus:outline-none"
           @click="
             () => {
-              deleteItem(item!._id)
+              item?.delete?.()
               infoModal.close()
             }
           "
@@ -378,14 +321,14 @@ const toggleSet = [
         <button
           type="button"
           class="inline-flex items-end justify-center border border-transparent bg-gray-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-300 focus:outline-none"
-          @click="() => incrementItemQty(item!._id, -1)"
+          @click="() => item?.changeValue?.((item?.system?.quantity ?? NaN) - 1)"
         >
           -
         </button>
         <button
           type="button"
           class="inline-flex items-end justify-center border border-transparent bg-gray-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-300 focus:outline-none"
-          @click="() => incrementItemQty(item!._id, 1)"
+          @click="() => item?.changeValue?.((item?.system?.quantity ?? NaN) + 1)"
         >
           +
         </button>

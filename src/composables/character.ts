@@ -13,7 +13,7 @@ import type {
   Stat as PF2eStat,
   Action as PF2eAction
 } from '@/types/pf2e-types'
-import { actionDefs } from '@/utils/constants'
+import { actionDefs, inventoryTypes } from '@/utils/constants'
 import type { Roll } from '@/types/foundry-types'
 import { useApi } from '@/composables/api'
 
@@ -87,6 +87,7 @@ export interface Character {
   // stuff (feats, effects, conditions, inventory)
   feats: Field<Item[]>
   effects: Field<Item[]>
+  inventory: Field<Equipment[]>
 
   // actions
   actions: Field<Action[]>
@@ -118,6 +119,15 @@ export interface Action extends Item {
   actionType: string | null
   item: Item
   doAction?: (options: object) => Promise<Roll> | null
+}
+export interface Equipment extends Item {
+  toggleInvested?: (newValue?: Prop<boolean>) => void
+  changeCarry?: (
+    method: Prop<string>,
+    hands: Prop<number>,
+    container: Prop<string | null>,
+    inSlot?: Prop<boolean>
+  ) => void
 }
 export interface Strike {
   label: Prop<string>
@@ -162,7 +172,16 @@ export interface System {
   traits: { rarity: Prop<string>; value: Prop<string[]> }
   level: { value: Prop<number>; taken: Prop<number> }
   actions: { value: Prop<string> }
-  equipped?: { carryType: string; invested: boolean; handsHeld: number }
+  equipped: {
+    carryType: Prop<string>
+    invested: Prop<boolean>
+    handsHeld: Prop<number>
+    inSlot: Prop<boolean>
+  }
+  usage: { value: Prop<string> }
+  containerId: Prop<string>
+  quantity: Prop<number>
+  price: { value: { gp: Prop<number>; sp: Prop<number>; cp: Prop<number> } }
 }
 export interface Modifier {
   slug: Prop<string>
@@ -226,7 +245,18 @@ function makeItem(root: PF2eItem | undefined): Item | undefined {
       equipped: {
         carryType: root?.system?.equipped?.carryType,
         invested: root?.system?.equipped?.invested,
-        handsHeld: root?.system?.equipped?.handsHeld
+        handsHeld: root?.system?.equipped?.handsHeld,
+        inSlot: root?.system?.equipped?.inSlot
+      },
+      usage: { value: root?.system?.usage },
+      containerId: root?.system?.containerId,
+      quantity: root?.system?.quantity,
+      price: {
+        value: {
+          gp: root?.system?.price?.value?.gp,
+          sp: root?.system?.price?.value?.sp,
+          cp: root?.system?.price?.value?.cp
+        }
       }
     },
     img: root?.img,
@@ -435,6 +465,45 @@ export function useCharacter(actor: Ref<Actor | undefined>) {
           changeValue: (newValue: number) => {
             const update = { system: { value: { value: newValue } } }
             updateActorItem(actor as Ref<Actor>, i._id, update)
+          }
+        }))
+    ),
+    inventory: computed(() =>
+      actor.value?.items
+        ?.filter((i: PF2eItem) => inventoryTypes.map((t) => t.type).includes(i?.type ?? ''))
+        .map((i: PF2eItem) => ({
+          ...(makeItem(i) as Equipment),
+          toggleInvested: (newValue: boolean = !i?.system?.equipped?.invested) => {
+            const update = { system: { equipped: { invested: newValue } } }
+            updateActorItem(actor as Ref<Actor>, i?._id, update)
+          },
+          delete: () => {
+            deleteActorItem(actor as Ref<Actor>, i?._id)
+          },
+          changeValue: (newValue) => {
+            if (!i?.system?.quantity) return
+            i.system.quantity = Math.max(newValue, 0)
+            const update = { system: { quantity: Math.max(newValue, 0) } }
+            updateActorItem(actor as Ref<Actor>, i?._id, update)
+          },
+          changeCarry: (
+            carryType: Prop<string>,
+            handsHeld: Prop<number>,
+            containerId: Prop<string | null>,
+            inSlot: Prop<boolean> = i?.system?.equipped?.inSlot
+          ) => {
+            if (!i?.system?.equipped) return
+            i.system.equipped.carryType = carryType
+            i.system.equipped.handsHeld = handsHeld
+            i.system.equipped.inSlot = inSlot
+            i.system.containerId = containerId
+            const update = {
+              system: {
+                containerId: containerId,
+                equipped: { carryType, handsHeld, inSlot }
+              }
+            }
+            updateActorItem(actor as Ref<Actor>, i?._id, update)
           }
         }))
     ),

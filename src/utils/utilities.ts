@@ -37,7 +37,10 @@ export function makePropertiesHtml(item: Item): string {
   )
 }
 
-export function printPrice(price: { gp: number; sp: number; cp: number }) {
+export function printPrice(
+  price: { gp: number | undefined; sp: number | undefined; cp: number | undefined } | undefined
+) {
+  if (!price) return ''
   return [price?.gp, price?.sp, price?.cp]
     .map((x, i) => (x ? x + ['gp', 'sp', 'cp']?.[i] : undefined))
     .filter((x) => x !== undefined)
