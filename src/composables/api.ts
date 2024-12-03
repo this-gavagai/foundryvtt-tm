@@ -297,7 +297,7 @@ function parseActorData(
 
     // todo: (refactor) is there any way avoid requiring these tedious things
     merge(actor.value!.system, JSON.parse(args.system))
-    actor.value!.feats = JSON.parse(args.feats)
+    // actor.value!.feats = JSON.parse(args.feats)
   }
 }
 

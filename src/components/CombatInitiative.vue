@@ -31,7 +31,6 @@ const initiativeReady = computed(() => {
   const initiativeValue = activeCombat.value?.combatants.find(
     (a: Combatant) => a.actorId === currentActorId.value
   )?.initiative
-  console.log('ready sir?', inActiveCombat, !initiativeValue)
   return inActiveCombat && !initiativeValue
 })
 </script>

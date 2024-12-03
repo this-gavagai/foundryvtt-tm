@@ -16,9 +16,10 @@ export interface Item {
   _id: string
   name?: string
   type?: string
+  category?: string
   system?: System
   img?: string
-  flags?: string[]
+  flags?: any
   contents?: string
 }
 export interface IWR {

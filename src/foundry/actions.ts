@@ -45,8 +45,8 @@ export async function getCharacterDetails(args: {
     action: 'updateCharacterDetails',
     actorId: actor._id,
     actor: JSON.stringify(actor),
-    system: JSON.stringify(actor.system),
-    feats: JSON.stringify(actor.feats)
+    system: JSON.stringify(actor.system)
+    // feats: JSON.stringify(actor.feats)
   }
 }
 

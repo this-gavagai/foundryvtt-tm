@@ -84,7 +84,8 @@ export interface Character {
     burrow: Field<Stat>
   }
 
-  // effects and conditions
+  // stuff (feats, effects, conditions, inventory)
+  feats: Field<Item[]>
   effects: Field<Item[]>
 
   // actions
@@ -108,6 +109,8 @@ export interface Item {
   type: Prop<string>
   system: Prop<System>
   img: Prop<string>
+  itemGrants: Prop<string[]>
+  grantedBy: Prop<string>
   delete?: () => void
   changeValue?: (newTotal: number) => void
 }
@@ -152,10 +155,12 @@ export interface IWR {
 
 export interface System {
   slug: Prop<string>
+  location: Prop<string>
+  category: Prop<string>
   description: { value: string }
   value: { value: Prop<number>; isValued: Prop<boolean> }
   traits: { rarity: Prop<string>; value: Prop<string[]> }
-  level: { value: Prop<number> }
+  level: { value: Prop<number>; taken: Prop<number> }
   actions: { value: Prop<string> }
   equipped?: { carryType: string; invested: boolean; handsHeld: number }
 }
@@ -211,10 +216,12 @@ function makeItem(root: PF2eItem | undefined): Item | undefined {
     type: root?.type,
     system: {
       slug: root?.system?.slug,
+      location: root?.system?.location,
+      category: root?.system?.category,
       description: { value: root?.system?.description?.value },
       value: { isValued: root?.system?.value?.isValued, value: root?.system?.value?.value },
       traits: { rarity: root?.system?.traits?.rarity, value: [...root?.system?.traits?.value] },
-      level: { value: root?.system?.traits?.level },
+      level: { value: root?.system?.level?.value, taken: root?.system?.level?.taken },
       actions: { value: root?.system?.actions?.value },
       equipped: {
         carryType: root?.system?.equipped?.carryType,
@@ -222,7 +229,11 @@ function makeItem(root: PF2eItem | undefined): Item | undefined {
         handsHeld: root?.system?.equipped?.handsHeld
       }
     },
-    img: root?.img
+    img: root?.img,
+    itemGrants: root?.flags?.pf2e?.itemGrants
+      ? Object.values(root?.flags?.pf2e?.itemGrants as object).map((i) => i?.id)
+      : undefined,
+    grantedBy: root?.flags?.pf2e?.grantedBy?.id
     // flags: root?.flags,
     // contents: root?.contents
   }
@@ -403,6 +414,18 @@ export function useCharacter(actor: Ref<Actor | undefined>) {
     },
 
     // effects and conditions
+    feats: computed(() =>
+      actor.value?.items
+        ?.filter((i: PF2eItem) => i.type === 'feat')
+        .sort(
+          (a, b) =>
+            (a?.system?.level?.taken ?? a?.system?.level?.value ?? 0) -
+            (b?.system?.level?.taken ?? b?.system?.level?.value ?? 0)
+        )
+        .map((i: PF2eItem) => ({
+          ...(makeItem(i) as Item)
+        }))
+    ),
     effects: computed(() =>
       actor.value?.items
         ?.filter((i: PF2eItem) => ['effect', 'condition'].includes(i?.type ?? ''))
@@ -416,6 +439,7 @@ export function useCharacter(actor: Ref<Actor | undefined>) {
         }))
     ),
 
+    // actions
     actions: computed(() =>
       actor.value?.items
         ?.filter((i: PF2eItem) =>

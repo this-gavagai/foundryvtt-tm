@@ -20,7 +20,7 @@ export interface UpdateCharacterDetailsArgs {
   action: 'updateCharacterDetails'
   actorId: string
   actor: string
-  feats: string
+  // feats: string
   system: string
 }
 export interface RequestCharacterDetailsArgs {
