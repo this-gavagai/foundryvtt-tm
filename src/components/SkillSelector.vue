@@ -62,4 +62,3 @@ defineExpose({ selected })
     </Listbox>
   </div>
 </template>
-@/types/pf2e-types

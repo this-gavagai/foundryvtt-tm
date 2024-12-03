@@ -27,7 +27,7 @@ export interface IWR {
   definition: string
   value?: number
 }
-export interface Save {
+export interface Stat {
   label: string
   slug: string
   type: string
@@ -38,6 +38,8 @@ export interface Save {
   value: number
   totalModifier: number
   dc: number
+  armor: boolean
+  lore: boolean
 }
 export interface Perception {}
 
@@ -86,7 +88,7 @@ export interface FeatCategory {
 
 // TODO: (refactor) this is piling together tons of System subtypes. Worth separating?
 export interface System {
-  skills: [Skill]
+  skills: [Stat]
   build: { attributes: any }
   resources: any
   attributes: any

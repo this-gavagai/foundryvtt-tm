@@ -88,4 +88,3 @@ const viewedItem = computed(() =>
     </InfoModal>
   </Teleport>
 </template>
-@/types/pf2e-types

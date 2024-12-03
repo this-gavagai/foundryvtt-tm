@@ -10,7 +10,7 @@ import type {
   Item as PF2eItem,
   Modifier as PF2eModifier,
   Movement as PF2eMovement,
-  Save as PF2eSave,
+  Stat as PF2eStat,
   Action as PF2eAction
 } from '@/types/pf2e-types'
 import { actionDefs } from '@/utils/constants'
@@ -90,6 +90,8 @@ export interface Character {
   // actions
   actions: Field<Action[]>
   strikes: Field<Strike[]>
+  skills: Field<Stat[]>
+  proficiencies: Field<Stat[]>
 }
 
 ////////////////////////////////////////
@@ -132,6 +134,8 @@ export interface Stat {
   totalModifier: Prop<number>
   modifiers: Prop<Modifier[]>
   dc: Prop<number>
+  armor: Prop<boolean>
+  lore: Prop<boolean>
   roll?: () => Promise<Roll> | null
 }
 export interface IWR {
@@ -140,23 +144,7 @@ export interface IWR {
   definition: Prop<string>
   value?: Prop<number>
 }
-// export interface Movement {
-//   label: Prop<string>
-//   slug: Prop<string>
-//   type: Prop<string>
-//   total: Prop<number>
-//   value: Prop<number>
-//   totalModifier: Prop<number>
-//   modifiers: Prop<Modifier[]>
-// }
 
-export interface Modifier {
-  slug: Prop<string>
-  label: Prop<string>
-  modifier: Prop<number>
-  enabled: Prop<boolean>
-  hideIfDisabled: Prop<boolean>
-}
 export interface System {
   slug: Prop<string>
   description: { value: string }
@@ -166,7 +154,13 @@ export interface System {
   actions: { value: Prop<string> }
   equipped?: { carryType: string; invested: boolean; handsHeld: number }
 }
-
+export interface Modifier {
+  slug: Prop<string>
+  label: Prop<string>
+  modifier: Prop<number>
+  enabled: Prop<boolean>
+  hideIfDisabled: Prop<boolean>
+}
 export interface Trait {
   name: string
   label: string
@@ -186,7 +180,7 @@ function makeModifiers(set: PF2eModifier[] | undefined): Modifier[] | undefined 
     hideIfDisabled: m.hideIfDisabled
   }))
 }
-function makeStat(root: PF2eSave | undefined): Stat | undefined {
+function makeStat(root: PF2eStat | undefined): Stat | undefined {
   if (!root) return undefined
   return {
     slug: root?.slug,
@@ -198,6 +192,8 @@ function makeStat(root: PF2eSave | undefined): Stat | undefined {
     value: root?.value,
     totalModifier: root?.totalModifier,
     dc: root?.dc,
+    armor: root?.armor,
+    lore: root?.lore,
     modifiers: makeModifiers(root?.modifiers as PF2eModifier[])
   }
 }
@@ -253,7 +249,6 @@ function makeStrike(root: PF2eAction | undefined, item: PF2eItem | undefined): S
     _modifiers: makeModifiers(root?._modifiers)
   }
 }
-
 function makeIWRs(set: PF2eIWR[] | undefined): IWR[] | undefined {
   if (!set) return undefined
   return set?.map((e: PF2eIWR) => ({
@@ -263,18 +258,6 @@ function makeIWRs(set: PF2eIWR[] | undefined): IWR[] | undefined {
     value: e?.value
   }))
 }
-// function makeMovement(root: PF2eMovement | undefined): Stat | undefined {
-//   if (!root) return undefined
-//   return {
-//     label: root?.label,
-//     slug: root?.slug,
-//     type: root?.type,
-//     total: root?.total,
-//     value: root?.value,
-//     totalModifier: root?.totalModifier,
-//     modifiers: makeModifiers(root?._modifiers as PF2eModifier[])
-//   }
-// }
 
 export function useCharacter(actor: Ref<Actor | undefined>) {
   watch(actor, () => console.log('actor changed', actor.value?._id))
@@ -469,7 +452,32 @@ export function useCharacter(actor: Ref<Actor | undefined>) {
         doDamage: (crit: boolean) =>
           rollCheck(actor as Ref<Actor>, 'damage', `${action.slug},${crit ? 'critical' : 'damage'}`)
       }))
-    )
+    ),
+    skills: computed(() =>
+      Object.values(actor.value?.system?.skills ?? {}).map((skill: PF2eStat) => ({
+        ...(makeStat(skill) as Stat),
+        roll: () => rollCheck(actor as Ref<Actor>, 'skill', skill.slug)
+      }))
+    ),
+    proficiencies: computed(() => [
+      ...Object.entries(actor.value?.system.proficiencies['attacks'] as Stat).map(
+        ([key, stat]) => ({ ...makeStat(stat), type: 'attacks', slug: key }) as Stat
+      ),
+      ...Object.entries(actor.value?.system.proficiencies['defenses'] as Stat).map(
+        ([key, stat]) => ({ ...makeStat(stat), type: 'defenses', slug: key }) as Stat
+      ),
+      ...Object.entries(actor.value?.system.proficiencies['classDCs'] as Stat).map(
+        ([key, stat]) => ({ ...makeStat(stat), type: 'classDCs', slug: key }) as Stat
+      ),
+      ...[
+        {
+          ...(makeStat(actor.value?.system?.proficiencies?.['spellcasting']) as Stat),
+          value: actor.value?.system?.attributes?.classOrSpellDC?.value,
+          type: 'spellcasting',
+          slug: 'Spell DC'
+        }
+      ]
+    ])
   }
 
   return { character }

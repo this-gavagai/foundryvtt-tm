@@ -35,4 +35,3 @@ function toggleInvested(item: Item) {
     </li>
   </ul>
 </template>
-@/composables@/types/pf2e-types
