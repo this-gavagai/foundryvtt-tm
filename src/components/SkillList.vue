@@ -29,7 +29,6 @@ const { skills, proficiencies } = character
               :heading="skill.label"
               :proficiency="skill.rank"
               :modifiers="skill.modifiers"
-              :allowRoll="true"
               :rollAction="() => (skill.roll ? skill?.roll() : null)"
             >
               {{ formatModifier(skill.totalModifier) }}
@@ -58,7 +57,6 @@ const { skills, proficiencies } = character
                 :heading="prof.label ?? prof.slug"
                 v-if="prof?.rank && prof.rank > 0"
                 :proficiency="prof.rank"
-                :allowRoll="false"
               >
                 {{
                   ['classDCs', 'spellcasting'].includes(proficiencyType)

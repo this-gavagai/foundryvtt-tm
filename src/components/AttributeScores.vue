@@ -37,7 +37,6 @@ const { perception } = character
       modalHeading="Fortitude Save"
       :proficiency="fortitude?.rank"
       :modifiers="fortitude?.modifiers"
-      :allowRoll="true"
       :rollAction="fortitude?.roll"
     >
       {{ formatModifier(fortitude?.totalModifier) }}

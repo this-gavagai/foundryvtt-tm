@@ -1,77 +1,60 @@
 <script setup lang="ts">
-import type { Ref } from 'vue'
-import type { Actor, Combatant } from '@/types/pf2e-types'
-import { computed, watch, ref, inject } from 'vue'
+import type { Combatant } from '@/types/pf2e-types'
+import type { Stat } from '@/composables/character'
+import { computed, inject, type ComputedRef } from 'vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'
 import { formatModifier } from '@/utils/utilities'
-import { useApi } from '@/composables/api'
 import StatBox from '@/components/StatBox.vue'
 import { useCombat } from '@/composables/combat'
 import { useKeys } from '@/composables/injectKeys'
 
-const actor = inject(useKeys().actorKey)!
-const { updateActor, rollCheck } = useApi()
+const character = inject(useKeys().characterKey)!
+const { _id: currentActorId, skills, perception } = character
+const {
+  stat: initiativeStat,
+  modifiers: initiativeMods,
+  roll: rollInitiative
+} = character.initiative
 
-interface SkillDef {
-  slug: string
-  label: string
-  totalModifier: number
-}
-
-const initSkills: Ref<SkillDef[]> = computed(() => {
-  const skills = Object.values(actor?.value?.system?.skills ?? {})
-  skills.unshift(actor.value?.system?.perception)
-  return skills
-})
-const selected = ref(actor.value?.system?.initiative?.statistic)
-watch(selected, async (newSkill) => {
-  if (actor.value) {
-    const update = { system: { initiative: { statistic: newSkill } } }
-    updateActor(actor, update).then(() => {
-      // actor.requestCharacterDetails!() // TODO: get rid of this
-    })
-  }
+const initSkills: ComputedRef<Stat[]> = computed(() => {
+  const skillList = skills.value ?? []
+  if (perception.value) skillList.unshift(perception.value)
+  return skillList
 })
 
 const { activeCombat } = useCombat()
 const initiativeReady = computed(() => {
   const inActiveCombat = activeCombat.value?.combatants
     .map((a: Combatant) => a.actorId)
-    .includes(actor.value?._id)
+    .includes(currentActorId.value)
   const initiativeValue = activeCombat.value?.combatants.find(
-    (a: Combatant) => a.actorId === actor.value?._id
+    (a: Combatant) => a.actorId === currentActorId.value
   )?.initiative
+  console.log('ready sir?', inActiveCombat, !initiativeValue)
   return inActiveCombat && !initiativeValue
 })
-function doInitiative() {
-  if (actor.value) return rollCheck(actor as Ref<Actor>, 'initiative')
-}
-// parent.initiative = { activeCombat, initiativeReady }
 </script>
 <template>
   <div class="flex gap-4 border-b px-6 py-4">
     <StatBox
       heading="Initiative"
-      :modifiers="actor?.system?.initiative?.modifiers"
-      :allowRoll="initiativeReady"
-      :rollAction="() => doInitiative()"
+      :modifiers="initiativeMods"
+      :rollAction="initiativeReady ? () => rollInitiative() : null"
     >
       {{
         formatModifier(
-          initSkills.find((s: SkillDef) => s?.slug === actor?.system?.initiative.statistic)
-            ?.totalModifier ?? NaN
+          initSkills.find((s: Stat) => s?.slug === initiativeStat)?.totalModifier ?? NaN
         )
       }}
     </StatBox>
-    <Listbox v-model="selected" class="w-full">
+    <Listbox v-model="initiativeStat" class="w-full">
       <div class="relative mt-1">
         <ListboxButton
           class="relative w-full cursor-default rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
         >
           <span class="block truncate">{{
-            initSkills.find((s: SkillDef) => s?.slug === actor?.system?.initiative.statistic)
-              ?.label ?? '...'
+            initSkills.find((s: Stat) => s?.slug === initiativeStat)?.label ?? '...'
           }}</span>
           <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
             <ChevronUpDownIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />

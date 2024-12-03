@@ -92,6 +92,11 @@ export interface Character {
   strikes: Field<Strike[]>
   skills: Field<Stat[]>
   proficiencies: Field<Stat[]>
+  initiative: {
+    stat: WritableField<string>
+    modifiers: Field<Modifier[]>
+    roll: () => Promise<Roll> | null
+  }
 }
 
 ////////////////////////////////////////
@@ -477,7 +482,21 @@ export function useCharacter(actor: Ref<Actor | undefined>) {
           slug: 'Spell DC'
         }
       ]
-    ])
+    ]),
+    initiative: {
+      stat: computed({
+        get: () => actor.value?.system?.initiative?.statistic,
+        set: (newValue) => {
+          actor.value!.system.initiative.statistic = newValue
+          const update = { system: { initiative: { statistic: newValue } } }
+          updateActor(actor, update)
+        }
+      }),
+      modifiers: computed(() => actor.value?.system.initiative.modifiers),
+      roll: () => {
+        return rollCheck(actor as Ref<Actor>, 'initiative')
+      }
+    }
   }
 
   return { character }

@@ -1,14 +1,16 @@
 <script setup lang="ts">
+// TODO: remember last choice for skill selected? Some kind of cookie/localstore is needed for that
 import { ref, inject } from 'vue'
 import { useKeys } from '@/composables/injectKeys'
 
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/20/solid'
 
-const actor = inject(useKeys().actorKey)!
+const character = inject(useKeys().characterKey)!
+const { skills } = character
 
-const skills = Object.values(actor.value?.system.skills ?? [])
-const selected = ref(skills[0])
+// const skills = Object.values(actor.value?.system.skills ?? [])
+const selected = ref(skills.value?.[0])
 defineExpose({ selected })
 </script>
 <template>

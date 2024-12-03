@@ -14,7 +14,6 @@ const props = defineProps([
   'proficiency',
   'modifiers',
   'preventInfoModal',
-  'allowRoll',
   'rollAction'
 ])
 const infoModal = ref()
