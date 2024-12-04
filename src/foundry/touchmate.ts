@@ -30,7 +30,7 @@ export function setupTouch() {
   }
   function pinchStart(ev: any) {
     console.log('pinch start')
-    getScale(ev)
+    getScale()
   }
   function pinchEnd() {
     console.log('pinch end')

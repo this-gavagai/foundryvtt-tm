@@ -10,11 +10,6 @@ const counter = ref()
 
 const character = inject(useKeys().characterKey) as Character
 const { current: heroCurrent, max: heroMax } = character.heroPoints
-
-function updateHeroPoints(newTotal: number): void {
-  heroCurrent.value = newTotal
-  counter.value.close()
-}
 </script>
 <template>
   <StatBox heading="Hero Pts" @click="counter.click()">
@@ -24,7 +19,12 @@ function updateHeroPoints(newTotal: number): void {
       :value="heroCurrent ?? 0"
       :max="heroMax ?? 0"
       editable
-      @change-count="(newTotal) => updateHeroPoints(newTotal)"
+      @change-count="
+        (newTotal) => {
+          heroCurrent = newTotal
+          counter.value.close()
+        }
+      "
     />
   </StatBox>
 </template>

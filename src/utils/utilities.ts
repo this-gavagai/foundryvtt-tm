@@ -1,4 +1,12 @@
-import type { Item } from '@/types/pf2e-types'
+interface ItemPartial {
+  system: {
+    duration?: { value: number }
+    area?: { value: number; type: string }
+    target?: { value: string }
+    range?: { value: number }
+    save?: { value: string; basic: string }
+  }
+}
 
 export function capitalize(s: string | undefined) {
   return s ? s?.[0]?.toUpperCase() + s?.slice(1) : null
@@ -15,7 +23,7 @@ export function makeActionIcons(actionValue: string): string {
     actionValue?.replace('to', '-').replace('free', 'f') ?? ''
   }</span>`
 }
-export function makePropertiesHtml(item: Item): string {
+export function makePropertiesHtml(item: ItemPartial | undefined): string {
   return (
     (item?.system?.duration?.value
       ? `<div><span class='font-bold'>Duration:</span> ${item?.system.duration?.value}</div>`

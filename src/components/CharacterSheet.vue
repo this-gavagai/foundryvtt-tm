@@ -40,7 +40,6 @@ const panels = ref()
 // base data
 const { world } = useWorld()
 const actor: Ref<Actor | undefined> = ref()
-provide(useKeys().actorKey, actor)
 const { character } = useCharacter(actor)
 provide(useKeys().characterKey, character)
 

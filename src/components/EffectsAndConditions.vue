@@ -67,12 +67,7 @@ const viewedItem = computed(() =>
           type="button"
           v-if="viewedItem?.system?.value?.isValued"
           class="inline-flex items-end justify-center border border-transparent bg-gray-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-300 focus:outline-none"
-          @click="
-            () => {
-              if (viewedItem?.changeValue)
-                viewedItem.changeValue(Math.max((viewedItem?.system?.value?.value ?? NaN) - 1, 0))
-            }
-          "
+          @click="() => viewedItem?.changeQty?.((viewedItem?.system?.value?.value ?? NaN) - 1)"
         >
           -
         </button>
@@ -80,12 +75,7 @@ const viewedItem = computed(() =>
           type="button"
           v-if="viewedItem?.system?.value?.isValued"
           class="inline-flex items-end justify-center border border-transparent bg-gray-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-300 focus:outline-none"
-          @click="
-            () => {
-              if (viewedItem?.changeValue)
-                viewedItem.changeValue((viewedItem?.system?.value?.value ?? NaN) + 1)
-            }
-          "
+          @click="() => viewedItem?.changeQty?.((viewedItem?.system?.value?.value ?? NaN) + 1)"
         >
           +
         </button>

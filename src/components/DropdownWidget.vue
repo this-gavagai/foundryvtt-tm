@@ -19,7 +19,7 @@ const initialSelected = props.list.find((i: ListChoice) => i.id === props.select
 }
 const selected = ref(initialSelected)
 
-// const emit = defineEmits()
+const emit = defineEmits(['change'])
 watch(selected, () => {
   console.log(selected.value)
   emit('change', selected.value)

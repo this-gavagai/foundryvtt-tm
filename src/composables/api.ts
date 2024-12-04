@@ -136,10 +136,7 @@ async function setupSocketListenersForActor(
 // Emit Methods                      //
 ///////////////////////////////////////
 // TODO: possible to define this "update" paramater type more explicitly?
-async function updateActor(
-  actor: Ref<Actor | undefined>,
-  update: object
-): Promise<DocumentEventArgs | void> {
+async function updateActor(actor: Ref<Actor | undefined>, update: object) {
   if (!actor.value) return
   const socket = await getSocket()
   const promise = new Promise<DocumentEventArgs>((resolve) => {
@@ -177,9 +174,9 @@ async function updateActorItem(
   itemId: string,
   update: object
   // additionalOptions: null | { [key: string]: any } = null
-): Promise<DocumentEventArgs | void> {
+) {
   const socket = await getSocket()
-  const promise = new Promise<DocumentEventArgs>((resolve) => {
+  const promise = new Promise((resolve) => {
     socket.emit(
       'modifyDocument',
       {
@@ -208,7 +205,7 @@ async function updateActorItem(
   return promise
 }
 
-async function deleteActorItem(actor: Ref<Actor>, itemId: string): Promise<DeleteEventArgs | void> {
+async function deleteActorItem(actor: Ref<Actor>, itemId: string) {
   const socket = await getSocket()
   const promise = new Promise<DeleteEventArgs>((resolve) => {
     socket.emit(

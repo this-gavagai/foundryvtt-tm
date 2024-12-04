@@ -106,7 +106,13 @@ export interface System {
   description: any
   time: any
   spelldc: any
-  slots: { [key: string]: { value: number; max: number } }
+  slots: {
+    [key: string]: {
+      value: number
+      max: number
+      prepared: { id: string | null; expended: boolean }[]
+    }
+  }
   initiative: any
   equipped: any
   containerId: any
