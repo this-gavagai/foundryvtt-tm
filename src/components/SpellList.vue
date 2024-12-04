@@ -4,13 +4,14 @@
 
 import type { Ref } from 'vue'
 import type { Item, Actor } from '@/types/pf2e-types'
+import type { SpellcastingEntry } from '@/composables/character'
 import { inject, computed, ref } from 'vue'
 import { useApi } from '@/composables/api'
 import { capitalize, makeActionIcons, makePropertiesHtml, removeUUIDs } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 
 import Button from '@/components/ButtonWidget.vue'
-import Counter from '@/components/CounterWidget.vue'
+import CounterWidget from '@/components/CounterWidget.vue'
 import Modal from '@/components/ModalBox.vue'
 import InfoModal from '@/components/InfoModal.vue'
 
@@ -41,8 +42,11 @@ interface SpellChargeOptions {
   itemId?: string
 }
 
-const actor = inject(useKeys().actorKey)!
 const { updateActor, updateActorItem, castSpell, consumeItem } = useApi()
+const actor = inject(useKeys().actorKey)!
+const character = inject(useKeys().characterKey)!
+const { spellcastingEntries, spellDC } = character
+const { max: focusMax, current: focusCurrent } = character.focusPoints
 
 const infoModal = ref()
 const spellSelectionModal = ref()
@@ -182,29 +186,30 @@ const spellbook = computed((): Spellbook => {
 <template>
   <div class="px-6 py-4">
     <ul class="">
-      <li
-        v-for="location in actor?.items?.filter((x: Item) => x?.type === 'spellcastingEntry')"
-        class="mt-4 first:mt-0"
-        :key="location._id"
-      >
+      <li v-for="location in spellcastingEntries" class="mt-4 first:mt-0" :key="location._id">
         <h3 class="flex justify-between bg-gray-300 align-bottom">
-          <span class="text-xl underline">
-            {{ location.name }}
+          <span>
+            <span class="text-xl underline">
+              {{ location.name }}
+            </span>
+            <span v-if="location.system.spelldc.dc || spellDC" class="text-xs">
+              (DC {{ location.system.spelldc.dc || spellDC }})
+            </span>
           </span>
           <span class="pl-1">
-            <Counter
+            <CounterWidget
               v-if="location.system?.prepared.value === 'focus'"
               class="relative bottom-[-2px] mr-2 text-sm"
-              :value="actor?.system.resources.focus.value"
-              :max="actor?.system.resources.focus.max"
+              :value="focusCurrent"
+              :max="focusMax"
               title="Focus Pool"
               editable
               @change-count="(newTotal) => updateSpellCharges(newTotal, { type: 'focus' })"
             />
-            <Counter
+            <CounterWidget
               v-if="location.system?.prepared.value === 'charge'"
               class="relative bottom-[-2px] mr-2 text-sm"
-              :value="location.flags?.['pf2e-dailies']?.staff?.charges"
+              :value="location.staffCharges"
               :title="location.name"
               editable
               @change-count="
@@ -214,14 +219,14 @@ const spellbook = computed((): Spellbook => {
             />
           </span>
         </h3>
-        <div v-if="location.system.spelldc.dc || actor?.system.attributes?.spellDC?.value">
+        <!-- <div v-if="location.system.spelldc.dc || actor?.system.attributes?.spellDC?.value">
           Spell DC
           {{ location.system.spelldc.dc || actor?.system.attributes?.spellDC?.value }}
-        </div>
+        </div> -->
         <!-- Spell Ranks -->
         <ul>
           <li
-            v-for="(spells, rank) in spellbook[location._id]"
+            v-for="(spells, rank) in spellbook[location._id ?? '']"
             class="mt-2 first:mt-0"
             :class="{ hidden: !spells.length }"
             :key="'rank' + rank"
@@ -230,11 +235,11 @@ const spellbook = computed((): Spellbook => {
               <span class="pr-1">
                 {{ rank == '0' ? 'Cantrips' : 'Rank ' + rank }}
               </span>
-              <Counter
+              <CounterWidget
                 class="relative bottom-[-1px] mr-2 text-sm"
                 v-if="location.system?.prepared.value === 'spontaneous'"
-                :value="location.system.slots['slot' + rank].value"
-                :max="location.system.slots['slot' + rank].max"
+                :value="location.system.slots?.['slot' + rank]?.value"
+                :max="location.system.slots?.['slot' + rank]?.max"
                 editable
                 :title="`Rank ${rank}`"
                 @change-count="
@@ -289,7 +294,7 @@ const spellbook = computed((): Spellbook => {
                     >(empty)</span
                   >
                 </div>
-                <Counter
+                <CounterWidget
                   class="relative bottom-[-1px] mr-2 text-sm"
                   v-if="location.system?.prepared.value === 'prepared'"
                   :value="
@@ -316,12 +321,11 @@ const spellbook = computed((): Spellbook => {
       <!-- Wands and Scrolls -->
       <li class="mt-4 first:mt-0 [&:not(:has(li))]:hidden">
         <h3 class="flex justify-between bg-gray-300 align-bottom">
-          <span class="text-xl underline"> Wands and Scrolls </span>
+          <span>
+            <span class="text-xl underline"> Wands and Scrolls </span>
+            <span v-if="spellDC" class="text-xs"> (DC {{ spellDC }}) </span>
+          </span>
         </h3>
-        <div class="pb-1" v-if="actor?.system.attributes?.spellDC?.value">
-          Spell DC
-          {{ actor?.system.attributes?.spellDC?.value }}
-        </div>
         <ul class="empty:hidden">
           <li
             v-for="spell in actor?.items
@@ -345,7 +349,7 @@ const spellbook = computed((): Spellbook => {
                 {{ spell.name }}
               </span>
             </div>
-            <Counter
+            <CounterWidget
               class="relative bottom-[-1px] mr-2 text-sm"
               :value="spell.system.uses.value"
               :max="spell.system.uses.max"

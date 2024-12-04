@@ -6,8 +6,8 @@ import Button from '@/components/ButtonWidget.vue'
 import Spinner from '@/components/SpinnerWidget.vue'
 
 const props = defineProps<{
-  value: number
-  max?: number
+  value: number | undefined
+  max?: number | undefined
   editable?: boolean
   title?: string
   updating?: boolean
@@ -18,7 +18,7 @@ const emit = defineEmits<{
 }>()
 
 function changeCount(change: number) {
-  const newTotal = props.value + change
+  const newTotal = (props.value ?? 0) + change
   if (newTotal < 0 || newTotal > (props?.max ?? 1000)) return
   emit('changeCount', newTotal)
 }
@@ -35,13 +35,15 @@ defineExpose({ click, close })
   <div @click="click" class="cursor-pointer">
     <span>
       <span v-for="i in Number(props.value ?? 0)" :key="'pip' + i">●</span>
-      <span v-for="i in props.max ? Number(props.max - props.value) : 0" :key="'emp' + i">○</span>
+      <span v-for="i in props.max ? Number(props.max - (props.value ?? 0)) : 0" :key="'emp' + i"
+        >○</span
+      >
     </span>
     <Teleport to="#modals">
       <Modal ref="counterModal" :title="props.title">
         <div class="flex w-full justify-between py-8 text-3xl">
           <Button
-            :disabled="updating || props.value < 1"
+            :disabled="updating || (props.value ?? 0) < 1"
             class="text-gray-500 disabled:invisible"
             @click="changeCount(-1)"
           >
@@ -53,7 +55,9 @@ defineExpose({ click, close })
               :class="{ 'opacity-0': updating }"
             >
               <span v-for="i in Number(props.value ?? 0)" :key="'pip' + i">●</span>
-              <span v-for="i in props.max ? Number(props.max - props.value) : 0" :key="'emp' + i"
+              <span
+                v-for="i in props.max ? Number(props.max - (props.value ?? 0)) : 0"
+                :key="'emp' + i"
                 >○</span
               >
             </div>
@@ -65,7 +69,7 @@ defineExpose({ click, close })
             </div>
           </div>
           <Button
-            :disabled="updating || (props.max && props.value >= props.max)"
+            :disabled="updating || (props.max && (props.value ?? 0) >= props.max)"
             class="text-gray-500 disabled:invisible"
             @click="changeCount(+1)"
           >

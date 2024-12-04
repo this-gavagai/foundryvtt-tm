@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // todo (bug): header image is getting shrunk at certain widths. Need different breakpoints?
+// TODO: give some kind of indication if characterSelector is still loading
 import type { Actor } from '@/types/pf2e-types'
 import { inject, ref } from 'vue'
 import { useCharacterSelect } from '@/composables/characterSelect'
