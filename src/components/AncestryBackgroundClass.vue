@@ -30,7 +30,7 @@ const viewedItem: Ref<Item | undefined> = computed(() => {
       @click="infoModal.open(classType?._id)"
     >
       <span>{{ classType?.name ?? '-' }}</span>
-      <span v-if="level">{{ ` (Level ${level})` }}</span>
+      <span v-if="level && classType?.name">{{ ` (Level ${level})` }}</span>
     </div>
   </div>
   <Teleport to="#modals">

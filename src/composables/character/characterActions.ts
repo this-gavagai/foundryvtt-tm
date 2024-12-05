@@ -78,7 +78,7 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
       }))
     ),
     skills: computed(() =>
-      Object.values(actor.value?.system?.skills ?? {}).map((skill: PF2eStat) => ({
+      Object.values(actor.value?.system?.skills ?? {})?.map((skill: PF2eStat) => ({
         ...(makeStat(skill) as Stat),
         roll: () => rollCheck(actor as Ref<Actor>, 'skill', skill.slug)
       }))

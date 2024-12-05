@@ -107,7 +107,10 @@ const toggleSet = [
 ]
 </script>
 <template>
-  <div class="px-6 py-4">
+  <div v-if="inventory?.length === 0" class="px-6 py-4 italic">
+    This character has no inventory.
+  </div>
+  <div v-else class="px-6 py-4">
     <ul>
       <li
         v-for="item in inventory?.filter((i: Equipment) => i.system?.equipped?.handsHeld)"

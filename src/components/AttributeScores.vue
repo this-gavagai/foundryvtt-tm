@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// TODO: statbox should allow a full-name parameter. Right now, Reflex is showing up in the modal as "Refl"
 import { inject } from 'vue'
 import StatBox from './StatBox.vue'
 import { formatModifier } from '@/utils/utilities'

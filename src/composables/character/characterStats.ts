@@ -1,6 +1,6 @@
 import { computed, type Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
-import type { Field } from './helpers'
+import type { Field, WritableField } from './helpers'
 import { type Modifier, makeModifiers } from './modifier'
 import { type Stat, makeStat } from './stat'
 import { type IWR, makeIWRs } from './iwr'
@@ -19,6 +19,19 @@ export interface CharacterStats {
     current: Field<number>
     modifiers: Field<Modifier[]>
   }
+  shield: {
+    hp: {
+      current: WritableField<number>
+      max: Field<number>
+      brokenThreshold: Field<number>
+    }
+    ac: Field<number>
+    hardness: Field<number>
+    raised: Field<boolean>
+    broken: Field<boolean>
+    destroyed: Field<boolean>
+    itemId: Field<string>
+  }
   saves: {
     fortitude: Field<Stat>
     reflex: Field<Stat>
@@ -32,7 +45,7 @@ export interface CharacterStats {
 }
 
 export function useCharacterStats(actor: Ref<Actor | undefined>) {
-  const { rollCheck } = useApi()
+  const { rollCheck, updateActorItem } = useApi()
   return {
     attributes: {
       str: computed(() => actor.value?.system?.abilities?.str?.mod),
@@ -46,6 +59,35 @@ export function useCharacterStats(actor: Ref<Actor | undefined>) {
       current: computed(() => actor.value?.system?.attributes?.ac?.value),
       modifiers: computed(() => makeModifiers(actor.value?.system?.attributes?.ac?.modifiers))
     },
+
+    shield: {
+      hp: {
+        current: computed({
+          get: () => actor.value?.system?.attributes?.shield?.hp?.value,
+          set: (newValue) => {
+            console.log(newValue)
+            const shieldId = actor.value?.system?.attributes?.shield?.itemId
+            // const shieldItem = actor.value?.items.find((i: PF2eItem) => i._id === shieldId)
+            // console.log(shieldItem)
+            // if (shieldItem?.system?.hp) shieldItem.system.hp.value = newValue
+            actor.value!.system.attributes.shield.hp.value = newValue
+            const update = { system: { hp: { value: newValue } } }
+            updateActorItem(actor as Ref<Actor>, shieldId, update)
+          }
+        }),
+        max: computed(() => actor.value?.system?.attributes?.shield?.hp?.max),
+        brokenThreshold: computed(
+          () => actor.value?.system?.attributes?.shield?.hp?.brokenThreshold
+        )
+      },
+      ac: computed(() => actor.value?.system?.attributes?.shield?.ac),
+      hardness: computed(() => actor.value?.system?.attributes?.shield?.hardness),
+      raised: computed(() => actor.value?.system?.attributes?.shield?.raised),
+      broken: computed(() => actor.value?.system?.attributes?.shield?.broken),
+      destroyed: computed(() => actor.value?.system?.attributes?.shield?.destroyed),
+      itemId: computed(() => actor.value?.system?.attributes?.shield?.itemId)
+    },
+
     saves: {
       fortitude: computed(() => ({
         ...(makeStat(actor.value?.system?.saves?.fortitude) as Stat),

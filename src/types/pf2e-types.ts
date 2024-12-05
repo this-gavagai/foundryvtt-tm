@@ -113,6 +113,7 @@ export interface System {
       prepared: { id: string | null; expended: boolean }[]
     }
   }
+  hp: { value: number }
   initiative: any
   equipped: any
   containerId: any

@@ -25,6 +25,7 @@ export interface Item {
       inSlot: Prop<boolean>
     }
     usage: { value: Prop<string> }
+    hp: { value: Prop<number> }
     containerId: Prop<string>
     quantity: Prop<number>
     price: { value: { gp: Prop<number>; sp: Prop<number>; cp: Prop<number> } }
@@ -79,7 +80,8 @@ export function makeItem(root: PF2eItem | undefined): Item | undefined {
         handsHeld: root?.system?.equipped?.handsHeld,
         inSlot: root?.system?.equipped?.inSlot
       },
-      usage: { value: root?.system?.usage },
+      usage: { value: root?.system?.usage?.value },
+      hp: { value: root?.system?.hp?.value },
       containerId: root?.system?.containerId,
       quantity: root?.system?.quantity,
       price: {

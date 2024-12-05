@@ -56,7 +56,8 @@ const featCategories = computed(() => {
 })
 </script>
 <template>
-  <div class="px-6 py-4 lg:columns-2">
+  <div v-if="feats?.length === 0" class="px-6 py-4 italic">This character has no feats.</div>
+  <div v-else class="px-6 py-4 lg:columns-2">
     <dl v-for="(category, slug) in featCategories" class="break-inside-avoid-column" :key="slug">
       <dt class="pt-2 text-lg underline only:hidden">
         {{ category.label }}

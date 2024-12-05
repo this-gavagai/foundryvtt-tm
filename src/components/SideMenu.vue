@@ -83,13 +83,13 @@ const proxyId = computed(() => {
                       @change="(newId: any) => updateProxyId(newId.id)"
                     />
                   </li>
-                  <li>
+                  <!-- <li>
                     <ul role="list" class="-mx-2 space-y-1">
                       <li class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6">
                         Custom macros will go here
                       </li>
                     </ul>
-                  </li>
+                  </li> -->
                   <!-- <li class="mt-auto">
                     <a
                       href="#"
