@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// todo: loading indicator to communicate change in process? right now text just fades to white. Might seem non-responsive on slower connections
 import type { Character } from '@/composables/character'
 import { inject, ref } from 'vue'
 import { parseIncrement } from '@/utils/utilities'

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// TODO: add swipe gestures (to change tab, for example)
+// TODO (feature): add swipe gestures (to change tab, for example)
 import type { Actor } from '@/types/pf2e-types'
 import { type Ref, onUnmounted, onMounted } from 'vue'
 import { ref, provide, watchEffect } from 'vue'
@@ -45,7 +45,7 @@ provide(useKeys().characterKey, character)
 
 // load character from world value if no character details received
 watchEffect(() => {
-  // TODO: this seems to load only once, since after first load actor value is not null. need to track gmOnline somehow? or just merge?
+  // TODO (refactor): this seems to load only once, since after first load actor value is not null. need to track gmOnline somehow? or just merge?
   const worldActor = world.value?.actors.find((a: Actor) => a._id == props.characterId)
   if (worldActor && !actor.value?._id) actor.value = worldActor
 })
@@ -53,14 +53,14 @@ watchEffect(() => {
 // setup refresh methods
 const { sendCharacterRequest, setupSocketListenersForActor } = useApi()
 const debouncededCharacterRequest = debounce(sendCharacterRequest, 2000)
-const requestCharacterDetails = async () => debouncededCharacterRequest(props.characterId, actor)
+const requestCharacterDetails = async () => debouncededCharacterRequest(props.characterId)
 
 // setup socket listeners and request character details on mount
 onMounted(() => {
   console.log('TABLEMATE: initiating character', props.characterId)
   if (props.characterId) {
     setupSocketListenersForActor(props.characterId, actor, requestCharacterDetails)
-    sendCharacterRequest(props.characterId, actor)
+    sendCharacterRequest(props.characterId)
   }
 })
 onUnmounted(() => {

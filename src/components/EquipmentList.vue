@@ -1,12 +1,9 @@
 <script setup lang="ts">
-// TODO: (feature) add weight, encumbrance, etc.
-// TODO: (refactor) switch toggle bar over to headlessui component and give transaction feedback
-// TODO: (refactor) refactor listbox into component, and give transaction feedback
-// TODO: (refactor) refactor Switch into component, and give transactionf eedback
-// TODO: (UX) ListboxOptions max-h and max-w properties are a mess
-// TODO: deal with extremely long names better for equipment
-// TODO: are bombs usable as weapons?
-// TODO: it is currently possible to put containers inside themselves, which leads to all sorts of trouble
+// TODO (data): add weight, encumbrance, etc.
+// TODO (refactor): switch toggle bar over to headlessui component and give transaction feedback
+// TODO (refactor): refactor listbox into component, and give transaction feedback
+// TODO (refactor): refactor Switch into component, and give transactionf eedback
+// TODO (refactor): it is currently possible to put containers inside themselves, which leads to all sorts of trouble; fix while refactoring how backpacks are rendered?
 
 import type { Equipment } from '@/composables/character'
 import { inject, ref, computed, watch } from 'vue'
@@ -171,7 +168,7 @@ const toggleSet = [
               >
             </a>
           </div>
-          <!-- TODO: this backpack chunk is redundant code to above. split into component? -->
+          <!-- TODO (refactor): this backpack chunk is redundant code to above. split into component? -->
           <ul class="pb-2" v-if="item.type === 'backpack'">
             <li
               v-for="stowed in inventory?.filter(

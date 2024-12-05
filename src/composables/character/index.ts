@@ -1,6 +1,4 @@
-// TODO: is there a better way to do a complex object with many computed properties?
-// TODO: why all this makeItem(...) as Item stuff? any way to avoid?
-// TODO: Audit all write methods for quick vs. slow feedback (adjust value before waiting for characterdetails return)
+// TODO (ux++): Audit all write methods for quick vs. slow feedback (adjust value before waiting for characterdetails return)
 import type { Ref } from 'vue'
 import { watch } from 'vue'
 import type { Actor } from '@/types/pf2e-types'

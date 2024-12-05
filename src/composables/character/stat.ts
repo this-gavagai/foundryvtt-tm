@@ -7,6 +7,7 @@ export interface Stat {
   label: Prop<string>
   slug: Prop<string>
   type: Prop<string>
+  breakdown: Prop<string>
   attribute: Prop<string>
   rank: Prop<number>
   total: Prop<number>
@@ -24,6 +25,7 @@ export function makeStat(root: PF2eStat | undefined): Stat | undefined {
     slug: root?.slug,
     label: root?.label,
     type: root?.type,
+    breakdown: root?.breakdown,
     attribute: root?.attribute,
     rank: root?.rank,
     total: root?.total,

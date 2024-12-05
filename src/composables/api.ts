@@ -1,6 +1,5 @@
-// TODO: (feature+) add option to send chat message on certain api events
-// TODO: (known issue) this thing isn't triggering preUpdateActor hooks, as those are conventionally called only on the actor in question. May be a problem.
-// TODO: get rid of resolution args and replace it with something more robust
+// TODO (feature+): add option to send chat message on certain api events
+// TODO (known issue): this thing isn't triggering preUpdateActor hooks, as those are conventionally called only on the actor in question. May be a problem.
 import type { Ref } from 'vue'
 import type { Actor, World, Item, Combat } from '@/types/pf2e-types'
 import type {
@@ -19,16 +18,6 @@ import type {
   ModifyDocumentUpdate,
   UserActivityEventArgs
 } from '@/types/foundry-types'
-import { ref } from 'vue'
-
-// TODO: these are being imported for the old local modality; not needed anymore?
-import {
-  getCharacterDetails,
-  foundryCastSpell,
-  foundryRollCheck,
-  foundryCharacterAction,
-  foundryConsumeItem
-} from '@/foundry/actions'
 
 import { merge } from 'lodash-es'
 import { useServer } from '@/composables/server'
@@ -37,10 +26,10 @@ import { uuidv4 } from '@/utils/utilities'
 // import { useWorld } from '@/composables/world'
 
 const { getSocket } = useServer()
-// TODO: the resolve values for these functions isn't void, but I haven't defined proper types yet. (Many voids in this file that shouldn't be.)
-const requestCharacterDetails: { [key: string]: () => Promise<void> } = {}
-const ackQueue: { [key: string]: (args: ResolutionArgs) => void } = {}
-function pushToAckQueue(uuid: string, callback: (args: ResolutionArgs) => void) {
+// TODO (types): not really unknown/void; identify and improve
+const requestCharacterDetails: { [key: string]: () => Promise<unknown> } = {}
+const ackQueue: { [key: string]: (args: ResolutionArgs) => unknown } = {}
+function pushToAckQueue(uuid: string, callback: (args: ResolutionArgs) => unknown) {
   ackQueue[uuid] = callback
 }
 
@@ -99,7 +88,7 @@ async function setupSocketListenersForActor(
     // if (!actor.value) return // why was this here?
     switch (args.action) {
       case 'listenerOnline':
-        // TODO: requesting character details everytime a listener comes online is a bit blunt-force
+        // TODO (performance): requesting character details everytime a listener comes online is a bit blunt-force
         if (!parent.game) requestCharacterDetails[actorId]()
         break
       case 'updateCharacterDetails':
@@ -132,7 +121,7 @@ async function setupSocketListenersForActor(
 ///////////////////////////////////////
 // Emit Methods                      //
 ///////////////////////////////////////
-// TODO: possible to define this "update" paramater type more explicitly?
+// TODO (type): possible to define this "update" paramater type more explicitly?
 async function updateActor(actor: Ref<Actor | undefined>, update: object) {
   if (!actor.value) return
   const socket = await getSocket()
@@ -154,7 +143,6 @@ async function updateActor(actor: Ref<Actor | undefined>, update: object) {
         }
       },
       (r: UpdateEventArgs) => {
-        // TODO: possible to refactor this as processChanges?
         r.result.forEach((change: ModifyDocumentUpdate) => {
           merge(actor.value, change)
         })
@@ -253,45 +241,29 @@ async function updateUserTargetingProxy(userId: string, proxyId: string) {
 /////////////////////////////////////////////////
 // Character Build Methods                     //
 /////////////////////////////////////////////////
-// TODO: (refactor?) review call/response structure. Right now, this method doesn't use the ackQueue but instead listens to a separate response
+// TODO (refactor?++): review call/response structure. Right now, this method doesn't use the ackQueue but instead listens to a separate response
 // not using ackQueue allows for updates pushed from server, but makes this method a bit weird (and needing a timeout to prevent race conditions)
 // for the world calls, as well, we need to not send subsequent ones until current are resolved, but perhaps there's a cleaner way than throttling
-async function sendCharacterRequest(
-  actorId: string,
-  actor: Ref<Actor | undefined> = ref()
-): Promise<void> {
-  if (parent.game) {
-    setTimeout(async () => {
-      const details = await getCharacterDetails({ actorId: actorId })
-      parseActorData(actorId, actor, details)
-    }, 300)
-  } else {
-    const socket = await getSocket()
-    socket.emit('module.tablemate', {
-      action: 'requestCharacterDetails',
-      actorId: actorId
-    })
-  }
+async function sendCharacterRequest(actorId: string): Promise<void> {
+  const socket = await getSocket()
+  socket.emit('module.tablemate', {
+    action: 'requestCharacterDetails',
+    actorId: actorId
+  })
 }
 function parseActorData(
   actorId: string,
   actor: Ref<Actor | undefined>,
   args: UpdateCharacterDetailsArgs
 ) {
-  // function customizer(objValue: any, srcValue: any, key: any, obj: any) {
-  //   if (objValue !== srcValue && typeof srcValue === 'undefined') {
-  //     obj[key] = srcValue
-  //   }
-  // }
   if (args.actorId === actorId) {
-    // TODO: (refactor) this is tricky. rewriting the actor.value procs a huge number of calculations, but merging is unreliable and limited
+    // TODO (refactor++): this is tricky. rewriting the actor.value procs a huge number of calculations, but merging is unreliable and limited
     if (!actor.value) actor.value = JSON.parse(args.actor)
     else merge(actor.value, JSON.parse(args.actor))
     // actor.value = JSON.parse(args.actor)
 
-    // todo: (refactor) is there any way avoid requiring these tedious things
+    // TODO (refactor): is there any way avoid requiring system to be separate
     merge(actor.value!.system, JSON.parse(args.system))
-    // actor.value!.feats = JSON.parse(args.feats)
   }
 }
 
@@ -303,7 +275,7 @@ async function castSpell(
   spellId: string,
   castingLevel: number,
   castingSlot: number
-) {
+): Promise<ResolutionArgs> {
   const { getTargets } = useTargetHelper()
   const uuid = uuidv4()
   const args: CastSpellArgs = {
@@ -315,15 +287,12 @@ async function castSpell(
     slotId: castingSlot,
     uuid
   }
-  if (parent.game) {
-    return foundryCastSpell(args)
-  } else {
-    const socket = await getSocket()
-    return new Promise((resolve) => {
-      socket.emit('module.tablemate', args)
-      pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
-    })
-  }
+
+  const socket = await getSocket()
+  return new Promise((resolve) => {
+    socket.emit('module.tablemate', args)
+    pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
+  })
 }
 
 async function rollCheck(
@@ -332,7 +301,7 @@ async function rollCheck(
   checkSubtype = '',
   modifiers = [],
   options = {}
-) {
+): Promise<ResolutionArgs> {
   const { getTargets } = useTargetHelper()
   const uuid = uuidv4()
   const args: RollCheckArgs = {
@@ -346,18 +315,19 @@ async function rollCheck(
     skipDialog: true,
     uuid
   }
-  if (parent.game) {
-    return foundryRollCheck(args)
-  } else {
-    const socket = await getSocket()
-    return new Promise((resolve) => {
-      socket.emit('module.tablemate', args)
-      pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
-    })
-  }
+
+  const socket = await getSocket()
+  return new Promise((resolve) => {
+    socket.emit('module.tablemate', args)
+    pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
+  })
 }
 
-async function characterAction(actor: Ref<Actor>, characterAction: string, options = {}) {
+async function characterAction(
+  actor: Ref<Actor>,
+  characterAction: string,
+  options = {}
+): Promise<ResolutionArgs> {
   const { getTargets } = useTargetHelper()
   const uuid = uuidv4()
   const args: CharacterActionArgs = {
@@ -368,18 +338,19 @@ async function characterAction(actor: Ref<Actor>, characterAction: string, optio
     options,
     uuid
   }
-  if (parent.game) {
-    return foundryCharacterAction(args)
-  } else {
-    const socket = await getSocket()
-    return new Promise((resolve) => {
-      socket.emit('module.tablemate', args)
-      pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
-    })
-  }
+
+  const socket = await getSocket()
+  return new Promise((resolve) => {
+    socket.emit('module.tablemate', args)
+    pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
+  })
 }
 
-async function consumeItem(actor: Ref<Actor>, consumableId: string, options = {}) {
+async function consumeItem(
+  actor: Ref<Actor>,
+  consumableId: string,
+  options = {}
+): Promise<ResolutionArgs> {
   const uuid = uuidv4()
   const args: ConsumeItemArgs = {
     action: 'consumeItem',
@@ -388,15 +359,11 @@ async function consumeItem(actor: Ref<Actor>, consumableId: string, options = {}
     options,
     uuid
   }
-  if (parent.game) {
-    return foundryConsumeItem(args)
-  } else {
-    const socket = await getSocket()
-    return new Promise((resolve) => {
-      socket.emit('module.tablemate', args)
-      pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
-    })
-  }
+  const socket = await getSocket()
+  return new Promise((resolve) => {
+    socket.emit('module.tablemate', args)
+    pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
+  })
 }
 
 //////////////////////////////////////////////////

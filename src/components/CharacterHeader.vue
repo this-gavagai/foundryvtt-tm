@@ -1,6 +1,4 @@
 <script setup lang="ts">
-// todo (bug): header image is getting shrunk at certain widths. Need different breakpoints?
-// TODO: give some kind of indication if characterSelector is still loading
 import type { Actor } from '@/types/pf2e-types'
 import { inject, ref } from 'vue'
 import { useCharacterSelect } from '@/composables/characterSelect'
@@ -45,10 +43,8 @@ function reloadPage() {
             class="absolute mt-1 max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 empty:hidden focus:outline-none sm:text-sm"
           >
             <ListboxOption v-if="!characterList"
-              ><div class="relative select-none py-2 pl-6 pr-4 text-gray-400">
-                Loading...
-              </div></ListboxOption
-            >
+              ><div class="relative select-none py-2 pl-6 pr-4 text-gray-400">Loading...</div>
+            </ListboxOption>
             <ListboxOption
               v-slot="{ active }"
               v-for="character in characterList
@@ -65,6 +61,14 @@ function reloadPage() {
                 ]"
               >
                 {{ character?.name }}
+              </div>
+            </ListboxOption>
+            <ListboxOption v-if="!world" key="loading">
+              <div class="relative select-none py-2 pl-6 pr-4">
+                <div class="flex w-full gap-2">
+                  <Spinner class="min-w-4" />
+                  <div class="animate-pulse pr-6">Loading...</div>
+                </div>
               </div>
             </ListboxOption>
           </ListboxOptions>

@@ -1,5 +1,3 @@
-// TODO: alt chars aren't loading without gm
-// TODO: also not loading if no URL id set
 import { ref, watch, type Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 import { useWorld } from './world'

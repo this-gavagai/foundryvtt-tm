@@ -1,4 +1,4 @@
-// TODO: this EventArgs structure needs a significant refactor
+// TODO (types): this EventArgs structure needs a significant refactor
 import type { Socket } from 'socket.io-client'
 
 export type DocumentEventArgs = UpdateEventArgs | CreateEventArgs | DeleteEventArgs
@@ -95,8 +95,6 @@ export interface Roll {}
 //   type: string
 //   userId: string
 // }
-
-// TODO: these [key: string] values are actually partials of the Actor type. Worth implementing?
 
 // export interface EventOperation {
 //   _id: string

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// TODO: make feat nesting recursive instead of manual like it is now
-// TODO: Bad formatting for Schmitz’s first feat’s header. Land on your feet.
+// TODO (refactor): make feat nesting recursive instead of manual like it is now
+// TODO (bug?): Bad formatting for Schmitz’s first feat’s header. Land on your feet.
 import type { Item } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs } from '@/utils/utilities'

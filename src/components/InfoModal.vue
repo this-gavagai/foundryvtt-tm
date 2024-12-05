@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// TODO: (feature++) Make modifiers for rolls alterable
-// TODO: (refactor) consider storing full item, not just id, on props, to avoid all this "viewedItem" nonsense
+// TODO (feature++): Make modifiers for rolls alterable
+// TODO (feature++): send item to chat
+// TODO (refactor): consider storing full item, not just id, on props, to avoid all this "viewedItem" nonsense
 import { ref } from 'vue'
 import {
   Dialog,

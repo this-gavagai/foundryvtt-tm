@@ -1,11 +1,9 @@
 <script setup lang="ts">
-// TODO: (feature) handle versatile damage types
-// TODO: (UX) Improve dice representations for damage rolls (number and types)
-// TODO: use button widget
-// TODO: add reload action from pf2e-ranged?
-// TODO: show range of weapons
-// TODO: fix strike buttons so that damage line-breaks together
-// TODO: make strike buttons
+// TODO (feature): handle versatile damage types
+// TODO (UX): Improve dice representations for damage rolls (number and types)
+// TODO (refactor): use button widget
+// TODO (data): add reload action from pf2e-ranged?
+// TODO (data): show range of weapons
 
 import { inject, ref, computed } from 'vue'
 import { formatModifier } from '@/utils/utilities'

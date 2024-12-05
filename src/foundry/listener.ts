@@ -15,8 +15,6 @@ import {
 } from './actions'
 import type { Game, User, Hooks, GetEvent } from '@/types/foundry-types'
 
-// TODO: getting ridiculous numbers of requestUserDetails for unknown reasons. Fixed only by reloading
-
 declare const game: Game
 declare const Hooks: Hooks
 const MODNAME = 'module.tablemate'

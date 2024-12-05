@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// todo: allow details view for non-rollable statistics, like AC
 import { ref } from 'vue'
 import { SignedNumber } from '@/utils/utilities'
 import { proficiencies } from '@/utils/constants'
@@ -13,6 +12,7 @@ const props = defineProps([
   'modalHeading',
   'proficiency',
   'modifiers',
+  'breakdown',
   'preventInfoModal',
   'rollAction'
 ])
@@ -35,10 +35,10 @@ defineExpose({ infoModal })
   <div>
     <div
       class="fit-content"
-      :class="{ 'cursor-pointer': props?.modifiers && !preventInfoModal }"
+      :class="{ 'cursor-pointer': (props?.modifiers || props?.breakdown) && !preventInfoModal }"
       @click="
         () => {
-          if (props?.modifiers && !preventInfoModal) infoModal.open()
+          if ((props?.modifiers || props?.breakdown) && !preventInfoModal) infoModal.open()
         }
       "
     >
@@ -69,9 +69,10 @@ defineExpose({ infoModal })
               </span>
             </h3>
             <h4 class="text-l mb-2">{{ subheading }}</h4>
+            <div>{{ props?.breakdown }}</div>
             <ul>
               <li
-                v-for="mod in props.modifiers.filter(
+                v-for="mod in props?.modifiers?.filter(
                   (m: StatModifier) => m.enabled || !m.hideIfDisabled
                 )"
                 class="flex gap-2"

@@ -1,6 +1,6 @@
-// TODO: (code quality) get rid of all the anys and refactor to represent subtypes, etc.
-// TODO: is this available from foundry/pf2e?
-// TODO: remove reference to this from everything except api and character
+// TODO (types): get rid of all the anys and refactor to represent subtypes, etc.
+// TODO (types): is this available from foundry/pf2e?
+// TODO (types): remove reference to this from everything except api and character
 
 export interface Actor {
   _id: string
@@ -32,6 +32,7 @@ export interface Stat {
   label: string
   slug: string
   type: string
+  breakdown: string
   attribute: string
   rank: number
   modifiers: Modifier[]

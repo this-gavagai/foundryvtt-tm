@@ -1,5 +1,5 @@
 <script setup lang="ts">
-//TODO (feature): add raise shield and shield block macros in a convenient way
+//TODO (feature): add raise shield and shield block macros in a convenient way; need macro component first
 import { ref } from 'vue'
 import type { Character } from '@/composables/character'
 import { inject } from 'vue'

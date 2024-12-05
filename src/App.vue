@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// TODO: (feature++) add some way to browse compendia, which can be used for adding new items to various contexts
+// TODO (feature++): add some way to browse compendia, which can be used for adding new items to various contexts
 
 import { ref, computed, type Ref } from 'vue'
 import { watchPostEffect } from 'vue'

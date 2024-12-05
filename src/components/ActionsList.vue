@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// TODO: (feature) get action modifiers on the card (somehow?)
-// TODO: need to handle battlemedicine popup window
+// TODO (feature): get action modifiers on the card (somehow?)
+// TODO (bug): need to handle battlemedicine popup window
 import type { Ref } from 'vue'
 import type { Action } from '@/composables/character'
 import { actionDefs } from '@/utils/constants'
@@ -67,7 +67,6 @@ const action: Ref<Action | undefined> = computed(() =>
         {{ action?.name }}
       </template>
       <template #description>
-        <!-- TODO: come up with something to display if no level or rarity (i.e., manifest eidolon) -->
         <span v-if="action?.system?.level?.value">Level {{ action?.system?.level?.value }}</span>
         <span v-if="action?.system?.traits?.rarity" class="text-sm">
           ({{ capitalize(action?.system?.traits?.rarity) }})</span

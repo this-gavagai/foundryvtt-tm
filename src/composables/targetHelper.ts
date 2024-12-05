@@ -5,7 +5,7 @@ import { useUserId } from '@/composables/user'
 import { useApi } from '@/composables/api'
 import type { User } from '@/types/foundry-types'
 
-// TODO: targets only update on change. need a way to request targets on load/proxy-change
+// TODO (data): targets only update on change. need a way to request targets on load/proxy-change
 
 const { world } = useWorld()
 const { getUserId, userId } = useUserId()

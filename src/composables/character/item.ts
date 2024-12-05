@@ -63,8 +63,8 @@ export function makeItem(root: PF2eItem | undefined): Item | undefined {
       location:
         typeof root?.system?.location === 'string'
           ? root?.system?.location
-          : root?.system?.location?.value, // TODO: a problem here; two different formats for location
-      signature: root?.system?.location?.signature, // TODO: this is supposed to be a property of location?
+          : root?.system?.location?.value, // TODO (data): a problem here; two different formats for location
+      signature: root?.system?.location?.signature, // TODO (data): this is supposed to be a property of location?
       category: root?.system?.category,
       description: { value: root?.system?.description?.value },
       value: { isValued: root?.system?.value?.isValued, value: root?.system?.value?.value },
