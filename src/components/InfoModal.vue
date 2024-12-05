@@ -106,7 +106,7 @@ defineExpose({ open, close, itemId, options, rollResultModal })
                   <slot></slot>
                 </div>
               </div>
-              <div class="mt-4 flex flex-wrap items-end items-center justify-end gap-2">
+              <div class="mt-4 flex flex-wrap items-center justify-end gap-2">
                 <slot name="actionButtons"></slot>
               </div>
             </DialogPanel>

@@ -48,7 +48,11 @@ const action: Ref<Action | undefined> = computed(() =>
               class="relative -mt-[.5rem] pl-1 text-2xl leading-4"
               v-html="
                 makeActionIcons(
-                  group.type === 'reaction' ? 'r' : action?.system?.actions?.value + ''
+                  group.type === 'reaction'
+                    ? 'r'
+                    : group.type === 'free'
+                      ? 'f'
+                      : action?.system?.actions?.value + ''
                 )
               "
             ></span>
@@ -63,8 +67,11 @@ const action: Ref<Action | undefined> = computed(() =>
         {{ action?.name }}
       </template>
       <template #description>
-        Level {{ action?.system?.level?.value ?? 0 }}
-        <span class="text-sm">({{ capitalize(action?.system?.traits?.rarity) }})</span>
+        <!-- TODO: come up with something to display if no level or rarity (i.e., manifest eidolon) -->
+        <span v-if="action?.system?.level?.value">Level {{ action?.system?.level?.value }}</span>
+        <span v-if="action?.system?.traits?.rarity" class="text-sm"
+          >({{ capitalize(action?.system?.traits?.rarity) }})</span
+        >
       </template>
       <template #body>
         <div v-html="removeUUIDs(action?.system?.description.value)"></div>

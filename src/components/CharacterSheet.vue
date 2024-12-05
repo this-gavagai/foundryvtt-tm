@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // TODO: (bug) fix dvh/vh nonsense in iOS
 // TODO: abstract actor class to new interface (to simplify system-level changes to data structure)
+// TODO: height of page not behaving properly on phone
 import type { Actor } from '@/types/pf2e-types'
 import { type Ref, onUnmounted, onMounted } from 'vue'
 import { ref, provide, watch } from 'vue'
@@ -108,7 +109,7 @@ defineExpose({ actor, character })
           <CharacterTab :src="leapfrog" label="Actions" />
           <CharacterTab :src="spellBook" label="Spells" />
           <Bars3Icon
-            class="mx-4 my-auto hidden h-10 w-10 rounded-md border-gray-500 p-1 text-gray-500 md:block"
+            class="mx-4 my-auto hidden h-10 w-10 cursor-pointer rounded-md border-gray-500 p-1 text-gray-500 md:block"
             @click="sideMenu.sidebarOpen = true"
           />
         </TabList>

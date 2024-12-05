@@ -4,6 +4,8 @@
 // TODO: (refactor) refactor listbox into component, and give transaction feedback
 // TODO: (refactor) refactor Switch into component, and give transactionf eedback
 // TODO: (UX) ListboxOptions max-h and max-w properties are a mess
+// TODO: deal with extremely long names better for equipment
+// TODO: are bombs usable as weapons?
 
 import type { Equipment } from '@/composables/character'
 import { inject, ref, computed, watch } from 'vue'
@@ -29,8 +31,8 @@ const item = computed(() =>
 const itemWornType = computed(() => {
   if (item.value?.type === 'armor') return 'Armor'
   const usage = item.value?.system?.usage?.value
-  if (usage?.slice(0, 4) === 'worn' && usage.slice(4)) {
-    return capitalize(usage.slice(4))
+  if (usage?.slice?.(0, 4) === 'worn' && usage?.slice?.(4)) {
+    return capitalize(usage?.slice(4))
   } else return null
 })
 
