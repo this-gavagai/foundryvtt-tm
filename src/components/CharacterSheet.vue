@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// TODO: (bug) fix dvh/vh nonsense in iOS
 // TODO: abstract actor class to new interface (to simplify system-level changes to data structure)
 // TODO: height of page not behaving properly on phone
+// TODO: add swipe gestures (to change tab, for example)
 import type { Actor } from '@/types/pf2e-types'
 import { type Ref, onUnmounted, onMounted } from 'vue'
 import { ref, provide, watch } from 'vue'
@@ -69,35 +69,40 @@ onUnmounted(() => {
 defineExpose({ actor, character })
 </script>
 <template>
-  <div class="flex h-screen">
-    <div class="hidden border-r md:block md:h-screen md:w-[320px] md:overflow-auto">
-      <CharacterHeader @pickCharacter="(id: string) => $emit('pickCharacter', id)" />
-      <FrontPage />
+  <div class="flex h-dvh">
+    <!-- show this column only if on a tablet or laptop -->
+    <div class="hidden border-r md:block md:h-dvh md:w-[320px] md:overflow-auto">
+      <CharacterHeader
+        @pickCharacter="(id: string) => $emit('pickCharacter', id)"
+        class="fixed z-10 bg-white"
+      />
+      <FrontPage class="pt-32" />
     </div>
-    <div class="flex w-0 flex-1 flex-col justify-between md:h-screen md:justify-start md:border-l">
+    <!-- show this column on all devices -->
+    <div class="flex w-0 flex-1 flex-col justify-between md:h-dvh md:justify-start md:border-l">
       <TabGroup :defaultIndex="width >= 768 ? 1 : 0" @change="panels.$el.scrollTop = 0">
         <TabPanels tabindex="-1" class="overflow-auto md:order-last" ref="panels">
           <CharacterHeader
             @pickCharacter="(id: string) => $emit('pickCharacter', id)"
-            class="md:hidden"
+            class="fixed z-10 w-full bg-white md:hidden"
           />
-          <TabPanel tabindex="-1" class="md:hidden">
+          <TabPanel tabindex="-1" class="pt-32 md:hidden md:pt-0">
             <FrontPage />
           </TabPanel>
-          <TabPanel tabindex="-1">
+          <TabPanel tabindex="-1" class="pt-32 md:pt-0">
             <FeatsList />
           </TabPanel>
-          <TabPanel tabindex="-1">
+          <TabPanel tabindex="-1" class="pt-32 md:pt-0">
             <Skills />
           </TabPanel>
-          <TabPanel tabindex="-1">
+          <TabPanel tabindex="-1" class="pt-32 md:pt-0">
             <EquipmentList />
           </TabPanel>
-          <TabPanel tabindex="-1">
+          <TabPanel tabindex="-1" class="pt-32 md:pt-0">
             <StrikeList />
             <ActionsList />
           </TabPanel>
-          <TabPanel tabindex="-1">
+          <TabPanel tabindex="-1" class="pt-32 md:pt-0">
             <SpellList />
           </TabPanel>
         </TabPanels>

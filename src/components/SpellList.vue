@@ -151,7 +151,7 @@ const spellbook = computed((): Spellbook => {
                 :value="location.system.slots?.['slot' + rank]?.value"
                 :max="location.system.slots?.['slot' + rank]?.max"
                 editable
-                :title="`Rank ${rank}`"
+                :title="`${location?.name}: Rank ${rank}`"
                 @change-count="(newTotal) => location?.setSlotCount(Number(rank), newTotal)"
               />
             </h4>

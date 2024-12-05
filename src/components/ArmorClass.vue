@@ -87,7 +87,7 @@ function updateHitPoints(hp_input: string) {
         @submit.prevent="
           (e: Event) => {
             const event = e as Event & SubmissionEvent
-            const { hp, temp_hp } = e.target as EventTarget & FormData
+            const { hp } = e.target as EventTarget & FormData
             if (event.submitter.name === 'update') updateHitPoints(hp.value)
             else if (event.submitter.name === 'reset') updateHitPoints(shpMax + '')
             shpModal.close()

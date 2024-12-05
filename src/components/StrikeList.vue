@@ -38,7 +38,7 @@ const viewedItem = computed(() => strikes.value?.[strikeModal.value?.itemId])
           {{ SignedNumber.format(strike?.totalModifier) }}
         </div> -->
         <div>{{ strike?.item?.name ?? strike?.label }}</div>
-        <div class="flex flex-wrap">
+        <div class="flex flex-wrap leading-9">
           <span>
             <span
               v-for="(variant, index) in strike.variants"

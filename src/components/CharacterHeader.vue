@@ -26,7 +26,7 @@ function reloadPage() {
 <template>
   <div class="flex cursor-pointer items-center gap-2 border-b p-4">
     <div
-      class="hidden h-24 w-24 items-center overflow-hidden rounded-full border-2 border-gray-300 2xs:flex"
+      class="hidden h-24 w-24 items-center overflow-hidden rounded-full border-2 border-gray-300 bg-white 2xs:flex"
       @click="reloadPage"
     >
       <img v-if="portraitUrl" :src="getPath(portraitUrl)" class="scale-150" />

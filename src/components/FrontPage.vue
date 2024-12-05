@@ -9,12 +9,14 @@ import MovementSpeed from '@/components/MovementSpeed.vue'
 import LanguagesKnown from '@/components/LanguagesKnown.vue'
 </script>
 <template>
-  <BackgroundExperience />
-  <EffectsAndConditions />
-  <CombatInitiative />
-  <AttributeScores />
-  <ArmorClass />
-  <IWR />
-  <MovementSpeed />
-  <LanguagesKnown />
+  <div>
+    <BackgroundExperience />
+    <EffectsAndConditions />
+    <CombatInitiative />
+    <AttributeScores />
+    <ArmorClass />
+    <IWR />
+    <MovementSpeed />
+    <LanguagesKnown />
+  </div>
 </template>
