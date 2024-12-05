@@ -1,6 +1,5 @@
 // TODO: (feature+) add option to send chat message on certain api events
 // TODO: (known issue) this thing isn't triggering preUpdateActor hooks, as those are conventionally called only on the actor in question. May be a problem.
-// TODO: currently setting actor.value on each refresh. This triggers tons of recalculations. Any way to merge reliably?
 // TODO: get rid of resolution args and replace it with something more robust
 import type { Ref } from 'vue'
 import type { Actor, World, Item, Combat } from '@/types/pf2e-types'
@@ -50,7 +49,6 @@ function pushToAckQueue(uuid: string, callback: (args: ResolutionArgs) => void) 
 ///////////////////////////////////////
 async function setupSocketListenersForWorld(world: Ref<World>) {
   const socket = await getSocket()
-  // const { refreshWorld } = useWorld()
   socket.on('module.tablemate', (args: ModuleEventArgs) => {
     switch (args.action) {
       case 'acknowledged':
@@ -80,8 +78,6 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
         console.log(args)
         break
     }
-    // TODO: figure out if these refreshWorld calls are really necessary
-    // refreshWorld()
   })
   socket.on('userActivity', (user: string, args: UserActivityEventArgs) => {
     console.log(user, args)
@@ -103,6 +99,7 @@ async function setupSocketListenersForActor(
     // if (!actor.value) return // why was this here?
     switch (args.action) {
       case 'listenerOnline':
+        // TODO: requesting character details everytime a listener comes online is a bit blunt-force
         if (!parent.game) requestCharacterDetails[actorId]()
         break
       case 'updateCharacterDetails':
@@ -306,7 +303,7 @@ async function castSpell(
   spellId: string,
   castingLevel: number,
   castingSlot: number
-): Promise<ResolutionArgs> {
+) {
   const { getTargets } = useTargetHelper()
   const uuid = uuidv4()
   const args: CastSpellArgs = {
@@ -335,7 +332,7 @@ async function rollCheck(
   checkSubtype = '',
   modifiers = [],
   options = {}
-): Promise<ResolutionArgs> {
+) {
   const { getTargets } = useTargetHelper()
   const uuid = uuidv4()
   const args: RollCheckArgs = {
@@ -360,11 +357,7 @@ async function rollCheck(
   }
 }
 
-async function characterAction(
-  actor: Ref<Actor>,
-  characterAction: string,
-  options = {}
-): Promise<ResolutionArgs> {
+async function characterAction(actor: Ref<Actor>, characterAction: string, options = {}) {
   const { getTargets } = useTargetHelper()
   const uuid = uuidv4()
   const args: CharacterActionArgs = {
@@ -406,9 +399,9 @@ async function consumeItem(actor: Ref<Actor>, consumableId: string, options = {}
   }
 }
 
-///////////////////////////////////////
-// Processing Methods for Items      //
-///////////////////////////////////////
+//////////////////////////////////////////////////
+// Processing Methods for Items (not Actor)     //
+//////////////////////////////////////////////////
 function processChanges(args: DocumentEventArgs, dataRoot: Item[]) {
   console.log('process changes args', args)
   switch (args.action) {

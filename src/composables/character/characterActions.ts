@@ -84,13 +84,13 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
       }))
     ),
     proficiencies: computed(() => [
-      ...Object.entries(actor.value?.system.proficiencies['attacks'] as Stat).map(
+      ...Object.entries((actor.value?.system?.proficiencies?.['attacks'] ?? []) as PF2eStat[]).map(
         ([key, stat]) => ({ ...makeStat(stat), type: 'attacks', slug: key }) as Stat
       ),
-      ...Object.entries(actor.value?.system.proficiencies['defenses'] as Stat).map(
+      ...Object.entries((actor.value?.system?.proficiencies?.['defenses'] ?? []) as PF2eStat[]).map(
         ([key, stat]) => ({ ...makeStat(stat), type: 'defenses', slug: key }) as Stat
       ),
-      ...Object.entries(actor.value?.system.proficiencies['classDCs'] as Stat).map(
+      ...Object.entries((actor.value?.system?.proficiencies?.['classDCs'] ?? []) as PF2eStat[]).map(
         ([key, stat]) => ({ ...makeStat(stat), type: 'classDCs', slug: key }) as Stat
       ),
       ...[

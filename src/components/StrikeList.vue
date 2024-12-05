@@ -24,7 +24,7 @@ const { strikes } = character
 const viewedItem = computed(() => strikes.value?.[strikeModal.value?.itemId])
 </script>
 <template>
-  <div class="px-6">
+  <div class="px-6 [&:not(:has(li))]:hidden">
     <h3 class="py-2 text-lg underline">Strikes</h3>
     <ul>
       <li

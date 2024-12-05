@@ -1,10 +1,8 @@
 <script setup lang="ts">
-// TODO: abstract actor class to new interface (to simplify system-level changes to data structure)
-// TODO: height of page not behaving properly on phone
 // TODO: add swipe gestures (to change tab, for example)
 import type { Actor } from '@/types/pf2e-types'
 import { type Ref, onUnmounted, onMounted } from 'vue'
-import { ref, provide, watch } from 'vue'
+import { ref, provide, watchEffect } from 'vue'
 import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
 import { debounce } from 'lodash-es'
 import { useWorld } from '@/composables/world'
@@ -12,6 +10,7 @@ import { useCharacter } from '@/composables/character'
 import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
 import { useWindowSize } from '@vueuse/core'
+// import { merge, assign } from 'lodash-es'
 
 import { Bars3Icon } from '@heroicons/vue/24/solid'
 
@@ -45,12 +44,10 @@ const { character } = useCharacter(actor)
 provide(useKeys().characterKey, character)
 
 // load character from world value if no character details received
-watch(world, () => {
+watchEffect(() => {
   // TODO: this seems to load only once, since after first load actor value is not null. need to track gmOnline somehow? or just merge?
-  if (world.value?.actors && !actor.value?._id) {
-    console.log('using world value')
-    actor.value = world.value.actors.find((a: Actor) => a._id == props.characterId)
-  }
+  const worldActor = world.value?.actors.find((a: Actor) => a._id == props.characterId)
+  if (worldActor && !actor.value?._id) actor.value = worldActor
 })
 
 // setup refresh methods
@@ -58,13 +55,16 @@ const { sendCharacterRequest, setupSocketListenersForActor } = useApi()
 const debouncededCharacterRequest = debounce(sendCharacterRequest, 2000)
 const requestCharacterDetails = async () => debouncededCharacterRequest(props.characterId, actor)
 
+// setup socket listeners and request character details on mount
 onMounted(() => {
   console.log('TABLEMATE: initiating character', props.characterId)
-  setupSocketListenersForActor(props.characterId, actor, requestCharacterDetails)
-  sendCharacterRequest(props.characterId, actor)
+  if (props.characterId) {
+    setupSocketListenersForActor(props.characterId, actor, requestCharacterDetails)
+    sendCharacterRequest(props.characterId, actor)
+  }
 })
 onUnmounted(() => {
-  console.log('unmounted actor: ', actor?.value?._id)
+  console.log('TABLEMATE: unmounted actor', props.characterId)
 })
 defineExpose({ actor, character })
 </script>
@@ -72,37 +72,31 @@ defineExpose({ actor, character })
   <div class="flex h-dvh">
     <!-- show this column only if on a tablet or laptop -->
     <div class="hidden border-r md:block md:h-dvh md:w-[320px] md:overflow-auto">
-      <CharacterHeader
-        @pickCharacter="(id: string) => $emit('pickCharacter', id)"
-        class="fixed z-10 bg-white"
-      />
-      <FrontPage class="pt-32" />
+      <CharacterHeader class="sticky top-0 z-10 h-32 bg-white" />
+      <FrontPage />
     </div>
     <!-- show this column on all devices -->
     <div class="flex w-0 flex-1 flex-col justify-between md:h-dvh md:justify-start md:border-l">
       <TabGroup :defaultIndex="width >= 768 ? 1 : 0" @change="panels.$el.scrollTop = 0">
         <TabPanels tabindex="-1" class="overflow-auto md:order-last" ref="panels">
-          <CharacterHeader
-            @pickCharacter="(id: string) => $emit('pickCharacter', id)"
-            class="fixed z-10 w-full bg-white md:hidden"
-          />
-          <TabPanel tabindex="-1" class="pt-32 md:hidden md:pt-0">
+          <CharacterHeader class="sticky top-0 z-10 h-32 w-full bg-white md:hidden" />
+          <TabPanel tabindex="-1" class="md:hidden">
             <FrontPage />
           </TabPanel>
-          <TabPanel tabindex="-1" class="pt-32 md:pt-0">
+          <TabPanel tabindex="-1">
             <FeatsList />
           </TabPanel>
-          <TabPanel tabindex="-1" class="pt-32 md:pt-0">
+          <TabPanel tabindex="-1">
             <Skills />
           </TabPanel>
-          <TabPanel tabindex="-1" class="pt-32 md:pt-0">
+          <TabPanel tabindex="-1">
             <EquipmentList />
           </TabPanel>
-          <TabPanel tabindex="-1" class="pt-32 md:pt-0">
+          <TabPanel tabindex="-1">
             <StrikeList />
             <ActionsList />
           </TabPanel>
-          <TabPanel tabindex="-1" class="pt-32 md:pt-0">
+          <TabPanel tabindex="-1">
             <SpellList />
           </TabPanel>
         </TabPanels>

@@ -12,11 +12,14 @@ import HitPoints from '@/components/HitPoints.vue'
 import HeroPoints from '@/components/HeroPoints.vue'
 import Spinner from '@/components/SpinnerWidget.vue'
 import SideMenu from '@/components/SideMenu.vue'
+import { useWorld } from '@/composables/world'
+
+const { world } = useWorld()
 
 const character = inject(useKeys().characterKey)!
 const { _id, name, portraitUrl } = character
 
-const { characterList, characterObjects } = useCharacterSelect()
+const { characterList, setActiveCharacterId } = useCharacterSelect()
 const sideMenu = ref()
 function reloadPage() {
   window.location.reload()
@@ -26,7 +29,7 @@ function reloadPage() {
 <template>
   <div class="flex cursor-pointer items-center gap-2 border-b p-4">
     <div
-      class="hidden h-24 w-24 items-center overflow-hidden rounded-full border-2 border-gray-300 bg-white 2xs:flex"
+      class="hidden h-24 w-24 items-center overflow-hidden rounded-full border-2 border-gray-300 bg-white xs:flex"
       @click="reloadPage"
     >
       <img v-if="portraitUrl" :src="getPath(portraitUrl)" class="scale-150" />
@@ -50,9 +53,9 @@ function reloadPage() {
               v-slot="{ active }"
               v-for="character in characterList
                 .filter((c: string) => c !== _id)
-                .map((c: string) => characterObjects.find((a: Actor) => a._id === c))"
+                .map((c: string) => world?.actors.find((a: Actor) => a._id === c))"
               :value="character"
-              @click="$emit('pickCharacter', character?._id)"
+              @click="setActiveCharacterId(character?._id)"
               :key="character?._id"
             >
               <div

@@ -1,21 +1,23 @@
-import { ref } from 'vue'
+import { ref, type Ref } from 'vue'
 import type { World } from '@/types/pf2e-types'
 import { useServer } from '@/composables/server'
 import { debounce } from 'lodash-es'
 
-const world = ref<World | null>(null)
+const world = ref<World | undefined>(undefined)
 
 const { getSocket } = useServer()
 
-async function sendWorldRequest() {
+async function sendWorldRequest(): Promise<Ref<World | undefined>> {
   const socket = await getSocket()
-  console.log()
-  socket.emit('world', (r: World) => (world.value = r))
+  return new Promise((resolve) => {
+    socket.emit('world', (r: World) => {
+      world.value = r
+      resolve(world)
+    })
+  })
 }
-
 const debouncedWorldRequest = debounce(sendWorldRequest, 2000, { leading: true })
 const refreshWorld = () => {
-  console.log('TABLEMATE: requesting world!')
   return debouncedWorldRequest()
 }
 

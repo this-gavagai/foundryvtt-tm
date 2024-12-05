@@ -25,7 +25,7 @@ const action: Ref<Action | undefined> = computed(() =>
 </script>
 
 <template>
-  <div class="px-6">
+  <div class="px-6 py-4">
     <div
       class="pb-4 [&:not(:has(li))]:hidden"
       v-for="group in [
@@ -69,8 +69,8 @@ const action: Ref<Action | undefined> = computed(() =>
       <template #description>
         <!-- TODO: come up with something to display if no level or rarity (i.e., manifest eidolon) -->
         <span v-if="action?.system?.level?.value">Level {{ action?.system?.level?.value }}</span>
-        <span v-if="action?.system?.traits?.rarity" class="text-sm"
-          >({{ capitalize(action?.system?.traits?.rarity) }})</span
+        <span v-if="action?.system?.traits?.rarity" class="text-sm">
+          ({{ capitalize(action?.system?.traits?.rarity) }})</span
         >
       </template>
       <template #body>

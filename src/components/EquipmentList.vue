@@ -6,6 +6,7 @@
 // TODO: (UX) ListboxOptions max-h and max-w properties are a mess
 // TODO: deal with extremely long names better for equipment
 // TODO: are bombs usable as weapons?
+// TODO: it is currently possible to put containers inside themselves, which leads to all sorts of trouble
 
 import type { Equipment } from '@/composables/character'
 import { inject, ref, computed, watch } from 'vue'
@@ -111,6 +112,14 @@ const toggleSet = [
     This character has no inventory.
   </div>
   <div v-else class="px-6 py-4">
+    <!-- Invested Items tip -->
+    <div>
+      <span class="cursor-pointer text-sm text-gray-500" @click="investedModal.open()">
+        (Invested: {{ inventory?.filter((i: Equipment) => i.system?.equipped?.invested).length }} /
+        10)
+      </span>
+    </div>
+    <!-- Held Items list -->
     <ul>
       <li
         v-for="item in inventory?.filter((i: Equipment) => i.system?.equipped?.handsHeld)"
@@ -131,13 +140,8 @@ const toggleSet = [
         </a>
       </li>
     </ul>
-    <div>
-      <span class="cursor-pointer text-sm text-gray-500" @click="investedModal.open()">
-        (Invested: {{ inventory?.filter((i: Equipment) => i.system?.equipped?.invested).length }} /
-        10)
-      </span>
-    </div>
-    <div class="lg:columns-2">
+    <!-- Comprehensive equipment list -->
+    <div class="lg:columns-2 lg:gap-12">
       <dl
         v-for="inventoryType in inventoryTypes"
         class="break-before-avoid break-inside-avoid-column whitespace-nowrap pt-4"
@@ -157,13 +161,17 @@ const toggleSet = [
               'text-lg underline': item.type === 'backpack'
             }"
           >
-            <a class="cursor-pointer" @click="infoModal.open(item._id)">
-              <span>{{ item.name }}</span>
+            <a
+              class="flex cursor-pointer items-center justify-between gap-1"
+              @click="infoModal.open(item._id)"
+            >
+              <span class="truncate">{{ item.name }}</span>
               <span v-if="item.type !== 'backpack'" class="text-xs">
                 (x{{ item?.system?.quantity }})</span
               >
             </a>
           </div>
+          <!-- TODO: this backpack chunk is redundant code to above. split into component? -->
           <ul class="pb-2" v-if="item.type === 'backpack'">
             <li
               v-for="stowed in inventory?.filter(
@@ -171,8 +179,12 @@ const toggleSet = [
               )"
               :key="stowed._id"
             >
-              <a class="cursor-pointer" @click="infoModal.open(stowed._id)">
-                {{ stowed.name }}<span class="text-xs"> (x{{ stowed.system?.quantity }})</span>
+              <a
+                class="flex cursor-pointer items-center justify-between gap-1"
+                @click="infoModal.open(stowed._id)"
+              >
+                <span class="truncate">{{ stowed.name }}</span>
+                <span class="text-xs">(x{{ item?.system?.quantity }})</span>
               </a>
             </li>
           </ul>

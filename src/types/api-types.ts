@@ -74,6 +74,7 @@ declare global {
     socket: any
     actor: any
     world: any
+    altActors: any
     altCharacters: any
     link: any
     game: any

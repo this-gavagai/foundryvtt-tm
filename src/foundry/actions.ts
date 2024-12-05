@@ -161,7 +161,6 @@ export async function foundryCastSpell(args: CastSpellArgs) {
   const item = actor.items.get(args.id, { strict: true })
   const spellLocation = actor.items.get(item.system.location.value)
 
-  console.log('BZZ', spellLocation, item, args.rank, args.slotId)
   spellLocation.cast(item, { rank: args.rank, slotId: args.slotId })
   return { action: 'acknowledged', uuid: args.uuid }
 }
