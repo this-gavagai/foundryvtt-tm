@@ -24,7 +24,7 @@ const shpModal = ref()
 
 const character = inject(useKeys().characterKey) as Character
 const { current: acCurrent, modifiers: acModifiers } = character.ac
-const { hardness, ac } = character.shield
+const { hardness, ac: shAC } = character.shield
 const { current: shpCurrent, max: shpMax, brokenThreshold: shpBT } = character.shield.hp
 
 function updateHitPoints(hp_input: string) {
@@ -42,7 +42,10 @@ function updateHitPoints(hp_input: string) {
       </div>
     </StatBox>
     <div class="border border-gray-200"></div>
-    <div class="my-auto flex gap-6">
+    <div v-if="!shAC" class="my-auto">
+      <div class="italic">No shield equipped</div>
+    </div>
+    <div v-else class="my-auto flex gap-6">
       <StatBox
         heading="Shield HP"
         :subheading="`(Total Max: ${shpMax})`"
@@ -57,7 +60,7 @@ function updateHitPoints(hp_input: string) {
       <div>
         <div class="flex justify-between text-[.65rem]">
           <div class="pr-2">AC Bonus:</div>
-          <div>{{ ac }}</div>
+          <div>{{ shAC }}</div>
         </div>
         <div class="flex justify-between text-[.65rem]">
           <div class="pr-2">Hardness:</div>
