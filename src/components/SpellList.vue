@@ -63,13 +63,13 @@ const spellbook = computed((): Spellbook => {
       })
     } else {
       const spellsForLocation = spells.value?.filter(
-        (i: Item) => i.type === 'spell' && i.system.location === locationId
+        (i: Item) => i.type === 'spell' && i.system.location.value === locationId
       )
       spellsForLocation?.forEach((s: Item) => {
         const rank = s.system.traits.value?.includes('cantrip') ? '0' : String(s.system.level.value)
         sb[locationId][rank].push(s)
         // add signature spells by iterating through spellslots property
-        if (s.system.signature) {
+        if (s.system.location.signature) {
           Object.values(location?.system?.slots ?? {}).forEach((slot, slotRank) => {
             if (slot.max && slotRank > (s.system.level.value ?? NaN)) {
               sb[locationId][slotRank].push(s)
@@ -176,7 +176,10 @@ const spellbook = computed((): Spellbook => {
                     class="cursor-pointer"
                   >
                     <span
-                      v-if="spell?.system?.signature && spell?.system?.level.value !== Number(rank)"
+                      v-if="
+                        spell?.system?.location?.signature &&
+                        spell?.system?.level.value !== Number(rank)
+                      "
                       >*</span
                     >
                     <span>{{ spell?.name }}</span>

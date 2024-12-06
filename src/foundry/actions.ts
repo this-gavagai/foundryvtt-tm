@@ -14,31 +14,6 @@ export async function getCharacterDetails(args: {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.find((x: Actor) => x._id === args.actorId)
 
-  // const fakeEvent = {
-  //   ctrlKey: false,
-  //   metaKey: false,
-  //   shiftKey: source.user.settings['showDamageDialogs']
-  // }
-  // // TODO (refactor): rebundle tmDamageFormula. Should not defined as part of type but rather as separate thing maybe?
-  // // add the damage formula into things; wish there was a better way
-  // const damages = actor.system.actions.map((action: Action) => action.damage({ getFormula: true }))
-  // const crits = actor.system.actions.map((action: Action) => action.critical({ getFormula: true }))
-  // const modifiers = actor.system.actions.map((action: Action) =>
-  //   action.damage({ createMessage: false, skipDialog: true, event: fakeEvent })
-  // )
-  // await Promise.all([...damages, ...crits, ...modifiers]).then((values) => {
-  //   const damageValues = values.slice(0, values.length / 3)
-  //   const criticalValues = values.slice(values.length / 3, 2 * (values.length / 3))
-  //   const modifiers = values.slice(2 * (values.length / 3), 3 * (values.length / 3))
-  //   damageValues.forEach((dmg, i) => {
-  //     actor.system.actions[i].tmDamageFormula = {
-  //       base: dmg,
-  //       critical: criticalValues[i],
-  //       _modifiers: modifiers[i]?.options?.damage?.modifiers
-  //     }
-  //   })
-  // })
-
   // compose sending data into object
   return {
     action: 'updateCharacterDetails',
@@ -171,27 +146,32 @@ export async function foundryConsumeItem(args: ConsumeItemArgs) {
   return { action: 'acknowledged', uuid: args.uuid }
 }
 export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
-  // TODO (feature): is it worth adding target to this? Are there many cases where that matters?
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.find((x: Actor) => x._id === args.characterId)
+  const target =
+    args.targets.map((t: string) => source.scenes.active.tokens.get(t))?.[0]?.object ?? null
 
   const fakeEvent = {
     ctrlKey: false,
     metaKey: false,
     shiftKey: source.user.settings['showDamageDialogs']
   }
-  const damage = actor.system.actions
-    .find((a: Action) => a.slug === args.actionSlug)
-    .damage({ getFormula: true })
-  const critical = actor.system.actions
-    .find((a: Action) => a.slug === args.actionSlug)
-    .critical({ getFormula: true })
-  const modifiers = actor.system.actions
-    .find((a: Action) => a.slug === args.actionSlug)
-    .damage({ createMessage: false, skipDialog: true, event: fakeEvent })
+  const action = actor.system.actions.find((a: Action) => a.slug === args.actionSlug)
+  const dmg = action.item.dealsDamage
+
+  const damageOptions = { getFormula: true, target: target }
+  const modifierOptions = {
+    context: { rollMode: 'blindroll' },
+    createMessage: false,
+    skipDialog: true,
+    event: fakeEvent,
+    target: target
+  }
+  const damage = dmg ? action.damage(damageOptions) : null
+  const critical = dmg ? action.critical(damageOptions) : null
+  const modifiers = dmg ? action.damage(modifierOptions) : null
 
   const results = await Promise.all([damage, critical, modifiers])
-  console.log(damage, critical, modifiers)
   return {
     action: 'acknowledged',
     uuid: args.uuid,

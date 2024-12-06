@@ -4,6 +4,7 @@
 // TODO (refactor): use button widget
 // TODO (data): add reload action from pf2e-ranged?
 // TODO (data): show range of weapons
+// TODO (bug): damage doesn't load if the button is clicked really quickly after reload. Why?
 
 import { inject, ref, computed, watch } from 'vue'
 import { formatModifier } from '@/utils/utilities'
@@ -27,6 +28,7 @@ const viewedItem = computed(() => strikes.value?.[strikeModal.value?.itemId])
 const strikeModalDamage = ref()
 watch(viewedItem, async () => {
   console.log('starting', strikeModalDamage.value)
+  console.log(viewedItem?.value)
   strikeModalDamage.value = await viewedItem?.value?.getDamage?.()
   console.log('ending', strikeModalDamage.value)
 })
@@ -99,9 +101,9 @@ watch(viewedItem, async () => {
     >
       <template #title>{{ viewedItem?.label }}</template>
       <template #description>{{
-        strikeModal.options.subtype === 0
-          ? strikeModalDamage?.response?.damage
-          : strikeModalDamage?.response?.critical
+        strikeModal?.options?.subtype === 1
+          ? strikeModalDamage?.response?.critical
+          : strikeModalDamage?.response?.damage
       }}</template>
       <template #default>
         <ul>

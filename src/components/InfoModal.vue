@@ -2,6 +2,7 @@
 // TODO (feature++): Make modifiers for rolls alterable
 // TODO (feature++): send item to chat
 // TODO (refactor): consider storing full item, not just id, on props, to avoid all this "viewedItem" nonsense
+// TODO (bug): clicking open too quickly sometimes leads to stale data or errors
 import { ref } from 'vue'
 import {
   Dialog,

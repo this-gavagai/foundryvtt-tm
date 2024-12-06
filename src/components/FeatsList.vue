@@ -31,24 +31,26 @@ const featCategories = computed(() => {
   feats.value?.forEach((f: Item) => {
     if (feats.value?.map((n) => n._id).includes(f?.grantedBy)) return
     else if (
-      ['ancestryfeature', ancestry.value?._id].includes(f?.system?.location) ||
+      ['ancestryfeature', ancestry.value?._id].includes(f?.system?.location?.value) ||
       f?.system?.category === 'ancestryfeature'
     )
       categories['ancestryfeatures']?.feats.push(f)
-    else if (['classfeature', classType.value?._id].includes(f?.system?.location))
+    else if (['classfeature', classType.value?._id].includes(f?.system?.location?.value))
       categories['classfeatures']?.feats.push(f)
-    else if (f?.system?.location?.split('-')[0] === 'ancestry')
+    else if (f?.system?.location?.value?.split('-')[0] === 'ancestry')
       categories['ancestry']?.feats.push(f)
-    else if (f?.system?.location?.split('-')[0] === 'class') categories['class']?.feats.push(f)
-    else if (f?.system?.location?.split('-')[0] === 'archetype')
+    else if (f?.system?.location?.value?.split('-')[0] === 'class')
+      categories['class']?.feats.push(f)
+    else if (f?.system?.location?.value?.split('-')[0] === 'archetype')
       categories['archetype']?.feats.push(f)
     else if (
-      f?.system?.location?.split('-')[0] === 'skill' ||
-      f?.system?.location === background.value?._id
+      f?.system?.location?.value?.split('-')[0] === 'skill' ||
+      f?.system?.location?.value === background.value?._id
     )
       categories['skill']?.feats.push(f)
-    else if (f?.system?.location?.split('-')[0] === 'general') categories['general']?.feats.push(f)
-    else if (f?.system?.location?.split('-')[0] === 'xdy_ancestryparagon')
+    else if (f?.system?.location?.value?.split('-')[0] === 'general')
+      categories['general']?.feats.push(f)
+    else if (f?.system?.location?.value?.split('-')[0] === 'xdy_ancestryparagon')
       categories['xdy_ancestryparagon']?.feats.push(f)
     else categories['bonus']?.feats.push(f)
   })
@@ -67,7 +69,7 @@ const featCategories = computed(() => {
           <a class="cursor-pointer" @click="infoModal.open(feat._id)">
             <span class="absolute w-4 pt-1 text-right text-xs text-gray-500">{{
               feat?.system?.level?.taken ??
-              feat?.system?.location?.split('-')?.[1] ??
+              feat?.system?.location?.value?.split('-')?.[1] ??
               feat.system?.level?.value
             }}</span
             ><span class="pl-6">{{ feat?.name }}</span>

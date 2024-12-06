@@ -366,17 +366,15 @@ async function consumeItem(
     pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
   })
 }
-async function getStrikeDamage(
-  actor: Ref<Actor>,
-  actionSlug: string,
-  targetId: string | null = null
-): Promise<ResolutionArgs> {
+async function getStrikeDamage(actor: Ref<Actor>, actionSlug: string): Promise<ResolutionArgs> {
+  const { getTargets } = useTargetHelper()
   const uuid = uuidv4()
+  console.log(uuid)
   const args: GetStrikeDamageArgs = {
     action: 'getStrikeDamage',
     characterId: actor.value._id,
+    targets: getTargets(),
     actionSlug: actionSlug,
-    targetId: targetId,
     uuid
   }
   const socket = await getSocket()

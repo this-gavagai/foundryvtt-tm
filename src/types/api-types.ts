@@ -70,7 +70,7 @@ export interface GetStrikeDamageArgs {
   action: 'getStrikeDamage'
   characterId: string
   actionSlug: string
-  targetId: string | null
+  targets: string[]
   uuid: string
 }
 

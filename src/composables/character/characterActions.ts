@@ -71,7 +71,9 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
           action,
           actor.value?.items.find((i: PF2eItem) => i.system?.slug === action?.slug)
         ) as Strike),
-        getDamage: () => getStrikeDamage(actor as Ref<Actor>, action.slug),
+        getDamage: () => {
+          return getStrikeDamage(actor as Ref<Actor>, action.slug)
+        },
         doStrike: (variant: number) =>
           rollCheck(actor as Ref<Actor>, 'strike', `${action.slug},${variant}`),
         doDamage: (crit: boolean) =>

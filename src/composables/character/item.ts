@@ -10,8 +10,9 @@ export interface Item {
   grantedBy: Prop<string>
   system: {
     slug: Prop<string>
-    location: Prop<string>
-    signature: Prop<boolean>
+    location: { value: Prop<string>; heightenedLevel: Prop<number>; signature: Prop<boolean> }
+    // location: Prop<string>
+    // signature: Prop<boolean>
     category: Prop<string>
     description: { value: string }
     value: { value: Prop<number>; isValued: Prop<boolean> }
@@ -49,6 +50,7 @@ export interface Item {
 }
 export function makeItem(root: PF2eItem | undefined): Item | undefined {
   if (!root) return undefined
+  if (root?.system?.location) console.log(root?.name, root?.type, root?.system?.location)
   return {
     _id: root?._id,
     name: root?.name,
@@ -60,11 +62,13 @@ export function makeItem(root: PF2eItem | undefined): Item | undefined {
     grantedBy: root?.flags?.pf2e?.grantedBy?.id,
     system: {
       slug: root?.system?.slug,
-      location:
-        typeof root?.system?.location === 'string'
-          ? root?.system?.location
-          : root?.system?.location?.value, // TODO (data): a problem here; two different formats for location
-      signature: root?.system?.location?.signature, // TODO (data): this is supposed to be a property of location?
+      location: {
+        // NB: in the base PF2e type, feats have just a string while spells have this object. easier to convert everything
+        value: root?.system?.location?.value ?? root?.system?.location,
+        signature: root?.system?.location?.signature,
+        heightenedLevel: root?.system?.location?.heightenedLevel
+      },
+      // signature: root?.system?.location?.signature, // TODO (data): this is supposed to be a property of location?
       category: root?.system?.category,
       description: { value: root?.system?.description?.value },
       value: { isValued: root?.system?.value?.isValued, value: root?.system?.value?.value },
