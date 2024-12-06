@@ -3,7 +3,8 @@ import type {
   RollCheckArgs,
   CharacterActionArgs,
   CastSpellArgs,
-  ConsumeItemArgs
+  ConsumeItemArgs,
+  GetStrikeDamageArgs
 } from '@/types/api-types'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 
@@ -11,34 +12,32 @@ export async function getCharacterDetails(args: {
   actorId: string
 }): Promise<UpdateCharacterDetailsArgs> {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
-  const fakeEvent = {
-    ctrlKey: false,
-    metaKey: false,
-    shiftKey: source.user.settings['showDamageDialogs']
-  }
   const actor = source.actors.find((x: Actor) => x._id === args.actorId)
 
-  // add the damage formula into things; wish there was a better way
-  const damages = actor.system.actions.map((action: Action) => action.damage({ getFormula: true }))
-  const crits = actor.system.actions.map((action: Action) => action.critical({ getFormula: true }))
-  const modifiers = actor.system.actions.map((action: Action) =>
-    action.damage({ createMessage: false, skipDialog: true, event: fakeEvent })
-  )
-
-  // await Promise.all([...damages, ...crits]).then((values) => {
-  // TODO (refactor): rebundle tmDamageFormula. Should not defined as part of type but rather as separate thing maybe?
-  await Promise.all([...damages, ...crits, ...modifiers]).then((values) => {
-    const damageValues = values.slice(0, values.length / 3)
-    const criticalValues = values.slice(values.length / 3, 2 * (values.length / 3))
-    const modifiers = values.slice(2 * (values.length / 3), 3 * (values.length / 3))
-    damageValues.forEach((dmg, i) => {
-      actor.system.actions[i].tmDamageFormula = {
-        base: dmg,
-        critical: criticalValues[i],
-        _modifiers: modifiers[i]?.options?.damage?.modifiers
-      }
-    })
-  })
+  // const fakeEvent = {
+  //   ctrlKey: false,
+  //   metaKey: false,
+  //   shiftKey: source.user.settings['showDamageDialogs']
+  // }
+  // // TODO (refactor): rebundle tmDamageFormula. Should not defined as part of type but rather as separate thing maybe?
+  // // add the damage formula into things; wish there was a better way
+  // const damages = actor.system.actions.map((action: Action) => action.damage({ getFormula: true }))
+  // const crits = actor.system.actions.map((action: Action) => action.critical({ getFormula: true }))
+  // const modifiers = actor.system.actions.map((action: Action) =>
+  //   action.damage({ createMessage: false, skipDialog: true, event: fakeEvent })
+  // )
+  // await Promise.all([...damages, ...crits, ...modifiers]).then((values) => {
+  //   const damageValues = values.slice(0, values.length / 3)
+  //   const criticalValues = values.slice(values.length / 3, 2 * (values.length / 3))
+  //   const modifiers = values.slice(2 * (values.length / 3), 3 * (values.length / 3))
+  //   damageValues.forEach((dmg, i) => {
+  //     actor.system.actions[i].tmDamageFormula = {
+  //       base: dmg,
+  //       critical: criticalValues[i],
+  //       _modifiers: modifiers[i]?.options?.damage?.modifiers
+  //     }
+  //   })
+  // })
 
   // compose sending data into object
   return {
@@ -170,4 +169,36 @@ export async function foundryConsumeItem(args: ConsumeItemArgs) {
   const item = actor.items.get(args.consumableId, { strict: true })
   item.consume()
   return { action: 'acknowledged', uuid: args.uuid }
+}
+export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
+  // TODO (feature): is it worth adding target to this? Are there many cases where that matters?
+  const source = typeof window.game === 'undefined' ? parent.game : window.game
+  const actor = source.actors.find((x: Actor) => x._id === args.characterId)
+
+  const fakeEvent = {
+    ctrlKey: false,
+    metaKey: false,
+    shiftKey: source.user.settings['showDamageDialogs']
+  }
+  const damage = actor.system.actions
+    .find((a: Action) => a.slug === args.actionSlug)
+    .damage({ getFormula: true })
+  const critical = actor.system.actions
+    .find((a: Action) => a.slug === args.actionSlug)
+    .critical({ getFormula: true })
+  const modifiers = actor.system.actions
+    .find((a: Action) => a.slug === args.actionSlug)
+    .damage({ createMessage: false, skipDialog: true, event: fakeEvent })
+
+  const results = await Promise.all([damage, critical, modifiers])
+  console.log(damage, critical, modifiers)
+  return {
+    action: 'acknowledged',
+    uuid: args.uuid,
+    response: {
+      damage: results[0],
+      critical: results[1],
+      modifiers: results[2]?.options?.damage?.modifiers
+    }
+  }
 }

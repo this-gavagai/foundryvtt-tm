@@ -7,7 +7,7 @@ const waiting = ref(false)
 const colorStyles = computed(() => {
   const color = props.color ?? 'gray'
   if (color === 'unstyled') return ['active:text-gray-500', 'disabled:invisible']
-  else return [`bg-${color}-600`, `hover:bg-${color}-500`, `active:bg-${color}-300`, 'text-white']
+  else return [`bg-${color}-600`, `hover:bg-${color}-500`, `active:bg-${color}-400`, 'text-white']
 })
 
 defineExpose({ waiting })

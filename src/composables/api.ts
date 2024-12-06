@@ -10,7 +10,8 @@ import type {
   CastSpellArgs,
   RollCheckArgs,
   CharacterActionArgs,
-  ConsumeItemArgs
+  ConsumeItemArgs,
+  GetStrikeDamageArgs
 } from '@/types/api-types'
 import type {
   DocumentEventArgs,
@@ -27,7 +28,7 @@ import { uuidv4 } from '@/utils/utilities'
 // import { useWorld } from '@/composables/world'
 
 const { getSocket } = useServer()
-// TODO (types): not really unknown/void; identify and improve
+// TODO (types): not really unknown/void; identify and improve (see action returns for details)
 const requestCharacterDetails: { [key: string]: () => Promise<unknown> } = {}
 const ackQueue: { [key: string]: (args: ResolutionArgs) => unknown } = {}
 function pushToAckQueue(uuid: string, callback: (args: ResolutionArgs) => unknown) {
@@ -86,7 +87,6 @@ async function setupSocketListenersForActor(
   const socket = await getSocket()
   requestCharacterDetails[actorId] = refreshMethod
   socket.on('module.tablemate', (args: ModuleEventArgs) => {
-    // if (!actor.value) return // why was this here?
     switch (args.action) {
       case 'listenerOnline':
         // TODO (performance): requesting character details everytime a listener comes online is a bit blunt-force
@@ -366,6 +366,25 @@ async function consumeItem(
     pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
   })
 }
+async function getStrikeDamage(
+  actor: Ref<Actor>,
+  actionSlug: string,
+  targetId: string | null = null
+): Promise<ResolutionArgs> {
+  const uuid = uuidv4()
+  const args: GetStrikeDamageArgs = {
+    action: 'getStrikeDamage',
+    characterId: actor.value._id,
+    actionSlug: actionSlug,
+    targetId: targetId,
+    uuid
+  }
+  const socket = await getSocket()
+  return new Promise((resolve) => {
+    socket.emit('module.tablemate', args)
+    pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
+  })
+}
 
 //////////////////////////////////////////////////
 // Processing Methods for Items (not Actor)     //
@@ -420,6 +439,7 @@ export function useApi() {
     castSpell,
     rollCheck,
     consumeItem,
-    characterAction
+    characterAction,
+    getStrikeDamage
   }
 }

@@ -1,17 +1,19 @@
 import type {
+  ModuleEventArgs,
   CastSpellArgs,
   CharacterActionArgs,
   ConsumeItemArgs,
-  ModuleEventArgs,
   RequestCharacterDetailsArgs,
-  RollCheckArgs
+  RollCheckArgs,
+  GetStrikeDamageArgs
 } from '@/types/api-types'
 import {
   getCharacterDetails,
   foundryRollCheck,
   foundryCharacterAction,
   foundryCastSpell,
-  foundryConsumeItem
+  foundryConsumeItem,
+  foundryGetStrikeDamage
 } from './actions'
 import type { Game, User, Hooks, GetEvent } from '@/types/foundry-types'
 
@@ -64,6 +66,11 @@ export function setupListener() {
         break
       case 'consumeItem':
         foundryConsumeItem(args as ConsumeItemArgs).then((result) =>
+          game.socket.emit(MODNAME, result)
+        )
+        break
+      case 'getStrikeDamage':
+        foundryGetStrikeDamage(args as GetStrikeDamageArgs).then((result) =>
           game.socket.emit(MODNAME, result)
         )
         break

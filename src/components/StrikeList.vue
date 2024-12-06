@@ -5,7 +5,7 @@
 // TODO (data): add reload action from pf2e-ranged?
 // TODO (data): show range of weapons
 
-import { inject, ref, computed } from 'vue'
+import { inject, ref, computed, watch } from 'vue'
 import { formatModifier } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 import InfoModal from './InfoModal.vue'
@@ -16,11 +16,20 @@ interface Trait {
 }
 
 const strikeModal = ref()
+// const strikeModalDamage = ref()
+// watch(strikeModalDamage, () => console.log(strikeModalDamage.value))
+// window.smd = strikeModalDamage
 
 const character = inject(useKeys().characterKey)!
 const { strikes } = character
 
 const viewedItem = computed(() => strikes.value?.[strikeModal.value?.itemId])
+const strikeModalDamage = ref()
+watch(viewedItem, async () => {
+  console.log('starting', strikeModalDamage.value)
+  strikeModalDamage.value = await viewedItem?.value?.getDamage?.()
+  console.log('ending', strikeModalDamage.value)
+})
 </script>
 <template>
   <div class="px-6 [&:not(:has(li))]:hidden">
@@ -41,7 +50,7 @@ const viewedItem = computed(() => strikes.value?.[strikeModal.value?.itemId])
           <span>
             <span
               v-for="(variant, index) in strike.variants"
-              class="hover:bg-blue-6\400 mb-1 mr-1 break-inside-avoid border bg-blue-500 p-2 text-xs text-white transition-colors active:bg-blue-700"
+              class="hover:bg-blue-6\400 mb-1 mr-1 select-none break-inside-avoid border bg-blue-600 p-2 text-xs text-white transition-colors active:bg-blue-400"
               @click="strikeModal.open(i, { type: 'strike', subtype: index })"
               :key="'variant_' + index"
             >
@@ -54,13 +63,23 @@ const viewedItem = computed(() => strikes.value?.[strikeModal.value?.itemId])
           <!-- <div class="mt-2"> -->
           <span class="mb-1">
             <span
-              class="mb-1 mr-1 break-inside-avoid border bg-red-500 p-2 text-xs text-white transition-colors hover:bg-red-400 active:bg-red-700"
-              @click="strikeModal.open(i, { type: 'damage', subtype: 0 })"
+              class="mb-1 mr-1 select-none break-inside-avoid border bg-red-600 p-2 text-xs text-white transition-colors hover:bg-red-400 active:bg-red-400"
+              @click="
+                strikeModal.open(i, {
+                  type: 'damage',
+                  subtype: 0
+                })
+              "
               >Damage</span
             >
             <span
-              class="mb-1 mr-1 break-inside-avoid border bg-red-500 p-2 text-xs text-white transition-colors hover:bg-red-400 active:bg-red-700"
-              @click="strikeModal.open(i, { type: 'damage', subtype: 1 })"
+              class="mb-1 mr-1 select-none break-inside-avoid border bg-red-600 p-2 text-xs text-white transition-colors hover:bg-red-400 active:bg-red-400"
+              @click="
+                strikeModal.open(i, {
+                  type: 'damage',
+                  subtype: 1
+                })
+              "
               >Critical</span
             >
           </span>
@@ -81,14 +100,14 @@ const viewedItem = computed(() => strikes.value?.[strikeModal.value?.itemId])
       <template #title>{{ viewedItem?.label }}</template>
       <template #description>{{
         strikeModal.options.subtype === 0
-          ? viewedItem?.tmDamageFormula?.base
-          : viewedItem?.tmDamageFormula?.critical
+          ? strikeModalDamage?.response?.damage
+          : strikeModalDamage?.response?.critical
       }}</template>
       <template #default>
         <ul>
           <li
             v-for="mod in strikeModal.options?.type === 'damage'
-              ? viewedItem?.tmDamageFormula?._modifiers
+              ? strikeModalDamage?.response?.modifiers
               : viewedItem?._modifiers"
             class="flex gap-2"
             :class="{ 'text-gray-300': !mod.enabled }"
@@ -120,6 +139,7 @@ const viewedItem = computed(() => strikes.value?.[strikeModal.value?.itemId])
         <Button
           v-if="strikeModal.options?.type === 'damage' && strikeModal.options.subtype === 0"
           type="button"
+          label="Damage"
           color="red"
           @click="
             viewedItem?.doDamage?.(strikeModal.options.subtype)?.then((r) => {
@@ -127,12 +147,11 @@ const viewedItem = computed(() => strikes.value?.[strikeModal.value?.itemId])
               strikeModal.rollResultModal.open(r)
             })
           "
-        >
-          Damage
-        </Button>
+        />
         <Button
           v-if="strikeModal.options?.type === 'damage' && strikeModal.options.subtype === 1"
           type="button"
+          label="Critical"
           color="red"
           @click="
             viewedItem?.doDamage?.(strikeModal.options.subtype)?.then((r) => {
@@ -140,9 +159,7 @@ const viewedItem = computed(() => strikes.value?.[strikeModal.value?.itemId])
               strikeModal.rollResultModal.open(r)
             })
           "
-        >
-          Critical
-        </Button>
+        />
       </template>
     </InfoModal>
   </Teleport>

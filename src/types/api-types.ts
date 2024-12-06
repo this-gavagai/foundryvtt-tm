@@ -8,6 +8,7 @@ export type ModuleEventArgs =
   | CharacterActionArgs
   | CastSpellArgs
   | ConsumeItemArgs
+  | GetStrikeDamageArgs
 
 export interface AcknowledgementArgs {
   action: 'acknowledged'
@@ -63,6 +64,13 @@ export interface ConsumeItemArgs {
   characterId: string
   consumableId: string
   options: any
+  uuid: string
+}
+export interface GetStrikeDamageArgs {
+  action: 'getStrikeDamage'
+  characterId: string
+  actionSlug: string
+  targetId: string | null
   uuid: string
 }
 
