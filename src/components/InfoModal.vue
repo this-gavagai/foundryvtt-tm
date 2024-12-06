@@ -3,6 +3,7 @@
 // TODO (feature++): send item to chat
 // TODO (refactor): consider storing full item, not just id, on props, to avoid all this "viewedItem" nonsense
 // TODO (bug): clicking open too quickly sometimes leads to stale data or errors
+// TODO (UX): add some kind of placeholder for image to show it's loading
 import { ref } from 'vue'
 import {
   Dialog,

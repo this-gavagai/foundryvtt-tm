@@ -162,16 +162,21 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
   const damageOptions = { getFormula: true, target: target }
   const modifierOptions = {
     context: { rollMode: 'blindroll' },
+    rollMode: 'blindroll',
     createMessage: false,
     skipDialog: true,
     event: fakeEvent,
     target: target
   }
+  // TODO: find a less hacky way to do this. rollMode and skipDialog both seem to be ignored, so I'm faking events and temporarily changing client settings. bad.
+  const rollmode = await source.settings.get('core', 'rollMode')
+  await source.settings.set('core', 'rollMode', 'blindroll')
   const damage = dmg ? action.damage(damageOptions) : null
   const critical = dmg ? action.critical(damageOptions) : null
   const modifiers = dmg ? action.damage(modifierOptions) : null
 
   const results = await Promise.all([damage, critical, modifiers])
+  await source.settings.set('core', 'rollMode', rollmode)
   return {
     action: 'acknowledged',
     uuid: args.uuid,
