@@ -33,6 +33,13 @@ jobs:
           field: version
           value: ${{ github.ref_name }}
 
+      - name: update module.json version info
+        uses: jossef/action-set-json-field@v2.1
+        with:
+          file: tablemate/module.json
+          field: download
+          value: https://github.com/this-gavagai/foundryvtt-tm/releases/download/${{ github.ref_name }}/tablemate.zip
+
       - name: Zip Files
         working-directory: ./tablemate
         run: zip -r ./tablemate.zip ./*
