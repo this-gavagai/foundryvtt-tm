@@ -6,6 +6,7 @@ import { useKeys } from '@/composables/injectKeys'
 
 import StatBox from '@/components/StatBox.vue'
 import Modal from '@/components/ModalBox.vue'
+import Button from '@/components/ButtonWidget.vue'
 import { useLastDamage } from '@/composables/lastDamage'
 
 interface SubmissionEvent {
@@ -101,7 +102,7 @@ function updateHitPoints(hp_input: string, temp_input: string) {
         <div class="flex w-full items-center justify-center pb-4 pt-1">
           <div class="w-1/3">Temporary:</div>
           <input
-            class="ml-[32px] mr-4 w-1/3 border-2 border-black p-1 text-right text-xl"
+            class="ml-[32px] mr-4 w-1/3 border-2 border-black p-1 text-right text-3xl"
             name="temp_hp"
             type="input"
             pattern="[\+\-]{0,1}[0-9]*"
@@ -116,37 +117,25 @@ function updateHitPoints(hp_input: string, temp_input: string) {
           />
           <div class="w-1/3"></div>
         </div>
-        <div class="mt-5 gap-1 sm:mt-4 sm:flex sm:flex-row-reverse">
-          <button
-            type="submit"
-            name="update"
-            class="inline-flex w-full justify-center bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto"
-          >
-            Update
-          </button>
-          <button
-            type="submit"
-            name="reset"
-            class="inline-flex w-full justify-center bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 sm:ml-3 sm:w-auto"
-          >
-            Reset HP
-          </button>
-          <div v-if="lastDamageAmount > 0">
-            <button
+        <div class="mt-5 flex flex-row-reverse flex-wrap-reverse gap-1 sm:mt-4">
+          <Button type="submit" name="update" label="Update" color="blue" />
+          <Button type="submit" name="reset" color="gray" label="Reset HP" />
+          <span class="flex gap-1">
+            <Button
               type="submit"
               name="lastDamageMinus"
-              class="inline-flex w-1/2 justify-center bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto"
-            >
-              -{{ lastDamageAmount }}
-            </button>
-            <button
+              color="red"
+              :label="'-' + lastDamageAmount"
+              v-if="lastDamageAmount > 0"
+            />
+            <Button
               type="submit"
               name="lastDamagePlus"
-              class="inline-flex w-1/2 justify-center bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:ml-3 sm:w-auto"
-            >
-              +{{ lastDamageAmount }}
-            </button>
-          </div>
+              :label="'+' + lastDamageAmount"
+              color="green"
+              v-if="lastDamageAmount > 0"
+            />
+          </span>
         </div>
       </form>
     </Modal>

@@ -69,7 +69,7 @@ onUnmounted(() => {
 defineExpose({ actor, character })
 </script>
 <template>
-  <div class="flex h-dvh">
+  <div class="flex h-dvh select-none">
     <!-- show this column only if on a tablet or laptop -->
     <div class="hidden border-r md:block md:h-dvh md:w-[320px] md:overflow-auto">
       <CharacterHeader class="sticky top-0 z-10 h-32 bg-white" />
@@ -108,7 +108,7 @@ defineExpose({ actor, character })
           <CharacterTab :src="leapfrog" label="Actions" />
           <CharacterTab :src="spellBook" label="Spells" />
           <Bars3Icon
-            class="mx-4 my-auto hidden h-10 w-10 cursor-pointer rounded-md border-gray-500 p-1 text-gray-500 md:block"
+            class="mx-4 my-auto hidden h-10 w-10 cursor-pointer rounded-md border-gray-500 p-1 text-gray-500 active:text-gray-300 md:block"
             @click="sideMenu.sidebarOpen = true"
           />
         </TabList>

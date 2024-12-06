@@ -1,5 +1,6 @@
 // TODO (feature+): add option to send chat message on certain api events
 // TODO (known issue): this thing isn't triggering preUpdateActor hooks, as those are conventionally called only on the actor in question. May be a problem.
+// TODO (data+): need some way to indicate that gm-dependent methods aren't available when that's the case
 import type { Ref } from 'vue'
 import type { Actor, World, Item, Combat } from '@/types/pf2e-types'
 import type {

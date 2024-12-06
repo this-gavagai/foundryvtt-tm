@@ -298,7 +298,7 @@ const spellbook = computed((): Spellbook => {
         <Button
           ref="removeButton"
           label="Remove"
-          class="!bg-red-600 !text-white hover:!bg-red-500"
+          color="red"
           v-if="infoModal.options?.entry?.system.prepared?.value === 'prepared'"
           @click="
             () => {
@@ -316,9 +316,8 @@ const spellbook = computed((): Spellbook => {
         <Button
           ref="castButton"
           label="Cast"
+          color="blue"
           v-if="!infoModal.options?.isConsumable"
-          type="button"
-          class="!bg-blue-600 !text-white hover:!bg-blue-500"
           @click="
             (viewedSpell as Spell)?.doSpell?.(
               infoModal.options.castingRank,
@@ -329,9 +328,9 @@ const spellbook = computed((): Spellbook => {
         <Button
           ref="consumeButton"
           label="Use"
+          color="green"
           v-if="infoModal.options?.isConsumable"
           type="button"
-          class="!bg-green-600 !text-white hover:!bg-green-500"
           @click="
             () => {
               viewedSpell?.consumeItem?.()

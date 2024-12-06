@@ -9,7 +9,6 @@ import { useKeys } from '@/composables/injectKeys'
 
 const character = inject(useKeys().characterKey)!
 const { skills, proficiencies } = character
-console.log(skills.value)
 </script>
 <template>
   <div class="py-4 empty:hidden lg:flex lg:justify-between">

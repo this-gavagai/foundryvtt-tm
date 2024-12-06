@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// TODO (refactor):Change to ButtonWidget
 import type { Item } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
 import InfoModal from '@/components/InfoModal.vue'

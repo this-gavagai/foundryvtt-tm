@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// TODO (bug): perception is showing up twice in this list
 import type { Combatant } from '@/types/pf2e-types'
 import type { Stat } from '@/composables/character'
 import { computed, inject, type ComputedRef } from 'vue'

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// TODO (refactor): switch to ButtonWidget
 // TODO (data): add weight, encumbrance, etc.
 // TODO (refactor): switch toggle bar over to headlessui component and give transaction feedback
 // TODO (refactor): refactor listbox into component, and give transaction feedback

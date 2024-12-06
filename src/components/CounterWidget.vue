@@ -44,7 +44,7 @@ defineExpose({ click, close })
         <div class="flex w-full justify-between py-8 text-3xl">
           <Button
             :disabled="updating || (props.value ?? 0) < 1"
-            class="text-gray-500 disabled:invisible"
+            color="unstyled"
             @click="changeCount(-1)"
           >
             <MinusCircleIcon class="mr-4 h-8 w-8" />
@@ -70,8 +70,8 @@ defineExpose({ click, close })
           </div>
           <Button
             :disabled="updating || (props.max && (props.value ?? 0) >= props.max)"
-            class="text-gray-500 disabled:invisible"
             @click="changeCount(+1)"
+            color="unstyled"
           >
             <PlusCircleIcon class="ml-4 h-8 w-8" />
           </Button>

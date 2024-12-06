@@ -34,7 +34,7 @@ defineExpose({ infoModal })
 <template>
   <div>
     <div
-      class="fit-content"
+      class="fit-content active:drop-shadow-glow"
       :class="{ 'cursor-pointer': (props?.modifiers || props?.breakdown) && !preventInfoModal }"
       @click="
         () => {
@@ -45,8 +45,8 @@ defineExpose({ infoModal })
       <!-- <Popover class="relative"> -->
       <!-- <PopoverButton> -->
       <div
-        class="whitespace-nowrap text-[0.8rem] uppercase"
         :class="proficiencies[props.proficiency]?.color"
+        class="whitespace-nowrap text-[0.8rem] uppercase"
       >
         {{ heading }}
       </div>
@@ -91,8 +91,7 @@ defineExpose({ infoModal })
           <Button
             v-if="props.rollAction"
             ref="rollButton"
-            type="button"
-            class="bg-blue-600 text-white hover:bg-blue-500"
+            color="blue"
             label="Roll"
             @click="() => makeRoll()"
           />

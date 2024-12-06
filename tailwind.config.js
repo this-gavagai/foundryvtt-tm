@@ -7,6 +7,9 @@ export default {
     extend: {
       screens: {
         xs: '360px'
+      },
+      dropShadow: {
+        glow: '0 0 4px rgba(150, 150, 255, 0.85)'
       }
     }
   },

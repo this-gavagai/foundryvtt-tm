@@ -8,7 +8,7 @@ import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs, makeActionIcons } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 
-import Button from '@/components/ButtonWidget.vue'
+import ButtonWidget from '@/components/ButtonWidget.vue'
 
 import InfoModal from '@/components/InfoModal.vue'
 import SkillSelector from './SkillSelector.vue'
@@ -81,10 +81,10 @@ const action: Ref<Action | undefined> = computed(() =>
             v-if="actionDefs.get(action?.system?.slug ?? '')?.skill === '*'"
             ref="skillSelector"
           />
-          <Button
+          <ButtonWidget
             label="Roll"
+            color="blue"
             v-if="actionDefs.get(action?.system?.slug ?? '')"
-            class="bg-blue-600 text-white hover:bg-blue-500"
             @click="
               action
                 ?.doAction?.(

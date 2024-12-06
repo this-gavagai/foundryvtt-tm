@@ -80,7 +80,7 @@ function reloadPage() {
       </div>
     </div>
     <Bars3Icon
-      class="my-auto h-10 w-10 cursor-pointer rounded-md border-gray-500 p-1 text-gray-500 md:hidden"
+      class="my-auto h-10 w-10 cursor-pointer rounded-md border-gray-500 p-1 text-gray-500 active:text-gray-300 md:hidden"
       @click="sideMenu.sidebarOpen = true"
     />
     <SideMenu ref="sideMenu" />

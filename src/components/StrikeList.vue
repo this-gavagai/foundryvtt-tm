@@ -9,6 +9,7 @@ import { inject, ref, computed } from 'vue'
 import { formatModifier } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 import InfoModal from './InfoModal.vue'
+import Button from '@/components/ButtonWidget.vue'
 
 interface Trait {
   label: string | undefined
@@ -40,7 +41,7 @@ const viewedItem = computed(() => strikes.value?.[strikeModal.value?.itemId])
           <span>
             <span
               v-for="(variant, index) in strike.variants"
-              class="mb-1 mr-1 break-inside-avoid border bg-blue-500 p-2 text-xs text-white hover:bg-blue-400"
+              class="hover:bg-blue-6\400 mb-1 mr-1 break-inside-avoid border bg-blue-500 p-2 text-xs text-white transition-colors active:bg-blue-700"
               @click="strikeModal.open(i, { type: 'strike', subtype: index })"
               :key="'variant_' + index"
             >
@@ -53,12 +54,12 @@ const viewedItem = computed(() => strikes.value?.[strikeModal.value?.itemId])
           <!-- <div class="mt-2"> -->
           <span class="mb-1">
             <span
-              class="mb-1 mr-1 break-inside-avoid border bg-red-500 p-2 text-xs text-white hover:bg-red-400"
+              class="mb-1 mr-1 break-inside-avoid border bg-red-500 p-2 text-xs text-white transition-colors hover:bg-red-400 active:bg-red-700"
               @click="strikeModal.open(i, { type: 'damage', subtype: 0 })"
               >Damage</span
             >
             <span
-              class="mb-1 mr-1 break-inside-avoid border bg-red-500 p-2 text-xs text-white hover:bg-red-400"
+              class="mb-1 mr-1 break-inside-avoid border bg-red-500 p-2 text-xs text-white transition-colors hover:bg-red-400 active:bg-red-700"
               @click="strikeModal.open(i, { type: 'damage', subtype: 1 })"
               >Critical</span
             >
@@ -101,10 +102,10 @@ const viewedItem = computed(() => strikes.value?.[strikeModal.value?.itemId])
         </ul>
       </template>
       <template #actionButtons>
-        <button
+        <Button
           v-if="strikeModal.options?.type === 'strike'"
           type="button"
-          class="inline-flex items-end justify-center border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 focus:outline-none"
+          color="blue"
           @click="
             viewedItem?.doStrike?.(strikeModal.options.subtype)?.then((r) => {
               strikeModal.close()
@@ -114,12 +115,12 @@ const viewedItem = computed(() => strikes.value?.[strikeModal.value?.itemId])
         >
           <span v-if="!strikeModal.options.subtype">Strike &nbsp;</span>
           <span>{{ viewedItem?.variants?.[strikeModal.options.subtype].label }}</span>
-        </button>
+        </Button>
 
-        <button
+        <Button
           v-if="strikeModal.options?.type === 'damage' && strikeModal.options.subtype === 0"
           type="button"
-          class="inline-flex items-end justify-center border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 focus:outline-none"
+          color="red"
           @click="
             viewedItem?.doDamage?.(strikeModal.options.subtype)?.then((r) => {
               strikeModal.close()
@@ -128,11 +129,11 @@ const viewedItem = computed(() => strikes.value?.[strikeModal.value?.itemId])
           "
         >
           Damage
-        </button>
-        <button
+        </Button>
+        <Button
           v-if="strikeModal.options?.type === 'damage' && strikeModal.options.subtype === 1"
           type="button"
-          class="inline-flex items-end justify-center border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 focus:outline-none"
+          color="red"
           @click="
             viewedItem?.doDamage?.(strikeModal.options.subtype)?.then((r) => {
               strikeModal.close()
@@ -141,7 +142,7 @@ const viewedItem = computed(() => strikes.value?.[strikeModal.value?.itemId])
           "
         >
           Critical
-        </button>
+        </Button>
       </template>
     </InfoModal>
   </Teleport>
