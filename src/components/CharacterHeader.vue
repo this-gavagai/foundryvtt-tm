@@ -25,7 +25,7 @@ function reloadPage() {
 </script>
 
 <template>
-  <div class="flex cursor-pointer items-center gap-2 border-b p-4">
+  <div class="flex cursor-pointer items-center gap-4 border-b p-4">
     <div
       class="hidden h-24 w-24 items-center overflow-hidden rounded-full border-2 border-gray-300 bg-white xs:flex"
       @click="reloadPage"
@@ -35,10 +35,12 @@ function reloadPage() {
         <Spinner class="mr-2 h-full w-full p-4" />
       </div>
     </div>
-    <div class="flex-1">
-      <h3 class="mb-2 overflow-hidden whitespace-nowrap text-2xl">
+    <div class="min-w-44 flex-1">
+      <h3 class="mb-2 whitespace-nowrap text-2xl">
         <Listbox>
-          <ListboxButton>{{ name ?? 'Loading...' }}</ListboxButton>
+          <ListboxButton
+            ><span class="inline-block">{{ name ?? 'Loading...' }}</span></ListboxButton
+          >
           <ListboxOptions
             class="absolute mt-1 max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 empty:hidden focus:outline-none sm:text-sm"
           >

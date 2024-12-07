@@ -71,7 +71,7 @@ defineExpose({ actor, character })
 <template>
   <div class="flex h-dvh select-none">
     <!-- show this column only if on a tablet or laptop -->
-    <div class="hidden border-r md:block md:h-dvh md:w-[320px] md:overflow-auto">
+    <div class="hidden border-r md:block md:h-dvh md:w-80 md:overflow-auto">
       <CharacterHeader class="sticky top-0 z-10 h-32 bg-white" />
       <FrontPage />
     </div>

@@ -18,6 +18,8 @@ export interface Item {
     value: { value: Prop<number>; isValued: Prop<boolean> }
     traits: { rarity: Prop<string>; value: Prop<string[]> }
     level: { value: Prop<number>; taken: Prop<number> }
+    bulk: { value: Prop<number> }
+    stackGroup: Prop<string>
     actions: { value: Prop<string> }
     equipped: {
       carryType: Prop<string>
@@ -71,6 +73,8 @@ export function makeItem(root: PF2eItem | undefined): Item | undefined {
       category: root?.system?.category,
       description: { value: root?.system?.description?.value },
       value: { isValued: root?.system?.value?.isValued, value: root?.system?.value?.value },
+      bulk: { value: root?.system?.bulk?.value },
+      stackGroup: root?.system?.stackGroup,
       traits: {
         rarity: root?.system?.traits?.rarity,
         value: root?.system?.traits?.value ? [...root?.system?.traits?.value] : undefined

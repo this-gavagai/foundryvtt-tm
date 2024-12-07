@@ -96,6 +96,8 @@ export interface System {
   attributes: any
   abilities: any
   saves: any
+  bulk: any
+  stackGroup: string
   perception: any
   actions: any
   slug: string

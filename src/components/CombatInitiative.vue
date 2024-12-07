@@ -54,13 +54,13 @@ const initiativeReady = computed(() => {
     <Listbox v-model="initiativeStat" class="w-full">
       <div class="relative mt-1">
         <ListboxButton
-          class="relative w-full cursor-pointer rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
+          class="relative w-full cursor-pointer rounded-lg border border-gray-400 bg-white py-2 pl-3 pr-10 text-left focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
         >
           <span class="block truncate">{{
             skillsPlusPerception?.find((s: Stat) => s?.slug === initiativeStat)?.label ?? '...'
           }}</span>
           <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-            <ChevronUpDownIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
+            <ChevronUpDownIcon class="h-5 w-5 text-gray-600" aria-hidden="true" />
           </span>
         </ListboxButton>
         <transition

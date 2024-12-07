@@ -70,12 +70,13 @@ export function useCharacterItems(actor: Ref<Actor | undefined>) {
         .map((i: PF2eItem) => ({
           ...(makeItem(i) as Equipment),
           toggleInvested: (newValue: boolean = !i?.system?.equipped?.invested) => {
+            console.log('toggle invested!')
             const update = { system: { equipped: { invested: newValue } } }
             return updateActorItem(actor as Ref<Actor>, i?._id, update)
           },
           delete: () => deleteActorItem(actor as Ref<Actor>, i?._id),
           changeQty: (newValue: number) => {
-            if (!i?.system?.quantity) return Promise.resolve(null)
+            if (i?.system?.quantity === undefined) return Promise.resolve(null)
             i.system.quantity = Math.max(newValue, 0)
             const update = { system: { quantity: Math.max(newValue, 0) } }
             return updateActorItem(actor as Ref<Actor>, i?._id, update)
@@ -86,6 +87,7 @@ export function useCharacterItems(actor: Ref<Actor | undefined>) {
             containerId: Prop<string | null>,
             inSlot: Prop<boolean> = i?.system?.equipped?.inSlot
           ) => {
+            console.log('changing carry!')
             if (!i?.system?.equipped) return Promise.resolve(null)
             i.system.equipped.carryType = carryType
             i.system.equipped.handsHeld = handsHeld

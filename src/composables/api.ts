@@ -392,7 +392,6 @@ async function getStrikeDamage(actor: Ref<Actor>, actionSlug: string): Promise<R
 // Processing Methods for Items (not Actor)     //
 //////////////////////////////////////////////////
 function processChanges(args: DocumentEventArgs, dataRoot: Item[]) {
-  console.log('process changes args', args)
   switch (args.action) {
     case 'create':
       _processCreates(args.result, dataRoot)

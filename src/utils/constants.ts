@@ -94,7 +94,7 @@ export const inventoryTypes = [
   { type: 'equipment', title: 'Equipment' },
   { type: 'armor', title: 'Armor' },
   { type: 'treasure', title: 'Treasure' },
-  { type: 'backpack', title: '' }
+  { type: 'backpack', title: 'Containers' }
 ]
 
 export const actionDefs = new Map<string, { skill: string | null; alias?: string }>([
