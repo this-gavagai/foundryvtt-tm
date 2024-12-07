@@ -18,9 +18,9 @@ export function makeTraits(traits: string[] | undefined): string {
   list = `<div class="flex flex-wrap gap-1 pb-1">${list}</div>`
   return list
 }
-export function makeActionIcons(actionValue: string): string {
+export function makeActionIcons(actionValue: string | undefined): string {
   return `<span class="pf2-icon">${
-    actionValue?.replace('to', '-').replace('free', 'f') ?? ''
+    actionValue?.replace('to', '-').replace('free', 'f').replace('reaction', 'r') ?? ''
   }</span>`
 }
 export function makePropertiesHtml(item: ItemPartial | undefined): string {

@@ -5,10 +5,11 @@ import type { Ref } from 'vue'
 import type { Action } from '@/composables/character'
 import { actionDefs } from '@/utils/constants'
 import { inject, ref, computed } from 'vue'
-import { capitalize, removeUUIDs, makeActionIcons } from '@/utils/utilities'
+import { capitalize, removeUUIDs } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 
 import ButtonWidget from '@/components/ButtonWidget.vue'
+import ActionIcons from '@/components/ActionIcons.vue'
 
 import InfoModal from '@/components/InfoModal.vue'
 import SkillSelector from './SkillSelector.vue'
@@ -44,18 +45,16 @@ const action: Ref<Action | undefined> = computed(() =>
         >
           <a class="cursor-pointer" @click="infoModal.open(action._id)">
             {{ action.name }}
-            <span
+            <ActionIcons
               class="relative -mt-[.5rem] pl-1 text-2xl leading-4"
-              v-html="
-                makeActionIcons(
-                  group.type === 'reaction'
-                    ? 'r'
-                    : group.type === 'free'
-                      ? 'f'
-                      : action?.system?.actions?.value + ''
-                )
+              :actions="
+                group.type === 'reaction'
+                  ? 'r'
+                  : group.type === 'free'
+                    ? 'f'
+                    : action?.system?.actions?.value + ''
               "
-            ></span>
+            />
           </a>
         </li>
       </ul>

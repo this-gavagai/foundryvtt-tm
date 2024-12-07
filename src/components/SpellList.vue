@@ -5,13 +5,14 @@
 
 import type { SpellcastingEntry, Spell, Item } from '@/composables/character'
 import { inject, computed, ref } from 'vue'
-import { capitalize, makeActionIcons, removeUUIDs } from '@/utils/utilities'
+import { capitalize, removeUUIDs } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 
 import Button from '@/components/ButtonWidget.vue'
 import CounterWidget from '@/components/CounterWidget.vue'
 import Modal from '@/components/ModalBox.vue'
 import InfoModal from '@/components/InfoModal.vue'
+import ActionIcons from '@/components/ActionIcons.vue'
 
 interface Spellbook {
   [key: string]: { [key: string]: [Item?] }
@@ -183,12 +184,7 @@ const spellbook = computed((): Spellbook => {
                       >*</span
                     >
                     <span>{{ spell?.name }}</span>
-                    <span class="text-md pf2-icon pl-1">{{
-                      spell?.system?.time.value
-                        ?.replace('to', ' - ')
-                        .replace('free', 'f')
-                        .replace('reaction', 'r')
-                    }}</span>
+                    <ActionIcons class="text-md ml-1" :actions="spell?.system?.time?.value" />
                   </span>
                   <!-- TODO (refactor): This v-else should probably be consolidated; too much duplication -->
                   <span
@@ -276,10 +272,10 @@ const spellbook = computed((): Spellbook => {
     >
       <template #title>
         {{ viewedSpell?.name }}
-        <span
+        <ActionIcons
           class="relative -mt-[.5rem] pl-1 text-2xl leading-4"
-          v-html="makeActionIcons(viewedSpell?.system?.time?.value ?? '')"
-        ></span>
+          :actions="viewedSpell?.system?.time?.value"
+        />
       </template>
       <template #description>
         {{
