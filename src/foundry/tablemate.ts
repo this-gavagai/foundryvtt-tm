@@ -14,6 +14,9 @@ declare interface Form {
 declare interface FormData {
   object: { [key: string]: object }
 }
+declare interface SheetableUser extends User {
+  sheeted: boolean
+}
 
 console.log('tablemate initializing...')
 
@@ -102,9 +105,9 @@ class PlayerSelectMenu extends HandlebarsApplicationMixin(ApplicationV2) {
   }
   _prepareContext() {
     const users = game.users.filter((u: User) => !u.isGM)
-    // users.forEach((s: User) => {
-    //   s.sheeted = s.getFlag('tablemate', 'character_sheet') === 'root'
-    // })
+    users.forEach((s: SheetableUser) => {
+      s.sheeted = s.getFlag('tablemate', 'character_sheet') === 'root'
+    })
     const buttons = [
       { type: 'button', action: 'close', label: 'Close' }
       // { type: "reset", action: "reset", icon: "fa-solid fa-undo", label: "SETTINGS.Reset" },

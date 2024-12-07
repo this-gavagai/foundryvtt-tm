@@ -21,10 +21,7 @@ const { skills, proficiencies } = character
         <dt class="pb-2 text-lg underline">{{ isNonLore ? 'Skills' : 'Lore' }}</dt>
         <div class="columns-2">
           <dd
-            v-for="skill in skills
-              ?.filter((s: Stat) => !s.lore === isNonLore)
-              // not sure why/where perception is getting added in here, but don't want it
-              ?.filter((s: Stat) => s.slug !== 'perception')"
+            v-for="skill in skills?.filter((s: Stat) => !s.lore === isNonLore)"
             class="break-inside-avoid pb-4 text-lg leading-4"
             :key="skill.slug"
           >

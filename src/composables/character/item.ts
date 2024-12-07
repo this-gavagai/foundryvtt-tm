@@ -50,7 +50,7 @@ export interface Item {
 }
 export function makeItem(root: PF2eItem | undefined): Item | undefined {
   if (!root) return undefined
-  if (root?.system?.location) console.log(root?.name, root?.type, root?.system?.location)
+  // if (root?.system?.location) console.log(root?.name, root?.type, root?.system?.location)
   return {
     _id: root?._id,
     name: root?.name,
@@ -68,7 +68,6 @@ export function makeItem(root: PF2eItem | undefined): Item | undefined {
         signature: root?.system?.location?.signature,
         heightenedLevel: root?.system?.location?.heightenedLevel
       },
-      // signature: root?.system?.location?.signature, // TODO (data): this is supposed to be a property of location?
       category: root?.system?.category,
       description: { value: root?.system?.description?.value },
       value: { isValued: root?.system?.value?.isValued, value: root?.system?.value?.value },

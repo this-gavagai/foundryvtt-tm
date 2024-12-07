@@ -1,3 +1,4 @@
+// TODO (server): reload page if session is expired
 import { ref } from 'vue'
 import { io, Socket } from 'socket.io-client'
 import type { SessionEventArgs } from '@/types/foundry-types'
@@ -17,7 +18,7 @@ function getCookiesMap(cookiesString: string) {
 }
 
 function establishSocket(url: URL, sessionId: string, keepAlive = false) {
-  return new Promise<Socket>((ful, rej) => {
+  return new Promise<Socket>((resolve, reject) => {
     const socketIoUrl = new URL('./socket.io', url)
     const socket = io(socketIoUrl.origin, {
       upgrade: false,
@@ -32,8 +33,8 @@ function establishSocket(url: URL, sessionId: string, keepAlive = false) {
       },
       query: { session: sessionId }
     })
-    socket.on('connect', async () => ful(socket))
-    socket.on('connect_error', (e) => rej(e))
+    socket.on('connect', async () => resolve(socket))
+    socket.on('connect_error', (e) => reject(e))
   })
 }
 
@@ -44,9 +45,9 @@ async function connectToServer(url: URL) {
   }
   sessionId.value = sid
   await establishSocket(url, sid, true)
-    .then((r) => {
+    .then((newSocket) => {
       console.log('TABLEMATE: establishing socket connection')
-      socket.value = r
+      socket.value = newSocket
       socket.value.offAny()
       socket.value.onAny((name, ...args) => {
         if (name === 'userActivity' || (name.match('module.') && !name.match('module.tablemate')))
@@ -57,8 +58,8 @@ async function connectToServer(url: URL) {
         console.log('TM-SEND', name, ...args)
       })
       socket.value.on('session', (args: SessionEventArgs) => {
-        const { setUserId } = useUserId()
-        setUserId(args?.userId)
+        if (args?.userId) useUserId().setUserId(args?.userId)
+        else window.location.href = window.location.origin
       })
     })
     .catch((e) => {
@@ -79,7 +80,6 @@ function getSocket(): Promise<Socket> {
 
 export function useServer() {
   return {
-    // socket,
     connectToServer,
     getSocket
   }

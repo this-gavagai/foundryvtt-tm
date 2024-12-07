@@ -48,6 +48,10 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
           delete ackQueue[args.uuid]
         }
         break
+      case 'shareTarget':
+        const { updateTargets } = useTargetHelper()
+        updateTargets(args.userId, args.targets)
+        break
     }
   })
   socket.on('modifyDocument', (args: DocumentEventArgs) => {
@@ -71,12 +75,12 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
     }
   })
   socket.on('userActivity', (user: string, args: UserActivityEventArgs) => {
-    console.log(user, args)
     if (args.targets) {
       const { updateTargets } = useTargetHelper()
       updateTargets(user, args.targets)
     }
   })
+  socket?.emit('module.tablemate', { action: 'anybodyHome' })
 }
 
 async function setupSocketListenersForActor(

@@ -184,7 +184,10 @@ const spellbook = computed((): Spellbook => {
                     >
                     <span>{{ spell?.name }}</span>
                     <span class="text-md pf2-icon pl-1">{{
-                      spell?.system?.time.value?.replace('to', ' - ').replace('free', 'f')
+                      spell?.system?.time.value
+                        ?.replace('to', ' - ')
+                        .replace('free', 'f')
+                        .replace('reaction', 'r')
                     }}</span>
                   </span>
                   <!-- TODO (refactor): This v-else should probably be consolidated; too much duplication -->

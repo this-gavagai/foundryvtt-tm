@@ -9,6 +9,7 @@ export type ModuleEventArgs =
   | CastSpellArgs
   | ConsumeItemArgs
   | GetStrikeDamageArgs
+  | ShareTargetArgs
 
 export interface AcknowledgementArgs {
   action: 'acknowledged'
@@ -72,6 +73,11 @@ export interface GetStrikeDamageArgs {
   actionSlug: string
   targets: string[]
   uuid: string
+}
+export interface ShareTargetArgs {
+  action: 'shareTarget'
+  userId: string
+  targets: string[]
 }
 
 // TODO (types): what the heck is this resolutionargs thing composed of?

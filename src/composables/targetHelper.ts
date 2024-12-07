@@ -55,3 +55,4 @@ export function useTargetHelper() {
     updateTargets
   }
 }
+// window.targets = targets

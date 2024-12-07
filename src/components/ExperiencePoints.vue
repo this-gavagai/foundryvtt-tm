@@ -70,7 +70,7 @@ function updateExperience(input: string) {
             "
           />
         </div>
-        <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+        <div class="mt-5 flex flex-row-reverse sm:mt-4">
           <Button type="submit" color="green" label="Update" />
         </div>
       </form>

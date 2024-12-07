@@ -2,7 +2,7 @@
 // TODO (bug): perception is showing up twice in this list
 import type { Combatant } from '@/types/pf2e-types'
 import type { Stat } from '@/composables/character'
-import { computed, inject, type ComputedRef } from 'vue'
+import { computed, inject } from 'vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'
 import { formatModifier } from '@/utils/utilities'
@@ -18,11 +18,14 @@ const {
   roll: rollInitiative
 } = character.initiative
 
-const initSkills: ComputedRef<Stat[]> = computed(() => {
-  const skillList = skills.value ?? []
-  if (perception.value) skillList.unshift(perception.value)
-  return skillList
-})
+// const initSkills: ComputedRef<Stat[]> = computed(() => {
+//   const skillList = skills.value ?? []
+//   if (perception.value) skillList.unshift(perception.value)
+//   return skillList
+// })
+const skillsPlusPerception = computed(() =>
+  (perception.value ? [perception.value] : []).concat(skills.value ?? [])
+)
 
 const { activeCombat } = useCombat()
 const initiativeReady = computed(() => {
@@ -44,7 +47,7 @@ const initiativeReady = computed(() => {
     >
       {{
         formatModifier(
-          initSkills.find((s: Stat) => s?.slug === initiativeStat)?.totalModifier ?? NaN
+          skillsPlusPerception?.find((s: Stat) => s?.slug === initiativeStat)?.totalModifier ?? NaN
         )
       }}
     </StatBox>
@@ -54,7 +57,7 @@ const initiativeReady = computed(() => {
           class="relative w-full cursor-pointer rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
         >
           <span class="block truncate">{{
-            initSkills.find((s: Stat) => s?.slug === initiativeStat)?.label ?? '...'
+            skillsPlusPerception?.find((s: Stat) => s?.slug === initiativeStat)?.label ?? '...'
           }}</span>
           <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
             <ChevronUpDownIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -70,7 +73,7 @@ const initiativeReady = computed(() => {
           >
             <ListboxOption
               v-slot="{ active, selected }"
-              v-for="skill in initSkills"
+              v-for="skill in skillsPlusPerception"
               :key="skill.slug"
               :value="skill.slug"
               as="template"
