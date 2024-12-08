@@ -31,6 +31,7 @@ import SpellList from '@/components/SpellList.vue'
 import FeatsList from '@/components/FeatsList.vue'
 import EquipmentList from '@/components/EquipmentList.vue'
 import StrikeList from '@/components/StrikeList.vue'
+import BlastList from '@/components/BlastList.vue'
 
 const { width } = useWindowSize()
 const sideMenu = ref()
@@ -93,6 +94,7 @@ defineExpose({ actor, character })
             <EquipmentList />
           </TabPanel>
           <TabPanel tabindex="-1">
+            <BlastList />
             <StrikeList />
             <ActionsList />
           </TabPanel>

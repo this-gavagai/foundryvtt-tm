@@ -7,6 +7,12 @@ import type {
   GetStrikeDamageArgs
 } from '@/types/api-types'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
+import type { Game } from '@/types/foundry-types'
+
+import { getBlastData } from '@/foundry/elementalBlast'
+window.getBlastData = getBlastData
+
+declare const game: Game
 
 export async function getCharacterDetails(args: {
   actorId: string
@@ -19,8 +25,9 @@ export async function getCharacterDetails(args: {
     action: 'updateCharacterDetails',
     actorId: actor._id,
     actor: JSON.stringify(actor),
-    system: JSON.stringify(actor.system)
-    // feats: JSON.stringify(actor.feats)
+    system: JSON.stringify(actor.system),
+    inventory: JSON.stringify(actor.inventory),
+    elementalBlasts: JSON.stringify(new game.pf2e.ElementalBlast(actor)) // TODO: serializing the whole object here is inefficient. just take parts needed?
   }
 }
 
@@ -48,29 +55,46 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   console.log('params', params)
   let roll
   switch (args.checkType) {
-    case 'strike':
+    case 'strike': {
       const [actionSlug, variant] = args.checkSubtype.split(',')
       roll = actor.system.actions
         .find((a: Action) => a.slug === actionSlug)
         .variants[variant].roll(params)
       break
-    case 'damage':
-      const [damageSlug, crit] = args.checkSubtype.split(',')
-      roll = actor.system.actions.find((a: Action) => a.slug === damageSlug)[crit](params)
+    }
+    case 'damage': {
+      const [damageSlug, damageDegree] = args.checkSubtype.split(',')
+      roll = actor.system.actions.find((a: Action) => a.slug === damageSlug)[damageDegree](params)
       break
-    case 'skill':
+    }
+    case 'blast': {
+      const [element, damageType, mapIncreases, isMelee] = args.checkSubtype.split(',')
+      const blasts = new game.pf2e.ElementalBlast(actor)
+      roll = blasts.attack({ ...params, element, damageType, mapIncreases, melee: isMelee })
+      break
+    }
+    case 'blastDamage': {
+      const [element, damageType, outcome, isMelee] = args.checkSubtype.split(',')
+      const damageBlasts = new game.pf2e.ElementalBlast(actor)
+      roll = damageBlasts.damage({ ...params, element, damageType, outcome, melee: isMelee })
+      break
+    }
+    case 'skill': {
       params.target = null
       roll = actor.skills[args.checkSubtype].check.roll(params)
       break
-    case 'save':
+    }
+    case 'save': {
       params.target = null
       roll = actor.saves[args.checkSubtype].check.roll(params)
       break
-    case 'perception':
+    }
+    case 'perception': {
       params.target = null
       roll = actor.perception.check.roll(params)
       break
-    case 'initiative':
+    }
+    case 'initiative': {
       // Not sure why I thought it needed to be this complicated. Seems to be working with just roll(params)
       // const combatantId = source.combat.combatants.find(
       //   (c: Combatant) => c.actorId === args.characterId
@@ -79,6 +103,7 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       params.target = null
       roll = actor.initiative.roll(params)
       break
+    }
   }
   console.log('tablemate', roll)
   const r = await roll

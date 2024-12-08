@@ -68,6 +68,7 @@ export interface Game {
   data: any
   audio: any
   settings: any
+  pf2e: any
 }
 export interface User {
   _id: string

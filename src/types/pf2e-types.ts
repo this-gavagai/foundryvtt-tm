@@ -11,7 +11,25 @@ export interface Actor {
   system: System
   prototypeToken: any
   ownership: any
+  elementalBlasts: ElementalBlasts // TODO: get rid of this addition to corend find another way to store this data
 }
+
+export interface ElementalBlasts {
+  configs: any[]
+}
+export interface ElementalBlastConfig {
+  actionCost: number
+  damageTypes: { value: string; label: string }[]
+  element: string
+  img: string
+  item: Item
+  maps: {
+    melee: { map0: string; map1: string; map2: string }
+    ranged: { map0: string; map1: string; map2: string }
+  }
+  statistic: Stat
+}
+
 export interface Item {
   _id: string
   name?: string

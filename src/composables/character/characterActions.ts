@@ -11,6 +11,7 @@ import { type Stat, makeStat } from './stat'
 import { type Modifier, makeModifiers } from './modifier'
 import { type Item, makeItem } from './item'
 import { type Strike, makeStrike } from './strike'
+import { type ElementalBlast, makeElementalBlasts } from './elementalBlast'
 import { useApi } from '../api'
 import { actionDefs } from '@/utils/constants'
 
@@ -23,6 +24,7 @@ export interface Action extends Item {
 export interface CharacterActions {
   actions: Field<Action[]>
   strikes: Field<Strike[]>
+  blasts: Field<ElementalBlast[]>
   skills: Field<Stat[]>
   proficiencies: Field<Stat[]>
   initiative: {
@@ -79,6 +81,25 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
         doDamage: (crit: boolean) =>
           rollCheck(actor as Ref<Actor>, 'damage', `${action.slug},${crit ? 'critical' : 'damage'}`)
       }))
+    ),
+    blasts: computed(() =>
+      (makeElementalBlasts(actor.value?.elementalBlasts) as ElementalBlast[])?.map(
+        (blast: ElementalBlast) => ({
+          ...blast,
+          doBlast: (element: string, damageType: string, mapIncreases: number, isMelee: boolean) =>
+            rollCheck(
+              actor as Ref<Actor>,
+              'blast',
+              `${element},${damageType},${mapIncreases},${isMelee}`
+            ),
+          doBlastDamage: (element: string, damageType: string, outcome: string, isMelee: boolean) =>
+            rollCheck(
+              actor as Ref<Actor>,
+              'blastDamage',
+              `${element},${damageType},${outcome},${isMelee}`
+            )
+        })
+      )
     ),
     skills: computed(() =>
       Object.values(actor.value?.system?.skills ?? {})?.map((skill: PF2eStat) => ({

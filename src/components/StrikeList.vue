@@ -11,15 +11,13 @@ import { formatModifier } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 import InfoModal from './InfoModal.vue'
 import Button from '@/components/ButtonWidget.vue'
+import ActionIcons from './ActionIcons.vue'
 
 interface Trait {
   label: string | undefined
 }
 
 const strikeModal = ref()
-// const strikeModalDamage = ref()
-// watch(strikeModalDamage, () => console.log(strikeModalDamage.value))
-// window.smd = strikeModalDamage
 
 const character = inject(useKeys().characterKey)!
 const { strikes } = character
@@ -27,63 +25,45 @@ const { strikes } = character
 const viewedItem = computed(() => strikes.value?.[strikeModal.value?.itemId])
 const strikeModalDamage = ref()
 watch(viewedItem, async () => {
-  console.log('starting', strikeModalDamage.value)
-  console.log(viewedItem?.value)
   strikeModalDamage.value = await viewedItem?.value?.getDamage?.()
-  console.log('ending', strikeModalDamage.value)
 })
 </script>
 <template>
   <div class="px-6 [&:not(:has(li))]:hidden">
-    <h3 class="py-2 text-lg underline">Strikes</h3>
+    <h3 class="pt-2 text-lg underline">Strikes</h3>
     <ul>
       <li
         v-for="(strike, i) in strikes?.filter(
           (s) => s?.item?.system?.equipped?.carryType === 'held' || s?.item === undefined
         )"
-        class="cursor-pointer pb-2 text-xl"
+        class="cursor-pointer pb-2"
         :key="strike.slug"
       >
-        <!-- <div class="text-xs border p-1 w-8 mr-1 text-right">
-          {{ SignedNumber.format(strike?.totalModifier) }}
-        </div> -->
         <div>{{ strike?.item?.name ?? strike?.label }}</div>
         <div class="flex flex-wrap leading-9">
           <span>
             <span
               v-for="(variant, index) in strike.variants"
-              class="hover:bg-blue-6\400 mb-1 mr-1 select-none break-inside-avoid border bg-blue-600 p-2 text-xs text-white transition-colors active:bg-blue-400"
+              class="mb-1 mr-1 inline-block select-none border p-2 text-xs text-white transition-colors"
+              :class="['bg-blue-600 hover:bg-blue-500 active:bg-blue-400']"
               @click="strikeModal.open(i, { type: 'strike', subtype: index })"
               :key="'variant_' + index"
             >
-              <span v-if="!index" class="pf2-icon h-0 pr-2 pt-1 text-lg leading-none">1</span>
-              <span v-if="!index">Strike </span>
-              <span>{{ variant.label }}</span>
+              <ActionIcons actions="1" v-if="!index" class="h-0 pr-2 pt-1 text-lg leading-none" />
+              <span v-if="!index">Strike&nbsp;</span>
+              <span>{{ index ? variant.label?.match(/\((.*)\)/)?.pop() : variant.label }}</span>
             </span>
           </span>
-          <!-- </div> -->
-          <!-- <div class="mt-2"> -->
-          <span class="mb-1">
+          <span>
             <span
-              class="mb-1 mr-1 select-none break-inside-avoid border bg-red-600 p-2 text-xs text-white transition-colors hover:bg-red-400 active:bg-red-400"
-              @click="
-                strikeModal.open(i, {
-                  type: 'damage',
-                  subtype: 0
-                })
-              "
-              >Damage</span
+              v-for="(variant, index) in [{ label: 'Damage' }, { label: 'Critical' }]"
+              class="mb-1 mr-1 inline-block select-none border p-2 text-xs text-white transition-colors"
+              :class="['bg-red-600 hover:bg-red-500 active:bg-red-400']"
+              @click="strikeModal.open(i, { type: 'damage', subtype: index })"
+              :key="'damage_' + index"
             >
-            <span
-              class="mb-1 mr-1 select-none break-inside-avoid border bg-red-600 p-2 text-xs text-white transition-colors hover:bg-red-400 active:bg-red-400"
-              @click="
-                strikeModal.open(i, {
-                  type: 'damage',
-                  subtype: 1
-                })
-              "
-              >Critical</span
-            >
+              <span>{{ variant.label }}</span>
+            </span>
           </span>
         </div>
       </li>
@@ -101,7 +81,7 @@ watch(viewedItem, async () => {
     >
       <template #title>{{ viewedItem?.label }}</template>
       <template #description>{{
-        strikeModal?.options?.subtype === 1
+        strikeModal.options?.type === 'damage' && strikeModal?.options?.subtype === 1
           ? strikeModalDamage?.response?.critical
           : strikeModalDamage?.response?.damage
       }}</template>
@@ -134,7 +114,7 @@ watch(viewedItem, async () => {
             })
           "
         >
-          <span v-if="!strikeModal.options.subtype">Strike &nbsp;</span>
+          <span v-if="!strikeModal.options.subtype">Strike&nbsp;</span>
           <span>{{ viewedItem?.variants?.[strikeModal.options.subtype].label }}</span>
         </Button>
 

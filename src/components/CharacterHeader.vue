@@ -25,7 +25,7 @@ function reloadPage() {
 </script>
 
 <template>
-  <div class="flex cursor-pointer items-center gap-4 border-b p-4">
+  <div class="flex cursor-pointer items-center gap-2 border-b p-4">
     <div
       class="hidden h-24 w-24 items-center overflow-hidden rounded-full border-2 border-gray-300 bg-white xs:flex"
       @click="reloadPage"

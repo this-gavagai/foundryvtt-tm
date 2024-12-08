@@ -267,8 +267,14 @@ function parseActorData(
     else merge(actor.value, JSON.parse(args.actor))
     // actor.value = JSON.parse(args.actor)
 
-    // TODO (refactor): is there any way avoid requiring system to be separate
-    merge(actor.value!.system, JSON.parse(args.system))
+    // TODO (refactor): is there any way avoid requiring system/inventory/ to be separate
+    if (!actor.value!.system) actor.value!.system = JSON.parse(args.system)
+    else merge(actor.value!.system, JSON.parse(args.system))
+    if (!actor.value!.inventory) actor.value!.inventory = JSON.parse(args.inventory)
+    else merge(actor.value!.inventory, JSON.parse(args.inventory))
+    if (!actor.value!.elementalBlasts)
+      actor.value!.elementalBlasts = JSON.parse(args.elementalBlasts)
+    else merge(actor.value!.elementalBlasts, JSON.parse(args.elementalBlasts))
   }
 }
 

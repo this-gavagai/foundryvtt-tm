@@ -24,6 +24,8 @@ export interface UpdateCharacterDetailsArgs {
   actor: string
   // feats: string
   system: string
+  inventory: string
+  elementalBlasts: string
 }
 export interface RequestCharacterDetailsArgs {
   action: 'requestCharacterDetails'
@@ -95,5 +97,6 @@ declare global {
     game: any
     Hooks: any
     character: any
+    getBlastData: any
   }
 }
