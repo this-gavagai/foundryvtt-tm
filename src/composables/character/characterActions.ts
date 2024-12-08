@@ -30,6 +30,7 @@ export interface CharacterActions {
   initiative: {
     stat: WritableField<string>
     modifiers: Field<Modifier[]>
+    totalModifier: Field<number>
     roll: () => Promise<Roll> | null
   }
 }
@@ -136,6 +137,7 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
         }
       }),
       modifiers: computed(() => makeModifiers(actor.value?.system.initiative.modifiers)),
+      totalModifier: computed(() => actor.value?.system?.initiative?.totalModifier),
       roll: () => {
         return rollCheck(actor as Ref<Actor>, 'initiative')
       }

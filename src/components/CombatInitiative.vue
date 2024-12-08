@@ -15,6 +15,7 @@ const { _id: currentActorId, skills, perception } = character
 const {
   stat: initiativeStat,
   modifiers: initiativeMods,
+  totalModifier: initiativeTotalModifier,
   roll: rollInitiative
 } = character.initiative
 
@@ -45,11 +46,7 @@ const initiativeReady = computed(() => {
       :modifiers="initiativeMods"
       :rollAction="initiativeReady ? () => rollInitiative() : null"
     >
-      {{
-        formatModifier(
-          skillsPlusPerception?.find((s: Stat) => s?.slug === initiativeStat)?.totalModifier ?? NaN
-        )
-      }}
+      {{ formatModifier(initiativeTotalModifier ?? NaN) }}
     </StatBox>
     <Listbox v-model="initiativeStat" class="w-full">
       <div class="relative mt-1">

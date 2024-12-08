@@ -38,10 +38,6 @@ watch(selected, () => {
         </span>
       </ListboxButton>
 
-      <!-- <div class="pl-2 pt-1 w-12 cursor-pointer" @click="rollInitiative()">
-              <img src="@/assets/icons/dice-twenty-faces-twenty.svg" />
-            </div> -->
-
       <transition
         leave-active-class="transition duration-100 ease-in"
         leave-from-class="opacity-100"

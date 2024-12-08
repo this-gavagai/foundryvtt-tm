@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // TODO (refactor): too much repetition between this and the strikes list
+// TODO (feature): allow player to choose two-action blasts somehow.
 import { inject, ref, computed, watch } from 'vue'
 import { formatModifier, capitalize } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
@@ -44,8 +45,10 @@ watch(viewedItem, async () => {
                 @click="blastModal.open(i, { type: 'blast', subtype: index, attackType })"
                 :key="'variant_' + index"
               >
-                <ActionIcons actions="1" v-if="!index" class="h-0 pr-2 pt-1 text-lg leading-none" />
-                <span v-if="!index">Blast&nbsp;</span>
+                <span v-if="!index">
+                  <ActionIcons actions="1" class="absolute mt-[-1px] h-0 text-lg leading-none" />
+                  <span class="pl-4">Blast&nbsp;</span>
+                </span>
                 <span>{{ index ? variant?.match(/\((.*)\)/)?.pop() : variant }}</span>
               </span>
             </span>
@@ -118,7 +121,7 @@ watch(viewedItem, async () => {
               })
           "
         >
-          <span v-if="!blastModal.options.subtype">Blast</span>
+          <span v-if="!blastModal.options.subtype">Blast&nbsp;</span>
           <span>{{
             viewedItem?.maps?.[blastModal.options.attackType as keyof object]?.[
               'map' + blastModal.options.subtype

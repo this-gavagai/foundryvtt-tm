@@ -129,11 +129,20 @@ defineExpose({ open, close, itemId, options, rollResultModal })
               v-for="(die, i) in rollResultModal?.options?.roll.dice"
               :key="'die_' + i"
             >
-              <img src="@/assets/icons/dice-twenty-faces-twenty.svg" class="mr-1 h-6 w-6" />
-              <div class="text-2xl">
-                <span v-for="(result, j) in die.results" :key="'result_' + j">
-                  {{ result.result }}&nbsp;</span
+              <div class="flex text-2xl">
+                <div
+                  v-for="(result, j) in die.results"
+                  :key="'result_' + j"
+                  class="align-items-center mr-1 flex"
                 >
+                  <img v-if="die.faces === 4" src="@/assets/icons/d4.svg" class="mt-1 h-6 w-6" />
+                  <img v-if="die.faces === 6" src="@/assets/icons/d6.svg" class="mt-1 h-6 w-6" />
+                  <img v-if="die.faces === 8" src="@/assets/icons/d8.svg" class="mt-1 h-6 w-6" />
+                  <img v-if="die.faces === 10" src="@/assets/icons/d10.svg" class="mt-1 h-6 w-6" />
+                  <img v-if="die.faces === 12" src="@/assets/icons/d12.svg" class="mt-1 h-6 w-6" />
+                  <img v-if="die.faces === 20" src="@/assets/icons/d20.svg" class="mt-1 h-6 w-6" />
+                  <span>{{ result.result }}&nbsp;</span>
+                </div>
               </div>
             </div>
           </div>

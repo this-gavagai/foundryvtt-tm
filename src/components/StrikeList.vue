@@ -1,6 +1,5 @@
 <script setup lang="ts">
 // TODO (feature): handle versatile damage types
-// TODO (UX): Improve dice representations for damage rolls (number and types)
 // TODO (refactor): use button widget
 // TODO (data): add reload action from pf2e-ranged?
 // TODO (data): show range of weapons
@@ -49,8 +48,10 @@ watch(viewedItem, async () => {
               @click="strikeModal.open(i, { type: 'strike', subtype: index })"
               :key="'variant_' + index"
             >
-              <ActionIcons actions="1" v-if="!index" class="h-0 pr-2 pt-1 text-lg leading-none" />
-              <span v-if="!index">Strike&nbsp;</span>
+              <span v-if="!index">
+                <ActionIcons actions="1" class="absolute mt-[-1px] h-0 text-lg leading-none" />
+                <span class="pl-4">Strike&nbsp;</span>
+              </span>
               <span>{{ index ? variant.label?.match(/\((.*)\)/)?.pop() : variant.label }}</span>
             </span>
           </span>
