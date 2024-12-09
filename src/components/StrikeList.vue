@@ -8,6 +8,7 @@
 // TODO (UX): add ranged/melee icon to list items, and get range details in there somehow
 // TODO (bug): modifiers for blasts aren't always working right, missing item bonuses for example from gate attenuator
 // TODO (bug): modifiers for blast damage aren't showing up at all
+// TODO (bug): strikeModalDamage doesn't appear the first time if the button is clicked quickly after reload
 
 import { inject, ref, watch, computed } from 'vue'
 import { formatModifier } from '@/utils/utilities'
@@ -16,13 +17,20 @@ import { capitalize } from '@/utils/utilities'
 import InfoModal from './InfoModal.vue'
 import Button from '@/components/ButtonWidget.vue'
 import StrikeActionSet from './StrikeActionSet.vue'
+import type { Item } from '@/composables/character'
 import type { Strike } from '@/composables/character'
 import type { ElementalBlast } from '@/composables/character'
-import type { Roll } from '@/types/foundry-types'
+
+import ChoiceWidgetButton from './ChoiceWidgetButton.vue'
 
 import bludgeoning from '@/assets/icons/thor-hammer.svg'
 import slashing from '@/assets/icons/battle-axe.svg'
 import piercing from '@/assets/icons/arrowhead.svg'
+import electricity from '@/assets/icons/electric.svg'
+import fire from '@/assets/icons/celebration-fire.svg'
+import cold from '@/assets/icons/snowflake-2.svg'
+import vitality from '@/assets/icons/hearts.svg'
+const damageIcons = { bludgeoning, slashing, piercing, electricity, fire, cold, vitality }
 
 interface Trait {
   label: string | undefined
@@ -36,77 +44,120 @@ interface ViewedStrikeOptions {
 }
 
 const character = inject(useKeys().characterKey)!
-const { strikes, blasts } = character
+const { strikes, blasts, inventory, actions } = character
 
 const strikeModal = ref()
 const strikeModalDamage = ref()
-const strikeModalDetails = ref()
+// const strikeModalDetails = ref()
 const viewedStrike = ref<Strike | ElementalBlast | undefined>()
 const viewedStrikeOptions = ref<ViewedStrikeOptions | undefined>()
 
-watch(
-  viewedStrike,
-  () => {
-    console.log('changing!')
-    const isStrike = viewedStrike.value?.hasOwnProperty('doStrike')
-    strikeModalDetails.value = {
-      img: isStrike
-        ? ((viewedStrike.value as Strike)?.item?.img ??
-          'icons/skills/melee/unarmed-punch-fist.webp')
-        : (viewedStrike.value as ElementalBlast)?.img,
-      traits: isStrike
-        ? (viewedStrike.value as Strike)?.traits
-            ?.map((t: Trait) => t.label)
-            ?.concat((viewedStrike.value as Strike)?.weaponTraits?.map((t: Trait) => t.label) ?? [])
-        : (viewedStrike.value as ElementalBlast)?.item?.system?.traits?.value, // TODO: add damage type to traits
-      label: isStrike
-        ? (viewedStrike.value as Strike)?.label
-        : `Elemental Blast (${capitalize((viewedStrike.value as ElementalBlast)?.element)}) - ${viewedStrikeOptions.value?.melee ? 'Melee' : 'Ranged'}`,
-      modifiers: isStrike
-        ? (viewedStrike.value as Strike)?._modifiers
-        : (viewedStrike.value as ElementalBlast)?.statistic?.modifiers, // TODO (bug): figure out why this is missing some modifiers like Attunement Gate items
-      variantLabel: isStrike
-        ? (viewedStrike.value as Strike)?.variants?.[viewedStrikeOptions.value?.subtype ?? 0]?.label
-        : (viewedStrike.value as ElementalBlast)?.maps?.[
-            strikeModal.value?.options?.melee ? 'melee' : ('ranged' as keyof object)
-          ]?.[('map' + viewedStrikeOptions.value?.subtype) as keyof object],
-      selectedDamageType: isStrike
-        ? ((viewedStrike.value as Strike)?.item?.system?.traits?.toggles.modular?.selected ??
-          (viewedStrike.value as Strike)?.item?.system?.traits?.toggles.versatile?.selected ??
-          (viewedStrike.value as Strike)?.item?.system?.damage?.damageType)
-        : null,
-      strikeAction: isStrike
-        ? () => (viewedStrike.value as Strike)?.doStrike?.(viewedStrikeOptions.value?.subtype ?? 0)
-        : () =>
-            (viewedStrike.value as ElementalBlast)?.doBlast?.(
-              (viewedStrike.value as ElementalBlast)?.element ?? '',
-              (viewedStrike.value as ElementalBlast)?.damageTypes[0].value ?? '', // TODO (feature): allow damage type to be selectable (see below)
-              viewedStrikeOptions.value?.subtype ?? 0,
-              viewedStrikeOptions.value?.melee ?? true
-            ),
-      damageAction: isStrike
-        ? () => (viewedStrike.value as Strike)?.doDamage?.(strikeModal.value?.options?.subtype)
-        : () =>
-            (viewedStrike.value as ElementalBlast)?.doBlastDamage?.(
-              (viewedStrike.value as ElementalBlast)?.element ?? '',
-              (viewedStrike.value as ElementalBlast)?.damageTypes[0].value ?? '', // TODO (feature): allow damage type to be selectable (see above)
-              viewedStrikeOptions.value?.subtype === 0 ? 'success' : 'criticalSuccess',
-              viewedStrikeOptions.value?.melee ?? true
-            )
-    }
-  },
-  { deep: true }
-)
-watch(viewedStrike, async () => {
+function getDamageTypes(item: Item | undefined) {
+  const types = new Set()
+  types.add(item?.system?.damage?.damageType)
+  if (item?.system?.traits?.value?.includes('versatile-b')) types.add('bludgeoning')
+  if (item?.system?.traits?.value?.includes('versatile-p')) types.add('piercing')
+  if (item?.system?.traits?.value?.includes('versatile-s')) types.add('slashing')
+  if (item?.system?.traits?.value?.includes('modular'))
+    ['slashing', 'piercing', 'bludgeoning'].forEach((item) => types.add(item))
+  return Array.from(types)
+}
+
+const strikeModalDetails = computed(() => {
+  const isStrike = viewedStrike.value?.hasOwnProperty('doStrike')
+  const item = isStrike
+    ? inventory.value?.find((i) => i._id === viewedStrike.value?.item?._id)
+    : actions.value?.find((i) => i._id === viewedStrike.value?.item?._id)
+
+  return {
+    img: isStrike
+      ? (item?.img ?? 'icons/skills/melee/unarmed-punch-fist.webp')
+      : (viewedStrike.value as ElementalBlast)?.img,
+    traits: isStrike
+      ? (viewedStrike.value as Strike)?.traits
+          ?.map((t: Trait) => t.label)
+          ?.concat((viewedStrike.value as Strike)?.weaponTraits?.map((t: Trait) => t.label) ?? [])
+      : item?.system?.traits?.value, // TODO: add damage type to traits
+    label: isStrike
+      ? (viewedStrike.value as Strike)?.label
+      : `Elemental Blast (${capitalize((viewedStrike.value as ElementalBlast)?.element)}) - ${viewedStrikeOptions.value?.melee ? 'Melee' : 'Ranged'}`,
+    modifiers: isStrike
+      ? (viewedStrike.value as Strike)?._modifiers
+      : (viewedStrike.value as ElementalBlast)?.statistic?.modifiers, // TODO (bug): figure out why this is missing some modifiers like Attunement Gate items
+    variantLabel: isStrike
+      ? (viewedStrike.value as Strike)?.variants?.[viewedStrikeOptions.value?.subtype ?? 0]?.label
+      : (viewedStrike.value as ElementalBlast)?.maps?.[
+          strikeModal.value?.options?.melee ? 'melee' : ('ranged' as keyof object)
+        ]?.[('map' + viewedStrikeOptions.value?.subtype) as keyof object],
+    damageTypeOptions: isStrike
+      ? getDamageTypes(item)
+      : (viewedStrike.value as ElementalBlast)?.damageTypes?.map((x) => x.value),
+    damageTypeSelected: isStrike
+      ? (item?.system?.traits?.toggles.modular?.selected ??
+        item?.system?.traits?.toggles.versatile?.selected ??
+        item?.system?.damage?.damageType)
+      : item?.flags?.pf2e?.damageSelections?.[
+          (viewedStrike.value as ElementalBlast)?.element as keyof object
+        ],
+    strikeAction: isStrike
+      ? () => (viewedStrike.value as Strike)?.doStrike?.(viewedStrikeOptions.value?.subtype ?? 0)
+      : () => {
+          const element = (viewedStrike.value as ElementalBlast)?.element ?? ''
+          const damageType =
+            viewedStrike.value?.item?.flags?.pf2e?.damageSelections?.[
+              (viewedStrike.value as ElementalBlast)?.element as keyof object
+            ] ??
+            (viewedStrike.value as ElementalBlast).damageTypes[0].value ??
+            ''
+          return (viewedStrike.value as ElementalBlast)?.doBlast?.(
+            element,
+            damageType,
+            viewedStrikeOptions.value?.subtype ?? 0,
+            viewedStrikeOptions.value?.melee ?? true
+          )
+        },
+    damageAction: isStrike
+      ? () => (viewedStrike.value as Strike)?.doDamage?.(strikeModal.value?.options?.subtype)
+      : () => {
+          const element = (viewedStrike.value as ElementalBlast)?.element ?? ''
+          const damageType =
+            viewedStrike.value?.item?.flags?.pf2e?.damageSelections?.[
+              (viewedStrike.value as ElementalBlast)?.element as keyof object
+            ] ??
+            (viewedStrike.value as ElementalBlast).damageTypes[0].value ??
+            ''
+          return (viewedStrike.value as ElementalBlast)?.doBlastDamage?.(
+            element,
+            damageType,
+            viewedStrikeOptions.value?.subtype === 0 ? 'success' : 'criticalSuccess',
+            viewedStrikeOptions.value?.melee ?? true
+          )
+        }
+  }
+})
+async function updateDamageFormula() {
   const isStrike = viewedStrike.value?.hasOwnProperty('doStrike')
   if (isStrike) strikeModalDamage.value = await (viewedStrike.value as Strike)?.getDamage?.()
-  else
+  else {
+    const element = (viewedStrike.value as ElementalBlast)?.element ?? ''
+    const damageType =
+      viewedStrike.value?.item?.flags?.pf2e?.damageSelections?.[
+        (viewedStrike.value as ElementalBlast)?.element as keyof object
+      ] ??
+      (viewedStrike.value as ElementalBlast).damageTypes[0].value ??
+      ''
+    console.log(damageType)
     strikeModalDamage.value = await (viewedStrike.value as ElementalBlast)?.getBlastDamage?.(
-      (viewedStrike.value as ElementalBlast)?.element ?? '',
-      (viewedStrike.value as ElementalBlast)?.damageTypes[0].value ?? '', // TODO (feature): allow damage type to be selectable (see below),
+      element,
+      damageType,
       strikeModal.value?.options?.melee
     )
+  }
+}
+watch(viewedStrike, async () => {
+  updateDamageFormula()
 })
+// window.smd = strikeModalDetails
 </script>
 <template>
   <div class="break-inside-avoid px-6 py-4">
@@ -186,27 +237,25 @@ watch(viewedStrike, async () => {
           : strikeModalDamage?.response?.damage
       }}</template>
       <template #default>
-        <div class="flex justify-end gap-2">
-          <div class="mt-2 italic">Damage Type: {{ strikeModalDetails?.selectedDamageType }}</div>
-          <span class="isolate mb-2 inline-flex rounded-md shadow-sm">
-            <button
-              type="button"
-              class="relative inline-flex items-center bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-10"
-            >
-              <img :src="bludgeoning" class="h-6" />
-            </button>
-            <button
-              type="button"
-              class="relative -ml-px inline-flex items-center bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-10"
-            >
-              <img :src="piercing" class="h-6" />
-            </button>
-            <button
-              type="button"
-              class="relative -ml-px inline-flex items-center bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-10"
-            >
-              <img :src="slashing" class="h-6" />
-            </button>
+        <div
+          class="flex justify-end gap-2"
+          v-if="strikeModalDetails?.damageTypeOptions?.length > 1"
+        >
+          <div class="mt-2 italic">Damage Type:</div>
+          <span class="isolate mb-2 inline-flex rounded-md">
+            <ChoiceWidgetButton
+              v-for="damageType in strikeModalDetails?.damageTypeOptions as string[]"
+              :key="damageType"
+              :icon="damageIcons[damageType as keyof object]"
+              :choice="damageType"
+              :currentlySelected="strikeModalDetails?.damageTypeSelected ?? ''"
+              @click="
+                () => {
+                  if (damageType !== strikeModalDetails?.damageTypeSelected)
+                    viewedStrike?.setDamageType?.(damageType)?.then((r) => updateDamageFormula())
+                }
+              "
+            />
           </span>
         </div>
         <ul>
@@ -231,7 +280,7 @@ watch(viewedStrike, async () => {
           type="button"
           color="blue"
           @click="
-            strikeModalDetails?.strikeAction()?.then((r: Roll) => {
+            strikeModalDetails?.strikeAction()?.then((r) => {
               strikeModal.close()
               strikeModal.rollResultModal.open(r)
             })
@@ -246,7 +295,7 @@ watch(viewedStrike, async () => {
           :label="viewedStrikeOptions?.subtype ? 'Critical' : 'Damage'"
           color="red"
           @click="
-            strikeModalDetails.damageAction()?.then((r: Roll) => {
+            strikeModalDetails.damageAction()?.then((r) => {
               strikeModal.close()
               strikeModal.rollResultModal.open(r)
             })

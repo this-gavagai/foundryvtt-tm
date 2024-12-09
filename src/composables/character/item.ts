@@ -8,6 +8,18 @@ export interface Item {
   img: Prop<string>
   itemGrants: Prop<string[]>
   grantedBy: Prop<string>
+  flags: {
+    pf2e: {
+      damageSelections: {
+        earth: Prop<string>
+        fire: Prop<string>
+        water: Prop<string>
+        air: Prop<string>
+        wood: Prop<string>
+        metal: Prop<string>
+      }
+    }
+  }
   system: {
     slug: Prop<string>
     location: { value: Prop<string>; heightenedLevel: Prop<number>; signature: Prop<boolean> }
@@ -68,6 +80,18 @@ export function makeItem(root: PF2eItem | undefined): Item | undefined {
       ? Object.values(root?.flags?.pf2e?.itemGrants as object).map((i) => i?.id)
       : undefined,
     grantedBy: root?.flags?.pf2e?.grantedBy?.id,
+    flags: {
+      pf2e: {
+        damageSelections: {
+          earth: root?.flags?.pf2e?.damageSelections?.earth,
+          fire: root?.flags?.pf2e?.damageSelections?.fire,
+          water: root?.flags?.pf2e?.damageSelections?.water,
+          air: root?.flags?.pf2e?.damageSelections?.air,
+          wood: root?.flags?.pf2e?.damageSelections?.wood,
+          metal: root?.flags?.pf2e?.damageSelections?.metal
+        }
+      }
+    },
     system: {
       slug: root?.system?.slug,
       location: {

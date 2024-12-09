@@ -19,6 +19,7 @@ export interface Strike {
   doStrike?: (variant: number) => Promise<Roll> | null
   doDamage?: (variant: number) => Promise<Roll> | null
   getDamage?: () => Promise<unknown> | null
+  setDamageType?: (newType: string) => Promise<unknown> | null
 }
 export function makeStrike(
   root: PF2eAction | undefined,

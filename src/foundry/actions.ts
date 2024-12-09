@@ -9,9 +9,6 @@ import type {
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import type { Game } from '@/types/foundry-types'
 
-import { getBlastData } from '@/foundry/elementalBlast'
-window.getBlastData = getBlastData
-
 declare const game: Game
 
 export async function getCharacterDetails(args: {
@@ -176,23 +173,23 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
   const target =
     args.targets.map((t: string) => source.scenes.active.tokens.get(t))?.[0]?.object ?? null
 
-  const fakeEvent = {
-    ctrlKey: false,
-    metaKey: false,
-    shiftKey: source.user.settings['showDamageDialogs']
-  }
+  // const fakeEvent = {
+  //   ctrlKey: false,
+  //   metaKey: false,
+  //   shiftKey: source.user.settings['showDamageDialogs']
+  // }
   const baseDamageOptions = {
     getFormula: true,
     target: target
   }
-  const baseModifierOptions = {
-    context: { rollMode: 'blindroll' },
-    rollMode: 'blindroll',
-    createMessage: false,
-    skipDialog: true,
-    event: fakeEvent,
-    target: target
-  }
+  // const baseModifierOptions = {
+  //   context: { rollMode: 'blindroll' },
+  //   rollMode: 'blindroll',
+  //   createMessage: false,
+  //   skipDialog: true,
+  //   event: fakeEvent,
+  //   target: target
+  // }
 
   const split = args.actionSlug.split(':')
   const isBlast = split[0] === 'blast'
@@ -212,9 +209,9 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
     : {}
 
   const damageOptions = isBlast ? { ...baseDamageOptions, ...blastOptions } : baseDamageOptions
-  const modifierOptions = isBlast
-    ? { ...baseModifierOptions, ...blastOptions }
-    : baseModifierOptions
+  // const modifierOptions = isBlast
+  //   ? { ...baseModifierOptions, ...blastOptions }
+  //   : baseModifierOptions
 
   // TODO: find a less hacky way to do this. no way to get modifiers without actually rolling, and rollMode and skipDialog both seem to be ignored, so I'm faking events and temporarily changing client settings. bad.
   const rollmode = await source.settings.get('core', 'rollMode')
@@ -226,7 +223,7 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
     : doesDmg
       ? action.critical(damageOptions)
       : null
-  const modifiers = doesDmg ? action.damage(modifierOptions) : null
+  const modifiers = null //doesDmg ? action.damage(modifierOptions) : null
   const results = await Promise.all([damage, critical, modifiers])
 
   await source.settings.set('core', 'rollMode', rollmode)
@@ -237,7 +234,7 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
     response: {
       damage: results[0],
       critical: results[1],
-      modifiers: results[2]?.options?.damage?.modifiers
+      modifiers: results[2] //?.options?.damage?.modifiers
     }
   }
 }

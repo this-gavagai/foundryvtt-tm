@@ -36,7 +36,7 @@ export interface CharacterActions {
 }
 
 export function useCharacterActions(actor: Ref<Actor | undefined>) {
-  const { characterAction, rollCheck, updateActor, getStrikeDamage } = useApi()
+  const { characterAction, rollCheck, updateActor, updateActorItem, getStrikeDamage } = useApi()
   return {
     actions: computed(() =>
       actor.value?.items
@@ -78,7 +78,27 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
         doStrike: (variant: number) =>
           rollCheck(actor as Ref<Actor>, 'strike', `${action.slug},${variant}`),
         doDamage: (crit: boolean) =>
-          rollCheck(actor as Ref<Actor>, 'damage', `${action.slug},${crit ? 'critical' : 'damage'}`)
+          rollCheck(
+            actor as Ref<Actor>,
+            'damage',
+            `${action.slug},${crit ? 'critical' : 'damage'}`
+          ),
+        setDamageType: (newType: string) => {
+          const item = actor.value?.items.find((i: PF2eItem) => i._id === action?.item?._id)
+          const baseType = item?.system?.damage?.damageType
+          const versatileType = item?.system?.traits?.toggles?.versatile?.selected
+          const modularType = item?.system?.traits?.toggles?.modular?.selected
+          let update
+          const adjustment = baseType === newType ? null : newType
+          if (versatileType !== undefined) {
+            if (item?.system) item.system.traits.toggles.versatile.selected = adjustment
+            update = { system: { traits: { toggles: { versatile: { selected: adjustment } } } } }
+          } else if (modularType !== undefined) {
+            if (item?.system) item.system.traits.toggles.modular.selected = adjustment
+            update = { system: { traits: { toggles: { modular: { selected: adjustment } } } } }
+          } else update = {}
+          return updateActorItem(actor as Ref<Actor>, action?.item?._id ?? '', update)
+        }
       }))
     }),
     blasts: computed(() =>
@@ -98,7 +118,17 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
               actor as Ref<Actor>,
               'blastDamage',
               `${element},${damageType},${outcome},${isMelee}`
-            )
+            ),
+          setDamageType: (newType: string) => {
+            const dmgs: Record<string, string> = {}
+            dmgs[blast?.element ?? ''] = newType
+            const update = {
+              flags: { pf2e: { damageSelections: dmgs } }
+            }
+            const flags = blast.item.flags.pf2e.damageSelections as Record<string, string>
+            flags[blast?.element ?? ''] = newType
+            return updateActorItem(actor as Ref<Actor>, blast.item._id ?? '', update)
+          }
         })
       )
     ),

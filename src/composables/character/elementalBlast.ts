@@ -34,6 +34,7 @@ export interface ElementalBlast {
     outcome: string,
     isMelee: boolean
   ) => Promise<unknown> | null
+  setDamageType?: (newType: string) => Promise<unknown> | null
 }
 
 export function makeElementalBlasts(root: PF2eElementalBlasts | undefined) {

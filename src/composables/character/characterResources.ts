@@ -27,7 +27,7 @@ export function useCharacterResources(actor: Ref<Actor | undefined>) {
     hp: {
       current: computed({
         get: () => {
-          console.log('calculating hitpoints') //log to test calc frequency
+          // console.log('calculating hitpoints') //log to test calc frequency
           return actor.value?.system?.attributes?.hp?.value
         },
         set: (newValue) => {
