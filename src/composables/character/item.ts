@@ -16,11 +16,17 @@ export interface Item {
     category: Prop<string>
     description: { value: string }
     value: { value: Prop<number>; isValued: Prop<boolean> }
-    traits: { rarity: Prop<string>; value: Prop<string[]> }
+    traits: {
+      rarity: Prop<string>
+      value: Prop<string[]>
+      toggles: { modular: { selected: Prop<string> }; versatile: { selected: Prop<string> } }
+    }
     level: { value: Prop<number>; taken: Prop<number> }
     bulk: { value: Prop<number> }
     stackGroup: Prop<string>
     actions: { value: Prop<string> }
+    range: Prop<number>
+    damage: { damageType: Prop<string> }
     equipped: {
       carryType: Prop<string>
       invested: Prop<boolean>
@@ -77,10 +83,16 @@ export function makeItem(root: PF2eItem | undefined): Item | undefined {
       stackGroup: root?.system?.stackGroup,
       traits: {
         rarity: root?.system?.traits?.rarity,
-        value: root?.system?.traits?.value ? [...root?.system?.traits?.value] : undefined
+        value: root?.system?.traits?.value ? [...root?.system?.traits?.value] : undefined,
+        toggles: {
+          modular: { selected: root?.system?.traits?.toggles?.modular?.selected },
+          versatile: { selected: root?.system?.traits?.toggles?.versatile?.selected }
+        }
       },
       level: { value: root?.system?.level?.value, taken: root?.system?.level?.taken },
       actions: { value: root?.system?.actions?.value },
+      range: root?.system?.range,
+      damage: { damageType: root?.system?.damage?.damageType },
       equipped: {
         carryType: root?.system?.equipped?.carryType,
         invested: root?.system?.equipped?.invested,

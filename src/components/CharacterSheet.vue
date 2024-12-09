@@ -93,8 +93,10 @@ defineExpose({ actor, character })
             <EquipmentList />
           </TabPanel>
           <TabPanel tabindex="-1">
-            <StrikeList />
-            <ActionsList />
+            <div class="lg:columns-2">
+              <StrikeList />
+              <ActionsList />
+            </div>
           </TabPanel>
           <TabPanel tabindex="-1">
             <SpellList />

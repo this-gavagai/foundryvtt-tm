@@ -2,11 +2,23 @@
 import ActionIcons from './ActionIcons.vue'
 import { capitalize } from '@/utils/utilities'
 
-const { type, id, label, mapLabelSet } = defineProps(['type', 'id', 'label', 'mapLabelSet'])
+import melee from '@/assets/icons/plain-dagger.svg'
+import ranged from '@/assets/icons/high-shot.svg'
+
+const { type, id, label, mapLabelSet, isRanged } = defineProps([
+  'type',
+  'id',
+  'label',
+  'mapLabelSet',
+  'isRanged'
+])
 const emit = defineEmits(['clicked'])
 </script>
 <template>
-  <div>{{ label }}</div>
+  <div class="align-items-middle flex">
+    <img :src="isRanged ? ranged : melee" class="mr-1 mt-1 h-4" />
+    <div>{{ label }}</div>
+  </div>
   <div class="flex flex-wrap leading-9">
     <span>
       <span

@@ -62,7 +62,7 @@ const featCategories = computed(() => {
   <div v-else class="px-6 py-4 lg:columns-2">
     <dl
       v-for="(category, slug) in featCategories"
-      class="break-inside-avoid-column overflow-hidden truncate"
+      class="break-inside-avoid-column overflow-hidden"
       :key="slug"
     >
       <dt class="pt-2 text-lg underline only:hidden">
@@ -70,13 +70,16 @@ const featCategories = computed(() => {
       </dt>
       <dd v-for="feat in category.feats" :key="feat._id">
         <div class="relative">
-          <a class="cursor-pointer truncate whitespace-nowrap" @click="infoModal.open(feat._id)">
+          <a
+            class="inline-block flex cursor-pointer truncate whitespace-nowrap"
+            @click="infoModal.open(feat._id)"
+          >
             <span class="absolute w-4 pt-1 text-right text-xs text-gray-500">{{
               feat?.system?.level?.taken ??
               feat?.system?.location?.value?.split('-')?.[1] ??
               feat.system?.level?.value
             }}</span
-            ><span class="pl-6">{{ feat?.name }}</span>
+            ><span class="truncate pl-6">{{ feat?.name }}</span>
           </a>
         </div>
         <!-- bad manual recursion -->

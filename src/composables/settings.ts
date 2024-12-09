@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 
-const skipCharacterAlts = ref(true)
+const skipCharacterAlts = ref(false)
 
 export function useSettings() {
   return { skipCharacterAlts }

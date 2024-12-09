@@ -1,4 +1,3 @@
-// TODO (feature+): add option to send chat message on certain api events
 // TODO (known issue): this thing isn't triggering preUpdateActor hooks, as those are conventionally called only on the actor in question. May be a problem.
 // TODO (data+): need some way to indicate that gm-dependent methods aren't available when that's the case
 import type { Ref } from 'vue'
@@ -93,7 +92,6 @@ async function setupSocketListenersForActor(
   socket.on('module.tablemate', (args: ModuleEventArgs) => {
     switch (args.action) {
       case 'listenerOnline':
-        // TODO (performance): requesting character details everytime a listener comes online is a bit blunt-force
         if (!parent.game) requestCharacterDetails[actorId]()
         break
       case 'updateCharacterDetails':
@@ -265,7 +263,6 @@ function parseActorData(
     // TODO (refactor++): this is tricky. rewriting the actor.value procs a huge number of calculations, but merging is unreliable and limited
     if (!actor.value) actor.value = JSON.parse(args.actor)
     else merge(actor.value, JSON.parse(args.actor))
-    // actor.value = JSON.parse(args.actor)
 
     // TODO (refactor): is there any way avoid requiring system/inventory/ to be separate
     if (!actor.value!.system) actor.value!.system = JSON.parse(args.system)

@@ -1,11 +1,10 @@
+// TODO (data): targets only update on change. need a way to request targets on load/proxy-change
 import { ref } from 'vue'
 import { computed } from 'vue'
 import { useWorld } from './world'
 import { useUserId } from '@/composables/user'
 import { useApi } from '@/composables/api'
 import type { User } from '@/types/foundry-types'
-
-// TODO (data): targets only update on change. need a way to request targets on load/proxy-change
 
 const { world } = useWorld()
 const { getUserId, userId } = useUserId()

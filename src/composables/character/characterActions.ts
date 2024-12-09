@@ -68,8 +68,8 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
           }
         }))
     ),
-    strikes: computed(() =>
-      actor.value?.system?.actions?.map((action: PF2eAction) => ({
+    strikes: computed(() => {
+      return actor.value?.system?.actions?.map((action: PF2eAction) => ({
         ...(makeStrike(
           action,
           actor.value?.items.find((i: PF2eItem) => i.system?.slug === action?.slug)
@@ -80,7 +80,7 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
         doDamage: (crit: boolean) =>
           rollCheck(actor as Ref<Actor>, 'damage', `${action.slug},${crit ? 'critical' : 'damage'}`)
       }))
-    ),
+    }),
     blasts: computed(() =>
       (makeElementalBlasts(actor.value?.elementalBlasts) as ElementalBlast[])?.map(
         (blast: ElementalBlast) => ({

@@ -1,4 +1,3 @@
-// TODO (server): reload page if session is expired
 import { ref } from 'vue'
 import { io, Socket } from 'socket.io-client'
 import type { SessionEventArgs } from '@/types/foundry-types'

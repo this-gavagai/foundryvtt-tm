@@ -151,6 +151,7 @@ export interface System {
   save?: any
   area?: any
   range?: any
+  damage: { damageType: string }
   category?: any
 }
 
