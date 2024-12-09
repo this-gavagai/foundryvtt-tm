@@ -74,9 +74,7 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
           action,
           actor.value?.items.find((i: PF2eItem) => i.system?.slug === action?.slug)
         ) as Strike),
-        getDamage: () => {
-          return getStrikeDamage(actor as Ref<Actor>, action.slug)
-        },
+        getDamage: () => getStrikeDamage(actor as Ref<Actor>, action.slug),
         doStrike: (variant: number) =>
           rollCheck(actor as Ref<Actor>, 'strike', `${action.slug},${variant}`),
         doDamage: (crit: boolean) =>
@@ -87,6 +85,8 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
       (makeElementalBlasts(actor.value?.elementalBlasts) as ElementalBlast[])?.map(
         (blast: ElementalBlast) => ({
           ...blast,
+          getBlastDamage: (element: string, damageType: string, isMelee: boolean) =>
+            getStrikeDamage(actor as Ref<Actor>, `blast:${element},${damageType},${isMelee}`),
           doBlast: (element: string, damageType: string, mapIncreases: number, isMelee: boolean) =>
             rollCheck(
               actor as Ref<Actor>,

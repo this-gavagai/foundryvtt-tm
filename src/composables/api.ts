@@ -379,7 +379,6 @@ async function consumeItem(
 async function getStrikeDamage(actor: Ref<Actor>, actionSlug: string): Promise<ResolutionArgs> {
   const { getTargets } = useTargetHelper()
   const uuid = uuidv4()
-  console.log(uuid)
   const args: GetStrikeDamageArgs = {
     action: 'getStrikeDamage',
     characterId: actor.value._id,

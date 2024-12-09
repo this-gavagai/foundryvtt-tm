@@ -24,7 +24,7 @@ const itemId = ref()
 const options = ref()
 
 const isOpen = ref(false)
-function open(newItemId: string, newOptions: object | null) {
+function open(newItemId: string = '', newOptions: object | null = null) {
   itemId.value = newItemId
   options.value = newOptions
   isOpen.value = true

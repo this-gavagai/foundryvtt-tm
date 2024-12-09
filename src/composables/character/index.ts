@@ -32,6 +32,17 @@ import type { Item } from './item'
 import type { Stat } from './stat'
 import type { Modifier } from './modifier'
 import type { Strike } from './strike'
+import type { ElementalBlast } from './elementalBlast'
 import type { Equipment, SpellcastingEntry, Spell } from './characterItems'
 import type { Action } from './characterActions'
-export type { Item, Stat, Modifier, Strike, Equipment, SpellcastingEntry, Spell, Action }
+export type {
+  Item,
+  Stat,
+  Modifier,
+  Strike,
+  ElementalBlast,
+  Equipment,
+  SpellcastingEntry,
+  Spell,
+  Action
+}

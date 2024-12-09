@@ -181,11 +181,11 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
     metaKey: false,
     shiftKey: source.user.settings['showDamageDialogs']
   }
-  const action = actor.system.actions.find((a: Action) => a.slug === args.actionSlug)
-  const dmg = action.item.dealsDamage
-
-  const damageOptions = { getFormula: true, target: target }
-  const modifierOptions = {
+  const baseDamageOptions = {
+    getFormula: true,
+    target: target
+  }
+  const baseModifierOptions = {
     context: { rollMode: 'blindroll' },
     rollMode: 'blindroll',
     createMessage: false,
@@ -193,15 +193,44 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
     event: fakeEvent,
     target: target
   }
-  // TODO: find a less hacky way to do this. rollMode and skipDialog both seem to be ignored, so I'm faking events and temporarily changing client settings. bad.
+
+  const split = args.actionSlug.split(':')
+  const isBlast = split[0] === 'blast'
+  const actionString = isBlast ? split[1] : split[0]
+
+  const action = isBlast
+    ? new game.pf2e.ElementalBlast(actor)
+    : actor.system.actions.find((a: Action) => a.slug === actionString)
+
+  const doesDmg = isBlast ? true : action.item.dealsDamage
+  const blastOptions = isBlast
+    ? {
+        element: actionString.split(',')[0],
+        damageType: actionString.split(',')[1],
+        melee: actionString.split(',')[2]
+      }
+    : {}
+
+  const damageOptions = isBlast ? { ...baseDamageOptions, ...blastOptions } : baseDamageOptions
+  const modifierOptions = isBlast
+    ? { ...baseModifierOptions, ...blastOptions }
+    : baseModifierOptions
+
+  // TODO: find a less hacky way to do this. no way to get modifiers without actually rolling, and rollMode and skipDialog both seem to be ignored, so I'm faking events and temporarily changing client settings. bad.
   const rollmode = await source.settings.get('core', 'rollMode')
   await source.settings.set('core', 'rollMode', 'blindroll')
-  const damage = dmg ? action.damage(damageOptions) : null
-  const critical = dmg ? action.critical(damageOptions) : null
-  const modifiers = dmg ? action.damage(modifierOptions) : null
 
+  const damage = doesDmg ? action.damage(damageOptions) : null
+  const critical = isBlast
+    ? action.damage({ ...damageOptions, outcome: 'criticalSuccess' })
+    : doesDmg
+      ? action.critical(damageOptions)
+      : null
+  const modifiers = doesDmg ? action.damage(modifierOptions) : null
   const results = await Promise.all([damage, critical, modifiers])
+
   await source.settings.set('core', 'rollMode', rollmode)
+
   return {
     action: 'acknowledged',
     uuid: args.uuid,

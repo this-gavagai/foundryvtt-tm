@@ -17,6 +17,11 @@ export interface ElementalBlast {
     ranged: { map0: Maybe<string>; map1: Maybe<string>; map2: Maybe<string> }
   }
   statistic: Stat
+  getBlastDamage?: (
+    element: string,
+    damageType: string,
+    isMelee: boolean
+  ) => Promise<unknown> | null
   doBlast?: (
     element: string,
     damageType: string,
