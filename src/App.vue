@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // TODO (feature++): add some way to browse compendia, which can be used for adding new items to various contexts
+// TODO (dev): remove @jridgewell/gen-mapping, which was locked after an upstream build problem
 
 import { ref, computed, type Ref } from 'vue'
 import { watchPostEffect } from 'vue'
