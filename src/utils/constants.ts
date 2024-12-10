@@ -90,6 +90,7 @@ export const attributes = [
 
 export const inventoryTypes = [
   { type: 'weapon', title: 'Weapons' },
+  { type: 'shield', title: 'Shields' },
   { type: 'consumable', title: 'Consumables' },
   { type: 'equipment', title: 'Equipment' },
   { type: 'armor', title: 'Armor' },
