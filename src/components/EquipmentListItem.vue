@@ -7,7 +7,7 @@ const totalWeight = computed(() => {
   if (item?.system?.bulk?.value === 0 || item?.system?.stackGroup === 'coins') return '-'
   else if (item?.system?.bulk?.value < 1)
     return item?.system?.bulk?.value * item?.system?.quantity * 10 + 'L'
-  else return item?.system?.bulk?.value * item?.system?.quantity
+  else return (item?.system?.bulk?.value * item?.system?.quantity).toFixed(1)
 })
 </script>
 <template>

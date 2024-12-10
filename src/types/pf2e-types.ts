@@ -16,6 +16,7 @@ export interface Actor {
 
 export interface ElementalBlasts {
   configs: any[]
+  item: Item
 }
 export interface ElementalBlastConfig {
   actionCost: number
@@ -153,6 +154,7 @@ export interface System {
   range?: any
   damage: { damageType: string }
   category?: any
+  rules: { option: string; selection: string }[]
 }
 
 export interface Skill {

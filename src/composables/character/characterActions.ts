@@ -25,6 +25,7 @@ export interface CharacterActions {
   actions: Field<Action[]>
   strikes: Field<Strike[]>
   blasts: Field<ElementalBlast[]>
+  blastActions: WritableField<string>
   skills: Field<Stat[]>
   proficiencies: Field<Stat[]>
   initiative: {
@@ -132,6 +133,27 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
         })
       )
     ),
+    blastActions: computed({
+      get: () => {
+        const blastItemId = actor.value?.elementalBlasts?.item?._id
+        return actor.value?.items
+          ?.find((i) => i._id === blastItemId)
+          ?.system?.rules?.find((r) => r.option === 'action-cost')?.selection
+      },
+      set: (newValue: string) => {
+        const blastItemId = actor.value?.elementalBlasts?.item?._id
+        const rules = actor.value?.items?.find((i) => i._id === blastItemId)?.system?.rules
+        const actionRule = rules?.find((r) => r.option === 'action-cost')
+        if (actionRule) actionRule.selection = newValue
+        const update = { system: { rules: rules } }
+        // const ruleIndex = actor.value?.items
+        //   .find((i) => i._id === blastItemId)
+        //   ?.system?.rules?.findIndex((r) => r.option === 'action-cost')
+        // const update = { system: { rules: [] as { option: string; selection: string }[] } }
+        // if (ruleIndex) update.system.rules[ruleIndex].selection = newValue.toString()
+        return updateActorItem(actor as Ref<Actor>, blastItemId ?? '', update)
+      }
+    }),
     skills: computed(() =>
       Object.values(actor.value?.system?.skills ?? {})?.map((skill: PF2eStat) => ({
         ...(makeStat(skill) as Stat),

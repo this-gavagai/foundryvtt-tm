@@ -26,7 +26,7 @@ const action: Ref<Action | undefined> = computed(() =>
 </script>
 
 <template>
-  <div class="px-6 py-4">
+  <div class="brea-avoid-column px-6 py-4">
     <div
       class="pb-4 [&:not(:has(li))]:hidden"
       v-for="group in [

@@ -13,5 +13,10 @@ export default {
       }
     }
   },
-  plugins: [tailwindcss]
+  plugins: [
+    tailwindcss,
+    function ({ addVariant }) {
+      addVariant('initial', 'html :where(&)')
+    }
+  ]
 }

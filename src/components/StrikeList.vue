@@ -21,8 +21,10 @@ import type { Item } from '@/composables/character'
 import type { Strike } from '@/composables/character'
 import type { ElementalBlast } from '@/composables/character'
 
-import ChoiceWidgetButton from './ChoiceWidgetButton.vue'
+import ChoiceWidget from './ChoiceWidget.vue'
 
+import action1 from '@/assets/icons/action1.svg'
+import action2 from '@/assets/icons/action2.svg'
 import bludgeoning from '@/assets/icons/thor-hammer.svg'
 import slashing from '@/assets/icons/battle-axe.svg'
 import piercing from '@/assets/icons/arrowhead.svg'
@@ -31,6 +33,7 @@ import fire from '@/assets/icons/celebration-fire.svg'
 import cold from '@/assets/icons/snowflake-2.svg'
 import vitality from '@/assets/icons/hearts.svg'
 const damageIcons = { bludgeoning, slashing, piercing, electricity, fire, cold, vitality }
+const actionIcons = { '1': action1, '2': action2 }
 
 interface Trait {
   label: string | undefined
@@ -43,8 +46,11 @@ interface ViewedStrikeOptions {
   subtype?: number
 }
 
+const damageTypeChoiceWidget = ref()
+const actionCountChoiceWidget = ref()
+
 const character = inject(useKeys().characterKey)!
-const { strikes, blasts, inventory, actions } = character
+const { strikes, blasts, inventory, actions, blastActions } = character
 
 const strikeModal = ref()
 const strikeModalDamage = ref()
@@ -90,8 +96,8 @@ const strikeModalDetails = computed(() => {
           strikeModal.value?.options?.melee ? 'melee' : ('ranged' as keyof object)
         ]?.[('map' + viewedStrikeOptions.value?.subtype) as keyof object],
     damageTypeOptions: isStrike
-      ? getDamageTypes(item)
-      : (viewedStrike.value as ElementalBlast)?.damageTypes?.map((x) => x.value),
+      ? (getDamageTypes(item) as string[])
+      : ((viewedStrike.value as ElementalBlast)?.damageTypes?.map((x) => x.value) as string[]),
     damageTypeSelected: isStrike
       ? (item?.system?.traits?.toggles.modular?.selected ??
         item?.system?.traits?.toggles.versatile?.selected ??
@@ -136,6 +142,7 @@ const strikeModalDetails = computed(() => {
   }
 })
 async function updateDamageFormula() {
+  strikeModalDamage.value = undefined
   const isStrike = viewedStrike.value?.hasOwnProperty('doStrike')
   if (isStrike) strikeModalDamage.value = await (viewedStrike.value as Strike)?.getDamage?.()
   else {
@@ -237,26 +244,37 @@ watch(viewedStrike, async () => {
           : strikeModalDamage?.response?.damage
       }}</template>
       <template #default>
-        <div
-          class="flex justify-end gap-2"
-          v-if="strikeModalDetails?.damageTypeOptions?.length > 1"
-        >
-          <div class="mt-2 italic">Damage Type:</div>
-          <span class="isolate mb-2 inline-flex rounded-md">
-            <ChoiceWidgetButton
-              v-for="damageType in strikeModalDetails?.damageTypeOptions as string[]"
-              :key="damageType"
-              :icon="damageIcons[damageType as keyof object]"
-              :choice="damageType"
-              :currentlySelected="strikeModalDetails?.damageTypeSelected ?? ''"
-              @click="
-                () => {
-                  if (damageType !== strikeModalDetails?.damageTypeSelected)
-                    viewedStrike?.setDamageType?.(damageType)?.then((r) => updateDamageFormula())
+        <div class="flex justify-end gap-2">
+          <ChoiceWidget
+            ref="damageTypeChoiceWidget"
+            label="Damage Type:"
+            :choiceSet="strikeModalDetails?.damageTypeOptions ?? []"
+            :iconSet="damageIcons"
+            :selected="strikeModalDetails?.damageTypeSelected ?? ''"
+            @changed="
+              (damageType: string) => {
+                if (damageType !== strikeModalDetails?.damageTypeSelected) {
+                  damageTypeChoiceWidget.waiting = true
+                  viewedStrike?.setDamageType?.(damageType)?.then((r) => {
+                    updateDamageFormula()
+                    damageTypeChoiceWidget.waiting = false
+                  })
                 }
-              "
-            />
-          </span>
+              }
+            "
+          />
+          <ChoiceWidget
+            ref="actionCountChoiceWidget"
+            v-if="viewedStrikeOptions?.type?.match('blast')"
+            :choiceSet="['1', '2']"
+            :iconSet="actionIcons"
+            :selected="blastActions + ''"
+            @changed="
+              (newChoice: string) => {
+                blastActions = newChoice
+              }
+            "
+          />
         </div>
         <ul>
           <li
