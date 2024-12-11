@@ -4,7 +4,7 @@
 // TODO (UI): when no strikes are present, too much margin/padding on top of the first actions category.
 import type { Ref } from 'vue'
 import type { Action } from '@/composables/character'
-import { actionDefs } from '@/utils/constants'
+import { actionDefs, actionTypes } from '@/utils/constants'
 import { inject, ref, computed } from 'vue'
 import { capitalize, removeUUIDs } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
@@ -28,16 +28,7 @@ const action: Ref<Action | undefined> = computed(() =>
 
 <template>
   <div class="break-inside-avoid-column px-6 py-4">
-    <div
-      class="pb-4 [&:not(:has(li))]:hidden"
-      v-for="group in [
-        { title: 'Actions', type: 'action' },
-        { title: 'Reactions', type: 'reaction' },
-        { title: 'Free Actions', type: 'free' },
-        { title: 'Skill Actions', type: 'skill' }
-      ]"
-      :key="group.type"
-    >
+    <div class="pb-4 [&:not(:has(li))]:hidden" v-for="group in actionTypes" :key="group.type">
       <h3 class="text-lg underline">{{ group.title }}</h3>
       <ul>
         <li
@@ -93,6 +84,7 @@ const action: Ref<Action | undefined> = computed(() =>
                     : {}
                 )
                 ?.then((r) => {
+                  console.log(r)
                   infoModal.rollResultModal.open(r)
                   infoModal.close()
                 })

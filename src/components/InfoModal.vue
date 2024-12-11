@@ -129,11 +129,11 @@ defineExpose({ open, close, itemId, options, rollResultModal })
               v-for="(die, i) in rollResultModal?.options?.roll.dice"
               :key="'die_' + i"
             >
-              <div class="flex text-2xl">
+              <div class="flex gap-1 text-2xl">
                 <div
                   v-for="(result, j) in die.results"
                   :key="'result_' + j"
-                  class="align-items-center mr-1 flex"
+                  class="align-items-center mr-1 flex gap-1"
                 >
                   <img v-if="die.faces === 4" src="@/assets/icons/d4.svg" class="mt-1 h-6 w-6" />
                   <img v-if="die.faces === 6" src="@/assets/icons/d6.svg" class="mt-1 h-6 w-6" />
@@ -141,13 +141,19 @@ defineExpose({ open, close, itemId, options, rollResultModal })
                   <img v-if="die.faces === 10" src="@/assets/icons/d10.svg" class="mt-1 h-6 w-6" />
                   <img v-if="die.faces === 12" src="@/assets/icons/d12.svg" class="mt-1 h-6 w-6" />
                   <img v-if="die.faces === 20" src="@/assets/icons/d20.svg" class="mt-1 h-6 w-6" />
-                  <span>{{ result.result }}&nbsp;</span>
+                  <span>
+                    {{ rollResultModal.options.roll.isSecret ? '?' : result.result }}
+                  </span>
                 </div>
               </div>
             </div>
           </div>
           <div class="m-auto">
-            <div class="text-6xl">{{ rollResultModal?.options?.roll.total }}</div>
+            <div class="text-6xl">
+              {{
+                rollResultModal.options.roll.isSecret ? '???' : rollResultModal?.options?.roll.total
+              }}
+            </div>
           </div>
         </div>
       </Modal>

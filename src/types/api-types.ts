@@ -35,6 +35,7 @@ export interface AnybodyHomeArgs {
   action: 'anybodyHome'
 }
 export interface RollCheckArgs {
+  userId: string
   action: 'rollCheck'
   characterId: string
   checkType: string
@@ -46,6 +47,7 @@ export interface RollCheckArgs {
   targets?: any
 }
 export interface CharacterActionArgs {
+  userId: string
   action: 'characterAction'
   characterId: string
   targets: any
@@ -54,6 +56,7 @@ export interface CharacterActionArgs {
   uuid: string
 }
 export interface CastSpellArgs {
+  userId: string
   action: 'castSpell'
   id: string
   characterId: string
@@ -63,6 +66,7 @@ export interface CastSpellArgs {
   targets: string[]
 }
 export interface ConsumeItemArgs {
+  userId: string
   action: 'consumeItem'
   characterId: string
   consumableId: string
@@ -70,6 +74,7 @@ export interface ConsumeItemArgs {
   uuid: string
 }
 export interface GetStrikeDamageArgs {
+  userId: string
   action: 'getStrikeDamage'
   characterId: string
   actionSlug: string

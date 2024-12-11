@@ -13,7 +13,7 @@ import { type Item, makeItem } from './item'
 import { type Strike, makeStrike } from './strike'
 import { type ElementalBlast, makeElementalBlasts } from './elementalBlast'
 import { useApi } from '../api'
-import { actionDefs } from '@/utils/constants'
+import { actionDefs, actionTypes } from '@/utils/constants'
 
 export interface Action extends Item {
   actionType: string | null
@@ -42,7 +42,7 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
     actions: computed(() =>
       actor.value?.items
         ?.filter((i: PF2eItem) =>
-          ['action', 'reaction', 'free'].includes(i?.system?.actionType?.value)
+          actionTypes.map((a) => a.type).includes(i?.system?.actionType?.value)
         )
         .map((i: PF2eItem) => ({
           ...(makeItem(i) as Action),

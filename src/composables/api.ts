@@ -24,6 +24,7 @@ import { merge } from 'lodash-es'
 import { useServer } from '@/composables/server'
 import { useTargetHelper } from '@/composables/targetHelper'
 import { uuidv4 } from '@/utils/utilities'
+import { useUserId } from '@/composables/user'
 // import { useWorld } from '@/composables/world'
 
 const { getSocket } = useServer()
@@ -33,6 +34,8 @@ const ackQueue: { [key: string]: (args: ResolutionArgs) => unknown } = {}
 function pushToAckQueue(uuid: string, callback: (args: ResolutionArgs) => unknown) {
   ackQueue[uuid] = callback
 }
+const { getUserId } = useUserId()
+const userId = getUserId()
 
 ///////////////////////////////////////
 // Setup Methods                     //
@@ -250,6 +253,7 @@ async function updateUserTargetingProxy(userId: string, proxyId: string) {
 async function sendCharacterRequest(actorId: string): Promise<void> {
   const socket = await getSocket()
   socket.emit('module.tablemate', {
+    userId,
     action: 'requestCharacterDetails',
     actorId: actorId
   })
@@ -287,6 +291,7 @@ async function castSpell(
   const { getTargets } = useTargetHelper()
   const uuid = uuidv4()
   const args: CastSpellArgs = {
+    userId,
     action: 'castSpell',
     id: spellId,
     characterId: actor.value._id,
@@ -313,6 +318,7 @@ async function rollCheck(
   const { getTargets } = useTargetHelper()
   const uuid = uuidv4()
   const args: RollCheckArgs = {
+    userId,
     action: 'rollCheck',
     characterId: actor.value._id,
     targets: getTargets(),
@@ -339,6 +345,7 @@ async function characterAction(
   const { getTargets } = useTargetHelper()
   const uuid = uuidv4()
   const args: CharacterActionArgs = {
+    userId,
     action: 'characterAction',
     characterId: actor.value._id,
     targets: getTargets(),
@@ -361,6 +368,7 @@ async function consumeItem(
 ): Promise<ResolutionArgs> {
   const uuid = uuidv4()
   const args: ConsumeItemArgs = {
+    userId,
     action: 'consumeItem',
     characterId: actor.value._id,
     consumableId,
@@ -377,6 +385,7 @@ async function getStrikeDamage(actor: Ref<Actor>, actionSlug: string): Promise<R
   const { getTargets } = useTargetHelper()
   const uuid = uuidv4()
   const args: GetStrikeDamageArgs = {
+    userId,
     action: 'getStrikeDamage',
     characterId: actor.value._id,
     targets: getTargets(),

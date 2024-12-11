@@ -97,6 +97,12 @@ export const inventoryTypes = [
   { type: 'treasure', title: 'Treasure' },
   { type: 'backpack', title: 'Containers' }
 ]
+export const actionTypes = [
+  { title: 'Actions', type: 'action' },
+  { title: 'Reactions', type: 'reaction' },
+  { title: 'Free Actions', type: 'free' },
+  { title: 'Skill Actions', type: 'skill' }
+]
 
 export const actionDefs = new Map<string, { skill: string | null; alias?: string }>([
   ['administer-first-aid', { skill: 'medicine' }],

@@ -35,7 +35,6 @@ export async function foundryRollCheck(args: RollCheckArgs) {
     metaKey: false,
     shiftKey: source.user.settings['showDamageDialogs']
   }
-  console.log('tablemate roll', args)
   //https://github.com/foundryvtt/pf2e/blob/68988e12fbec7ea8359b9bee9b0c43eb6964ca3f/src/module/system/statistic/statistic.ts#L617
   const actor = source.actors.get(args.characterId, { strict: true })
   const modifiers = args.modifiers.map((m: Modifier) => {
@@ -49,7 +48,6 @@ export async function foundryRollCheck(args: RollCheckArgs) {
     skipDialog: true,
     event: fakeEvent
   }
-  console.log('params', params)
   let roll
   switch (args.checkType) {
     case 'strike': {
@@ -102,15 +100,17 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       break
     }
   }
-  console.log('tablemate', roll)
   const r = await roll
-  console.log('tablemate', r)
   if (r.hasOwnProperty('roll')) console.log('this one has a weird property') // trying to figure out where this is necessary; don't remember
-  const { formula, result, total, dice } = r.hasOwnProperty('roll') ? r.roll : r
+  const actualRoll = r.hasOwnProperty('roll') ? r.roll : r
+
+  const isSecret =
+    r[0]?.message?.whisper?.length === 0 || r[0]?.message?.whisper?.includes(args.userId)
+  const { formula, result, total, dice } = actualRoll
   return {
     action: 'acknowledged',
     uuid: args.uuid,
-    roll: { formula, result, total, dice }
+    roll: { formula, result, total, dice, isSecret }
   }
 }
 
@@ -121,19 +121,16 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
     metaKey: false,
     shiftKey: source.user.settings['showDamageDialogs']
   }
-  console.log('args', args)
   const actor = source.actors.get(args.characterId, { strict: true })
   const targetTokenDoc =
     args.targets.map((t: string) => source.scenes.active.tokens.get(t))[0] ?? null
   // tricky code: https://github.com/foundryvtt/pf2e/blob/2eaef272f3e17f340eba1b7f2dc82e857d8d296e/src/module/actor/actions/single-check.ts#L160
-  console.log('token key', targetTokenDoc)
   const params = {
     ...args.options,
     actors: actor,
     target: targetTokenDoc?.object,
     event: fakeEvent
   }
-  console.log('params', params)
   let promise
   if (args.characterAction.match('legacy.')) {
     const actionKey = args.characterAction.replace('legacy.', '')
@@ -142,11 +139,20 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
     promise = source.pf2e.actions.get(args.characterAction)?.use(params)
   }
   const r = await promise
-  const { formula, result, total, dice } = r[0].roll
+  console.log('TM-actionroll', r)
+  console.log('tm-stuff', r[0]?.message?.whisper)
+  const isSecret =
+    r[0]?.message?.whisper?.length > 0 && !r[0]?.message?.whisper?.includes(args.userId)
+  console.log(
+    r[0]?.message?.whisper?.length === 0,
+    r[0]?.message?.whisper?.includes(args.userId),
+    isSecret
+  )
+  const { formula, result, total, dice } = r[0]?.roll
   return {
     action: 'acknowledged',
     uuid: args.uuid,
-    roll: { formula, result, total, dice }
+    roll: { formula, result, total, dice, isSecret }
   }
 }
 
