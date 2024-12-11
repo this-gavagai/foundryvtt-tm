@@ -6,7 +6,7 @@ import type { Ref } from 'vue'
 import type { Action } from '@/composables/character'
 import { actionDefs, actionTypes } from '@/utils/constants'
 import { inject, ref, computed } from 'vue'
-import { capitalize, removeUUIDs } from '@/utils/utilities'
+import { removeUUIDs } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 
 import ButtonWidget from '@/components/ButtonWidget.vue'
@@ -59,8 +59,8 @@ const action: Ref<Action | undefined> = computed(() =>
       </template>
       <template #description>
         <span v-if="action?.system?.level?.value">Level {{ action?.system?.level?.value }}</span>
-        <span v-if="action?.system?.traits?.rarity" class="text-sm">
-          ({{ capitalize(action?.system?.traits?.rarity) }})</span
+        <span v-if="action?.system?.traits?.rarity" class="text-sm capitalize">
+          ({{ action?.system?.traits?.rarity }})</span
         >
       </template>
       <template #body>

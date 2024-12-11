@@ -1,6 +1,4 @@
-// TODO (types): get rid of all the anys and refactor to represent subtypes, etc.
-// TODO (types): is this available from foundry/pf2e?
-// TODO (types): remove reference to this from everything except api and character
+// TODO (types): find an official source for all this. This is a terrible cludge here.
 
 export interface Actor {
   _id: string
@@ -11,7 +9,7 @@ export interface Actor {
   system: System
   prototypeToken: any
   ownership: any
-  elementalBlasts: ElementalBlasts // TODO: get rid of this addition to corend find another way to store this data
+  elementalBlasts: ElementalBlasts
 }
 
 export interface ElementalBlasts {
@@ -74,8 +72,6 @@ export interface Movement {
   _modifiers: Modifier[]
 }
 
-/// needs work below
-// TODO: rebundle tmDamageFormula. Should not defined as part of type
 export interface Action {
   _id: string
   label: string
@@ -107,7 +103,6 @@ export interface FeatCategory {
   feats: [any]
 }
 
-// TODO: (refactor) this is piling together tons of System subtypes. Worth separating?
 export interface System {
   skills: [Stat]
   build: { attributes: any }

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import ActionIcons from './ActionIcons.vue'
-import { capitalize } from '@/utils/utilities'
 
 import melee from '@/assets/icons/plain-dagger.svg'
 import ranged from '@/assets/icons/high-shot.svg'
@@ -30,7 +29,7 @@ const emit = defineEmits(['clicked'])
       >
         <span v-if="!index">
           <ActionIcons actions="1" class="relative float-left mt-[-1px] h-0 text-lg leading-none" />
-          <span class="pl-1">{{ capitalize(type) }}&nbsp;</span>
+          <span class="pl-1 capitalize">{{ type }}&nbsp;</span>
         </span>
         <span>{{ index ? variant.label?.match(/\((.*)\)/)?.pop() : variant.label }}</span>
       </span>

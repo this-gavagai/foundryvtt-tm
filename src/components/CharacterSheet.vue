@@ -10,7 +10,6 @@ import { useCharacter } from '@/composables/character'
 import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
 import { useWindowSize } from '@vueuse/core'
-// import { merge, assign } from 'lodash-es'
 
 import { Bars3Icon } from '@heroicons/vue/24/solid'
 

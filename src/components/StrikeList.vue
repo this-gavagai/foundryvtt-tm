@@ -8,7 +8,6 @@
 import { inject, ref, watch, computed } from 'vue'
 import { formatModifier } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
-import { capitalize } from '@/utils/utilities'
 import InfoModal from './InfoModal.vue'
 import Button from '@/components/ButtonWidget.vue'
 import StrikeActionSet from './StrikeActionSet.vue'
@@ -82,7 +81,7 @@ const strikeModalDetails = computed(() => {
         item?.system?.traits?.value,
     label: isStrike
       ? (viewedStrike.value as Strike)?.label
-      : `Elemental Blast (${capitalize((viewedStrike.value as ElementalBlast)?.element)}) - ${viewedStrikeOptions.value?.melee ? 'Melee' : 'Ranged'}`,
+      : `Elemental Blast (${(viewedStrike.value as ElementalBlast)?.element}) - ${viewedStrikeOptions.value?.melee ? 'Melee' : 'Ranged'}`,
     modifiers: isStrike
       ? (viewedStrike.value as Strike)?._modifiers
       : // TODO (bug): figure out why this is missing some modifiers like Attunement Gate items
@@ -174,7 +173,7 @@ watch(viewedStrike, async () => {
               type="blast"
               :id="i"
               :isRanged="attackType === 'ranged'"
-              :label="`Elemental Blast (${capitalize(blast.element)})`"
+              :label="`Elemental Blast (${blast.element})`"
               :mapLabelSet="
                 [
                   attackType === 'melee' ? blast?.maps?.melee?.map0 : blast?.maps?.ranged?.map0,

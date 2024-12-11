@@ -42,7 +42,7 @@ const emit = defineEmits(['closing'])
 defineExpose({ open, close, itemId, options, rollResultModal })
 </script>
 <template>
-  <div>
+  <div class="touch-manipulation">
     <TransitionRoot appear :show="isOpen" as="template">
       <Dialog as="div" @close="close" class="relative z-10">
         <TransitionChild

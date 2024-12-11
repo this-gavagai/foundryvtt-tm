@@ -1,7 +1,7 @@
 // TODO (ux++): Audit all write methods for quick vs. slow feedback (adjust value before waiting for characterdetails return)
 // TODO (refactor?): consider rebuilding this concept, with computed properties only at the bottom of the chain.
 import type { Ref } from 'vue'
-import { watch } from 'vue'
+// import { watch } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 
 import { type CharacterCore, useCharacterCore } from './characterCore'
@@ -18,12 +18,12 @@ export interface Character
     CharacterActions {}
 
 export function useCharacter(actor: Ref<Actor | undefined>) {
-  watch(actor, () => console.log('TM actor changed', actor.value?._id))
-  watch(
-    () => actor.value?.items,
-    () => console.log('item changed'),
-    { deep: 1 }
-  )
+  // watch(actor, () => console.log('TM actor changed', actor.value?._id))
+  // watch(
+  //   () => actor.value?.items,
+  //   () => console.log('item changed'),
+  //   { deep: 1 }
+  // )
   const character: Character = {
     ...useCharacterCore(actor),
     ...useCharacterStats(actor),

@@ -1,4 +1,4 @@
-// TODO (types): this EventArgs structure needs a significant refactor
+// TODO (types): find an official source for this. What I have here is terrible.
 import type { Socket } from 'socket.io-client'
 
 export type DocumentEventArgs = UpdateEventArgs | CreateEventArgs | DeleteEventArgs

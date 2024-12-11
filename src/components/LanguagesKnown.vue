@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { inject } from 'vue'
 import { useKeys } from '@/composables/injectKeys'
-import { capitalize } from '@/utils/utilities'
 
 const character = inject(useKeys().characterKey)!
 const { languages } = character
@@ -11,11 +10,11 @@ const { languages } = character
     <div v-if="languages?.length === 0" class="italic">No languages known</div>
     <ul class="min-h-6">
       <li
-        class="inline [&:not(:last-child)]:after:content-[',_']"
+        class="inline capitalize [&:not(:last-child)]:after:content-[',_']"
         v-for="lang in languages?.slice().reverse()"
         :key="'lang_' + lang"
       >
-        {{ capitalize(lang) }}
+        {{ lang }}
       </li>
     </ul>
   </div>

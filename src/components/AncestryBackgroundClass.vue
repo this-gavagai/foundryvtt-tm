@@ -3,7 +3,7 @@ import type { Ref } from 'vue'
 import type { Item } from '@/composables/character'
 import type { Character } from '@/composables/character'
 import { inject, computed, ref } from 'vue'
-import { capitalize, removeUUIDs } from '@/utils/utilities'
+import { removeUUIDs } from '@/utils/utilities'
 import InfoModal from '@/components/InfoModal.vue'
 import { useKeys } from '@/composables/injectKeys'
 
@@ -44,7 +44,7 @@ const viewedItem: Ref<Item | undefined> = computed(() => {
       </template>
       <template #description>
         Level {{ viewedItem?.system?.level?.value ?? '-' }}
-        <span class="text-sm">({{ capitalize(viewedItem?.system?.traits?.rarity) }})</span>
+        <span class="text-sm capitalize">({{ viewedItem?.system?.traits?.rarity }})</span>
       </template>
       <template #body>
         <div v-html="removeUUIDs(viewedItem?.system?.description?.value)"></div>

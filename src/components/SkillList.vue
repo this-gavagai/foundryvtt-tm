@@ -2,7 +2,7 @@
 // TODO (feature++): allow players to access skill actions that aren't explicitly on sheet
 import type { Stat } from '@/composables/character'
 
-import { formatModifier, capitalize } from '@/utils/utilities'
+import { formatModifier } from '@/utils/utilities'
 import { inject } from 'vue'
 import StatBox from './StatBox.vue'
 import { useKeys } from '@/composables/injectKeys'
@@ -47,7 +47,7 @@ const { skills, proficiencies } = character
         class="[&:not(:has(dd))]:hidden"
       >
         <dl class="pt-4 first:p-0 empty:hidden">
-          <dt class="pb-2 text-lg underline">{{ capitalize(proficiencyType) }}</dt>
+          <dt class="pb-2 text-lg capitalize underline">{{ proficiencyType }}</dt>
           <div class="columns-2">
             <dd
               v-for="(prof, key) in proficiencies?.filter(

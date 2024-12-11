@@ -1,1 +1,0 @@
-if('serviceWorker' in navigator) navigator.serviceWorker.register('/modules/tablemate/dev-sw.js?dev-sw', { scope: '/modules/tablemate/', type: 'classic' })

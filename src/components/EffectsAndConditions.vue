@@ -6,7 +6,7 @@ import { inject, ref, computed } from 'vue'
 import InfoModal from '@/components/InfoModal.vue'
 import { useKeys } from '@/composables/injectKeys'
 
-import { capitalize, removeUUIDs, getPath } from '@/utils/utilities'
+import { removeUUIDs, getPath } from '@/utils/utilities'
 
 const character = inject(useKeys().characterKey)!
 const { effects } = character
@@ -47,7 +47,7 @@ const viewedItem = computed(() =>
         {{ viewedItem?.system?.value?.value }}
       </template>
       <template #description>
-        {{ capitalize(viewedItem?.type) }}
+        <span class="capitalize">{{ viewedItem?.type }}</span>
       </template>
       <template #body>
         <div v-html="removeUUIDs(viewedItem?.system?.description?.value)"></div>

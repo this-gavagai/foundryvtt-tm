@@ -8,9 +8,9 @@ interface ItemPartial {
   }
 }
 
-export function capitalize(s: string | undefined) {
-  return s ? s?.[0]?.toUpperCase() + s?.slice(1) : null
-}
+// export function capitalize(s: string | undefined) {
+//   return s ? s?.[0]?.toUpperCase() + s?.slice(1) : null
+// }
 export function makeTraits(traits: string[] | undefined): string {
   let list = traits?.reduce((list, t) => {
     return (list += `<span class="bg-[#5E0000] text-[0.5rem] text-white px-1 uppercase">${t}${'\n'}</span>`)
@@ -38,9 +38,9 @@ export function makePropertiesHtml(item: ItemPartial | undefined): string {
       ? `<div><span class='font-bold'>Range:</span> ${item?.system.range?.value}</div>`
       : ``) +
     (item?.system?.save?.value
-      ? `<p><span class='font-bold'>Save:</span> ${
-          item.system?.save?.basic ? capitalize(item?.system?.save?.basic) : ``
-        } ${capitalize(item.system?.save?.value)}</p>`
+      ? `<p class="capitalize"><span class='font-bold'>Save:</span> ${
+          item.system?.save?.basic ? item?.system?.save?.basic : ``
+        } ${item.system?.save?.value}</p>`
       : ``)
   )
 }

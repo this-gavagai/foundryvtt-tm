@@ -113,20 +113,9 @@ function updateHitPoints(hp_input: string) {
           />
           <div class="w-1/3 text-xl">/ {{ shpMax }}</div>
         </div>
-        <div class="mt-5 gap-1 sm:mt-4 sm:flex sm:flex-row-reverse">
-          <Button
-            type="submit"
-            name="update"
-            label="Update"
-            color="blue"
-            class="inline-flex w-full justify-center bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto"
-          />
-          <Button
-            type="submit"
-            name="reset"
-            label="Reset HP"
-            class="inline-flex w-full justify-center bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 sm:ml-3 sm:w-auto"
-          />
+        <div class="mt-5 flex flex-row-reverse flex-wrap-reverse gap-1 sm:mt-4">
+          <Button type="submit" name="update" label="Update" color="blue" />
+          <Button type="submit" name="reset" label="Reset HP" />
         </div>
       </form>
     </Modal>

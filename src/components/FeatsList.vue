@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // TODO (refactor): make feat nesting recursive instead of manual like it is now
 // TODO (bug): feats have gone nuts on Yoon l5, with reduplicated feats galore.
+// TODO (refactor): get rid of the viewedItem nonsense, replecating how strikes works now
 import type { Item } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
-import { capitalize, removeUUIDs } from '@/utils/utilities'
+import { removeUUIDs } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 
 import InfoModal from '@/components/InfoModal.vue'
@@ -147,7 +148,7 @@ const featCategories = computed(() => {
           Level {{ viewedItem?.system?.level?.value ?? '-' }}
         </span>
         <span v-if="viewedItem?.system?.traits?.rarity" class="inline-block">
-          <span class="text-sm">({{ capitalize(viewedItem?.system.traits.rarity) }})</span>
+          <span class="text-sm capitalize">({{ viewedItem?.system.traits.rarity }})</span>
         </span>
       </template>
       <template #body>

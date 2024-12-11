@@ -5,7 +5,7 @@
 
 import type { SpellcastingEntry, Spell, Item } from '@/composables/character'
 import { inject, computed, ref } from 'vue'
-import { capitalize, removeUUIDs } from '@/utils/utilities'
+import { removeUUIDs } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 
 import Button from '@/components/ButtonWidget.vue'
@@ -282,7 +282,7 @@ const spellbook = computed((): Spellbook => {
             ? `Cantrip`
             : `Rank ${viewedSpell?.system.level?.value}`
         }}
-        <span class="text-sm">{{ capitalize(viewedSpell?.system.traits.rarity) }}</span>
+        <span class="text-sm capitalize">{{ viewedSpell?.system.traits.rarity }}</span>
       </template>
       <template #body>
         <div v-if="infoModal.options?.isConsumable">
@@ -320,9 +320,15 @@ const spellbook = computed((): Spellbook => {
           color="blue"
           v-if="!infoModal.options?.isConsumable"
           @click="
-            (viewedSpell as Spell)
-              ?.doSpell?.(infoModal.options.castingRank, infoModal.options.castingSlot)
-              ?.then((r) => infoModal.close())
+            () => {
+              castButton.waiting = true
+              ;(viewedSpell as Spell)
+                ?.doSpell?.(infoModal.options.castingRank, infoModal.options.castingSlot)
+                ?.then((r) => {
+                  castButton.waiting = false
+                  infoModal.close()
+                })
+            }
           "
         />
         <Button

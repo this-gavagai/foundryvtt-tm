@@ -16,14 +16,12 @@ const userList = computed(() => {
 const targetingProxyId = computed(() => {
   const proxy = world.value?.users.find((u) => u._id === userId.value)?.flags?.tablemate
     ?.targeting_proxy
-  console.log('targeting!', userId.value, proxy)
   return proxy
 })
 
 function getTargetingProxyId() {
   const proxy = world.value?.users.find((u) => u._id === getUserId())?.flags?.tablemate
     ?.targeting_proxy
-  console.log('PROXY: ', proxy, getUserId())
   return proxy
 }
 function updateProxyId(newId: string) {
@@ -34,7 +32,6 @@ function updateProxyId(newId: string) {
 
 function updateTargets(user: string, newTargets: string[]) {
   if (user === getTargetingProxyId()) {
-    console.log('TABLEMATE new targets', newTargets)
     targets.value = newTargets
   }
 }

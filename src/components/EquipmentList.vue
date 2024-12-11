@@ -5,10 +5,11 @@
 // TODO (refactor): refactor listbox into component, and give transaction feedback
 // TODO (refactor): refactor Switch into component, and give transactionf eedback
 // TODO (refactor): it is currently possible to put containers inside themselves, which leads to all sorts of trouble; fix while refactoring how backpacks are rendered?
+// TODO (refactor): get rid of viewed item; do what strikes does now instead
 
 import type { Equipment } from '@/composables/character'
 import { inject, ref, computed, watch } from 'vue'
-import { capitalize, removeUUIDs, printPrice } from '@/utils/utilities'
+import { removeUUIDs, printPrice } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption, Switch } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/20/solid'
@@ -34,7 +35,7 @@ const itemWornType = computed(() => {
   if (itemViewed.value?.type === 'armor') return 'Armor'
   const usage = itemViewed.value?.system?.usage?.value
   if (usage?.slice?.(0, 4) === 'worn' && usage?.slice?.(4)) {
-    return capitalize(usage?.slice(4))
+    return usage?.slice(4)
   } else return null
 })
 
@@ -87,7 +88,7 @@ const toggleSet = [
     <ul>
       <li
         v-for="item in inventory?.filter((i: Equipment) => i.system?.equipped?.handsHeld)"
-        class="whitespace-nowrap text-2xl"
+        class="whitespace-nowrap text-xl"
         :key="item._id"
       >
         <a class="cursor-pointer" @click="infoModal.open(item._id)">
@@ -156,8 +157,8 @@ const toggleSet = [
       </template>
       <template #description>
         Level {{ itemViewed?.system?.level?.value }}
-        <span class="text-sm">
-          ({{ capitalize(itemViewed?.system?.traits?.rarity) }}),
+        <span class="text-sm capitalize">
+          ({{ itemViewed?.system?.traits?.rarity }}),
           {{ printPrice(itemViewed?.system?.price?.value) }}
         </span>
       </template>
@@ -168,7 +169,7 @@ const toggleSet = [
           >
             <div
               v-for="t in toggleSet"
-              class="flex-auto cursor-pointer border-l border-gray-300 p-2 text-center first:border-none"
+              class="flex-auto cursor-pointer border-l border-gray-300 p-2 text-center transition-colors first:border-none active:bg-gray-200"
               :class="{
                 'bg-gray-300': t.toggleIsActive(),
                 'opacity-50': itemViewed?.type === 'backpack'
@@ -204,11 +205,9 @@ const toggleSet = [
             <span
               class="text-md ml-2 align-middle"
               :class="{ 'text-gray-400': !itemViewed?.system?.equipped?.inSlot }"
-              >{{
-                itemViewed?.system?.equipped?.inSlot
-                  ? `Item equipped (${itemWornType})`
-                  : 'Item not equipped'
-              }}</span
+              >{{ itemViewed?.system?.equipped?.inSlot ? `Item equipped (<span class="capitalize"
+                >${itemWornType}</span
+              >)` : 'Item not equipped' }}</span
             >
           </div>
           <div

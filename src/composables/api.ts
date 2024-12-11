@@ -35,7 +35,6 @@ function pushToAckQueue(uuid: string, callback: (args: ResolutionArgs) => unknow
   ackQueue[uuid] = callback
 }
 const { getUserId } = useUserId()
-const userId = getUserId()
 
 ///////////////////////////////////////
 // Setup Methods                     //
@@ -82,7 +81,8 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
       updateTargets(user, args.targets)
     }
   })
-  socket?.emit('module.tablemate', { action: 'anybodyHome' })
+  const userId = getUserId()
+  socket?.emit('module.tablemate', { userId, action: 'anybodyHome' })
 }
 
 async function setupSocketListenersForActor(
@@ -107,7 +107,7 @@ async function setupSocketListenersForActor(
     switch (args.type) {
       case 'Actor':
         ;(args as UpdateEventArgs).result.forEach((result: ModifyDocumentUpdate) => {
-          if (result._id === actorId) {
+          if (actor.value && result._id === actorId) {
             merge(actor.value, result)
             requestCharacterDetails[actorId]() // needs to be inside forloop, or else it procs for every character. shouldn't matter because its debounced
           }
@@ -150,7 +150,7 @@ async function updateActor(actor: Ref<Actor | undefined>, update: object) {
       },
       (r: UpdateEventArgs) => {
         r.result.forEach((change: ModifyDocumentUpdate) => {
-          merge(actor.value, change)
+          if (actor.value) merge(actor.value, change)
         })
         requestCharacterDetails[actor.value!._id]()
         resolve(r)
@@ -249,6 +249,7 @@ async function updateUserTargetingProxy(userId: string, proxyId: string) {
 /////////////////////////////////////////////////
 async function sendCharacterRequest(actorId: string): Promise<void> {
   const socket = await getSocket()
+  const userId = getUserId()
   socket.emit('module.tablemate', {
     userId,
     action: 'requestCharacterDetails',
@@ -262,17 +263,18 @@ function parseActorData(
 ) {
   if (args.actorId === actorId) {
     // TODO (refactor++): this is tricky. rewriting the actor.value procs a huge number of calculations, but merging is unreliable and limited
-    if (!actor.value) actor.value = JSON.parse(args.actor)
-    else merge(actor.value, JSON.parse(args.actor))
+    if (actor.value) merge(actor.value, JSON.parse(args.actor))
+    else actor.value = JSON.parse(args.actor)
 
     // TODO (refactor): is there any way avoid requiring system/inventory/ to be separate
-    if (!actor.value!.system) actor.value!.system = JSON.parse(args.system)
-    else merge(actor.value!.system, JSON.parse(args.system))
-    if (!actor.value!.inventory) actor.value!.inventory = JSON.parse(args.inventory)
-    else merge(actor.value!.inventory, JSON.parse(args.inventory))
-    if (!actor.value!.elementalBlasts)
-      actor.value!.elementalBlasts = JSON.parse(args.elementalBlasts)
-    else merge(actor.value!.elementalBlasts, JSON.parse(args.elementalBlasts))
+    if (actor.value && actor.value.system) merge(actor.value!.system, JSON.parse(args.system))
+    else if (actor.value) actor.value.system = JSON.parse(args.system)
+    if (actor.value && actor.value.inventory)
+      merge(actor.value!.inventory, JSON.parse(args.inventory))
+    else if (actor.value) actor.value.inventory = JSON.parse(args.inventory)
+    if (actor.value && actor.value.elementalBlasts)
+      merge(actor.value!.elementalBlasts, JSON.parse(args.elementalBlasts))
+    else if (actor.value) actor.value.elementalBlasts = JSON.parse(args.elementalBlasts)
   }
 }
 
@@ -286,6 +288,7 @@ async function castSpell(
   castingSlot: number
 ): Promise<ResolutionArgs> {
   const { getTargets } = useTargetHelper()
+  const userId = getUserId()
   const uuid = uuidv4()
   const args: CastSpellArgs = {
     userId,
@@ -313,6 +316,7 @@ async function rollCheck(
   options = {}
 ): Promise<ResolutionArgs> {
   const { getTargets } = useTargetHelper()
+  const userId = getUserId()
   const uuid = uuidv4()
   const args: RollCheckArgs = {
     userId,
@@ -340,6 +344,7 @@ async function characterAction(
   options = {}
 ): Promise<ResolutionArgs> {
   const { getTargets } = useTargetHelper()
+  const userId = getUserId()
   const uuid = uuidv4()
   const args: CharacterActionArgs = {
     userId,
@@ -364,6 +369,7 @@ async function consumeItem(
   options = {}
 ): Promise<ResolutionArgs> {
   const uuid = uuidv4()
+  const userId = getUserId()
   const args: ConsumeItemArgs = {
     userId,
     action: 'consumeItem',
@@ -380,6 +386,7 @@ async function consumeItem(
 }
 async function getStrikeDamage(actor: Ref<Actor>, actionSlug: string): Promise<ResolutionArgs> {
   const { getTargets } = useTargetHelper()
+  const userId = getUserId()
   const uuid = uuidv4()
   const args: GetStrikeDamageArgs = {
     userId,
