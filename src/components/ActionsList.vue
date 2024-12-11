@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // TODO (feature): get action modifiers on the card (somehow?)
 // TODO (bug): need to handle battlemedicine popup window
+// TODO (UI): when no strikes are present, too much margin/padding on top of the first actions category.
 import type { Ref } from 'vue'
 import type { Action } from '@/composables/character'
 import { actionDefs } from '@/utils/constants'
@@ -26,7 +27,7 @@ const action: Ref<Action | undefined> = computed(() =>
 </script>
 
 <template>
-  <div class="brea-avoid-column px-6 py-4">
+  <div class="break-inside-avoid-column px-6 py-4">
     <div
       class="pb-4 [&:not(:has(li))]:hidden"
       v-for="group in [

@@ -36,39 +36,42 @@ function reloadPage() {
       </div>
     </div>
     <div class="min-w-44 flex-1">
-      <h3 class="mb-2 whitespace-nowrap text-2xl">
+      <h3 class="mb-2 w-full whitespace-nowrap text-2xl">
         <Listbox>
-          <ListboxButton
-            ><span class="inline-block">{{ name ?? 'Loading...' }}</span></ListboxButton
-          >
+          <ListboxButton class="block w-full">
+            <div class="w-full truncate text-left">{{ name ?? 'Loading...' }}</div>
+          </ListboxButton>
           <ListboxOptions
             class="absolute mt-1 max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 empty:hidden focus:outline-none sm:text-sm"
           >
-            <ListboxOption v-if="!characterList"
-              ><div class="relative select-none py-2 pl-6 pr-4 text-gray-400">Loading...</div>
+            <ListboxOption v-if="!characterList">
+              <div class="relative select-none py-2 pl-6 pr-4 text-gray-400">Loading...</div>
             </ListboxOption>
             <ListboxOption
               v-slot="{ active }"
-              v-for="character in characterList
-                .filter((c: string) => c !== _id)
+              v-for="chr in characterList
+                .filter((c) => c !== _id)
                 .map((c: string) => world?.actors.find((a: Actor) => a._id === c))"
-              :value="character"
-              @click="setActiveCharacterId(character?._id)"
-              :key="character?._id"
+              :value="chr"
+              @click="setActiveCharacterId(chr?._id)"
+              :key="chr?._id"
             >
               <div
+                v-if="chr?.name"
                 :class="[
                   active ? 'bg-blue-100 text-blue-900' : 'text-gray-900',
                   'relative cursor-pointer select-none py-2 pl-6 pr-4'
                 ]"
               >
-                {{ character?.name }}
+                <div class="flex w-full gap-2">
+                  <div class="pr-4">{{ chr?.name }}</div>
+                </div>
               </div>
             </ListboxOption>
             <ListboxOption v-if="!world" key="loading">
               <div class="relative select-none py-2 pl-6 pr-4">
                 <div class="flex w-full gap-2">
-                  <Spinner class="min-w-4" />
+                  <Spinner class="w-4" />
                   <div class="animate-pulse pr-6">Loading...</div>
                 </div>
               </div>

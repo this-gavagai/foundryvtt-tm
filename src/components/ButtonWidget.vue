@@ -7,7 +7,7 @@ const props = defineProps<{ label?: string; color?: string }>()
 const waiting = ref(false)
 const colorStyles = computed(() => {
   const color = props.color ?? 'gray'
-  if (color === 'unstyled') return ['active:text-gray-500', 'disabled:invisible']
+  if (color === 'unstyled') return ['active:text-gray-500', 'disabled:invisible', 'bg-transparent']
   else if (color === 'red')
     return [`bg-red-600`, `hover:bg-red-500`, `active:bg-red-400`, 'text-white']
   else if (color === 'green')
@@ -22,7 +22,7 @@ defineExpose({ waiting })
 <template>
   <button
     type="button"
-    class="font-mediumfocus:outline-none initial:bg-gray-500 inline-flex items-end justify-center border border-transparent px-4 py-2 text-sm disabled:opacity-50"
+    class="font-mediumfocus:outline-none inline-flex items-end justify-center border border-transparent px-4 py-2 text-sm disabled:opacity-50 initial:bg-gray-500"
     :class="[{ 'opacity-50': waiting }, ...colorStyles]"
   >
     <span :class="{ invisible: waiting }">

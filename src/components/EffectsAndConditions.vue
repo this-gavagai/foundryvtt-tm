@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // TODO (refactor):Change to ButtonWidget
+// TODO (UX): add latency feedback to buttons
 import type { Item } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
 import InfoModal from '@/components/InfoModal.vue'

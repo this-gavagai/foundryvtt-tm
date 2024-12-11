@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// TODO (bug): items in deleted containers disappear from list
 import { computed } from 'vue'
 const { item } = defineProps(['item'])
 const emits = defineEmits(['itemClicked'])
@@ -21,7 +22,7 @@ const totalWeight = computed(() => {
   >
     <div class="truncate" :class="{ italic: item.type === 'backpack' }">{{ item.name }}</div>
     <!-- <div class="flex gap-1"> -->
-    <div class="text-right text-xs">(x{{ item?.system?.quantity }})</div>
+    <div class="text-right text-xs font-light">(x{{ item?.system?.quantity }})</div>
     <div
       class="text-right text-xs"
       :class="[

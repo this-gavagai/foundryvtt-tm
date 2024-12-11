@@ -116,7 +116,7 @@ const toggleSet = [
     <div class="lg:columns-2 lg:gap-12">
       <dl
         v-for="inventoryType in inventoryTypes"
-        class="break-before-avoid break-inside-avoid-column whitespace-nowrap pt-4"
+        class="break-before-avoid break-inside-avoid-column whitespace-nowrap pt-4 [&:not(:has(dd))]:hidden"
         :class="{ 'break-before-column': inventoryType.type === 'backpack' }"
         :key="inventoryType.title"
       >

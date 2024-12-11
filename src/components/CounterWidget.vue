@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // TODO (bug): seems like some computer fonts use different font sizes for filled and unfilled pips. Is it perhaps better to use SVG for this?
+// TODO (bug): widget buttons are picking up grey color again on things like hero points.
 import { ref } from 'vue'
 import Modal from '@/components/ModalBox.vue'
 import { PlusCircleIcon, MinusCircleIcon } from '@heroicons/vue/24/outline'
