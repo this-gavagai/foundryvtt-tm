@@ -74,7 +74,7 @@ defineExpose({ open, close, itemId, options, rollResultModal })
                 <div class="max-h-[70vh] overflow-auto">
                   <div class="flex space-x-2">
                     <div>
-                      <img class="w-12" v-if="props.imageUrl" :src="getPath(props.imageUrl)" />
+                      <img class="h-12 w-12" v-if="props.imageUrl" :src="getPath(props.imageUrl)" />
                     </div>
                     <div>
                       <DialogTitle as="h3" class="text-lg font-medium leading-6 text-gray-900">

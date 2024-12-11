@@ -1,14 +1,9 @@
 <script setup lang="ts">
-// TODO (bug): prevent strikeModal content from clearing until after animation is finished
 // TODO (data): add reload action from pf2e-ranged?
 // TODO (data): show range of weapons
 // TODO (bug): damage doesn't load if the button is clicked really quickly after reload. Why?
-// TODO (feature): allow player to choose two-action blasts somehow.
-// TODO (feature): allow damage type to be selectable for blasts and versatile damage
 // TODO (UX): add ranged/melee icon to list items, and get range details in there somehow
 // TODO (bug): modifiers for blasts aren't always working right, missing item bonuses for example from gate attenuator
-// TODO (bug): modifiers for blast damage aren't showing up at all
-// TODO (bug): strikeModalDamage doesn't appear the first time if the button is clicked quickly after reload
 
 import { inject, ref, watch, computed } from 'vue'
 import { formatModifier } from '@/utils/utilities'
@@ -83,13 +78,15 @@ const strikeModalDetails = computed(() => {
       ? (viewedStrike.value as Strike)?.traits
           ?.map((t: Trait) => t.label)
           ?.concat((viewedStrike.value as Strike)?.weaponTraits?.map((t: Trait) => t.label) ?? [])
-      : item?.system?.traits?.value, // TODO: add damage type to traits
+      : // TODO: add damage type to traits
+        item?.system?.traits?.value,
     label: isStrike
       ? (viewedStrike.value as Strike)?.label
       : `Elemental Blast (${capitalize((viewedStrike.value as ElementalBlast)?.element)}) - ${viewedStrikeOptions.value?.melee ? 'Melee' : 'Ranged'}`,
     modifiers: isStrike
       ? (viewedStrike.value as Strike)?._modifiers
-      : (viewedStrike.value as ElementalBlast)?.statistic?.modifiers, // TODO (bug): figure out why this is missing some modifiers like Attunement Gate items
+      : // TODO (bug): figure out why this is missing some modifiers like Attunement Gate items
+        (viewedStrike.value as ElementalBlast)?.statistic?.modifiers,
     variantLabel: isStrike
       ? (viewedStrike.value as Strike)?.variants?.[viewedStrikeOptions.value?.subtype ?? 0]?.label
       : (viewedStrike.value as ElementalBlast)?.maps?.[

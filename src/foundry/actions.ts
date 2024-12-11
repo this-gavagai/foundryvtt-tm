@@ -24,7 +24,8 @@ export async function getCharacterDetails(args: {
     actor: JSON.stringify(actor),
     system: JSON.stringify(actor.system),
     inventory: JSON.stringify(actor.inventory),
-    elementalBlasts: JSON.stringify(new game.pf2e.ElementalBlast(actor)) // TODO: serializing the whole object here is inefficient. just take parts needed?
+    // TODO: serializing the whole blasts object here is inefficient. just take parts needed?
+    elementalBlasts: JSON.stringify(new game.pf2e.ElementalBlast(actor))
   }
 }
 

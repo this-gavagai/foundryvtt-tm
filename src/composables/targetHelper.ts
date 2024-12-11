@@ -1,4 +1,3 @@
-// TODO (data): targets only update on change. need a way to request targets on load/proxy-change
 import { ref } from 'vue'
 import { computed } from 'vue'
 import { useWorld } from './world'

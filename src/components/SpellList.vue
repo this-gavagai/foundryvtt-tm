@@ -186,7 +186,6 @@ const spellbook = computed((): Spellbook => {
                     <span>{{ spell?.name }}</span>
                     <ActionIcons class="text-md ml-1" :actions="spell?.system?.time?.value" />
                   </span>
-                  <!-- TODO (refactor): This v-else should probably be consolidated; too much duplication -->
                   <span
                     v-else
                     @click="
@@ -321,10 +320,9 @@ const spellbook = computed((): Spellbook => {
           color="blue"
           v-if="!infoModal.options?.isConsumable"
           @click="
-            (viewedSpell as Spell)?.doSpell?.(
-              infoModal.options.castingRank,
-              infoModal.options.castingSlot
-            )
+            (viewedSpell as Spell)
+              ?.doSpell?.(infoModal.options.castingRank, infoModal.options.castingSlot)
+              ?.then((r) => infoModal.close())
           "
         />
         <Button

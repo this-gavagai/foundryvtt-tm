@@ -102,7 +102,7 @@ defineExpose({ actor, character })
             <SpellList />
           </TabPanel>
         </TabPanels>
-        <TabList class="flex h-20 justify-around border-t md:border-b">
+        <TabList class="flex justify-around border-t md:border-b">
           <CharacterTab :src="cowled" label="Character" class="md:hidden" />
           <CharacterTab :src="biceps" label="Feats" />
           <CharacterTab :src="skills" label="Proficiencies" />

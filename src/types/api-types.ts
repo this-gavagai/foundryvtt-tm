@@ -87,7 +87,6 @@ export interface ShareTargetArgs {
   targets: string[]
 }
 
-// TODO (types): what the heck is this resolutionargs thing composed of?
 export interface ResolutionArgs {}
 
 // debugging conveniences

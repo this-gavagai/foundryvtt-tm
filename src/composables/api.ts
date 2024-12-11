@@ -247,9 +247,6 @@ async function updateUserTargetingProxy(userId: string, proxyId: string) {
 /////////////////////////////////////////////////
 // Character Build Methods                     //
 /////////////////////////////////////////////////
-// TODO (refactor?++): review call/response structure. Right now, this method doesn't use the ackQueue but instead listens to a separate response
-// not using ackQueue allows for updates pushed from server, but makes this method a bit weird (and needing a timeout to prevent race conditions)
-// for the world calls, as well, we need to not send subsequent ones until current are resolved, but perhaps there's a cleaner way than throttling
 async function sendCharacterRequest(actorId: string): Promise<void> {
   const socket = await getSocket()
   socket.emit('module.tablemate', {
