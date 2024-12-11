@@ -1,10 +1,10 @@
-import type { Prop } from './helpers'
+import type { Maybe } from './helpers'
 import type { IWR as PF2eIWR } from '@/types/pf2e-types'
 export interface IWR {
-  type: Prop<string>
-  exceptions: Prop<string[]>
-  definition: Prop<string>
-  value?: Prop<number>
+  type: Maybe<string>
+  exceptions: Maybe<string[]>
+  definition: Maybe<string>
+  value?: Maybe<number>
 }
 export function makeIWRs(set: PF2eIWR[] | undefined): IWR[] | undefined {
   if (!set) return undefined

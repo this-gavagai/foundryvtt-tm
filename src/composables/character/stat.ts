@@ -1,22 +1,22 @@
-import type { Prop } from './helpers'
+import type { Maybe } from './helpers'
 import type { Roll } from '@/types/foundry-types'
 import type { Stat as PF2eStat, Modifier as PF2eModifier } from '@/types/pf2e-types'
 import { type Modifier, makeModifiers } from './modifier'
 
 export interface Stat {
-  label: Prop<string>
-  slug: Prop<string>
-  type: Prop<string>
-  breakdown: Prop<string>
-  attribute: Prop<string>
-  rank: Prop<number>
-  total: Prop<number>
-  value: Prop<number>
-  totalModifier: Prop<number>
-  modifiers: Prop<Modifier[]>
-  dc: Prop<number>
-  armor: Prop<boolean>
-  lore: Prop<boolean>
+  label: Maybe<string>
+  slug: Maybe<string>
+  type: Maybe<string>
+  breakdown: Maybe<string>
+  attribute: Maybe<string>
+  rank: Maybe<number>
+  total: Maybe<number>
+  value: Maybe<number>
+  totalModifier: Maybe<number>
+  modifiers: Maybe<Modifier[]>
+  dc: Maybe<number>
+  armor: Maybe<boolean>
+  lore: Maybe<boolean>
   roll?: () => Promise<Roll> | null
 }
 export function makeStat(root: PF2eStat | undefined): Stat | undefined {

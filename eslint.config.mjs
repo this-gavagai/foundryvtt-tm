@@ -16,8 +16,8 @@ export default [
       '**/coverage/**',
       '**/libs/**',
       '**/tablemate/**',
-      '**/types/**', // TOOD: remove this line. it's just there for now while my types file is such a mess.
-      '**/foundry/touchmate.ts' // TODO: refactor touchmate at some point
+      '**/types/**', // TODO: remove this line. it's just there for now while my types files are such a mess.
+      '**/foundry/touchmate.ts' // TODO: refactor touchmate into a separate app?
     ]
   },
   ...pluginVue.configs['flat/essential'],

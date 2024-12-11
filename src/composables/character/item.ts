@@ -1,67 +1,67 @@
-import type { Prop } from './helpers'
+import type { Maybe } from './helpers'
 import type { Item as PF2eItem } from '@/types/pf2e-types'
 
 export interface Item {
-  _id: Prop<string>
-  name: Prop<string>
-  type: Prop<string>
-  img: Prop<string>
-  itemGrants: Prop<string[]>
-  grantedBy: Prop<string>
+  _id: Maybe<string>
+  name: Maybe<string>
+  type: Maybe<string>
+  img: Maybe<string>
+  itemGrants: Maybe<string[]>
+  grantedBy: Maybe<string>
   flags: {
     pf2e: {
       damageSelections: {
-        earth: Prop<string>
-        fire: Prop<string>
-        water: Prop<string>
-        air: Prop<string>
-        wood: Prop<string>
-        metal: Prop<string>
+        earth: Maybe<string>
+        fire: Maybe<string>
+        water: Maybe<string>
+        air: Maybe<string>
+        wood: Maybe<string>
+        metal: Maybe<string>
       }
     }
   }
   system: {
-    slug: Prop<string>
-    location: { value: Prop<string>; heightenedLevel: Prop<number>; signature: Prop<boolean> }
-    // location: Prop<string>
-    // signature: Prop<boolean>
-    category: Prop<string>
+    slug: Maybe<string>
+    location: { value: Maybe<string>; heightenedLevel: Maybe<number>; signature: Maybe<boolean> }
+    // location: Maybe<string>
+    // signature: Maybe<boolean>
+    category: Maybe<string>
     description: { value: string }
-    value: { value: Prop<number>; isValued: Prop<boolean> }
+    value: { value: Maybe<number>; isValued: Maybe<boolean> }
     traits: {
-      rarity: Prop<string>
-      value: Prop<string[]>
-      toggles: { modular: { selected: Prop<string> }; versatile: { selected: Prop<string> } }
+      rarity: Maybe<string>
+      value: Maybe<string[]>
+      toggles: { modular: { selected: Maybe<string> }; versatile: { selected: Maybe<string> } }
     }
-    level: { value: Prop<number>; taken: Prop<number> }
-    bulk: { value: Prop<number> }
-    stackGroup: Prop<string>
-    actions: { value: Prop<string> }
-    range: Prop<number>
-    damage: { damageType: Prop<string> }
+    level: { value: Maybe<number>; taken: Maybe<number> }
+    bulk: { value: Maybe<number> }
+    stackGroup: Maybe<string>
+    actions: { value: Maybe<string> }
+    range: Maybe<number>
+    damage: { damageType: Maybe<string> }
     equipped: {
-      carryType: Prop<string>
-      invested: Prop<boolean>
-      handsHeld: Prop<number>
-      inSlot: Prop<boolean>
+      carryType: Maybe<string>
+      invested: Maybe<boolean>
+      handsHeld: Maybe<number>
+      inSlot: Maybe<boolean>
     }
-    usage: { value: Prop<string> }
-    hp: { value: Prop<number> }
-    containerId: Prop<string>
-    quantity: Prop<number>
-    price: { value: { gp: Prop<number>; sp: Prop<number>; cp: Prop<number> } }
-    spelldc: { dc: Prop<number> }
-    time: { value: Prop<string> }
-    prepared: { value: Prop<string> }
+    usage: { value: Maybe<string> }
+    hp: { value: Maybe<number> }
+    containerId: Maybe<string>
+    quantity: Maybe<number>
+    price: { value: { gp: Maybe<number>; sp: Maybe<number>; cp: Maybe<number> } }
+    spelldc: { dc: Maybe<number> }
+    time: { value: Maybe<string> }
+    prepared: { value: Maybe<string> }
     slots: {
       [key: string]: {
-        value: Prop<number>
-        max: Prop<number>
-        prepared: { id: Prop<string | null>; expended: Prop<boolean> }[]
+        value: Maybe<number>
+        max: Maybe<number>
+        prepared: { id: Maybe<string | null>; expended: Maybe<boolean> }[]
       }
     }
-    spell: { system: { level: { value: Prop<number> }; description: { value: Prop<string> } } }
-    uses: { value: Prop<number>; max: Prop<number> }
+    spell: { system: { level: { value: Maybe<number> }; description: { value: Maybe<string> } } }
+    uses: { value: Maybe<number>; max: Maybe<number> }
   }
   delete?: () => Promise<unknown>
   changeQty?: (newTotal: number) => Promise<unknown>

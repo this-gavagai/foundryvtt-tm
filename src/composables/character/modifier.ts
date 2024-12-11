@@ -1,12 +1,12 @@
-import type { Prop } from './helpers'
+import type { Maybe } from './helpers'
 import type { Modifier as PF2eModifier } from '@/types/pf2e-types'
 
 export interface Modifier {
-  slug: Prop<string>
-  label: Prop<string>
-  modifier: Prop<number>
-  enabled: Prop<boolean>
-  hideIfDisabled: Prop<boolean>
+  slug: Maybe<string>
+  label: Maybe<string>
+  modifier: Maybe<number>
+  enabled: Maybe<boolean>
+  hideIfDisabled: Maybe<boolean>
 }
 export function makeModifiers(set: PF2eModifier[] | undefined): Modifier[] | undefined {
   if (!set) return undefined

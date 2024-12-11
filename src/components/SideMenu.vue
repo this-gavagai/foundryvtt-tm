@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// TODO (feature++): gather in macros for use here; needs macro feature
 import { ref, computed } from 'vue'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
 import { XMarkIcon } from '@heroicons/vue/24/solid'

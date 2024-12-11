@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // TODO (refactor): switch to ButtonWidget
-// TODO (data): add weight, encumbrance, etc.
+// TODO (feature): add encumbrance
 // TODO (refactor): switch toggle bar over to headlessui component and give transaction feedback
 // TODO (refactor): refactor listbox into component, and give transaction feedback
 // TODO (refactor): refactor Switch into component, and give transactionf eedback
-// TODO (refactor): it is currently possible to put containers inside themselves, which leads to all sorts of trouble; fix while refactoring how backpacks are rendered?
+// TODO (bug): it is currently possible to put containers inside themselves, which leads to all sorts of trouble; need catch-all for items not caught
+// TODO (bug): items in deleted containers disappear from list
 // TODO (refactor): get rid of viewed item; do what strikes does now instead
 
 import type { Equipment } from '@/composables/character'

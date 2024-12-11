@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// TODO (bug): items in deleted containers disappear from list
 import { computed } from 'vue'
 const { item } = defineProps(['item'])
 const emits = defineEmits(['itemClicked'])

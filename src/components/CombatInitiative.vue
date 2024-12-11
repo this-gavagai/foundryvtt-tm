@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// TODO (bug): perception is showing up twice in this list
 import type { Combatant } from '@/types/pf2e-types'
 import type { Stat } from '@/composables/character'
 import { computed, inject } from 'vue'
@@ -41,13 +40,6 @@ const initiativeReady = computed(() => {
 </script>
 <template>
   <div class="flex gap-4 border-b px-6 py-4">
-    <StatBox
-      heading="Initiative"
-      :modifiers="initiativeMods"
-      :rollAction="initiativeReady ? () => rollInitiative() : null"
-    >
-      {{ formatModifier(initiativeTotalModifier ?? NaN) }}
-    </StatBox>
     <Listbox v-model="initiativeStat" class="w-full">
       <div class="relative mt-1">
         <ListboxButton
@@ -96,5 +88,12 @@ const initiativeReady = computed(() => {
         </transition>
       </div>
     </Listbox>
+    <StatBox
+      heading="Initiative"
+      :modifiers="initiativeMods"
+      :rollAction="initiativeReady ? () => rollInitiative() : null"
+    >
+      {{ formatModifier(initiativeTotalModifier ?? NaN) }}
+    </StatBox>
   </div>
 </template>

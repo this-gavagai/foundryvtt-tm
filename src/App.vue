@@ -20,7 +20,8 @@ interface CharacterPanel extends Ref {
 }
 
 const { world, refreshWorld } = useWorld()
-const { setupSocketListenersForWorld } = useApi()
+const { setupSocketListenersForWorld, setupSocketListenersForApp } = useApi()
+setupSocketListenersForApp()
 refreshWorld().then((w) => {
   setupSocketListenersForWorld(w as Ref<World>)
 })

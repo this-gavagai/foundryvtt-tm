@@ -39,11 +39,12 @@ const { getUserId } = useUserId()
 ///////////////////////////////////////
 // Setup Methods                     //
 ///////////////////////////////////////
-async function setupSocketListenersForWorld(world: Ref<World>) {
+async function setupSocketListenersForApp() {
   const socket = await getSocket()
   socket.on('module.tablemate', (args: ModuleEventArgs) => {
     switch (args.action) {
       case 'acknowledged':
+        console.log('here args', args.uuid)
         if (ackQueue[args.uuid]) {
           ackQueue[args.uuid](args)
           delete ackQueue[args.uuid]
@@ -55,6 +56,9 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
         break
     }
   })
+}
+async function setupSocketListenersForWorld(world: Ref<World>) {
+  const socket = await getSocket()
   socket.on('modifyDocument', (args: DocumentEventArgs) => {
     // let documentSource
     switch (args.type) {
@@ -127,7 +131,6 @@ async function setupSocketListenersForActor(
 ///////////////////////////////////////
 // Emit Methods                      //
 ///////////////////////////////////////
-// TODO (type): possible to define this "update" paramater type more explicitly?
 async function updateActor(actor: Ref<Actor | undefined>, update: object) {
   if (!actor.value) return
   const socket = await getSocket()
@@ -262,19 +265,20 @@ function parseActorData(
   args: UpdateCharacterDetailsArgs
 ) {
   if (args.actorId === actorId) {
-    // TODO (refactor++): this is tricky. rewriting the actor.value procs a huge number of calculations, but merging is unreliable and limited
     if (actor.value) merge(actor.value, JSON.parse(args.actor))
     else actor.value = JSON.parse(args.actor)
 
-    // TODO (refactor): is there any way avoid requiring system/inventory/ to be separate
-    if (actor.value && actor.value.system) merge(actor.value!.system, JSON.parse(args.system))
-    else if (actor.value) actor.value.system = JSON.parse(args.system)
-    if (actor.value && actor.value.inventory)
-      merge(actor.value!.inventory, JSON.parse(args.inventory))
-    else if (actor.value) actor.value.inventory = JSON.parse(args.inventory)
-    if (actor.value && actor.value.elementalBlasts)
+    if (!actor.value) return
+
+    if (actor.value.system) merge(actor.value!.system, JSON.parse(args.system))
+    else actor.value.system = JSON.parse(args.system)
+
+    if (actor.value.inventory) merge(actor.value!.inventory, JSON.parse(args.inventory))
+    else actor.value.inventory = JSON.parse(args.inventory)
+
+    if (actor.value.elementalBlasts)
       merge(actor.value!.elementalBlasts, JSON.parse(args.elementalBlasts))
-    else if (actor.value) actor.value.elementalBlasts = JSON.parse(args.elementalBlasts)
+    else actor.value.elementalBlasts = JSON.parse(args.elementalBlasts)
   }
 }
 
@@ -399,7 +403,10 @@ async function getStrikeDamage(actor: Ref<Actor>, actionSlug: string): Promise<R
   const socket = await getSocket()
   return new Promise((resolve) => {
     socket.emit('module.tablemate', args)
-    pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
+    pushToAckQueue(uuid, (args: ResolutionArgs) => {
+      console.log('resolving')
+      resolve(args)
+    })
   })
 }
 
@@ -445,6 +452,7 @@ function _processDeletes(results: string[], root: Item[]) {
 ///////////////////////////////////////
 export function useApi() {
   return {
+    setupSocketListenersForApp,
     setupSocketListenersForWorld,
     setupSocketListenersForActor,
     sendCharacterRequest,

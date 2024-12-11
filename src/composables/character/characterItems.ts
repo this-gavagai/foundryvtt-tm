@@ -1,21 +1,21 @@
 import { computed, type Ref } from 'vue'
 import type { Actor, Item as PF2eItem } from '@/types/pf2e-types'
-import type { Field, Prop } from './helpers'
+import type { Field, Maybe } from './helpers'
 import { type Item, makeItem } from './item'
 import { useApi } from '../api'
 import { inventoryTypes } from '@/utils/constants'
 
 export interface Equipment extends Item {
-  toggleInvested?: (newValue?: Prop<boolean>) => Promise<unknown>
+  toggleInvested?: (newValue?: Maybe<boolean>) => Promise<unknown>
   changeCarry?: (
-    method: Prop<string>,
-    hands: Prop<number>,
-    container: Prop<string | null>,
-    inSlot?: Prop<boolean>
+    method: Maybe<string>,
+    hands: Maybe<number>,
+    container: Maybe<string | null>,
+    inSlot?: Maybe<boolean>
   ) => Promise<unknown>
 }
 export interface SpellcastingEntry extends Item {
-  staffCharges: Prop<number>
+  staffCharges: Maybe<number>
   setPrepared: (
     rank: number,
     slot: number,
@@ -82,10 +82,10 @@ export function useCharacterItems(actor: Ref<Actor | undefined>) {
             return updateActorItem(actor as Ref<Actor>, i?._id, update)
           },
           changeCarry: (
-            carryType: Prop<string>,
-            handsHeld: Prop<number>,
-            containerId: Prop<string | null>,
-            inSlot: Prop<boolean> = i?.system?.equipped?.inSlot
+            carryType: Maybe<string>,
+            handsHeld: Maybe<number>,
+            containerId: Maybe<string | null>,
+            inSlot: Maybe<boolean> = i?.system?.equipped?.inSlot
           ) => {
             console.log('changing carry!')
             if (!i?.system?.equipped) return Promise.resolve(null)

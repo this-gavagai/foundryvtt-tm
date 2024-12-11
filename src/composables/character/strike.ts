@@ -1,21 +1,21 @@
-import type { Prop } from './helpers'
+import type { Maybe } from './helpers'
 import type { Roll } from '@/types/foundry-types'
 import type { Action as PF2eAction, Item as PF2eItem } from '@/types/pf2e-types'
 import { type Modifier, makeModifiers } from './modifier'
 import { type Item, makeItem } from './item'
 export interface Strike {
-  label: Prop<string>
-  slug: Prop<string>
-  item?: Prop<Item>
-  variants: Prop<{ label: string }[]>
+  label: Maybe<string>
+  slug: Maybe<string>
+  item?: Maybe<Item>
+  variants: Maybe<{ label: string }[]>
   traits: {
-    name: Prop<string>
-    label: Prop<string>
-    description: Prop<string>
+    name: Maybe<string>
+    label: Maybe<string>
+    description: Maybe<string>
   }[]
-  weaponTraits: Prop<{ name: string; label: string; description: string }[]>
-  // tmDamageFormula: Prop<{ base: string; critical: string; _modifiers: Prop<Modifier[]> }>
-  _modifiers: Prop<Modifier[]>
+  weaponTraits: Maybe<{ name: string; label: string; description: string }[]>
+  // tmDamageFormula: Maybe<{ base: string; critical: string; _modifiers: Maybe<Modifier[]> }>
+  _modifiers: Maybe<Modifier[]>
   doStrike?: (variant: number) => Promise<Roll> | null
   doDamage?: (variant: number) => Promise<Roll> | null
   getDamage?: () => Promise<unknown> | null

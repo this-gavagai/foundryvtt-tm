@@ -19,6 +19,7 @@ const { current: heroCurrent, max: heroMax } = character.heroPoints
       :value="heroCurrent ?? 0"
       :max="heroMax ?? 0"
       editable
+      class="h-4 w-12"
       @change-count="
         (newTotal) => {
           heroCurrent = newTotal

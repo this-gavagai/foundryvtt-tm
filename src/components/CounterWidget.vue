@@ -1,11 +1,11 @@
 <script setup lang="ts">
-// TODO (bug): seems like some computer fonts use different font sizes for filled and unfilled pips. Is it perhaps better to use SVG for this?
-// TODO (bug): widget buttons are picking up grey color again on things like hero points.
 import { ref } from 'vue'
 import Modal from '@/components/ModalBox.vue'
 import { PlusCircleIcon, MinusCircleIcon } from '@heroicons/vue/24/outline'
 import Button from '@/components/ButtonWidget.vue'
 import Spinner from '@/components/SpinnerWidget.vue'
+import PipWidgetFilled from './PipWidgetFilled.vue'
+import PipWidgetUnfilled from './PipWidgetUnfilled.vue'
 
 const props = defineProps<{
   value: number | undefined
@@ -35,12 +35,14 @@ defineExpose({ click, close })
 </script>
 <template>
   <div @click="click" class="cursor-pointer">
-    <span>
-      <span v-for="i in Number(props.value ?? 0)" :key="'pip' + i">●</span>
-      <span v-for="i in props.max ? Number(props.max - (props.value ?? 0)) : 0" :key="'emp' + i"
-        >○</span
-      >
-    </span>
+    <div class="flex h-full">
+      <span v-for="i in Number(props.value ?? 0)" :key="'pip' + i">
+        <PipWidgetFilled class="inline h-full w-full" />
+      </span>
+      <span v-for="i in props.max ? Number(props.max - (props.value ?? 0)) : 0" :key="'emp' + i">
+        <PipWidgetUnfilled class="inline h-full w-full" />
+      </span>
+    </div>
     <Teleport to="#modals">
       <Modal ref="counterModal" :title="props.title">
         <div class="flex w-full justify-between py-8 text-3xl">
@@ -56,12 +58,14 @@ defineExpose({ click, close })
               class="relative row-start-1 row-end-1 py-2 transition-opacity delay-200 ease-in"
               :class="{ 'opacity-0': updating }"
             >
-              <span v-for="i in Number(props.value ?? 0)" :key="'pip' + i">●</span>
+              <span v-for="i in Number(props.value ?? 0)" :key="'pip' + i">
+                <PipWidgetFilled class="inline w-8" />
+              </span>
               <span
                 v-for="i in props.max ? Number(props.max - (props.value ?? 0)) : 0"
                 :key="'emp' + i"
-                >○</span
-              >
+                ><PipWidgetUnfilled class="inline w-8"
+              /></span>
             </div>
             <div class="absolute row-start-1 row-end-1 px-7">
               <Spinner

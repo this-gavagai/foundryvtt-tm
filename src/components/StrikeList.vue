@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// TODO (data): add reload action from pf2e-ranged?
+// TODO (feature): add altUsage features (see pf2e AttackRollParams type)
+// TODO (feature): add reload action from pf2e-ranged?
 // TODO (data): show range of weapons
-// TODO (bug): damage doesn't load if the button is clicked really quickly after reload. Why?
 // TODO (UX): add ranged/melee icon to list items, and get range details in there somehow
 // TODO (bug): modifiers for blasts aren't always working right, missing item bonuses for example from gate attenuator
 
@@ -48,7 +48,6 @@ const { strikes, blasts, inventory, actions, blastActions } = character
 
 const strikeModal = ref()
 const strikeModalDamage = ref()
-// const strikeModalDetails = ref()
 const viewedStrike = ref<Strike | ElementalBlast | undefined>()
 const viewedStrikeOptions = ref<ViewedStrikeOptions | undefined>()
 
@@ -140,8 +139,9 @@ const strikeModalDetails = computed(() => {
 async function updateDamageFormula() {
   strikeModalDamage.value = undefined
   const isStrike = viewedStrike.value?.hasOwnProperty('doStrike')
-  if (isStrike) strikeModalDamage.value = await (viewedStrike.value as Strike)?.getDamage?.()
-  else {
+  if (isStrike) {
+    strikeModalDamage.value = await (viewedStrike.value as Strike)?.getDamage?.()
+  } else {
     const element = (viewedStrike.value as ElementalBlast)?.element ?? ''
     const damageType =
       viewedStrike.value?.item?.flags?.pf2e?.damageSelections?.[
@@ -149,7 +149,6 @@ async function updateDamageFormula() {
       ] ??
       (viewedStrike.value as ElementalBlast).damageTypes[0].value ??
       ''
-    console.log(damageType)
     strikeModalDamage.value = await (viewedStrike.value as ElementalBlast)?.getBlastDamage?.(
       element,
       damageType,
@@ -163,7 +162,7 @@ watch(viewedStrike, async () => {
 // window.smd = strikeModalDetails
 </script>
 <template>
-  <div class="break-inside-avoid px-6 py-4">
+  <div class="break-inside-avoid px-6 py-4 [&:not(:has(li))]:hidden">
     <div class="break-inside-avoid [&:not(:has(li))]:hidden">
       <h3 class="text-lg underline">Elemental Blasts</h3>
       <ul>
@@ -197,7 +196,7 @@ watch(viewedStrike, async () => {
         </li>
       </ul>
     </div>
-    <div class="break-inside-avoid [&:not(:has(li))]:hidden [div_&]:pt-2">
+    <div class="break-inside-avoid [&:not(:has(li))]:hidden [div_&:not(:hidden)]:pt-2">
       <h3 class="text-lg underline">Strikes</h3>
       <ul>
         <li

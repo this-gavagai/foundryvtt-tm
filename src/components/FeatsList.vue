@@ -1,6 +1,5 @@
 <script setup lang="ts">
 // TODO (refactor): make feat nesting recursive instead of manual like it is now
-// TODO (bug): feats have gone nuts on Yoon l5, with reduplicated feats galore.
 // TODO (refactor): get rid of the viewedItem nonsense, replecating how strikes works now
 import type { Item } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
