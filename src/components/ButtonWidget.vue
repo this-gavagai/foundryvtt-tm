@@ -10,7 +10,7 @@ const styles = new Map([
   ['red', [`bg-red-600`, `hover:bg-red-500`, `active:bg-red-400`, 'text-white']],
   ['green', [`bg-green-600`, `hover:bg-green-500`, `active:bg-green-400`, 'text-white']],
   ['blue', [`bg-blue-600`, `hover:bg-blue-500`, `active:bg-blue-400`, 'text-white']],
-  ['lightgray', [`bg-gray-300`, `active:bg-gray-100`, 'text-gray-900']],
+  ['lightgray', [`bg-gray-300`, `active:bg-gray-200`, 'text-gray-900']],
   ['gray', [`bg-gray-600`, `hover:bg-gray-500`, `active:bg-gray-400`, 'text-white']],
   [undefined, []]
 ])

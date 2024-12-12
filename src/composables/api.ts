@@ -152,8 +152,6 @@ async function sendCharacterRequest(actorId: string): Promise<void> {
   })
   characterUnsynced.set(actorId, false)
   characterLastRequest.set(actorId, uuid)
-  // requestCount.set(actorId, (requestCount.get(actorId) ?? 0) + 1)
-  // console.log('TMCOUNT sending for ', actorId, requestCount.get(actorId))
 }
 function undefinedToNull(objValue: unknown, srcValue: unknown) {
   if (srcValue === undefined) return null
@@ -163,14 +161,9 @@ function parseActorData(
   actor: Ref<Actor | undefined>,
   args: UpdateCharacterDetailsArgs
 ) {
-  if (characterUnsynced.get(actorId)) {
-    console.log('TMmerge: not merging, character state out of sync')
-    return
-  }
-  if (characterLastRequest.get(actorId) !== args.uuid) {
-    console.log('TMmerge more recent uuid pending')
-    return
-  }
+  if (characterUnsynced.get(actorId)) return
+  if (characterLastRequest.get(actorId) !== args.uuid) return
+
   // TODO (data): I think I need a customizer method to convert merge -> mergeWith. In certain circumstances, the merge x <- undefined is causing things to be left behind
   //  after a charater change. If the source is undefined, it should overwrite the active piece. Try, for example, adding sickened, then remove sicked, then look at strike modifiers
   if (args.actorId === actorId) {

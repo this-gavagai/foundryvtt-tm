@@ -1,11 +1,11 @@
 <script setup lang="ts">
-// TODO (refactor): make feat nesting recursive instead of manual like it is now (also fix the viewedFeat for sub-items)
 import type { Item } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
 import { removeUUIDs } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 
 import InfoModal from '@/components/InfoModal.vue'
+import FeatsListItem from './FeatsListItem.vue'
 
 const infoModal = ref()
 const character = inject(useKeys().characterKey)!
@@ -66,72 +66,16 @@ const featCategories = computed(() => {
         {{ category.label }}
       </dt>
       <dd v-for="feat in category.feats" :key="feat._id">
-        <div class="relative">
-          <a
-            class="flex cursor-pointer truncate whitespace-nowrap"
-            @click="
-              () => {
-                viewedFeat = feat
-                infoModal.open()
-              }
-            "
-          >
-            <span class="absolute w-4 pt-1 text-right text-xs text-gray-500">{{
-              feat?.system?.level?.taken ??
-              feat?.system?.location?.value?.split('-')?.[1] ??
-              feat.system?.level?.value
-            }}</span
-            ><span class="truncate pl-6">{{ feat?.name }}</span>
-          </a>
-        </div>
-        <!-- bad manual recursion -->
-        <div v-for="grant in feat?.itemGrants" :key="grant">
-          <div class="ml-10">
-            <a class="cursor-pointer" @click="infoModal.open(grant)">
-              {{ feats?.find((i: Item) => i._id == grant)?.name }}
-            </a>
-            <div
-              v-for="grant2 in feats?.find((i: Item) => i._id == grant)?.itemGrants"
-              :key="grant2"
-            >
-              <div class="ml-5">
-                <a class="cursor-pointer" @click="infoModal.open(grant2)">
-                  {{ feats?.find((i: Item) => i._id == grant2)?.name }}
-                </a>
-                <div
-                  v-for="grant3 in feats?.find((i: Item) => i._id == grant2)?.itemGrants"
-                  :key="grant3"
-                >
-                  <div class="ml-5">
-                    <a class="cursor-pointer" @click="infoModal.open(grant3)">
-                      {{ feats?.find((i: Item) => i._id == grant3)?.name }}
-                    </a>
-                    <div
-                      v-for="grant4 in feats?.find((i: Item) => i._id == grant3)?.itemGrants"
-                      :key="grant4"
-                    >
-                      <div class="ml-5">
-                        <a class="cursor-pointer" @click="infoModal.open(grant4)">
-                          {{ feats?.find((i: Item) => i._id == grant4)?.name }}
-                        </a>
-                        <div
-                          v-for="grant5 in feats?.find((i: Item) => i._id == grant4)?.itemGrants"
-                          :key="grant5"
-                        >
-                          <div class="ml-5">
-                            <a class="cursor-pointer" @click="infoModal.open(grant5)">
-                              {{ feats?.find((i: Item) => i._id == grant5)?.name }}
-                            </a>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <FeatsListItem
+          :featId="feat._id"
+          @clicked="
+            (clickedFeatId: string) => {
+              console.log('outside', clickedFeatId)
+              viewedFeat = feats?.find((f) => f._id === clickedFeatId)
+              infoModal.open()
+            }
+          "
+        />
       </dd>
     </dl>
   </div>
