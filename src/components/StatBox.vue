@@ -17,15 +17,11 @@ const props = defineProps([
   'rollAction'
 ])
 const infoModal = ref()
-const rollButton = ref()
 
 function makeRoll() {
-  rollButton.value.waiting = true
-  props.rollAction().then((r: RollResult) => {
-    console.log('results', r)
+  return props.rollAction().then((r: RollResult) => {
     infoModal.value.rollResultModal.open(r)
     infoModal.value.close()
-    rollButton.value.waiting = false
   })
 }
 
@@ -88,13 +84,7 @@ defineExpose({ infoModal })
           </div>
         </template>
         <template #actionButtons>
-          <Button
-            v-if="props.rollAction"
-            ref="rollButton"
-            color="blue"
-            label="Roll"
-            @click="() => makeRoll()"
-          />
+          <Button v-if="props.rollAction" color="blue" label="Roll" :clicked="() => makeRoll()" />
         </template>
       </InfoModal>
     </Teleport>

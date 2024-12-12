@@ -1,15 +1,18 @@
 <script setup lang="ts">
-// TODO (refactor):Change to ButtonWidget
-// TODO (UX): add latency feedback to buttons
 import type { Item } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
 import InfoModal from '@/components/InfoModal.vue'
 import { useKeys } from '@/composables/injectKeys'
+import Button from '@/components/ButtonWidget.vue'
 
 import { removeUUIDs, getPath } from '@/utils/utilities'
 
 const character = inject(useKeys().characterKey)!
 const { effects } = character
+
+const plusButtonRef = ref()
+const minusButtonRef = ref()
+const removeButtonRef = ref()
 
 const infoModal = ref()
 const viewedItem = computed(() =>
@@ -53,34 +56,42 @@ const viewedItem = computed(() =>
         <div v-html="removeUUIDs(viewedItem?.system?.description?.value)"></div>
       </template>
       <template #actionButtons>
-        <button
-          type="button"
-          class="inline-flex items-end justify-center border border-transparent bg-red-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-red-300 focus:outline-none"
-          @click="
+        <Button
+          ref="removeButtonRef"
+          color="red"
+          :clicked="
             () => {
-              if (viewedItem?.delete) viewedItem.delete()
               infoModal.close()
+              if (viewedItem?.delete) return viewedItem.delete()
             }
           "
         >
           Remove
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          ref="minusButtonRef"
           v-if="viewedItem?.system?.value?.isValued"
-          class="inline-flex items-end justify-center border border-transparent bg-gray-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-300 focus:outline-none"
-          @click="() => viewedItem?.changeQty?.((viewedItem?.system?.value?.value ?? NaN) - 1)"
+          color="lightgray"
+          :clicked="
+            () => {
+              return viewedItem?.changeQty?.((viewedItem?.system?.value?.value ?? NaN) - 1)
+            }
+          "
         >
           -
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          ref="plusButtonRef"
           v-if="viewedItem?.system?.value?.isValued"
-          class="inline-flex items-end justify-center border border-transparent bg-gray-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-300 focus:outline-none"
-          @click="() => viewedItem?.changeQty?.((viewedItem?.system?.value?.value ?? NaN) + 1)"
+          color="lightgray"
+          @click="
+            () => {
+              viewedItem?.changeQty?.((viewedItem?.system?.value?.value ?? NaN) + 1)
+            }
+          "
         >
           +
-        </button>
+        </Button>
       </template>
     </InfoModal>
   </Teleport>

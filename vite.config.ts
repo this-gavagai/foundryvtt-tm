@@ -34,6 +34,9 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'maskable-icon-512x512.png'],
+        devOptions: {
+          enabled: false
+        },
         manifest: {
           name: 'Tabula Mensa',
           short_name: 'Tabula Mensa',
@@ -62,10 +65,53 @@ export default defineConfig(({ mode }) => {
               type: 'image/png',
               purpose: 'maskable'
             }
+          ],
+          screenshots: [
+            {
+              src: 'screenshots/wide.png',
+              sizes: '1280x720',
+              type: 'image/png',
+              form_factor: 'wide',
+              label: 'Character sheet front page'
+            },
+            {
+              src: 'screenshots/narrow.png',
+              sizes: '780x1688',
+              type: 'image/png',
+              form_factor: 'narrow',
+              platform: 'ios',
+              label: 'Character sheet mobile view'
+            }
           ]
         },
-        devOptions: {
-          // enabled: true
+        workbox: {
+          runtimeCaching: [
+            {
+              urlPattern: ({ request }) =>
+                request.destination === 'style' ||
+                request.destination === 'script' ||
+                request.destination === 'worker',
+              handler: 'StaleWhileRevalidate',
+              options: {
+                cacheName: 'static-resources',
+                expiration: {
+                  maxEntries: 50,
+                  maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
+                }
+              }
+            },
+            {
+              urlPattern: ({ request }) => request.destination === 'image',
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'images',
+                expiration: {
+                  maxEntries: 300,
+                  maxAgeSeconds: 90 * 24 * 60 * 60 // 60 days
+                }
+              }
+            }
+          ]
         }
       })
     ],

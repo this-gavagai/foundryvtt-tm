@@ -9,7 +9,7 @@
 // TODO (refactor): get rid of viewed item; do what strikes does now instead
 
 import type { Equipment } from '@/composables/character'
-import { inject, ref, computed, watch } from 'vue'
+import { inject, ref, computed } from 'vue'
 import { removeUUIDs, printPrice } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption, Switch } from '@headlessui/vue'
@@ -20,11 +20,10 @@ import EquipmentInvested from '@/components/EquipmentInvested.vue'
 import EquipmentListItem from '@/components/EquipmentListItem.vue'
 import Modal from '@/components/ModalBox.vue'
 import InfoModal from '@/components/InfoModal.vue'
+import Button from '@/components/ButtonWidget.vue'
 
 const infoModal = ref()
 const investedModal = ref()
-const locationBoxOpen = ref()
-watch(locationBoxOpen, () => console.log('opened!'))
 
 const character = inject(useKeys().characterKey)!
 const { inventory } = character
@@ -86,7 +85,7 @@ const toggleSet = [
   </div>
   <div v-else class="px-6 py-4">
     <!-- Held Items list -->
-    <ul>
+    <ul class="peer">
       <li
         v-for="item in inventory?.filter((i: Equipment) => i.system?.equipped?.handsHeld)"
         class="whitespace-nowrap text-xl"
@@ -106,7 +105,7 @@ const toggleSet = [
         </a>
       </li>
     </ul>
-    <hr class="mb-2 mt-4" />
+    <hr class="mb-2 mt-4 peer-empty:hidden" />
     <!-- Invested Items tip -->
     <div>
       <span class="cursor-pointer text-sm text-gray-500" @click="investedModal.open()">
@@ -309,32 +308,29 @@ const toggleSet = [
       </template>
       <template #actionButtons v-if="itemViewed">
         <div class="flex-1">Qty: {{ itemViewed?.system?.quantity }}</div>
-        <button
-          type="button"
-          class="inline-flex items-end justify-center border border-transparent bg-red-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-red-300 focus:outline-none"
-          @click="
+        <Button
+          color="red"
+          :clicked="
             () => {
-              itemViewed?.delete?.()
               infoModal.close()
+              return itemViewed?.delete?.()
             }
           "
         >
           Remove
-        </button>
-        <button
-          type="button"
-          class="inline-flex items-end justify-center border border-transparent bg-gray-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-300 focus:outline-none"
-          @click="() => itemViewed?.changeQty?.((itemViewed?.system?.quantity ?? NaN) - 1)"
+        </Button>
+        <Button
+          color="lightgray"
+          :clicked="() => itemViewed?.changeQty?.((itemViewed?.system?.quantity ?? NaN) - 1)"
         >
           -
-        </button>
-        <button
-          type="button"
-          class="inline-flex items-end justify-center border border-transparent bg-gray-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-300 focus:outline-none"
-          @click="() => itemViewed?.changeQty?.((itemViewed?.system?.quantity ?? NaN) + 1)"
+        </Button>
+        <Button
+          color="lightgray"
+          :clicked="() => itemViewed?.changeQty?.((itemViewed?.system?.quantity ?? NaN) + 1)"
         >
           +
-        </button>
+        </Button>
       </template>
     </InfoModal>
   </Teleport>

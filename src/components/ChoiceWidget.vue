@@ -7,15 +7,25 @@ const {
   label = '',
   choiceSet = [],
   iconSet = {},
-  selected = ''
+  selected = '',
+  clicked
 } = defineProps<{
   label?: string
   choiceSet: string[]
   iconSet?: Record<string, string>
   selected?: string
+  clicked?: (damageType: string) => void
 }>()
 const emit = defineEmits(['changed'])
 defineExpose({ waiting })
+function handleChanged(damageType: string) {
+  emit('changed', damageType)
+  if (clicked) {
+    waiting.value = true
+    const response = clicked?.(damageType)
+    Promise.resolve(response).then(() => (waiting.value = false))
+  }
+}
 </script>
 
 <template>
@@ -32,7 +42,7 @@ defineExpose({ waiting })
         :choice="damageType"
         :selected="selected"
         :disabled="waiting"
-        @click="emit('changed', damageType)"
+        @click="() => handleChanged(damageType)"
       />
     </span>
   </div>

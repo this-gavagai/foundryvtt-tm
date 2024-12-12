@@ -26,17 +26,20 @@ export interface UpdateCharacterDetailsArgs {
   system: string
   inventory: string
   elementalBlasts: string
+  uuid: string
 }
 export interface RequestCharacterDetailsArgs {
   action: 'requestCharacterDetails'
+  userId: string
   actorId: string
+  uuid: string
 }
 export interface AnybodyHomeArgs {
   action: 'anybodyHome'
 }
 export interface RollCheckArgs {
-  userId: string
   action: 'rollCheck'
+  userId: string
   characterId: string
   checkType: string
   checkSubtype: string
@@ -47,8 +50,8 @@ export interface RollCheckArgs {
   targets?: any
 }
 export interface CharacterActionArgs {
-  userId: string
   action: 'characterAction'
+  userId: string
   characterId: string
   targets: any
   characterAction: any
@@ -56,8 +59,8 @@ export interface CharacterActionArgs {
   uuid: string
 }
 export interface CastSpellArgs {
-  userId: string
   action: 'castSpell'
+  userId: string
   id: string
   characterId: string
   rank: number
@@ -66,16 +69,16 @@ export interface CastSpellArgs {
   targets: string[]
 }
 export interface ConsumeItemArgs {
-  userId: string
   action: 'consumeItem'
+  userId: string
   characterId: string
   consumableId: string
   options: any
   uuid: string
 }
 export interface GetStrikeDamageArgs {
-  userId: string
   action: 'getStrikeDamage'
+  userId: string
   characterId: string
   actionSlug: string
   targets: string[]

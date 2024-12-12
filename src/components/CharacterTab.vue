@@ -5,7 +5,7 @@ const props = defineProps(['src', 'label'])
 
 <template>
   <Tab
-    class="transition-color pwa:pb-6 relative top-0 flex-1 p-2 focus:outline-none ui-selected:bg-blue-200 ui-not-selected:bg-white ui-not-selected:hover:bg-blue-100 ui-not-selected:active:bg-blue-100"
+    class="transition-color pwa:pb-6 pwa:md:pb-2 relative top-0 flex-1 p-2 focus:outline-none ui-selected:bg-blue-200 ui-not-selected:bg-white ui-not-selected:hover:bg-blue-100 ui-not-selected:active:bg-blue-100"
   >
     <img :src="props.src" class="m-auto h-10 select-none" />
     <span class="text-[.5rem]">

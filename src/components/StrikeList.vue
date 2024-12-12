@@ -40,9 +40,6 @@ interface ViewedStrikeOptions {
   subtype?: number
 }
 
-const damageTypeChoiceWidget = ref()
-const actionCountChoiceWidget = ref()
-
 const character = inject(useKeys().characterKey)!
 const { strikes, blasts, inventory, actions, blastActions } = character
 
@@ -50,6 +47,8 @@ const strikeModal = ref()
 const strikeModalDamage = ref()
 const viewedStrike = ref<Strike | ElementalBlast | undefined>()
 const viewedStrikeOptions = ref<ViewedStrikeOptions | undefined>()
+const damageTypeChoiceWidget = ref()
+const actionCountChoiceWidget = ref()
 
 function getDamageTypes(item: Item | undefined) {
   const types = new Set()
@@ -137,7 +136,7 @@ const strikeModalDetails = computed(() => {
   }
 })
 async function updateDamageFormula() {
-  strikeModalDamage.value = undefined
+  // strikeModalDamage.value = undefined
   const isStrike = viewedStrike.value?.hasOwnProperty('doStrike')
   if (isStrike) {
     strikeModalDamage.value = await (viewedStrike.value as Strike)?.getDamage?.()
@@ -246,13 +245,11 @@ watch(viewedStrike, async () => {
             :choiceSet="strikeModalDetails?.damageTypeOptions ?? []"
             :iconSet="damageIcons"
             :selected="strikeModalDetails?.damageTypeSelected ?? ''"
-            @changed="
-              (damageType: string) => {
+            :clicked="
+              (damageType) => {
                 if (damageType !== strikeModalDetails?.damageTypeSelected) {
-                  damageTypeChoiceWidget.waiting = true
-                  viewedStrike?.setDamageType?.(damageType)?.then((r) => {
+                  return viewedStrike?.setDamageType?.(damageType)?.then((r) => {
                     updateDamageFormula()
-                    damageTypeChoiceWidget.waiting = false
                   })
                 }
               }
@@ -264,11 +261,7 @@ watch(viewedStrike, async () => {
             :choiceSet="['1', '2']"
             :iconSet="actionIcons"
             :selected="blastActions + ''"
-            @changed="
-              (newChoice: string) => {
-                blastActions = newChoice
-              }
-            "
+            :clicked="(newChoice) => (blastActions = newChoice)"
           />
         </div>
         <ul>
@@ -290,13 +283,13 @@ watch(viewedStrike, async () => {
       <template #actionButtons>
         <Button
           v-if="viewedStrikeOptions?.type === 'strike' || viewedStrikeOptions?.type === 'blast'"
-          type="button"
           color="blue"
-          @click="
-            strikeModalDetails?.strikeAction()?.then((r) => {
-              strikeModal.close()
-              strikeModal.rollResultModal.open(r)
-            })
+          :clicked="
+            () =>
+              strikeModalDetails?.strikeAction()?.then((r) => {
+                strikeModal.close()
+                strikeModal.rollResultModal.open(r)
+              })
           "
         >
           <span v-if="!viewedStrikeOptions?.subtype">Strike&nbsp;</span>
@@ -304,14 +297,14 @@ watch(viewedStrike, async () => {
         </Button>
         <Button
           v-if="viewedStrikeOptions?.type?.match('_damage')"
-          type="button"
           :label="viewedStrikeOptions?.subtype ? 'Critical' : 'Damage'"
           color="red"
-          @click="
-            strikeModalDetails.damageAction()?.then((r) => {
-              strikeModal.close()
-              strikeModal.rollResultModal.open(r)
-            })
+          :clicked="
+            () =>
+              strikeModalDetails.damageAction()?.then((r) => {
+                strikeModal.close()
+                strikeModal.rollResultModal.open(r)
+              })
           "
         />
       </template>

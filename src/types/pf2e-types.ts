@@ -34,7 +34,7 @@ export interface Item {
   name?: string
   type?: string
   category?: string
-  system?: System
+  system: System
   img?: string
   flags?: any
   contents?: string

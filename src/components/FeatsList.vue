@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// TODO (refactor): make feat nesting recursive instead of manual like it is now
-// TODO (refactor): get rid of the viewedItem nonsense, replecating how strikes works now
+// TODO (refactor): make feat nesting recursive instead of manual like it is now (also fix the viewedFeat for sub-items)
 import type { Item } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
 import { removeUUIDs } from '@/utils/utilities'
@@ -12,9 +11,7 @@ const infoModal = ref()
 const character = inject(useKeys().characterKey)!
 const { feats, ancestry, background, classType } = character
 
-const viewedItem = computed(() =>
-  feats.value?.find((i: Item) => i?._id === infoModal?.value?.itemId)
-)
+const viewedFeat = ref<Item | undefined>()
 
 const featCategories = computed(() => {
   const categories = {
@@ -71,8 +68,13 @@ const featCategories = computed(() => {
       <dd v-for="feat in category.feats" :key="feat._id">
         <div class="relative">
           <a
-            class="inline-block flex cursor-pointer truncate whitespace-nowrap"
-            @click="infoModal.open(feat._id)"
+            class="flex cursor-pointer truncate whitespace-nowrap"
+            @click="
+              () => {
+                viewedFeat = feat
+                infoModal.open()
+              }
+            "
           >
             <span class="absolute w-4 pt-1 text-right text-xs text-gray-500">{{
               feat?.system?.level?.taken ??
@@ -136,22 +138,24 @@ const featCategories = computed(() => {
   <Teleport to="#modals">
     <InfoModal
       ref="infoModal"
-      :imageUrl="viewedItem?.img"
-      :traits="viewedItem?.system?.traits?.value"
+      :imageUrl="viewedFeat?.img"
+      :traits="viewedFeat?.system?.traits?.value"
     >
       <template #title>
-        {{ viewedItem?.name }}
+        {{ viewedFeat?.name }}
       </template>
       <template #description>
-        <span v-if="viewedItem?.system?.level?.value" class="inline-block">
-          Level {{ viewedItem?.system?.level?.value ?? '-' }}
-        </span>
-        <span v-if="viewedItem?.system?.traits?.rarity" class="inline-block">
-          <span class="text-sm capitalize">({{ viewedItem?.system.traits.rarity }})</span>
-        </span>
+        <div class="flex gap-1">
+          <span v-if="viewedFeat?.system?.level?.value" class="inline-block">
+            Level {{ viewedFeat?.system?.level?.value ?? '-' }}
+          </span>
+          <span v-if="viewedFeat?.system?.traits?.rarity" class="inline-block">
+            <span class="text-sm capitalize">({{ viewedFeat?.system.traits.rarity }})</span>
+          </span>
+        </div>
       </template>
       <template #body>
-        <div v-html="removeUUIDs(viewedItem?.system?.description.value)"></div>
+        <div v-html="removeUUIDs(viewedFeat?.system?.description.value)"></div>
       </template>
     </InfoModal>
   </Teleport>

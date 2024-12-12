@@ -4,16 +4,17 @@ import type {
   CharacterActionArgs,
   CastSpellArgs,
   ConsumeItemArgs,
-  GetStrikeDamageArgs
+  GetStrikeDamageArgs,
+  RequestCharacterDetailsArgs
 } from '@/types/api-types'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import type { Game } from '@/types/foundry-types'
 
 declare const game: Game
 
-export async function getCharacterDetails(args: {
-  actorId: string
-}): Promise<UpdateCharacterDetailsArgs> {
+export async function getCharacterDetails(
+  args: RequestCharacterDetailsArgs
+): Promise<UpdateCharacterDetailsArgs> {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.find((x: Actor) => x._id === args.actorId)
 
@@ -25,7 +26,8 @@ export async function getCharacterDetails(args: {
     system: JSON.stringify(actor.system),
     inventory: JSON.stringify(actor.inventory),
     // TODO: serializing the whole blasts object here is inefficient. just take parts needed?
-    elementalBlasts: JSON.stringify(new game.pf2e.ElementalBlast(actor))
+    elementalBlasts: JSON.stringify(new game.pf2e.ElementalBlast(actor)),
+    uuid: args.uuid
   }
 }
 

@@ -319,13 +319,11 @@ const spellbook = computed((): Spellbook => {
           label="Cast"
           color="blue"
           v-if="!infoModal.options?.isConsumable"
-          @click="
+          :clicked="
             () => {
-              castButton.waiting = true
-              ;(viewedSpell as Spell)
+              return (viewedSpell as Spell)
                 ?.doSpell?.(infoModal.options.castingRank, infoModal.options.castingSlot)
                 ?.then((r) => {
-                  castButton.waiting = false
                   infoModal.close()
                 })
             }
@@ -336,7 +334,6 @@ const spellbook = computed((): Spellbook => {
           label="Use"
           color="green"
           v-if="infoModal.options?.isConsumable"
-          type="button"
           @click="
             () => {
               viewedSpell?.consumeItem?.()
@@ -355,16 +352,16 @@ const spellbook = computed((): Spellbook => {
               i.system.location === spellSelectionModal.options?.entryId &&
               (i.system.level.value ?? 0) <= spellSelectionModal.options.castingRank
           )"
-          @click="
+          :clicked="
             () => {
-              spellcastingEntries
+              return spellcastingEntries
                 ?.find((e) => e._id === spellSelectionModal?.options?.entryId)
                 ?.setPrepared(
                   spellSelectionModal?.options?.castingRank,
                   spellSelectionModal?.options?.castingSlot,
                   spell._id ?? null
                 )
-              spellSelectionModal?.close()
+                .then(() => spellSelectionModal?.close())
             }
           "
           :key="spell._id"

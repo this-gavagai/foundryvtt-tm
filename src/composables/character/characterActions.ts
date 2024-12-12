@@ -86,18 +86,10 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
           ),
         setDamageType: (newType: string) => {
           const item = actor.value?.items.find((i: PF2eItem) => i._id === action?.item?._id)
-          const baseType = item?.system?.damage?.damageType
-          const versatileType = item?.system?.traits?.toggles?.versatile?.selected
-          const modularType = item?.system?.traits?.toggles?.modular?.selected
-          let update
-          const adjustment = baseType === newType ? null : newType
-          if (versatileType !== undefined) {
-            if (item?.system) item.system.traits.toggles.versatile.selected = adjustment
-            update = { system: { traits: { toggles: { versatile: { selected: adjustment } } } } }
-          } else if (modularType !== undefined) {
-            if (item?.system) item.system.traits.toggles.modular.selected = adjustment
-            update = { system: { traits: { toggles: { modular: { selected: adjustment } } } } }
-          } else update = {}
+          const adjustment = item?.system?.damage?.damageType === newType ? null : newType
+          const update = item?.system?.traits?.value?.includes('modular')
+            ? { system: { traits: { toggles: { modular: { selected: adjustment } } } } }
+            : { system: { traits: { toggles: { versatile: { selected: adjustment } } } } }
           return updateActorItem(actor as Ref<Actor>, action?.item?._id ?? '', update)
         }
       }))

@@ -32,8 +32,8 @@ import EquipmentList from '@/components/EquipmentList.vue'
 import StrikeList from '@/components/StrikeList.vue'
 
 const { width } = useWindowSize()
-const sideMenu = ref()
 const props = defineProps(['characterId'])
+const sideMenu = ref()
 const panels = ref()
 
 // base data
@@ -45,14 +45,18 @@ provide(useKeys().characterKey, character)
 // load character from world value if no character details received
 watchEffect(() => {
   // TODO (refactor): this seems to load only once, since after first load actor value is not null. need to track gmOnline somehow? or just merge?
+  // better way to do this is probably to never actually merge the two but instead to use the character sheet to calculate
   const worldActor = world.value?.actors.find((a: Actor) => a._id == props.characterId)
   if (worldActor && !actor.value?._id) actor.value = worldActor
 })
 
 // setup refresh methods
-const { sendCharacterRequest, setupSocketListenersForActor } = useApi()
-const debouncededCharacterRequest = debounce(sendCharacterRequest, 2000)
-const requestCharacterDetails = async () => debouncededCharacterRequest(props.characterId)
+const { sendCharacterRequest, setupSocketListenersForActor, getCharUnsynced } = useApi()
+const debouncededCharacterRequest = debounce(sendCharacterRequest, 500, { leading: true })
+const requestCharacterDetails = async () => {
+  getCharUnsynced().set(props.characterId, true)
+  debouncededCharacterRequest(props.characterId)
+}
 
 // setup socket listeners and request character details on mount
 onMounted(() => {

@@ -37,7 +37,6 @@ export function setupListener() {
     console.log(`TM.SEND ${event}`, args)
   })
 
-  // game.socket.on('modifyDocument', (args) => console.log(args))
   game.socket.on(MODNAME, (args: ModuleEventArgs) => {
     console.log('TM.RECV (listener)', args)
     if (!iAmObserverOrFallbackGM()) return
@@ -46,12 +45,12 @@ export function setupListener() {
         announceSelf()
         broadcastTargets()
         break
+      case 'updateCharacterDetails':
+        break
       case 'requestCharacterDetails':
         getCharacterDetails(args as RequestCharacterDetailsArgs).then((result) =>
           game.socket.emit(MODNAME, result)
         )
-        break
-      case 'updateCharacterDetails':
         break
       case 'rollCheck':
         foundryRollCheck(args as RollCheckArgs).then((result) => game.socket.emit(MODNAME, result))

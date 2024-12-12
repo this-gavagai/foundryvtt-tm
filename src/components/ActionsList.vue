@@ -16,6 +16,7 @@ import SkillSelector from './SkillSelector.vue'
 
 const infoModal = ref()
 const skillSelector = ref()
+const rollButtonRef = ref()
 
 const character = inject(useKeys().characterKey)!
 const { actions } = character
@@ -72,21 +73,23 @@ const action: Ref<Action | undefined> = computed(() =>
             ref="skillSelector"
           />
           <ButtonWidget
+            ref="rollButtonRef"
             label="Roll"
             color="blue"
             v-if="actionDefs.get(action?.system?.slug ?? '')"
-            @click="
-              action
-                ?.doAction?.(
-                  actionDefs.get(action?.system?.slug ?? '')?.skill === '*'
-                    ? { statistic: skillSelector?.selected?.slug }
-                    : {}
-                )
-                ?.then((r) => {
-                  console.log(r)
-                  infoModal.rollResultModal.open(r)
-                  infoModal.close()
-                })
+            :clicked="
+              () => {
+                return action
+                  ?.doAction?.(
+                    actionDefs.get(action?.system?.slug ?? '')?.skill === '*'
+                      ? { statistic: skillSelector?.selected?.slug }
+                      : {}
+                  )
+                  ?.then((r) => {
+                    infoModal.rollResultModal.open(r)
+                    infoModal.close()
+                  })
+              }
             "
           />
         </div>

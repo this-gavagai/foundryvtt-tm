@@ -24,7 +24,7 @@ const emit = defineEmits(['clicked'])
       <span
         v-for="(variant, index) in mapLabelSet"
         class="mb-1 mr-1 inline-block select-none border border-gray-400 bg-gray-100 p-2 text-xs text-blue-600 transition-colors active:bg-gray-300"
-        :class="[index ? 'w-[4.25rem]' : 'w-[5.625rem]']"
+        :class="[index ? 'w-[4rem]' : 'w-[5.625rem]']"
         @click="emit('clicked', id, { type, subtype: index })"
         :key="'variant_' + index"
       >

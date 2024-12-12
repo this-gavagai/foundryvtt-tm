@@ -1,5 +1,8 @@
 // TODO (known issue): this thing isn't triggering preUpdateActor hooks, as those are conventionally called only on the actor in question. May be a problem.
 // TODO (data+): need some way to indicate that gm-dependent methods aren't available when that's the case
+// TODO (bug++): Problem: in some cases, a character request goes out, then more changes happen. This causes flip-flop on a value, as two different changes get processed.
+//                we need a way to tell the api to ignore a characterdetails refresh because new changes have happened, rendering that data stale. perhaps it will also be
+//                possible to send out the request right away, thereby decreasing latency significantly.
 import type { Ref } from 'vue'
 import type { Actor, World, Item, Combat } from '@/types/pf2e-types'
 import type {
@@ -20,12 +23,17 @@ import type {
   UserActivityEventArgs
 } from '@/types/foundry-types'
 
-import { merge } from 'lodash-es'
+import { mergeWith } from 'lodash-es'
 import { useServer } from '@/composables/server'
 import { useTargetHelper } from '@/composables/targetHelper'
 import { uuidv4 } from '@/utils/utilities'
 import { useUserId } from '@/composables/user'
 // import { useWorld } from '@/composables/world'
+
+const characterUnsynced = new Map<string, boolean>() // character document dirty state, update request pending
+// const getCharUnsynced =
+const characterLastRequest = new Map<string, string>() // latest character update request uuid
+// const getCharLastRequest =
 
 const { getSocket } = useServer()
 // TODO (types): not really unknown/void; identify and improve (see action returns for details)
@@ -112,8 +120,8 @@ async function setupSocketListenersForActor(
       case 'Actor':
         ;(args as UpdateEventArgs).result.forEach((result: ModifyDocumentUpdate) => {
           if (actor.value && result._id === actorId) {
-            merge(actor.value, result)
-            requestCharacterDetails[actorId]() // needs to be inside forloop, or else it procs for every character. shouldn't matter because its debounced
+            mergeWith(actor.value, result, undefinedToNull)
+            requestCharacterDetails[actorId]()
           }
         })
         break
@@ -126,6 +134,61 @@ async function setupSocketListenersForActor(
         break
     }
   })
+}
+
+/////////////////////////////////////////////////
+// Character Build Methods                     //
+/////////////////////////////////////////////////
+
+async function sendCharacterRequest(actorId: string): Promise<void> {
+  const socket = await getSocket()
+  const userId = getUserId()
+  const uuid = uuidv4()
+  socket.emit('module.tablemate', {
+    userId,
+    action: 'requestCharacterDetails',
+    actorId: actorId,
+    uuid
+  })
+  characterUnsynced.set(actorId, false)
+  characterLastRequest.set(actorId, uuid)
+  // requestCount.set(actorId, (requestCount.get(actorId) ?? 0) + 1)
+  // console.log('TMCOUNT sending for ', actorId, requestCount.get(actorId))
+}
+function undefinedToNull(objValue: unknown, srcValue: unknown) {
+  if (srcValue === undefined) return null
+}
+function parseActorData(
+  actorId: string,
+  actor: Ref<Actor | undefined>,
+  args: UpdateCharacterDetailsArgs
+) {
+  if (characterUnsynced.get(actorId)) {
+    console.log('TMmerge: not merging, character state out of sync')
+    return
+  }
+  if (characterLastRequest.get(actorId) !== args.uuid) {
+    console.log('TMmerge more recent uuid pending')
+    return
+  }
+  // TODO (data): I think I need a customizer method to convert merge -> mergeWith. In certain circumstances, the merge x <- undefined is causing things to be left behind
+  //  after a charater change. If the source is undefined, it should overwrite the active piece. Try, for example, adding sickened, then remove sicked, then look at strike modifiers
+  if (args.actorId === actorId) {
+    if (actor.value) mergeWith(actor.value, JSON.parse(args.actor), undefinedToNull)
+    else actor.value = JSON.parse(args.actor)
+    if (!actor.value) return
+
+    if (actor.value.system) mergeWith(actor.value!.system, JSON.parse(args.system), undefinedToNull)
+    else actor.value.system = JSON.parse(args.system)
+
+    if (actor.value.inventory)
+      mergeWith(actor.value!.inventory, JSON.parse(args.inventory), undefinedToNull)
+    else actor.value.inventory = JSON.parse(args.inventory)
+
+    if (actor.value.elementalBlasts)
+      mergeWith(actor.value!.elementalBlasts, JSON.parse(args.elementalBlasts), undefinedToNull)
+    else actor.value.elementalBlasts = JSON.parse(args.elementalBlasts)
+  }
 }
 
 ///////////////////////////////////////
@@ -153,7 +216,7 @@ async function updateActor(actor: Ref<Actor | undefined>, update: object) {
       },
       (r: UpdateEventArgs) => {
         r.result.forEach((change: ModifyDocumentUpdate) => {
-          if (actor.value) merge(actor.value, change)
+          if (actor.value) mergeWith(actor.value, change, undefinedToNull)
         })
         requestCharacterDetails[actor.value!._id]()
         resolve(r)
@@ -245,41 +308,6 @@ async function updateUserTargetingProxy(userId: string, proxyId: string) {
     )
   })
   return promise
-}
-
-/////////////////////////////////////////////////
-// Character Build Methods                     //
-/////////////////////////////////////////////////
-async function sendCharacterRequest(actorId: string): Promise<void> {
-  const socket = await getSocket()
-  const userId = getUserId()
-  socket.emit('module.tablemate', {
-    userId,
-    action: 'requestCharacterDetails',
-    actorId: actorId
-  })
-}
-function parseActorData(
-  actorId: string,
-  actor: Ref<Actor | undefined>,
-  args: UpdateCharacterDetailsArgs
-) {
-  if (args.actorId === actorId) {
-    if (actor.value) merge(actor.value, JSON.parse(args.actor))
-    else actor.value = JSON.parse(args.actor)
-
-    if (!actor.value) return
-
-    if (actor.value.system) merge(actor.value!.system, JSON.parse(args.system))
-    else actor.value.system = JSON.parse(args.system)
-
-    if (actor.value.inventory) merge(actor.value!.inventory, JSON.parse(args.inventory))
-    else actor.value.inventory = JSON.parse(args.inventory)
-
-    if (actor.value.elementalBlasts)
-      merge(actor.value!.elementalBlasts, JSON.parse(args.elementalBlasts))
-    else actor.value.elementalBlasts = JSON.parse(args.elementalBlasts)
-  }
 }
 
 ///////////////////////////////////////
@@ -404,7 +432,6 @@ async function getStrikeDamage(actor: Ref<Actor>, actionSlug: string): Promise<R
   return new Promise((resolve) => {
     socket.emit('module.tablemate', args)
     pushToAckQueue(uuid, (args: ResolutionArgs) => {
-      console.log('resolving')
       resolve(args)
     })
   })
@@ -428,14 +455,14 @@ function processChanges(args: DocumentEventArgs, dataRoot: Item[]) {
 }
 
 function _processCreates(results: ModifyDocumentUpdate[], root: Item[]) {
-  results.forEach((c: Item) => {
-    root.push(c)
+  results.forEach((c: ModifyDocumentUpdate) => {
+    root.push(c as Item)
   })
 }
 function _processUpdates(results: ModifyDocumentUpdate[], root: Item[]) {
   results.forEach((change: ModifyDocumentUpdate) => {
     const item = root.find((a: Item) => a._id === change._id)
-    if (item) merge(item, change)
+    if (item) mergeWith(item, change, undefinedToNull)
   })
 }
 function _processDeletes(results: string[], root: Item[]) {
@@ -464,6 +491,8 @@ export function useApi() {
     rollCheck,
     consumeItem,
     characterAction,
-    getStrikeDamage
+    getStrikeDamage,
+    getCharUnsynced: () => characterUnsynced,
+    getCharLastRequest: () => characterUnsynced
   }
 }
