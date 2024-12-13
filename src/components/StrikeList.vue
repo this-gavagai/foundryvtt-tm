@@ -45,10 +45,22 @@ const { strikes, blasts, inventory, actions, blastActions } = character
 
 const strikeModal = ref()
 const strikeModalDamage = ref()
-const viewedStrike = ref<Strike | ElementalBlast | undefined>()
+// const viewedStrike = ref<Strike | ElementalBlast | undefined>()
 const viewedStrikeOptions = ref<ViewedStrikeOptions | undefined>()
 const damageTypeChoiceWidget = ref()
 const actionCountChoiceWidget = ref()
+
+const viewedStrikeId = ref<number | undefined>()
+const viewedStrike = computed(() => {
+  console.log('hey there', viewedStrikeId.value)
+  if (viewedStrikeId.value === undefined) return undefined
+  const correctOne =
+    viewedStrikeOptions.value?.strikeType === 'strike'
+      ? strikes.value?.[viewedStrikeId.value]
+      : blasts.value?.[viewedStrikeId.value]
+  console.log(correctOne)
+  return correctOne
+})
 
 function getDamageTypes(item: Item | undefined) {
   const types = new Set()
@@ -181,7 +193,7 @@ watch(viewedStrike, async () => {
               "
               @clicked="
                 (id, options) => {
-                  viewedStrike = blast
+                  viewedStrikeId = i
                   viewedStrikeOptions = {
                     ...options,
                     strikeType: 'blast',
@@ -213,12 +225,10 @@ watch(viewedStrike, async () => {
             :mapLabelSet="strike.variants"
             @clicked="
               (id: string, options: object) => {
-                viewedStrike = strike
+                viewedStrikeId = i
                 viewedStrikeOptions = { ...options, strikeType: 'strike' }
                 strikeModal.open()
               }
-              // (id: string, options: object) =>
-              //   strikeModal.open(id, { ...options, strikeType: 'strike' }, strike)
             "
           />
         </li>

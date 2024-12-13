@@ -17,8 +17,6 @@ export async function getCharacterDetails(
 ): Promise<UpdateCharacterDetailsArgs> {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.find((x: Actor) => x._id === args.actorId)
-
-  // compose sending data into object
   return {
     action: 'updateCharacterDetails',
     actorId: actor._id,

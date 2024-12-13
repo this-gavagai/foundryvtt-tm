@@ -6,7 +6,7 @@
 // TODO (refactor): refactor Switch into component, and give transactionf eedback
 // TODO (bug): it is currently possible to put containers inside themselves, which leads to all sorts of trouble; need catch-all for items not caught
 // TODO (bug): items in deleted containers disappear from list
-// TODO (refactor): get rid of viewed item; do what strikes does now instead
+// TODO (refactor): get rid of viewed item; do what strikes does now instead viewedItemFix
 
 import type { Equipment } from '@/composables/character'
 import { inject, ref, computed } from 'vue'

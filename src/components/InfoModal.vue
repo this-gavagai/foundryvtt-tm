@@ -70,7 +70,12 @@ defineExpose({ open, close, itemId, options, rollResultModal })
                 <div class="max-h-[70vh] overflow-auto">
                   <div class="flex space-x-2">
                     <div>
-                      <img class="h-12 w-12" v-if="props.imageUrl" :src="getPath(props.imageUrl)" />
+                      <img
+                        class="h-12 w-12"
+                        v-if="props.imageUrl"
+                        :src="getPath(props.imageUrl)"
+                        alt="PF2e system icon"
+                      />
                     </div>
                     <div>
                       <DialogTitle as="h3" class="text-lg font-medium leading-6 text-gray-900">
@@ -131,12 +136,42 @@ defineExpose({ open, close, itemId, options, rollResultModal })
                   :key="'result_' + j"
                   class="align-items-center mr-1 flex gap-1"
                 >
-                  <img v-if="die.faces === 4" src="@/assets/icons/d4.svg" class="mt-1 h-6 w-6" />
-                  <img v-if="die.faces === 6" src="@/assets/icons/d6.svg" class="mt-1 h-6 w-6" />
-                  <img v-if="die.faces === 8" src="@/assets/icons/d8.svg" class="mt-1 h-6 w-6" />
-                  <img v-if="die.faces === 10" src="@/assets/icons/d10.svg" class="mt-1 h-6 w-6" />
-                  <img v-if="die.faces === 12" src="@/assets/icons/d12.svg" class="mt-1 h-6 w-6" />
-                  <img v-if="die.faces === 20" src="@/assets/icons/d20.svg" class="mt-1 h-6 w-6" />
+                  <img
+                    v-if="die.faces === 4"
+                    src="@/assets/icons/d4.svg"
+                    class="mt-1 h-6 w-6"
+                    alt="d4 image"
+                  />
+                  <img
+                    v-if="die.faces === 6"
+                    src="@/assets/icons/d6.svg"
+                    class="mt-1 h-6 w-6"
+                    alt="d6 image"
+                  />
+                  <img
+                    v-if="die.faces === 8"
+                    src="@/assets/icons/d8.svg"
+                    class="mt-1 h-6 w-6"
+                    alt="d8 image"
+                  />
+                  <img
+                    v-if="die.faces === 10"
+                    src="@/assets/icons/d10.svg"
+                    class="mt-1 h-6 w-6"
+                    alt="d10 image"
+                  />
+                  <img
+                    v-if="die.faces === 12"
+                    src="@/assets/icons/d12.svg"
+                    class="mt-1 h-6 w-6"
+                    alt="d12 image"
+                  />
+                  <img
+                    v-if="die.faces === 20"
+                    src="@/assets/icons/d20.svg"
+                    class="mt-1 h-6 w-6"
+                    alt="d20 image"
+                  />
                   <span>
                     {{ rollResultModal.options.roll.isSecret ? '?' : result.result }}
                   </span>

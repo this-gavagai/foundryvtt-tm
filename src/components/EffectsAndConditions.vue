@@ -1,23 +1,15 @@
 <script setup lang="ts">
-import type { Item } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
 import InfoModal from '@/components/InfoModal.vue'
 import { useKeys } from '@/composables/injectKeys'
 import Button from '@/components/ButtonWidget.vue'
-
 import { removeUUIDs, getPath } from '@/utils/utilities'
 
 const character = inject(useKeys().characterKey)!
 const { effects } = character
-
-const plusButtonRef = ref()
-const minusButtonRef = ref()
-const removeButtonRef = ref()
-
 const infoModal = ref()
-const viewedItem = computed(() =>
-  effects.value?.find((i: Item) => i._id === infoModal?.value?.itemId)
-)
+const effectViewedId = ref<string | undefined>()
+const effectViewed = computed(() => effects.value?.find((e) => e._id === effectViewedId.value))
 </script>
 <template>
   <div class="flex flex-wrap gap-2 border border-t-0 px-6 py-4 empty:hidden">
@@ -25,7 +17,12 @@ const viewedItem = computed(() =>
       class="cursor-pointer"
       v-for="effect in effects"
       :key="effect._id"
-      @click="infoModal.open(effect._id)"
+      @click="
+        () => {
+          effectViewedId = effect._id
+          infoModal.open()
+        }
+      "
     >
       <div class="w-10">
         <div class="relative">
@@ -35,7 +32,7 @@ const viewedItem = computed(() =>
           >
             {{ effect.system?.value?.value }}
           </div>
-          <img :src="getPath(effect.img ?? '')" class="rounded-full" />
+          <img :src="getPath(effect.img ?? '')" class="rounded-full" alt="Effect icon" />
         </div>
         <div class="overflow-hidden whitespace-nowrap text-center text-[0.5rem]">
           {{ effect?.name?.replace('Effect: ', '') }}
@@ -44,50 +41,43 @@ const viewedItem = computed(() =>
     </div>
   </div>
   <Teleport to="#modals">
-    <InfoModal ref="infoModal" :imageUrl="viewedItem?.img">
+    <InfoModal ref="infoModal" :imageUrl="effectViewed?.img">
       <template #title>
-        {{ viewedItem?.name }}
-        {{ viewedItem?.system?.value?.value }}
+        {{ effectViewed?.name }}
+        {{ effectViewed?.system?.value?.value }}
       </template>
       <template #description>
-        <span class="capitalize">{{ viewedItem?.type }}</span>
+        <span class="capitalize">{{ effectViewed?.type }}</span>
       </template>
       <template #body>
-        <div v-html="removeUUIDs(viewedItem?.system?.description?.value)"></div>
+        <div v-html="removeUUIDs(effectViewed?.system?.description?.value)"></div>
       </template>
       <template #actionButtons>
         <Button
-          ref="removeButtonRef"
           color="red"
           :clicked="
             () => {
               infoModal.close()
-              if (viewedItem?.delete) return viewedItem.delete()
+              if (effectViewed?.delete) return effectViewed?.delete()
             }
           "
         >
           Remove
         </Button>
         <Button
-          ref="minusButtonRef"
-          v-if="viewedItem?.system?.value?.isValued"
+          v-if="effectViewed?.system?.value?.isValued"
           color="lightgray"
           :clicked="
-            () => {
-              return viewedItem?.changeQty?.((viewedItem?.system?.value?.value ?? NaN) - 1)
-            }
+            () => effectViewed?.changeQty?.((effectViewed?.system?.value?.value ?? NaN) - 1)
           "
         >
           -
         </Button>
         <Button
-          ref="plusButtonRef"
-          v-if="viewedItem?.system?.value?.isValued"
+          v-if="effectViewed?.system?.value?.isValued"
           color="lightgray"
-          @click="
-            () => {
-              viewedItem?.changeQty?.((viewedItem?.system?.value?.value ?? NaN) + 1)
-            }
+          :clicked="
+            () => effectViewed?.changeQty?.((effectViewed?.system?.value?.value ?? NaN) + 1)
           "
         >
           +

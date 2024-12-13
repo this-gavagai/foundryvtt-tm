@@ -11,7 +11,9 @@ const infoModal = ref()
 const character = inject(useKeys().characterKey)!
 const { feats, ancestry, background, classType } = character
 
-const viewedFeat = ref<Item | undefined>()
+const viewedFeatId = ref<string | undefined>()
+// const viewedFeat = ref<Item | undefined>()
+const viewedFeat = computed(() => feats.value?.find((f) => f._id === viewedFeatId.value))
 
 const featCategories = computed(() => {
   const categories = {
@@ -71,7 +73,7 @@ const featCategories = computed(() => {
           @clicked="
             (clickedFeatId: string) => {
               console.log('outside', clickedFeatId)
-              viewedFeat = feats?.find((f) => f._id === clickedFeatId)
+              viewedFeatId = clickedFeatId
               infoModal.open()
             }
           "

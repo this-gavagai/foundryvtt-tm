@@ -1,7 +1,6 @@
 <script setup lang="ts">
 // TODO (feature): get action modifiers on the card (somehow?)
 // TODO (feature): need to handle battlemedicine popup window (by providing an alternate macro?)
-import type { Ref } from 'vue'
 import type { Action } from '@/composables/character'
 import { actionDefs, actionTypes } from '@/utils/constants'
 import { inject, ref, computed } from 'vue'
@@ -16,14 +15,12 @@ import SkillSelector from './SkillSelector.vue'
 
 const infoModal = ref()
 const skillSelector = ref()
-const rollButtonRef = ref()
 
 const character = inject(useKeys().characterKey)!
 const { actions } = character
 
-const action: Ref<Action | undefined> = computed(() =>
-  actions.value?.find((i: Action) => i._id === infoModal?.value?.itemId)
-)
+const actionViewedId = ref<string | undefined>()
+const actionViewed = computed(() => actions.value?.find((a) => a._id === actionViewedId.value))
 </script>
 
 <template>
@@ -35,7 +32,15 @@ const action: Ref<Action | undefined> = computed(() =>
           v-for="action in actions?.filter((a: Action) => a.actionType === group.type)"
           :key="action._id"
         >
-          <a class="cursor-pointer" @click="infoModal.open(action._id)">
+          <a
+            class="cursor-pointer"
+            @click="
+              () => {
+                actionViewedId = action._id
+                infoModal.open()
+              }
+            "
+          >
             {{ action.name }}
             <ActionIcons
               class="relative -mt-[.5rem] pl-1 text-2xl leading-4"
@@ -53,35 +58,40 @@ const action: Ref<Action | undefined> = computed(() =>
     </div>
   </div>
   <Teleport to="#modals">
-    <InfoModal ref="infoModal" :imageUrl="action?.img" :traits="action?.system?.traits?.value">
+    <InfoModal
+      ref="infoModal"
+      :imageUrl="actionViewed?.img"
+      :traits="actionViewed?.system?.traits?.value"
+    >
       <template #title>
-        {{ action?.name }}
+        {{ actionViewed?.name }}
       </template>
       <template #description>
-        <span v-if="action?.system?.level?.value">Level {{ action?.system?.level?.value }}</span>
-        <span v-if="action?.system?.traits?.rarity" class="text-sm capitalize">
-          ({{ action?.system?.traits?.rarity }})</span
+        <span v-if="actionViewed?.system?.level?.value"
+          >Level {{ actionViewed?.system?.level?.value }}</span
+        >
+        <span v-if="actionViewed?.system?.traits?.rarity" class="text-sm capitalize">
+          ({{ actionViewed?.system?.traits?.rarity }})</span
         >
       </template>
       <template #body>
-        <div v-html="removeUUIDs(action?.system?.description.value)"></div>
+        <div v-html="removeUUIDs(actionViewed?.system?.description.value)"></div>
       </template>
       <template #actionButtons>
         <div class="align-items-center flex gap-2">
           <SkillSelector
-            v-if="actionDefs.get(action?.system?.slug ?? '')?.skill === '*'"
+            v-if="actionDefs.get(actionViewed?.system?.slug ?? '')?.skill === '*'"
             ref="skillSelector"
           />
           <ButtonWidget
-            ref="rollButtonRef"
             label="Roll"
             color="blue"
-            v-if="actionDefs.get(action?.system?.slug ?? '')"
+            v-if="actionDefs.get(actionViewed?.system?.slug ?? '')"
             :clicked="
               () => {
-                return action
+                return actionViewed
                   ?.doAction?.(
-                    actionDefs.get(action?.system?.slug ?? '')?.skill === '*'
+                    actionDefs.get(actionViewed?.system?.slug ?? '')?.skill === '*'
                       ? { statistic: skillSelector?.selected?.slug }
                       : {}
                   )

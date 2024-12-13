@@ -34,9 +34,9 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'maskable-icon-512x512.png'],
-        devOptions: {
-          enabled: false
-        },
+        // devOptions: {
+        //   enabled: true
+        // },
         manifest: {
           name: 'Tabula Mensa',
           short_name: 'Tabula Mensa',

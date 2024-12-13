@@ -16,7 +16,11 @@ const emit = defineEmits(['clicked'])
 </script>
 <template>
   <div class="align-items-middle flex">
-    <img :src="isRanged ? ranged : melee" class="mr-1 mt-1 h-4" />
+    <img
+      :src="isRanged ? ranged : melee"
+      class="mr-1 mt-1 h-4"
+      :alt="isRanged ? 'ranged icon' : 'melee icon'"
+    />
     <div>{{ label }}</div>
   </div>
   <div class="flex flex-wrap leading-9">

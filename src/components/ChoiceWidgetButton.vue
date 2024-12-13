@@ -13,6 +13,6 @@ const { icon, choice, selected, disabled } = defineProps<{
     :disabled="disabled"
     :class="{ 'bg-blue-200': selected === choice }"
   >
-    <img :src="icon" class="h-6" />
+    <img :src="icon" class="h-6" :alt="'Choice icon ' + choice" />
   </button>
 </template>

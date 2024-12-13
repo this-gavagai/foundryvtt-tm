@@ -4,7 +4,7 @@
 //                we need a way to tell the api to ignore a characterdetails refresh because new changes have happened, rendering that data stale. perhaps it will also be
 //                possible to send out the request right away, thereby decreasing latency significantly.
 import type { Ref } from 'vue'
-import type { Actor, World, Item, Combat } from '@/types/pf2e-types'
+import type { Actor, World, Item, Combat, System, ElementalBlasts } from '@/types/pf2e-types'
 import type {
   ResolutionArgs,
   ModuleEventArgs,
@@ -120,7 +120,7 @@ async function setupSocketListenersForActor(
       case 'Actor':
         ;(args as UpdateEventArgs).result.forEach((result: ModifyDocumentUpdate) => {
           if (actor.value && result._id === actorId) {
-            mergeWith(actor.value, result, undefinedToNull)
+            mergeWith(actor.value, result, resetArrays)
             requestCharacterDetails[actorId]()
           }
         })
@@ -153,35 +153,27 @@ async function sendCharacterRequest(actorId: string): Promise<void> {
   characterUnsynced.set(actorId, false)
   characterLastRequest.set(actorId, uuid)
 }
-function undefinedToNull(objValue: unknown, srcValue: unknown) {
-  if (srcValue === undefined) return null
+function resetArrays(objValue: unknown, srcValue: unknown) {
+  if (Array.isArray(srcValue) && Array.isArray(objValue) && srcValue.length < objValue.length) {
+    console.log('TM: nuking array due to length mismatch', objValue, srcValue)
+    return srcValue
+  }
 }
 function parseActorData(
   actorId: string,
   actor: Ref<Actor | undefined>,
   args: UpdateCharacterDetailsArgs
 ) {
+  if (actorId !== args.actorId) return
   if (characterUnsynced.get(actorId)) return
   if (characterLastRequest.get(actorId) !== args.uuid) return
 
-  // TODO (data): I think I need a customizer method to convert merge -> mergeWith. In certain circumstances, the merge x <- undefined is causing things to be left behind
-  //  after a charater change. If the source is undefined, it should overwrite the active piece. Try, for example, adding sickened, then remove sicked, then look at strike modifiers
-  if (args.actorId === actorId) {
-    if (actor.value) mergeWith(actor.value, JSON.parse(args.actor), undefinedToNull)
-    else actor.value = JSON.parse(args.actor)
-    if (!actor.value) return
-
-    if (actor.value.system) mergeWith(actor.value!.system, JSON.parse(args.system), undefinedToNull)
-    else actor.value.system = JSON.parse(args.system)
-
-    if (actor.value.inventory)
-      mergeWith(actor.value!.inventory, JSON.parse(args.inventory), undefinedToNull)
-    else actor.value.inventory = JSON.parse(args.inventory)
-
-    if (actor.value.elementalBlasts)
-      mergeWith(actor.value!.elementalBlasts, JSON.parse(args.elementalBlasts), undefinedToNull)
-    else actor.value.elementalBlasts = JSON.parse(args.elementalBlasts)
-  }
+  if (!actor.value) actor.value = {} as Actor
+  mergeWith(actor.value, JSON.parse(args.actor), resetArrays)
+  if (!actor.value.system) actor.value.system = {} as System
+  mergeWith(actor.value.system, JSON.parse(args.system), resetArrays)
+  if (!actor.value.elementalBlasts) actor.value.elementalBlasts = {} as ElementalBlasts
+  mergeWith(actor.value.elementalBlasts, JSON.parse(args.elementalBlasts), resetArrays)
 }
 
 ///////////////////////////////////////
@@ -209,7 +201,7 @@ async function updateActor(actor: Ref<Actor | undefined>, update: object) {
       },
       (r: UpdateEventArgs) => {
         r.result.forEach((change: ModifyDocumentUpdate) => {
-          if (actor.value) mergeWith(actor.value, change, undefinedToNull)
+          if (actor.value) mergeWith(actor.value, change, resetArrays)
         })
         requestCharacterDetails[actor.value!._id]()
         resolve(r)
@@ -455,7 +447,7 @@ function _processCreates(results: ModifyDocumentUpdate[], root: Item[]) {
 function _processUpdates(results: ModifyDocumentUpdate[], root: Item[]) {
   results.forEach((change: ModifyDocumentUpdate) => {
     const item = root.find((a: Item) => a._id === change._id)
-    if (item) mergeWith(item, change, undefinedToNull)
+    if (item) mergeWith(item, change, resetArrays)
   })
 }
 function _processDeletes(results: string[], root: Item[]) {

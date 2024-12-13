@@ -30,7 +30,12 @@ function reloadPage() {
       class="hidden h-24 w-24 items-center overflow-hidden rounded-full border-2 border-gray-300 bg-white xs:flex"
       @click="reloadPage"
     >
-      <img v-if="portraitUrl" :src="getPath(portraitUrl)" class="scale-150" />
+      <img
+        v-if="portraitUrl"
+        :src="getPath(portraitUrl)"
+        class="scale-150"
+        alt="Character portrait"
+      />
       <div v-else class="h-full min-h-24">
         <Spinner class="mr-2 h-full w-full p-4" />
       </div>
