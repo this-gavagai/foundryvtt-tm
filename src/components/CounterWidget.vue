@@ -37,15 +37,15 @@ defineExpose({ click, close })
   <div @click="click" class="cursor-pointer">
     <div class="flex h-full">
       <span v-for="i in Number(props.value ?? 0)" :key="'pip' + i">
-        <PipWidgetFilled class="inline h-full w-full" />
+        <PipWidgetFilled class="inline h-full" />
       </span>
       <span v-for="i in props.max ? Number(props.max - (props.value ?? 0)) : 0" :key="'emp' + i">
-        <PipWidgetUnfilled class="inline h-full w-full" />
+        <PipWidgetUnfilled class="inline h-full" />
       </span>
     </div>
     <Teleport to="#modals">
       <Modal ref="counterModal" :title="props.title">
-        <div class="flex w-full justify-between py-8 text-3xl">
+        <div class="flex justify-between py-8 text-3xl">
           <Button
             :disabled="updating || (props.value ?? 0) < 1"
             color="unstyled"
