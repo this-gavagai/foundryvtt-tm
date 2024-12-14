@@ -5,23 +5,25 @@ import { capitalize } from 'lodash-es'
 import melee from '@/assets/icons/plain-dagger.svg'
 import ranged from '@/assets/icons/high-shot.svg'
 
-const { type, id, label, mapLabelSet, isRanged } = defineProps([
+const { type, id, label, mapLabelSet, isRanged, range } = defineProps([
   'type',
   'id',
   'label',
   'mapLabelSet',
-  'isRanged'
+  'isRanged',
+  'range'
 ])
 const emit = defineEmits(['clicked'])
 </script>
 <template>
   <div class="align-items-middle flex">
+    <div>{{ label }}</div>
     <img
       :src="isRanged ? ranged : melee"
-      class="mr-1 mt-1 h-4"
+      class="ml-2 mt-1 h-4"
       :alt="isRanged ? 'ranged icon' : 'melee icon'"
     />
-    <div>{{ label }}</div>
+    <div v-if="range" class="pt-1 text-xs">&nbsp;({{ range }} ft.)</div>
   </div>
   <div class="flex flex-wrap leading-9">
     <span>

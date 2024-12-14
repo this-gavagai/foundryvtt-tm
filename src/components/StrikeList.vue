@@ -1,8 +1,7 @@
 <script setup lang="ts">
-// TODO (feature): add altUsage features (see pf2e AttackRollParams type)
+// TODO (feature): check pf2e AttackRollParams type to see if there's a better way to implement altUsage attacks/damage
+// TODO (feature): implement getDamage and setDamageType for altUsage (if necessary?)
 // TODO (feature): add reload action from pf2e-ranged?
-// TODO (data): show range of weapons
-// TODO (UX): add ranged/melee icon to list items, and get range details in there somehow
 // TODO (bug): modifiers for blasts aren't always working right, missing item bonuses for example from gate attenuator
 
 import { inject, ref, watch, computed } from 'vue'
@@ -38,6 +37,7 @@ interface ViewedStrikeOptions {
   strikeType?: 'strike' | 'blast'
   attackType?: 'melee' | 'ranged'
   subtype?: number
+  altUsage?: number | undefined
 }
 
 const character = inject(useKeys().characterKey)!
@@ -45,21 +45,15 @@ const { strikes, blasts, inventory, actions, blastActions } = character
 
 const strikeModal = ref()
 const strikeModalDamage = ref()
-// const viewedStrike = ref<Strike | ElementalBlast | undefined>()
 const viewedStrikeOptions = ref<ViewedStrikeOptions | undefined>()
-const damageTypeChoiceWidget = ref()
-const actionCountChoiceWidget = ref()
 
 const viewedStrikeId = ref<number | undefined>()
 const viewedStrike = computed(() => {
-  console.log('hey there', viewedStrikeId.value)
+  console.log('thing', viewedStrikeOptions.value?.altUsage)
   if (viewedStrikeId.value === undefined) return undefined
-  const correctOne =
-    viewedStrikeOptions.value?.strikeType === 'strike'
-      ? strikes.value?.[viewedStrikeId.value]
-      : blasts.value?.[viewedStrikeId.value]
-  console.log(correctOne)
-  return correctOne
+  return viewedStrikeOptions.value?.strikeType === 'strike'
+    ? strikes.value?.[viewedStrikeId.value]
+    : blasts.value?.[viewedStrikeId.value]
 })
 
 function getDamageTypes(item: Item | undefined) {
@@ -74,33 +68,48 @@ function getDamageTypes(item: Item | undefined) {
 }
 
 const strikeModalDetails = computed(() => {
-  const isStrike = viewedStrike.value?.hasOwnProperty('doStrike')
+  const isStrike = viewedStrike.value?.hasOwnProperty('weaponTraits')
   const item = isStrike
     ? inventory.value?.find((i) => i._id === viewedStrike.value?.item?._id)
     : actions.value?.find((i) => i._id === viewedStrike.value?.item?._id)
+  const strikeOrAlt = isStrike
+    ? viewedStrikeOptions.value?.altUsage === undefined
+      ? viewedStrike.value
+      : (viewedStrike.value as Strike)?.altUsages[viewedStrikeOptions.value.altUsage]
+    : undefined
 
   return {
     img: isStrike
       ? (item?.img ?? 'icons/skills/melee/unarmed-punch-fist.webp')
       : (viewedStrike.value as ElementalBlast)?.img,
     traits: isStrike
-      ? (viewedStrike.value as Strike)?.traits
+      ? (strikeOrAlt as Strike)?.traits
           ?.map((t: Trait) => t.label)
           ?.concat((viewedStrike.value as Strike)?.weaponTraits?.map((t: Trait) => t.label) ?? [])
-      : // TODO: add damage type to traits
-        item?.system?.traits?.value,
+      : [
+          ...(item?.system?.traits?.value ?? []),
+          ...[
+            item?.flags?.pf2e?.damageSelections?.[
+              (viewedStrike.value as ElementalBlast)?.element as keyof object
+            ]
+          ].filter((i) => i && !['bludgeoning', 'piercing', 'slashing'].includes(i))
+        ],
     label: isStrike
-      ? (viewedStrike.value as Strike)?.label
+      ? (strikeOrAlt as Strike)?.label
       : `Elemental Blast (${(viewedStrike.value as ElementalBlast)?.element}) - ${viewedStrikeOptions.value?.melee ? 'Melee' : 'Ranged'}`,
     modifiers: isStrike
-      ? (viewedStrike.value as Strike)?._modifiers
-      : // TODO (bug): figure out why this is missing some modifiers like Attunement Gate items
-        (viewedStrike.value as ElementalBlast)?.statistic?.modifiers,
+      ? (strikeOrAlt as Strike)?._modifiers
+      : (viewedStrike.value as ElementalBlast)?.statistic?.modifiers,
     variantLabel: isStrike
-      ? (viewedStrike.value as Strike)?.variants?.[viewedStrikeOptions.value?.subtype ?? 0]?.label
+      ? (strikeOrAlt as Strike)?.variants?.[viewedStrikeOptions.value?.subtype ?? 0]?.label
       : (viewedStrike.value as ElementalBlast)?.maps?.[
           strikeModal.value?.options?.melee ? 'melee' : ('ranged' as keyof object)
         ]?.[('map' + viewedStrikeOptions.value?.subtype) as keyof object],
+    range: isStrike
+      ? strikeOrAlt?.item?.system?.range
+      : viewedStrikeOptions.value?.melee
+        ? undefined
+        : (viewedStrike.value as ElementalBlast)?.range?.max,
     damageTypeOptions: isStrike
       ? (getDamageTypes(item) as string[])
       : ((viewedStrike.value as ElementalBlast)?.damageTypes?.map((x) => x.value) as string[]),
@@ -112,7 +121,11 @@ const strikeModalDetails = computed(() => {
           (viewedStrike.value as ElementalBlast)?.element as keyof object
         ],
     strikeAction: isStrike
-      ? () => (viewedStrike.value as Strike)?.doStrike?.(viewedStrikeOptions.value?.subtype ?? 0)
+      ? () =>
+          (viewedStrike.value as Strike)?.doStrike?.(
+            viewedStrikeOptions.value?.subtype ?? 0,
+            viewedStrikeOptions.value?.altUsage
+          )
       : () => {
           const element = (viewedStrike.value as ElementalBlast)?.element ?? ''
           const damageType =
@@ -129,7 +142,11 @@ const strikeModalDetails = computed(() => {
           )
         },
     damageAction: isStrike
-      ? () => (viewedStrike.value as Strike)?.doDamage?.(strikeModal.value?.options?.subtype)
+      ? () =>
+          (viewedStrike.value as Strike)?.doDamage?.(
+            viewedStrikeOptions.value?.subtype ?? 0,
+            viewedStrikeOptions.value?.altUsage
+          )
       : () => {
           const element = (viewedStrike.value as ElementalBlast)?.element ?? ''
           const damageType =
@@ -149,7 +166,7 @@ const strikeModalDetails = computed(() => {
 })
 async function updateDamageFormula() {
   // strikeModalDamage.value = undefined
-  const isStrike = viewedStrike.value?.hasOwnProperty('doStrike')
+  const isStrike = viewedStrike.value?.hasOwnProperty('weaponTraits')
   if (isStrike) {
     strikeModalDamage.value = await (viewedStrike.value as Strike)?.getDamage?.()
   } else {
@@ -183,6 +200,7 @@ watch(viewedStrike, async () => {
               type="blast"
               :id="i"
               :isRanged="attackType === 'ranged'"
+              :range="attackType === 'ranged' ? blast?.range?.max : undefined"
               :label="`Elemental Blast (${blast.element})`"
               :mapLabelSet="
                 [
@@ -222,6 +240,7 @@ watch(viewedStrike, async () => {
             :id="i"
             :label="strike?.item?.name ?? strike?.label"
             :isRanged="strike?.item?.system?.range ?? NaN > 0"
+            :range="strike?.item?.system?.range"
             :mapLabelSet="strike.variants"
             @clicked="
               (id: string, options: object) => {
@@ -231,6 +250,23 @@ watch(viewedStrike, async () => {
               }
             "
           />
+          <div v-for="(altUsage, j) in strike?.altUsages" :key="strike.slug + '_alt_' + j">
+            <StrikeActionSet
+              type="strike"
+              :id="i"
+              :label="altUsage?.item?.name ?? altUsage?.label"
+              :isRanged="altUsage?.item?.system?.range ?? NaN > 0"
+              :range="altUsage?.item?.system?.range"
+              :mapLabelSet="altUsage?.variants"
+              @clicked="
+                (id: string, options: object) => {
+                  viewedStrikeId = i
+                  viewedStrikeOptions = { ...options, strikeType: 'strike', altUsage: j }
+                  strikeModal.open()
+                }
+              "
+            />
+          </div>
         </li>
       </ul>
     </div>
@@ -248,9 +284,9 @@ watch(viewedStrike, async () => {
           : strikeModalDamage?.response?.damage
       }}</template>
       <template #default>
+        <div v-if="strikeModalDetails?.range">Range: {{ strikeModalDetails?.range }} ft.</div>
         <div class="flex justify-end gap-2">
           <ChoiceWidget
-            ref="damageTypeChoiceWidget"
             label="Damage Type:"
             :choiceSet="strikeModalDetails?.damageTypeOptions ?? []"
             :iconSet="damageIcons"
@@ -266,7 +302,6 @@ watch(viewedStrike, async () => {
             "
           />
           <ChoiceWidget
-            ref="actionCountChoiceWidget"
             v-if="viewedStrikeOptions?.type?.match('blast')"
             :choiceSet="['1', '2']"
             :iconSet="actionIcons"

@@ -8,6 +8,7 @@ export interface Strike {
   slug: Maybe<string>
   item?: Maybe<Item>
   variants: Maybe<{ label: string }[]>
+  altUsages: Maybe<Strike>[]
   traits: {
     name: Maybe<string>
     label: Maybe<string>
@@ -16,8 +17,8 @@ export interface Strike {
   weaponTraits: Maybe<{ name: string; label: string; description: string }[]>
   // tmDamageFormula: Maybe<{ base: string; critical: string; _modifiers: Maybe<Modifier[]> }>
   _modifiers: Maybe<Modifier[]>
-  doStrike?: (variant: number) => Promise<Roll> | null
-  doDamage?: (variant: number) => Promise<Roll> | null
+  doStrike?: (variant: number, altUsage: number | undefined) => Promise<Roll> | null
+  doDamage?: (variant: number, altUsage: number | undefined) => Promise<Roll> | null
   getDamage?: () => Promise<unknown> | null
   setDamageType?: (newType: string) => Promise<unknown> | null
 }
@@ -31,6 +32,7 @@ export function makeStrike(
     slug: root?.slug,
     item: makeItem(item),
     variants: root?.variants.map((v) => ({ label: v?.label })),
+    altUsages: root?.altUsages.map((a) => makeStrike(a, a.item)),
     traits: root?.traits?.map((t) => ({
       name: t?.name,
       label: t?.label,

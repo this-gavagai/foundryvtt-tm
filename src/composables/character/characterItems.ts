@@ -17,8 +17,8 @@ export interface Equipment extends Item {
 export interface SpellcastingEntry extends Item {
   staffCharges: Maybe<number>
   setPrepared: (
-    rank: number,
-    slot: number,
+    rank: number | undefined,
+    slot: number | undefined,
     newSpellId: string | null,
     newTotal?: boolean | undefined
   ) => Promise<unknown>
@@ -26,7 +26,7 @@ export interface SpellcastingEntry extends Item {
   setCharges: (newValue: number) => Promise<unknown>
 }
 export interface Spell extends Item {
-  doSpell?: (rank: number, slot: number) => Promise<unknown>
+  doSpell?: (rank: number | undefined, slot: number | undefined) => Promise<unknown>
 }
 export interface CharacterItems {
   feats: Field<Item[]>
@@ -110,13 +110,13 @@ export function useCharacterItems(actor: Ref<Actor | undefined>) {
           ...(makeItem(i) as Item),
           staffCharges: i?.flags?.['pf2e-dailies']?.staff?.charges,
           setPrepared: (
-            rank: number,
-            slot: number,
+            rank: number | undefined,
+            slot: number | undefined,
             newSpellId: string | null,
             expended: boolean = false
           ) => {
             const prepared = i?.system?.slots?.['slot' + rank]?.prepared
-            if (!prepared) return Promise.resolve(null)
+            if (!prepared || !rank || !slot) return Promise.resolve(null)
             if (!prepared[slot]) prepared[slot] = { id: null, expended: true }
             prepared[slot].id = newSpellId
             prepared[slot].expended = expended
@@ -139,7 +139,8 @@ export function useCharacterItems(actor: Ref<Actor | undefined>) {
         ?.filter((i: PF2eItem) => i?.type === 'spell')
         ?.map((i: PF2eItem) => ({
           ...(makeItem(i) as Item),
-          doSpell: (rank: number, slot: number) => {
+          doSpell: (rank: number | undefined, slot: number | undefined) => {
+            if (!rank || !slot) return Promise.resolve(undefined)
             return castSpell(actor as Ref<Actor>, i._id, rank, slot)
           }
         }))

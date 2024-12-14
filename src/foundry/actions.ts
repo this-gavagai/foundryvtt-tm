@@ -1,4 +1,4 @@
-import type { Actor, Action, Modifier } from '@/types/pf2e-types'
+import type { Actor, Action, Modifier, Item } from '@/types/pf2e-types'
 import type {
   RollCheckArgs,
   CharacterActionArgs,
@@ -12,19 +12,25 @@ import type { Game } from '@/types/foundry-types'
 
 declare const game: Game
 
+function blastReplacer(key: string, element: Actor | Item | unknown) {
+  if (key === 'actor') return undefined
+  else if (key === 'item') return { _id: (element as Item)?._id }
+  else return element
+}
+
 export async function getCharacterDetails(
   args: RequestCharacterDetailsArgs
 ): Promise<UpdateCharacterDetailsArgs> {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.find((x: Actor) => x._id === args.actorId)
+  const elementalBlasts = { ...new game.pf2e.ElementalBlast(actor), actor: undefined }
   return {
     action: 'updateCharacterDetails',
     actorId: actor._id,
     actor: JSON.stringify(actor),
     system: JSON.stringify(actor.system),
     inventory: JSON.stringify(actor.inventory),
-    // TODO: serializing the whole blasts object here is inefficient. just take parts needed?
-    elementalBlasts: JSON.stringify(new game.pf2e.ElementalBlast(actor)),
+    elementalBlasts: JSON.stringify(elementalBlasts, blastReplacer),
     uuid: args.uuid
   }
 }
@@ -52,15 +58,26 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   let roll
   switch (args.checkType) {
     case 'strike': {
-      const [actionSlug, variant] = args.checkSubtype.split(',')
-      roll = actor.system.actions
-        .find((a: Action) => a.slug === actionSlug)
-        .variants[variant].roll(params)
+      const [actionSlug, variant, altUsage] = args.checkSubtype.split(',')
+      if (altUsage?.length)
+        roll = actor.system.actions.altUsages[Number(altUsage)]
+          .find((a: Action) => a.slug === actionSlug)
+          .variants[variant].roll(params)
+      else
+        roll = actor.system.actions
+          .find((a: Action) => a.slug === actionSlug)
+          .variants[variant].roll(params)
+
       break
     }
     case 'damage': {
-      const [damageSlug, damageDegree] = args.checkSubtype.split(',')
-      roll = actor.system.actions.find((a: Action) => a.slug === damageSlug)[damageDegree](params)
+      const [damageSlug, damageDegree, damageAltUsage] = args.checkSubtype.split(',')
+      if (damageAltUsage?.length)
+        roll = actor.system.actions
+          .find((a: Action) => a.slug === damageSlug)
+          .altUsages[Number(damageAltUsage)][damageDegree](params)
+      else
+        roll = actor.system.actions.find((a: Action) => a.slug === damageSlug)[damageDegree](params)
       break
     }
     case 'blast': {
@@ -220,7 +237,7 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
     ? { ...baseModifierOptions, ...blastOptions }
     : baseModifierOptions
 
-  // TODO: find a less hacky way to do this. the problem here is games configured to use real dice. no way to get modifiers without actually rolling, and rollMode and skipDialog both seem to be ignored, so I'm faking events and temporarily changing client settings. bad.
+  // TODO (upstream): find a less hacky way to do this. the problem here is games configured to use real dice. no way to get modifiers without actually rolling, and rollMode and skipDialog both seem to be ignored, so I'm faking events and temporarily changing client settings. bad.
   const rollmode = await source.settings.get('core', 'rollMode')
   await source.settings.set('core', 'rollMode', 'blindroll')
 
@@ -230,7 +247,7 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
     : doesDmg
       ? action.critical(damageOptions)
       : null
-  // TODO: {createMessage: false} isn't respected for blasts, so there's not much I can do here
+  // TODO (upstream): {createMessage: false} isn't respected for blasts, so there's not much I can do here; submit a patch?
   const modifiers = doesDmg && !isBlast ? action.damage(modifierOptions) : null
   const results = await Promise.all([damage, critical, modifiers])
 

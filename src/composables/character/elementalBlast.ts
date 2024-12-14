@@ -12,6 +12,7 @@ export interface ElementalBlast {
   element: Maybe<string>
   img: Maybe<string>
   item: Item
+  range: { increment: Maybe<number>; max: Maybe<number>; label: Maybe<string> }
   maps: {
     melee: { map0: Maybe<string>; map1: Maybe<string>; map2: Maybe<string> }
     ranged: { map0: Maybe<string>; map1: Maybe<string>; map2: Maybe<string> }
@@ -45,6 +46,11 @@ export function makeElementalBlasts(root: PF2eElementalBlasts | undefined) {
     element: config?.element,
     img: config?.img,
     item: makeItem(config?.item),
+    range: {
+      increment: config?.range?.increment,
+      max: config?.range?.max,
+      label: config?.range?.label
+    },
     maps: {
       melee: {
         map0: config?.maps?.melee.map0,

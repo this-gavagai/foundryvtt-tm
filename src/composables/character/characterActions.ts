@@ -76,13 +76,13 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
           actor.value?.items.find((i: PF2eItem) => i.system?.slug === action?.slug)
         ) as Strike),
         getDamage: () => getStrikeDamage(actor as Ref<Actor>, action.slug),
-        doStrike: (variant: number) =>
-          rollCheck(actor as Ref<Actor>, 'strike', `${action.slug},${variant}`),
-        doDamage: (crit: boolean) =>
+        doStrike: (variant: number, altUsage: number | undefined) =>
+          rollCheck(actor as Ref<Actor>, 'strike', `${action.slug},${variant},${altUsage ?? ''}`),
+        doDamage: (crit: boolean, altUsage: number) =>
           rollCheck(
             actor as Ref<Actor>,
             'damage',
-            `${action.slug},${crit ? 'critical' : 'damage'}`
+            `${action.slug},${crit ? 'critical' : 'damage'},${altUsage ?? ''}`
           ),
         setDamageType: (newType: string) => {
           const item = actor.value?.items.find((i: PF2eItem) => i._id === action?.item?._id)

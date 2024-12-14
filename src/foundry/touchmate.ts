@@ -1,7 +1,7 @@
+//TODO (refactor): refactor touchmate into a separate app
 //TODO (feature): find a way to target friends using touchscreen
 //TODO (feature): prevent dragbox always. never needed for touchscreen
 //TODO (feature): find a way to hide cursor in chrome when using touchscreen
-// touch tweaks
 
 declare const Hammer: any
 declare const canvas: any

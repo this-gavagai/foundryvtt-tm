@@ -22,6 +22,7 @@ export interface ElementalBlastConfig {
   element: string
   img: string
   item: Item
+  range: { increment: number; max: number; label: string }
   maps: {
     melee: { map0: string; map1: string; map2: string }
     ranged: { map0: string; map1: string; map2: string }
@@ -76,6 +77,7 @@ export interface Action {
   _id: string
   label: string
   damage: Function
+  altUsages: Action[]
   critical: Function
   variants: { label: string }[]
   traits: { name: string; label: string; description: string }[]

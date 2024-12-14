@@ -1,5 +1,5 @@
-// TODO (known issue): this thing isn't triggering preUpdateActor hooks, as those are conventionally called only on the actor in question. May be a problem.
-// TODO (data+): need some way to indicate that gm-dependent methods aren't available when that's the case
+// TODO (upstream): this thing isn't triggering preUpdateActor hooks, as those are conventionally called only on the actor in question. May be a problem.
+// TODO (UX): need some way to indicate that gm-dependent methods aren't available when that's the case
 import type { Ref } from 'vue'
 import type { Actor, World, Item, Combat, System, ElementalBlasts } from '@/types/pf2e-types'
 import type {
@@ -49,7 +49,7 @@ async function setupSocketListenersForApp() {
   socket.on('module.tablemate', (args: ModuleEventArgs) => {
     switch (args.action) {
       case 'acknowledged':
-        console.log('here args', args.uuid)
+        // console.log('here args', args.uuid)
         if (ackQueue[args.uuid]) {
           ackQueue[args.uuid](args)
           delete ackQueue[args.uuid]
@@ -165,6 +165,7 @@ function parseActorData(
   if (characterUnsynced.get(actorId)) return
   if (characterLastRequest.get(actorId) !== args.uuid) return
 
+  // TODO (optimization): anyway to change these together so double reactive updates don't happen?
   if (!actor.value) actor.value = {} as Actor
   mergeWith(actor.value, JSON.parse(args.actor), resetArrays)
   if (!actor.value.system) actor.value.system = {} as System
