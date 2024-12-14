@@ -150,12 +150,6 @@ async function sendCharacterRequest(actorId: string): Promise<void> {
   characterUnsynced.set(actorId, false)
   characterLastRequest.set(actorId, uuid)
 }
-function resetArrays(objValue: unknown, srcValue: unknown) {
-  if (Array.isArray(srcValue) && Array.isArray(objValue) && srcValue.length < objValue.length) {
-    console.log('TM: nuking array due to length mismatch', objValue, srcValue)
-    return srcValue
-  }
-}
 function parseActorData(
   actorId: string,
   actor: Ref<Actor | undefined>,
@@ -165,13 +159,17 @@ function parseActorData(
   if (characterUnsynced.get(actorId)) return
   if (characterLastRequest.get(actorId) !== args.uuid) return
 
-  // TODO (optimization): anyway to change these together so double reactive updates don't happen?
   if (!actor.value) actor.value = {} as Actor
-  mergeWith(actor.value, JSON.parse(args.actor), resetArrays)
   if (!actor.value.system) actor.value.system = {} as System
-  mergeWith(actor.value.system, JSON.parse(args.system), resetArrays)
   if (!actor.value.elementalBlasts) actor.value.elementalBlasts = {} as ElementalBlasts
-  mergeWith(actor.value.elementalBlasts, JSON.parse(args.elementalBlasts), resetArrays)
+
+  // TODO (optimization): make this an anonymous function to avoid the name allocation
+  const mergeAll = () => {
+    mergeWith(actor.value, JSON.parse(args.actor), resetArrays)
+    mergeWith(actor.value!.system, JSON.parse(args.system), resetArrays)
+    mergeWith(actor.value!.elementalBlasts, JSON.parse(args.elementalBlasts), resetArrays)
+  }
+  mergeAll()
 }
 
 ///////////////////////////////////////
@@ -455,6 +453,12 @@ function _processDeletes(results: string[], root: Item[]) {
       root.splice(index, 1)
     }
   })
+}
+function resetArrays(objValue: unknown, srcValue: unknown) {
+  if (Array.isArray(srcValue) && Array.isArray(objValue) && srcValue.length < objValue.length) {
+    console.log('TM: nuking array due to length mismatch', objValue, srcValue)
+    return srcValue
+  }
 }
 
 ///////////////////////////////////////
