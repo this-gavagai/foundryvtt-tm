@@ -1,8 +1,5 @@
 // TODO (known issue): this thing isn't triggering preUpdateActor hooks, as those are conventionally called only on the actor in question. May be a problem.
 // TODO (data+): need some way to indicate that gm-dependent methods aren't available when that's the case
-// TODO (bug++): Problem: in some cases, a character request goes out, then more changes happen. This causes flip-flop on a value, as two different changes get processed.
-//                we need a way to tell the api to ignore a characterdetails refresh because new changes have happened, rendering that data stale. perhaps it will also be
-//                possible to send out the request right away, thereby decreasing latency significantly.
 import type { Ref } from 'vue'
 import type { Actor, World, Item, Combat, System, ElementalBlasts } from '@/types/pf2e-types'
 import type {

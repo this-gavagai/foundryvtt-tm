@@ -32,9 +32,6 @@ const { skills, proficiencies } = character
               :rollAction="() => (skill.roll ? skill?.roll() : null)"
             >
               {{ formatModifier(skill.totalModifier) }}
-              <!-- <span class="text-3xl">
-                {{ proficiencies[skill.rank]?.dots }}
-              </span> -->
             </StatBox>
           </dd>
         </div>

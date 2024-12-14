@@ -1,12 +1,8 @@
 <script setup lang="ts">
-// TODO (refactor): switch to ButtonWidget
 // TODO (feature): add encumbrance
 // TODO (refactor): switch toggle bar over to headlessui component and give transaction feedback
 // TODO (refactor): refactor listbox into component, and give transaction feedback
-// TODO (refactor): refactor Switch into component, and give transactionf eedback
-// TODO (bug): it is currently possible to put containers inside themselves, which leads to all sorts of trouble; need catch-all for items not caught
-// TODO (bug): items in deleted containers disappear from list
-// TODO (refactor): get rid of viewed item; do what strikes does now instead viewedItemFix
+// TODO (refactor): refactor Switch into component, and give transaction feedback
 
 import type { Equipment } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
@@ -15,6 +11,7 @@ import { useKeys } from '@/composables/injectKeys'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption, Switch } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/20/solid'
 import { inventoryTypes } from '@/utils/constants'
+import { capitalize } from 'lodash-es'
 
 import EquipmentInvested from '@/components/EquipmentInvested.vue'
 import EquipmentListItem from '@/components/EquipmentListItem.vue'
@@ -28,8 +25,9 @@ const investedModal = ref()
 const character = inject(useKeys().characterKey)!
 const { inventory } = character
 
+const itemViewedId = ref<string | undefined>()
 const itemViewed = computed(() =>
-  inventory.value?.find((i: Equipment) => i._id === infoModal?.value?.itemId)
+  inventory.value?.find((i: Equipment) => i._id === itemViewedId.value)
 )
 const itemWornType = computed(() => {
   if (itemViewed.value?.type === 'armor') return 'Armor'
@@ -91,7 +89,15 @@ const toggleSet = [
         class="whitespace-nowrap text-xl"
         :key="item._id"
       >
-        <a class="cursor-pointer" @click="infoModal.open(item._id)">
+        <a
+          class="cursor-pointer"
+          @click="
+            () => {
+              itemViewedId = item._id
+              infoModal.open()
+            }
+          "
+        >
           <span class="pr-1">{{
             item.system?.equipped?.handsHeld
               ? item.system?.equipped?.handsHeld === 1
@@ -128,7 +134,15 @@ const toggleSet = [
           )"
           :key="item._id"
         >
-          <EquipmentListItem :item="item" @item-clicked="infoModal.open(item._id)" />
+          <EquipmentListItem
+            :item="item"
+            @item-clicked="
+              () => {
+                itemViewedId = item._id
+                infoModal.open()
+              }
+            "
+          />
           <ul class="pb-2" v-if="item.type === 'backpack'">
             <li
               v-for="stowed in inventory?.filter(
@@ -136,7 +150,15 @@ const toggleSet = [
               )"
               :key="stowed._id"
             >
-              <EquipmentListItem :item="stowed" @item-clicked="infoModal.open(stowed._id)" />
+              <EquipmentListItem
+                :item="stowed"
+                @item-clicked="
+                  () => {
+                    itemViewedId = stowed._id
+                    infoModal.open()
+                  }
+                "
+              />
             </li>
           </ul>
         </dd>
@@ -205,9 +227,11 @@ const toggleSet = [
             <span
               class="text-md ml-2 align-middle"
               :class="{ 'text-gray-400': !itemViewed?.system?.equipped?.inSlot }"
-              >{{ itemViewed?.system?.equipped?.inSlot ? `Item equipped (<span class="capitalize"
-                >${itemWornType}</span
-              >)` : 'Item not equipped' }}</span
+              >{{
+                itemViewed?.system?.equipped?.inSlot
+                  ? `Item equipped (${capitalize(itemWornType)})`
+                  : 'Item not equipped'
+              }}</span
             >
           </div>
           <div
@@ -242,7 +266,8 @@ const toggleSet = [
           <div
             v-if="
               itemViewed?.system?.equipped?.carryType === 'stowed' &&
-              (inventory?.filter((i: Equipment) => i.type === 'backpack').length ?? 0) > 1
+              (inventory?.filter((i: Equipment) => i.type === 'backpack').length ?? 0) > 1 &&
+              itemViewed?.type !== 'backpack'
             "
           >
             <Listbox
@@ -310,6 +335,7 @@ const toggleSet = [
         <div class="flex-1">Qty: {{ itemViewed?.system?.quantity }}</div>
         <Button
           color="red"
+          v-if="inventory.filter((i) => i.system?.containerId === itemViewed?._id).length === 0"
           :clicked="
             () => {
               infoModal.close()

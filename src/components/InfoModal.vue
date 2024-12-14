@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// TODO (UX): add some kind of placeholder for image to show it's loading
 import { ref } from 'vue'
 import {
   Dialog,
@@ -69,7 +68,7 @@ defineExpose({ open, close, itemId, options, rollResultModal })
               >
                 <div class="max-h-[70vh] overflow-auto">
                   <div class="flex space-x-2">
-                    <div>
+                    <div class="bg-gray-300">
                       <img
                         class="h-12 w-12"
                         v-if="props.imageUrl"
