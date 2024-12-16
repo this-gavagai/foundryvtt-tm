@@ -69,7 +69,7 @@ const { world } = useWorld()
               <nav class="flex flex-1 flex-col">
                 <ul role="list" class="flex flex-1 flex-col gap-y-7 pt-4">
                   <li>
-                    <div class="text-lg">Targeting Proxy</div>
+                    <div class="text-lg italic">Targeting Proxy</div>
                     <Dropdown
                       :list="userList ?? []"
                       :selectedId="targetingProxyId ?? '0'"

@@ -171,6 +171,7 @@ const toggleSet = [
     </Modal>
     <InfoModal
       ref="infoModal"
+      :itemId="itemViewed?._id"
       :imageUrl="itemViewed?.img"
       :traits="itemViewed?.system?.traits?.value"
     >

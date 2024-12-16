@@ -69,6 +69,7 @@ export interface Game {
   audio: any
   settings: any
   pf2e: any
+  actors: any
 }
 export interface User {
   _id: string

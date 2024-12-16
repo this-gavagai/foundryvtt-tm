@@ -10,6 +10,7 @@ export type ModuleEventArgs =
   | ConsumeItemArgs
   | GetStrikeDamageArgs
   | ShareTargetArgs
+  | SendItemToChatArgs
 
 export interface AcknowledgementArgs {
   action: 'acknowledged'
@@ -89,6 +90,13 @@ export interface ShareTargetArgs {
   action: 'shareTarget'
   userId: string
   targets: string[]
+}
+export interface SendItemToChatArgs {
+  action: 'sendItemToChat'
+  userId: string
+  characterId: string
+  itemId: string
+  uuid: string
 }
 
 export interface ResolutionArgs {}

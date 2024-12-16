@@ -5,7 +5,8 @@ import type {
   ConsumeItemArgs,
   RequestCharacterDetailsArgs,
   RollCheckArgs,
-  GetStrikeDamageArgs
+  GetStrikeDamageArgs,
+  SendItemToChatArgs
 } from '@/types/api-types'
 import {
   getCharacterDetails,
@@ -13,7 +14,8 @@ import {
   foundryCharacterAction,
   foundryCastSpell,
   foundryConsumeItem,
-  foundryGetStrikeDamage
+  foundryGetStrikeDamage,
+  foundrySendItemToChat
 } from './actions'
 import type { Game, User, Hooks, GetEvent } from '@/types/foundry-types'
 
@@ -70,6 +72,11 @@ export function setupListener() {
         break
       case 'getStrikeDamage':
         foundryGetStrikeDamage(args as GetStrikeDamageArgs).then((result) =>
+          game.socket.emit(MODNAME, result)
+        )
+        break
+      case 'sendItemToChat':
+        foundrySendItemToChat(args as SendItemToChatArgs).then((result) =>
           game.socket.emit(MODNAME, result)
         )
         break

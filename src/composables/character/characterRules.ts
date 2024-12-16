@@ -2,7 +2,6 @@ import { type Ref, computed } from 'vue'
 import type { Field, Maybe } from './helpers'
 import { type Actor } from '@/types/pf2e-types'
 import { useApi } from '../api'
-// import type { Item as PF2eItem } from '@/types/pf2e-types'
 
 export interface CharacterRules {
   rollOptions: Field<Map<string, RollOption>>
@@ -12,7 +11,6 @@ interface RollOption {
   suboptions: { label: Maybe<string>; value: Maybe<string> }[]
   value: Maybe<boolean>
   selection: Maybe<string>
-  // toggle: (newValue: boolean | undefined) => Promise<unknown>
   updateRule: (
     newToggleValue: boolean | undefined | null,
     newSelection: string | null

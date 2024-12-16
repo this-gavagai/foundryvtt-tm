@@ -271,6 +271,7 @@ watch(viewedStrike, async () => updateDamageFormula())
   <Teleport to="#modals">
     <InfoModal
       ref="strikeModal"
+      :itemId="viewedStrikeItem?._id"
       :traits="viewedStrikeTraits"
       :imageUrl="
         (viewedStrike as ElementalBlast)?.blastImg ??

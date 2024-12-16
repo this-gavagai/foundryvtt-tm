@@ -45,7 +45,7 @@ async function connectToServer(url: URL) {
   sessionId.value = sid
   await establishSocket(url, sid, true)
     .then((newSocket) => {
-      console.log('TABLEMATE: establishing socket connection')
+      console.log('TM-INIT: establishing socket connection')
       socket.value = newSocket
       socket.value.offAny()
       socket.value.onAny((name, ...args) => {

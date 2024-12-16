@@ -38,6 +38,7 @@ function viewItem(item: Item | undefined) {
     <InfoModal
       ref="infoModal"
       :imageUrl="identityViewed?.img"
+      :itemId="identityViewed?._id"
       :traits="identityViewed?.system?.traits?.value"
     >
       <template #title>

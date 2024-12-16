@@ -41,7 +41,12 @@ const effectViewed = computed(() => effects.value?.find((e) => e._id === effectV
     </div>
   </div>
   <Teleport to="#modals">
-    <InfoModal ref="infoModal" :imageUrl="effectViewed?.img">
+    <InfoModal
+      ref="infoModal"
+      :itemId="effectViewed?._id"
+      :imageUrl="effectViewed?.img"
+      :traits="[]"
+    >
       <template #title>
         {{ effectViewed?.name }}
         {{ effectViewed?.system?.value?.value }}

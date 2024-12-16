@@ -274,6 +274,7 @@ const spellbook = computed((): Spellbook => {
   <Teleport to="#modals">
     <InfoModal
       ref="infoModal"
+      :itemId="viewedSpell?._id"
       :imageUrl="viewedSpell?.img"
       :traits="viewedSpell?.system?.traits?.value"
     >

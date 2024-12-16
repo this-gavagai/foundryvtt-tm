@@ -84,6 +84,7 @@ const featCategories = computed(() => {
   <Teleport to="#modals">
     <InfoModal
       ref="infoModal"
+      :itemId="viewedFeat?._id"
       :imageUrl="viewedFeat?.img"
       :traits="viewedFeat?.system?.traits?.value"
     >

@@ -55,14 +55,14 @@ const requestCharacterDetails = async () => {
 
 // setup socket listeners and request character details on mount
 onMounted(() => {
-  console.log('TABLEMATE: initiating character', props.characterId)
+  console.log('TM-INIT: initiating character', props.characterId)
   if (props.characterId) {
     setupSocketListenersForActor(props.characterId, actor, requestCharacterDetails)
     sendCharacterRequest(props.characterId)
   }
 })
 onUnmounted(() => {
-  console.log('TABLEMATE: unmounted actor', props.characterId)
+  console.log('TM-INIT: unmounted actor', props.characterId)
 })
 defineExpose({ actor, character })
 </script>

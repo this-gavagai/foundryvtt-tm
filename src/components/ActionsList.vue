@@ -61,6 +61,7 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
     <InfoModal
       ref="infoModal"
       :imageUrl="actionViewed?.img"
+      :itemId="actionViewed?._id"
       :traits="actionViewed?.system?.traits?.value"
     >
       <template #title>

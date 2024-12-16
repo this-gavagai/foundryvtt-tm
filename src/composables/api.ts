@@ -10,7 +10,8 @@ import type {
   RollCheckArgs,
   CharacterActionArgs,
   ConsumeItemArgs,
-  GetStrikeDamageArgs
+  GetStrikeDamageArgs,
+  SendItemToChatArgs
 } from '@/types/api-types'
 import type {
   DocumentEventArgs,
@@ -324,7 +325,7 @@ async function rollCheck(
   actor: Ref<Actor>,
   checkType: string,
   checkSubtype = '',
-  modifiers = [],
+  modifiers: { label: string; modifier: number; enabled: boolean; ignored: boolean }[] = [],
   options = {}
 ): Promise<ResolutionArgs> {
   const { getTargets } = useTargetHelper()
@@ -422,6 +423,25 @@ async function getStrikeDamage(
   })
 }
 
+async function sendItemToChat(characterId: string, itemId: string): Promise<ResolutionArgs> {
+  const userId = getUserId()
+  const uuid = uuidv4()
+  const args: SendItemToChatArgs = {
+    userId,
+    action: 'sendItemToChat',
+    characterId,
+    itemId,
+    uuid
+  }
+  const socket = await getSocket()
+  return new Promise((resolve) => {
+    socket.emit('module.tablemate', args)
+    pushToAckQueue(uuid, (args: ResolutionArgs) => {
+      resolve(args)
+    })
+  })
+}
+
 //////////////////////////////////////////////////
 // Processing Methods for Items (not Actor)     //
 //////////////////////////////////////////////////
@@ -460,7 +480,7 @@ function _processDeletes(results: string[], root: Item[]) {
 }
 function resetArrays(objValue: unknown, srcValue: unknown) {
   if (Array.isArray(srcValue) && Array.isArray(objValue) && srcValue.length < objValue.length) {
-    console.log('TM: nuking array due to length mismatch', objValue, srcValue)
+    console.log('TM-WARN: nuking array due to length mismatch', objValue, srcValue)
     return srcValue
   }
 }
@@ -483,6 +503,7 @@ export function useApi() {
     consumeItem,
     characterAction,
     getStrikeDamage,
+    sendItemToChat,
     getCharUnsynced: () => characterUnsynced,
     getCharLastRequest: () => characterUnsynced
   }

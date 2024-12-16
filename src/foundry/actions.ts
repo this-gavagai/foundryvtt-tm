@@ -5,7 +5,8 @@ import type {
   CastSpellArgs,
   ConsumeItemArgs,
   GetStrikeDamageArgs,
-  RequestCharacterDetailsArgs
+  RequestCharacterDetailsArgs,
+  SendItemToChatArgs
 } from '@/types/api-types'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import type { Game } from '@/types/foundry-types'
@@ -109,11 +110,6 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       break
     }
     case 'initiative': {
-      // Not sure why I thought it needed to be this complicated. Seems to be working with just roll(params)
-      // const combatantId = source.combat.combatants.find(
-      //   (c: Combatant) => c.actorId === args.characterId
-      // )?._id
-      // if (combatantId) roll = actor.initiative.roll([combatantId], { updateTurn: false, ...params })
       params.target = null
       roll = actor.initiative.roll(params)
       break
@@ -193,6 +189,12 @@ export async function foundryConsumeItem(args: ConsumeItemArgs) {
   item.consume()
   return { action: 'acknowledged', uuid: args.uuid }
 }
+
+export async function foundrySendItemToChat(args: SendItemToChatArgs) {
+  game.actors.get(args.characterId).items.get(args.itemId).toChat()
+  return { action: 'acknowledged', uuid: args.uuid }
+}
+
 export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
   // console.log('TM ALT DETAILS', args.altUsage)
   const source = typeof window.game === 'undefined' ? parent.game : window.game

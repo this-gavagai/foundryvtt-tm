@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, inject } from 'vue'
 import {
   Dialog,
   DialogPanel,
@@ -8,33 +8,36 @@ import {
   TransitionRoot,
   TransitionChild
 } from '@headlessui/vue'
+import { useKeys } from '@/composables/injectKeys'
+import { useApi } from '@/composables/api'
 import { getPath } from '@/utils/utilities'
 import { makeTraits } from '@/utils/utilities'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 import Modal from './ModalBox.vue'
+import Spinner from './SpinnerWidget.vue'
 
-const props = defineProps(['imageUrl', 'traits'])
+const character = inject(useKeys().characterKey)!
+const { _id: characterId } = character
+
+const { sendItemToChat } = useApi()
+
+const props = defineProps(['imageUrl', 'traits', 'itemId'])
 const rollResultModal = ref()
-const itemId = ref()
-const options = ref()
+
+const waiting = ref(false)
 
 const isOpen = ref(false)
-function open(newItemId: string = '', newOptions: object | null = null) {
-  itemId.value = newItemId
-  options.value = newOptions
+function open() {
   isOpen.value = true
+  emit('opening')
 }
 function close() {
   isOpen.value = false
-  setTimeout(() => {
-    itemId.value = null
-    options.value = null
-  }, 500)
   emit('closing')
 }
 
-const emit = defineEmits(['closing'])
-defineExpose({ open, close, itemId, options, rollResultModal })
+const emit = defineEmits(['opening', 'closing', 'imgClick'])
+defineExpose({ open, close, rollResultModal })
 </script>
 <template>
   <div class="touch-manipulation">
@@ -68,12 +71,26 @@ defineExpose({ open, close, itemId, options, rollResultModal })
               >
                 <div class="max-h-[70vh] overflow-auto">
                   <div class="flex space-x-2">
-                    <div class="bg-gray-300">
+                    <div
+                      class="bg-gray-300 active:opacity-30"
+                      @click="
+                        () => {
+                          if (!props.itemId || !characterId) return
+                          waiting = true
+                          sendItemToChat(characterId, props.itemId).then(() => (waiting = false))
+                        }
+                      "
+                    >
                       <img
                         class="h-12 w-12"
+                        :class="[waiting ? 'opacity-50' : '']"
                         v-if="props.imageUrl"
                         :src="getPath(props.imageUrl)"
                         alt="PF2e system icon"
+                      />
+                      <Spinner
+                        class="absolute -mt-9 ml-3 h-6 w-6 transition-opacity"
+                        :class="[waiting ? 'opacity-100' : 'opacity-0']"
                       />
                     </div>
                     <div>
