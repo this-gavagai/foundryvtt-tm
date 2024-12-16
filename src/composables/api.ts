@@ -1,4 +1,4 @@
-// TODO (upstream): this thing isn't triggering preUpdateActor hooks, as those are conventionally called only on the actor in question. May be a problem.
+// TODO (upstream): this thing isn't triggering preUpdateActor hooks, as those are conventionally called only on the actor in question. Solution unknown
 // TODO (UX): need some way to indicate that gm-dependent methods aren't available when that's the case
 import type { Ref } from 'vue'
 import type { Actor, World, Item, Combat, System, ElementalBlasts } from '@/types/pf2e-types'
@@ -161,15 +161,15 @@ function parseActorData(
 
   if (!actor.value) actor.value = {} as Actor
   if (!actor.value.system) actor.value.system = {} as System
-  if (!actor.value.elementalBlasts) actor.value.elementalBlasts = {} as ElementalBlasts
+  if (!actor.value.elementalBlasts)
+    actor.value.elementalBlasts = {} as ElementalBlasts
 
-  // TODO (optimization): make this an anonymous function to avoid the name allocation
-  const mergeAll = () => {
+    // TODO (optimization): still getting the update nuke on languages for some reason
+  ;(function () {
     mergeWith(actor.value, JSON.parse(args.actor), resetArrays)
     mergeWith(actor.value!.system, JSON.parse(args.system), resetArrays)
     mergeWith(actor.value!.elementalBlasts, JSON.parse(args.elementalBlasts), resetArrays)
-  }
-  mergeAll()
+  })()
 }
 
 ///////////////////////////////////////
@@ -397,7 +397,11 @@ async function consumeItem(
     pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
   })
 }
-async function getStrikeDamage(actor: Ref<Actor>, actionSlug: string): Promise<ResolutionArgs> {
+async function getStrikeDamage(
+  actor: Ref<Actor>,
+  actionSlug: string,
+  altUsage: number | undefined = undefined
+): Promise<ResolutionArgs> {
   const { getTargets } = useTargetHelper()
   const userId = getUserId()
   const uuid = uuidv4()
@@ -407,6 +411,7 @@ async function getStrikeDamage(actor: Ref<Actor>, actionSlug: string): Promise<R
     characterId: actor.value._id,
     targets: getTargets(),
     actionSlug: actionSlug,
+    altUsage,
     uuid
   }
   const socket = await getSocket()

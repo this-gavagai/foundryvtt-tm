@@ -82,6 +82,7 @@ export interface GetStrikeDamageArgs {
   characterId: string
   actionSlug: string
   targets: string[]
+  altUsage: number | undefined
   uuid: string
 }
 export interface ShareTargetArgs {

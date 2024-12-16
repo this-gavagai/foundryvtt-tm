@@ -10,10 +10,10 @@ import type { Roll } from '@/types/foundry-types'
 import { type Stat, makeStat } from './stat'
 import { type Modifier, makeModifiers } from './modifier'
 import { type Item, makeItem } from './item'
-import { type Strike, makeStrike } from './strike'
-import { type ElementalBlast, makeElementalBlasts } from './elementalBlast'
+import { type Strike, type ElementalBlast, makeStrike, makeElementalBlasts } from './strike'
 import { useApi } from '../api'
 import { actionDefs, actionTypes } from '@/utils/constants'
+import { type Maybe } from './helpers'
 
 export interface Action extends Item {
   actionType: string | null
@@ -75,14 +75,15 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
           action,
           actor.value?.items.find((i: PF2eItem) => i.system?.slug === action?.slug)
         ) as Strike),
-        getDamage: () => getStrikeDamage(actor as Ref<Actor>, action.slug),
+        getDamage: (altUsage: number | undefined = undefined) =>
+          getStrikeDamage(actor as Ref<Actor>, action.slug, altUsage),
         doStrike: (variant: number, altUsage: number | undefined) =>
           rollCheck(actor as Ref<Actor>, 'strike', `${action.slug},${variant},${altUsage ?? ''}`),
-        doDamage: (crit: boolean, altUsage: number) =>
+        doDamage: (variant: number, altUsage: number) =>
           rollCheck(
             actor as Ref<Actor>,
             'damage',
-            `${action.slug},${crit ? 'critical' : 'damage'},${altUsage ?? ''}`
+            `${action.slug},${variant ? 'critical' : 'damage'},${altUsage ?? ''}`
           ),
         setDamageType: (newType: string) => {
           const item = actor.value?.items.find((i: PF2eItem) => i._id === action?.item?._id)
@@ -95,35 +96,55 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
       }))
     }),
     blasts: computed(() =>
-      (makeElementalBlasts(actor.value?.elementalBlasts) as ElementalBlast[])?.map(
-        (blast: ElementalBlast) => ({
-          ...blast,
-          getBlastDamage: (element: string, damageType: string, isMelee: boolean) =>
-            getStrikeDamage(actor as Ref<Actor>, `blast:${element},${damageType},${isMelee}`),
-          doBlast: (element: string, damageType: string, mapIncreases: number, isMelee: boolean) =>
-            rollCheck(
-              actor as Ref<Actor>,
-              'blast',
-              `${element},${damageType},${mapIncreases},${isMelee}`
-            ),
-          doBlastDamage: (element: string, damageType: string, outcome: string, isMelee: boolean) =>
-            rollCheck(
-              actor as Ref<Actor>,
-              'blastDamage',
-              `${element},${damageType},${outcome},${isMelee}`
-            ),
-          setDamageType: (newType: string) => {
-            const dmgs: Record<string, string> = {}
-            dmgs[blast?.element ?? ''] = newType
-            const update = {
-              flags: { pf2e: { damageSelections: dmgs } }
-            }
-            const flags = blast.item.flags.pf2e.damageSelections as Record<string, string>
-            flags[blast?.element ?? ''] = newType
-            return updateActorItem(actor as Ref<Actor>, blast.item._id ?? '', update)
+      makeElementalBlasts(actor.value?.elementalBlasts)?.map((blast: ElementalBlast) => ({
+        ...blast,
+        getDamage: (
+          altUsage?: number | undefined,
+          blastOptions?: { element: string; damageType: string; isMelee: boolean }
+        ) =>
+          getStrikeDamage(
+            actor as Ref<Actor>,
+            `blast:${blastOptions?.element},${blastOptions?.damageType},${blastOptions?.isMelee}`
+          ),
+        doStrike: (
+          variant: number,
+          altUsage: number | undefined,
+          blastOptions: {
+            element: Maybe<string>
+            damageType: Maybe<string>
+            isMelee: Maybe<boolean>
+          } = {
+            element: undefined,
+            damageType: undefined,
+            isMelee: undefined
           }
-        })
-      )
+        ) =>
+          rollCheck(
+            actor as Ref<Actor>,
+            'blast',
+            `${blastOptions.element},${blastOptions.damageType},${variant},${blastOptions.isMelee}`
+          ),
+        doDamage: (
+          variant: number,
+          altUsage: number | undefined,
+          blastOptions?: { element: string; damageType: string; isMelee: boolean }
+        ) =>
+          rollCheck(
+            actor as Ref<Actor>,
+            'blastDamage',
+            `${blastOptions?.element},${blastOptions?.damageType},${variant ? 'criticalSuccess' : 'success'},${blastOptions?.isMelee}`
+          ),
+        setDamageType: (newType: string) => {
+          const dmgs: Record<string, string> = {}
+          dmgs[blast?.blastElement ?? ''] = newType
+          const update = {
+            flags: { pf2e: { damageSelections: dmgs } }
+          }
+          const flags = blast.item?.flags.pf2e.damageSelections as Record<string, string>
+          flags[blast?.blastElement ?? ''] = newType
+          return updateActorItem(actor as Ref<Actor>, blast.item?._id ?? '', update)
+        }
+      }))
     ),
     blastActions: computed({
       get: () => {

@@ -123,10 +123,10 @@ defineExpose({ open, close, itemId, options, rollResultModal })
       <Modal ref="rollResultModal">
         <div class="flex">
           <div class="m-auto">
-            <div class="m-auto">{{ rollResultModal?.options?.roll.formula }}</div>
+            <div class="m-auto">{{ rollResultModal?.options?.roll?.formula }}</div>
             <div
               class="flex items-center justify-center"
-              v-for="(die, i) in rollResultModal?.options?.roll.dice"
+              v-for="(die, i) in rollResultModal?.options?.roll?.dice"
               :key="'die_' + i"
             >
               <div class="flex gap-1 text-2xl">
@@ -172,7 +172,7 @@ defineExpose({ open, close, itemId, options, rollResultModal })
                     alt="d20 image"
                   />
                   <span>
-                    {{ rollResultModal.options.roll.isSecret ? '?' : result.result }}
+                    {{ rollResultModal.options.roll?.isSecret ? '?' : result.result }}
                   </span>
                 </div>
               </div>
@@ -181,7 +181,9 @@ defineExpose({ open, close, itemId, options, rollResultModal })
           <div class="m-auto">
             <div class="text-6xl">
               {{
-                rollResultModal.options.roll.isSecret ? '???' : rollResultModal?.options?.roll.total
+                rollResultModal.options?.roll?.isSecret
+                  ? '???'
+                  : rollResultModal?.options?.roll?.total
               }}
             </div>
           </div>

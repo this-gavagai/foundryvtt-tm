@@ -2,7 +2,7 @@
 // TODO (feature): add swipe gestures (to change tab, for example)
 import type { Actor } from '@/types/pf2e-types'
 import { type Ref, onUnmounted, onMounted } from 'vue'
-import { ref, provide, watchEffect } from 'vue'
+import { ref, provide, computed } from 'vue'
 import { TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/vue'
 import { debounce } from 'lodash-es'
 import { useWorld } from '@/composables/world'
@@ -39,16 +39,11 @@ const panels = ref()
 // base data
 const { world } = useWorld()
 const actor: Ref<Actor | undefined> = ref()
-const { character } = useCharacter(actor)
+const bestActorAvailable = computed(
+  () => actor.value ?? world.value?.actors.find((a: Actor) => a._id == props.characterId)
+)
+const { character } = useCharacter(bestActorAvailable)
 provide(useKeys().characterKey, character)
-
-// load character from world value if no character details received
-watchEffect(() => {
-  // TODO (refactor): this seems to load only once, since after first load actor value is not null. need to track gmOnline somehow? or just merge?
-  // better way to do this is probably to never actually merge the two but instead to use the character sheet to calculate
-  const worldActor = world.value?.actors.find((a: Actor) => a._id == props.characterId)
-  if (worldActor && !actor.value?._id) actor.value = worldActor
-})
 
 // setup refresh methods
 const { sendCharacterRequest, setupSocketListenersForActor, getCharUnsynced } = useApi()

@@ -60,9 +60,9 @@ export async function foundryRollCheck(args: RollCheckArgs) {
     case 'strike': {
       const [actionSlug, variant, altUsage] = args.checkSubtype.split(',')
       if (altUsage?.length)
-        roll = actor.system.actions.altUsages[Number(altUsage)]
+        roll = actor.system.actions
           .find((a: Action) => a.slug === actionSlug)
-          .variants[variant].roll(params)
+          .altUsages[altUsage].variants[variant].roll(params)
       else
         roll = actor.system.actions
           .find((a: Action) => a.slug === actionSlug)
@@ -192,6 +192,7 @@ export async function foundryConsumeItem(args: ConsumeItemArgs) {
   return { action: 'acknowledged', uuid: args.uuid }
 }
 export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
+  // console.log('TM ALT DETAILS', args.altUsage)
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.find((x: Actor) => x._id === args.characterId)
   const target =
@@ -221,7 +222,9 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
 
   const action = isBlast
     ? new game.pf2e.ElementalBlast(actor)
-    : actor.system.actions.find((a: Action) => a.slug === actionString)
+    : args.altUsage === undefined
+      ? actor.system.actions.find((a: Action) => a.slug === actionString)
+      : actor.system.actions.find((a: Action) => a.slug === actionString)?.altUsages[args.altUsage]
 
   const doesDmg = isBlast ? true : action.item.dealsDamage
   const blastOptions = isBlast
@@ -253,7 +256,7 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
 
   await source.settings.set('core', 'rollMode', rollmode)
 
-  console.log('modifiers', results[2]?.options?.damage?.modifiers)
+  // console.log('modifiers', results[2]?.options?.damage?.modifiers)
   return {
     action: 'acknowledged',
     uuid: args.uuid,
