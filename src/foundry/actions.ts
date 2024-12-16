@@ -6,12 +6,14 @@ import type {
   ConsumeItemArgs,
   GetStrikeDamageArgs,
   RequestCharacterDetailsArgs,
-  SendItemToChatArgs
+  SendItemToChatArgs,
+  CallMacroArgs
 } from '@/types/api-types'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
-import type { Game } from '@/types/foundry-types'
+import type { Game, Macro } from '@/types/foundry-types'
 
 declare const game: Game
+declare const Macro: Macro
 
 function blastReplacer(key: string, element: Actor | Item | unknown) {
   if (key === 'actor') return undefined
@@ -192,6 +194,21 @@ export async function foundryConsumeItem(args: ConsumeItemArgs) {
 
 export async function foundrySendItemToChat(args: SendItemToChatArgs) {
   game.actors.get(args.characterId).items.get(args.itemId).toChat()
+  return { action: 'acknowledged', uuid: args.uuid }
+}
+
+export async function foundryCallMacro(args: CallMacroArgs) {
+  console.log('running macro', args)
+  const actor = game.actors.get(args.characterId)
+  const pack = game.packs.get(args.compendiumName)
+  if (!pack) return Promise.resolve(null)
+  const macro_data = (await pack.getDocuments())
+    .find((i: { name: string }) => i.name === args.macroName)
+    ?.toObject()
+  if (!macro_data) return Promise.resolve(null)
+  const temp_macro = new Macro(macro_data)
+  temp_macro.type = 'script'
+  temp_macro.execute({ actor })
   return { action: 'acknowledged', uuid: args.uuid }
 }
 

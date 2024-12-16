@@ -39,7 +39,7 @@ const initiativeReady = computed(() => {
 })
 </script>
 <template>
-  <div class="flex gap-4 border-b px-6 py-4">
+  <div class="flex justify-between gap-4 border-b px-6 py-4">
     <Listbox v-model="initiativeStat" class="w-full">
       <div class="relative mt-1">
         <ListboxButton

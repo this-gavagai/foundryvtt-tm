@@ -11,7 +11,8 @@ import type {
   CharacterActionArgs,
   ConsumeItemArgs,
   GetStrikeDamageArgs,
-  SendItemToChatArgs
+  SendItemToChatArgs,
+  CallMacroArgs
 } from '@/types/api-types'
 import type {
   DocumentEventArgs,
@@ -442,6 +443,34 @@ async function sendItemToChat(characterId: string, itemId: string): Promise<Reso
   })
 }
 
+async function callMacro(
+  characterId: string | undefined,
+  compendiumName: string,
+  macroName: string,
+  options = {}
+): Promise<ResolutionArgs | null> {
+  if (characterId === undefined) return Promise.resolve(null)
+  const { getTargets } = useTargetHelper()
+  const userId = getUserId()
+  const uuid = uuidv4()
+  const args: CallMacroArgs = {
+    userId,
+    action: 'callMacro',
+    characterId,
+    targets: getTargets(),
+    compendiumName,
+    macroName,
+    options,
+    uuid
+  }
+
+  const socket = await getSocket()
+  return new Promise((resolve) => {
+    socket.emit('module.tablemate', args)
+    pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
+  })
+}
+
 //////////////////////////////////////////////////
 // Processing Methods for Items (not Actor)     //
 //////////////////////////////////////////////////
@@ -504,6 +533,7 @@ export function useApi() {
     characterAction,
     getStrikeDamage,
     sendItemToChat,
+    callMacro,
     getCharUnsynced: () => characterUnsynced,
     getCharLastRequest: () => characterUnsynced
   }

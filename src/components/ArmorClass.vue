@@ -1,14 +1,15 @@
 <script setup lang="ts">
-//TODO (feature): add raise shield and shield block macros in a convenient way; need macro component first
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { Character } from '@/composables/character'
 import { inject } from 'vue'
 import StatBox from './StatBox.vue'
 import { useKeys } from '@/composables/injectKeys'
 import { parseIncrement } from '@/utils/utilities'
+import { useApi } from '@/composables/api'
 
 import Modal from './ModalBox.vue'
 import Button from '@/components/ButtonWidget.vue'
+import { ShieldExclamationIcon } from '@heroicons/vue/24/solid'
 
 interface SubmissionEvent {
   submitter: { name: string }
@@ -21,12 +22,21 @@ interface InputSelect {
   select: () => void
 }
 
+const shieldWaiting = ref(false)
+
 const shpModal = ref()
 
 const character = inject(useKeys().characterKey) as Character
+const { _id: characterId, effects } = character
 const { current: acCurrent, modifiers: acModifiers } = character.ac
 const { hardness, ac: shAC } = character.shield
 const { current: shpCurrent, max: shpMax, brokenThreshold: shpBT } = character.shield.hp
+
+const { callMacro } = useApi()
+
+const raisedShield = computed(
+  () => effects.value?.find((e) => e.name === 'Effect: Raise a Shield') !== undefined
+)
 
 function updateHitPoints(hp_input: string) {
   if (shpCurrent.value === undefined || shpMax.value === undefined) return
@@ -36,7 +46,7 @@ function updateHitPoints(hp_input: string) {
 }
 </script>
 <template>
-  <div class="flex gap-4 border-b px-6 py-4">
+  <div class="flex justify-between gap-4 border-b px-6 py-4">
     <StatBox heading="AC" :modifiers="acModifiers" class="">
       <div class="w-8">
         {{ acCurrent ?? '??' }}
@@ -46,7 +56,7 @@ function updateHitPoints(hp_input: string) {
     <div v-if="!shAC" class="my-auto">
       <div class="italic">No shield equipped</div>
     </div>
-    <div v-else class="my-auto flex gap-6">
+    <div v-else class="my-auto flex gap-4">
       <StatBox
         heading="Shield HP"
         :subheading="`(Total Max: ${shpMax})`"
@@ -71,6 +81,23 @@ function updateHitPoints(hp_input: string) {
           <div class="pr-2">Broken at:</div>
           <div>{{ shpBT }}</div>
         </div>
+      </div>
+      <div
+        @click="
+          () => {
+            shieldWaiting = true
+            callMacro(characterId, 'pf2e.action-macros', 'Raise a Shield').then((a) => {
+              shieldWaiting = false
+            })
+          }
+        "
+        class=""
+        :class="[
+          raisedShield ? 'text-green-600 active:opacity-40' : 'opacity-20 active:opacity-10',
+          shieldWaiting ? 'opacity-10' : ''
+        ]"
+      >
+        <ShieldExclamationIcon class="mt-2 h-8 w-8" />
       </div>
     </div>
   </div>

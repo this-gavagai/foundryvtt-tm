@@ -32,6 +32,8 @@ export interface SessionEventArgs {
   userId: string
 }
 
+export type Macro = any
+
 interface ModifyDocumentOperation {
   diff: boolean
   render: boolean
@@ -70,6 +72,7 @@ export interface Game {
   settings: any
   pf2e: any
   actors: any
+  packs: any
 }
 export interface User {
   _id: string

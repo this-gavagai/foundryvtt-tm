@@ -6,7 +6,8 @@ import type {
   RequestCharacterDetailsArgs,
   RollCheckArgs,
   GetStrikeDamageArgs,
-  SendItemToChatArgs
+  SendItemToChatArgs,
+  CallMacroArgs
 } from '@/types/api-types'
 import {
   getCharacterDetails,
@@ -15,7 +16,8 @@ import {
   foundryCastSpell,
   foundryConsumeItem,
   foundryGetStrikeDamage,
-  foundrySendItemToChat
+  foundrySendItemToChat,
+  foundryCallMacro
 } from './actions'
 import type { Game, User, Hooks, GetEvent } from '@/types/foundry-types'
 
@@ -79,6 +81,9 @@ export function setupListener() {
         foundrySendItemToChat(args as SendItemToChatArgs).then((result) =>
           game.socket.emit(MODNAME, result)
         )
+        break
+      case 'callMacro':
+        foundryCallMacro(args as CallMacroArgs).then((result) => game.socket.emit(MODNAME, result))
         break
       default:
         console.log('event not caught', args.action, args)

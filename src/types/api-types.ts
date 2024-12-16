@@ -11,6 +11,7 @@ export type ModuleEventArgs =
   | GetStrikeDamageArgs
   | ShareTargetArgs
   | SendItemToChatArgs
+  | CallMacroArgs
 
 export interface AcknowledgementArgs {
   action: 'acknowledged'
@@ -74,7 +75,7 @@ export interface ConsumeItemArgs {
   userId: string
   characterId: string
   consumableId: string
-  options: any
+  options: object
   uuid: string
 }
 export interface GetStrikeDamageArgs {
@@ -96,6 +97,16 @@ export interface SendItemToChatArgs {
   userId: string
   characterId: string
   itemId: string
+  uuid: string
+}
+export interface CallMacroArgs {
+  action: 'callMacro'
+  userId: string
+  characterId: string
+  targets: string[]
+  compendiumName: string
+  macroName: string
+  options: object
   uuid: string
 }
 
