@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// TODO (UX): make this show transition state
 import { ref, watch } from 'vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'
@@ -11,6 +12,7 @@ interface ListChoice {
 const props = defineProps<{
   list: ListChoice[]
   selectedId: string
+  disabled?: boolean
 }>()
 
 const initialSelected = props.list.find((i: ListChoice) => i.id === props.selectedId) ?? {
@@ -21,13 +23,12 @@ const selected = ref(initialSelected)
 
 const emit = defineEmits(['change'])
 watch(selected, () => {
-  console.log(selected.value)
   emit('change', selected.value)
 })
 </script>
 
 <template>
-  <Listbox v-model="selected" class="w-full">
+  <Listbox v-model="selected" class="w-full" :disabled="props.disabled">
     <div class="relative mt-1">
       <ListboxButton
         class="relative w-full cursor-default rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
@@ -44,7 +45,7 @@ watch(selected, () => {
         leave-to-class="opacity-0"
       >
         <ListboxOptions
-          class="z-100000 absolute mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+          class="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
         >
           <ListboxOption
             v-slot="{ active, selected }"

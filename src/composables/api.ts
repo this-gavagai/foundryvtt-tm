@@ -33,7 +33,7 @@ const characterLastRequest = new Map<string, string>() // latest character updat
 // const getCharLastRequest =
 
 const { getSocket } = useServer()
-// TODO (types): not really unknown/void; identify and improve (see action returns for details)
+// TODO (types): not really unknown/void; identify and improve (see action returns for details) audit all other unknowns in codebase
 const requestCharacterDetails: { [key: string]: () => Promise<unknown> } = {}
 const ackQueue: { [key: string]: (args: ResolutionArgs) => unknown } = {}
 function pushToAckQueue(uuid: string, callback: (args: ResolutionArgs) => unknown) {
@@ -209,11 +209,11 @@ async function updateActor(actor: Ref<Actor | undefined>, update: object) {
 
 async function updateActorItem(
   actor: Ref<Actor>,
-  itemId: string,
-  update: object
-  // additionalOptions: null | { [key: string]: any } = null
+  itemId: string | string[],
+  update: object | object[]
 ) {
   const socket = await getSocket()
+  const itemIdArray = Array.isArray(itemId) ? itemId : [itemId]
   const promise = new Promise((resolve) => {
     socket.emit(
       'modifyDocument',
@@ -225,12 +225,11 @@ async function updateActorItem(
           render: true,
           parentUuid: 'Actor.' + actor.value?._id,
           updates: [
-            {
+            ...itemIdArray.map((itemId, index) => ({
               _id: itemId,
-              ...update
-            }
+              ...(Array.isArray(update) ? update[index] : update)
+            }))
           ]
-          // ...additionalOptions
         }
       },
       (r: UpdateEventArgs) => {

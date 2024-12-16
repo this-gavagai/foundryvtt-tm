@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // TODO (feature): add reload action from pf2e-ranged?
+// TODO (feature): handle ammo, specifically lack of ammo, for ranged attacks more gracefully
 // TODO (bug): modifiers for blasts aren't always working right, missing item bonuses for example from gate attenuator
 // TODO (data): should I be using the AttackRollParams altUsage parameter? I don't really know what it does. How to even identify if 'thrown' from the AltUsage object?
 import { inject, ref, watch, computed } from 'vue'
@@ -168,6 +169,7 @@ async function updateDamageFormula() {
     strikeModalDamage.value = await (viewedStrike.value as Strike)?.getDamage?.(
       viewedStrikeOptions.value?.altUsage
     )
+    console.log(strikeModalDamage.value)
   } else {
     const element = (viewedStrike.value as ElementalBlast)?.blastElement ?? ''
     const damageType =
@@ -331,9 +333,11 @@ watch(viewedStrike, async () => updateDamageFormula())
             :key="mod.slug"
           >
             <div class="w-8 text-right">
-              {{ formatModifier(mod.modifier) }}
+              <span v-if="mod.modifier">{{ formatModifier(mod.modifier) }}</span>
+              <span v-if="mod.diceNumber">{{ `${mod.diceNumber}${mod.dieSize}` }}</span>
             </div>
             <div class="overflow-hidden text-ellipsis whitespace-nowrap">{{ mod.label }}</div>
+            <div v-if="mod.damageType">({{ mod.damageType }})</div>
           </li>
         </ul>
       </template>

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // TODO (feature): add encumbrance
-// TODO (refactor): switch toggle bar over to headlessui component and give transaction feedback
+// TODO (refactor): change toggle bar over to headlessui component and give transaction feedback
 // TODO (refactor): refactor listbox into component, and give transaction feedback
-// TODO (refactor): refactor Switch into component, and give transaction feedback
+// TODO (refactor): apply new switch component
 
 import type { Equipment } from '@/composables/character'
 import { inject, ref, computed } from 'vue'

@@ -151,7 +151,16 @@ export interface System {
   range?: any
   damage: { damageType: string }
   category?: any
-  rules: { option: string; selection: string }[]
+  rules: Rule[]
+}
+export interface Rule {
+  option: string
+  selection: string
+  key: string
+  toggleable: boolean
+  label: string
+  suboptions: { label: string; value: string }[]
+  value: boolean | undefined
 }
 
 export interface Skill {
@@ -167,6 +176,9 @@ export interface Modifier {
   slug: string
   label: string
   modifier: number
+  diceNumber: number
+  dieSize: string
+  damageType: string
   enabled: boolean
   hideIfDisabled: boolean
 }

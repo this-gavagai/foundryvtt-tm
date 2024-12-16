@@ -14,9 +14,8 @@ const userList = computed(() => {
   return world.value?.users.map((u: User) => ({ id: u._id, name: u.name })) ?? []
 })
 const targetingProxyId = computed(() => {
-  const proxy = world.value?.users.find((u) => u._id === userId.value)?.flags?.tablemate
-    ?.targeting_proxy
-  return proxy
+  console.log('targeting proxy!')
+  return world.value?.users.find((u) => u._id === userId.value)?.flags?.tablemate?.targeting_proxy
 })
 
 function getTargetingProxyId() {

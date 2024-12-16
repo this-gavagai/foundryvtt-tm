@@ -59,6 +59,7 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   switch (args.checkType) {
     case 'strike': {
       const [actionSlug, variant, altUsage] = args.checkSubtype.split(',')
+      console.log("here's some stuff", args.checkSubtype, altUsage, altUsage?.length)
       if (altUsage?.length)
         roll = actor.system.actions
           .find((a: Action) => a.slug === actionSlug)
@@ -119,6 +120,7 @@ export async function foundryRollCheck(args: RollCheckArgs) {
     }
   }
   const r = await roll
+  if (!r) return {}
   if (r.hasOwnProperty('roll')) console.log('this one has a weird property') // trying to figure out where this is necessary; don't remember
   const actualRoll = r.hasOwnProperty('roll') ? r.roll : r
 
