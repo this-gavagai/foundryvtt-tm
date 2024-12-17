@@ -67,7 +67,20 @@ const featCategories = computed(() => {
       <dt class="pt-2 text-lg underline only:hidden">
         {{ category.label }}
       </dt>
-      <dd v-for="feat in category.feats" :key="feat._id">
+      <dd
+        v-for="feat in category.feats.sort(
+          (a, b) =>
+            (a?.system?.level?.taken ??
+              Number(a?.system?.location?.value?.split('-')?.[1]) ??
+              a?.system?.level?.value ??
+              0) -
+            (b?.system?.level?.taken ??
+              Number(b?.system?.location?.value?.split('-')?.[1]) ??
+              b?.system?.level?.value ??
+              0)
+        )"
+        :key="feat._id"
+      >
         <FeatsListItem
           :featId="feat._id"
           @clicked="

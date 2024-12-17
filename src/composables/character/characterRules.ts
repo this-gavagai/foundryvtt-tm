@@ -7,9 +7,12 @@ export interface CharacterRules {
   rollOptions: Field<Map<string, RollOption>>
 }
 interface RollOption {
+  sourceId: Maybe<string>
   label: Maybe<string>
-  suboptions: { label: Maybe<string>; value: Maybe<string> }[]
+  toggleable: Maybe<boolean>
   value: Maybe<boolean>
+  alwaysActive: Maybe<boolean>
+  suboptions: { label: Maybe<string>; value: Maybe<string> }[]
   selection: Maybe<string>
   updateRule: (
     newToggleValue: boolean | undefined | null,
@@ -30,9 +33,12 @@ export function useCharacterRules(actor: Ref<Actor | undefined>) {
           ) {
             if (!rollOptions.get(rule.option)) {
               rollOptions.set(rule.option, {
+                sourceId: item?._id,
                 label: rule?.label ?? item.name ?? '',
-                suboptions: [],
+                toggleable: rule?.toggleable,
                 value: rule?.value,
+                alwaysActive: rule?.alwaysActive,
+                suboptions: [],
                 selection: rule?.selection,
                 updateRule: (newToggleValue, newSelection) => {
                   const itemSet = actor.value?.items

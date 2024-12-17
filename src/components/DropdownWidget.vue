@@ -8,7 +8,6 @@ interface ListChoice {
   id: string
   name: string
 }
-
 const props = defineProps<{
   list: ListChoice[]
   selectedId: string
@@ -21,6 +20,7 @@ const initialSelected = props.list.find((i: ListChoice) => i.id === props.select
 }
 const selected = ref(initialSelected)
 
+defineExpose({ selected })
 const emit = defineEmits(['change'])
 watch(selected, () => {
   emit('change', selected.value)

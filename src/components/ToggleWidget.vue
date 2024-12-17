@@ -16,7 +16,8 @@ function handleClicked() {
 }
 </script>
 <template>
-  <div class="flex gap-1 active:text-gray-500" @click="handleClicked()">
+  <div class="flex justify-between gap-1 active:text-gray-500" @click="handleClicked()">
+    <slot></slot>
     <Switch
       :modelValue="props.active"
       @update:modelValue="emit('changed', !props.active)"
@@ -30,6 +31,5 @@ function handleClicked() {
         class="pointer-events-none inline-block h-[20px] w-[20px] transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out"
       />
     </Switch>
-    <slot></slot>
   </div>
 </template>

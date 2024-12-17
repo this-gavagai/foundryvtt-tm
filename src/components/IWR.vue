@@ -7,7 +7,7 @@ const character = inject(useKeys().characterKey)!
 const { immunities, weaknesses, resistances } = character
 </script>
 <template>
-  <div class="flex justify-between border-b px-6 py-4 empty:hidden">
+  <div class="flex justify-between border-b px-6 py-4 text-sm empty:hidden">
     <dl v-if="immunities?.length">
       <dt class="underline">Immunities</dt>
       <dd v-for="immunity in immunities" :key="immunity.type" class="capitalize">

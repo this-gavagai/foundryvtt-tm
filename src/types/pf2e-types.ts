@@ -158,6 +158,7 @@ export interface Rule {
   selection: string
   key: string
   toggleable: boolean
+  alwaysActive: boolean
   label: string
   suboptions: { label: string; value: string }[]
   value: boolean | undefined

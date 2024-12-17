@@ -9,7 +9,7 @@ import { useApi } from '@/composables/api'
 
 import Modal from './ModalBox.vue'
 import Button from '@/components/ButtonWidget.vue'
-import { ShieldExclamationIcon } from '@heroicons/vue/24/solid'
+import { ShieldCheckIcon } from '@heroicons/vue/24/solid'
 
 interface SubmissionEvent {
   submitter: { name: string }
@@ -35,7 +35,7 @@ const { current: shpCurrent, max: shpMax, brokenThreshold: shpBT } = character.s
 const { callMacro } = useApi()
 
 const raisedShield = computed(
-  () => effects.value?.find((e) => e.name === 'Effect: Raise a Shield') !== undefined
+  () => effects.value?.find((e) => e?.system?.slug === 'effect-raise-a-shield') !== undefined
 )
 
 function updateHitPoints(hp_input: string) {
@@ -91,13 +91,13 @@ function updateHitPoints(hp_input: string) {
             })
           }
         "
-        class=""
+        class="cursor-pointer"
         :class="[
           raisedShield ? 'text-green-600 active:opacity-40' : 'opacity-20 active:opacity-10',
           shieldWaiting ? 'opacity-10' : ''
         ]"
       >
-        <ShieldExclamationIcon class="mt-2 h-8 w-8" />
+        <ShieldCheckIcon class="mt-2 h-8 w-8" />
       </div>
     </div>
   </div>

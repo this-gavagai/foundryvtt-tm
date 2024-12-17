@@ -30,9 +30,7 @@ import { useUserId } from '@/composables/user'
 // import { useWorld } from '@/composables/world'
 
 const characterUnsynced = new Map<string, boolean>() // character document dirty state, update request pending
-// const getCharUnsynced =
 const characterLastRequest = new Map<string, string>() // latest character update request uuid
-// const getCharLastRequest =
 
 const { getSocket } = useServer()
 // TODO (types): not really unknown/void; identify and improve (see action returns for details) audit all other unknowns in codebase
@@ -163,15 +161,13 @@ function parseActorData(
 
   if (!actor.value) actor.value = {} as Actor
   if (!actor.value.system) actor.value.system = {} as System
-  if (!actor.value.elementalBlasts)
-    actor.value.elementalBlasts = {} as ElementalBlasts
+  if (!actor.value.elementalBlasts) actor.value.elementalBlasts = {} as ElementalBlasts
 
-    // TODO (optimization): still getting the update nuke on languages for some reason
-  ;(function () {
-    mergeWith(actor.value, JSON.parse(args.actor), resetArrays)
-    mergeWith(actor.value!.system, JSON.parse(args.system), resetArrays)
-    mergeWith(actor.value!.elementalBlasts, JSON.parse(args.elementalBlasts), resetArrays)
-  })()
+  const incoming = JSON.parse(args.actor)
+  incoming.system = JSON.parse(args.system)
+  incoming.elementalBlasts = JSON.parse(args.elementalBlasts)
+
+  mergeWith(actor.value, incoming, resetArrays)
 }
 
 ///////////////////////////////////////

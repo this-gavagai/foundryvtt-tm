@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { SignedNumber } from '@/utils/utilities'
 import { proficiencies } from '@/utils/constants'
 import InfoModal from './InfoModal.vue'
@@ -24,17 +24,20 @@ function makeRoll() {
     infoModal.value.close()
   })
 }
+const canOpen = computed(() => (props?.modifiers || props?.breakdown) && !props.preventInfoModal)
 
 defineExpose({ infoModal })
 </script>
 <template>
   <div>
     <div
-      class="fit-content active:drop-shadow-glow"
-      :class="{ 'cursor-pointer': (props?.modifiers || props?.breakdown) && !preventInfoModal }"
+      class="fit-content"
+      :class="{
+        'cursor-pointer active:drop-shadow-glow': canOpen
+      }"
       @click="
         () => {
-          if ((props?.modifiers || props?.breakdown) && !preventInfoModal) infoModal.open()
+          if (canOpen) infoModal.open()
         }
       "
     >

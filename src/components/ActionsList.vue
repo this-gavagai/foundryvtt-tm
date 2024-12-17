@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // TODO (feature): get action modifiers on the card (somehow?)
-// TODO (feature): use actions from Toolbelt? or the new thing that CarlosFdz just added?
+// TODO (feature): use actions from Toolbelt? or the new thing that was just added to core?
 import type { Action } from '@/composables/character'
 import { actionDefs, actionTypes } from '@/utils/constants'
 import { inject, ref, computed } from 'vue'

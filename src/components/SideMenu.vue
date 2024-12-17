@@ -9,10 +9,15 @@ import { useWorld } from '@/composables/world'
 import Dropdown from '@/components/DropdownWidget.vue'
 import RollOptions from '@/components/RollOptions.vue'
 
+const targetProxySelector = ref()
 const sidebarOpen = ref(false)
 defineExpose({ sidebarOpen })
 const { userList, targetingProxyId, updateProxyId } = useTargetHelper()
 const { world } = useWorld()
+// watch(targetingProxyId, () => {
+//   console.log('TM-info', targetingProxyId, userList)
+//   targetProxySelector.value.selected = userList.value?.find((u) => u.id === targetingProxyId.value)
+// })
 </script>
 <template>
   <TransitionRoot as="template" :show="sidebarOpen">
@@ -71,6 +76,7 @@ const { world } = useWorld()
                   <li>
                     <div class="text-lg italic">Targeting Proxy</div>
                     <Dropdown
+                      ref="targetProxySelector"
                       :list="userList ?? []"
                       :selectedId="targetingProxyId ?? '0'"
                       @change="(newId: any) => updateProxyId(newId.id)"
