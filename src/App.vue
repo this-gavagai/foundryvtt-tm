@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, type Ref } from 'vue'
 import { watchPostEffect } from 'vue'
+import { useWakeLock } from '@vueuse/core'
 import { type Socket } from 'socket.io-client'
 import type { Actor, World } from '@/types/pf2e-types'
 import type { Character } from '@/composables/character'
@@ -38,6 +39,16 @@ connectToServer(location).then((socket: Ref<Socket | undefined>) => {
     }, 60000)
   }
 })
+
+const { request } = useWakeLock()
+document.addEventListener(
+  'click',
+  function enableNoSleep() {
+    document.removeEventListener('click', enableNoSleep, false)
+    request('screen')
+  },
+  false
+)
 
 // const activeIndex = ref<number>(0)
 const urlId = new URLSearchParams(document.location.search).get('id')

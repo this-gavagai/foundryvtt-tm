@@ -4,8 +4,7 @@ import Modal from '@/components/ModalBox.vue'
 import { PlusCircleIcon, MinusCircleIcon } from '@heroicons/vue/24/outline'
 import Button from '@/components/ButtonWidget.vue'
 import Spinner from '@/components/SpinnerWidget.vue'
-import PipWidgetFilled from './PipWidgetFilled.vue'
-import PipWidgetUnfilled from './PipWidgetUnfilled.vue'
+import PipWidget from './PipWidget.vue'
 
 const props = defineProps<{
   value: number | undefined
@@ -36,12 +35,12 @@ defineExpose({ click, close })
 <template>
   <div @click="click" class="cursor-pointer">
     <div class="flex h-full">
-      <span v-for="i in Number(props.value ?? 0)" :key="'pip' + i">
-        <PipWidgetFilled class="inline h-full" />
+      <span v-for="i in Number(props.max ?? props.value ?? 0)" :key="'pip' + i">
+        <PipWidget :filled="i <= (props.value ?? 0)" class="relative inline h-full" />
       </span>
-      <span v-for="i in props.max ? Number(props.max - (props.value ?? 0)) : 0" :key="'emp' + i">
-        <PipWidgetUnfilled class="inline h-full" />
-      </span>
+      <!-- <span v-for="i in props.max ? Number(props.max - (props.value ?? 0)) : 0" :key="'emp' + i">
+        
+      </span> -->
     </div>
     <Teleport to="#modals">
       <Modal ref="counterModal" :title="props.title">
@@ -58,14 +57,14 @@ defineExpose({ click, close })
               class="relative row-start-1 row-end-1 py-2 transition-opacity delay-200 ease-in"
               :class="{ 'opacity-0': updating }"
             >
-              <span v-for="i in Number(props.value ?? 0)" :key="'pip' + i">
-                <PipWidgetFilled class="inline w-8" />
+              <span v-for="i in Number(props.max ?? props.value ?? 0)" :key="'pip' + i">
+                <PipWidget :filled="i <= (props.value ?? 0)" class="inline w-8" />
               </span>
-              <span
+              <!-- <span
                 v-for="i in props.max ? Number(props.max - (props.value ?? 0)) : 0"
                 :key="'emp' + i"
-                ><PipWidgetUnfilled class="inline w-8"
-              /></span>
+                ><PipWidget :filled="false" class="inline w-8"
+              /></span> -->
             </div>
             <div class="absolute row-start-1 row-end-1 px-7">
               <Spinner

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// TODO (feature): add swipe gestures (to change tab, for example)
 import type { Actor } from '@/types/pf2e-types'
 import { type Ref, onUnmounted, onMounted } from 'vue'
 import { ref, provide, computed } from 'vue'

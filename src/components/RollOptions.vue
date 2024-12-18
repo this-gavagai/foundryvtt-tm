@@ -12,8 +12,7 @@ const { rollOptions } = character
 <template>
   <h3 class="pb-2 text-lg italic">Character Options</h3>
   <div class="pb-4 text-red-500">
-    This RollOption implementation is still very experimential. Make backups and use at your own
-    risk.
+    This RollOption implementation is still very experimential. Backups and caution advised.
   </div>
   <ul v-if="rollOptions">
     <li v-for="[key, rollOption] in rollOptions.entries()" :key="key" class="pb-2">

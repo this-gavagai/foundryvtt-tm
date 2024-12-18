@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// TODO: check binding on targeting proxy. it undefined if the sidebar is opened right away
 import { ref } from 'vue'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
 import { XMarkIcon } from '@heroicons/vue/24/solid'
@@ -78,12 +77,14 @@ const { world } = useWorld()
                     <Dropdown
                       ref="targetProxySelector"
                       :list="userList ?? []"
-                      :selectedId="targetingProxyId ?? '0'"
-                      @change="(newId: any) => updateProxyId(newId.id)"
+                      :selectedId="world === undefined ? 'loading' : (targetingProxyId ?? '0')"
+                      :changed="(newId: string) => updateProxyId(newId)"
                       :disabled="world === undefined"
                     />
                   </li>
-                  <li><RollOptions /></li>
+                  <li>
+                    <RollOptions />
+                  </li>
                 </ul>
               </nav>
             </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// TODO (feature): roll for swiim and climb if no natural speed
+// TODO (feature): roll for swim and climb if no natural speed
 import { inject } from 'vue'
 import StatBox from './StatBox.vue'
 import { useKeys } from '@/composables/injectKeys'

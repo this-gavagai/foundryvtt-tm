@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// TODO (UX): make this show transition state
-import { ref, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'
 
@@ -13,19 +12,32 @@ const props = defineProps<{
   list: ListChoice[]
   selectedId: string
   disabled?: boolean
+  changed?: (newId: string) => Promise<unknown>
 }>()
 
-const initialSelected = props.list.find((i: ListChoice) => i.id === props.selectedId) ?? {
-  id: '',
-  name: 'None'
+const selectedOrNone = computed({
+  get: () =>
+    props.selectedId === 'loading'
+      ? { id: '-1', name: 'Loading...' }
+      : (props.list.find((l) => l.id === props.selectedId) ?? { id: '0', name: 'None' }),
+  set: (newValue) => handleChange(newValue)
+})
+
+const waiting = ref(false)
+function handleChange(newValue: { id: string; name: string }) {
+  if (props.changed) {
+    waiting.value = true
+    const response = props.changed?.(newValue.id)
+    Promise.resolve(response).then(() => (waiting.value = false))
+  } else {
+    emit('change', newValue.id)
+  }
 }
-const selected = ref(initialSelected)
+
+const selected = ref(selectedOrNone)
 
 defineExpose({ selected })
 const emit = defineEmits(['change'])
-watch(selected, () => {
-  emit('change', selected.value)
-})
 </script>
 
 <template>
@@ -33,6 +45,7 @@ watch(selected, () => {
     <div class="relative mt-1">
       <ListboxButton
         class="relative w-full cursor-default rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
+        :class="[props.disabled || waiting ? 'bg-gray-200 opacity-50' : '']"
       >
         <span class="block truncate">{{ selected?.name }}</span>
         <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
