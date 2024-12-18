@@ -20,6 +20,7 @@
     "@heroicons/vue": "^2.2.0",
     "@types/lodash-es": "^4.17.12",
     "@vueuse/core": "^11.3.0",
+    "@vueuse/gesture": "^2.0.0",
     "eslint-formatter-summary": "^1.1.0",
     "lodash-es": "^4.17.21",
     "socket.io-client": "^4.8.1",

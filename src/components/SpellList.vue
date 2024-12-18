@@ -99,8 +99,8 @@ const spellbook = computed((): Spellbook => {
   <div v-if="spellcastingEntries?.length === 0" class="px-6 py-4 italic">
     This character does not cast spells.
   </div>
-  <div v-else class="">
-    <ul class="">
+  <div v-else>
+    <ul class="h-full">
       <!-- Spell Sources -->
       <li v-for="location in spellcastingEntries" class="mb-4" :key="location._id">
         <h3 class="flex justify-between bg-gray-300 px-4 py-2 align-bottom">

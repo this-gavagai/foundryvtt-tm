@@ -38,6 +38,26 @@ function close() {
 
 const emit = defineEmits(['opening', 'closing', 'imgClick'])
 defineExpose({ open, close, rollResultModal })
+
+// const infoPanel = ref()
+// useDrag(
+//   ({ swipe }: { swipe: [number, number] }) => {
+//     console.log(swipe)
+//     lastSwipe.value = swipe
+//     if (swipe[1]) close()
+//   },
+//   {
+//     domTarget: infoPanel,
+//     swipeDistance: 50
+//   }
+// )
+// console.log(infoPanel)
+const dragOptions = {
+  swipeDistance: 50
+}
+const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
+  if (swipe[1]) close()
+}
 </script>
 <template>
   <div class="touch-manipulation">
@@ -69,7 +89,11 @@ defineExpose({ open, close, rollResultModal })
               <DialogPanel
                 class="w-full max-w-4xl transform overflow-hidden bg-white p-6 text-left shadow-xl transition-all"
               >
-                <div class="max-h-[70vh] overflow-auto">
+                <div
+                  class="max-h-[70vh] overflow-auto"
+                  v-drag="handleDrag"
+                  :dragOptions="dragOptions"
+                >
                   <div class="flex space-x-2">
                     <div
                       class="bg-gray-300 active:opacity-30"

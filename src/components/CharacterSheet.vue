@@ -9,13 +9,13 @@ import { useWorld } from '@/composables/world'
 import { useCharacter } from '@/composables/character'
 import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
-import { useSwipe, useWindowSize } from '@vueuse/core'
+import { useWindowSize } from '@vueuse/core'
 
 import { Bars3Icon } from '@heroicons/vue/24/solid'
 
 import cowled from '@/assets/icons/cowled.svg'
 import biceps from '@/assets/icons/biceps.svg'
-import backpack from '@/assets/icons/knapsack.svg'
+import backpack from '@/assets/icons/swap-bag.svg'
 import leapfrog from '@/assets/icons/leapfrog.svg'
 import spellBook from '@/assets/icons/spell-book.svg'
 import skills from '@/assets/icons/skills.svg'
@@ -74,19 +74,26 @@ function changeTab(index: number) {
   currentTab.value = index
 }
 
-const tabBox = ref()
-useSwipe(tabBox, {
-  threshold: 100,
-  onSwipeEnd: (e: TouchEvent, direction: string) => {
-    console.log(direction)
-    if (direction === 'left') {
-      currentTab.value = Math.min((currentTab.value ?? 0) + 1, 5)
-    }
-    if (direction === 'right') {
-      currentTab.value = Math.max(0, (currentTab.value ?? 0) - 1)
-    }
-  }
-})
+// const tabBox = ref()
+// useDrag(
+//   ({ swipe }: { swipe: [number, number] }) => {
+//     if (swipe[0]) changeTab(Math.max(0, Math.min((currentTab.value ?? 0) - swipe[0], 5)))
+//   },
+//   {
+//     domTarget: tabBox,
+//     preventWindowScrollY: true,
+//     swipeDistance: 50
+//   }
+// )
+const dragOptions = {
+  preventWindowScrollY: true,
+  lockDirection: true,
+  swipeDistance: 100,
+  axis: 'x'
+}
+const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
+  if (swipe[0]) changeTab(Math.max(0, Math.min((currentTab.value ?? 0) - swipe[0], 5)))
+}
 </script>
 <template>
   <div class="flex h-dvh select-none">
@@ -97,7 +104,8 @@ useSwipe(tabBox, {
     </div>
     <!-- show this column on all devices -->
     <div
-      ref="tabBox"
+      v-drag="handleDrag"
+      :dragOptions="dragOptions"
       class="flex w-0 flex-1 flex-col justify-between md:h-dvh md:justify-start md:border-l"
     >
       <TabGroup
@@ -127,7 +135,7 @@ useSwipe(tabBox, {
             <SpellList />
           </CharacterPanel>
         </TabPanels>
-        <TabList class="flex h-24 justify-around border-t md:border-b">
+        <TabList class="flex h-24 justify-around border-b border-t">
           <CharacterTab :src="cowled" label="Character" class="md:hidden" />
           <CharacterTab :src="biceps" label="Feats" />
           <CharacterTab :src="skills" label="Proficiencies" />

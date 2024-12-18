@@ -5,7 +5,8 @@ import { TabPanel } from '@headlessui/vue'
 const scrollbox = ref()
 const props = defineProps<{ goLeft: boolean }>()
 function scrollToTop() {
-  scrollbox.value.scrollTop = 0
+  scrollbox.value.scrollTo(0, 0)
+  scrollbox.value.focus()
 }
 </script>
 <template>
@@ -31,9 +32,11 @@ function scrollToTop() {
       <div
         ref="scrollbox"
         v-show="selected"
-        class="absolute h-[calc(100%-13.5rem)] w-full overflow-auto md:h-[calc(100%-5.5rem)] md:w-[calc(100%-20rem)]"
+        class="absolute h-[calc(100%-13.5rem)] w-full overflow-auto overscroll-contain md:h-[calc(100%-5.5rem)] md:w-[calc(100%-20rem)]"
       >
-        <slot></slot>
+        <div class="min-h-[100.1%]">
+          <slot></slot>
+        </div>
       </div>
     </Transition>
   </TabPanel>
