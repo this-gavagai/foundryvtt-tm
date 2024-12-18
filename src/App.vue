@@ -69,7 +69,7 @@ if (BUILD_MODE === 'development') {
 }
 </script>
 <template>
-  <TabGroup :selectedIndex="activeIndex" @change="console.log('character changed!')" as="div">
+  <TabGroup :selectedIndex="activeIndex" as="div">
     <TabList class="hidden h-12 gap-0 border border-gray-300 bg-white text-xl">
       <Tab
         class="relative top-0 p-2 focus:outline-none ui-selected:bg-blue-300"
@@ -83,11 +83,23 @@ if (BUILD_MODE === 'development') {
         :key="c"
         :unmount="false"
         :tabIndex="-1"
+        v-slot="{ selected }"
+        class="h-dvh"
       >
-        <CharacterSheet
-          :characterId="c"
-          :ref="(el: CharacterPanel) => (characterPanels[index] = el)"
-        />
+        <Transition
+          enter-active-class="duration-1000 ease-out"
+          enter-from-class="transform opacity-0"
+          enter-to-class="opacity-100"
+          leave-active-class="duration-1000 ease-in"
+          leave-from-class="opacity-100"
+          leave-to-class="transform opacity-0"
+        >
+          <CharacterSheet
+            v-show="selected"
+            :characterId="c"
+            :ref="(el: CharacterPanel) => (characterPanels[index] = el)"
+          />
+        </Transition>
       </TabPanel>
     </TabPanels>
   </TabGroup>

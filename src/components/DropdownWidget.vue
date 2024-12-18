@@ -8,6 +8,7 @@ interface ListChoice {
   id: string
   name: string
 }
+
 const props = defineProps<{
   list: ListChoice[]
   selectedId: string

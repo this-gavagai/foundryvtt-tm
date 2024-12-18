@@ -61,10 +61,10 @@ const featCategories = computed(() => {
   <div v-else class="px-6 py-4 lg:columns-2">
     <dl
       v-for="(category, slug) in featCategories"
-      class="break-inside-avoid-column overflow-hidden"
+      class="break-inside-avoid-column overflow-hidden pb-4 [&:not(:has(dd))]:hidden"
       :key="slug"
     >
-      <dt class="pt-2 text-lg underline only:hidden">
+      <dt class="text-lg underline only:hidden">
         {{ category.label }}
       </dt>
       <dd

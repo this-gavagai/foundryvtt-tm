@@ -3,6 +3,7 @@
 // TODO (refactor): change toggle bar over to headlessui component and give transaction feedback
 // TODO (refactor): refactor listbox into component, and give transaction feedback
 // TODO (refactor): apply new switch component
+// TODO (UX): animate item coming in and out of hand control. not trivial
 
 import type { Equipment } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
@@ -83,35 +84,52 @@ const toggleSet = [
   </div>
   <div v-else class="px-6 py-4">
     <!-- Held Items list -->
-    <ul class="peer">
-      <li
-        v-for="item in inventory?.filter((i: Equipment) => i.system?.equipped?.handsHeld)"
-        class="whitespace-nowrap text-xl"
-        :key="item._id"
+    <ul class="peer transition-all duration-300">
+      <TransitionGroup
+        enter-active-class="duration-300 ease-out"
+        enter-from-class="transform opacity-0 max-h-0  -translate-x-4"
+        enter-to-class="opacity-100 max-h-7"
+        leave-active-class="duration-200 ease-in"
+        leave-from-class="opacity-100 max-h-7"
+        leave-to-class="transform opacity-0 max-h-0  -translate-x-4"
       >
-        <a
-          class="cursor-pointer"
-          @click="
-            () => {
-              itemViewedId = item._id
-              infoModal.open()
-            }
-          "
+        <li
+          v-for="item in inventory?.filter((i: Equipment) => i.system?.equipped?.handsHeld)"
+          class="relative whitespace-nowrap text-xl transition-all duration-300"
+          :class="item.name ? 'max-h-200' : 'max-h-0'"
+          :key="item._id"
         >
-          <span class="pr-1">{{
-            item.system?.equipped?.handsHeld
-              ? item.system?.equipped?.handsHeld === 1
-                ? '❶'
-                : '❷'
-              : item.system?.equipped?.carryType === 'dropped'
-                ? '⌵'
-                : 'Ⓦ'
-          }}</span>
-          <span>{{ item.name }}</span>
-        </a>
-      </li>
+          <a
+            class="cursor-pointer"
+            @click="
+              () => {
+                itemViewedId = item._id
+                infoModal.open()
+              }
+            "
+          >
+            <span class="pr-1">{{
+              item.system?.equipped?.handsHeld
+                ? item.system?.equipped?.handsHeld === 1
+                  ? '❶'
+                  : '❷'
+                : item.system?.equipped?.carryType === 'dropped'
+                  ? '⌵'
+                  : 'Ⓦ'
+            }}</span>
+            <span>{{ item.name }}</span>
+          </a>
+        </li>
+      </TransitionGroup>
     </ul>
-    <hr class="mb-2 mt-4 peer-empty:hidden" />
+    <hr
+      class="transition-all duration-300"
+      :class="[
+        inventory?.filter((i: Equipment) => i.system?.equipped?.handsHeld)?.length
+          ? 'mb-2 mt-4 scale-y-100'
+          : 'mb-0 mt-0 scale-y-0'
+      ]"
+    />
     <!-- Invested Items tip -->
     <div>
       <span class="cursor-pointer text-sm text-gray-500" @click="investedModal.open()">

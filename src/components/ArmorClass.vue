@@ -9,7 +9,7 @@ import { useApi } from '@/composables/api'
 
 import Modal from './ModalBox.vue'
 import Button from '@/components/ButtonWidget.vue'
-import { ShieldCheckIcon } from '@heroicons/vue/24/solid'
+import shield from '@/assets/icons/armor-upgrade.svg'
 
 interface SubmissionEvent {
   submitter: { name: string }
@@ -53,10 +53,10 @@ function updateHitPoints(hp_input: string) {
       </div>
     </StatBox>
     <div class="border border-gray-200"></div>
-    <div v-if="!shAC" class="my-auto">
+    <div v-if="!shAC" class="my-auto grow">
       <div class="italic">No shield equipped</div>
     </div>
-    <div v-else class="my-auto flex gap-4">
+    <div v-else class="my-auto flex grow justify-between gap-4">
       <StatBox
         heading="Shield HP"
         :subheading="`(Total Max: ${shpMax})`"
@@ -97,7 +97,8 @@ function updateHitPoints(hp_input: string) {
           shieldWaiting ? 'opacity-10' : ''
         ]"
       >
-        <ShieldCheckIcon class="mt-2 h-8 w-8" />
+        <!-- <ShieldCheckIcon class="mt-2 h-8 w-8" /> -->
+        <img :src="shield" class="mt-2 h-8 w-8" />
       </div>
     </div>
   </div>

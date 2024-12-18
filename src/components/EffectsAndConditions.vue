@@ -12,9 +12,16 @@ const effectViewedId = ref<string | undefined>()
 const effectViewed = computed(() => effects.value?.find((e) => e._id === effectViewedId.value))
 </script>
 <template>
-  <div class="flex flex-wrap gap-2 border border-t-0 px-6 py-4 empty:hidden">
+  <div
+    class="relative flex flex-wrap gap-2 overflow-hidden border border-t-0 px-6 transition-all duration-300"
+    :class="[
+      effects?.length && effects?.length > 0
+        ? 'h-[5.25rem] scale-y-100 border-opacity-100 py-4'
+        : 'h-0 scale-y-0 border-opacity-0 py-0'
+    ]"
+  >
     <div
-      class="cursor-pointer"
+      class="h-10 cursor-pointer"
       v-for="effect in effects"
       :key="effect._id"
       @click="

@@ -29,8 +29,14 @@ function updateExperience(input: string) {
 <template>
   <StatBox heading="Experience" @click="experienceModal.open()" class="cursor-pointer">
     <div class="py-1">
-      <svg width="75" height="18">
-        <rect :width="75 * ((xpCurrent ?? 0) / (xpMax ?? 1))" height="18" style="fill: #ccc" />
+      <svg width="75" height="18" class="trasition-all duration-500">
+        <rect
+          :width="75 * ((xpCurrent ?? 0) / (xpMax ?? 1))"
+          height="18"
+          style="fill: #ccc"
+          class="trasition-all duration-500 ease-in-out"
+          v-if="xpCurrent"
+        />
         <rect
           width="75"
           height="18"

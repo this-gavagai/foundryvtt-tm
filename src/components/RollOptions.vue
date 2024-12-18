@@ -11,23 +11,32 @@ const { rollOptions } = character
 </script>
 <template>
   <h3 class="pb-2 text-lg italic">Character Options</h3>
-  <div class="text-red-500">
+  <div class="pb-4 text-red-500">
     This RollOption implementation is still very experimential. Make backups and use at your own
     risk.
   </div>
   <ul v-if="rollOptions">
     <li v-for="[key, rollOption] in rollOptions.entries()" :key="key" class="pb-2">
-      <Toggle
-        v-if="rollOption.toggleable && !rollOption.alwaysActive"
-        :active="rollOption.value"
-        :clicked="() => rollOption?.updateRule(rollOption.value ? undefined : true, null)"
-      >
-        <div class="font-bold">{{ capitalize(key.replace('-', ' ')) }}</div>
-      </Toggle>
-      <div v-else class="font-bold">{{ capitalize(key.replace('-', ' ')) }}</div>
+      <div class="flex justify-between">
+        <div
+          v-if="
+            (rollOption.toggleable && !rollOption.alwaysActive) || rollOption.suboptions.length > 1
+          "
+          class="font-bold"
+        >
+          {{ capitalize(key.replace('-', ' ')) }}
+        </div>
+        <Toggle
+          v-if="rollOption.toggleable && !rollOption.alwaysActive"
+          :active="rollOption.value"
+          :clicked="() => rollOption?.updateRule(rollOption.value ? undefined : true, null)"
+        >
+        </Toggle>
+      </div>
+
       <Dropdown
         class="pb-4"
-        v-if="rollOption.suboptions.length > 0"
+        v-if="rollOption.suboptions.length > 1"
         :list="
           rollOption.suboptions.map((s) => ({
             id: s.value ?? '',
