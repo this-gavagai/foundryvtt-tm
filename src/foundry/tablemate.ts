@@ -1,4 +1,3 @@
-import { setupTouch } from './touchmate.js'
 import { setupListener } from './listener'
 import type { Hooks, Game, Canvas, Foundry, User } from '@/types/foundry-types'
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api
@@ -58,9 +57,6 @@ Hooks.on('ready', () => {
   const user = game.data.users.find((x: User) => x._id === game.userId)
   if (user.flags?.['tablemate']?.['character_sheet'] === 'frame') {
     if (!game.audio.locked) game.audio.context?.stop()
-  }
-  if (user.flags?.['tablemate']?.['shared_display']) {
-    setupTouch()
   }
   // Hooks.on('renderUserConfigPF2e', (app: any, html: any, data: any) => {
   //   addCharSheetFields(app, html, data)

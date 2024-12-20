@@ -22,14 +22,21 @@
                 "minimum": "6.6.2"
             }
         }
+    ],
+    "requires": [
+      {
+          "id": "lib-wrapper",
+          "type": "module",
+          "compatibility": {
+              "minimum": "1.0.0.0",
+              "verified": "1.12.6.0"
+          }
+      }
     ]
   },
   "socket": true,
   "esmodules": [
     "tablemate.mjs"
-  ],
-  "scripts": [
-    "libs/hammer.min.js"
   ],
   "url": "https://github.com/this-gavagai/foundryvtt-tm",
   "manifest": "https://github.com/this-gavagai/foundryvtt-tm/releases/latest/download/module.json",

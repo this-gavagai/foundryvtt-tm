@@ -39,10 +39,10 @@ const panels = ref()
 // base data
 const { world } = useWorld()
 const actor: Ref<Actor | undefined> = ref()
-const bestActorAvailable = computed(
+const actorOrWorldActor = computed(
   () => actor.value ?? world.value?.actors.find((a: Actor) => a._id == props.characterId)
 )
-const { character } = useCharacter(bestActorAvailable)
+const { character } = useCharacter(actorOrWorldActor)
 provide(useKeys().characterKey, character)
 
 // setup refresh methods
