@@ -25,7 +25,8 @@ export interface Strike {
   doStrike?: (
     variant: number,
     altUsage: number | undefined,
-    blastOptions?: { element: string; damageType: string; isMelee: boolean } | undefined
+    blastOptions?: { element: string; damageType: string; isMelee: boolean } | undefined,
+    result?: number | undefined
   ) => Promise<unknown>
   doDamage?: (
     variant: number,

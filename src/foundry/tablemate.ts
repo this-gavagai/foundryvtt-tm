@@ -1,4 +1,4 @@
-import { setupTouch } from './touchmate'
+import { setupTouch } from './touchmate.js'
 import { setupListener } from './listener'
 import type { Hooks, Game, Canvas, Foundry, User } from '@/types/foundry-types'
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api

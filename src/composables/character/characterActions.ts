@@ -32,7 +32,7 @@ export interface CharacterActions {
     stat: WritableField<string>
     modifiers: Field<Modifier[]>
     totalModifier: Field<number>
-    roll: () => Promise<Roll> | null
+    roll: (result?: number | undefined) => Promise<Roll> | null
   }
 }
 
@@ -77,8 +77,15 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
         ) as Strike),
         getDamage: (altUsage: number | undefined = undefined) =>
           getStrikeDamage(actor as Ref<Actor>, action.slug, altUsage),
-        doStrike: (variant: number, altUsage: number | undefined) =>
-          rollCheck(actor as Ref<Actor>, 'strike', `${action.slug},${variant},${altUsage ?? ''}`),
+        doStrike: (
+          variant: number,
+          altUsage: number | undefined,
+          blastOptions: undefined,
+          result: number | undefined
+        ) =>
+          rollCheck(actor as Ref<Actor>, 'strike', `${action.slug},${variant},${altUsage ?? ''}`, {
+            d20: [result ?? 0]
+          }),
         doDamage: (variant: number, altUsage: number) =>
           rollCheck(
             actor as Ref<Actor>,
@@ -117,12 +124,14 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
             element: undefined,
             damageType: undefined,
             isMelee: undefined
-          }
+          },
+          result: number | undefined
         ) =>
           rollCheck(
             actor as Ref<Actor>,
             'blast',
-            `${blastOptions.element},${blastOptions.damageType},${variant},${blastOptions.isMelee}`
+            `${blastOptions.element},${blastOptions.damageType},${variant},${blastOptions.isMelee}`,
+            { d20: [result ?? 0] }
           ),
         doDamage: (
           variant: number,
@@ -170,7 +179,8 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
     skills: computed(() =>
       Object.values(actor.value?.system?.skills ?? {})?.map((skill: PF2eStat) => ({
         ...(makeStat(skill) as Stat),
-        roll: () => rollCheck(actor as Ref<Actor>, 'skill', skill.slug)
+        roll: (result: number | undefined) =>
+          rollCheck(actor as Ref<Actor>, 'skill', skill.slug, { d20: [result ?? 0] })
       }))
     ),
     proficiencies: computed(() => [
@@ -203,8 +213,8 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
       }),
       modifiers: computed(() => makeModifiers(actor.value?.system.initiative.modifiers)),
       totalModifier: computed(() => actor.value?.system?.initiative?.totalModifier),
-      roll: () => {
-        return rollCheck(actor as Ref<Actor>, 'initiative')
+      roll: (result: number | undefined) => {
+        return rollCheck(actor as Ref<Actor>, 'initiative', '', { d20: [result ?? 0] })
       }
     }
   }

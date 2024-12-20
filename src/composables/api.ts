@@ -1,4 +1,3 @@
-// TODO (upstream): this thing isn't triggering preUpdateActor hooks, as those are conventionally called only on the actor in question. Solution unknown
 // TODO (UX): need some way to indicate that gm-dependent methods aren't available when that's the case
 import type { Ref } from 'vue'
 import type { Actor, World, Item, Combat, System, ElementalBlasts } from '@/types/pf2e-types'
@@ -12,7 +11,8 @@ import type {
   ConsumeItemArgs,
   GetStrikeDamageArgs,
   SendItemToChatArgs,
-  CallMacroArgs
+  CallMacroArgs,
+  DiceResults
 } from '@/types/api-types'
 import type {
   DocumentEventArgs,
@@ -322,6 +322,7 @@ async function rollCheck(
   actor: Ref<Actor>,
   checkType: string,
   checkSubtype = '',
+  diceResults: DiceResults = {},
   modifiers: { label: string; modifier: number; enabled: boolean; ignored: boolean }[] = [],
   options = {}
 ): Promise<ResolutionArgs> {
@@ -336,8 +337,8 @@ async function rollCheck(
     checkType,
     checkSubtype,
     modifiers,
+    diceResults,
     options,
-    skipDialog: true,
     uuid
   }
 

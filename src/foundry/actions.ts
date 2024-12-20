@@ -11,6 +11,7 @@ import type {
 } from '@/types/api-types'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import type { Game, Macro } from '@/types/foundry-types'
+import { useBackgroundRoll } from './backgroundRoll'
 
 declare const game: Game
 declare const Macro: Macro
@@ -54,10 +55,16 @@ export async function foundryRollCheck(args: RollCheckArgs) {
     args.targets?.map((t: string) => source.scenes.active.tokens.get(t))[0] ?? null
   const params = {
     modifiers: modifiers,
-    target: targetTokenDoc?.object,
+    target: ['strike', 'damage', 'blast', 'blastDamage'].includes(args.checkType)
+      ? targetTokenDoc?.object
+      : null,
     skipDialog: true,
-    event: fakeEvent
+    event: fakeEvent,
+    identifier: 'tm_background'
   }
+
+  const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll(args.diceResults)
+  registerBackgroundRoll()
   let roll
   switch (args.checkType) {
     case 'strike': {
@@ -97,27 +104,25 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       break
     }
     case 'skill': {
-      params.target = null
       roll = actor.skills[args.checkSubtype].check.roll(params)
       break
     }
     case 'save': {
-      params.target = null
       roll = actor.saves[args.checkSubtype].check.roll(params)
       break
     }
     case 'perception': {
-      params.target = null
       roll = actor.perception.check.roll(params)
       break
     }
     case 'initiative': {
-      params.target = null
       roll = actor.initiative.roll(params)
       break
     }
   }
   const r = await roll
+  unregisterBackgroundRoll()
+
   if (!r) return {}
   if (r.hasOwnProperty('roll')) console.log('this one has a weird property') // trying to figure out where this is necessary; don't remember
   const actualRoll = r.hasOwnProperty('roll') ? r.roll : r
@@ -261,9 +266,8 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
     ? { ...baseModifierOptions, ...blastOptions }
     : baseModifierOptions
 
-  // TODO (upstream): find a less hacky way to do this. the problem here is games configured to use real dice. no way to get modifiers without actually rolling, and rollMode and skipDialog both seem to be ignored, so I'm faking events and temporarily changing client settings. bad.
-  const rollmode = await source.settings.get('core', 'rollMode')
-  await source.settings.set('core', 'rollMode', 'blindroll')
+  const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll()
+  registerBackgroundRoll()
 
   const damage = doesDmg ? action.damage(damageOptions) : null
   const critical = isBlast
@@ -275,7 +279,7 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
   const modifiers = doesDmg && !isBlast ? action.damage(modifierOptions) : null
   const results = await Promise.all([damage, critical, modifiers])
 
-  await source.settings.set('core', 'rollMode', rollmode)
+  unregisterBackgroundRoll()
 
   // console.log('modifiers', results[2]?.options?.damage?.modifiers)
   return {

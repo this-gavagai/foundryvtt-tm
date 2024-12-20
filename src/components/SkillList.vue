@@ -29,7 +29,7 @@ const { skills, proficiencies } = character
               :heading="skill.label"
               :proficiency="skill.rank"
               :modifiers="skill.modifiers"
-              :rollAction="() => (skill.roll ? skill?.roll() : null)"
+              :rollAction="skill?.roll"
             >
               {{ formatModifier(skill.totalModifier) }}
             </StatBox>

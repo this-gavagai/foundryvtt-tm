@@ -4,19 +4,18 @@ import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessu
 import { XMarkIcon } from '@heroicons/vue/24/solid'
 import { useTargetHelper } from '@/composables/targetHelper'
 import { useWorld } from '@/composables/world'
+import { usePixelDice } from '@/composables/pixelDice'
 
 import Dropdown from '@/components/DropdownWidget.vue'
 import RollOptions from '@/components/RollOptions.vue'
+
+const { pixelConnect, pixel } = usePixelDice()
 
 const targetProxySelector = ref()
 const sidebarOpen = ref(false)
 defineExpose({ sidebarOpen })
 const { userList, targetingProxyId, updateProxyId } = useTargetHelper()
 const { world } = useWorld()
-// watch(targetingProxyId, () => {
-//   console.log('TM-info', targetingProxyId, userList)
-//   targetProxySelector.value.selected = userList.value?.find((u) => u.id === targetingProxyId.value)
-// })
 </script>
 <template>
   <TransitionRoot as="template" :show="sidebarOpen">
@@ -82,8 +81,31 @@ const { world } = useWorld()
                       :disabled="world === undefined"
                     />
                   </li>
-                  <li>
+                  <li class="grow">
                     <RollOptions />
+                  </li>
+                  <li>
+                    <div
+                      class="cursor-pointer text-lg font-bold"
+                      @click="
+                        async () => {
+                          await pixelConnect()
+                        }
+                      "
+                    >
+                      Pair Pixel Dice
+                    </div>
+                    <ul v-if="pixel">
+                      <li class="flex gap-1">
+                        <img src="@/assets/icons/d20.svg" class="h-6 w-6" />
+                        <div>
+                          {{ pixel.name }} (<span
+                            :class="[pixel.batteryLevel < 30 ? 'text-red-700' : 'text-green-700']"
+                            >{{ pixel.batteryLevel }}%</span
+                          >)
+                        </div>
+                      </li>
+                    </ul>
                   </li>
                 </ul>
               </nav>

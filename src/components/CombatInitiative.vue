@@ -91,7 +91,7 @@ const initiativeReady = computed(() => {
     <StatBox
       heading="Initiative"
       :modifiers="initiativeMods"
-      :rollAction="initiativeReady ? () => rollInitiative() : null"
+      :rollAction="initiativeReady ? rollInitiative : undefined"
     >
       {{ formatModifier(initiativeTotalModifier ?? NaN) }}
     </StatBox>

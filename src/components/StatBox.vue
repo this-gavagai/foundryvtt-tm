@@ -18,8 +18,8 @@ const props = defineProps([
 ])
 const infoModal = ref()
 
-function makeRoll() {
-  return props.rollAction().then((r: RollResult) => {
+function makeRoll(result: number | undefined = undefined) {
+  return props.rollAction(result).then((r: RollResult) => {
     infoModal.value.rollResultModal.open(r)
     infoModal.value.close()
   })
@@ -41,8 +41,6 @@ defineExpose({ infoModal })
         }
       "
     >
-      <!-- <Popover class="relative"> -->
-      <!-- <PopoverButton> -->
       <div
         :class="proficiencies[props.proficiency]?.color"
         class="whitespace-nowrap text-[0.8rem] uppercase"
@@ -54,7 +52,15 @@ defineExpose({ infoModal })
       </div>
     </div>
     <Teleport to="#modals">
-      <InfoModal ref="infoModal">
+      <InfoModal
+        ref="infoModal"
+        :diceRequest="rollAction ? ['d20'] : undefined"
+        @diceResult="
+          (face) => {
+            if (rollAction) makeRoll(face)
+          }
+        "
+      >
         <template #default>
           <div>
             <h3 class="mb-2 text-xl">

@@ -3,9 +3,6 @@
 //TODO (feature): prevent dragbox always. never needed for touchscreen
 //TODO (feature): find a way to hide cursor in chrome when using touchscreen
 
-declare const Hammer: any
-declare const canvas: any
-
 export function setupTouch() {
   console.log('TABLEMATE: touch tweaks')
   const ZOOM_SPEED = 0.5
@@ -28,8 +25,8 @@ export function setupTouch() {
   function getScale() {
     base_scale = canvas.stage.scale.x
   }
-  function pinchStart(ev: any) {
-    console.log('pinch start')
+  function pinchStart(ev) {
+    console.log('pinch start', ev)
     getScale()
   }
   function pinchEnd() {
@@ -37,7 +34,7 @@ export function setupTouch() {
     scale_series = new Array(SMOOTH_LENGTH).fill(1)
   }
 
-  function pinchHandler(ev: any) {
+  function pinchHandler(ev) {
     canvas.controls.select.active = false
     scale_series.push(ev.scale)
     const smoothed_scale = scale_series
@@ -49,7 +46,7 @@ export function setupTouch() {
       duration: 50
     })
   }
-  function panHandler(ev: any) {
+  function panHandler(ev) {
     canvas.controls.select.active = false
     // canvas.animatePan({
     canvas.pan({
@@ -60,11 +57,11 @@ export function setupTouch() {
   }
 
   // deal with a foundryvtt bug related to the handling of pointerup events not getting dispatched to tokens correctly
-  canvas.tokens.addEventListener('pointerup', (e: PointerEvent) => {
+  canvas.tokens.addEventListener('pointerup', (e) => {
     console.log(e)
     if (e.pointerType === 'mouse') return
-    canvas.tokens.children.forEach((c: any) => {
-      c.children.forEach((t: any) => {
+    canvas.tokens.children.forEach((c) => {
+      c.children.forEach((t) => {
         try {
           if (t.interactionState) t.dispatchEvent(e)
         } catch (err) {

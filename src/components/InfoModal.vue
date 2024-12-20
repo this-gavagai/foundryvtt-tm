@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, inject } from 'vue'
+import { ref, inject, watch } from 'vue'
 import {
   Dialog,
   DialogPanel,
@@ -10,6 +10,7 @@ import {
 } from '@headlessui/vue'
 import { useKeys } from '@/composables/injectKeys'
 import { useApi } from '@/composables/api'
+import { usePixelDice } from '@/composables/pixelDice'
 import { getPath } from '@/utils/utilities'
 import { makeTraits } from '@/utils/utilities'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
@@ -21,10 +22,24 @@ const { _id: characterId } = character
 
 const { sendItemToChat } = useApi()
 
-const props = defineProps(['imageUrl', 'traits', 'itemId'])
+const { pixel, lastRoll } = usePixelDice()
+
+const props = defineProps<{
+  imageUrl?: string
+  traits?: string[]
+  itemId?: string
+  diceRequest?: string[]
+}>()
 const rollResultModal = ref()
 
 const waiting = ref(false)
+
+watch(lastRoll, () => {
+  if (isOpen.value) {
+    emit('diceResult', lastRoll.value)
+    close()
+  }
+})
 
 const isOpen = ref(false)
 function open() {
@@ -36,22 +51,9 @@ function close() {
   emit('closing')
 }
 
-const emit = defineEmits(['opening', 'closing', 'imgClick'])
+const emit = defineEmits(['opening', 'closing', 'imgClick', 'diceResult'])
 defineExpose({ open, close, rollResultModal })
 
-// const infoPanel = ref()
-// useDrag(
-//   ({ swipe }: { swipe: [number, number] }) => {
-//     console.log(swipe)
-//     lastSwipe.value = swipe
-//     if (swipe[1]) close()
-//   },
-//   {
-//     domTarget: infoPanel,
-//     swipeDistance: 50
-//   }
-// )
-// console.log(infoPanel)
 const dragOptions = {
   swipeDistance: 50
 }
@@ -152,6 +154,17 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
                   </div>
                 </div>
                 <div class="mt-4 flex flex-wrap items-center justify-end gap-2">
+                  <div
+                    v-if="pixel && pixel.status === 'ready' && diceRequest?.length"
+                    class="grow cursor-pointer"
+                  >
+                    <img
+                      v-for="(die, i) in diceRequest"
+                      class="h-8 animate-bounce opacity-30"
+                      src="@/assets/icons/d20.svg"
+                      :key="i + '_' + die"
+                    />
+                  </div>
                   <slot name="actionButtons"></slot>
                 </div>
               </DialogPanel>

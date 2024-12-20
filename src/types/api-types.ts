@@ -47,9 +47,18 @@ export interface RollCheckArgs {
   checkSubtype: string
   modifiers: any
   options: any
-  skipDialog: boolean
   uuid: string
-  targets?: any
+  targets?: string[]
+  diceResults: DiceResults
+}
+export interface DiceResults {
+  d4?: number[]
+  d6?: number[]
+  d8?: number[]
+  d10?: number[]
+  d12?: number[]
+  d20?: number[]
+  d100?: number[]
 }
 export interface CharacterActionArgs {
   action: 'characterAction'
@@ -125,5 +134,6 @@ declare global {
     Hooks: any
     character: any
     getBlastData: any
+    pixel: any
   }
 }

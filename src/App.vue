@@ -12,6 +12,8 @@ import { useServer } from '@/composables/server'
 import { useWorld } from '@/composables/world'
 import { useCharacterSelect } from '@/composables/characterSelect'
 
+import { usePixelDice } from './composables/pixelDice'
+
 import CharacterSheet from '@/components/CharacterSheet.vue'
 
 declare const BUILD_MODE: string
@@ -19,6 +21,9 @@ interface CharacterPanel extends Ref {
   actor: Actor
   character: Character
 }
+
+const { pixelReconnect } = usePixelDice()
+pixelReconnect()
 
 const { world, refreshWorld } = useWorld()
 const { setupSocketListenersForWorld, setupSocketListenersForApp } = useApi()

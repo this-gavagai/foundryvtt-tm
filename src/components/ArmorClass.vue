@@ -93,11 +93,10 @@ function updateHitPoints(hp_input: string) {
         "
         class="cursor-pointer"
         :class="[
-          raisedShield ? 'text-green-600 active:opacity-40' : 'opacity-20 active:opacity-10',
+          raisedShield ? 'active:opacity-40' : 'opacity-20 active:opacity-10',
           shieldWaiting ? 'animate-pulse opacity-10' : ''
         ]"
       >
-        <!-- <ShieldCheckIcon class="mt-2 h-8 w-8" /> -->
         <img :src="shield" class="mt-2 h-8 w-8" />
       </div>
     </div>

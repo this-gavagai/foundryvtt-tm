@@ -17,7 +17,7 @@ export interface Stat {
   dc: Maybe<number>
   armor: Maybe<boolean>
   lore: Maybe<boolean>
-  roll?: () => Promise<Roll> | null
+  roll?: (result?: number | undefined) => Promise<Roll> | null
 }
 export function makeStat(root: PF2eStat | undefined): Stat | undefined {
   if (!root) return undefined

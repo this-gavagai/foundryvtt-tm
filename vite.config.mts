@@ -25,6 +25,9 @@ export default defineConfig(({ mode }) => {
             } else {
               return 'assets/[name]-[hash].js'
             }
+          },
+          manualChunks: {
+            pixel: ['@systemic-games/pixels-web-connect']
           }
         }
       }

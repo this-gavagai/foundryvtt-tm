@@ -91,20 +91,24 @@ export function useCharacterStats(actor: Ref<Actor | undefined>) {
     saves: {
       fortitude: computed(() => ({
         ...(makeStat(actor.value?.system?.saves?.fortitude) as Stat),
-        roll: () => rollCheck(actor as Ref<Actor>, 'save', 'fortitude')
+        roll: (result: number | undefined) =>
+          rollCheck(actor as Ref<Actor>, 'save', 'fortitude', { d20: [result ?? 0] })
       })),
       reflex: computed(() => ({
         ...(makeStat(actor.value?.system?.saves?.reflex) as Stat),
-        roll: () => rollCheck(actor as Ref<Actor>, 'save', 'reflex')
+        roll: (result: number | undefined) =>
+          rollCheck(actor as Ref<Actor>, 'save', 'reflex', { d20: [result ?? 0] })
       })),
       will: computed(() => ({
         ...(makeStat(actor.value?.system?.saves?.will) as Stat),
-        roll: () => rollCheck(actor as Ref<Actor>, 'save', 'will')
+        roll: (result: number | undefined) =>
+          rollCheck(actor as Ref<Actor>, 'save', 'will', { d20: [result ?? 0] })
       }))
     },
     perception: computed(() => ({
       ...(makeStat(actor.value?.system?.perception) as Stat),
-      roll: () => rollCheck(actor as Ref<Actor>, 'perception', '')
+      roll: (result: number | undefined) =>
+        rollCheck(actor as Ref<Actor>, 'perception', '', { d20: [result ?? 0] })
     })),
     immunities: computed(() => makeIWRs(actor.value?.system?.attributes?.immunities)),
     weaknesses: computed(() => makeIWRs(actor.value?.system?.attributes?.weaknesses)),

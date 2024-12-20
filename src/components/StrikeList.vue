@@ -63,10 +63,10 @@ const viewedStrikeItem = computed(() => {
 const viewedStrikeTraits = computed(() => {
   return viewedStrike.value?.traits
     ?.concat(viewedStrike.value?.weaponTraits)
-    ?.map((t: Trait) => t.label)
+    ?.map((t: Trait) => t.label ?? '')
     ?.concat(
       viewedStrike.value?.hasOwnProperty('isBlast')
-        ? viewedStrikeItem.value?.system?.traits.value
+        ? (viewedStrikeItem.value?.system?.traits.value ?? [])
         : []
     )
     ?.concat(
@@ -74,7 +74,7 @@ const viewedStrikeTraits = computed(() => {
         ? [
             viewedStrikeItem.value?.flags?.pf2e?.damageSelections?.[
               (viewedStrike.value as ElementalBlast)?.blastElement as keyof object
-            ]
+            ] ?? ''
           ].filter((i) => i && !['bludgeoning', 'piercing', 'slashing'].includes(i))
         : []
     )
@@ -103,7 +103,7 @@ const damageTypeOptions = computed(() => {
     return Array.from(types) as string[]
   }
 })
-function viewedStrikeAction(): Promise<unknown> {
+function viewedStrikeAction(diceResult: number | undefined = undefined): Promise<unknown> {
   if (viewedStrike.value?.hasOwnProperty('isBlast')) {
     const element = (viewedStrike.value as ElementalBlast)?.blastElement ?? ''
     const damageType =
@@ -113,21 +113,29 @@ function viewedStrikeAction(): Promise<unknown> {
       (viewedStrike.value as ElementalBlast)?.blastDamageTypes?.[0].value ??
       ''
     return (
-      viewedStrike.value?.doStrike?.(viewedStrikeOptions.value?.subtype ?? 0, undefined, {
-        element,
-        damageType,
-        isMelee: viewedStrikeOptions.value?.melee ?? true
-      }) ?? Promise.resolve(null)
+      viewedStrike.value?.doStrike?.(
+        viewedStrikeOptions.value?.subtype ?? 0,
+        undefined,
+        {
+          element,
+          damageType,
+          isMelee: viewedStrikeOptions.value?.melee ?? true
+        },
+        diceResult ?? undefined
+      ) ?? Promise.resolve(null)
     )
   } else {
     if (viewedStrikeId.value === undefined) return Promise.resolve(null)
     const rootStrike = strikes.value?.[viewedStrikeId.value]
-    const result = rootStrike?.doStrike?.(
-      viewedStrikeOptions.value?.subtype ?? 0,
-      viewedStrikeOptions.value?.altUsage
+    console.log('ruuuu', diceResult)
+    return (
+      rootStrike?.doStrike?.(
+        viewedStrikeOptions.value?.subtype ?? 0,
+        viewedStrikeOptions.value?.altUsage,
+        undefined,
+        diceResult ?? undefined
+      ) ?? Promise.resolve(null)
     )
-    console.log("here's something", viewedStrike.value, result, rootStrike, viewedStrikeId.value)
-    return result ?? Promise.resolve(null)
   }
 }
 function viewedDamageAction(): Promise<unknown> {
@@ -272,7 +280,20 @@ watch(viewedStrike, async () => updateDamageFormula())
     <InfoModal
       ref="strikeModal"
       :itemId="viewedStrikeItem?._id"
-      :traits="viewedStrikeTraits"
+      :traits="viewedStrikeTraits ?? []"
+      :diceRequest="
+        viewedStrikeOptions?.type === 'strike' || viewedStrikeOptions?.type === 'blast'
+          ? ['d20']
+          : undefined
+      "
+      @diceResult="
+        (diceResult: number | undefined) =>
+          viewedStrikeAction(diceResult)?.then((r) => {
+            console.log(r)
+            strikeModal.close()
+            strikeModal.rollResultModal.open(r)
+          })
+      "
       :imageUrl="
         (viewedStrike as ElementalBlast)?.blastImg ??
         viewedStrikeItem?.img ??
