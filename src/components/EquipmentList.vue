@@ -130,8 +130,8 @@ const toggleSet = [
           : 'mb-0 mt-0 scale-y-0'
       ]"
     />
-    <!-- Invested Items tip -->
-    <div>
+    <!-- Invested Items line -->
+    <div v-if="inventory?.length">
       <span class="cursor-pointer text-sm text-gray-500" @click="investedModal.open()">
         (Items Invested:
         {{ inventory?.filter((i: Equipment) => i.system?.equipped?.invested).length }} / 10)

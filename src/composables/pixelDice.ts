@@ -1,5 +1,5 @@
 // TODO (feature): handle multiple dice
-// TODO (bug): rolling dice with damage infoModal open still rolls a strike, even though no dice are requested. needs another sanity check
+// TODO (bug): rolling dice with damage infoModal (or action infomodal) open still rolls a strike, even though no dice are requested. needs another sanity check
 
 import { ref } from 'vue'
 import {

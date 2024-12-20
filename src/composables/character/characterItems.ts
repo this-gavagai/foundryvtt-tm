@@ -140,7 +140,8 @@ export function useCharacterItems(actor: Ref<Actor | undefined>) {
         ?.map((i: PF2eItem) => ({
           ...(makeItem(i) as Item),
           doSpell: (rank: number | undefined, slot: number | undefined) => {
-            if (!rank || !slot) return Promise.resolve(undefined)
+            console.log(rank, slot)
+            if (rank === undefined || slot === undefined) return Promise.resolve(undefined)
             return castSpell(actor as Ref<Actor>, i._id, rank, slot)
           }
         }))

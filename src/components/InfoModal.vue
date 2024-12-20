@@ -35,7 +35,7 @@ const rollResultModal = ref()
 const waiting = ref(false)
 
 watch(lastRoll, () => {
-  if (isOpen.value) {
+  if (isOpen.value && props.diceRequest?.length) {
     emit('diceResult', lastRoll.value)
     close()
   }

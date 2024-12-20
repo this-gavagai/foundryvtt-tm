@@ -37,7 +37,7 @@ const { skills, proficiencies } = character
         </div>
       </dl>
     </div>
-    <div class="flex-1 border-t px-6 pt-4 lg:border-0 lg:border-l lg:pt-0">
+    <div class="flex-1 border-t px-6 pt-4 lg:border-0 lg:border-l lg:pt-0 [&:not(:has(dd))]:hidden">
       <div
         v-for="proficiencyType in ['attacks', 'defenses', 'classDCs', 'spellcasting']"
         :key="proficiencyType"

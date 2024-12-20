@@ -180,6 +180,7 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
 }
 
 export async function foundryCastSpell(args: CastSpellArgs) {
+  console.log('cast spell', args)
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.get(args.characterId, { strict: true })
   const item = actor.items.get(args.id, { strict: true })
