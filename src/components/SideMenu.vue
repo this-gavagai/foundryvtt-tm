@@ -8,14 +8,21 @@ import { usePixelDice } from '@/composables/pixelDice'
 
 import Dropdown from '@/components/DropdownWidget.vue'
 import RollOptions from '@/components/RollOptions.vue'
+import Spinner from './SpinnerWidget.vue'
 
-const { pixelConnect, pixel } = usePixelDice()
+const { world } = useWorld()
+const { pixelConnect, pixelReconnect, pixel } = usePixelDice()
+const { userList, targetingProxyId, updateProxyId } = useTargetHelper()
+
+const pixelStatus = ref<string | undefined>()
+setInterval(() => {
+  pixelStatus.value = pixel.value?.status
+}, 500)
 
 const targetProxySelector = ref()
 const sidebarOpen = ref(false)
+
 defineExpose({ sidebarOpen })
-const { userList, targetingProxyId, updateProxyId } = useTargetHelper()
-const { world } = useWorld()
 </script>
 <template>
   <TransitionRoot as="template" :show="sidebarOpen">
@@ -98,12 +105,21 @@ const { world } = useWorld()
                     <ul v-if="pixel">
                       <li class="flex gap-1">
                         <img src="@/assets/icons/d20.svg" class="h-6 w-6" />
-                        <div>
-                          {{ pixel.name }} (<span
+                        <div
+                          class="grow"
+                          :class="[
+                            pixelStatus === 'disconnected' ? 'line-through' : '',
+                            pixelStatus === 'connecting' ? 'opacity-50' : ''
+                          ]"
+                          @click="pixelReconnect"
+                        >
+                          <span>{{ pixel.name }} </span>
+                          (<span
                             :class="[pixel.batteryLevel < 30 ? 'text-red-700' : 'text-green-700']"
                             >{{ pixel.batteryLevel }}%</span
                           >)
                         </div>
+                        <Spinner v-if="pixelStatus === 'connecting'" class="h-6 w-6" />
                       </li>
                     </ul>
                   </li>

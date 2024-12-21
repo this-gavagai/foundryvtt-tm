@@ -276,13 +276,11 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
     : doesDmg
       ? action.critical(damageOptions)
       : null
-  // TODO (upstream): {createMessage: false} isn't respected for blasts, so there's not much I can do here; submit a patch?
   const modifiers = doesDmg && !isBlast ? action.damage(modifierOptions) : null
   const results = await Promise.all([damage, critical, modifiers])
 
   unregisterBackgroundRoll()
 
-  // console.log('modifiers', results[2]?.options?.damage?.modifiers)
   return {
     action: 'acknowledged',
     uuid: args.uuid,

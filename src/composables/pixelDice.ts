@@ -1,5 +1,4 @@
 // TODO (feature): handle multiple dice
-// TODO (bug): rolling dice with damage infoModal (or action infomodal) open still rolls a strike, even though no dice are requested. needs another sanity check
 
 import { ref } from 'vue'
 import {
@@ -11,8 +10,8 @@ import {
 } from '@systemic-games/pixels-web-connect'
 import { useStorage } from '@vueuse/core'
 
-export const lastRoll = ref<number>()
-export const pixel = ref<Pixel>()
+const lastRoll = ref<number>()
+const pixel = ref<Pixel>()
 window.pixel = pixel
 
 const systemIds = useStorage('pixel-system-id', '')
@@ -32,13 +31,13 @@ export function usePixelDice() {
     // detect disconnect, and then do...something?
     pixel.value.addEventListener('statusChanged', (status) => {
       console.log(`TM-pixl: Dice status changed to ${status.status}`, status)
-      const reconnectLoop = async () => {
-        if (!pixel.value) return
-        console.log('trying again')
-        await repeatConnect(pixel.value)
-        if (pixel.value.status !== 'ready') setTimeout(reconnectLoop, 5000)
-      }
-      if (status.status === 'disconnected') reconnectLoop()
+      // const reconnectLoop = async () => {
+      //   if (!pixel.value) return
+      //   console.log('trying again')
+      //   await repeatConnect(pixel.value)
+      //   if (pixel.value.status !== 'ready') setTimeout(reconnectLoop, 5000)
+      // }
+      if (status.status === 'disconnected' && pixel.value) repeatConnect(pixel.value)
     })
   }
 
@@ -77,5 +76,14 @@ export function usePixelDice() {
     await pixel.value?.blink(Color.red)
   }
 
-  return { pixelConnect, pixelReconnect, getPixel, getLastRoll, readStatus, blink, lastRoll, pixel }
+  return {
+    pixelConnect,
+    pixelReconnect,
+    getPixel,
+    getLastRoll,
+    readStatus,
+    blink,
+    lastRoll,
+    pixel
+  }
 }

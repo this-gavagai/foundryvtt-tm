@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { computed, watch } from 'vue'
+import { computed } from 'vue'
 import { useWorld } from './world'
 import { useUserId } from '@/composables/user'
 import { useApi } from '@/composables/api'
@@ -39,7 +39,7 @@ function updateTargets(user: string, newTargets: string[]) {
 function getTargets() {
   return targets.value
 }
-watch(targets, () => console.log('targets changed', targets.value))
+// watch(targets, () => console.log('targets changed', targets.value))
 
 export function useTargetHelper() {
   return {

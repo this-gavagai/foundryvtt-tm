@@ -1,8 +1,9 @@
 <script setup lang="ts">
-// TODO (feature): roll for swim and climb if no natural speed
-import { inject } from 'vue'
+import { inject, computed } from 'vue'
 import StatBox from './StatBox.vue'
 import { useKeys } from '@/composables/injectKeys'
+
+import d20 from '@/assets/icons/d20.svg'
 
 interface SpeedType {
   type: string | undefined
@@ -13,6 +14,9 @@ interface SpeedType {
 
 const character = inject(useKeys().characterKey)!
 const { land, swim, climb, fly, burrow } = character.movement
+const { skills } = character
+
+const athletics = computed(() => skills.value?.find((s) => s.slug === 'athletics'))
 
 function parseSpeed(speed: SpeedType | undefined) {
   if (speed?.total) return speed?.total
@@ -26,12 +30,34 @@ function parseSpeed(speed: SpeedType | undefined) {
     <StatBox heading="Land" :breakdown="land?.breakdown" class="w-1/5">{{
       parseSpeed(land)
     }}</StatBox>
-    <StatBox heading="Swim" :breakdown="swim?.breakdown" class="w-1/5">{{
-      parseSpeed(swim)
-    }}</StatBox>
-    <StatBox heading="Climb" :breakdown="climb?.breakdown" class="w-1/5">{{
-      parseSpeed(climb)
-    }}</StatBox>
+    <div class="w-1/5">
+      <StatBox v-if="swim?.value" heading="Swim" :breakdown="swim?.breakdown">{{
+        parseSpeed(swim)
+      }}</StatBox>
+      <StatBox
+        v-else
+        heading="Swim"
+        modalHeading="Athletics Check (Swim)"
+        :modifiers="athletics?.modifiers"
+        :rollAction="athletics?.roll"
+      >
+        <img :src="d20" class="h-5 w-6" />
+      </StatBox>
+    </div>
+    <div class="w-1/5">
+      <StatBox v-if="climb?.value" heading="Climb" :breakdown="climb?.breakdown">{{
+        parseSpeed(climb)
+      }}</StatBox>
+      <StatBox
+        v-else
+        heading="Climb"
+        modalHeading="Athletics Check (Climb)"
+        :modifiers="athletics?.modifiers"
+        :rollAction="athletics?.roll"
+      >
+        <img :src="d20" class="h-5 w-5" />
+      </StatBox>
+    </div>
     <StatBox heading="Fly" :breakdown="fly?.breakdown" class="w-1/5">{{ parseSpeed(fly) }}</StatBox>
     <StatBox heading="Burrow" :breakdown="burrow?.breakdown" class="w-1/5">{{
       parseSpeed(burrow)

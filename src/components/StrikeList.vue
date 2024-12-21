@@ -2,9 +2,6 @@
 // TODO (feature): add reload action from pf2e-ranged?
 // TODO (feature): handle ammo, specifically lack of ammo, for ranged attacks more gracefully
 // TODO (bug): modifiers for blasts aren't always working right, missing item bonuses for example from gate attenuator
-// TODO (data): should I be using the AttackRollParams altUsage parameter? I don't really know what it does. How to even identify if 'thrown' from the AltUsage object?
-// TODO (bug): Friend's attacks aren't showing up
-/// TODO (spells are broken)
 import { inject, ref, watch, computed } from 'vue'
 import { formatModifier } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
