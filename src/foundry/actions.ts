@@ -154,7 +154,10 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
     target: targetTokenDoc?.object,
     event: fakeEvent
   }
+
   let promise
+  const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll(args.diceResults)
+  registerBackgroundRoll()
   if (args.characterAction.match('legacy.')) {
     const actionKey = args.characterAction.replace('legacy.', '')
     promise = source.pf2e.actions[actionKey](params)
@@ -162,8 +165,6 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
     promise = source.pf2e.actions.get(args.characterAction)?.use(params)
   }
   const r = await promise
-  console.log('TM-actionroll', r)
-  console.log('tm-stuff', r[0]?.message?.whisper)
   const isSecret =
     r[0]?.message?.whisper?.length > 0 && !r[0]?.message?.whisper?.includes(args.userId)
   console.log(
@@ -172,6 +173,7 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
     isSecret
   )
   const { formula, result, total, dice } = r[0]?.roll
+  unregisterBackgroundRoll()
   return {
     action: 'acknowledged',
     uuid: args.uuid,

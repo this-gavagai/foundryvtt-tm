@@ -63,6 +63,22 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
       :imageUrl="actionViewed?.img"
       :itemId="actionViewed?._id"
       :traits="actionViewed?.system?.traits?.value"
+      :diceRequest="actionDefs.get(actionViewed?.system?.slug ?? '') ? ['d20'] : []"
+      @diceResult="
+        (face) => {
+          return actionViewed
+            ?.doAction?.(
+              actionDefs.get(actionViewed?.system?.slug ?? '')?.skill === '*'
+                ? { statistic: skillSelector?.selected?.slug }
+                : {},
+              face
+            )
+            ?.then((r) => {
+              infoModal.rollResultModal.open(r)
+              infoModal.close()
+            })
+        }
+      "
     >
       <template #title>
         {{ actionViewed?.name }}

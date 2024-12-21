@@ -66,6 +66,7 @@ export interface CharacterActionArgs {
   characterId: string
   targets: any
   characterAction: any
+  diceResults: DiceResults
   options: any
   uuid: string
 }

@@ -288,7 +288,6 @@ watch(viewedStrike, async () => updateDamageFormula())
       @diceResult="
         (diceResult: number | undefined) =>
           viewedStrikeAction(diceResult)?.then((r) => {
-            console.log(r)
             strikeModal.close()
             strikeModal.rollResultModal.open(r)
           })

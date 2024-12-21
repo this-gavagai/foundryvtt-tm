@@ -352,7 +352,8 @@ async function rollCheck(
 async function characterAction(
   actor: Ref<Actor>,
   characterAction: string,
-  options = {}
+  options = {},
+  diceResults: DiceResults = {}
 ): Promise<ResolutionArgs> {
   const { getTargets } = useTargetHelper()
   const userId = getUserId()
@@ -363,6 +364,7 @@ async function characterAction(
     characterId: actor.value._id,
     targets: getTargets(),
     characterAction,
+    diceResults,
     options,
     uuid
   }

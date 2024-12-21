@@ -18,7 +18,7 @@ import { type Maybe } from './helpers'
 export interface Action extends Item {
   actionType: string | null
   item: Item
-  doAction?: (options: object) => Promise<Roll> | null
+  doAction?: (options: object, rollResult?: number | undefined) => Promise<Roll> | null
 }
 
 export interface CharacterActions {
@@ -58,12 +58,13 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
                   : i?.system?.actionType?.value === 'free'
                     ? 'free'
                     : null,
-          doAction: (options: object) => {
+          doAction: (options: object, rollResult: number | undefined = undefined) => {
             if (i?.system?.slug)
               return characterAction(
                 actor as Ref<Actor>,
                 actionDefs.get(i?.system?.slug)?.alias ?? i?.system?.slug,
-                options ?? {}
+                options ?? {},
+                { d20: [rollResult ?? 0] }
               )
             else return null
           }
