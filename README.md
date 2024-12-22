@@ -1,3 +1,6 @@
+
+<img width="1022" alt="Screenshot 2024-12-22 at 1 33 10 PM" src="https://github.com/user-attachments/assets/26c7becb-90fe-43e4-a9ea-7da6ca7f37d9" />
+
 # What is this?
 
 This is a Character Sheet for the Pathfinder 2e system on FoundryVTT. It was designed to be run on a phone or tablet during in-person games, replacing the need for a laptop. 
