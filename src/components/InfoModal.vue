@@ -61,7 +61,7 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
 }
 </script>
 <template>
-  <div class="touch-manipulation">
+  <div class="touch-manipulation transition-all">
     <TransitionRoot appear :show="isOpen" as="template">
       <Dialog as="div" @close="close" class="relative z-10">
         <TransitionChild

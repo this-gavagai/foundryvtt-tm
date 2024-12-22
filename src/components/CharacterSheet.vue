@@ -64,7 +64,6 @@ onMounted(() => {
 onUnmounted(() => {
   console.log('TM-INIT: unmounted actor', props.characterId)
 })
-defineExpose({ actor, character })
 
 const currentTab = ref<number>()
 const goLeft = ref(false)
@@ -72,18 +71,6 @@ function changeTab(index: number) {
   goLeft.value = (currentTab.value ?? 0) - index >= 0 ? true : false
   currentTab.value = index
 }
-
-// const tabBox = ref()
-// useDrag(
-//   ({ swipe }: { swipe: [number, number] }) => {
-//     if (swipe[0]) changeTab(Math.max(0, Math.min((currentTab.value ?? 0) - swipe[0], 5)))
-//   },
-//   {
-//     domTarget: tabBox,
-//     preventWindowScrollY: true,
-//     swipeDistance: 50
-//   }
-// )
 const dragOptions = {
   preventWindowScrollY: true,
   lockDirection: true,
@@ -93,6 +80,8 @@ const dragOptions = {
 const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
   if (swipe[0]) changeTab(Math.max(0, Math.min((currentTab.value ?? 0) - swipe[0], 5)))
 }
+
+defineExpose({ actor, character, actorOrWorldActor })
 </script>
 <template>
   <div class="flex h-dvh select-none">

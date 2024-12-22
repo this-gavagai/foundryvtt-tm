@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import type { Combatant } from '@/types/pf2e-types'
-import type { Stat } from '@/composables/character'
 import { computed, inject } from 'vue'
-import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
-import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'
 import { formatModifier } from '@/utils/utilities'
 import StatBox from '@/components/StatBox.vue'
 import { useCombat } from '@/composables/combat'
 import { useKeys } from '@/composables/injectKeys'
+
+import DropdownWidget from './DropdownWidget.vue'
 
 const character = inject(useKeys().characterKey)!
 const { _id: currentActorId, skills, perception } = character
@@ -40,7 +39,20 @@ const initiativeReady = computed(() => {
 </script>
 <template>
   <div class="flex justify-between gap-4 border-b px-6 py-4">
-    <Listbox v-model="initiativeStat" class="w-full">
+    <DropdownWidget
+      :list="
+        skillsPlusPerception.map((s) => ({ id: s.slug, name: s.label })) ?? [
+          { id: null, name: '...' }
+        ]
+      "
+      :selectedId="initiativeStat ?? ''"
+      :changed="
+        (newValue) => {
+          initiativeStat = newValue
+        }
+      "
+    />
+    <!-- <Listbox v-model="initiativeStat" class="w-full">
       <div class="relative mt-1">
         <ListboxButton
           class="relative w-full cursor-pointer rounded-lg border border-gray-400 bg-white py-2 pl-3 pr-10 text-left focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
@@ -87,7 +99,7 @@ const initiativeReady = computed(() => {
           </ListboxOptions>
         </transition>
       </div>
-    </Listbox>
+    </Listbox> -->
     <StatBox
       heading="Initiative"
       :modifiers="initiativeMods"

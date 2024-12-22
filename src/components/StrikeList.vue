@@ -1,6 +1,5 @@
 <script setup lang="ts">
 // TODO (feature): add reload action from pf2e-ranged?
-// TODO (feature): handle ammo, specifically lack of ammo, for ranged attacks more gracefully
 // TODO (bug): modifiers for blasts aren't always working right, missing item bonuses for example from gate attenuator
 import { inject, ref, watch, computed } from 'vue'
 import { formatModifier } from '@/utils/utilities'
@@ -11,6 +10,7 @@ import StrikeActionSet from './StrikeActionSet.vue'
 import type { Strike } from '@/composables/character'
 
 import ChoiceWidget from './ChoiceWidget.vue'
+import DropdownWidget from './DropdownWidget.vue'
 
 import action1 from '@/assets/icons/action1.svg'
 import action2 from '@/assets/icons/action2.svg'
@@ -305,7 +305,18 @@ watch(viewedStrike, async () => updateDamageFormula())
           : strikeModalDamage?.response?.damage
       }}</template>
       <template #default>
+        <div class="m-1">
+          <DropdownWidget
+            class="relative"
+            :growContainer="true"
+            v-if="viewedStrike?.ammunition?.compatible?.length"
+            :list="[{ id: '', name: 'No ammo' }].concat(viewedStrike?.ammunition?.compatible ?? [])"
+            :selectedId="viewedStrike?.ammunition?.selected?.id ?? ''"
+            :changed="(newId) => viewedStrike?.changeAmmo?.(newId)"
+          />
+        </div>
         <div
+          class="pb-2"
           v-if="
             (viewedStrike as ElementalBlast)?.blastRange?.max ?? viewedStrike?.item?.system?.range
           "
@@ -327,11 +338,10 @@ watch(viewedStrike, async () => updateDamageFormula())
             :selected="viewedStrikeDamageTypeSelected ?? ''"
             :clicked="
               (damageType) => {
-                if (damageType !== viewedStrikeDamageTypeSelected) {
-                  return viewedStrike?.setDamageType?.(damageType)?.then((r) => {
-                    updateDamageFormula()
-                  })
-                }
+                console.log(damageType, viewedStrike)
+                return strikes?.[viewedStrikeId ?? 0]?.setDamageType?.(damageType)?.then((r) => {
+                  updateDamageFormula()
+                })
               }
             "
           />
@@ -353,7 +363,7 @@ watch(viewedStrike, async () => updateDamageFormula())
             :key="mod.slug"
           >
             <div class="w-8 text-right">
-              <span v-if="mod.modifier">{{ formatModifier(mod.modifier) }}</span>
+              <span v-if="mod.modifier !== undefined">{{ formatModifier(mod.modifier) }}</span>
               <span v-if="mod.diceNumber">{{ `${mod.diceNumber}${mod.dieSize}` }}</span>
             </div>
             <div class="overflow-hidden text-ellipsis whitespace-nowrap">{{ mod.label }}</div>

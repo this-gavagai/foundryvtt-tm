@@ -155,6 +155,7 @@ function parseActorData(
   actor: Ref<Actor | undefined>,
   args: UpdateCharacterDetailsArgs
 ) {
+  // return
   if (actorId !== args.actorId) return
   if (characterUnsynced.get(actorId)) return
   if (characterLastRequest.get(actorId) !== args.uuid) return

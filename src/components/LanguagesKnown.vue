@@ -6,11 +6,12 @@ const character = inject(useKeys().characterKey)!
 const { languages } = character
 </script>
 <template>
-  <div class="flex justify-between border-b px-6 py-4">
+  <div class="border-b px-6 py-4 [&:not(:has(li))]:hidden">
     <div v-if="languages?.length === 0" class="italic">No languages known</div>
+    <div v-else class="underline">Languages</div>
     <ul class="min-h-6">
       <li
-        class="inline capitalize [&:not(:last-child)]:after:content-[',_']"
+        class="inline text-sm capitalize [&:not(:last-child)]:after:content-[',_']"
         v-for="lang in languages?.slice().reverse()"
         :key="'lang_' + lang"
       >

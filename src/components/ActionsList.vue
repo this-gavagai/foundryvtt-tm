@@ -24,8 +24,8 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
 </script>
 
 <template>
-  <div class="break-inside-avoid-column px-6 py-4 [&:not(:has(li))]:hidden">
-    <div class="pb-4" v-for="group in actionTypes" :key="group.type">
+  <div class="break-inside-avoid-column px-6 py-4">
+    <div class="pb-4 [&:not(:has(li))]:hidden" v-for="group in actionTypes" :key="group.type">
       <h3 class="text-lg underline">{{ group.title }}</h3>
       <ul>
         <li

@@ -17,8 +17,8 @@ import LanguagesKnown from '@/components/LanguagesKnown.vue'
     <SavingThrows />
     <CombatInitiative />
     <ArmorClass />
-    <IWR />
     <MovementSpeed />
+    <IWR />
     <LanguagesKnown />
   </div>
 </template>

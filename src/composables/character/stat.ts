@@ -3,6 +3,8 @@ import type { Roll } from '@/types/foundry-types'
 import type { Stat as PF2eStat, Modifier as PF2eModifier } from '@/types/pf2e-types'
 import { type Modifier, makeModifiers } from './modifier'
 
+import { capitalize } from 'lodash-es'
+
 export interface Stat {
   label: Maybe<string>
   slug: Maybe<string>
@@ -19,11 +21,11 @@ export interface Stat {
   lore: Maybe<boolean>
   roll?: (result?: number | undefined) => Promise<Roll> | null
 }
-export function makeStat(root: PF2eStat | undefined): Stat | undefined {
+export function makeStat(root: PF2eStat | undefined, key: string | null = null): Stat | undefined {
   if (!root) return undefined
   return {
-    slug: root?.slug,
-    label: root?.label,
+    slug: root?.slug ?? key,
+    label: root?.label ?? capitalize(key ?? ''),
     type: root?.type,
     breakdown: root?.breakdown,
     attribute: root?.attribute,

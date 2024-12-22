@@ -78,6 +78,7 @@ export interface Action {
   label: string
   damage: Function
   altUsages: Action[]
+  ammunition: any
   critical: Function
   variants: { label: string }[]
   traits: { name: string; label: string; description: string }[]
@@ -113,6 +114,13 @@ export interface System {
   abilities: any
   saves: any
   bulk: any
+  boosts: { selected: string; value: string[] }[]
+  flaws: { selected: string; value: string[] }[]
+  voluntary: { boost?: string; flaws?: string[] }
+  keyAbility: { selected: string; value: string[] }
+  apex: { attribute: string; selected: boolean }
+  alternateAncestryBoosts: string[]
+  selectedAmmoId: string | null
   stackGroup: string
   perception: any
   actions: any
@@ -152,6 +160,7 @@ export interface System {
   damage: { damageType: string }
   category?: any
   rules: Rule[]
+  proficient: any
 }
 export interface Rule {
   option: string

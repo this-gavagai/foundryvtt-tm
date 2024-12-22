@@ -16,6 +16,10 @@ export interface Strike {
   altUsages: Maybe<Strike>[]
   traits: { name: Maybe<string>; label: Maybe<string>; description: Maybe<string> }[]
   weaponTraits: { name: Maybe<string>; label: Maybe<string>; description: Maybe<string> }[]
+  ammunition?: {
+    compatible: { id: string; name: string }[]
+    selected: { id: string }
+  }
   _modifiers: Maybe<Modifier[]>
 
   getDamage?: (
@@ -34,6 +38,7 @@ export interface Strike {
     blastOptions?: { element: string; damageType: string; isMelee: boolean }
   ) => Promise<unknown>
   setDamageType?: (newType: string) => Promise<unknown> | null
+  changeAmmo?: (newId: string | null) => Promise<unknown> | undefined
 }
 export function makeStrike(
   root: PF2eAction | undefined,
@@ -56,6 +61,13 @@ export function makeStrike(
       label: t?.label,
       description: t?.description
     })),
+    ammunition: {
+      compatible: root?.ammunition?.compatible?.map((c: { id: string; label: string }) => ({
+        id: c.id,
+        name: c.label
+      })),
+      selected: { id: root?.ammunition?.selected?.id }
+    },
     _modifiers: makeModifiers(root?._modifiers)
   }
 }

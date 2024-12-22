@@ -9,7 +9,7 @@ import { useApi } from '@/composables/api'
 
 import Modal from './ModalBox.vue'
 import Button from '@/components/ButtonWidget.vue'
-import shield from '@/assets/icons/armor-upgrade.svg'
+import shield from '@/assets/icons/checked-shield.svg'
 
 interface SubmissionEvent {
   submitter: { name: string }
@@ -18,10 +18,6 @@ interface FormData {
   hp: { value: string }
   temp_hp: { value: string }
 }
-interface InputSelect {
-  select: () => void
-}
-
 const shieldWaiting = ref(false)
 
 const shpModal = ref()
@@ -102,15 +98,7 @@ function updateHitPoints(hp_input: string) {
     </div>
   </div>
   <Teleport to="#modals">
-    <Modal
-      ref="shpModal"
-      title="Shield"
-      :infoButton="
-        () => {
-          console.log('shield info')
-        }
-      "
-    >
+    <Modal ref="shpModal" title="Shield">
       <form
         @submit.prevent="
           (e: Event) => {
@@ -125,15 +113,16 @@ function updateHitPoints(hp_input: string) {
         <div class="flex w-full items-center justify-center pb-1 pt-4">
           <div class="w-1/3">Hit Points:</div>
           <input
-            class="ml-[32px] mr-4 w-1/3 border-2 border-black p-1 text-right text-3xl"
+            class="ml-[32px] mr-4 w-1/3 border-2 border-black p-1 text-right text-3xl selection:bg-blue-700 selection:text-white"
             name="hp"
             type="input"
             pattern="[\+\-]{0,1}[0-9]*"
             :placeholder="shpCurrent + ''"
             :value="shpCurrent"
-            @focus="
+            @click="
               (e: Event) => {
-                const field = e.target as EventTarget & InputSelect
+                const field = e.target as HTMLInputElement
+                field.focus()
                 field.select()
               }
             "
@@ -142,7 +131,7 @@ function updateHitPoints(hp_input: string) {
         </div>
         <div class="mt-5 flex flex-row-reverse flex-wrap-reverse gap-1 sm:mt-4">
           <Button type="submit" name="update" label="Update" color="blue" />
-          <Button type="submit" name="reset" label="Reset HP" />
+          <Button type="submit" name="reset" label="Reset HP" color="gray" />
         </div>
       </form>
     </Modal>

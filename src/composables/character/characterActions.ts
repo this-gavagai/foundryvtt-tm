@@ -14,6 +14,7 @@ import { type Strike, type ElementalBlast, makeStrike, makeElementalBlasts } fro
 import { useApi } from '../api'
 import { actionDefs, actionTypes } from '@/utils/constants'
 import { type Maybe } from './helpers'
+import { kebabCase } from 'lodash-es'
 
 export interface Action extends Item {
   actionType: string | null
@@ -100,6 +101,20 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
             ? { system: { traits: { toggles: { modular: { selected: adjustment } } } } }
             : { system: { traits: { toggles: { versatile: { selected: adjustment } } } } }
           return updateActorItem(actor as Ref<Actor>, action?.item?._id ?? '', update)
+        },
+        changeAmmo: (newId: string | null) => {
+          const item = actor.value?.items.find((i: PF2eItem) => i._id === action?.item?._id)
+          const actorAction = actor.value?.system.actions.find(
+            (a: PF2eAction) => a.slug === action?.slug
+          )
+          if (item && item.system) item.system.selectedAmmoId = newId
+          if (actorAction) actorAction.ammunition.selected = newId ? { id: newId } : null
+
+          const update = { system: { selectedAmmoId: newId || null } }
+          return (
+            updateActorItem(actor as Ref<Actor>, action?.item?._id ?? '', update) ??
+            Promise.resolve(null)
+          )
         }
       }))
     }),
@@ -177,13 +192,26 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
         return updateActorItem(actor as Ref<Actor>, blastItemId ?? '', update)
       }
     }),
-    skills: computed(() =>
-      Object.values(actor.value?.system?.skills ?? {})?.map((skill: PF2eStat) => ({
-        ...(makeStat(skill) as Stat),
-        roll: (result: number | undefined) =>
-          rollCheck(actor as Ref<Actor>, 'skill', skill.slug, { d20: [result ?? 0] })
-      }))
-    ),
+    skills: computed(() => {
+      const skills = Object.entries(actor.value?.system?.skills ?? [])?.map(
+        ([key, skill]: [string, PF2eStat]) => ({
+          ...(makeStat(skill, key) as Stat),
+          roll: (result: number | undefined) =>
+            rollCheck(actor as Ref<Actor>, 'skill', skill.slug, { d20: [result ?? 0] })
+        })
+      )
+      const lores = actor.value?.items
+        .filter((i) => i.type === 'lore')
+        .map((lore) => ({
+          ...({
+            slug: kebabCase(lore.name),
+            label: lore.name,
+            lore: true,
+            rank: lore.system.proficient.value
+          } as Stat)
+        }))
+      return skills.length === 16 && lores?.length ? [...skills, ...(lores ?? [])] : skills
+    }),
     proficiencies: computed(() => [
       ...Object.entries((actor.value?.system?.proficiencies?.['attacks'] ?? []) as PF2eStat[]).map(
         ([key, stat]) => ({ ...makeStat(stat), type: 'attacks', slug: key }) as Stat

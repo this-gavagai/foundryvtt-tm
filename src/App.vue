@@ -20,6 +20,7 @@ declare const BUILD_MODE: string
 interface CharacterPanel extends Ref {
   actor: Actor
   character: Character
+  actorOrWorldActor: Actor
 }
 
 const { pixelReconnect } = usePixelDice()
@@ -67,11 +68,11 @@ if (BUILD_MODE === 'development') {
     window.altActors = new Map([])
     window.altCharacters = new Map([])
     characterPanels.value.forEach((panel: CharacterPanel) => {
-      if (panel.actor?._id === urlId) {
-        window.actor = panel.actor
+      if (panel.actorOrWorldActor?._id === urlId) {
+        window.actor = panel.actorOrWorldActor
         window.character = panel.character
       } else {
-        window.altActors.set(panel.actor?._id, panel.actor)
+        window.altActors.set(panel.actor?._id, panel.actorOrWorldActor)
         window.altCharacters.set(panel.actor?._id, panel.character)
       }
     })

@@ -16,9 +16,6 @@ interface FormData {
   hp: { value: string }
   temp_hp: { value: string }
 }
-interface InputSelect {
-  select: () => void
-}
 
 const hpStat = ref()
 const hitpointsModal = ref()
@@ -84,15 +81,16 @@ function updateHitPoints(hp_input: string, temp_input: string) {
         <div class="flex w-full items-center justify-center pb-1 pt-4">
           <div class="w-1/3">Standard:</div>
           <input
-            class="ml-[32px] mr-4 w-1/3 border-2 border-black p-1 text-right text-3xl"
+            class="ml-[32px] mr-4 w-1/3 border-2 border-black p-1 text-right text-3xl selection:bg-blue-700 selection:text-white"
             name="hp"
             type="input"
             pattern="[\+\-]{0,1}[0-9]*"
             :placeholder="hpCurrent + ''"
             :value="hpCurrent"
-            @focus="
+            @click="
               (e: Event) => {
-                const field = e.target as EventTarget & InputSelect
+                const field = e.target as HTMLInputElement
+                field.focus()
                 field.select()
               }
             "
@@ -102,15 +100,16 @@ function updateHitPoints(hp_input: string, temp_input: string) {
         <div class="flex w-full items-center justify-center pb-4 pt-1">
           <div class="w-1/3">Temporary:</div>
           <input
-            class="ml-[32px] mr-4 w-1/3 border-2 border-black p-1 text-right text-3xl"
+            class="ml-[32px] mr-4 w-1/3 border-2 border-black p-1 text-right text-3xl selection:bg-blue-700 selection:text-white"
             name="temp_hp"
             type="input"
             pattern="[\+\-]{0,1}[0-9]*"
             :placeholder="hpTemp + ''"
             :value="hpTemp"
-            @focus="
+            @click="
               (e: Event) => {
-                const field = e.target as EventTarget & InputSelect
+                const field = e.target as HTMLInputElement
+                field.focus()
                 field.select()
               }
             "
