@@ -111,6 +111,7 @@ export interface System {
   attributes: any
   abilities: any
   saves: any
+  defense: { save: { basic: boolean; statistic: string } }
   bulk: any
   boosts: { selected: string; value: string[] }[]
   flaws: { selected: string; value: string[] }[]

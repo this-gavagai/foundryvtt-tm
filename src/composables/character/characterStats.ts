@@ -122,11 +122,10 @@ function calcAttribute(
   stat: 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha'
 ) {
   if (!actor.value) return
-  if (actor.value.name !== 'Leaf Leaf Stick') return
   let count = 0
   // ancestry
   const ancestry = actor.value.items.find((i) => i.type === 'ancestry')
-  if (ancestry?.system?.alternateAncestryBoosts.length) {
+  if (ancestry?.system?.alternateAncestryBoosts?.length) {
     if (ancestry?.system?.alternateAncestryBoosts.includes(stat)) count++
   } else {
     Object.values(ancestry?.system?.boosts ?? {}).forEach((b) => {

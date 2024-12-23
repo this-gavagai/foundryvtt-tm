@@ -38,8 +38,9 @@ export interface Item {
     stackGroup: Maybe<string>
     actions: { value: Maybe<string> }
     range: Maybe<string>
-    damage: { damageType: Maybe<string> }
     target: Maybe<string>
+    defense: { save: { basic: Maybe<boolean>; statistic: Maybe<string> } }
+    damage: { damageType: Maybe<string> }
     area: { type: Maybe<string>; value: Maybe<number> }
     equipped: {
       carryType: Maybe<string>
@@ -125,6 +126,12 @@ export function makeItem(root: PF2eItem | undefined): Item | undefined {
         : root?.system?.range,
       target: root?.system?.target?.value,
       area: { type: root?.system?.area?.type, value: root?.system?.area?.value },
+      defense: {
+        save: {
+          basic: root?.system?.defense?.save?.basic,
+          statistic: root?.system?.defense?.save?.statistic
+        }
+      },
       damage: { damageType: root?.system?.damage?.damageType },
       equipped: {
         carryType: root?.system?.equipped?.carryType,

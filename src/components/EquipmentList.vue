@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // TODO (feature): add encumbrance
-// TODO (refactor): change toggle bar over to headlessui component and give transaction feedback
+// TODO (refactor): change toggle bar over to choice set component
 // TODO (refactor): apply new switch component
 
 import type { Equipment } from '@/composables/character'

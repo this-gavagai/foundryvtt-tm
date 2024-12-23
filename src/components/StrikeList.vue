@@ -1,6 +1,4 @@
 <script setup lang="ts">
-// TODO (integration): add reload action from pf2e-ranged?
-// TODO (bug): modifiers for blasts aren't always working right, missing item bonuses for example from gate attenuator
 import { inject, ref, watch, computed } from 'vue'
 import { formatModifier } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'

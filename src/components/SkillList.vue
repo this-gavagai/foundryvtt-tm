@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// TODO (feature++): allow players to access skill actions that aren't explicitly on sheet
 import type { Stat } from '@/composables/character'
 
 import { formatModifier } from '@/utils/utilities'
