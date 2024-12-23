@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // TODO (feature): get action modifiers on the card (somehow?)
-// TODO (feature): rethink how actions are defined and used
+// TODO (feature): rethink how actions are defined and used (set up interpretation for inline @Check; that's gotta be the best way)
+// TODO (integration): set up integration for toolbelt use macros
 import type { Action } from '@/composables/character'
 import { actionDefs, actionTypes } from '@/utils/constants'
 import { inject, ref, computed } from 'vue'

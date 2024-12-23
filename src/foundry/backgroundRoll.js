@@ -3,9 +3,7 @@ const appName = 'tablemate'
 export function useBackgroundRoll(diceResults = {}) {
   let registrationId
   const customRollEvaluate = async function (wrapped, ...args) {
-    console.log(...args)
-    console.log(this)
-    const background = true //this.options.identifier === identifier_code
+    const background = true
     if (background) {
       this.dice.forEach((die, i) => {
         if (diceResults?.['d' + die.faces]?.[i]) {
@@ -22,10 +20,8 @@ export function useBackgroundRoll(diceResults = {}) {
 
   function registerBackgroundRoll() {
     registrationId = libWrapper.register(appName, 'Roll.prototype.evaluate', customRollEvaluate)
-    console.log(registrationId)
   }
   function unregisterBackgroundRoll() {
-    console.log(registrationId)
     libWrapper.unregister(appName, registrationId)
   }
 

@@ -100,6 +100,11 @@ export function useCharacterItems(actor: Ref<Actor | undefined>) {
               }
             }
             return updateActorItem(actor as Ref<Actor>, i?._id, update)
+          },
+          consumeItem: () => consumeItem(actor as Ref<Actor>, i._id),
+          changeUses: (newValue: number) => {
+            const updates = { system: { uses: { value: newValue } } }
+            return updateActorItem(actor as Ref<Actor>, i?._id, updates)
           }
         }))
     ),

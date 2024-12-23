@@ -41,8 +41,8 @@ export default defineConfig(({ mode }) => {
           enabled: true
         },
         manifest: {
-          name: 'Tabula Mensa',
-          short_name: 'Tabula Mensa',
+          name: 'Tabula',
+          short_name: 'Tabula',
           description: 'A PF2e Character Sheet for FoundryVTT',
           theme_color: '#ffffff',
           icons: [

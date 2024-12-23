@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// TODO: fix transition and transitiongroup to make scaling animate more smoothly (height issue)
 import { ref, computed } from 'vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'

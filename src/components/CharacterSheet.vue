@@ -14,7 +14,7 @@ import { Bars3Icon } from '@heroicons/vue/24/solid'
 
 import cowled from '@/assets/icons/cowled.svg'
 import biceps from '@/assets/icons/biceps.svg'
-import backpack from '@/assets/icons/swap-bag.svg'
+import backpack from '@/assets/icons/swap-bag-2.svg'
 import leapfrog from '@/assets/icons/leapfrog.svg'
 import spellBook from '@/assets/icons/spell-book.svg'
 import skills from '@/assets/icons/skills.svg'

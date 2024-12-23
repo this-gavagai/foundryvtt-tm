@@ -25,7 +25,7 @@ export function makeStat(root: PF2eStat | undefined, key: string | null = null):
   if (!root) return undefined
   return {
     slug: root?.slug ?? key,
-    label: root?.label ?? capitalize(key ?? ''),
+    label: root?.label ?? root?.slug ?? capitalize(key ?? ''),
     type: root?.type,
     breakdown: root?.breakdown,
     attribute: root?.attribute,

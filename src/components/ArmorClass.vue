@@ -9,7 +9,7 @@ import { useApi } from '@/composables/api'
 
 import Modal from './ModalBox.vue'
 import Button from '@/components/ButtonWidget.vue'
-import shield from '@/assets/icons/checked-shield.svg'
+import shield from '@/assets/icons/shield-2.svg'
 
 interface SubmissionEvent {
   submitter: { name: string }

@@ -6,7 +6,12 @@ const emits = defineEmits(['itemClicked'])
 const totalWeight = computed(() => {
   if (item?.system?.bulk?.value === 0 || item?.system?.stackGroup === 'coins') return '-'
   else if (item?.system?.bulk?.value < 1)
-    return Math.floor(item?.system?.bulk?.value * item?.system?.quantity * 10) + 'L'
+    return (
+      Math.floor(
+        ((item?.system?.bulk?.value * item?.system?.quantity) / (item?.system?.price?.per ?? 1)) *
+          10
+      ) + 'L'
+    )
   else return Math.floor(item?.system?.bulk?.value * item?.system?.quantity)
 })
 </script>

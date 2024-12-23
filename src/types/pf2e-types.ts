@@ -1,5 +1,3 @@
-// TODO (types): find an official source for all this. This is a terrible cludge here.
-
 export interface Actor {
   _id: string
   name: string

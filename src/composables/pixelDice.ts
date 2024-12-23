@@ -1,5 +1,3 @@
-// TODO (feature): handle multiple dice
-
 import { ref } from 'vue'
 import {
   repeatConnect,

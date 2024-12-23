@@ -11,10 +11,6 @@ import Button from '@/components/ButtonWidget.vue'
 interface FormData {
   xp: { value: string }
 }
-interface InputSelect {
-  select: () => void
-}
-
 const experienceModal = ref()
 const character = inject(useKeys().characterKey) as Character
 const { current: xpCurrent, max: xpMax } = character.xp
@@ -68,9 +64,10 @@ function updateExperience(input: string) {
             type="input"
             pattern="[\+\-]{0,1}[0-9]*"
             :value="xpCurrent"
-            @focus="
+            @click="
               (e: Event) => {
-                const field = e.target as EventTarget & InputSelect
+                const field = e.target as HTMLInputElement
+                field.focus()
                 field.select()
               }
             "

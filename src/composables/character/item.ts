@@ -37,8 +37,10 @@ export interface Item {
     bulk: { value: Maybe<number> }
     stackGroup: Maybe<string>
     actions: { value: Maybe<string> }
-    range: Maybe<number>
+    range: Maybe<string>
     damage: { damageType: Maybe<string> }
+    target: Maybe<string>
+    area: { type: Maybe<string>; value: Maybe<number> }
     equipped: {
       carryType: Maybe<string>
       invested: Maybe<boolean>
@@ -49,7 +51,10 @@ export interface Item {
     hp: { value: Maybe<number> }
     containerId: Maybe<string>
     quantity: Maybe<number>
-    price: { value: { gp: Maybe<number>; sp: Maybe<number>; cp: Maybe<number> } }
+    price: {
+      value: { gp: Maybe<number>; sp: Maybe<number>; cp: Maybe<number> }
+      per: Maybe<number>
+    }
     spelldc: { dc: Maybe<number> }
     time: { value: Maybe<string> }
     prepared: { value: Maybe<string> }
@@ -115,7 +120,11 @@ export function makeItem(root: PF2eItem | undefined): Item | undefined {
       },
       level: { value: root?.system?.level?.value, taken: root?.system?.level?.taken },
       actions: { value: root?.system?.actions?.value },
-      range: root?.system?.range,
+      range: root?.system?.range?.hasOwnProperty('value')
+        ? root?.system?.range?.value
+        : root?.system?.range,
+      target: root?.system?.target?.value,
+      area: { type: root?.system?.area?.type, value: root?.system?.area?.value },
       damage: { damageType: root?.system?.damage?.damageType },
       equipped: {
         carryType: root?.system?.equipped?.carryType,
@@ -132,7 +141,8 @@ export function makeItem(root: PF2eItem | undefined): Item | undefined {
           gp: root?.system?.price?.value?.gp,
           sp: root?.system?.price?.value?.sp,
           cp: root?.system?.price?.value?.cp
-        }
+        },
+        per: root?.system?.price?.per
       },
       spelldc: { dc: root?.system?.spelldc?.dc },
       time: { value: root?.system?.time?.value },

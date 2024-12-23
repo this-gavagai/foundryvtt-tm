@@ -1,9 +1,7 @@
 <script setup lang="ts">
 // TODO (feature): add encumbrance
 // TODO (refactor): change toggle bar over to headlessui component and give transaction feedback
-// TODO (refactor): refactor listbox into component, and give transaction feedback
 // TODO (refactor): apply new switch component
-// TODO (UX): animate item coming in and out of hand control. not trivial
 
 import type { Equipment } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
@@ -19,6 +17,7 @@ import Modal from '@/components/ModalBox.vue'
 import InfoModal from '@/components/InfoModal.vue'
 import Button from '@/components/ButtonWidget.vue'
 import DropdownWidget from './DropdownWidget.vue'
+import CounterWidget from './CounterWidget.vue'
 
 const infoModal = ref()
 const investedModal = ref()
@@ -311,9 +310,32 @@ const toggleSet = [
       </template>
       <template #body>
         <div v-html="removeUUIDs(itemViewed?.system?.description.value)"></div>
+        <div class="ml-auto flex justify-end gap-1">
+          <div class="text-xl">Uses:</div>
+          <CounterWidget
+            :title="itemViewed?.name + ' (uses)'"
+            class="mt-1 h-6"
+            :value="itemViewed?.system?.uses?.value"
+            :max="itemViewed?.system?.uses?.max"
+            @changeCount="(newValue: number) => itemViewed?.changeUses?.(newValue)"
+            editable
+          />
+        </div>
       </template>
       <template #actionButtons v-if="itemViewed">
-        <div class="flex-1">Qty: {{ itemViewed?.system?.quantity }}</div>
+        <div class="flex flex-1">Qty: {{ itemViewed?.system?.quantity }}</div>
+        <Button
+          color="lightgray"
+          :clicked="() => itemViewed?.changeQty?.((itemViewed?.system?.quantity ?? NaN) - 1)"
+        >
+          -
+        </Button>
+        <Button
+          color="lightgray"
+          :clicked="() => itemViewed?.changeQty?.((itemViewed?.system?.quantity ?? NaN) + 1)"
+        >
+          +
+        </Button>
         <Button
           color="red"
           v-if="inventory.filter((i) => i.system?.containerId === itemViewed?._id).length === 0"
@@ -327,17 +349,12 @@ const toggleSet = [
           Remove
         </Button>
         <Button
-          color="lightgray"
-          :clicked="() => itemViewed?.changeQty?.((itemViewed?.system?.quantity ?? NaN) - 1)"
+          v-if="itemViewed?.system?.uses?.max"
+          color="green"
+          :disabled="itemViewed?.system?.uses?.value === 0"
+          :clicked="() => itemViewed?.consumeItem?.().then(() => infoModal.close())"
+          >Use Item</Button
         >
-          -
-        </Button>
-        <Button
-          color="lightgray"
-          :clicked="() => itemViewed?.changeQty?.((itemViewed?.system?.quantity ?? NaN) + 1)"
-        >
-          +
-        </Button>
       </template>
     </InfoModal>
   </Teleport>

@@ -214,20 +214,21 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
     }),
     proficiencies: computed(() => [
       ...Object.entries((actor.value?.system?.proficiencies?.['attacks'] ?? []) as PF2eStat[]).map(
-        ([key, stat]) => ({ ...makeStat(stat), type: 'attacks', slug: key }) as Stat
+        ([key, stat]) => ({ ...makeStat(stat, key), type: 'attacks', slug: key }) as Stat
       ),
       ...Object.entries((actor.value?.system?.proficiencies?.['defenses'] ?? []) as PF2eStat[]).map(
-        ([key, stat]) => ({ ...makeStat(stat), type: 'defenses', slug: key }) as Stat
+        ([key, stat]) => ({ ...makeStat(stat, key), type: 'defenses', slug: key }) as Stat
       ),
       ...Object.entries((actor.value?.system?.proficiencies?.['classDCs'] ?? []) as PF2eStat[]).map(
-        ([key, stat]) => ({ ...makeStat(stat), type: 'classDCs', slug: key }) as Stat
+        ([key, stat]) => ({ ...makeStat(stat, key), type: 'classDCs', slug: key }) as Stat
       ),
       ...[
         {
           ...(makeStat(actor.value?.system?.proficiencies?.['spellcasting']) as Stat),
           value: actor.value?.system?.attributes?.classOrSpellDC?.value,
           type: 'spellcasting',
-          slug: 'Spell DC'
+          slug: 'Spell DC',
+          label: 'Spell DC'
         }
       ]
     ]),

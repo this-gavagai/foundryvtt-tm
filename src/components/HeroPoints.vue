@@ -23,7 +23,6 @@ const { current: heroCurrent, max: heroMax } = character.heroPoints
       @change-count="
         (newTotal) => {
           heroCurrent = newTotal
-          counter.close()
         }
       "
     />
