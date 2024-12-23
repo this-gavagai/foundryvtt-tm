@@ -4,46 +4,47 @@ import ChoiceWidgetButton from './ChoiceWidgetButton.vue'
 
 const waiting = ref(false)
 const {
-  label = '',
   choiceSet = [],
   iconSet = {},
+  labelSet = {},
   selected = '',
   clicked
 } = defineProps<{
-  label?: string
   choiceSet: string[]
   iconSet?: Record<string, string>
+  labelSet?: Record<string, string>
   selected?: string
-  clicked?: (damageType: string) => void
+  clicked?: (newChoice: string) => void
 }>()
 const emit = defineEmits(['changed'])
 defineExpose({ waiting })
-function handleChanged(damageType: string) {
-  emit('changed', damageType)
+function handleChanged(newChoice: string) {
+  emit('changed', newChoice)
   if (clicked) {
     waiting.value = true
-    const response = clicked?.(damageType)
+    const response = clicked?.(newChoice)
     Promise.resolve(response).then(() => (waiting.value = false))
   }
 }
 </script>
 
 <template>
-  <div class="flex justify-end gap-2" v-if="choiceSet.length > 1" :waiting>
-    <div v-if="label" class="mt-2 italic">{{ label }}</div>
-    <span
-      class="isolate mb-2 inline-flex rounded-md transition-opacity"
-      :class="{ 'opacity-50': waiting }"
-    >
-      <ChoiceWidgetButton
-        v-for="damageType in choiceSet as string[]"
-        :key="damageType"
-        :icon="iconSet[damageType] ?? ''"
-        :choice="damageType"
-        :selected="selected"
-        :disabled="waiting"
-        @click="() => handleChanged(damageType)"
-      />
-    </span>
+  <div
+    class="isolate mb-2 flex rounded-md transition-opacity"
+    :class="[waiting ? 'opacity-50' : '']"
+    v-if="choiceSet.length > 1"
+    :waiting
+  >
+    <ChoiceWidgetButton
+      v-for="choice in choiceSet as string[]"
+      :key="choice"
+      :icon="iconSet[choice] ?? ''"
+      :label="labelSet[choice] ?? ''"
+      :choice="choice"
+      :selected="selected"
+      :disabled="waiting"
+      @click="() => handleChanged(choice)"
+    />
+    <!-- </span> -->
   </div>
 </template>

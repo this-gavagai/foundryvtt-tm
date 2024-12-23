@@ -28,12 +28,23 @@ export async function getCharacterDetails(
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.find((x: Actor) => x._id === args.actorId)
   const elementalBlasts = { ...new game.pf2e.ElementalBlast(actor), actor: undefined }
+  const bulk = actor.inventory.bulk
+  const inventory = {
+    bulk: {
+      max: bulk.max,
+      bulk: bulk.bulk,
+      encumberedAfter: bulk.encumberedAfter,
+      encumberedAfterBreakdown: bulk.encumberedAfterBreakdown,
+      maxBreakdown: bulk.maxBreakdown,
+      value: { value: bulk.value.value, light: bulk.value.light, normal: bulk.value.normal }
+    }
+  }
   return {
     action: 'updateCharacterDetails',
     actorId: actor._id,
     actor: JSON.stringify(actor),
     system: JSON.stringify(actor.system),
-    inventory: JSON.stringify(actor.inventory),
+    inventory: JSON.stringify(inventory),
     elementalBlasts: JSON.stringify(elementalBlasts, blastReplacer),
     uuid: args.uuid
   }

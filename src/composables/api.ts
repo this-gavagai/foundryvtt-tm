@@ -163,10 +163,12 @@ function parseActorData(
   if (!actor.value) actor.value = {} as Actor
   if (!actor.value.system) actor.value.system = {} as System
   if (!actor.value.elementalBlasts) actor.value.elementalBlasts = {} as ElementalBlasts
+  if (!actor.value.inventory) actor.value.inventory = {}
 
   const incoming = JSON.parse(args.actor)
   incoming.system = JSON.parse(args.system)
   incoming.elementalBlasts = JSON.parse(args.elementalBlasts)
+  incoming.inventory = JSON.parse(args.inventory)
 
   mergeWith(actor.value, incoming, resetArrays)
 }

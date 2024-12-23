@@ -1,6 +1,7 @@
 <script setup lang="ts">
-const { icon, choice, selected, disabled } = defineProps<{
+const { icon, label, choice, selected, disabled } = defineProps<{
   icon: string
+  label: string
   choice: string
   selected: string
   disabled: boolean
@@ -9,10 +10,11 @@ const { icon, choice, selected, disabled } = defineProps<{
 <template>
   <button
     type="button"
-    class="relative inline-flex items-center px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 focus:z-10 active:bg-blue-100"
+    class="relative inline-flex flex-1 items-center justify-center px-3 py-2 text-sm text-gray-900 ring-1 ring-inset ring-gray-300 focus:z-10 active:bg-blue-100"
     :disabled="disabled"
     :class="{ 'bg-blue-200': selected === choice }"
   >
-    <img :src="icon" class="h-6" :alt="'Choice icon ' + choice" />
+    <img v-if="icon" :src="icon" class="h-6" :alt="'Choice icon ' + choice" />
+    <div v-if="label">{{ label }}</div>
   </button>
 </template>

@@ -1,13 +1,8 @@
 <script setup lang="ts">
-// TODO (feature): add encumbrance
-// TODO (refactor): change toggle bar over to choice set component
-// TODO (refactor): apply new switch component
-
 import type { Equipment } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
 import { removeUUIDs, printPrice } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
-import { Switch } from '@headlessui/vue'
 import { inventoryTypes } from '@/utils/constants'
 import { capitalize } from 'lodash-es'
 
@@ -18,12 +13,16 @@ import InfoModal from '@/components/InfoModal.vue'
 import Button from '@/components/ButtonWidget.vue'
 import DropdownWidget from './DropdownWidget.vue'
 import CounterWidget from './CounterWidget.vue'
+import ToggleWidget from './ToggleWidget.vue'
+import ChoiceWidget from './ChoiceWidget.vue'
 
 const infoModal = ref()
 const investedModal = ref()
 
 const character = inject(useKeys().characterKey)!
 const { inventory } = character
+const { max: bulkMax, encumberedAfter: bulkEncumberedAfter } = character.bulk
+const { value: bulkValue, normal: bulkNormal } = character.bulk.value
 
 const itemViewedId = ref<string | undefined>()
 const itemViewed = computed(() =>
@@ -130,6 +129,44 @@ const toggleSet = [
       ]"
     />
     <!-- Invested Items line -->
+    <svg width="100%" height="30" class="trasition-all duration-500">
+      <rect
+        width="100%"
+        height="100%"
+        style="fill: #fdd"
+        class="trasition-all duration-500 ease-in-out"
+      />
+      <rect
+        :width="((bulkEncumberedAfter ?? 0) / (bulkMax ?? 100)) * 100 + '%'"
+        height="100%"
+        style="fill: #dfd"
+        class="trasition-all duration-500 ease-in-out"
+      />
+      <rect
+        :width="((bulkNormal ?? 0) / (bulkMax ?? 100)) * 100 + '%'"
+        height="100%"
+        :style="
+          'fill: ' +
+          ((bulkNormal ?? 0) < (bulkEncumberedAfter ?? 0)
+            ? 'lightgreen'
+            : (bulkNormal ?? 0) < (bulkMax ?? 0)
+              ? 'yellow'
+              : 'red')
+        "
+        class="trasition-all duration-500 ease-in-out"
+      />
+      <rect
+        width="100%"
+        height="100%"
+        style="fill: transparent; stroke-width: 3; stroke: rgb(100, 100, 100)"
+      />
+      <text y="20" x="6" stroke="black" font-size="10pt" font-weight="lighter">
+        Current Bulk: {{ bulkValue }} / {{ bulkEncumberedAfter }}
+      </text>
+      <text y="20" x="100%" text-anchor="end" stroke="black" font-size="10pt" font-weight="lighter">
+        Max: {{ bulkMax }}&nbsp;&nbsp;
+      </text>
+    </svg>
     <div v-if="inventory?.length">
       <span class="cursor-pointer text-sm text-gray-500" @click="investedModal.open()">
         (Items Invested:
@@ -204,44 +241,31 @@ const toggleSet = [
       </template>
       <template #beforeBody>
         <div class="my-2">
-          <div
-            class="mb-2 flex w-full basis-full justify-items-center rounded-md border border-gray-400 text-xs empty:hidden"
-          >
-            <div
-              v-for="t in toggleSet"
-              class="flex-auto cursor-pointer border-l border-gray-300 p-2 text-center transition-colors first:border-none active:bg-gray-200"
-              :class="{
-                'bg-gray-300': t.toggleIsActive(),
-                'opacity-50': itemViewed?.type === 'backpack'
-              }"
-              @click="itemViewed?.type !== 'backpack' ? t?.toggleTrigger() : null"
-              :key="t.id"
-            >
-              <span>{{ t.toggleText }}</span>
-            </div>
-          </div>
+          <ChoiceWidget
+            class="w-full"
+            :selected="toggleSet.find((t) => t.toggleIsActive())?.id"
+            :choiceSet="toggleSet.map((t) => t.id)"
+            :labelSet="toggleSet.reduce((acc, cur) => ({ ...acc, [cur.id]: cur.toggleText }), {})"
+            :clicked="
+              (newChoice) => {
+                if (itemViewed?.type === 'backpack') return null
+                else return toggleSet.find((t) => t.id === newChoice)?.toggleTrigger()
+              }
+            "
+          />
           <div v-if="itemViewed?.system.equipped.carryType === 'worn' && itemWornType" class="flex">
-            <Switch
-              :modelValue="itemViewed?.system?.equipped?.inSlot"
-              @update:modelValue="
-                (newValue) =>
+            <ToggleWidget
+              :active="itemViewed?.system?.equipped?.inSlot"
+              :clicked="
+                () =>
                   itemViewed?.changeCarry?.(
                     itemViewed?.system?.equipped?.carryType,
                     itemViewed?.system?.equipped?.handsHeld,
                     itemViewed?.system?.containerId,
-                    newValue
+                    !itemViewed?.system?.equipped?.inSlot
                   )
               "
-              :class="itemViewed?.system?.equipped?.inSlot ? 'bg-green-600' : 'bg-gray-500'"
-              class="relative inline-flex h-[24px] w-[40px] shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-white/75"
-            >
-              <span class="sr-only">Item Worn in Slot?</span>
-              <span
-                aria-hidden="true"
-                :class="itemViewed?.system?.equipped?.inSlot ? 'translate-x-4' : 'translate-x-0'"
-                class="pointer-events-none inline-block h-[20px] w-[20px] transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out"
-              />
-            </Switch>
+            />
             <span
               class="text-md ml-2 align-middle"
               :class="{ 'text-gray-400': !itemViewed?.system?.equipped?.inSlot }"
@@ -260,19 +284,10 @@ const toggleSet = [
             "
             class="flex py-1"
           >
-            <Switch
-              :modelValue="itemViewed.system.equipped.invested"
-              @update:modelValue="(newValue) => itemViewed?.toggleInvested?.(newValue)"
-              :class="itemViewed.system.equipped.invested ? 'bg-green-600' : 'bg-gray-500'"
-              class="relative inline-flex h-[24px] w-[40px] shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-white/75"
-            >
-              <span class="sr-only">Item invested?</span>
-              <span
-                aria-hidden="true"
-                :class="itemViewed.system.equipped.invested ? 'translate-x-4' : 'translate-x-0'"
-                class="pointer-events-none inline-block h-[20px] w-[20px] transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out"
-              />
-            </Switch>
+            <ToggleWidget
+              :active="itemViewed.system.equipped.invested"
+              :clicked="() => itemViewed?.toggleInvested?.(!itemViewed.system.equipped.invested)"
+            />
             <span
               class="text-md ml-2 align-middle"
               :class="{ 'text-gray-400': !itemViewed.system.equipped.invested }"
@@ -281,6 +296,7 @@ const toggleSet = [
               }}</span
             >
           </div>
+
           <div
             v-if="
               itemViewed?.system?.equipped?.carryType === 'stowed' &&
@@ -310,7 +326,7 @@ const toggleSet = [
       </template>
       <template #body>
         <div v-html="removeUUIDs(itemViewed?.system?.description.value)"></div>
-        <div class="ml-auto flex justify-end gap-1">
+        <div class="ml-auto flex justify-end gap-1" v-if="itemViewed?.system?.uses?.value">
           <div class="text-xl">Uses:</div>
           <CounterWidget
             :title="itemViewed?.name + ' (uses)'"
@@ -324,37 +340,41 @@ const toggleSet = [
       </template>
       <template #actionButtons v-if="itemViewed">
         <div class="flex flex-1">Qty: {{ itemViewed?.system?.quantity }}</div>
-        <Button
-          color="lightgray"
-          :clicked="() => itemViewed?.changeQty?.((itemViewed?.system?.quantity ?? NaN) - 1)"
-        >
-          -
-        </Button>
-        <Button
-          color="lightgray"
-          :clicked="() => itemViewed?.changeQty?.((itemViewed?.system?.quantity ?? NaN) + 1)"
-        >
-          +
-        </Button>
-        <Button
-          color="red"
-          v-if="inventory.filter((i) => i.system?.containerId === itemViewed?._id).length === 0"
-          :clicked="
-            () => {
-              infoModal.close()
-              return itemViewed?.delete?.()
-            }
-          "
-        >
-          Remove
-        </Button>
-        <Button
-          v-if="itemViewed?.system?.uses?.max"
-          color="green"
-          :disabled="itemViewed?.system?.uses?.value === 0"
-          :clicked="() => itemViewed?.consumeItem?.().then(() => infoModal.close())"
-          >Use Item</Button
-        >
+        <div class="flex gap-2">
+          <Button
+            color="lightgray"
+            :clicked="() => itemViewed?.changeQty?.((itemViewed?.system?.quantity ?? NaN) - 1)"
+          >
+            -
+          </Button>
+          <Button
+            color="lightgray"
+            :clicked="() => itemViewed?.changeQty?.((itemViewed?.system?.quantity ?? NaN) + 1)"
+          >
+            +
+          </Button>
+        </div>
+        <div class="flex gap-2">
+          <Button
+            color="red"
+            v-if="inventory.filter((i) => i.system?.containerId === itemViewed?._id).length === 0"
+            :clicked="
+              () => {
+                infoModal.close()
+                return itemViewed?.delete?.()
+              }
+            "
+          >
+            Remove
+          </Button>
+          <Button
+            v-if="itemViewed?.system?.uses?.max"
+            color="green"
+            :disabled="itemViewed?.system?.uses?.value === 0"
+            :clicked="() => itemViewed?.consumeItem?.().then(() => infoModal.close())"
+            >Use Item</Button
+          >
+        </div>
       </template>
     </InfoModal>
   </Teleport>

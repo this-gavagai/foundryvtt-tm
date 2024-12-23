@@ -16,6 +16,7 @@ export default [
       '**/coverage/**',
       '**/libs/**',
       '**/tablemate/**',
+      '**/tabula/**',
       // TODO (types): remove this line. it's just there for now while my types files are such a mess.
       '**/types/**'
     ]

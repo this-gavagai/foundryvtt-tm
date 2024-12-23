@@ -96,10 +96,20 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
           ),
         setDamageType: (newType: string) => {
           const item = actor.value?.items.find((i: PF2eItem) => i._id === action?.item?._id)
+          if (!item || !actor.value) return Promise.resolve(null)
           const adjustment = item?.system?.damage?.damageType === newType ? null : newType
-          const update = item?.system?.traits?.value?.includes('modular')
+          const isModular = item?.system?.traits?.value?.includes('modular')
+          const update = isModular
             ? { system: { traits: { toggles: { modular: { selected: adjustment } } } } }
             : { system: { traits: { toggles: { versatile: { selected: adjustment } } } } }
+          if (isModular)
+            actor.value.items.find(
+              (i: PF2eItem) => i._id === action?.item?._id
+            )!.system.traits.toggles.modular.selected = adjustment
+          else
+            actor.value.items.find(
+              (i: PF2eItem) => i._id === action?.item?._id
+            )!.system.traits.toggles.versatile.selected = adjustment
           return updateActorItem(actor as Ref<Actor>, action?.item?._id ?? '', update)
         },
         changeAmmo: (newId: string | null) => {

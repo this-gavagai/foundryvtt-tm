@@ -2,7 +2,10 @@
 import { ref } from 'vue'
 import { Switch } from '@headlessui/vue'
 
-const props = defineProps<{ active: boolean | undefined; clicked?: () => Promise<unknown> }>()
+const props = defineProps<{
+  active: boolean | undefined
+  clicked?: () => Promise<unknown> | undefined
+}>()
 const emit = defineEmits(['changed'])
 
 const waiting = ref(false)

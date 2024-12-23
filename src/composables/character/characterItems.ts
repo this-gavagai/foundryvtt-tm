@@ -35,6 +35,15 @@ export interface CharacterItems {
   spellcastingEntries: Field<SpellcastingEntry[]>
   spells: Field<Spell[]>
   spellConsumables: Field<Item[]>
+  bulk: {
+    max: Field<number>
+    encumberedAfter: Field<number>
+    value: {
+      value: Field<number>
+      light: Field<number>
+      normal: Field<number>
+    }
+  }
 }
 
 export function useCharacterItems(actor: Ref<Actor | undefined>) {
@@ -165,6 +174,15 @@ export function useCharacterItems(actor: Ref<Actor | undefined>) {
             return updateActorItem(actor as Ref<Actor>, i?._id, updates)
           }
         }))
-    )
+    ),
+    bulk: {
+      max: computed(() => actor.value?.inventory?.bulk?.max),
+      encumberedAfter: computed(() => actor.value?.inventory?.bulk?.encumberedAfter),
+      value: {
+        value: computed(() => actor.value?.inventory?.bulk?.value.value),
+        light: computed(() => actor.value?.inventory?.bulk?.value.light),
+        normal: computed(() => actor.value?.inventory?.bulk?.value.normal)
+      }
+    }
   }
 }

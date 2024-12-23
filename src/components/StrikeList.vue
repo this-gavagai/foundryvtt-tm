@@ -329,8 +329,8 @@ watch(viewedStrike, async () => updateDamageFormula())
           ft.
         </div>
         <div class="flex justify-end gap-2">
+          <span class="mt-2">Damage Type:</span>
           <ChoiceWidget
-            label="Damage Type:"
             :choiceSet="damageTypeOptions ?? []"
             :iconSet="damageIcons"
             :selected="viewedStrikeDamageTypeSelected ?? ''"

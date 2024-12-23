@@ -30,3 +30,4 @@ coverage
 # output files
 package-lock.json
 tablemate/
+tabula/

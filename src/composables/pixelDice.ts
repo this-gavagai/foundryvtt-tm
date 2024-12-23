@@ -50,6 +50,11 @@ export function usePixelDice() {
     await afterConnect()
   }
 
+  async function pixelDisconnect() {
+    pixel.value = undefined
+    systemIds.value = undefined
+  }
+
   function getLastRoll() {
     // Get last roll state
     const rollState = pixel.value?.rollState
@@ -77,6 +82,7 @@ export function usePixelDice() {
   return {
     pixelConnect,
     pixelReconnect,
+    pixelDisconnect,
     getPixel,
     getLastRoll,
     readStatus,

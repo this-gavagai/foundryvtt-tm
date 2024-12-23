@@ -11,7 +11,7 @@ import RollOptions from '@/components/RollOptions.vue'
 import Spinner from './SpinnerWidget.vue'
 
 const { world } = useWorld()
-const { pixelConnect, pixelReconnect, pixel } = usePixelDice()
+const { pixelConnect, pixelReconnect, pixelDisconnect, pixel } = usePixelDice()
 const { userList, targetingProxyId, updateProxyId } = useTargetHelper()
 
 const pixelStatus = ref<string | undefined>()
@@ -120,6 +120,11 @@ defineExpose({ sidebarOpen })
                           >)
                         </div>
                         <Spinner v-if="pixelStatus === 'connecting'" class="h-6 w-6" />
+                        <XMarkIcon
+                          v-else-if="pixelStatus === 'disconnected'"
+                          class="w-4 cursor-pointer"
+                          @click="pixelDisconnect"
+                        />
                       </li>
                     </ul>
                   </li>
