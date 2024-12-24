@@ -2,9 +2,9 @@
 import { ref } from 'vue'
 import Modal from '@/components/ModalBox.vue'
 import { PlusCircleIcon, MinusCircleIcon } from '@heroicons/vue/24/outline'
-import Button from '@/components/ButtonWidget.vue'
-import Spinner from '@/components/SpinnerWidget.vue'
-import PipWidget from './PipWidget.vue'
+import Button from '@/components/widgets/ButtonWidget.vue'
+import Spinner from '@/components/widgets/SpinnerWidget.vue'
+import PipWidget from '@/components/widgets/PipWidget.vue'
 
 const props = defineProps<{
   value: number | undefined

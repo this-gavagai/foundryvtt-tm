@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { inject } from 'vue'
-import StatBox from './StatBox.vue'
+import StatBox from './widgets/StatBox.vue'
 import { formatModifier } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 

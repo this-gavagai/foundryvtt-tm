@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { inject, computed } from 'vue'
-import StatBox from './StatBox.vue'
+import StatBox from './widgets/StatBox.vue'
 import { useKeys } from '@/composables/injectKeys'
 
 import d20 from '@/assets/icons/d20.svg'

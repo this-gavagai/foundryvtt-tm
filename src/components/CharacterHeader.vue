@@ -8,7 +8,7 @@ import { Bars3Icon } from '@heroicons/vue/24/solid'
 import { useKeys } from '@/composables/injectKeys'
 import HitPoints from '@/components/HitPoints.vue'
 import HeroPoints from '@/components/HeroPoints.vue'
-import Spinner from '@/components/SpinnerWidget.vue'
+import Spinner from '@/components/widgets/SpinnerWidget.vue'
 import SideMenu from '@/components/SideMenu.vue'
 import { useWorld } from '@/composables/world'
 

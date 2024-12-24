@@ -27,7 +27,8 @@ const MODNAME = 'module.tablemate'
 
 export function setupListener() {
   console.log('TABLEMATE: Setting up listener')
-  if (iAmObserverOrFallbackGM()) announceSelf()
+  if (!iAmObserverOrFallbackGM()) return
+  announceSelf()
 
   game.socket.onAnyOutgoing((event: string, ...args: ModuleEventArgs[] | GetEvent[]) => {
     if (
@@ -43,7 +44,6 @@ export function setupListener() {
 
   game.socket.on(MODNAME, (args: ModuleEventArgs) => {
     console.log('TM.RECV (listener)', args)
-    if (!iAmObserverOrFallbackGM()) return
     switch (args.action) {
       case 'anybodyHome':
         announceSelf()
@@ -89,11 +89,9 @@ export function setupListener() {
         console.log('event not caught', args.action, args)
     }
   })
-  if (game.user.flags?.['tablemate']?.['shared_display']) {
-    Hooks.on('targetToken', () => {
-      broadcastTargets()
-    })
-  }
+  Hooks.on('targetToken', () => {
+    broadcastTargets()
+  })
 }
 
 // utility functions
@@ -117,7 +115,6 @@ function observerIsOnline() {
 function iAmObserverOrFallbackGM() {
   return iAmObserver() || (!observerIsOnline() && iAmFirstGM())
 }
-
 function announceSelf() {
   game.socket.emit(MODNAME, {
     action: 'listenerOnline',

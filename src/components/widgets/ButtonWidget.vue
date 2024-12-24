@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import Spinner from './SpinnerWidget.vue'
+import Spinner from '@/components/widgets/SpinnerWidget.vue'
 const props = defineProps<{ label?: string; color?: string; clicked?: () => void }>()
 const waiting = ref(false)
 

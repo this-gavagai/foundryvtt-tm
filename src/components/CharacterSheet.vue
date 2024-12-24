@@ -4,6 +4,7 @@ import { type Ref, onUnmounted, onMounted } from 'vue'
 import { ref, provide, computed } from 'vue'
 import { TabGroup, TabList, TabPanels } from '@headlessui/vue'
 import { debounce } from 'lodash-es'
+
 import { useWorld } from '@/composables/world'
 import { useCharacter } from '@/composables/character'
 import { useApi } from '@/composables/api'

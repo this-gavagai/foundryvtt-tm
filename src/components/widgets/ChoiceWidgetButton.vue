@@ -15,6 +15,6 @@ const { icon, label, choice, selected, disabled } = defineProps<{
     :class="{ 'bg-blue-200': selected === choice }"
   >
     <img v-if="icon" :src="icon" class="h-6" :alt="'Choice icon ' + choice" />
-    <div v-if="label">{{ label }}</div>
+    <div v-if="label" class="text-xs">{{ label }}</div>
   </button>
 </template>

@@ -6,18 +6,22 @@ import { actionDefs, actionTypes } from '@/utils/constants'
 import { inject, ref, computed } from 'vue'
 import { removeUUIDs } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
+import { useListeners } from '@/composables/listenersOnline'
 
-import ButtonWidget from '@/components/ButtonWidget.vue'
-import ActionIcons from '@/components/ActionIcons.vue'
+import ButtonWidget from '@/components/widgets/ButtonWidget.vue'
+import ActionIcons from '@/components/widgets/ActionIcons.vue'
+import DerivedButtons from './DerivedButtons.vue'
 
 import InfoModal from '@/components/InfoModal.vue'
-import SkillSelector from './SkillSelector.vue'
+import SkillSelector from '@/components/widgets/SkillSelector.vue'
 
 const infoModal = ref()
 const skillSelector = ref()
 
 const character = inject(useKeys().characterKey)!
 const { actions } = character
+
+const { isListening } = useListeners()
 
 const actionViewedId = ref<string | undefined>()
 const actionViewed = computed(() => actions.value?.find((a) => a._id === actionViewedId.value))
@@ -94,7 +98,7 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
       <template #body>
         <div v-html="removeUUIDs(actionViewed?.system?.description.value)"></div>
       </template>
-      <template #actionButtons>
+      <template #actionButtons v-if="isListening">
         <div class="align-items-center flex gap-2">
           <SkillSelector
             v-if="actionDefs.get(actionViewed?.system?.slug ?? '')?.skill === '*'"
@@ -119,6 +123,7 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
               }
             "
           />
+          <DerivedButtons :text="actionViewed?.system?.description.value" />
         </div>
       </template>
     </InfoModal>

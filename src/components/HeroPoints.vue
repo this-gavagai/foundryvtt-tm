@@ -3,8 +3,8 @@ import type { Character } from '@/composables/character'
 import { inject, ref } from 'vue'
 import { useKeys } from '@/composables/injectKeys'
 
-import StatBox from '@/components/StatBox.vue'
-import CounterWidget from '@/components/CounterWidget.vue'
+import StatBox from '@/components/widgets/StatBox.vue'
+import CounterWidget from '@/components/widgets/CounterWidget.vue'
 
 const counter = ref()
 

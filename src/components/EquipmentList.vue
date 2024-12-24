@@ -3,6 +3,7 @@ import type { Equipment } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
 import { removeUUIDs, printPrice } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
+import { useListeners } from '@/composables/listenersOnline'
 import { inventoryTypes } from '@/utils/constants'
 import { capitalize } from 'lodash-es'
 
@@ -10,11 +11,11 @@ import EquipmentInvested from '@/components/EquipmentInvested.vue'
 import EquipmentListItem from '@/components/EquipmentListItem.vue'
 import Modal from '@/components/ModalBox.vue'
 import InfoModal from '@/components/InfoModal.vue'
-import Button from '@/components/ButtonWidget.vue'
-import DropdownWidget from './DropdownWidget.vue'
-import CounterWidget from './CounterWidget.vue'
-import ToggleWidget from './ToggleWidget.vue'
-import ChoiceWidget from './ChoiceWidget.vue'
+import Button from '@/components/widgets/ButtonWidget.vue'
+import DropdownWidget from '@/components/widgets/DropdownWidget.vue'
+import CounterWidget from '@/components/widgets/CounterWidget.vue'
+import ToggleWidget from '@/components/widgets/ToggleWidget.vue'
+import ChoiceWidget from '@/components/widgets/ChoiceWidget.vue'
 
 const infoModal = ref()
 const investedModal = ref()
@@ -23,6 +24,8 @@ const character = inject(useKeys().characterKey)!
 const { inventory } = character
 const { max: bulkMax, encumberedAfter: bulkEncumberedAfter } = character.bulk
 const { value: bulkValue, normal: bulkNormal } = character.bulk.value
+
+const { isListening } = useListeners()
 
 const itemViewedId = ref<string | undefined>()
 const itemViewed = computed(() =>
@@ -337,9 +340,9 @@ const toggleSet = [
             editable
           />
         </div>
-      </template>
-      <template #actionButtons v-if="itemViewed">
         <div class="flex flex-1">Qty: {{ itemViewed?.system?.quantity }}</div>
+      </template>
+      <template #actionButtons v-if="itemViewed && isListening">
         <div class="flex gap-2">
           <Button
             color="lightgray"
@@ -368,7 +371,7 @@ const toggleSet = [
             Remove
           </Button>
           <Button
-            v-if="itemViewed?.system?.uses?.max"
+            v-if="isListening && itemViewed?.system?.uses?.max"
             color="green"
             :disabled="itemViewed?.system?.uses?.value === 0"
             :clicked="() => itemViewed?.consumeItem?.().then(() => infoModal.close())"

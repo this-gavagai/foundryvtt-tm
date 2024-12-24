@@ -2,13 +2,14 @@
 import { inject, ref, watch, computed } from 'vue'
 import { formatModifier } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
+import { useListeners } from '@/composables/listenersOnline'
 import InfoModal from './InfoModal.vue'
-import Button from '@/components/ButtonWidget.vue'
+import Button from '@/components/widgets/ButtonWidget.vue'
 import StrikeActionSet from './StrikeActionSet.vue'
 import type { Strike } from '@/composables/character'
 
-import ChoiceWidget from './ChoiceWidget.vue'
-import DropdownWidget from './DropdownWidget.vue'
+import ChoiceWidget from '@/components/widgets/ChoiceWidget.vue'
+import DropdownWidget from './widgets/DropdownWidget.vue'
 
 import action1 from '@/assets/icons/action1.svg'
 import action2 from '@/assets/icons/action2.svg'
@@ -40,6 +41,8 @@ const { strikes, blasts, inventory, actions, blastActions } = character
 
 const strikeModal = ref()
 const strikeModalDamage = ref()
+
+const { isListening } = useListeners()
 
 // calculated fields for InfoModal
 const viewedStrikeId = ref<number | undefined>()
@@ -169,6 +172,7 @@ const attackTypeMap = new Map([
 ])
 
 async function updateDamageFormula() {
+  if (!isListening) return
   const isStrike = !viewedStrike.value?.hasOwnProperty('isBlast')
   if (isStrike) {
     strikeModalDamage.value = await (viewedStrike.value as Strike)?.getDamage?.(
@@ -329,20 +333,22 @@ watch(viewedStrike, async () => updateDamageFormula())
           ft.
         </div>
         <div class="flex justify-end gap-2">
-          <span class="mt-2">Damage Type:</span>
-          <ChoiceWidget
-            :choiceSet="damageTypeOptions ?? []"
-            :iconSet="damageIcons"
-            :selected="viewedStrikeDamageTypeSelected ?? ''"
-            :clicked="
-              (damageType) => {
-                console.log(damageType, viewedStrike)
-                return strikes?.[viewedStrikeId ?? 0]?.setDamageType?.(damageType)?.then((r) => {
-                  updateDamageFormula()
-                })
-              }
-            "
-          />
+          <div v-if="damageTypeOptions.length > 1">
+            <span class="mt-2">Damage Type:</span>
+            <ChoiceWidget
+              :choiceSet="damageTypeOptions ?? []"
+              :iconSet="damageIcons"
+              :selected="viewedStrikeDamageTypeSelected ?? ''"
+              :clicked="
+                (damageType) => {
+                  console.log(damageType, viewedStrike)
+                  return strikes?.[viewedStrikeId ?? 0]?.setDamageType?.(damageType)?.then((r) => {
+                    updateDamageFormula()
+                  })
+                }
+              "
+            />
+          </div>
           <ChoiceWidget
             v-if="viewedStrikeOptions?.type?.match('blast')"
             :choiceSet="['1', '2']"
@@ -369,7 +375,7 @@ watch(viewedStrike, async () => updateDamageFormula())
           </li>
         </ul>
       </template>
-      <template #actionButtons>
+      <template #actionButtons v-if="isListening">
         <Button
           v-if="viewedStrikeOptions?.type === 'strike' || viewedStrikeOptions?.type === 'blast'"
           color="blue"

@@ -2,11 +2,11 @@
 import type { Combatant } from '@/types/pf2e-types'
 import { computed, inject } from 'vue'
 import { formatModifier } from '@/utils/utilities'
-import StatBox from '@/components/StatBox.vue'
+import StatBox from '@/components/widgets/StatBox.vue'
 import { useCombat } from '@/composables/combat'
 import { useKeys } from '@/composables/injectKeys'
 
-import DropdownWidget from './DropdownWidget.vue'
+import DropdownWidget from './widgets/DropdownWidget.vue'
 
 const character = inject(useKeys().characterKey)!
 const { _id: currentActorId, skills, perception } = character

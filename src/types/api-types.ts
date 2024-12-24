@@ -19,6 +19,7 @@ export interface AcknowledgementArgs {
 }
 export interface ListenderOnlineArgs {
   action: 'listenerOnline'
+  user: string
 }
 export interface UpdateCharacterDetailsArgs {
   action: 'updateCharacterDetails'

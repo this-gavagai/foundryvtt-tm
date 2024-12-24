@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ActionIcons from './ActionIcons.vue'
+import ActionIcons from './widgets/ActionIcons.vue'
 import { capitalize } from 'lodash-es'
 
 import melee from '@/assets/icons/plain-dagger.svg'

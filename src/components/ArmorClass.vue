@@ -2,13 +2,13 @@
 import { ref, computed } from 'vue'
 import type { Character } from '@/composables/character'
 import { inject } from 'vue'
-import StatBox from './StatBox.vue'
+import StatBox from './widgets/StatBox.vue'
 import { useKeys } from '@/composables/injectKeys'
 import { parseIncrement } from '@/utils/utilities'
 import { useApi } from '@/composables/api'
-
+import { useListeners } from '@/composables/listenersOnline'
 import Modal from './ModalBox.vue'
-import Button from '@/components/ButtonWidget.vue'
+import Button from '@/components/widgets/ButtonWidget.vue'
 import shield from '@/assets/icons/shield-2.svg'
 
 interface SubmissionEvent {
@@ -29,6 +29,7 @@ const { hardness, ac: shAC } = character.shield
 const { current: shpCurrent, max: shpMax, brokenThreshold: shpBT } = character.shield.hp
 
 const { callMacro } = useApi()
+const { isListening } = useListeners()
 
 const raisedShield = computed(
   () => effects.value?.find((e) => e?.system?.slug === 'effect-raise-a-shield') !== undefined
@@ -79,6 +80,7 @@ function updateHitPoints(hp_input: string) {
         </div>
       </div>
       <div
+        v-if="isListening"
         @click="
           () => {
             shieldWaiting = true

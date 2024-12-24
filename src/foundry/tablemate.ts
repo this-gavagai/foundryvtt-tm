@@ -1,10 +1,9 @@
 import { setupListener } from './listener'
-import type { Hooks, Game, Canvas, Foundry, User } from '@/types/foundry-types'
+import type { Hooks, Game, Foundry, User } from '@/types/foundry-types'
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api
 
 declare const Hooks: Hooks
 declare const game: Game
-declare const canvas: Canvas
 declare const foundry: Foundry
 
 declare interface Form {
@@ -17,7 +16,7 @@ declare interface SheetableUser extends User {
   sheeted: boolean
 }
 
-console.log('tablemate initializing...')
+console.log('TM initializing...')
 
 Hooks.on('init', function () {
   const user = game.data.users.find((x: User) => x._id === game.userId)
@@ -28,39 +27,7 @@ Hooks.on('init', function () {
   }
 })
 
-Hooks.on('setup', function () {
-  // this is legacy code, from back when the app opened in a frame.
-  const user = game.data.users.find((x: User) => x._id === game.userId)
-  if (user.flags?.['tablemate']?.['character_sheet'] === 'frame') {
-    console.log('TABLEMATE: Loading in frame')
-    user.flags.pf2e.settings.showCheckDialogs = false
-    user.flags.pf2e.settings.showDamageDialogs = false
-
-    Hooks.once('canvasReady', function () {
-      console.log('tablemate canvas state', canvas.ready)
-      canvas.app.stop()
-    })
-
-    const app = document.createElement('iframe')
-    app.width = '100%'
-    app.src = `${window.location.origin}/modules/tablemate/index.html?id=${user.character}`
-    document.querySelector('body')?.appendChild(app)
-
-    const styles = document.createElement('link')
-    styles.setAttribute('rel', 'stylesheet')
-    styles.setAttribute('href', '/modules/tablemate/tablemate.css')
-    document.head.appendChild(styles)
-  }
-})
-
 Hooks.on('ready', () => {
-  const user = game.data.users.find((x: User) => x._id === game.userId)
-  if (user.flags?.['tablemate']?.['character_sheet'] === 'frame') {
-    if (!game.audio.locked) game.audio.context?.stop()
-  }
-  // Hooks.on('renderUserConfigPF2e', (app: any, html: any, data: any) => {
-  //   addCharSheetFields(app, html, data)
-  // })
   setupListener()
 
   console.log('tablemate hello')

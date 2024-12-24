@@ -1,16 +1,15 @@
 <script setup lang="ts">
-// TODO (feature): deal with flexible prepared casters
-
 import type { SpellcastingEntry, Spell, Item } from '@/composables/character'
 import { inject, computed, ref } from 'vue'
 import { removeUUIDs } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
+import { useListeners } from '@/composables/listenersOnline'
 
-import Button from '@/components/ButtonWidget.vue'
-import CounterWidget from '@/components/CounterWidget.vue'
+import Button from '@/components/widgets/ButtonWidget.vue'
+import CounterWidget from '@/components/widgets/CounterWidget.vue'
 import Modal from '@/components/ModalBox.vue'
 import InfoModal from '@/components/InfoModal.vue'
-import ActionIcons from '@/components/ActionIcons.vue'
+import ActionIcons from '@/components/widgets/ActionIcons.vue'
 
 interface Spellbook {
   [key: string]: { [key: string]: [Item?] }
@@ -27,6 +26,8 @@ interface SpellInfo {
 const character = inject(useKeys().characterKey)!
 const { spellcastingEntries, spells, spellConsumables, spellDC } = character
 const { max: focusMax, current: focusCurrent } = character.focusPoints
+
+const { isListening } = useListeners()
 
 const infoModal = ref()
 const spellSelectionModal = ref()
@@ -50,7 +51,10 @@ const spellbook = computed((): Spellbook => {
   // assign spells to spellbook ranks
   for (const locationId of Object.keys(sb)) {
     const location = spellcastingEntries.value?.find((i: Item) => i._id === locationId)
-    if (location?.system.prepared.value === 'prepared') {
+    if (
+      location?.system.prepared.value === 'prepared' &&
+      location?.system?.prepared?.flexible === false
+    ) {
       Object.values(location.system.slots).forEach((slot, slotRank: number) => {
         const preparedSpells = slot.prepared.map((slotSpell) =>
           spells.value?.find((i: Item) => i._id === slotSpell.id)
@@ -144,7 +148,11 @@ const spellbook = computed((): Spellbook => {
               </span>
               <CounterWidget
                 class="relative bottom-[-1px] -m-[2px] mr-2 h-4 pb-1 text-sm"
-                v-if="location.system?.prepared.value === 'spontaneous'"
+                v-if="
+                  location.system?.prepared.value === 'spontaneous' ||
+                  (location.system?.prepared?.value === 'prepared' &&
+                    location?.system?.prepared?.flexible === true)
+                "
                 :value="location.system.slots?.['slot' + rank]?.value"
                 :max="location.system.slots?.['slot' + rank]?.max"
                 editable
@@ -202,7 +210,11 @@ const spellbook = computed((): Spellbook => {
                 </div>
                 <CounterWidget
                   class="mr-2 mt-1 h-3 text-sm"
-                  v-if="location.system?.prepared.value === 'prepared'"
+                  v-if="
+                    location.system?.prepared.value === 'prepared' &&
+                    location?.system?.prepared?.flexible === false &&
+                    Number(rank) > 0
+                  "
                   :value="
                     location.system.slots['slot' + rank].prepared[index]?.expended === false ? 1 : 0
                   "
@@ -322,7 +334,7 @@ const spellbook = computed((): Spellbook => {
         <!-- <div v-html="makePropertiesHtml(viewedSpell!)"></div> -->
         <div v-html="removeUUIDs(viewedSpell?.system.description?.value)"></div>
       </template>
-      <template #actionButtons>
+      <template #actionButtons v-if="isListening">
         <Button
           label="Remove"
           color="red"

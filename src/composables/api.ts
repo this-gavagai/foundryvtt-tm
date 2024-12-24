@@ -1,4 +1,3 @@
-// TODO (UX): need some way to indicate that gm-dependent methods aren't available when that's the case
 import type { Ref } from 'vue'
 import type { Actor, World, Item, Combat, System, ElementalBlasts } from '@/types/pf2e-types'
 import type {
@@ -27,7 +26,8 @@ import { useServer } from '@/composables/server'
 import { useTargetHelper } from '@/composables/targetHelper'
 import { uuidv4 } from '@/utils/utilities'
 import { useUserId } from '@/composables/user'
-// import { useWorld } from '@/composables/world'
+import { useWorld } from '@/composables/world'
+import { useListeners } from './listenersOnline'
 
 const characterUnsynced = new Map<string, boolean>() // character document dirty state, update request pending
 const characterLastRequest = new Map<string, string>() // latest character update request uuid
@@ -64,6 +64,18 @@ async function setupSocketListenersForApp() {
 }
 async function setupSocketListenersForWorld(world: Ref<World>) {
   const socket = await getSocket()
+  const { refreshWorld } = useWorld()
+  const { addListener } = useListeners()
+  socket.on('module.tablemate', (args: ModuleEventArgs) => {
+    switch (args.action) {
+      case 'listenerOnline':
+        refreshWorld()
+        console.log('listener online!', args)
+        addListener(args.user)
+        break
+    }
+  })
+
   socket.on('modifyDocument', (args: DocumentEventArgs) => {
     // let documentSource
     switch (args.type) {
@@ -86,8 +98,11 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
   })
   socket.on('userActivity', (user: string, args: UserActivityEventArgs) => {
     if (args.targets) {
+      console.log('user event', user, args)
       const { updateTargets } = useTargetHelper()
       updateTargets(user, args.targets)
+    } else if (args.active) {
+      console.log('user online', user, args)
     }
   })
   const userId = getUserId()

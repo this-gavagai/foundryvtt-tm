@@ -2,9 +2,10 @@
 import { ref, computed } from 'vue'
 import { SignedNumber } from '@/utils/utilities'
 import { proficiencies } from '@/utils/constants'
-import InfoModal from './InfoModal.vue'
-import Button from '@/components/ButtonWidget.vue'
+import InfoModal from '@/components/InfoModal.vue'
+import Button from '@/components/widgets/ButtonWidget.vue'
 import type { StatModifier, RollResult } from '@/types/pf2e-types'
+import { useListeners } from '@/composables/listenersOnline'
 
 const props = defineProps([
   'heading',
@@ -17,6 +18,7 @@ const props = defineProps([
   'rollAction'
 ])
 const infoModal = ref()
+const { isListening } = useListeners()
 
 function makeRoll(result: number | undefined = undefined) {
   return props.rollAction(result).then((r: RollResult) => {
@@ -57,7 +59,7 @@ defineExpose({ infoModal })
         :diceRequest="rollAction ? ['d20'] : undefined"
         @diceResult="
           (face) => {
-            if (rollAction) makeRoll(face)
+            if (rollAction && isListening) makeRoll(face)
           }
         "
       >
@@ -92,7 +94,7 @@ defineExpose({ infoModal })
             </ul>
           </div>
         </template>
-        <template #actionButtons>
+        <template #actionButtons v-if="isListening">
           <Button v-if="props.rollAction" color="blue" label="Roll" :clicked="() => makeRoll()" />
         </template>
       </InfoModal>

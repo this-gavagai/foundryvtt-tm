@@ -3,8 +3,8 @@ import { inject } from 'vue'
 import { useKeys } from '@/composables/injectKeys'
 import { capitalize } from 'lodash-es'
 
-import Toggle from './ToggleWidget.vue'
-import Dropdown from './DropdownWidget.vue'
+import Toggle from './widgets/ToggleWidget.vue'
+import Dropdown from './widgets/DropdownWidget.vue'
 
 const character = inject(useKeys().characterKey)!
 const { rollOptions } = character

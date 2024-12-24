@@ -4,9 +4,9 @@ import { inject, ref } from 'vue'
 import { parseIncrement } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 
-import StatBox from '@/components/StatBox.vue'
+import StatBox from '@/components/widgets/StatBox.vue'
 import Modal from '@/components/ModalBox.vue'
-import Button from '@/components/ButtonWidget.vue'
+import Button from '@/components/widgets/ButtonWidget.vue'
 
 interface FormData {
   xp: { value: string }

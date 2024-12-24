@@ -2,7 +2,7 @@
 import { inject, ref, computed } from 'vue'
 import InfoModal from '@/components/InfoModal.vue'
 import { useKeys } from '@/composables/injectKeys'
-import Button from '@/components/ButtonWidget.vue'
+import Button from '@/components/widgets/ButtonWidget.vue'
 import { removeUUIDs, getPath } from '@/utils/utilities'
 
 const character = inject(useKeys().characterKey)!

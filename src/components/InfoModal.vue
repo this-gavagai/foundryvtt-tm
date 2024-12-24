@@ -14,8 +14,9 @@ import { usePixelDice } from '@/composables/pixelDice'
 import { getPath } from '@/utils/utilities'
 import { makeTraits } from '@/utils/utilities'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
+import { useListeners } from '@/composables/listenersOnline'
 import Modal from './ModalBox.vue'
-import Spinner from './SpinnerWidget.vue'
+import Spinner from './widgets/SpinnerWidget.vue'
 
 const character = inject(useKeys().characterKey)!
 const { _id: characterId } = character
@@ -23,6 +24,7 @@ const { _id: characterId } = character
 const { sendItemToChat } = useApi()
 
 const { pixel, lastRoll } = usePixelDice()
+const { isListening } = useListeners()
 
 const props = defineProps<{
   imageUrl?: string
@@ -97,10 +99,11 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
                 >
                   <div class="flex space-x-2">
                     <div
-                      class="bg-gray-300 active:opacity-30"
+                      class="bg-gray-300"
+                      :class="[isListening ? 'active:opacity-30' : '']"
                       @click="
                         () => {
-                          if (!props.itemId || !characterId) return
+                          if (!props.itemId || !characterId || !isListening) return
                           waiting = true
                           sendItemToChat(characterId, props.itemId).then(() => (waiting = false))
                         }
@@ -152,7 +155,7 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
                     <slot></slot>
                   </div>
                 </div>
-                <div class="mt-4 flex flex-wrap items-center justify-end gap-2">
+                <div class="mt-4 flex flex-wrap items-center justify-end gap-2" v-if="isListening">
                   <div
                     v-if="pixel && pixel.status === 'ready' && diceRequest?.length"
                     class="grow cursor-pointer"

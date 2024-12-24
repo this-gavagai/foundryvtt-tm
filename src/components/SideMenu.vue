@@ -6,9 +6,9 @@ import { useTargetHelper } from '@/composables/targetHelper'
 import { useWorld } from '@/composables/world'
 import { usePixelDice } from '@/composables/pixelDice'
 
-import Dropdown from '@/components/DropdownWidget.vue'
+import Dropdown from '@/components/widgets/DropdownWidget.vue'
 import RollOptions from '@/components/RollOptions.vue'
-import Spinner from './SpinnerWidget.vue'
+import Spinner from './widgets/SpinnerWidget.vue'
 
 const { world } = useWorld()
 const { pixelConnect, pixelReconnect, pixelDisconnect, pixel } = usePixelDice()

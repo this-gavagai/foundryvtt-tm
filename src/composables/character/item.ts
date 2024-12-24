@@ -58,7 +58,7 @@ export interface Item {
     }
     spelldc: { dc: Maybe<number> }
     time: { value: Maybe<string> }
-    prepared: { value: Maybe<string> }
+    prepared: { value: Maybe<string>; flexible: Maybe<boolean> }
     slots: {
       [key: string]: {
         value: Maybe<number>
@@ -153,7 +153,10 @@ export function makeItem(root: PF2eItem | undefined): Item | undefined {
       },
       spelldc: { dc: root?.system?.spelldc?.dc },
       time: { value: root?.system?.time?.value },
-      prepared: { value: root?.system?.prepared?.value },
+      prepared: {
+        value: root?.system?.prepared?.value,
+        flexible: root?.system?.prepared?.flexible
+      },
       slots: Object.entries(root?.system?.slots ?? {}).reduce(
         (acc, curr) => (
           (acc[curr[0]] = {

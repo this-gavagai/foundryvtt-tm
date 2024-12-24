@@ -24,7 +24,8 @@ export interface GetEvent {
 }
 
 export interface UserActivityEventArgs {
-  targets: any
+  targets?: any
+  active?: boolean
 }
 
 export interface SessionEventArgs {
