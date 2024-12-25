@@ -20,32 +20,41 @@ const effectViewed = computed(() => effects.value?.find((e) => e._id === effectV
         : 'h-0 scale-y-0 border-opacity-0 py-0'
     ]"
   >
-    <div
-      class="h-10 cursor-pointer"
-      v-for="effect in effects"
-      :key="effect._id"
-      @click="
-        () => {
-          effectViewedId = effect._id
-          infoModal.open()
-        }
-      "
+    <TransitionGroup
+      enter-active-class="transform duration-300 ease-out"
+      enter-from-class=" opacity-0 max-h-0"
+      enter-to-class="opacity-100 max-h-7"
+      leave-active-class="transform duration-200 ease-in"
+      leave-from-class="opacity-100 max-h-7"
+      leave-to-class=" opacity-0 max-h-0"
     >
-      <div class="w-10">
-        <div class="relative">
-          <div
-            v-if="effect.system?.value?.isValued"
-            class="absolute bottom-0 right-0 border border-black bg-[#FFFFFFCC] px-1 text-xs"
-          >
-            {{ effect.system?.value?.value }}
+      <div
+        class="h-10 cursor-pointer"
+        v-for="effect in effects"
+        :key="effect._id"
+        @click="
+          () => {
+            effectViewedId = effect._id
+            infoModal.open()
+          }
+        "
+      >
+        <div class="w-10">
+          <div class="relative">
+            <div
+              v-if="effect.system?.value?.isValued"
+              class="absolute bottom-0 right-0 border border-black bg-[#FFFFFFCC] px-1 text-xs"
+            >
+              {{ effect.system?.value?.value }}
+            </div>
+            <img :src="getPath(effect.img ?? '')" class="rounded-full" alt="Effect icon" />
           </div>
-          <img :src="getPath(effect.img ?? '')" class="rounded-full" alt="Effect icon" />
-        </div>
-        <div class="overflow-hidden whitespace-nowrap text-center text-[0.5rem]">
-          {{ effect?.name?.replace('Effect: ', '') }}
+          <div class="overflow-hidden whitespace-nowrap text-center text-[0.5rem]">
+            {{ effect?.name?.replace('Effect: ', '') }}
+          </div>
         </div>
       </div>
-    </div>
+    </TransitionGroup>
   </div>
   <Teleport to="#modals">
     <InfoModal

@@ -12,17 +12,21 @@ import { type Modifier, makeModifiers } from './modifier'
 import { type Item, makeItem } from './item'
 import { type Strike, type ElementalBlast, makeStrike, makeElementalBlasts } from './strike'
 import { useApi } from '../api'
-import { actionDefs, actionTypes } from '@/utils/constants'
-import { type Maybe } from './helpers'
+import { actionTypes } from '@/utils/constants'
 import { kebabCase } from 'lodash-es'
 
 export interface Action extends Item {
   actionType: string | null
   item: Item
-  doAction?: (options: object, rollResult?: number | undefined) => Promise<Roll> | null
+  doAction?: (options?: object | undefined, rollResult?: number | undefined) => Promise<Roll | null>
 }
 
 export interface CharacterActions {
+  doCharacterAction: (
+    slug: string,
+    options?: object | undefined,
+    rollResult?: number | undefined
+  ) => Promise<Roll>
   actions: Field<Action[]>
   strikes: Field<Strike[]>
   blasts: Field<ElementalBlast[]>
@@ -37,9 +41,12 @@ export interface CharacterActions {
   }
 }
 
-export function useCharacterActions(actor: Ref<Actor | undefined>) {
+export function useCharacterActions(actor: Ref<Actor | undefined>): CharacterActions {
   const { characterAction, rollCheck, updateActor, updateActorItem, getStrikeDamage } = useApi()
   return {
+    doCharacterAction: (slug, options = {}, rollResult = undefined) => {
+      return characterAction(actor as Ref<Actor>, slug, options ?? {}, { d20: [rollResult ?? 0] })
+    },
     actions: computed(() =>
       actor.value?.items
         ?.filter((i: PF2eItem) =>
@@ -59,127 +66,110 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
                   : i?.system?.actionType?.value === 'free'
                     ? 'free'
                     : null,
-          doAction: (options: object, rollResult: number | undefined = undefined) => {
+          doAction: (options = {}, rollResult = undefined) => {
             if (i?.system?.slug)
-              return characterAction(
-                actor as Ref<Actor>,
-                actionDefs.get(i?.system?.slug)?.alias ?? i?.system?.slug,
-                options ?? {},
-                { d20: [rollResult ?? 0] }
-              )
-            else return null
+              return characterAction(actor as Ref<Actor>, i?.system?.slug, options ?? {}, {
+                d20: [rollResult ?? 0]
+              })
+            else return Promise.resolve(null)
           }
         }))
     ),
     strikes: computed(() => {
-      return actor.value?.system?.actions?.map((action: PF2eAction) => ({
-        ...(makeStrike(
-          action,
-          actor.value?.items.find((i: PF2eItem) => i.system?.slug === action?.slug)
-        ) as Strike),
-        getDamage: (altUsage: number | undefined = undefined) =>
-          getStrikeDamage(actor as Ref<Actor>, action.slug, altUsage),
-        doStrike: (
-          variant: number,
-          altUsage: number | undefined,
-          blastOptions: undefined,
-          result: number | undefined
-        ) =>
-          rollCheck(actor as Ref<Actor>, 'strike', `${action.slug},${variant},${altUsage ?? ''}`, {
-            d20: [result ?? 0]
-          }),
-        doDamage: (variant: number, altUsage: number) =>
-          rollCheck(
-            actor as Ref<Actor>,
-            'damage',
-            `${action.slug},${variant ? 'critical' : 'damage'},${altUsage ?? ''}`
-          ),
-        setDamageType: (newType: string) => {
-          const item = actor.value?.items.find((i: PF2eItem) => i._id === action?.item?._id)
-          if (!item || !actor.value) return Promise.resolve(null)
-          const adjustment = item?.system?.damage?.damageType === newType ? null : newType
-          const isModular = item?.system?.traits?.value?.includes('modular')
-          const update = isModular
-            ? { system: { traits: { toggles: { modular: { selected: adjustment } } } } }
-            : { system: { traits: { toggles: { versatile: { selected: adjustment } } } } }
-          if (isModular)
-            actor.value.items.find(
-              (i: PF2eItem) => i._id === action?.item?._id
-            )!.system.traits.toggles.modular.selected = adjustment
-          else
-            actor.value.items.find(
-              (i: PF2eItem) => i._id === action?.item?._id
-            )!.system.traits.toggles.versatile.selected = adjustment
-          return updateActorItem(actor as Ref<Actor>, action?.item?._id ?? '', update)
-        },
-        changeAmmo: (newId: string | null) => {
-          const item = actor.value?.items.find((i: PF2eItem) => i._id === action?.item?._id)
-          const actorAction = actor.value?.system.actions.find(
-            (a: PF2eAction) => a.slug === action?.slug
-          )
-          if (item && item.system) item.system.selectedAmmoId = newId
-          if (actorAction) actorAction.ammunition.selected = newId ? { id: newId } : null
+      return actor.value?.system?.actions?.map(
+        (action: PF2eAction) =>
+          ({
+            ...makeStrike(
+              action,
+              actor.value?.items.find((i: PF2eItem) => i.system?.slug === action?.slug)
+            ),
+            getDamage: (altUsage = undefined) =>
+              getStrikeDamage(actor as Ref<Actor>, action.slug, altUsage),
+            doStrike: (variant, altUsage, blastOptions, result) =>
+              rollCheck(
+                actor as Ref<Actor>,
+                'strike',
+                `${action.slug},${variant},${altUsage ?? ''}`,
+                {
+                  d20: [result ?? 0]
+                }
+              ),
+            doDamage: (variant, altUsage) =>
+              rollCheck(
+                actor as Ref<Actor>,
+                'damage',
+                `${action.slug},${variant ? 'critical' : 'damage'},${altUsage ?? ''}`
+              ),
+            setDamageType: (newType) => {
+              const item = actor.value?.items.find((i: PF2eItem) => i._id === action?.item?._id)
+              if (!item || !actor.value) return Promise.resolve(null)
+              const adjustment = item?.system?.damage?.damageType === newType ? null : newType
+              const isModular = item?.system?.traits?.value?.includes('modular')
+              const update = isModular
+                ? { system: { traits: { toggles: { modular: { selected: adjustment } } } } }
+                : { system: { traits: { toggles: { versatile: { selected: adjustment } } } } }
+              if (isModular)
+                actor.value.items.find(
+                  (i: PF2eItem) => i._id === action?.item?._id
+                )!.system.traits.toggles.modular.selected = adjustment
+              else
+                actor.value.items.find(
+                  (i: PF2eItem) => i._id === action?.item?._id
+                )!.system.traits.toggles.versatile.selected = adjustment
+              return updateActorItem(actor as Ref<Actor>, action?.item?._id ?? '', update)
+            },
+            changeAmmo: (newId) => {
+              const item = actor.value?.items.find((i: PF2eItem) => i._id === action?.item?._id)
+              const actorAction = actor.value?.system.actions.find(
+                (a: PF2eAction) => a.slug === action?.slug
+              )
+              if (item && item.system) item.system.selectedAmmoId = newId
+              if (actorAction) actorAction.ammunition.selected = newId ? { id: newId } : null
 
-          const update = { system: { selectedAmmoId: newId || null } }
-          return (
-            updateActorItem(actor as Ref<Actor>, action?.item?._id ?? '', update) ??
-            Promise.resolve(null)
-          )
-        }
-      }))
+              const update = { system: { selectedAmmoId: newId || null } }
+              return (
+                updateActorItem(actor as Ref<Actor>, action?.item?._id ?? '', update) ??
+                Promise.resolve(null)
+              )
+            }
+          }) as Strike
+      )
     }),
     blasts: computed(() =>
-      makeElementalBlasts(actor.value?.elementalBlasts)?.map((blast: ElementalBlast) => ({
-        ...blast,
-        getDamage: (
-          altUsage?: number | undefined,
-          blastOptions?: { element: string; damageType: string; isMelee: boolean }
-        ) =>
-          getStrikeDamage(
-            actor as Ref<Actor>,
-            `blast:${blastOptions?.element},${blastOptions?.damageType},${blastOptions?.isMelee}`
-          ),
-        doStrike: (
-          variant: number,
-          altUsage: number | undefined,
-          blastOptions: {
-            element: Maybe<string>
-            damageType: Maybe<string>
-            isMelee: Maybe<boolean>
-          } = {
-            element: undefined,
-            damageType: undefined,
-            isMelee: undefined
-          },
-          result: number | undefined
-        ) =>
-          rollCheck(
-            actor as Ref<Actor>,
-            'blast',
-            `${blastOptions.element},${blastOptions.damageType},${variant},${blastOptions.isMelee}`,
-            { d20: [result ?? 0] }
-          ),
-        doDamage: (
-          variant: number,
-          altUsage: number | undefined,
-          blastOptions?: { element: string; damageType: string; isMelee: boolean }
-        ) =>
-          rollCheck(
-            actor as Ref<Actor>,
-            'blastDamage',
-            `${blastOptions?.element},${blastOptions?.damageType},${variant ? 'criticalSuccess' : 'success'},${blastOptions?.isMelee}`
-          ),
-        setDamageType: (newType: string) => {
-          const dmgs: Record<string, string> = {}
-          dmgs[blast?.blastElement ?? ''] = newType
-          const update = {
-            flags: { pf2e: { damageSelections: dmgs } }
-          }
-          const flags = blast.item?.flags.pf2e.damageSelections as Record<string, string>
-          flags[blast?.blastElement ?? ''] = newType
-          return updateActorItem(actor as Ref<Actor>, blast.item?._id ?? '', update)
-        }
-      }))
+      makeElementalBlasts(actor.value?.elementalBlasts)?.map(
+        (blast: ElementalBlast) =>
+          ({
+            ...blast,
+            getDamage: (altUsage, blastOptions) =>
+              getStrikeDamage(
+                actor as Ref<Actor>,
+                `blast:${blastOptions?.element},${blastOptions?.damageType},${blastOptions?.isMelee}`
+              ),
+            doStrike: (variant, altUsage, blastOptions, result: number | undefined) =>
+              rollCheck(
+                actor as Ref<Actor>,
+                'blast',
+                `${blastOptions?.element},${blastOptions?.damageType},${variant},${blastOptions?.isMelee}`,
+                { d20: [result ?? 0] }
+              ),
+            doDamage: (variant, altUsage, blastOptions) =>
+              rollCheck(
+                actor as Ref<Actor>,
+                'blastDamage',
+                `${blastOptions?.element},${blastOptions?.damageType},${variant ? 'criticalSuccess' : 'success'},${blastOptions?.isMelee}`
+              ),
+            setDamageType: (newType) => {
+              const dmgs: Record<string, string> = {}
+              dmgs[blast?.blastElement ?? ''] = newType
+              const update = {
+                flags: { pf2e: { damageSelections: dmgs } }
+              }
+              const flags = blast.item?.flags.pf2e.damageSelections as Record<string, string>
+              flags[blast?.blastElement ?? ''] = newType
+              return updateActorItem(actor as Ref<Actor>, blast.item?._id ?? '', update)
+            }
+          }) as ElementalBlast
+      )
     ),
     blastActions: computed({
       get: () => {
@@ -188,27 +178,23 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
           ?.find((i) => i._id === blastItemId)
           ?.system?.rules?.find((r) => r.option === 'action-cost')?.selection
       },
-      set: (newValue: string) => {
+      set: (newValue) => {
         const blastItemId = actor.value?.elementalBlasts?.item?._id
         const rules = actor.value?.items?.find((i) => i._id === blastItemId)?.system?.rules
         const actionRule = rules?.find((r) => r.option === 'action-cost')
-        if (actionRule) actionRule.selection = newValue
+        if (actionRule) actionRule.selection = newValue ?? ''
         const update = { system: { rules: rules } }
-        // const ruleIndex = actor.value?.items
-        //   .find((i) => i._id === blastItemId)
-        //   ?.system?.rules?.findIndex((r) => r.option === 'action-cost')
-        // const update = { system: { rules: [] as { option: string; selection: string }[] } }
-        // if (ruleIndex) update.system.rules[ruleIndex].selection = newValue.toString()
         return updateActorItem(actor as Ref<Actor>, blastItemId ?? '', update)
       }
     }),
     skills: computed(() => {
       const skills = Object.entries(actor.value?.system?.skills ?? [])?.map(
-        ([key, skill]: [string, PF2eStat]) => ({
-          ...(makeStat(skill, key) as Stat),
-          roll: (result: number | undefined) =>
-            rollCheck(actor as Ref<Actor>, 'skill', skill.slug, { d20: [result ?? 0] })
-        })
+        ([key, skill]) =>
+          ({
+            ...makeStat(skill, key),
+            roll: (result) =>
+              rollCheck(actor as Ref<Actor>, 'skill', skill.slug, { d20: [result ?? 0] })
+          }) as Stat
       )
       const lores = actor.value?.items
         .filter((i) => i.type === 'lore')
@@ -253,7 +239,7 @@ export function useCharacterActions(actor: Ref<Actor | undefined>) {
       }),
       modifiers: computed(() => makeModifiers(actor.value?.system.initiative.modifiers)),
       totalModifier: computed(() => actor.value?.system?.initiative?.totalModifier),
-      roll: (result: number | undefined) => {
+      roll: (result) => {
         return rollCheck(actor as Ref<Actor>, 'initiative', '', { d20: [result ?? 0] })
       }
     }

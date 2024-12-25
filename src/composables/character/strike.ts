@@ -8,6 +8,12 @@ import type {
 import { type Modifier, makeModifiers } from './modifier'
 import { type Item, makeItem } from './item'
 
+interface BlastOptions {
+  element: Maybe<string>
+  damageType: Maybe<string>
+  isMelee: Maybe<boolean>
+}
+
 export interface Strike {
   label: Maybe<string>
   slug: Maybe<string>
@@ -24,18 +30,18 @@ export interface Strike {
 
   getDamage?: (
     altUsage?: number | undefined,
-    blastOptions?: { element: string; damageType: string; isMelee: boolean }
+    blastOptions?: BlastOptions
   ) => Promise<unknown> | null
   doStrike?: (
     variant: number,
     altUsage: number | undefined,
-    blastOptions?: { element: string; damageType: string; isMelee: boolean } | undefined,
+    blastOptions?: BlastOptions | undefined,
     result?: number | undefined
   ) => Promise<unknown>
   doDamage?: (
     variant: number,
     altUsage: number | undefined,
-    blastOptions?: { element: string; damageType: string; isMelee: boolean }
+    blastOptions?: BlastOptions
   ) => Promise<unknown>
   setDamageType?: (newType: string) => Promise<unknown> | null
   changeAmmo?: (newId: string | null) => Promise<unknown> | undefined

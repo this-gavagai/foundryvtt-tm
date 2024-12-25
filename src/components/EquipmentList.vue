@@ -88,11 +88,11 @@ const toggleSet = [
     <ul class="peer transition-all duration-300">
       <TransitionGroup
         enter-active-class="transform duration-300 ease-out"
-        enter-from-class=" opacity-0 max-h-0  -translate-x-4"
+        enter-from-class=" opacity-0 max-h-0  translate-x-12"
         enter-to-class="opacity-100 max-h-7"
         leave-active-class="transform duration-200 ease-in"
         leave-from-class="opacity-100 max-h-7"
-        leave-to-class=" opacity-0 max-h-0  -translate-x-4"
+        leave-to-class=" opacity-0 max-h-0  -translate-x-12"
       >
         <li
           v-for="item in inventory?.filter((i: Equipment) => i.system?.equipped?.handsHeld)"
@@ -256,75 +256,104 @@ const toggleSet = [
               }
             "
           />
-          <div v-if="itemViewed?.system.equipped.carryType === 'worn' && itemWornType" class="flex">
-            <ToggleWidget
-              :active="itemViewed?.system?.equipped?.inSlot"
-              :clicked="
-                () =>
-                  itemViewed?.changeCarry?.(
-                    itemViewed?.system?.equipped?.carryType,
-                    itemViewed?.system?.equipped?.handsHeld,
-                    itemViewed?.system?.containerId,
-                    !itemViewed?.system?.equipped?.inSlot
-                  )
-              "
-            />
-            <span
-              class="text-md ml-2 align-middle"
-              :class="{ 'text-gray-400': !itemViewed?.system?.equipped?.inSlot }"
-              >{{
-                itemViewed?.system?.equipped?.inSlot
-                  ? `Item equipped (${capitalize(itemWornType)})`
-                  : 'Item not equipped'
-              }}</span
-            >
-          </div>
-          <div
-            v-if="
-              itemViewed?.system?.equipped?.carryType === 'worn' &&
-              (itemViewed?.system?.equipped?.invested === true ||
-                itemViewed?.system?.equipped?.invested === false)
-            "
-            class="flex py-1"
+          <Transition
+            enter-active-class="transform transition-all duration-100 overflow-hidden"
+            enter-from-class="opacity-0 max-h-0"
+            enter-to-class="opacity-100 max-h-6"
+            leave-active-class="transform transition-all duration-100 ease-in overflow-hidden"
+            leave-from-class="opacity-100 max-h-6"
+            leave-to-class="opacity-0 max-h-0"
           >
-            <ToggleWidget
-              :active="itemViewed.system.equipped.invested"
-              :clicked="() => itemViewed?.toggleInvested?.(!itemViewed.system.equipped.invested)"
-            />
-            <span
-              class="text-md ml-2 align-middle"
-              :class="{ 'text-gray-400': !itemViewed.system.equipped.invested }"
-              >{{
-                itemViewed.system.equipped.invested ? `Item invested` : 'Item not invested'
-              }}</span
+            <div
+              v-if="itemViewed?.system.equipped.carryType === 'worn' && itemWornType"
+              class="flex h-6"
             >
-          </div>
-
-          <div
-            v-if="
-              itemViewed?.system?.equipped?.carryType === 'stowed' &&
-              (inventory?.filter((i: Equipment) => i.type === 'backpack').length ?? 0) > 1 &&
-              itemViewed?.type !== 'backpack'
-            "
+              <ToggleWidget
+                :active="itemViewed?.system?.equipped?.inSlot"
+                :clicked="
+                  () =>
+                    itemViewed?.changeCarry?.(
+                      itemViewed?.system?.equipped?.carryType,
+                      itemViewed?.system?.equipped?.handsHeld,
+                      itemViewed?.system?.containerId,
+                      !itemViewed?.system?.equipped?.inSlot
+                    )
+                "
+              />
+              <span
+                class="text-md ml-2 align-middle"
+                :class="{ 'text-gray-400': !itemViewed?.system?.equipped?.inSlot }"
+                >{{
+                  itemViewed?.system?.equipped?.inSlot
+                    ? `Item equipped (${capitalize(itemWornType)})`
+                    : 'Item not equipped'
+                }}</span
+              >
+            </div>
+          </Transition>
+          <Transition
+            enter-active-class="transform transition-all duration-100 overflow-hidden"
+            enter-from-class="opacity-0 max-h-0"
+            enter-to-class="opacity-100 max-h-6"
+            leave-active-class="transform transition-all duration-100 ease-in overflow-hidden"
+            leave-from-class="opacity-100 max-h-6"
+            leave-to-class="opacity-0 max-h-0"
           >
-            <DropdownWidget
-              :list="
-                inventory
-                  ?.filter((i: Equipment) => i.type === 'backpack')
-                  .map((e) => ({ id: e._id ?? '', name: e.name ?? '' })) ?? []
+            <div
+              v-if="
+                itemViewed?.system?.equipped?.carryType === 'worn' &&
+                (itemViewed?.system?.equipped?.invested === true ||
+                  itemViewed?.system?.equipped?.invested === false)
               "
-              :selectedId="itemViewed?.system?.containerId ?? ''"
-              :changed="
-                (newValue) =>
-                  itemViewed?.changeCarry?.(
-                    itemViewed?.system?.equipped?.carryType,
-                    itemViewed?.system?.equipped?.handsHeld,
-                    newValue
-                  )
+              class="flex py-1"
+            >
+              <ToggleWidget
+                :active="itemViewed.system.equipped.invested"
+                :clicked="() => itemViewed?.toggleInvested?.(!itemViewed.system.equipped.invested)"
+              />
+              <span
+                class="text-md ml-2 align-middle"
+                :class="{ 'text-gray-400': !itemViewed.system.equipped.invested }"
+                >{{
+                  itemViewed.system.equipped.invested ? `Item invested` : 'Item not invested'
+                }}</span
+              >
+            </div>
+          </Transition>
+          <Transition
+            enter-active-class="transform transition-all duration-100 overflow-hidden"
+            enter-from-class="opacity-0 max-h-0"
+            enter-to-class="opacity-100 max-h-6"
+            leave-active-class="transform transition-all duration-100 ease-in overflow-hidden"
+            leave-from-class="opacity-100 max-h-6"
+            leave-to-class="opacity-0 max-h-0"
+          >
+            <div
+              v-if="
+                itemViewed?.system?.equipped?.carryType === 'stowed' &&
+                (inventory?.filter((i: Equipment) => i.type === 'backpack').length ?? 0) > 1 &&
+                itemViewed?.type !== 'backpack'
               "
-              growContainer
-            />
-          </div>
+            >
+              <DropdownWidget
+                :list="
+                  inventory
+                    ?.filter((i: Equipment) => i.type === 'backpack')
+                    .map((e) => ({ id: e._id ?? '', name: e.name ?? '' })) ?? []
+                "
+                :selectedId="itemViewed?.system?.containerId ?? ''"
+                :changed="
+                  (newValue) =>
+                    itemViewed?.changeCarry?.(
+                      itemViewed?.system?.equipped?.carryType,
+                      itemViewed?.system?.equipped?.handsHeld,
+                      newValue
+                    )
+                "
+                growContainer
+              />
+            </div>
+          </Transition>
         </div>
       </template>
       <template #body>

@@ -160,6 +160,7 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
                     v-if="pixel && pixel.status === 'ready' && diceRequest?.length"
                     class="grow cursor-pointer"
                   >
+                    <!-- <div class="absolute mt-1 w-8 text-center text-xl font-bold">20</div> -->
                     <img
                       v-for="(die, i) in diceRequest"
                       class="h-8 animate-bounce opacity-30"

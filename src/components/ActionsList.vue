@@ -2,21 +2,19 @@
 // TODO (feature): get action modifiers on the card (somehow?)
 // TODO (feature): rethink how actions are defined and used (set up interpretation for inline @Check; that's gotta be the best way)
 import type { Action } from '@/composables/character'
-import { actionDefs, actionTypes } from '@/utils/constants'
+import { actionTypes } from '@/utils/constants'
 import { inject, ref, computed } from 'vue'
 import { removeUUIDs } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 import { useListeners } from '@/composables/listenersOnline'
 
-import ButtonWidget from '@/components/widgets/ButtonWidget.vue'
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
 import DerivedButtons from './DerivedButtons.vue'
 
 import InfoModal from '@/components/InfoModal.vue'
-import SkillSelector from '@/components/widgets/SkillSelector.vue'
 
 const infoModal = ref()
-const skillSelector = ref()
+const derivedButtons = ref()
 
 const character = inject(useKeys().characterKey)!
 const { actions } = character
@@ -67,20 +65,13 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
       :imageUrl="actionViewed?.img"
       :itemId="actionViewed?._id"
       :traits="actionViewed?.system?.traits?.value"
-      :diceRequest="actionDefs.get(actionViewed?.system?.slug ?? '') ? ['d20'] : []"
+      :diceRequest="derivedButtons?.actions?.length > 0 ? ['d20'] : []"
       @diceResult="
         (face) => {
-          return actionViewed
-            ?.doAction?.(
-              actionDefs.get(actionViewed?.system?.slug ?? '')?.skill === '*'
-                ? { statistic: skillSelector?.selected?.slug }
-                : {},
-              face
-            )
-            ?.then((r) => {
-              infoModal.rollResultModal.open(r)
-              infoModal.close()
-            })
+          return actionViewed?.doAction?.({}, face)?.then((r) => {
+            infoModal.rollResultModal.open(r)
+            infoModal.close()
+          })
         }
       "
     >
@@ -100,30 +91,17 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
       </template>
       <template #actionButtons v-if="isListening">
         <div class="align-items-center flex gap-2">
-          <SkillSelector
-            v-if="actionDefs.get(actionViewed?.system?.slug ?? '')?.skill === '*'"
-            ref="skillSelector"
-          />
-          <ButtonWidget
-            label="Roll"
-            color="blue"
-            v-if="actionDefs.get(actionViewed?.system?.slug ?? '')"
-            :clicked="
-              () => {
-                return actionViewed
-                  ?.doAction?.(
-                    actionDefs.get(actionViewed?.system?.slug ?? '')?.skill === '*'
-                      ? { statistic: skillSelector?.selected?.slug }
-                      : {}
-                  )
-                  ?.then((r) => {
-                    infoModal.rollResultModal.open(r)
-                    infoModal.close()
-                  })
+          <DerivedButtons
+            ref="derivedButtons"
+            :text="actionViewed?.system?.description.value"
+            :item="actionViewed"
+            @returned="
+              (r) => {
+                infoModal.rollResultModal.open(r)
+                infoModal.close()
               }
             "
           />
-          <DerivedButtons :text="actionViewed?.system?.description.value" />
         </div>
       </template>
     </InfoModal>

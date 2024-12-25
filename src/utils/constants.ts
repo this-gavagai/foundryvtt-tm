@@ -105,27 +105,10 @@ export const actionTypes = [
 ]
 
 export const actionDefs = new Map<string, { skill: string | null; alias?: string }>([
-  ['administer-first-aid', { skill: 'medicine' }],
-  ['aid', { skill: '*' }],
-  ['demoralize', { skill: 'intimidation' }],
-  ['tumble-through', { skill: 'acrobatics' }],
-  ['battle-medicine', { alias: 'legacy.treatWounds', skill: 'medicine' }],
-  ['treat-wounds', { alias: 'legacy.treatWounds', skill: 'medicine' }],
-  ['bon-mot', { skill: 'diplomacy' }],
-  ['create-a-diversion', { skill: 'deception' }],
-  ['disable-device', { skill: 'thievery' }],
-  ['disarm', { skill: 'athletics' }],
-  ['escape', { skill: 'athletics' }],
-  ['feint', { skill: 'deception' }],
-  ['grapple', { skill: 'athletics' }],
-  ['hide', { skill: 'stealth' }],
-  ['high-jump', { skill: 'athletics' }],
-  ['long-jump', { skill: 'athletics' }],
-  ['raise-a-shield', { skill: null }],
-  ['reposition', { skill: 'athletics' }],
-  ['rest-for-the-night', { skill: null }],
-  ['sense-motive', { skill: 'perception' }],
-  ['shove', { skill: 'athletics' }],
-  ['sneak', { skill: 'stealth' }],
-  ['trip', { skill: 'athletics' }]
+  // just different
+  // ['aid', { skill: '*' }],
+  // ['raise-a-shield', { skill: null }],
+  // ['rest-for-the-night', { skill: null }],
+  // ['battle-medicine', { alias: 'legacy.treatWounds', skill: 'medicine' }],
+  // ['treat-wounds', { alias: 'legacy.treatWounds', skill: 'medicine' }]
 ])

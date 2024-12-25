@@ -1,3 +1,5 @@
+// TODO: rolls lock up if there's an error in the middle of background roll. this happens, for example, if character action has wrong thing. put it in a try/catch/finally block.
+
 import type { Actor, Action, Modifier, Item } from '@/types/pf2e-types'
 import type {
   RollCheckArgs,
@@ -137,9 +139,10 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   if (!r) return {}
   if (r.hasOwnProperty('roll')) console.log('this one has a weird property') // trying to figure out where this is necessary; don't remember
   const actualRoll = r.hasOwnProperty('roll') ? r.roll : r
+  console.log(r)
 
   const isSecret =
-    r[0]?.message?.whisper?.length === 0 || r[0]?.message?.whisper?.includes(args.userId)
+    r?.[0]?.message?.whisper?.length === 0 && !r?.[0]?.message?.whisper?.includes(args.userId)
   const { formula, result, total, dice } = actualRoll
   return {
     action: 'acknowledged',
@@ -169,6 +172,8 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
   let promise
   const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll(args.diceResults)
   registerBackgroundRoll()
+
+  // TODO: legacy ones aren't working right...
   if (args.characterAction.match('legacy.')) {
     const actionKey = args.characterAction.replace('legacy.', '')
     promise = source.pf2e.actions[actionKey](params)
@@ -176,14 +181,10 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
     promise = source.pf2e.actions.get(args.characterAction)?.use(params)
   }
   const r = await promise
+  console.log(r, promise, args.characterAction)
   const isSecret =
-    r[0]?.message?.whisper?.length > 0 && !r[0]?.message?.whisper?.includes(args.userId)
-  console.log(
-    r[0]?.message?.whisper?.length === 0,
-    r[0]?.message?.whisper?.includes(args.userId),
-    isSecret
-  )
-  const { formula, result, total, dice } = r[0]?.roll
+    r?.[0]?.message?.whisper?.length > 0 && !r?.[0]?.message?.whisper?.includes(args.userId)
+  const { formula, result, total, dice } = r?.[0]?.roll
   unregisterBackgroundRoll()
   return {
     action: 'acknowledged',
