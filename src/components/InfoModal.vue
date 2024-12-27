@@ -99,7 +99,7 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
                 >
                   <div class="flex space-x-2">
                     <div
-                      class="bg-gray-300"
+                      class="border"
                       :class="[isListening ? 'active:opacity-30' : '']"
                       @click="
                         () => {

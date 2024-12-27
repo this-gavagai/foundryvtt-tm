@@ -4,20 +4,21 @@
 import type { Action } from '@/composables/character'
 import { actionTypes } from '@/utils/constants'
 import { inject, ref, computed } from 'vue'
-import { removeUUIDs } from '@/utils/utilities'
+// import { removeUUIDs } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 import { useListeners } from '@/composables/listenersOnline'
 
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
-import DerivedButtons from './DerivedButtons.vue'
+import Button from './widgets/ButtonWidget.vue'
 
 import InfoModal from '@/components/InfoModal.vue'
+import DescriptionParser from './DescriptionParser.vue'
 
 const infoModal = ref()
-const derivedButtons = ref()
+const description = ref()
 
 const character = inject(useKeys().characterKey)!
-const { actions } = character
+const { actions, doCharacterAction } = character
 
 const { isListening } = useListeners()
 
@@ -65,10 +66,14 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
       :imageUrl="actionViewed?.img"
       :itemId="actionViewed?._id"
       :traits="actionViewed?.system?.traits?.value"
-      :diceRequest="derivedButtons?.actions?.length > 0 ? ['d20'] : []"
+      :diceRequest="description?.activeRoll?.slug ? ['d20'] : []"
       @diceResult="
         (face) => {
-          return actionViewed?.doAction?.({}, face)?.then((r) => {
+          doCharacterAction(
+            description?.activeRoll?.slug,
+            description?.activeRoll?.params,
+            face
+          ).then((r) => {
             infoModal.rollResultModal.open(r)
             infoModal.close()
           })
@@ -87,11 +92,12 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
         >
       </template>
       <template #body>
-        <div v-html="removeUUIDs(actionViewed?.system?.description.value)"></div>
+        <DescriptionParser ref="description" :text="actionViewed?.system?.description.value" />
+        <!-- <div v-html="removeUUIDs(actionViewed?.system?.description.value)"></div> -->
       </template>
       <template #actionButtons v-if="isListening">
         <div class="align-items-center flex gap-2">
-          <DerivedButtons
+          <!-- <DerivedButtons
             ref="derivedButtons"
             :text="actionViewed?.system?.description.value"
             :item="actionViewed"
@@ -101,7 +107,24 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
                 infoModal.close()
               }
             "
-          />
+          /> -->
+          <Button
+            color="blue"
+            class="capitalize"
+            v-if="description?.activeRoll?.slug"
+            :clicked="
+              () => {
+                doCharacterAction(
+                  description?.activeRoll?.slug,
+                  description?.activeRoll?.params
+                ).then((r) => {
+                  infoModal.rollResultModal.open(r)
+                  infoModal.close()
+                })
+              }
+            "
+            >Roll {{ description?.activeRoll?.label }}</Button
+          >
         </div>
       </template>
     </InfoModal>

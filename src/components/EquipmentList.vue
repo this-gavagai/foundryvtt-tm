@@ -87,12 +87,12 @@ const toggleSet = [
     <!-- Held Items list -->
     <ul class="peer transition-all duration-300">
       <TransitionGroup
-        enter-active-class="transform duration-300 ease-out"
-        enter-from-class=" opacity-0 max-h-0  translate-x-12"
-        enter-to-class="opacity-100 max-h-7"
-        leave-active-class="transform duration-200 ease-in"
-        leave-from-class="opacity-100 max-h-7"
-        leave-to-class=" opacity-0 max-h-0  -translate-x-12"
+        enter-active-class="transform duration-300 ease-out origin-top-left"
+        enter-from-class=" opacity-0 max-h-0 scale-0"
+        enter-to-class="opacity-100 max-h-7 scale-100"
+        leave-active-class="transform duration-200 ease-in origin-bottom-right"
+        leave-from-class="opacity-100 max-h-7 scale-100"
+        leave-to-class=" opacity-0 max-h-0 scale-0"
       >
         <li
           v-for="item in inventory?.filter((i: Equipment) => i.system?.equipped?.handsHeld)"
