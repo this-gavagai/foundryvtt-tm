@@ -25,7 +25,7 @@ const shpModal = ref()
 const character = inject(useKeys().characterKey) as Character
 const { _id: characterId, effects } = character
 const { current: acCurrent, modifiers: acModifiers } = character.ac
-const { hardness, ac: shAC } = character.shield
+const { hardness, ac: shAC, itemId: shItemId } = character.shield
 const { current: shpCurrent, max: shpMax, brokenThreshold: shpBT } = character.shield.hp
 
 const { callMacro } = useApi()
@@ -50,7 +50,7 @@ function updateHitPoints(hp_input: string) {
       </div>
     </StatBox>
     <div class="border border-gray-200"></div>
-    <div v-if="!shAC" class="my-auto grow">
+    <div v-if="!shItemId" class="my-auto grow">
       <div class="italic">No shield equipped</div>
     </div>
     <div v-else class="my-auto flex grow justify-between gap-4">
@@ -74,7 +74,10 @@ function updateHitPoints(hp_input: string) {
           <div class="pr-2">Hardness:</div>
           <div>{{ hardness }}</div>
         </div>
-        <div class="flex justify-between text-[.65rem]">
+        <div
+          class="flex justify-between text-[.65rem]"
+          :class="[(shpBT ?? 0) >= (shpCurrent ?? 0) ? 'text-red-600' : '']"
+        >
           <div class="pr-2">Broken at:</div>
           <div>{{ shpBT }}</div>
         </div>
@@ -92,7 +95,8 @@ function updateHitPoints(hp_input: string) {
         class="cursor-pointer"
         :class="[
           raisedShield ? 'active:opacity-40' : 'opacity-20 active:opacity-10',
-          shieldWaiting ? 'animate-pulse opacity-10' : ''
+          shieldWaiting ? 'animate-pulse opacity-10' : '',
+          (shpBT ?? 0) >= (shpCurrent ?? 0) ? '!opacity-0' : ''
         ]"
       >
         <img :src="shield" class="mt-2 h-8 w-8" />

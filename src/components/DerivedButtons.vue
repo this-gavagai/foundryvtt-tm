@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// TODO: fix "Escape" action
 import { computed, inject } from 'vue'
 import type { Action, Item } from '@/composables/character'
 import ButtonWidget from './widgets/ButtonWidget.vue'

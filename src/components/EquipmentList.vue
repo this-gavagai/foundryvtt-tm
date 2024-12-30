@@ -132,7 +132,12 @@ const toggleSet = [
       ]"
     />
     <!-- Invested Items line -->
-    <svg width="100%" height="30" class="trasition-all duration-500">
+    <svg
+      width="100%"
+      height="30"
+      class="trasition-all duration-500"
+      v-if="inventory?.length && bulkNormal && bulkMax"
+    >
       <rect
         width="100%"
         height="100%"
@@ -148,13 +153,14 @@ const toggleSet = [
       <rect
         :width="((bulkNormal ?? 0) / (bulkMax ?? 100)) * 100 + '%'"
         height="100%"
+        style="stroke-width: 1; stroke: black"
         :style="
           'fill: ' +
           ((bulkNormal ?? 0) < (bulkEncumberedAfter ?? 0)
-            ? 'lightgreen'
+            ? '#8c8'
             : (bulkNormal ?? 0) < (bulkMax ?? 0)
-              ? 'yellow'
-              : 'red')
+              ? '#cc8'
+              : '#c88')
         "
         class="trasition-all duration-500 ease-in-out"
       />
@@ -245,6 +251,7 @@ const toggleSet = [
       <template #beforeBody>
         <div class="my-2">
           <ChoiceWidget
+            v-if="itemViewed?.type !== 'backpack'"
             class="w-full"
             :selected="toggleSet.find((t) => t.toggleIsActive())?.id"
             :choiceSet="toggleSet.map((t) => t.id)"
@@ -358,7 +365,10 @@ const toggleSet = [
       </template>
       <template #body>
         <div v-html="removeUUIDs(itemViewed?.system?.description.value)"></div>
-        <div class="ml-auto flex justify-end gap-1" v-if="itemViewed?.system?.uses?.value">
+        <div
+          class="ml-auto flex justify-end gap-1"
+          v-if="itemViewed?.system?.uses?.value !== undefined"
+        >
           <div class="text-xl">Uses:</div>
           <CounterWidget
             :title="itemViewed?.name + ' (uses)'"
@@ -371,19 +381,19 @@ const toggleSet = [
         </div>
         <div class="flex flex-1">Qty: {{ itemViewed?.system?.quantity }}</div>
       </template>
-      <template #actionButtons v-if="itemViewed && isListening">
+      <template #actionButtons v-if="itemViewed">
         <div class="flex gap-2">
-          <Button
-            color="lightgray"
-            :clicked="() => itemViewed?.changeQty?.((itemViewed?.system?.quantity ?? NaN) - 1)"
-          >
-            -
-          </Button>
           <Button
             color="lightgray"
             :clicked="() => itemViewed?.changeQty?.((itemViewed?.system?.quantity ?? NaN) + 1)"
           >
             +
+          </Button>
+          <Button
+            color="lightgray"
+            :clicked="() => itemViewed?.changeQty?.((itemViewed?.system?.quantity ?? NaN) - 1)"
+          >
+            -
           </Button>
         </div>
         <div class="flex gap-2">

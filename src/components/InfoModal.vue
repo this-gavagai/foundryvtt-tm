@@ -155,7 +155,7 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
                     <slot></slot>
                   </div>
                 </div>
-                <div class="mt-4 flex flex-wrap items-center justify-end gap-2" v-if="isListening">
+                <div class="mt-4 flex flex-wrap items-center justify-end gap-2">
                   <div
                     v-if="pixel && pixel.status === 'ready' && diceRequest?.length"
                     class="grow cursor-pointer"

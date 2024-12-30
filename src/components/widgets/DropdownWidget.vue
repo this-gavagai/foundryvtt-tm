@@ -63,7 +63,7 @@ const emit = defineEmits(['change'])
         leave-to-class="opacity-0 max-h-0"
       >
         <ListboxOptions
-          class="z-50 ml-1 mt-1 h-auto w-[calc(100%-10px)] overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 transition-all focus:outline-none sm:text-sm"
+          class="z-50 ml-1 mt-1 h-auto w-[calc(100%-10px)] overflow-auto rounded-md bg-white py-1 pt-0 text-base shadow-lg ring-1 ring-black/5 transition-all focus:outline-none sm:text-sm"
           :class="[props.growContainer ? 'relative' : 'absolute']"
         >
           <ListboxOption

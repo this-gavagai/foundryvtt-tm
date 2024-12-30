@@ -33,10 +33,9 @@ const characterUnsynced = new Map<string, boolean>() // character document dirty
 const characterLastRequest = new Map<string, string>() // latest character update request uuid
 
 const { getSocket } = useServer()
-// TODO (types): not really unknown/void; identify and improve (see action returns for details) audit all other unknowns in codebase
-const requestCharacterDetails: { [key: string]: () => Promise<unknown> } = {}
-const ackQueue: { [key: string]: (args: ResolutionArgs) => unknown } = {}
-function pushToAckQueue(uuid: string, callback: (args: ResolutionArgs) => unknown) {
+const requestCharacterDetails: { [key: string]: () => void } = {}
+const ackQueue: { [key: string]: (args: ResolutionArgs) => void } = {}
+function pushToAckQueue(uuid: string, callback: (args: ResolutionArgs) => void) {
   ackQueue[uuid] = callback
 }
 const { getUserId } = useUserId()

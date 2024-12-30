@@ -117,8 +117,10 @@ defineExpose({ actor, character, actorOrWorldActor })
             <EquipmentList />
           </CharacterPanel>
           <CharacterPanel :goLeft="goLeft">
-            <StrikeList />
-            <ActionsList />
+            <div class="columns-2">
+              <StrikeList />
+              <ActionsList />
+            </div>
           </CharacterPanel>
           <CharacterPanel :goLeft="goLeft">
             <SpellList />

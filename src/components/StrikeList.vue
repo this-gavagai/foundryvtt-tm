@@ -7,6 +7,7 @@ import InfoModal from './InfoModal.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import StrikeActionSet from './StrikeActionSet.vue'
 import type { Strike } from '@/composables/character'
+import type { RollCheckArgs } from '@/types/api-types'
 
 import ChoiceWidget from '@/components/widgets/ChoiceWidget.vue'
 import DropdownWidget from './widgets/DropdownWidget.vue'
@@ -103,7 +104,9 @@ const damageTypeOptions = computed(() => {
     return Array.from(types) as string[]
   }
 })
-function viewedStrikeAction(diceResult: number | undefined = undefined): Promise<unknown> {
+function viewedStrikeAction(
+  diceResult: number | undefined = undefined
+): Promise<RollCheckArgs | null> {
   if (viewedStrike.value?.hasOwnProperty('isBlast')) {
     const element = (viewedStrike.value as ElementalBlast)?.blastElement ?? ''
     const damageType =
@@ -113,7 +116,7 @@ function viewedStrikeAction(diceResult: number | undefined = undefined): Promise
       (viewedStrike.value as ElementalBlast)?.blastDamageTypes?.[0].value ??
       ''
     return (
-      viewedStrike.value?.doStrike?.(
+      (viewedStrike.value?.doStrike?.(
         viewedStrikeOptions.value?.subtype ?? 0,
         undefined,
         {
@@ -122,23 +125,22 @@ function viewedStrikeAction(diceResult: number | undefined = undefined): Promise
           isMelee: viewedStrikeOptions.value?.melee ?? true
         },
         diceResult ?? undefined
-      ) ?? Promise.resolve(null)
+      ) as Promise<RollCheckArgs>) ?? Promise.resolve(null)
     )
   } else {
     if (viewedStrikeId.value === undefined) return Promise.resolve(null)
     const rootStrike = strikes.value?.[viewedStrikeId.value]
-    console.log('ruuuu', diceResult)
     return (
-      rootStrike?.doStrike?.(
+      (rootStrike?.doStrike?.(
         viewedStrikeOptions.value?.subtype ?? 0,
         viewedStrikeOptions.value?.altUsage,
         undefined,
         diceResult ?? undefined
-      ) ?? Promise.resolve(null)
+      ) as Promise<RollCheckArgs>) ?? Promise.resolve(null)
     )
   }
 }
-function viewedDamageAction(): Promise<unknown> {
+function viewedDamageAction(): Promise<RollCheckArgs> {
   if (viewedStrike.value?.hasOwnProperty('isBlast')) {
     const element = (viewedStrike.value as ElementalBlast)?.blastElement ?? ''
     const damageType =
@@ -148,18 +150,18 @@ function viewedDamageAction(): Promise<unknown> {
       (viewedStrike.value as ElementalBlast)?.blastDamageTypes?.[0].value ??
       ''
     return (
-      viewedStrike.value?.doDamage?.(viewedStrikeOptions.value?.subtype ?? 0, undefined, {
+      (viewedStrike.value?.doDamage?.(viewedStrikeOptions.value?.subtype ?? 0, undefined, {
         element,
         damageType,
         isMelee: viewedStrikeOptions.value?.melee ?? true
-      }) ?? Promise.resolve(null)
+      }) as Promise<RollCheckArgs>) ?? Promise.resolve(null)
     )
   } else {
     return (
-      viewedStrike.value?.doDamage?.(
+      (viewedStrike.value?.doDamage?.(
         viewedStrikeOptions.value?.subtype ?? 0,
         viewedStrikeOptions.value?.altUsage
-      ) ?? Promise.resolve(null)
+      ) as Promise<RollCheckArgs>) ?? Promise.resolve(null)
     )
   }
 }
