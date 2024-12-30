@@ -141,13 +141,13 @@ const toggleSet = [
       <rect
         width="100%"
         height="100%"
-        style="fill: #fdd"
+        style="fill: #fcc"
         class="trasition-all duration-500 ease-in-out"
       />
       <rect
         :width="((bulkEncumberedAfter ?? 0) / (bulkMax ?? 100)) * 100 + '%'"
         height="100%"
-        style="fill: #dfd"
+        style="fill: #cfc"
         class="trasition-all duration-500 ease-in-out"
       />
       <rect
