@@ -149,7 +149,9 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
                     <slot name="beforeBody"></slot>
                   </div>
                   <div class="mt-2 text-sm [&_p]:my-2">
-                    <slot name="body"></slot>
+                    <div class="item-text">
+                      <slot name="body"></slot>
+                    </div>
                   </div>
                   <div>
                     <slot></slot>
@@ -249,3 +251,15 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
     </Teleport>
   </div>
 </template>
+<style>
+.item-text table {
+  border: 1px solid gray;
+  margin-bottom: 10px;
+}
+.item-text table td,
+.item-text table th {
+  padding: 5px;
+  border: 1px solid gray;
+  min-width: 80px;
+}
+</style>

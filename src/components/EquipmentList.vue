@@ -85,18 +85,18 @@ const toggleSet = [
   </div>
   <div v-else class="px-6 py-4">
     <!-- Held Items list -->
-    <ul class="peer transition-all duration-300">
+    <ul class="peer flex flex-col justify-start transition-all duration-1000">
       <TransitionGroup
-        enter-active-class="transform duration-300 ease-out origin-top-left"
+        enter-active-class="transform duration-300 ease-out"
         enter-from-class=" opacity-0 max-h-0 scale-0"
         enter-to-class="opacity-100 max-h-7 scale-100"
-        leave-active-class="transform duration-200 ease-in origin-bottom-right"
+        leave-active-class="transform duration-300 ease-in"
         leave-from-class="opacity-100 max-h-7 scale-100"
         leave-to-class=" opacity-0 max-h-0 scale-0"
       >
         <li
           v-for="item in inventory?.filter((i: Equipment) => i.system?.equipped?.handsHeld)"
-          class="relative whitespace-nowrap text-xl transition-all duration-300"
+          class="relative origin-left whitespace-nowrap text-xl transition-all duration-300"
           :class="item.name ? 'max-h-200' : 'max-h-0'"
           :key="item._id"
         >
@@ -109,7 +109,26 @@ const toggleSet = [
               }
             "
           >
-            <span class="pr-1">{{
+            <Transition
+              enter-active-class="transform duration-100 delay-200 ease-out"
+              :enter-from-class="
+                item.system?.equipped?.handsHeld === 1 ? 'opacity-0 -top-4' : 'opacity-0 top-4'
+              "
+              enter-to-class="opacity-100 top-0"
+              leave-active-class="transform duration-300 ease-in"
+              leave-from-class="opacity-100 top-0"
+              :leave-to-class="
+                item.system?.equipped?.handsHeld === 1 ? 'opacity-0 top-4' : 'opacity-0 -top-4'
+              "
+            >
+              <span
+                v-if="item.system?.equipped?.handsHeld === 1"
+                class="absolute origin-center pr-1"
+                >❶</span
+              >
+              <span v-else class="absolute origin-center pr-1">❷</span>
+            </Transition>
+            <!-- <span class="pr-1">{{
               item.system?.equipped?.handsHeld
                 ? item.system?.equipped?.handsHeld === 1
                   ? '❶'
@@ -117,8 +136,8 @@ const toggleSet = [
                 : item.system?.equipped?.carryType === 'dropped'
                   ? '⌵'
                   : 'Ⓦ'
-            }}</span>
-            <span>{{ item.name }}</span>
+            }}</span> -->
+            <span class="ml-6">{{ item.name }}</span>
           </a>
         </li>
       </TransitionGroup>
@@ -138,16 +157,24 @@ const toggleSet = [
       class="trasition-all duration-500"
       v-if="inventory?.length && bulkNormal && bulkMax"
     >
+      <pattern id="diagonalHatch" patternUnits="userSpaceOnUse" width="4" height="4">
+        <path
+          d="M-1,1 l2,-2
+           M0,4 l4,-4
+           M3,5 l2,-2"
+          style="stroke: #fcc; stroke-width: 2"
+        />
+      </pattern>
       <rect
         width="100%"
         height="100%"
-        style="fill: #fcc"
+        fill="url(#diagonalHatch)"
         class="trasition-all duration-500 ease-in-out"
       />
       <rect
         :width="((bulkEncumberedAfter ?? 0) / (bulkMax ?? 100)) * 100 + '%'"
         height="100%"
-        style="fill: #cfc"
+        style="fill: white"
         class="trasition-all duration-500 ease-in-out"
       />
       <rect
@@ -159,7 +186,7 @@ const toggleSet = [
           ((bulkNormal ?? 0) < (bulkEncumberedAfter ?? 0)
             ? '#8c8'
             : (bulkNormal ?? 0) < (bulkMax ?? 0)
-              ? '#cc8'
+              ? '#ee5'
               : '#c88')
         "
         class="trasition-all duration-500 ease-in-out"

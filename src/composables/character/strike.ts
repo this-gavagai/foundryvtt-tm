@@ -7,6 +7,8 @@ import type {
 } from '@/types/pf2e-types'
 import { type Modifier, makeModifiers } from './modifier'
 import { type Item, makeItem } from './item'
+import type { RequestResolutionArgs } from '@/types/api-types'
+import type { UpdateEventArgs } from '@/types/foundry-types'
 
 interface BlastOptions {
   element: Maybe<string>
@@ -31,20 +33,20 @@ export interface Strike {
   getDamage?: (
     altUsage?: number | undefined,
     blastOptions?: BlastOptions
-  ) => Promise<unknown> | null
+  ) => Promise<RequestResolutionArgs | null>
   doStrike?: (
     variant: number,
     altUsage: number | undefined,
     blastOptions?: BlastOptions | undefined,
     result?: number | undefined
-  ) => Promise<unknown>
+  ) => Promise<RequestResolutionArgs | null>
   doDamage?: (
     variant: number,
     altUsage: number | undefined,
     blastOptions?: BlastOptions
-  ) => Promise<unknown>
-  setDamageType?: (newType: string) => Promise<unknown> | null
-  changeAmmo?: (newId: string | null) => Promise<unknown> | undefined
+  ) => Promise<RequestResolutionArgs | null>
+  setDamageType?: (newType: string) => Promise<UpdateEventArgs | null>
+  changeAmmo?: (newId: string | null) => Promise<UpdateEventArgs | null>
 }
 export function makeStrike(
   root: PF2eAction | undefined,

@@ -7,7 +7,7 @@ import InfoModal from './InfoModal.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import StrikeActionSet from './StrikeActionSet.vue'
 import type { Strike } from '@/composables/character'
-import type { RollCheckArgs } from '@/types/api-types'
+import type { RequestResolutionArgs } from '@/types/api-types'
 
 import ChoiceWidget from '@/components/widgets/ChoiceWidget.vue'
 import DropdownWidget from './widgets/DropdownWidget.vue'
@@ -106,7 +106,7 @@ const damageTypeOptions = computed(() => {
 })
 function viewedStrikeAction(
   diceResult: number | undefined = undefined
-): Promise<RollCheckArgs | null> {
+): Promise<RequestResolutionArgs | null> {
   if (viewedStrike.value?.hasOwnProperty('isBlast')) {
     const element = (viewedStrike.value as ElementalBlast)?.blastElement ?? ''
     const damageType =
@@ -125,7 +125,7 @@ function viewedStrikeAction(
           isMelee: viewedStrikeOptions.value?.melee ?? true
         },
         diceResult ?? undefined
-      ) as Promise<RollCheckArgs>) ?? Promise.resolve(null)
+      ) as Promise<RequestResolutionArgs>) ?? Promise.resolve(null)
     )
   } else {
     if (viewedStrikeId.value === undefined) return Promise.resolve(null)
@@ -136,11 +136,11 @@ function viewedStrikeAction(
         viewedStrikeOptions.value?.altUsage,
         undefined,
         diceResult ?? undefined
-      ) as Promise<RollCheckArgs>) ?? Promise.resolve(null)
+      ) as Promise<RequestResolutionArgs>) ?? Promise.resolve(null)
     )
   }
 }
-function viewedDamageAction(): Promise<RollCheckArgs> {
+function viewedDamageAction(): Promise<RequestResolutionArgs> {
   if (viewedStrike.value?.hasOwnProperty('isBlast')) {
     const element = (viewedStrike.value as ElementalBlast)?.blastElement ?? ''
     const damageType =
@@ -154,14 +154,14 @@ function viewedDamageAction(): Promise<RollCheckArgs> {
         element,
         damageType,
         isMelee: viewedStrikeOptions.value?.melee ?? true
-      }) as Promise<RollCheckArgs>) ?? Promise.resolve(null)
+      }) as Promise<RequestResolutionArgs>) ?? Promise.resolve(null)
     )
   } else {
     return (
       (viewedStrike.value?.doDamage?.(
         viewedStrikeOptions.value?.subtype ?? 0,
         viewedStrikeOptions.value?.altUsage
-      ) as Promise<RollCheckArgs>) ?? Promise.resolve(null)
+      ) as Promise<RequestResolutionArgs>) ?? Promise.resolve(null)
     )
   }
 }

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { Switch } from '@headlessui/vue'
+import type { ModuleEventArgs } from '@/types/api-types'
+import type { UpdateEventArgs } from '@/types/foundry-types'
 
 const props = defineProps<{
   active: boolean | undefined
-  clicked?: () => Promise<unknown> | undefined
+  clicked?: () => Promise<ModuleEventArgs | UpdateEventArgs | null> | void | undefined
 }>()
 const emit = defineEmits(['changed'])
 

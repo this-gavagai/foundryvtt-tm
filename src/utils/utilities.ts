@@ -76,7 +76,7 @@ export function removeUUIDs(description: string | undefined) {
 export const SignedNumber = new Intl.NumberFormat('en-US', {
   signDisplay: 'always'
 })
-export function formatModifier(n: number | string) {
+export function formatModifier(n: number | string | undefined) {
   return typeof n !== 'number' || isNaN(n) ? '??' : SignedNumber.format(n)
 }
 

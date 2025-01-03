@@ -1,7 +1,7 @@
 import type { Ref } from 'vue'
 import type { Actor, World, Item, Combat, System, ElementalBlasts } from '@/types/pf2e-types'
 import type {
-  ResolutionArgs,
+  RequestResolutionArgs,
   ModuleEventArgs,
   UpdateCharacterDetailsArgs,
   CastSpellArgs,
@@ -34,8 +34,8 @@ const characterLastRequest = new Map<string, string>() // latest character updat
 
 const { getSocket } = useServer()
 const requestCharacterDetails: { [key: string]: () => void } = {}
-const ackQueue: { [key: string]: (args: ResolutionArgs) => void } = {}
-function pushToAckQueue(uuid: string, callback: (args: ResolutionArgs) => void) {
+const ackQueue: { [key: string]: (args: RequestResolutionArgs) => void } = {}
+function pushToAckQueue(uuid: string, callback: (args: RequestResolutionArgs) => void) {
   ackQueue[uuid] = callback
 }
 const { getUserId } = useUserId()
@@ -226,10 +226,10 @@ async function updateActorItem(
   actor: Ref<Actor>,
   itemId: string | string[],
   update: object | object[]
-) {
+): Promise<UpdateEventArgs> {
   const socket = await getSocket()
   const itemIdArray = Array.isArray(itemId) ? itemId : [itemId]
-  const promise = new Promise((resolve) => {
+  const promise = new Promise<UpdateEventArgs>((resolve) => {
     socket.emit(
       'modifyDocument',
       {
@@ -280,9 +280,12 @@ async function deleteActorItem(actor: Ref<Actor>, itemId: string) {
   return promise
 }
 
-async function updateUserTargetingProxy(userId: string, proxyId: string) {
+async function updateUserTargetingProxy(
+  userId: string,
+  proxyId: string
+): Promise<DocumentEventArgs> {
   const socket = await getSocket()
-  const promise = new Promise((resolve) => {
+  const promise = new Promise<DocumentEventArgs>((resolve) => {
     socket.emit(
       'modifyDocument',
       {
@@ -313,7 +316,7 @@ async function castSpell(
   spellId: string,
   castingLevel: number,
   castingSlot: number
-): Promise<ResolutionArgs> {
+): Promise<RequestResolutionArgs> {
   const { getTargets } = useTargetHelper()
   const userId = getUserId()
   const uuid = uuidv4()
@@ -331,7 +334,7 @@ async function castSpell(
   const socket = await getSocket()
   return new Promise((resolve) => {
     socket.emit('module.tablemate', args)
-    pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
+    pushToAckQueue(uuid, (args: RequestResolutionArgs) => resolve(args))
   })
 }
 
@@ -342,7 +345,7 @@ async function rollCheck(
   diceResults: DiceResults = {},
   modifiers: { label: string; modifier: number; enabled: boolean; ignored: boolean }[] = [],
   options = {}
-): Promise<ResolutionArgs> {
+): Promise<RequestResolutionArgs> {
   const { getTargets } = useTargetHelper()
   const userId = getUserId()
   const uuid = uuidv4()
@@ -362,7 +365,7 @@ async function rollCheck(
   const socket = await getSocket()
   return new Promise((resolve) => {
     socket.emit('module.tablemate', args)
-    pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
+    pushToAckQueue(uuid, (args: RequestResolutionArgs) => resolve(args))
   })
 }
 
@@ -371,7 +374,7 @@ async function characterAction(
   characterAction: string,
   options = {},
   diceResults: DiceResults = {}
-): Promise<ResolutionArgs> {
+): Promise<RequestResolutionArgs> {
   const { getTargets } = useTargetHelper()
   const userId = getUserId()
   const uuid = uuidv4()
@@ -389,7 +392,7 @@ async function characterAction(
   const socket = await getSocket()
   return new Promise((resolve) => {
     socket.emit('module.tablemate', args)
-    pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
+    pushToAckQueue(uuid, (args: RequestResolutionArgs) => resolve(args))
   })
 }
 
@@ -397,7 +400,7 @@ async function consumeItem(
   actor: Ref<Actor>,
   consumableId: string,
   options = {}
-): Promise<ResolutionArgs> {
+): Promise<RequestResolutionArgs> {
   const uuid = uuidv4()
   const userId = getUserId()
   const args: ConsumeItemArgs = {
@@ -411,14 +414,14 @@ async function consumeItem(
   const socket = await getSocket()
   return new Promise((resolve) => {
     socket.emit('module.tablemate', args)
-    pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
+    pushToAckQueue(uuid, (args: RequestResolutionArgs) => resolve(args))
   })
 }
 async function getStrikeDamage(
   actor: Ref<Actor>,
   actionSlug: string,
   altUsage: number | undefined = undefined
-): Promise<ResolutionArgs> {
+): Promise<RequestResolutionArgs> {
   const { getTargets } = useTargetHelper()
   const userId = getUserId()
   const uuid = uuidv4()
@@ -434,13 +437,13 @@ async function getStrikeDamage(
   const socket = await getSocket()
   return new Promise((resolve) => {
     socket.emit('module.tablemate', args)
-    pushToAckQueue(uuid, (args: ResolutionArgs) => {
+    pushToAckQueue(uuid, (args: RequestResolutionArgs) => {
       resolve(args)
     })
   })
 }
 
-async function sendItemToChat(characterId: string, itemId: string): Promise<ResolutionArgs> {
+async function sendItemToChat(characterId: string, itemId: string): Promise<RequestResolutionArgs> {
   const userId = getUserId()
   const uuid = uuidv4()
   const args: SendItemToChatArgs = {
@@ -453,7 +456,7 @@ async function sendItemToChat(characterId: string, itemId: string): Promise<Reso
   const socket = await getSocket()
   return new Promise((resolve) => {
     socket.emit('module.tablemate', args)
-    pushToAckQueue(uuid, (args: ResolutionArgs) => {
+    pushToAckQueue(uuid, (args: RequestResolutionArgs) => {
       resolve(args)
     })
   })
@@ -464,7 +467,7 @@ async function callMacro(
   compendiumName: string,
   macroName: string,
   options = {}
-): Promise<ResolutionArgs | null> {
+): Promise<RequestResolutionArgs | null> {
   if (characterId === undefined) return Promise.resolve(null)
   const { getTargets } = useTargetHelper()
   const userId = getUserId()
@@ -483,7 +486,7 @@ async function callMacro(
   const socket = await getSocket()
   return new Promise((resolve) => {
     socket.emit('module.tablemate', args)
-    pushToAckQueue(uuid, (args: ResolutionArgs) => resolve(args))
+    pushToAckQueue(uuid, (args: RequestResolutionArgs) => resolve(args))
   })
 }
 

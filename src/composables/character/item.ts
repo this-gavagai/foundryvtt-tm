@@ -1,5 +1,7 @@
 import type { Maybe } from './helpers'
 import type { Item as PF2eItem } from '@/types/pf2e-types'
+import type { DeleteEventArgs, UpdateEventArgs } from '@/types/foundry-types'
+import type { RequestResolutionArgs } from '@/types/api-types'
 
 export interface Item {
   _id: Maybe<string>
@@ -69,10 +71,10 @@ export interface Item {
     spell: { system: { level: { value: Maybe<number> }; description: { value: Maybe<string> } } }
     uses: { value: Maybe<number>; max: Maybe<number> }
   }
-  delete?: () => Promise<unknown>
-  changeQty?: (newTotal: number) => Promise<unknown>
-  changeUses?: (newTotal: number) => Promise<unknown>
-  consumeItem?: () => Promise<unknown>
+  delete?: () => Promise<DeleteEventArgs>
+  consumeItem?: () => Promise<RequestResolutionArgs>
+  changeQty?: (newTotal: number) => Promise<UpdateEventArgs | null>
+  changeUses?: (newTotal: number) => Promise<UpdateEventArgs | null>
 }
 export function makeItem(root: PF2eItem | undefined): Item | undefined {
   if (!root) return undefined

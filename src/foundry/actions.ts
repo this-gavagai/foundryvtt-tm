@@ -1,5 +1,3 @@
-// TODO: rolls lock up if there's an error in the middle of background roll. this happens, for example, if character action has wrong thing. put it in a try/catch/finally block.
-
 import type { Actor, Action, Modifier, Item } from '@/types/pf2e-types'
 import type {
   RollCheckArgs,
@@ -18,7 +16,7 @@ import { useBackgroundRoll } from './backgroundRoll'
 declare const game: Game
 declare const Macro: Macro
 
-function blastReplacer(key: string, element: Actor | Item | unknown) {
+function blastReplacer(key: string, element: Actor | Item) {
   if (key === 'actor') return undefined
   else if (key === 'item') return { _id: (element as Item)?._id }
   else return element
@@ -169,17 +167,10 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
     event: fakeEvent
   }
 
-  let promise
   const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll(args.diceResults)
   registerBackgroundRoll()
 
-  // TODO: legacy ones aren't working right...
-  if (args.characterAction.match('legacy.')) {
-    const actionKey = args.characterAction.replace('legacy.', '')
-    promise = source.pf2e.actions[actionKey](params)
-  } else {
-    promise = source.pf2e.actions.get(args.characterAction)?.use(params)
-  }
+  const promise = source.pf2e.actions.get(args.characterAction)?.use(params)
   const r = await promise
   console.log(r, promise, args.characterAction)
   const isSecret =

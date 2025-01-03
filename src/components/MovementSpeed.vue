@@ -41,7 +41,8 @@ function parseSpeed(speed: SpeedType | undefined) {
         :modifiers="athletics?.modifiers"
         :rollAction="athletics?.roll"
       >
-        <img :src="d20" class="mt-1 h-5 w-6" />
+        <img v-if="land?.value" :src="d20" class="mt-1 h-5 w-6" />
+        <span v-else>--</span>
       </StatBox>
     </div>
     <div class="w-1/5">
@@ -55,7 +56,8 @@ function parseSpeed(speed: SpeedType | undefined) {
         :modifiers="athletics?.modifiers"
         :rollAction="athletics?.roll"
       >
-        <img :src="d20" class="mt-1 h-5 w-5" />
+        <img v-if="land?.value" :src="d20" class="mt-1 h-5 w-5" />
+        <span v-else>--</span>
       </StatBox>
     </div>
     <StatBox heading="Fly" :breakdown="fly?.breakdown" class="w-1/5">{{ parseSpeed(fly) }}</StatBox>

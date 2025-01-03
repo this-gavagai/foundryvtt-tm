@@ -4,15 +4,17 @@ import type { Field, Maybe } from './helpers'
 import { type Item, makeItem } from './item'
 import { useApi } from '../api'
 import { inventoryTypes } from '@/utils/constants'
+import type { UpdateEventArgs } from '@/types/foundry-types'
+import type { RequestResolutionArgs } from '@/types/api-types'
 
 export interface Equipment extends Item {
-  toggleInvested?: (newValue?: Maybe<boolean>) => Promise<unknown>
+  toggleInvested?: (newValue?: Maybe<boolean>) => Promise<UpdateEventArgs | null>
   changeCarry?: (
     method: Maybe<string>,
     hands: Maybe<number>,
     container: Maybe<string | null>,
     inSlot?: Maybe<boolean>
-  ) => Promise<unknown>
+  ) => Promise<UpdateEventArgs | null>
 }
 export interface SpellcastingEntry extends Item {
   staffCharges: Maybe<number>
@@ -21,12 +23,15 @@ export interface SpellcastingEntry extends Item {
     slot: number | undefined,
     newSpellId: string | null,
     newTotal?: boolean | undefined
-  ) => Promise<unknown>
-  setSlotCount: (rank: number, newValue: number) => Promise<unknown>
-  setCharges: (newValue: number) => Promise<unknown>
+  ) => Promise<UpdateEventArgs | null>
+  setSlotCount: (rank: number, newValue: number) => Promise<UpdateEventArgs>
+  setCharges: (newValue: number) => Promise<UpdateEventArgs>
 }
 export interface Spell extends Item {
-  doSpell?: (rank: number | undefined, slot: number | undefined) => Promise<unknown>
+  doSpell?: (
+    rank: number | undefined,
+    slot: number | undefined
+  ) => Promise<RequestResolutionArgs | null>
 }
 export interface CharacterItems {
   feats: Field<Item[]>
@@ -154,7 +159,7 @@ export function useCharacterItems(actor: Ref<Actor | undefined>) {
         ?.map((i: PF2eItem) => ({
           ...(makeItem(i) as Item),
           doSpell: (rank: number | undefined, slot: number | undefined) => {
-            if (rank === undefined || slot === undefined) return Promise.resolve(undefined)
+            if (rank === undefined || slot === undefined) return Promise.resolve(null)
             return castSpell(actor as Ref<Actor>, i._id, rank, slot)
           }
         }))

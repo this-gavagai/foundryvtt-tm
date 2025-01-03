@@ -83,20 +83,20 @@ function updateHitPoints(hp_input: string) {
         </div>
       </div>
       <div
-        v-if="isListening"
         @click="
           () => {
+            if (!isListening) return
             shieldWaiting = true
             callMacro(characterId, 'pf2e.action-macros', 'Raise a Shield').then((a) => {
               shieldWaiting = false
             })
           }
         "
-        class="cursor-pointer"
+        class="cursor-pointer transition-all"
         :class="[
           raisedShield ? 'active:opacity-40' : 'opacity-20 active:opacity-10',
           shieldWaiting ? 'animate-pulse opacity-10' : '',
-          (shpBT ?? 0) >= (shpCurrent ?? 0) ? '!opacity-0' : ''
+          (shpBT ?? 0) >= (shpCurrent ?? 0) || !isListening ? '!opacity-0' : ''
         ]"
       >
         <img :src="shield" class="mt-2 h-8 w-8" />

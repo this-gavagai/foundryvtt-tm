@@ -2,6 +2,7 @@ import { type Ref, computed } from 'vue'
 import type { Field, Maybe } from './helpers'
 import { type Actor } from '@/types/pf2e-types'
 import { useApi } from '../api'
+import type { UpdateEventArgs } from '@/types/foundry-types'
 
 export interface CharacterRules {
   rollOptions: Field<Map<string, RollOption>>
@@ -17,7 +18,7 @@ interface RollOption {
   updateRule: (
     newToggleValue: boolean | undefined | null,
     newSelection: string | null
-  ) => Promise<unknown>
+  ) => Promise<UpdateEventArgs>
 }
 
 export function useCharacterRules(actor: Ref<Actor | undefined>) {

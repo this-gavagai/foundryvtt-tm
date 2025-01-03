@@ -2,6 +2,8 @@
 import { ref, computed } from 'vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'
+import type { ModuleEventArgs } from '@/types/api-types'
+import type { DocumentEventArgs, UpdateEventArgs } from '@/types/foundry-types'
 
 interface ListChoice {
   id: string | undefined
@@ -13,7 +15,11 @@ const props = defineProps<{
   selectedId: string | undefined
   disabled?: boolean
   growContainer?: boolean
-  changed?: ((newId: string) => Promise<unknown> | void) | undefined
+  changed?:
+    | ((
+        newId: string
+      ) => Promise<ModuleEventArgs | UpdateEventArgs | DocumentEventArgs | null> | void)
+    | undefined
 }>()
 
 const selectedOrNone = computed({

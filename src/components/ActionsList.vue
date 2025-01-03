@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// TODO (feature): get action modifiers on the card (somehow?)
 import type { Action } from '@/composables/character'
 import { actionTypes } from '@/utils/constants'
 import { inject, ref, computed } from 'vue'

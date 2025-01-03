@@ -121,7 +121,15 @@ export interface CallMacroArgs {
   uuid: string
 }
 
-export interface ResolutionArgs {}
+export interface RequestResolutionArgs {
+  action: 'acknowledged'
+  uuid: string
+  response?: {
+    damage?: string
+    critical?: string
+    modifiers?: any
+  }
+}
 
 // debugging conveniences
 declare global {
