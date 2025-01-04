@@ -29,7 +29,7 @@ export interface CharacterCore {
   languages: Field<string[]>
 }
 
-export function useCharacterCore(actor: Ref<Actor | undefined>) {
+export function useCharacterCore(actor: Ref<Actor | undefined>): CharacterCore {
   const { updateActor } = useApi()
   return {
     _id: computed(() => actor.value?._id),

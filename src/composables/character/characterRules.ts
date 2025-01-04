@@ -21,7 +21,7 @@ interface RollOption {
   ) => Promise<UpdateEventArgs>
 }
 
-export function useCharacterRules(actor: Ref<Actor | undefined>) {
+export function useCharacterRules(actor: Ref<Actor | undefined>): CharacterRules {
   const { updateActorItem } = useApi()
   return {
     rollOptions: computed(() => {

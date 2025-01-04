@@ -11,7 +11,7 @@ const props = defineProps<{ filled: boolean }>()
       :fill="props.filled ? 'black' : 'transparent'"
       stroke="black"
       stroke-width="10"
-      class="transition-all duration-500"
+      class="transition-all duration-200"
     />
   </svg>
 </template>

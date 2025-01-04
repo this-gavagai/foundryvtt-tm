@@ -21,7 +21,7 @@ export interface CharacterResources {
   }
 }
 
-export function useCharacterResources(actor: Ref<Actor | undefined>) {
+export function useCharacterResources(actor: Ref<Actor | undefined>): CharacterResources {
   const { updateActor } = useApi()
   return {
     hp: {

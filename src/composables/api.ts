@@ -190,8 +190,10 @@ function parseActorData(
 ///////////////////////////////////////
 // Emit Methods                      //
 ///////////////////////////////////////
-async function updateActor(actor: Ref<Actor | undefined>, update: object) {
-  if (!actor.value) return
+async function updateActor(
+  actor: Ref<Actor | undefined>,
+  update: object
+): Promise<DocumentEventArgs> {
   const socket = await getSocket()
   const promise = new Promise<DocumentEventArgs>((resolve) => {
     socket.emit(

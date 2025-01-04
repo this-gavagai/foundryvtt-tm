@@ -10,7 +10,6 @@ const isListening = computed(() => listenersOnline.value.size > 0)
 
 setInterval(async () => {
   const socket = await getSocket()
-  console.log('pingpong')
   socket?.emit('module.tablemate', { userId, action: 'anybodyHome' })
 
   listenersOnline.value.forEach((value, key, map) => {

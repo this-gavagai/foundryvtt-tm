@@ -1,10 +1,26 @@
 import { computed, type Ref } from 'vue'
-import type { Actor } from '@/types/pf2e-types'
-import type { Field, WritableField } from './helpers'
+import type { Actor, IWR as PF2eIWR } from '@/types/pf2e-types'
+import type { Field, WritableField, Maybe } from './helpers'
 import { type Modifier, makeModifiers } from './modifier'
 import { type Stat, makeStat } from './stat'
-import { type IWR, makeIWRs } from './iwr'
 import { useApi } from '../api'
+
+export interface IWR {
+  type: Maybe<string>
+  exceptions: Maybe<string[]>
+  definition: Maybe<string>
+  value?: Maybe<number>
+}
+export function makeIWRs(set: PF2eIWR[] | undefined): IWR[] | undefined {
+  if (!set) return undefined
+  return set?.map((e: PF2eIWR) => ({
+    type: e?.type,
+    exceptions: Array.from(e?.exceptions),
+    definition: e?.definition,
+    value: e?.value
+  }))
+}
+
 export interface CharacterStats {
   // stats
   attributes: {
@@ -44,7 +60,7 @@ export interface CharacterStats {
   spellDC: Field<number>
 }
 
-export function useCharacterStats(actor: Ref<Actor | undefined>) {
+export function useCharacterStats(actor: Ref<Actor | undefined>): CharacterStats {
   const { rollCheck, updateActorItem } = useApi()
   return {
     attributes: {

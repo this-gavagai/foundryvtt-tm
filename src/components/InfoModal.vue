@@ -45,6 +45,7 @@ watch(lastRoll, () => {
 const isOpen = ref(false)
 function open() {
   isOpen.value = true
+  waiting.value = false
   emit('opening')
 }
 function close() {

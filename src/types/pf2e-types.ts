@@ -8,6 +8,7 @@ export interface Actor {
   prototypeToken: any
   ownership: any
   elementalBlasts: ElementalBlasts
+  flags: any
 }
 
 export interface ElementalBlasts {

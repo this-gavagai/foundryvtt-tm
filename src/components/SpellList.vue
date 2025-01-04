@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// TODO: make staff spells castable
 import type { SpellcastingEntry, Spell, Item } from '@/composables/character'
 import { inject, computed, ref } from 'vue'
 import { removeUUIDs } from '@/utils/utilities'
@@ -24,7 +25,7 @@ interface SpellInfo {
 }
 
 const character = inject(useKeys().characterKey)!
-const { spellcastingEntries, spells, spellConsumables, spellDC } = character
+const { spellcastingEntries, spells, spellConsumables, spellDC, staff, inventory } = character
 const { max: focusMax, current: focusCurrent } = character.focusPoints
 
 const { isListening } = useListeners()
@@ -124,14 +125,14 @@ const spellbook = computed((): Spellbook => {
               editable
               @change-count="(newTotal) => (focusCurrent = newTotal)"
             />
-            <CounterWidget
+            <!-- <CounterWidget
               v-if="location.system?.prepared.value === 'charge'"
               class="relative bottom-[-2px] mr-2 h-4 text-sm"
               :value="location.staffCharges"
               :title="location.name"
               editable
               @change-count="(newTotal) => location.setCharges(newTotal)"
-            />
+            /> -->
           </span>
         </h3>
         <!-- Spell Ranks -->
@@ -157,7 +158,7 @@ const spellbook = computed((): Spellbook => {
                 :max="location.system.slots?.['slot' + rank]?.max"
                 editable
                 :title="`${location?.name}: Rank ${rank}`"
-                @change-count="(newTotal) => location?.setSlotCount(Number(rank), newTotal)"
+                @change-count="(newTotal) => location?.setSlotCount?.(Number(rank), newTotal)"
               />
             </h4>
             <!-- Spells -->
@@ -236,11 +237,62 @@ const spellbook = computed((): Spellbook => {
           </li>
         </ul>
       </li>
+      <!-- Staff from PF2e-Dailies -->
+      <li class="mt-4 [&:not(:has(li))]:hidden" v-if="staff?.staffId">
+        <h3 class="flex justify-between bg-gray-300 px-4 py-2 align-bottom">
+          <span>
+            <span class="text-xl">{{
+              inventory?.find((i) => i._id === staff?.staffId)?.name
+            }}</span>
+            <span v-if="spellDC" class="text-xs"> (DC {{ spellDC }}) </span>
+          </span>
+          <CounterWidget
+            class="relative bottom-[-2px] mr-2 mt-[1px] h-4 text-sm"
+            :value="staff?.charges?.value"
+            :max="staff?.charges?.max"
+            :title="inventory?.find((i) => i._id === staff?.staffId)?.name + ' charges'"
+            editable
+            @change-count="(newTotal) => staff?.setStaffCharges?.(newTotal)"
+          />
+        </h3>
+        <ul class="empty:hidden">
+          <li v-for="(i, rank) in 10" class="mb-1 [&:not(:has(div))]:hidden" :key="'rank' + i">
+            <h4 class="flex justify-between bg-gray-200 px-4 align-bottom text-sm italic">
+              <span class="pr-1">
+                {{ rank === 0 ? 'Cantrips' : 'Rank ' + rank }}
+              </span>
+            </h4>
+            <div
+              v-for="item in staff?.spells.filter((s) =>
+                rank === 0
+                  ? s.system.traits.value?.includes('cantrip')
+                  : s.system.level.value === rank && !s.system.traits.value?.includes('cantrip')
+              )"
+              class="flex cursor-pointer justify-between px-4"
+              :key="item._id"
+              @click="
+                () => {
+                  viewedSpellId = item?._id
+                  viewedSpellInfo = {
+                    // entry: null,
+                    // entryId: null,
+                    // castingRank: Number(rank),
+                    // castingSlot: null
+                  }
+                  infoModal.open()
+                }
+              "
+            >
+              {{ item.name }}
+            </div>
+          </li>
+        </ul>
+      </li>
       <!-- Wands and Scrolls -->
       <li class="mt-4 [&:not(:has(li))]:hidden">
         <h3 class="flex justify-between bg-gray-300 px-4 py-2 align-bottom">
           <span>
-            <span class="text-xl underline"> Wands and Scrolls </span>
+            <span class="text-xl"> Wands and Scrolls </span>
             <span v-if="spellDC" class="text-xs"> (DC {{ spellDC }}) </span>
           </span>
         </h3>
@@ -326,12 +378,10 @@ const spellbook = computed((): Spellbook => {
         </div>
         <div v-if="viewedSpellInfo?.isConsumable">
           <h4 class="text-xl">Spell Details</h4>
-          <!-- <div v-html="makePropertiesHtml(viewedSpell?.system.spell)"></div> -->
           <div v-html="removeUUIDs(viewedSpell?.system.spell.system.description?.value)"></div>
           <hr />
           <h4 class="pt-1 text-xl">Wand Details</h4>
         </div>
-        <!-- <div v-html="makePropertiesHtml(viewedSpell!)"></div> -->
         <div v-html="removeUUIDs(viewedSpell?.system.description?.value)"></div>
       </template>
       <template #actionButtons v-if="isListening">
@@ -356,7 +406,7 @@ const spellbook = computed((): Spellbook => {
             () =>
               (viewedSpell as Spell)
                 ?.doSpell?.(viewedSpellInfo?.castingRank, viewedSpellInfo?.castingSlot)
-                ?.then((r) => {
+                ?.then(() => {
                   infoModal.close()
                 })
           "

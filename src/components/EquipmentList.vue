@@ -87,10 +87,10 @@ const toggleSet = [
     <!-- Held Items list -->
     <ul class="peer flex flex-col justify-start transition-all duration-1000">
       <TransitionGroup
-        enter-active-class="transform duration-300 ease-out"
+        enter-active-class="transform duration-200 ease-out"
         enter-from-class=" opacity-0 max-h-0 scale-0"
         enter-to-class="opacity-100 max-h-7 scale-100"
-        leave-active-class="transform duration-300 ease-in"
+        leave-active-class="transform duration-200 ease-in"
         leave-from-class="opacity-100 max-h-7 scale-100"
         leave-to-class=" opacity-0 max-h-0 scale-0"
       >
@@ -162,7 +162,7 @@ const toggleSet = [
           d="M-1,1 l2,-2
            M0,4 l4,-4
            M3,5 l2,-2"
-          style="stroke: #fcc; stroke-width: 2"
+          style="stroke: #faa; stroke-width: 1"
         />
       </pattern>
       <rect
