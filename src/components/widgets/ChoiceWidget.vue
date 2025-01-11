@@ -30,7 +30,7 @@ function handleChanged(newChoice: string) {
 
 <template>
   <div
-    class="isolate mb-2 flex rounded-md transition-opacity"
+    class="isolate mb-2 flex shadow-inner transition-opacity"
     :class="[waiting ? 'opacity-50' : '']"
     v-if="choiceSet.length > 1"
     :waiting

@@ -204,7 +204,10 @@ export async function foundryConsumeItem(args: ConsumeItemArgs) {
 }
 
 export async function foundrySendItemToChat(args: SendItemToChatArgs) {
-  game.actors.get(args.characterId).items.get(args.itemId).toChat()
+  const actor = game.actors.get(args.characterId)
+  const item = actor?.items?.get(args.itemId)
+
+  if (item) item.toChat()
   return { action: 'acknowledged', uuid: args.uuid }
 }
 

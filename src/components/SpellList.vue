@@ -22,6 +22,7 @@ interface SpellInfo {
   castingRank?: number
   castingSlot?: number
   isConsumable?: boolean
+  fromStaff?: boolean
 }
 
 const character = inject(useKeys().characterKey)!
@@ -274,10 +275,7 @@ const spellbook = computed((): Spellbook => {
                 () => {
                   viewedSpellId = item?._id
                   viewedSpellInfo = {
-                    // entry: null,
-                    // entryId: null,
-                    // castingRank: Number(rank),
-                    // castingSlot: null
+                    fromStaff: true
                   }
                   infoModal.open()
                 }
@@ -401,14 +399,12 @@ const spellbook = computed((): Spellbook => {
         <Button
           label="Cast"
           color="blue"
-          v-if="!viewedSpellInfo?.isConsumable"
+          v-if="!viewedSpellInfo?.isConsumable && !viewedSpellInfo?.fromStaff"
           :clicked="
             () =>
               (viewedSpell as Spell)
                 ?.doSpell?.(viewedSpellInfo?.castingRank, viewedSpellInfo?.castingSlot)
-                ?.then(() => {
-                  infoModal.close()
-                })
+                ?.then(() => infoModal.close())
           "
         />
         <Button
@@ -417,8 +413,7 @@ const spellbook = computed((): Spellbook => {
           v-if="viewedSpellInfo?.isConsumable"
           :clicked="
             () => {
-              viewedSpell?.consumeItem?.()
-              infoModal.close()
+              viewedSpell?.consumeItem?.()?.then(() => infoModal.close())
             }
           "
         />

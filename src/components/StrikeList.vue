@@ -197,11 +197,6 @@ async function updateDamageFormula() {
   }
 }
 watch(viewedStrike, async () => updateDamageFormula())
-// watch(
-//   () => viewedStrikeOptions.value?.altUsage,
-//   async () => updateDamageFormula()
-// )
-// window.smd = strikeModalDetails
 </script>
 <template>
   <div class="break-inside-avoid px-6 py-4 [&:not(:has(li))]:hidden">
