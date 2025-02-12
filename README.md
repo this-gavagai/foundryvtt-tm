@@ -17,8 +17,8 @@ There are some limitations to this approach. Mainly, the character sheet doesn't
 - Manage inventory, including changing locations and investment
 - Change roll options and other sheet toggles
 - Roll skill checks, cast spells, and make attacks, using a targeting proxy if desired (i.e., a horizontally mounted TV)
-- Integration with pixel dice
-- 
+- Roll Pixel bluetooth dice and pass the results to the server
+  
 ## Things on the top of my to-do list:
 - Come up with a clever name (Tablemate was just the name of the private kitchen-sink module this evolved from)
 - Provide a way to change modifiers before making rolls
