@@ -39,6 +39,7 @@ Manifest is here: https://github.com/this-gavagai/foundryvtt-tm/releases/latest/
 1) Install the module, login as GM, and activate it from the Manage Modules window.
 2) Open up the module settings, click the "Select Character Sheet users" button, and select which users will use the character sheet mode instead of the usual foundry interface. (Note: this User must have "Owner" permissions set for at least one Actor in the world.)
 3) From a different device or browser, navigate to the foundry login page (i.e., http://localhost:30000/) and sign in as the user chosen in step 2. The browser should begin to load the foundry client application but quickly re-route to the standalone webpage.
+4) To enable full functionality, sign in on another device or browser as a GM.
 
 # A note of caution
 I'm sharing this module in good faith. I use it in my own games, and I'm not aware of anything that would seriously mess up your game data. That said, I'm not particularly knowledgable as a programmer, and it's very possible I've done something stupid. Use at your own risk. Backups are good.
