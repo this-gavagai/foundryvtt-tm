@@ -1,3 +1,4 @@
+// TODO: be more responsive with pixel dice. Potentially, show result on roll, but give some indication that it hasn't yet been returned from the server?
 import { ref } from 'vue'
 import {
   repeatConnect,

@@ -21,9 +21,11 @@ console.log('TM initializing...')
 Hooks.on('init', function () {
   const user = game.data.users.find((x: User) => x._id === game.userId)
   if (user.flags?.['tablemate']?.['character_sheet'] === 'root') {
-    window.location.assign(
-      `${window.location.origin}/modules/tablemate/index.html?id=${user.character}`
-    )
+    console.log('TM HERE', user?.character)
+    const url = user?.character
+      ? `${window.location.origin}/modules/tablemate/index.html?id=${user.character}`
+      : `${window.location.origin}/modules/tablemate/index.html`
+    window.location.assign(url)
   }
 })
 

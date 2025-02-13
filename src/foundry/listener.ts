@@ -1,3 +1,4 @@
+// TODO: player is able to see actor details for non-owned actors. fix the guardrail on this.
 import type {
   ModuleEventArgs,
   CastSpellArgs,
