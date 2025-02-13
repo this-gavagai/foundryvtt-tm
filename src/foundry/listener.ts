@@ -45,11 +45,22 @@ export function setupListener() {
 
   game.socket.on(MODNAME, (args: ModuleEventArgs) => {
     console.log('TM.RECV (listener)', args)
+    if (args.action === 'anybodyHome') {
+      announceSelf()
+      broadcastTargets()
+      return
+    }
+
+    // TODO: Install guard rails on actions with unowned characters (return error to sheet, don't just console.log it)
+    if (args.hasOwnProperty('userId') && args.hasOwnProperty('actorId')) {
+      const actorArgs = args as RequestCharacterDetailsArgs
+      if (game.actors.get(actorArgs.actorId).ownership[actorArgs.userId] !== 3) {
+        console.log('unowned character')
+        return
+      }
+    }
+
     switch (args.action) {
-      case 'anybodyHome':
-        announceSelf()
-        broadcastTargets()
-        break
       case 'updateCharacterDetails':
         break
       case 'requestCharacterDetails':

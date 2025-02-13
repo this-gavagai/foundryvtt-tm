@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Actor } from '@/types/pf2e-types'
-import { type Ref, onUnmounted, onMounted } from 'vue'
+import { type Ref, onUnmounted, onMounted, type ComputedRef } from 'vue'
 import { ref, provide, computed } from 'vue'
 import { TabGroup, TabList, TabPanels } from '@headlessui/vue'
 import { debounce } from 'lodash-es'
@@ -31,6 +31,7 @@ import SpellList from '@/components/SpellList.vue'
 import FeatsList from '@/components/FeatsList.vue'
 import EquipmentList from '@/components/EquipmentList.vue'
 import StrikeList from '@/components/StrikeList.vue'
+import { useUserId } from '@/composables/user'
 
 const { width } = useWindowSize()
 const props = defineProps(['characterId'])
@@ -39,10 +40,19 @@ const panels = ref()
 
 // base data
 const { world } = useWorld()
+const { userId } = useUserId()
 const actor: Ref<Actor | undefined> = ref()
 const actorOrWorldActor = computed(
   () => actor.value ?? world.value?.actors.find((a: Actor) => a._id == props.characterId)
 )
+const userHasActorPermission: ComputedRef<boolean> = computed(() => {
+  if (
+    actorOrWorldActor.value?.ownership === undefined ||
+    actorOrWorldActor.value?.ownership?.[userId.value] === 3
+  )
+    return true
+  else return false
+})
 const { character } = useCharacter(actorOrWorldActor)
 provide(useKeys().characterKey, character)
 
@@ -85,7 +95,7 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
 defineExpose({ actor, character, actorOrWorldActor })
 </script>
 <template>
-  <div class="flex h-dvh select-none">
+  <div class="flex h-dvh select-none" v-if="userHasActorPermission">
     <!-- show this column only if on a tablet or laptop -->
     <div class="hidden border-r md:block md:h-dvh md:w-80 md:overflow-auto">
       <CharacterHeader class="sticky top-0 z-10 h-32 bg-white" />
@@ -142,4 +152,5 @@ defineExpose({ actor, character, actorOrWorldActor })
     </div>
     <SideMenu ref="sideMenu" />
   </div>
+  <div v-else>User does not own this character</div>
 </template>
