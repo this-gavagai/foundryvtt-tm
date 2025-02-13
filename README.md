@@ -13,16 +13,15 @@ There are some limitations to this approach. Mainly, the character sheet doesn't
 
 ## Things you can do now:
 - View most character details, including stats, conditions, modifiers, inventory, and spell lists
-- Read the full text of most items/feats/features/spells/etc.
+- Read the full text of most items/feats/features/spells/etc., and send those items to chat
 - Manage inventory, including changing locations and investment
+- Change roll options and other sheet toggles
 - Roll skill checks, cast spells, and make attacks, using a targeting proxy if desired (i.e., a horizontally mounted TV)
-
+- Roll Pixel bluetooth dice and pass the results to the server
+  
 ## Things on the top of my to-do list:
 - Come up with a clever name (Tablemate was just the name of the private kitchen-sink module this evolved from)
-- Fill in small pieces of missing functionality, like sending items to chat, using shields, etc.
 - Provide a way to change modifiers before making rolls
-- Provide a way to trigger GM-provided macros
-- Integration with bluetooth dice (if I can get my hands on some)
 - Continue improving UX, especially the sheet's responsiveness
 - Some backend work, especially some data abstraction and better use of typing
 
@@ -35,6 +34,12 @@ There are some limitations to this approach. Mainly, the character sheet doesn't
 Once the module is installed, GMs should see a setting menu that allows them to indicate which players will use the new Character Sheet. From then on, when those players login, they should be automatically routed to the sheet.
 
 Manifest is here: https://github.com/this-gavagai/foundryvtt-tm/releases/latest/download/module.json
+
+# Setup instructions
+1) Install the module, login as GM, and activate it from the Manage Modules window.
+2) Open up the module settings, click the "Select Character Sheet users" button, and select which users will use the character sheet mode instead of the usual foundry interface. (Note: this User must have "Owner" permissions set for at least one Actor in the world.)
+3) From a different device or browser, navigate to the foundry login page (i.e., http://localhost:30000/) and sign in as the user chosen in step 2. The browser should begin to load the foundry client application but quickly re-route to the standalone webpage.
+4) To enable full functionality, sign in on another device or browser as a GM.
 
 # A note of caution
 I'm sharing this module in good faith. I use it in my own games, and I'm not aware of anything that would seriously mess up your game data. That said, I'm not particularly knowledgable as a programmer, and it's very possible I've done something stupid. Use at your own risk. Backups are good.
