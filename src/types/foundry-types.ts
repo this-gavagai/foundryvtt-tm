@@ -62,8 +62,9 @@ export interface Game {
   socket: Socket
   user: User
   users: {
-    get: Function
     filter: Function
+    reduce: Function
+    get: Function
   }
   userId: string
   scenes: any
@@ -81,6 +82,7 @@ export interface User {
   isGM: boolean
   active: boolean
   flags: { [key: string]: any }
+  contents: any
   targets: any
 }
 

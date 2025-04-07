@@ -54,9 +54,11 @@ async function setupSocketListenersForApp() {
           delete ackQueue[args.uuid]
         }
         break
-      case 'shareTarget':
+      case 'shareTargets':
         const { updateTargets } = useTargetHelper()
-        updateTargets(args.userId, args.targets)
+        Object.entries(args.targets).forEach(([userId, targets]) =>
+          updateTargets(userId, targets as string[])
+        )
         break
     }
   })
@@ -104,8 +106,8 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
       console.log('user online', user, args)
     }
   })
-  const userId = getUserId()
-  socket?.emit('module.tablemate', { userId, action: 'anybodyHome' })
+  // const userId = getUserId()
+  // socket?.emit('module.tablemate', { userId, action: 'anybodyHome' })
 }
 
 async function setupSocketListenersForActor(
@@ -118,7 +120,7 @@ async function setupSocketListenersForActor(
   socket.on('module.tablemate', (args: ModuleEventArgs) => {
     switch (args.action) {
       case 'listenerOnline':
-        if (!parent.game) requestCharacterDetails[actorId]()
+        // if (!parent.game) requestCharacterDetails[actorId]()
         break
       case 'updateCharacterDetails':
         parseActorData(actorId, actor, args)

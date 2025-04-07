@@ -9,7 +9,7 @@ export type ModuleEventArgs =
   | CastSpellArgs
   | ConsumeItemArgs
   | GetStrikeDamageArgs
-  | ShareTargetArgs
+  | ShareTargetsArgs
   | SendItemToChatArgs
   | CallMacroArgs
 
@@ -52,15 +52,6 @@ export interface RollCheckArgs {
   targets?: string[]
   diceResults: DiceResults
 }
-export interface DiceResults {
-  d4?: number[]
-  d6?: number[]
-  d8?: number[]
-  d10?: number[]
-  d12?: number[]
-  d20?: number[]
-  d100?: number[]
-}
 export interface CharacterActionArgs {
   action: 'characterAction'
   userId: string
@@ -98,10 +89,9 @@ export interface GetStrikeDamageArgs {
   altUsage: number | undefined
   uuid: string
 }
-export interface ShareTargetArgs {
-  action: 'shareTarget'
-  userId: string
-  targets: string[]
+export interface ShareTargetsArgs {
+  action: 'shareTargets'
+  targets: Record<string, string[]>
 }
 export interface SendItemToChatArgs {
   action: 'sendItemToChat'
@@ -129,6 +119,16 @@ export interface RequestResolutionArgs {
     critical?: string
     modifiers?: any
   }
+}
+
+export interface DiceResults {
+  d4?: number[]
+  d6?: number[]
+  d8?: number[]
+  d10?: number[]
+  d12?: number[]
+  d20?: number[]
+  d100?: number[]
 }
 
 // debugging conveniences

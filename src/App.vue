@@ -38,7 +38,7 @@ const location = new URL(window.location.origin)
 
 // connect to server and ping it periodically
 connectToServer(location).then((socket: Ref<Socket | undefined>) => {
-  socket.value?.emit('module.tablemate', { action: 'anybodyHome' })
+  setTimeout(() => socket.value?.emit('module.tablemate', { action: 'anybodyHome' }), 100)
   if (BUILD_MODE !== 'development') {
     setInterval(() => {
       socket.value?.emit('module.tablemate', { action: 'anybodyHome' })

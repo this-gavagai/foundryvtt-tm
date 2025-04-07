@@ -39,6 +39,7 @@ export async function getCharacterDetails(
       value: { value: bulk.value.value, light: bulk.value.light, normal: bulk.value.normal }
     }
   }
+  console.log('TABLEMATE: now sending ' + actor.name)
   return {
     action: 'updateCharacterDetails',
     actorId: actor._id,

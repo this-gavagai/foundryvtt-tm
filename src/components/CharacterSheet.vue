@@ -71,6 +71,7 @@ onMounted(() => {
     setupSocketListenersForActor(props.characterId, actor, requestCharacterDetails)
     sendCharacterRequest(props.characterId)
   }
+  currentTab.value = width.value >= 768 ? 1 : 0
 })
 onUnmounted(() => {
   console.log('TM-INIT: unmounted actor', props.characterId)
@@ -107,11 +108,7 @@ defineExpose({ actor, character, actorOrWorldActor })
       :dragOptions="dragOptions"
       class="flex w-0 flex-1 flex-col justify-between md:h-dvh md:justify-start md:border-l"
     >
-      <TabGroup
-        :defaultIndex="width >= 768 ? 1 : 0"
-        :selectedIndex="currentTab"
-        @change="changeTab"
-      >
+      <TabGroup :selectedIndex="currentTab" @change="changeTab">
         <TabPanels tabindex="-1" class="h-dvh w-full overflow-auto md:order-last" ref="panels">
           <CharacterHeader class="sticky top-0 z-10 h-32 bg-white md:hidden" />
           <CharacterPanel :goLeft="goLeft" class="md:hidden">

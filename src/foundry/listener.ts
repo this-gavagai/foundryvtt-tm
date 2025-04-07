@@ -21,10 +21,14 @@ import {
   foundryCallMacro
 } from './actions'
 import type { Game, User, Hooks, GetEvent } from '@/types/foundry-types'
+import { debounce } from 'lodash-es'
+// import './lodash.min.js'
 
 declare const game: Game
 declare const Hooks: Hooks
 const MODNAME = 'module.tablemate'
+
+const getChar: Record<string, (args: RequestCharacterDetailsArgs) => void> = {}
 
 export function setupListener() {
   console.log('TABLEMATE: Setting up listener')
@@ -40,7 +44,7 @@ export function setupListener() {
       (event.match('module.') && !event.match('module.tablemate'))
     )
       return
-    console.log(`TM.SEND ${event}`, args)
+    console.log(`TM.SEND ${event}`, args?.[0]?.action, args)
   })
 
   game.socket.on(MODNAME, (args: ModuleEventArgs) => {
@@ -64,9 +68,24 @@ export function setupListener() {
       case 'updateCharacterDetails':
         break
       case 'requestCharacterDetails':
-        getCharacterDetails(args as RequestCharacterDetailsArgs).then((result) =>
-          game.socket.emit(MODNAME, result)
-        )
+        if (!getChar[args.actorId]) {
+          getChar[args.actorId] = debounce(
+            (args) => {
+              getCharacterDetails(args as RequestCharacterDetailsArgs).then((result) =>
+                game.socket.emit(MODNAME, result)
+              )
+            },
+            2000,
+            {
+              leading: true,
+              trailing: true
+            }
+          )
+        }
+        getChar[args.actorId](args as RequestCharacterDetailsArgs)
+        // getCharacterDetails(args as RequestCharacterDetailsArgs).then((result) =>
+        //   game.socket.emit(MODNAME, result)
+        // )
         break
       case 'rollCheck':
         foundryRollCheck(args as RollCheckArgs).then((result) => game.socket.emit(MODNAME, result))
@@ -101,9 +120,10 @@ export function setupListener() {
         console.log('event not caught', args.action, args)
     }
   })
-  Hooks.on('targetToken', () => {
-    broadcastTargets()
-  })
+  // Hooks.on('targetToken', (user, token) => {
+  //   console.log('wee!', a)
+  //   broadcastTargets()
+  // })
 }
 
 // utility functions
@@ -135,9 +155,12 @@ function announceSelf() {
 }
 
 function broadcastTargets() {
+  const targets = game.users.reduce((acc: Record<string, string[]>, user: User) => {
+    acc[user._id] = Array.from(user.targets.map((t: { id: string }) => t.id))
+    return acc
+  }, {})
   game.socket.emit('module.tablemate', {
-    action: 'shareTarget',
-    userId: game.user._id,
-    targets: game.user.targets.ids
+    action: 'shareTargets',
+    targets: targets
   })
 }

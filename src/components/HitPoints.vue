@@ -87,6 +87,7 @@ function updateHitPoints(hp_input: string, temp_input: string) {
             pattern="[\+\-]{0,1}[0-9]*"
             :placeholder="hpCurrent + ''"
             :value="hpCurrent"
+            inputmode="numeric"
             @click="
               (e: Event) => {
                 const field = e.target as HTMLInputElement
@@ -106,6 +107,7 @@ function updateHitPoints(hp_input: string, temp_input: string) {
             pattern="[\+\-]{0,1}[0-9]*"
             :placeholder="hpTemp + ''"
             :value="hpTemp"
+            inputmode="numeric"
             @click="
               (e: Event) => {
                 const field = e.target as HTMLInputElement

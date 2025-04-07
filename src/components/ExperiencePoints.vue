@@ -64,6 +64,7 @@ function updateExperience(input: string) {
             type="input"
             pattern="[\+\-]{0,1}[0-9]*"
             :value="xpCurrent"
+            inputmode="numeric"
             @click="
               (e: Event) => {
                 const field = e.target as HTMLInputElement
