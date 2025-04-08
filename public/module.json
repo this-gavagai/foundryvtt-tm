@@ -35,7 +35,6 @@
     ]
   },
   "socket": true,
-  "scripts": ["lodash.min.js"],
   "esmodules": ["tablemate.mjs"],
   "url": "https://github.com/this-gavagai/foundryvtt-tm",
   "manifest": "https://github.com/this-gavagai/foundryvtt-tm/releases/latest/download/module.json",
