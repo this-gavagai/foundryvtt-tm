@@ -21,8 +21,6 @@ export interface Character
     CharacterRules {}
 
 // TODO: switch these imports over to objects rather than functions so that errors show up in more useful places
-// TODO: separate characterSpells from characterItems
-// TODO: move iwr.ts and strike.ts into respective larger objects (not needed elsewhere)
 export function useCharacter(actor: Ref<Actor | undefined>) {
   const character: Character = {
     ...useCharacterCore(actor),

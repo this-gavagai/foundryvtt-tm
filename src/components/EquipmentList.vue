@@ -325,35 +325,43 @@ const toggleSet = [
               >
             </div>
           </Transition>
-          <Transition
+          <!-- <Transition
             enter-active-class="transform transition-all duration-100 overflow-hidden"
             enter-from-class="opacity-0 max-h-0"
             enter-to-class="opacity-100 max-h-6"
             leave-active-class="transform transition-all duration-100 ease-in overflow-hidden"
             leave-from-class="opacity-100 max-h-6"
             leave-to-class="opacity-0 max-h-0"
-          >
-            <div
+          > -->
+          <!-- <div
               v-if="
                 itemViewed?.system?.equipped?.carryType === 'worn' &&
                 (itemViewed?.system?.equipped?.invested === true ||
                   itemViewed?.system?.equipped?.invested === false)
               "
               class="flex py-1"
+            > -->
+          <div
+            class="flex py-1"
+            v-if="
+              itemViewed?.system?.equipped?.carryType === 'worn' &&
+              (itemViewed?.system?.equipped?.invested === true ||
+                itemViewed?.system?.equipped?.invested === false)
+            "
+          >
+            <ToggleWidget
+              :active="itemViewed?.system.equipped.invested"
+              :clicked="() => itemViewed?.toggleInvested?.(!itemViewed.system.equipped.invested)"
+            />
+            <span
+              class="text-md ml-2 align-middle"
+              :class="{ 'text-gray-400': !itemViewed?.system.equipped.invested }"
+              >{{
+                itemViewed?.system.equipped.invested ? `Item invested` : 'Item not invested'
+              }}</span
             >
-              <ToggleWidget
-                :active="itemViewed.system.equipped.invested"
-                :clicked="() => itemViewed?.toggleInvested?.(!itemViewed.system.equipped.invested)"
-              />
-              <span
-                class="text-md ml-2 align-middle"
-                :class="{ 'text-gray-400': !itemViewed.system.equipped.invested }"
-                >{{
-                  itemViewed.system.equipped.invested ? `Item invested` : 'Item not invested'
-                }}</span
-              >
-            </div>
-          </Transition>
+          </div>
+          <!-- </Transition> -->
           <Transition
             enter-active-class="transform transition-all duration-100 overflow-hidden"
             enter-from-class="opacity-0 max-h-0"
@@ -392,21 +400,23 @@ const toggleSet = [
       </template>
       <template #body>
         <div v-html="removeUUIDs(itemViewed?.system?.description.value)"></div>
-        <div
-          class="ml-auto flex justify-end gap-1"
-          v-if="itemViewed?.system?.uses?.value !== undefined"
-        >
-          <div class="text-xl">Uses:</div>
-          <CounterWidget
-            :title="itemViewed?.name + ' (uses)'"
-            class="mt-1 h-6"
-            :value="itemViewed?.system?.uses?.value"
-            :max="itemViewed?.system?.uses?.max"
-            @changeCount="(newValue: number) => itemViewed?.changeUses?.(newValue)"
-            editable
-          />
+        <div class="flex">
+          <div class="flex-1 text-xl">Qty: {{ itemViewed?.system?.quantity }}</div>
+          <div
+            class="ml-auto flex justify-end gap-1"
+            v-if="itemViewed?.system?.uses?.value !== undefined"
+          >
+            <div class="text-xl">Uses:</div>
+            <CounterWidget
+              :title="itemViewed?.name + ' (uses)'"
+              class="mt-1 h-6"
+              :value="itemViewed?.system?.uses?.value"
+              :max="itemViewed?.system?.uses?.max"
+              @changeCount="(newValue: number) => itemViewed?.changeUses?.(newValue)"
+              editable
+            />
+          </div>
         </div>
-        <div class="flex flex-1">Qty: {{ itemViewed?.system?.quantity }}</div>
       </template>
       <template #actionButtons v-if="itemViewed">
         <div class="flex gap-2">
@@ -426,7 +436,7 @@ const toggleSet = [
         <div class="flex gap-2">
           <Button
             color="red"
-            v-if="inventory.filter((i) => i.system?.containerId === itemViewed?._id).length === 0"
+            v-if="inventory?.filter((i) => i.system?.containerId === itemViewed?._id).length === 0"
             :clicked="
               () => {
                 infoModal.close()

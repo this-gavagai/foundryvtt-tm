@@ -16,7 +16,6 @@ const userList = computed(() => {
   return world.value?.users.map((u: User) => ({ id: u._id, name: u.name })) ?? []
 })
 const targetingProxyId = computed(
-  // TODO: fall back on some kind of cached value to make this faster. local store of some sort?
   () =>
     world.value?.users.find((u) => u._id === userId.value)?.flags?.tablemate?.targeting_proxy ??
     localProxyId.value

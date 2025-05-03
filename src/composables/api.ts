@@ -139,7 +139,7 @@ async function setupSocketListenersForActor(
       case 'Actor':
         ;(args as UpdateEventArgs).result.forEach((result: ModifyDocumentUpdate) => {
           if (actor.value && result._id === actorId) {
-            mergeWith(actor.value, result, resetArrays)
+            mergeWith(actor.value, result, mergeWithArrayReset)
             requestCharacterDetails[actorId]()
           }
         })
@@ -192,7 +192,7 @@ function parseActorData(
   incoming.elementalBlasts = JSON.parse(args.elementalBlasts)
   incoming.inventory = JSON.parse(args.inventory)
 
-  mergeWith(actor.value, incoming, resetArrays)
+  mergeWith(actor.value, incoming, mergeWithArrayReset)
 }
 
 ///////////////////////////////////////
@@ -222,7 +222,7 @@ async function updateActor(
       },
       (r: UpdateEventArgs) => {
         r.result.forEach((change: ModifyDocumentUpdate) => {
-          if (actor.value) mergeWith(actor.value, change, resetArrays)
+          if (actor.value) mergeWith(actor.value, change, mergeWithArrayReset)
         })
         requestCharacterDetails[actor.value!._id]()
         resolve(r)
@@ -527,7 +527,7 @@ function _processCreates(results: ModifyDocumentUpdate[], root: Item[]) {
 function _processUpdates(results: ModifyDocumentUpdate[], root: Item[]) {
   results.forEach((change: ModifyDocumentUpdate) => {
     const item = root.find((a: Item) => a._id === change._id)
-    if (item) mergeWith(item, change, resetArrays)
+    if (item) mergeWith(item, change, mergeWithArrayReset)
   })
 }
 function _processDeletes(results: string[], root: Item[]) {
@@ -538,7 +538,7 @@ function _processDeletes(results: string[], root: Item[]) {
     }
   })
 }
-function resetArrays(objValue: unknown, srcValue: unknown) {
+function mergeWithArrayReset(objValue: unknown, srcValue: unknown) {
   if (Array.isArray(srcValue) && Array.isArray(objValue) && srcValue.length < objValue.length) {
     console.log('TM-WARN: nuking array due to length mismatch', objValue, srcValue)
     return srcValue
