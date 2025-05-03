@@ -76,7 +76,7 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
           leave-from="opacity-100"
           leave-to="opacity-0"
         >
-          <div class="fixed inset-0 bg-black bg-opacity-25" />
+          <div class="bg-opacity-25 fixed inset-0 bg-black" />
         </TransitionChild>
 
         <div class="fixed inset-x-0 bottom-0 overflow-y-auto">
@@ -91,7 +91,7 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
               leave-to="translate-y-full"
             >
               <DialogPanel
-                class="w-full max-w-4xl transform overflow-hidden bg-white p-6 text-left shadow-xl transition-all"
+                class="relative w-full max-w-4xl transform overflow-hidden bg-white p-6 text-left shadow-xl transition-all"
               >
                 <div
                   class="max-h-[70vh] overflow-auto"
@@ -123,10 +123,10 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
                       />
                     </div>
                     <div>
-                      <DialogTitle as="h3" class="text-lg font-medium leading-6 text-gray-900">
+                      <DialogTitle as="h3" class="text-lg leading-6 font-medium text-gray-900">
                         <slot name="title"></slot>
                       </DialogTitle>
-                      <div class="absolute right-0 top-0 pr-4 pt-4 sm:block">
+                      <div class="absolute top-0 right-0 pt-4 pr-4 sm:block">
                         <button
                           type="button"
                           class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-hidden"

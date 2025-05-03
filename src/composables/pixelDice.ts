@@ -16,6 +16,20 @@ window.pixel = pixel
 const systemIds = useStorage('pixel-system-id', '')
 
 export function usePixelDice() {
+  async function pixelConnect() {
+    pixel.value = await requestPixel()
+    systemIds.value = pixel.value?.systemId
+    await afterConnect()
+  }
+  async function pixelReconnect() {
+    pixel.value = await getPixel(systemIds.value)
+    await afterConnect()
+  }
+  async function pixelDisconnect() {
+    pixel.value = undefined
+    systemIds.value = undefined
+  }
+
   async function afterConnect() {
     if (!pixel.value) return
     // Connect to die
@@ -30,30 +44,8 @@ export function usePixelDice() {
     // detect disconnect, and then do...something?
     pixel.value.addEventListener('statusChanged', (status) => {
       console.log(`TM-pixl: Dice status changed to ${status.status}`, status)
-      // const reconnectLoop = async () => {
-      //   if (!pixel.value) return
-      //   console.log('trying again')
-      //   await repeatConnect(pixel.value)
-      //   if (pixel.value.status !== 'ready') setTimeout(reconnectLoop, 5000)
-      // }
       if (status.status === 'disconnected' && pixel.value) repeatConnect(pixel.value)
     })
-  }
-
-  async function pixelConnect() {
-    pixel.value = await requestPixel()
-    systemIds.value = pixel.value?.systemId
-    await afterConnect()
-  }
-
-  async function pixelReconnect() {
-    pixel.value = await getPixel(systemIds.value)
-    await afterConnect()
-  }
-
-  async function pixelDisconnect() {
-    pixel.value = undefined
-    systemIds.value = undefined
   }
 
   function getLastRoll() {
@@ -62,10 +54,6 @@ export function usePixelDice() {
     // console.log(`=> roll state: ${(rollState as rolled).state}, face up: ${pixel.face}`)
     return rollState
   }
-
-  // function getPixel() {
-  //   if (pixel.value) return pixel
-  // }
 
   async function readStatus() {
     // Read RSSI (signal strength)

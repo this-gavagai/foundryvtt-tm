@@ -54,11 +54,11 @@ defineExpose({ open, close, options, isOpen })
             leave-to="opacity-0 scale-95"
           >
             <DialogPanel
-              class="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all"
+              class="relative w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all"
             >
               <DialogTitle
                 as="h3"
-                class="flex items-center gap-1 text-lg font-medium leading-6 text-gray-900"
+                class="flex items-center gap-1 text-lg leading-6 font-medium text-gray-900"
               >
                 {{ props.title }}
                 <InformationCircleIcon
@@ -67,7 +67,7 @@ defineExpose({ open, close, options, isOpen })
                   @click="props.infoButton()"
                 />
               </DialogTitle>
-              <div class="absolute right-0 top-0 pr-4 pt-4 sm:block">
+              <div class="absolute top-0 right-0 pt-4 pr-4 sm:block">
                 <button
                   class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-hidden"
                   @click="close"
