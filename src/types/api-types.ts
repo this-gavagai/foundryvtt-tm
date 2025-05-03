@@ -105,8 +105,9 @@ export interface CallMacroArgs {
   userId: string
   characterId: string
   targets: string[]
-  compendiumName: string
-  macroName: string
+  compendiumName: string | null
+  macroName: string | null
+  macroUuid: string | null
   options: object
   uuid: string
 }

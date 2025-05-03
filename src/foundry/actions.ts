@@ -15,6 +15,7 @@ import { useBackgroundRoll } from './backgroundRoll'
 
 declare const game: Game
 declare const Macro: Macro
+declare function fromUuidSync(uuid: string): Macro
 
 function blastReplacer(key: string, element: Actor | Item) {
   if (key === 'actor') return undefined
@@ -216,14 +217,23 @@ export async function foundryCallMacro(args: CallMacroArgs) {
   console.log('running macro', args)
   const actor = game.actors.get(args.characterId)
   const pack = game.packs.get(args.compendiumName)
-  if (!pack) return Promise.resolve(null)
-  const macro_data = (await pack.getDocuments())
-    .find((i: { name: string }) => i.name === args.macroName)
-    ?.toObject()
-  if (!macro_data) return Promise.resolve(null)
-  const temp_macro = new Macro(macro_data)
-  temp_macro.type = 'script'
-  temp_macro.execute({ actor })
+
+  if (args.macroUuid) {
+    const macro = fromUuidSync(args.macroUuid)
+    // TODO: test args.targets stuff
+    console.log(args.targets)
+    macro.execute({ scope: { actor, targets: args.targets } })
+  } else {
+    if (!pack) return Promise.resolve(null)
+    const macro_data = (await pack.getDocuments())
+      .find((i: { name: string }) => i.name === args.macroName)
+      ?.toObject()
+    if (!macro_data) return Promise.resolve(null)
+    const temp_macro = new Macro(macro_data)
+    temp_macro.type = 'script'
+    temp_macro.execute({ actor })
+  }
+
   return { action: 'acknowledged', uuid: args.uuid }
 }
 

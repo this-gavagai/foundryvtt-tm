@@ -95,17 +95,6 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
       </template>
       <template #actionButtons v-if="isListening">
         <div class="align-items-center flex gap-2">
-          <!-- <DerivedButtons
-            ref="derivedButtons"
-            :text="actionViewed?.system?.description.value"
-            :item="actionViewed"
-            @returned="
-              (r) => {
-                infoModal.rollResultModal.open(r)
-                infoModal.close()
-              }
-            "
-          /> -->
           <Button
             color="blue"
             class="capitalize"
@@ -123,6 +112,18 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
             "
             >Roll {{ description?.activeRoll?.label }}</Button
           >
+          <Button
+            color="blue"
+            class="apitalize"
+            v-if="actionViewed?.macroId"
+            :clicked="
+              () => {
+                actionViewed?.doMacro?.()
+              }
+            "
+          >
+            Run Macro
+          </Button>
         </div>
       </template>
     </InfoModal>

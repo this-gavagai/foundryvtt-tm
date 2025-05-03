@@ -26,7 +26,7 @@ import { useServer } from '@/composables/server'
 import { useTargetHelper } from '@/composables/targetHelper'
 import { uuidv4 } from '@/utils/utilities'
 import { useUserId } from '@/composables/user'
-import { useWorld } from '@/composables/world'
+// import { useWorld } from '@/composables/world'
 import { useListeners } from './listenersOnline'
 
 const characterUnsynced = new Map<string, boolean>() // character document dirty state, update request pending
@@ -45,6 +45,7 @@ const { getUserId } = useUserId()
 ///////////////////////////////////////
 async function setupSocketListenersForApp() {
   const socket = await getSocket()
+  const { addListener } = useListeners()
   socket.on('module.tablemate', (args: ModuleEventArgs) => {
     switch (args.action) {
       case 'acknowledged':
@@ -60,22 +61,29 @@ async function setupSocketListenersForApp() {
           updateTargets(userId, targets as string[])
         )
         break
-    }
-  })
-}
-async function setupSocketListenersForWorld(world: Ref<World>) {
-  const socket = await getSocket()
-  const { refreshWorld } = useWorld()
-  const { addListener } = useListeners()
-  socket.on('module.tablemate', (args: ModuleEventArgs) => {
-    switch (args.action) {
       case 'listenerOnline':
-        refreshWorld()
         console.log('listener online!', args)
         addListener(args.user)
         break
     }
   })
+}
+async function setupSocketListenersForWorld(world: Ref<World>) {
+  const socket = await getSocket()
+  console.log('worldly')
+  // const { refreshWorld } = useWorld()
+  // const { addListener } = useListeners()
+  // socket.on('module.tablemate', (args: ModuleEventArgs) => {
+  //   switch (
+  //     args.action
+  //     // case 'listenerOnline':
+  //     //   refreshWorld()
+  //     //   console.log('listener online!', args)
+  //     //   addListener(args.user)
+  //     //   break
+  //   ) {
+  //   }
+  // })
 
   socket.on('modifyDocument', (args: DocumentEventArgs) => {
     // let documentSource
@@ -106,8 +114,6 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
       console.log('user online', user, args)
     }
   })
-  // const userId = getUserId()
-  // socket?.emit('module.tablemate', { userId, action: 'anybodyHome' })
 }
 
 async function setupSocketListenersForActor(
@@ -468,8 +474,9 @@ async function sendItemToChat(characterId: string, itemId: string): Promise<Requ
 
 async function callMacro(
   characterId: string | undefined,
-  compendiumName: string,
-  macroName: string,
+  compendiumName: string | null,
+  macroName: string | null,
+  macroUuid: string | null = null,
   options = {}
 ): Promise<RequestResolutionArgs | null> {
   if (characterId === undefined) return Promise.resolve(null)
@@ -483,6 +490,7 @@ async function callMacro(
     targets: getTargets(),
     compendiumName,
     macroName,
+    macroUuid,
     options,
     uuid
   }

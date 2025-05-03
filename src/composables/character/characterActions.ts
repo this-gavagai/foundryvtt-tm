@@ -13,7 +13,9 @@ import { kebabCase } from 'lodash-es'
 export interface Action extends Item {
   actionType: string | null
   item: Item
+  macroId: string
   doAction?: (options?: object | undefined, rollResult?: number | undefined) => Promise<Roll | null>
+  doMacro?: (options?: object | undefined) => void
 }
 
 export interface CharacterActions {
@@ -34,7 +36,7 @@ export interface CharacterActions {
 }
 
 export function useCharacterActions(actor: Ref<Actor | undefined>): CharacterActions {
-  const { characterAction, rollCheck, updateActor } = useApi()
+  const { characterAction, rollCheck, updateActor, callMacro } = useApi()
   return {
     doCharacterAction: (slug, options = {}, rollResult = undefined) => {
       return characterAction(actor as Ref<Actor>, slug, options ?? {}, { d20: [rollResult ?? 0] })
@@ -58,12 +60,19 @@ export function useCharacterActions(actor: Ref<Actor | undefined>): CharacterAct
                   : i?.system?.actionType?.value === 'free'
                     ? 'free'
                     : null,
+          macroId: i?.flags?.['pf2e-toolbelt']?.actionable?.macro,
           doAction: (options = {}, rollResult = undefined) => {
             if (i?.system?.slug)
               return characterAction(actor as Ref<Actor>, i?.system?.slug, options ?? {}, {
                 d20: [rollResult ?? 0]
               })
             else return Promise.resolve(null)
+          },
+          doMacro: (options = {}) => {
+            const macroId = i?.flags?.['pf2e-toolbelt']?.actionable?.macro
+            if (macroId) {
+              callMacro(actor.value?._id, null, null, macroId, options)
+            }
           }
         }))
     ),

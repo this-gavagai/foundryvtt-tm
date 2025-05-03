@@ -10,7 +10,7 @@ const isListening = computed(() => listenersOnline.value.size > 0)
 
 setInterval(async () => {
   const socket = await getSocket()
-  socket?.emit('module.tablemate', { userId, action: 'anybodyHome' })
+  socket?.emit('module.tablemate', { userId: userId.value, action: 'anybodyHome' })
 
   listenersOnline.value.forEach((value, key, map) => {
     if (Date.now() - value > 40000) map.delete(key)
