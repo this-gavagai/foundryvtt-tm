@@ -11,7 +11,7 @@ const { languages } = character
     <div v-else class="underline">Languages</div>
     <ul class="min-h-6">
       <li
-        class="inline text-sm capitalize [&:not(:last-child)]:after:content-[',_']"
+        class="inline text-sm capitalize not-last:after:content-[',_']"
         v-for="lang in languages?.slice().reverse()"
         :key="'lang_' + lang"
       >

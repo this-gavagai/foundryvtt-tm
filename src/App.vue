@@ -89,7 +89,7 @@ if (BUILD_MODE === 'development') {
   <TabGroup :selectedIndex="activeIndex" as="div">
     <TabList class="hidden h-12 gap-0 border border-gray-300 bg-white text-xl">
       <Tab
-        class="relative top-0 p-2 focus:outline-none ui-selected:bg-blue-300"
+        class="relative top-0 p-2 focus:outline-hidden ui-selected:bg-blue-300"
         v-for="c in characterList.length ? characterList : ['']"
         :key="c"
       />

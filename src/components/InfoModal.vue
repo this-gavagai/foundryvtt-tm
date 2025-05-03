@@ -129,7 +129,7 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
                       <div class="absolute right-0 top-0 pr-4 pt-4 sm:block">
                         <button
                           type="button"
-                          class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none"
+                          class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-hidden"
                           @click="close"
                         >
                           <span class="sr-only">Close</span>

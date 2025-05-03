@@ -51,7 +51,7 @@ const emit = defineEmits(['change'])
   <Listbox v-model="selected" class="w-full" :disabled="props.disabled">
     <div class="relative mt-1">
       <ListboxButton
-        class="relative w-full cursor-default rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
+        class="relative w-full cursor-default rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left focus:outline-hidden focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
         :class="[props.disabled || waiting ? 'bg-gray-200 opacity-50' : '']"
       >
         <span class="block truncate">{{ selected?.name }}</span>
@@ -62,14 +62,14 @@ const emit = defineEmits(['change'])
 
       <Transition
         enter-active-class="transform transition-all duration-200 ease-out overflow-hidden"
-        enter-from-class="opacity-0 !max-h-0"
-        enter-to-class="opacity-100 !max-h-60"
+        enter-from-class="opacity-0 max-h-0!"
+        enter-to-class="opacity-100 max-h-60!"
         leave-active-class="transform transition-all duration-200 ease-in overflow-hidden"
-        leave-from-class="opacity-100 !max-h-60"
-        leave-to-class="opacity-0 !max-h-0"
+        leave-from-class="opacity-100 max-h-60!"
+        leave-to-class="opacity-0 max-h-0!"
       >
         <ListboxOptions
-          class="z-50 ml-1 mt-1 max-h-60 w-[calc(100%-10px)] overflow-auto rounded-md bg-white py-1 pt-0 text-base shadow-lg ring-1 ring-black/5 transition-all focus:outline-none sm:text-sm"
+          class="z-50 ml-1 mt-1 max-h-60 w-[calc(100%-10px)] overflow-auto rounded-md bg-white py-1 pt-0 text-base shadow-lg ring-1 ring-black/5 transition-all focus:outline-hidden sm:text-sm"
           :class="[props.growContainer ? 'relative' : 'absolute']"
         >
           <ListboxOption

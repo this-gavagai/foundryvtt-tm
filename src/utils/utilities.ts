@@ -60,7 +60,7 @@ export function removeUUIDs(description: string | undefined) {
   description = description?.replace(
     inline_actions,
     (match, p1, p2, p3, p4, offset, string, groups) =>
-      `<label class="has-[:checked]:bg-green-300 transition-all duration-50 bg-gray-300 border-gray-400 border -my-1 p-1 mx-1 cursor-pointer">
+      `<label class="has-checked:bg-green-300 transition-all duration-50 bg-gray-300 border-gray-400 border -my-1 p-1 mx-1 cursor-pointer">
         <input class="fixed opacity-0 pointer-events-none" type="radio" name="roll" value="${groups.slug}">
         ${groups.label ?? groups.slug}
       </label>`

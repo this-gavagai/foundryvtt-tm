@@ -96,7 +96,7 @@ function updateHitPoints(hp_input: string) {
         :class="[
           raisedShield ? 'active:opacity-40' : 'opacity-20 active:opacity-10',
           shieldWaiting ? 'animate-pulse opacity-10' : '',
-          (shpBT ?? 0) >= (shpCurrent ?? 0) || !isListening ? '!opacity-0' : ''
+          (shpBT ?? 0) >= (shpCurrent ?? 0) || !isListening ? 'opacity-0!' : ''
         ]"
       >
         <img :src="shield" class="mt-2 h-8 w-8" />

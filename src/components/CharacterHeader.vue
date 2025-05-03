@@ -47,7 +47,7 @@ function reloadPage() {
             <div class="w-full truncate text-left">{{ name ?? 'Loading...' }}</div>
           </ListboxButton>
           <ListboxOptions
-            class="absolute z-50 mt-1 max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 empty:hidden focus:outline-none sm:text-sm"
+            class="absolute z-50 mt-1 max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 empty:hidden focus:outline-hidden sm:text-sm"
           >
             <ListboxOption v-if="!characterList">
               <div class="relative select-none py-2 pl-6 pr-4 text-gray-400">Loading...</div>
