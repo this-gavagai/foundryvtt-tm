@@ -21,7 +21,11 @@ function handleClicked() {
 }
 </script>
 <template>
-  <div class="flex justify-between gap-1 active:text-gray-500" @click="handleClicked()">
+  <div
+    class="flex justify-between gap-1 active:text-gray-500"
+    @click="handleClicked()"
+    :data-active="props.active"
+  >
     <slot></slot>
     <Switch
       :modelValue="props.active"

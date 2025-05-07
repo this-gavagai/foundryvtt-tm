@@ -57,66 +57,68 @@ const featCategories = computed(() => {
 })
 </script>
 <template>
-  <div v-if="feats?.length === 0" class="px-6 py-4 italic">This character has no feats.</div>
-  <div v-else class="px-6 py-4 lg:columns-2">
-    <dl
-      v-for="(category, slug) in featCategories"
-      class="break-inside-avoid-column overflow-hidden pb-4 [&:not(:has(dd))]:hidden"
-      :key="slug"
-    >
-      <dt class="text-lg underline only:hidden">
-        {{ category.label }}
-      </dt>
-      <dd
-        v-for="feat in category.feats.sort(
-          (a, b) =>
-            (a?.system?.level?.taken ??
-              Number(a?.system?.location?.value?.split('-')?.[1]) ??
-              a?.system?.level?.value ??
-              0) -
-            (b?.system?.level?.taken ??
-              Number(b?.system?.location?.value?.split('-')?.[1]) ??
-              b?.system?.level?.value ??
-              0)
-        )"
-        :key="feat._id"
+  <div>
+    <div v-if="feats?.length === 0" class="px-6 py-4 italic">This character has no feats.</div>
+    <div v-else class="px-6 py-4 lg:columns-2">
+      <dl
+        v-for="(category, slug) in featCategories"
+        class="break-inside-avoid-column overflow-hidden pb-4 [&:not(:has(dd))]:hidden"
+        :key="slug"
       >
-        <FeatsListItem
-          :featId="feat._id"
-          @clicked="
-            (clickedFeatId: string) => {
-              console.log('outside', clickedFeatId)
-              viewedFeatId = clickedFeatId
-              infoModal.open()
-            }
-          "
-        />
-      </dd>
-    </dl>
+        <dt class="text-lg underline only:hidden">
+          {{ category.label }}
+        </dt>
+        <dd
+          v-for="feat in category.feats.sort(
+            (a, b) =>
+              (a?.system?.level?.taken ??
+                Number(a?.system?.location?.value?.split('-')?.[1]) ??
+                a?.system?.level?.value ??
+                0) -
+              (b?.system?.level?.taken ??
+                Number(b?.system?.location?.value?.split('-')?.[1]) ??
+                b?.system?.level?.value ??
+                0)
+          )"
+          :key="feat._id"
+        >
+          <FeatsListItem
+            :featId="feat._id"
+            @clicked="
+              (clickedFeatId: string) => {
+                console.log('outside', clickedFeatId)
+                viewedFeatId = clickedFeatId
+                infoModal.open()
+              }
+            "
+          />
+        </dd>
+      </dl>
+    </div>
+    <Teleport to="#modals">
+      <InfoModal
+        ref="infoModal"
+        :itemId="viewedFeat?._id"
+        :imageUrl="viewedFeat?.img"
+        :traits="viewedFeat?.system?.traits?.value"
+      >
+        <template #title>
+          {{ viewedFeat?.name }}
+        </template>
+        <template #description>
+          <div class="flex gap-1">
+            <span v-if="viewedFeat?.system?.level?.value" class="inline-block">
+              Level {{ viewedFeat?.system?.level?.value ?? '-' }}
+            </span>
+            <span v-if="viewedFeat?.system?.traits?.rarity" class="inline-block">
+              <span class="text-sm capitalize">({{ viewedFeat?.system.traits.rarity }})</span>
+            </span>
+          </div>
+        </template>
+        <template #body>
+          <div v-html="removeUUIDs(viewedFeat?.system?.description.value)"></div>
+        </template>
+      </InfoModal>
+    </Teleport>
   </div>
-  <Teleport to="#modals">
-    <InfoModal
-      ref="infoModal"
-      :itemId="viewedFeat?._id"
-      :imageUrl="viewedFeat?.img"
-      :traits="viewedFeat?.system?.traits?.value"
-    >
-      <template #title>
-        {{ viewedFeat?.name }}
-      </template>
-      <template #description>
-        <div class="flex gap-1">
-          <span v-if="viewedFeat?.system?.level?.value" class="inline-block">
-            Level {{ viewedFeat?.system?.level?.value ?? '-' }}
-          </span>
-          <span v-if="viewedFeat?.system?.traits?.rarity" class="inline-block">
-            <span class="text-sm capitalize">({{ viewedFeat?.system.traits.rarity }})</span>
-          </span>
-        </div>
-      </template>
-      <template #body>
-        <div v-html="removeUUIDs(viewedFeat?.system?.description.value)"></div>
-      </template>
-    </InfoModal>
-  </Teleport>
 </template>

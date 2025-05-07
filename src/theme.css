@@ -1,0 +1,14 @@
+body {
+  background-color: white;
+  --color-rojo: #00ff00;
+}
+
+/* [data-component='StatBox'] {
+  background-color: lightblue;
+} */
+/* [data-component='EffectsAndConditions'] [data-part='label'] {
+  display: block;
+} */
+[data-component='ToggleWidget'][data-active] button {
+  /* background-color: red; */
+}

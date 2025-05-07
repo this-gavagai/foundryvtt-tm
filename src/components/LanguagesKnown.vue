@@ -6,7 +6,7 @@ const character = inject(useKeys().characterKey)!
 const { languages } = character
 </script>
 <template>
-  <div class="border-b px-6 py-4 [&:not(:has(li))]:hidden">
+  <div class="px-6 py-4 [&:not(:has(li))]:hidden">
     <div v-if="languages?.length === 0" class="italic">No languages known</div>
     <div v-else class="underline">Languages</div>
     <ul class="min-h-6">

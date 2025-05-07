@@ -199,214 +199,220 @@ async function updateDamageFormula() {
 watch(viewedStrike, async () => updateDamageFormula())
 </script>
 <template>
-  <div class="break-inside-avoid px-6 py-4 [&:not(:has(li))]:hidden">
-    <div class="break-inside-avoid [&:not(:has(li))]:hidden">
-      <h3 class="text-lg underline">Elemental Blasts</h3>
-      <ul>
-        <li v-for="(blast, i) in blasts" class="cursor-pointer pb-2" :key="blast.blastElement">
-          <div v-for="attackType in ['melee', 'ranged']" :key="'at_' + attackType">
-            <StrikeActionSet
-              type="blast"
-              :id="i"
-              :isRanged="attackType === 'ranged'"
-              :range="attackType === 'ranged' ? blast?.blastRange?.max : undefined"
-              :label="`Elemental Blast (${blast.blastElement})`"
-              :mapLabelSet="blast?.variants.filter((v) => v.type === attackType)"
-              @clicked="
-                (id, options) => {
-                  viewedStrikeId = i
-                  viewedStrikeOptions = {
-                    ...options,
-                    strikeType: 'blast',
-                    melee: attackType === 'melee'
+  <div>
+    <div class="break-inside-avoid px-6 py-4 [&:not(:has(li))]:hidden">
+      <div class="break-inside-avoid [&:not(:has(li))]:hidden">
+        <h3 class="text-lg underline">Elemental Blasts</h3>
+        <ul>
+          <li v-for="(blast, i) in blasts" class="cursor-pointer pb-2" :key="blast.blastElement">
+            <div v-for="attackType in ['melee', 'ranged']" :key="'at_' + attackType">
+              <StrikeActionSet
+                type="blast"
+                :id="i"
+                :isRanged="attackType === 'ranged'"
+                :range="attackType === 'ranged' ? blast?.blastRange?.max : undefined"
+                :label="`Elemental Blast (${blast.blastElement})`"
+                :mapLabelSet="blast?.variants.filter((v) => v.type === attackType)"
+                @clicked="
+                  (id, options) => {
+                    viewedStrikeId = i
+                    viewedStrikeOptions = {
+                      ...options,
+                      strikeType: 'blast',
+                      melee: attackType === 'melee'
+                    }
+                    strikeModal.open()
                   }
-                  strikeModal.open()
-                }
-              "
-            />
-          </div>
-        </li>
-      </ul>
-    </div>
-    <div class="break-inside-avoid [&:not(:has(li))]:hidden [div_&:not(:hidden)]:pt-2">
-      <h3 class="text-lg underline">Strikes</h3>
-      <ul>
-        <li
-          v-for="(strike, i) in strikes?.filter(
-            (s) => s?.item?.system?.equipped?.carryType === 'held' || s?.item === undefined
-          )"
-          class="cursor-pointer pb-2"
-          :key="strike.slug"
-        >
-          <StrikeActionSet
-            type="strike"
-            :id="i"
-            :label="strike?.item?.name ?? strike?.label"
-            :isRanged="strike?.item?.system?.range ?? NaN > 0"
-            :range="strike?.item?.system?.range"
-            :mapLabelSet="strike.variants"
-            @clicked="
-              (id: string, options: object) => {
-                viewedStrikeId = i
-                viewedStrikeOptions = { ...options, strikeType: 'strike' }
-                strikeModal.open()
-              }
-            "
-          />
-          <div v-for="(altUsage, j) in strike?.altUsages" :key="strike.slug + '_alt_' + j">
+                "
+              />
+            </div>
+          </li>
+        </ul>
+      </div>
+      <div class="break-inside-avoid [&:not(:has(li))]:hidden [div_&:not(:hidden)]:pt-2">
+        <h3 class="text-lg underline">Strikes</h3>
+        <ul>
+          <li
+            v-for="(strike, i) in strikes?.filter(
+              (s) => s?.item?.system?.equipped?.carryType === 'held' || s?.item === undefined
+            )"
+            class="cursor-pointer pb-2"
+            :key="strike.slug"
+          >
             <StrikeActionSet
               type="strike"
               :id="i"
-              :label="altUsage?.item?.name ?? altUsage?.label"
-              :isRanged="altUsage?.item?.system?.range ?? NaN > 0"
-              :range="altUsage?.item?.system?.range"
-              :mapLabelSet="altUsage?.variants"
+              :label="strike?.item?.name ?? strike?.label"
+              :isRanged="strike?.item?.system?.range ?? NaN > 0"
+              :range="strike?.item?.system?.range"
+              :mapLabelSet="strike.variants"
               @clicked="
                 (id: string, options: object) => {
                   viewedStrikeId = i
-                  viewedStrikeOptions = { ...options, strikeType: 'strike', altUsage: j }
+                  viewedStrikeOptions = { ...options, strikeType: 'strike' }
                   strikeModal.open()
                 }
               "
             />
-          </div>
-        </li>
-      </ul>
-    </div>
-  </div>
-  <Teleport to="#modals">
-    <InfoModal
-      ref="strikeModal"
-      :itemId="viewedStrikeItem?._id"
-      :traits="viewedStrikeTraits ?? []"
-      :diceRequest="
-        viewedStrikeOptions?.type === 'strike' || viewedStrikeOptions?.type === 'blast'
-          ? ['d20']
-          : undefined
-      "
-      @diceResult="
-        (diceResult: number | undefined) =>
-          viewedStrikeAction(diceResult)?.then((r) => {
-            strikeModal.close()
-            strikeModal.rollResultModal.open(r)
-          })
-      "
-      :imageUrl="
-        (viewedStrike as ElementalBlast)?.blastImg ??
-        viewedStrikeItem?.img ??
-        'icons/skills/melee/unarmed-punch-fist.webp'
-      "
-    >
-      <template #title>{{ viewedStrike?.label }}</template>
-      <template #description>{{
-        viewedStrikeOptions?.type?.match('_damage') && viewedStrikeOptions?.subtype === 1
-          ? strikeModalDamage?.response?.critical
-          : strikeModalDamage?.response?.damage
-      }}</template>
-      <template #default>
-        <div class="m-1">
-          <DropdownWidget
-            class="relative"
-            :growContainer="true"
-            v-if="viewedStrike?.ammunition?.compatible?.length"
-            :list="[{ id: '', name: 'No ammo' }].concat(viewedStrike?.ammunition?.compatible ?? [])"
-            :selectedId="viewedStrike?.ammunition?.selected?.id ?? ''"
-            :changed="(newId) => viewedStrike?.changeAmmo?.(newId)"
-          />
-        </div>
-        <div
-          class="pb-2"
-          v-if="
-            (viewedStrike as ElementalBlast)?.blastRange?.max ?? viewedStrike?.item?.system?.range
-          "
-        >
-          Range:
-          {{
-            viewedStrikeOptions?.melee
-              ? undefined
-              : ((viewedStrike as ElementalBlast)?.blastRange?.max ??
-                viewedStrike?.item?.system?.range)
-          }}
-          ft.
-        </div>
-        <div class="flex justify-end gap-2">
-          <div v-if="damageTypeOptions.length > 1">
-            <span class="mt-2">Damage Type:</span>
-            <ChoiceWidget
-              :choiceSet="damageTypeOptions ?? []"
-              :iconSet="damageIcons"
-              :selected="viewedStrikeDamageTypeSelected ?? ''"
-              :clicked="
-                (damageType) => {
-                  console.log(damageType, viewedStrike)
-                  return strikes?.[viewedStrikeId ?? 0]?.setDamageType?.(damageType)?.then((r) => {
-                    updateDamageFormula()
-                  })
-                }
-              "
-            />
-          </div>
-          <ChoiceWidget
-            v-if="viewedStrikeOptions?.type?.match('blast')"
-            :choiceSet="['1', '2']"
-            :iconSet="actionIcons"
-            :selected="blastActions + ''"
-            :clicked="(newChoice) => (blastActions = newChoice)"
-          />
-        </div>
-        <ul>
-          <li
-            v-for="mod in viewedStrikeOptions?.type?.match('_damage')
-              ? strikeModalDamage?.response?.modifiers
-              : viewedStrike?._modifiers"
-            class="flex gap-2"
-            :class="{ 'text-gray-300': !mod.enabled }"
-            :key="mod.slug"
-          >
-            <div class="w-8 text-right">
-              <span v-if="mod.modifier !== undefined">{{ formatModifier(mod.modifier) }}</span>
-              <span v-if="mod.diceNumber">{{ `${mod.diceNumber}${mod.dieSize}` }}</span>
+            <div v-for="(altUsage, j) in strike?.altUsages" :key="strike.slug + '_alt_' + j">
+              <StrikeActionSet
+                type="strike"
+                :id="i"
+                :label="altUsage?.item?.name ?? altUsage?.label"
+                :isRanged="altUsage?.item?.system?.range ?? NaN > 0"
+                :range="altUsage?.item?.system?.range"
+                :mapLabelSet="altUsage?.variants"
+                @clicked="
+                  (id: string, options: object) => {
+                    viewedStrikeId = i
+                    viewedStrikeOptions = { ...options, strikeType: 'strike', altUsage: j }
+                    strikeModal.open()
+                  }
+                "
+              />
             </div>
-            <div class="overflow-hidden text-ellipsis whitespace-nowrap">{{ mod.label }}</div>
-            <div v-if="mod.damageType">({{ mod.damageType }})</div>
           </li>
         </ul>
-      </template>
-      <template #actionButtons v-if="isListening">
-        <Button
-          v-if="viewedStrikeOptions?.type === 'strike' || viewedStrikeOptions?.type === 'blast'"
-          color="blue"
-          :clicked="
-            () =>
-              viewedStrikeAction()?.then((r) => {
-                console.log(r)
-                strikeModal.close()
-                strikeModal.rollResultModal.open(r)
-              })
-          "
-        >
-          <span v-if="!viewedStrikeOptions?.subtype">Strike&nbsp;</span>
-          <span>{{
-            viewedStrike?.variants?.find(
-              (v) =>
-                v.map === viewedStrikeOptions?.subtype &&
-                v.type === attackTypeMap.get(viewedStrikeOptions?.melee)
-            )?.label
-          }}</span>
-        </Button>
-        <Button
-          v-if="viewedStrikeOptions?.type?.match('_damage')"
-          :label="viewedStrikeOptions?.subtype ? 'Critical' : 'Damage'"
-          color="red"
-          :clicked="
-            () =>
-              viewedDamageAction()?.then((r) => {
-                strikeModal.close()
-                strikeModal.rollResultModal.open(r)
-              })
-          "
-        />
-      </template>
-    </InfoModal>
-  </Teleport>
+      </div>
+    </div>
+    <Teleport to="#modals">
+      <InfoModal
+        ref="strikeModal"
+        :itemId="viewedStrikeItem?._id"
+        :traits="viewedStrikeTraits ?? []"
+        :diceRequest="
+          viewedStrikeOptions?.type === 'strike' || viewedStrikeOptions?.type === 'blast'
+            ? ['d20']
+            : undefined
+        "
+        @diceResult="
+          (diceResult: number | undefined) =>
+            viewedStrikeAction(diceResult)?.then((r) => {
+              strikeModal.close()
+              strikeModal.rollResultModal.open(r)
+            })
+        "
+        :imageUrl="
+          (viewedStrike as ElementalBlast)?.blastImg ??
+          viewedStrikeItem?.img ??
+          'icons/skills/melee/unarmed-punch-fist.webp'
+        "
+      >
+        <template #title>{{ viewedStrike?.label }}</template>
+        <template #description>{{
+          viewedStrikeOptions?.type?.match('_damage') && viewedStrikeOptions?.subtype === 1
+            ? strikeModalDamage?.response?.critical
+            : strikeModalDamage?.response?.damage
+        }}</template>
+        <template #default>
+          <div class="m-1">
+            <DropdownWidget
+              class="relative"
+              :growContainer="true"
+              v-if="viewedStrike?.ammunition?.compatible?.length"
+              :list="
+                [{ id: '', name: 'No ammo' }].concat(viewedStrike?.ammunition?.compatible ?? [])
+              "
+              :selectedId="viewedStrike?.ammunition?.selected?.id ?? ''"
+              :changed="(newId) => viewedStrike?.changeAmmo?.(newId)"
+            />
+          </div>
+          <div
+            class="pb-2"
+            v-if="
+              (viewedStrike as ElementalBlast)?.blastRange?.max ?? viewedStrike?.item?.system?.range
+            "
+          >
+            Range:
+            {{
+              viewedStrikeOptions?.melee
+                ? undefined
+                : ((viewedStrike as ElementalBlast)?.blastRange?.max ??
+                  viewedStrike?.item?.system?.range)
+            }}
+            ft.
+          </div>
+          <div class="flex justify-end gap-2">
+            <div v-if="damageTypeOptions.length > 1">
+              <span class="mt-2">Damage Type:</span>
+              <ChoiceWidget
+                :choiceSet="damageTypeOptions ?? []"
+                :iconSet="damageIcons"
+                :selected="viewedStrikeDamageTypeSelected ?? ''"
+                :clicked="
+                  (damageType) => {
+                    console.log(damageType, viewedStrike)
+                    return strikes?.[viewedStrikeId ?? 0]
+                      ?.setDamageType?.(damageType)
+                      ?.then((r) => {
+                        updateDamageFormula()
+                      })
+                  }
+                "
+              />
+            </div>
+            <ChoiceWidget
+              v-if="viewedStrikeOptions?.type?.match('blast')"
+              :choiceSet="['1', '2']"
+              :iconSet="actionIcons"
+              :selected="blastActions + ''"
+              :clicked="(newChoice) => (blastActions = newChoice)"
+            />
+          </div>
+          <ul>
+            <li
+              v-for="mod in viewedStrikeOptions?.type?.match('_damage')
+                ? strikeModalDamage?.response?.modifiers
+                : viewedStrike?._modifiers"
+              class="flex gap-2"
+              :class="{ 'text-gray-300': !mod.enabled }"
+              :key="mod.slug"
+            >
+              <div class="w-8 text-right">
+                <span v-if="mod.modifier !== undefined">{{ formatModifier(mod.modifier) }}</span>
+                <span v-if="mod.diceNumber">{{ `${mod.diceNumber}${mod.dieSize}` }}</span>
+              </div>
+              <div class="overflow-hidden text-ellipsis whitespace-nowrap">{{ mod.label }}</div>
+              <div v-if="mod.damageType">({{ mod.damageType }})</div>
+            </li>
+          </ul>
+        </template>
+        <template #actionButtons v-if="isListening">
+          <Button
+            v-if="viewedStrikeOptions?.type === 'strike' || viewedStrikeOptions?.type === 'blast'"
+            color="blue"
+            :clicked="
+              () =>
+                viewedStrikeAction()?.then((r) => {
+                  console.log(r)
+                  strikeModal.close()
+                  strikeModal.rollResultModal.open(r)
+                })
+            "
+          >
+            <span v-if="!viewedStrikeOptions?.subtype">Strike&nbsp;</span>
+            <span>{{
+              viewedStrike?.variants?.find(
+                (v) =>
+                  v.map === viewedStrikeOptions?.subtype &&
+                  v.type === attackTypeMap.get(viewedStrikeOptions?.melee)
+              )?.label
+            }}</span>
+          </Button>
+          <Button
+            v-if="viewedStrikeOptions?.type?.match('_damage')"
+            :label="viewedStrikeOptions?.subtype ? 'Critical' : 'Damage'"
+            color="red"
+            :clicked="
+              () =>
+                viewedDamageAction()?.then((r) => {
+                  strikeModal.close()
+                  strikeModal.rollResultModal.open(r)
+                })
+            "
+          />
+        </template>
+      </InfoModal>
+    </Teleport>
+  </div>
 </template>

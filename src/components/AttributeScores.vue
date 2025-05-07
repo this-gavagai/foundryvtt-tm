@@ -8,7 +8,7 @@ const character = inject(useKeys().characterKey)!
 const { str, dex, con, int, wis, cha } = character.attributes
 </script>
 <template>
-  <div class="flex justify-between border-b px-6 py-4">
+  <div class="flex justify-between px-6 py-4 [&>*]:w-1/6">
     <StatBox heading="Str" data-attribute-type="str" :data-attribute-score="str">
       {{ formatModifier(str) }}
     </StatBox>

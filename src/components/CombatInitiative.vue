@@ -33,7 +33,7 @@ const initiativeReady = computed(() => {
 })
 </script>
 <template>
-  <div class="flex justify-between gap-4 border-b px-6 py-4">
+  <div class="flex justify-between gap-4 px-6 py-4">
     <DropdownWidget
       :list="
         skillsPlusPerception.map((s) => ({ id: s.slug, name: s.label })) ?? [

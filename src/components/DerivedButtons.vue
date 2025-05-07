@@ -43,18 +43,20 @@ defineExpose({ actions })
 </script>
 
 <template>
-  <ButtonWidget
-    v-for="action in actions"
-    :key="action.input"
-    color="blue"
-    class="capitalize"
-    :clicked="
-      () =>
-        doCharacterAction(action.slug ?? '', action.options)?.then((r) => {
-          emit('returned', r)
-        })
-    "
-  >
-    Roll {{ action.label ?? action.slug?.replace('-', ' ') }}
-  </ButtonWidget>
+  <div>
+    <ButtonWidget
+      v-for="action in actions"
+      :key="action.input"
+      color="blue"
+      class="capitalize"
+      :clicked="
+        () =>
+          doCharacterAction(action.slug ?? '', action.options)?.then((r) => {
+            emit('returned', r)
+          })
+      "
+    >
+      Roll {{ action.label ?? action.slug?.replace('-', ' ') }}
+    </ButtonWidget>
+  </div>
 </template>

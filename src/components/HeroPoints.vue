@@ -12,19 +12,21 @@ const character = inject(useKeys().characterKey) as Character
 const { current: heroCurrent, max: heroMax } = character.heroPoints
 </script>
 <template>
-  <StatBox heading="Hero Pts" @click="counter.click()">
-    <CounterWidget
-      ref="counter"
-      title="Hero Points"
-      :value="heroCurrent ?? 0"
-      :max="heroMax ?? 0"
-      editable
-      class="h-4"
-      @change-count="
-        (newTotal) => {
-          heroCurrent = newTotal
-        }
-      "
-    />
-  </StatBox>
+  <div>
+    <StatBox heading="Hero Pts" @click="counter.click()">
+      <CounterWidget
+        ref="counter"
+        title="Hero Points"
+        :value="heroCurrent ?? 0"
+        :max="heroMax ?? 0"
+        editable
+        class="h-4"
+        @change-count="
+          (newTotal) => {
+            heroCurrent = newTotal
+          }
+        "
+      />
+    </StatBox>
+  </div>
 </template>

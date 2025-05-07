@@ -13,7 +13,7 @@ const { skills, proficiencies } = character
   <div class="py-4 empty:hidden lg:flex lg:justify-between">
     <div class="flex-1 px-6">
       <dl
-        class="border-t pt-4 first:border-t-0 first:p-0 empty:hidden [&:not(:has(dd))]:hidden"
+        class="border-t border-gray-300 pt-4 first:border-t-0 first:p-0 empty:hidden [&:not(:has(dd))]:hidden"
         v-for="isNonLore in [true, false]"
         :key="isNonLore ? 'norm' : 'lore'"
       >
@@ -36,7 +36,9 @@ const { skills, proficiencies } = character
         </div>
       </dl>
     </div>
-    <div class="flex-1 border-t px-6 pt-4 lg:border-0 lg:border-l lg:pt-0 [&:not(:has(dd))]:hidden">
+    <div
+      class="flex-1 border-t border-gray-300 px-6 pt-4 lg:border-0 lg:border-l lg:pt-0 [&:not(:has(dd))]:hidden"
+    >
       <div
         v-for="proficiencyType in ['attacks', 'defenses', 'classDCs', 'spellcasting']"
         :key="proficiencyType"

@@ -27,13 +27,13 @@ function parseSpeed(speed: SpeedType | undefined) {
 </script>
 <template>
   <div class="flex justify-between border-b px-6 py-4">
-    <StatBox heading="Land" :breakdown="land?.breakdown" class="w-1/5">{{
-      parseSpeed(land)
-    }}</StatBox>
+    <StatBox heading="Land" :breakdown="land?.breakdown" class="w-1/5">
+      {{ parseSpeed(land) }}
+    </StatBox>
     <div class="w-1/5">
-      <StatBox v-if="swim?.value" heading="Swim" :breakdown="swim?.breakdown">{{
-        parseSpeed(swim)
-      }}</StatBox>
+      <StatBox v-if="swim?.value" heading="Swim" :breakdown="swim?.breakdown">
+        {{ parseSpeed(swim) }}
+      </StatBox>
       <StatBox
         v-else
         heading="Swim"
@@ -41,14 +41,14 @@ function parseSpeed(speed: SpeedType | undefined) {
         :modifiers="athletics?.modifiers"
         :rollAction="athletics?.roll"
       >
-        <img v-if="land?.value" :src="d20" class="mt-1 h-5 w-6" />
+        <img v-if="land?.value" :src="d20" class="mt-1 h-6 w-5" />
         <span v-else>--</span>
       </StatBox>
     </div>
     <div class="w-1/5">
-      <StatBox v-if="climb?.value" heading="Climb" :breakdown="climb?.breakdown">{{
-        parseSpeed(climb)
-      }}</StatBox>
+      <StatBox v-if="climb?.value" heading="Climb" :breakdown="climb?.breakdown">
+        {{ parseSpeed(climb) }}
+      </StatBox>
       <StatBox
         v-else
         heading="Climb"
@@ -56,13 +56,15 @@ function parseSpeed(speed: SpeedType | undefined) {
         :modifiers="athletics?.modifiers"
         :rollAction="athletics?.roll"
       >
-        <img v-if="land?.value" :src="d20" class="mt-1 h-5 w-5" />
+        <img v-if="land?.value" :src="d20" class="mt-1 h-6 w-5" />
         <span v-else>--</span>
       </StatBox>
     </div>
-    <StatBox heading="Fly" :breakdown="fly?.breakdown" class="w-1/5">{{ parseSpeed(fly) }}</StatBox>
-    <StatBox heading="Burrow" :breakdown="burrow?.breakdown" class="w-1/5">{{
-      parseSpeed(burrow)
-    }}</StatBox>
+    <StatBox heading="Fly" :breakdown="fly?.breakdown" class="w-1/5">
+      {{ parseSpeed(fly) }}
+    </StatBox>
+    <StatBox heading="Burrow" :breakdown="burrow?.breakdown" class="w-1/5">
+      {{ parseSpeed(burrow) }}
+    </StatBox>
   </div>
 </template>

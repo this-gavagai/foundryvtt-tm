@@ -100,20 +100,20 @@ defineExpose({ actor, character, actorOrWorldActor })
 <template>
   <div class="flex h-dvh select-none" v-if="userHasActorPermission">
     <!-- show this column only if on a tablet or laptop -->
-    <div class="hidden border-r md:block md:h-dvh md:w-80 md:overflow-auto">
-      <CharacterHeader class="sticky top-0 z-10 h-32 bg-white" />
+    <div class="hidden border-r border-gray-300 md:block md:h-dvh md:w-80 md:overflow-auto">
+      <CharacterHeader class="sticky top-0 z-10 h-32" />
       <FrontPage />
     </div>
     <!-- show this column on all devices -->
     <div
       v-drag="handleDrag"
       :dragOptions="dragOptions"
-      class="flex w-0 flex-1 flex-col justify-between md:h-dvh md:justify-start md:border-l"
+      class="flex w-0 flex-1 flex-col justify-between border-gray-300 md:h-dvh md:justify-start md:border-l"
     >
       <TabGroup :selectedIndex="currentTab" @change="changeTab">
         <TabPanels tabindex="-1" class="h-dvh w-full overflow-auto md:order-last" ref="panels">
           <CharacterHeader
-            class="sticky top-0 z-10 h-32 bg-white md:hidden"
+            class="sticky top-0 z-10 h-32 md:hidden"
             @sidebar-activated="sideMenu.sidebarOpen = true"
           />
           <CharacterPanel :goLeft="goLeft" class="md:hidden">
@@ -138,7 +138,7 @@ defineExpose({ actor, character, actorOrWorldActor })
             <SpellList />
           </CharacterPanel>
         </TabPanels>
-        <TabList class="flex h-24 justify-around border-t border-b">
+        <TabList class="flex h-24 justify-around border-t border-b border-gray-300">
           <CharacterTab :src="cowled" label="Character" class="md:hidden" />
           <CharacterTab :src="biceps" label="Feats" />
           <CharacterTab :src="skills" label="Proficiencies" />
@@ -146,7 +146,7 @@ defineExpose({ actor, character, actorOrWorldActor })
           <CharacterTab :src="leapfrog" label="Actions" />
           <CharacterTab :src="spellBook" label="Spells" />
           <Bars3Icon
-            class="mx-4 my-auto hidden h-10 w-10 cursor-pointer rounded-md border-gray-500 p-1 text-gray-500 active:text-gray-300 md:block"
+            class="mx-4 my-auto hidden h-10 w-10 cursor-pointer rounded-md border-gray-900 p-1 text-gray-600 active:text-gray-300 md:block"
             @click="sideMenu.sidebarOpen = true"
           />
         </TabList>

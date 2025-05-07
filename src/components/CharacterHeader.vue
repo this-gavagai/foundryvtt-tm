@@ -26,9 +26,9 @@ const emit = defineEmits(['sidebarActivated'])
 </script>
 
 <template>
-  <div class="flex cursor-pointer items-center gap-2 border-y p-4">
+  <div class="flex cursor-pointer items-center gap-2 border-y border-gray-300 p-4">
     <div
-      class="xs:flex hidden h-24 w-24 items-center overflow-hidden rounded-full border-2 border-gray-300 bg-white"
+      class="xs:flex hidden h-24 w-24 items-center overflow-hidden rounded-full border-2 border-gray-300"
       @click="reloadPage"
     >
       <img
@@ -48,7 +48,7 @@ const emit = defineEmits(['sidebarActivated'])
             <div class="w-full truncate text-left">{{ name ?? 'Loading...' }}</div>
           </ListboxButton>
           <ListboxOptions
-            class="ring-opacity-5 absolute z-50 mt-1 max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black empty:hidden focus:outline-hidden sm:text-sm"
+            class="ring-opacity-5 absolute z-50 mt-1 max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-gray-200 empty:hidden focus:outline-hidden sm:text-sm"
           >
             <ListboxOption v-if="!characterList">
               <div class="relative py-2 pr-4 pl-6 text-gray-400 select-none">Loading...</div>

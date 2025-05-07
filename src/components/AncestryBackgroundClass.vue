@@ -21,47 +21,49 @@ function viewItem(item: Item | undefined) {
 }
 </script>
 <template>
-  <div class="my-auto shrink">
-    <div class="cursor-pointer overflow-hidden whitespace-nowrap text-sm">
-      <span @click="viewItem(ancestry)">{{ ancestry?.name ?? '-' }}&nbsp;</span>
-      <span @click="viewItem(background)">{{ background?.name }}</span>
+  <div>
+    <div class="my-auto shrink">
+      <div class="cursor-pointer overflow-hidden text-sm whitespace-nowrap">
+        <span @click="viewItem(ancestry)">{{ ancestry?.name ?? '-' }}&nbsp;</span>
+        <span @click="viewItem(background)">{{ background?.name }}</span>
+      </div>
+      <div
+        class="cursor-pointer overflow-hidden text-sm whitespace-nowrap"
+        @click="viewItem(classType)"
+      >
+        <span>{{ classType?.name ?? '-' }}</span>
+        <span v-if="level && classType?.name">{{ ` (Level ${level})` }}</span>
+      </div>
     </div>
-    <div
-      class="cursor-pointer overflow-hidden whitespace-nowrap text-sm"
-      @click="viewItem(classType)"
-    >
-      <span>{{ classType?.name ?? '-' }}</span>
-      <span v-if="level && classType?.name">{{ ` (Level ${level})` }}</span>
-    </div>
-  </div>
-  <Teleport to="#modals">
-    <InfoModal
-      ref="infoModal"
-      :imageUrl="identityViewed?.img"
-      :itemId="identityViewed?._id"
-      :traits="identityViewed?.system?.traits?.value"
-    >
-      <template #title>
-        {{ identityViewed?.name }}
-      </template>
-      <template #description>
-        <span v-if="identityViewed?.system?.level?.value"
-          >Level {{ identityViewed?.system?.level?.value ?? '-' }}</span
-        >
-        <span v-if="identityViewed?.system?.traits?.rarity" class="text-sm capitalize"
-          >({{ identityViewed?.system?.traits?.rarity }})</span
-        >
-      </template>
-      <template #body>
-        <div v-html="removeUUIDs(identityViewed?.system?.description?.value)"></div>
-        <div v-if="identityViewed?.type === 'ancestry'">
-          <hr />
-          <div class="mt-2">
-            <h3 class="text-lg">{{ heritage?.name }}</h3>
-            <div v-html="removeUUIDs(heritage?.system?.description?.value)"></div>
+    <Teleport to="#modals">
+      <InfoModal
+        ref="infoModal"
+        :imageUrl="identityViewed?.img"
+        :itemId="identityViewed?._id"
+        :traits="identityViewed?.system?.traits?.value"
+      >
+        <template #title>
+          {{ identityViewed?.name }}
+        </template>
+        <template #description>
+          <span v-if="identityViewed?.system?.level?.value"
+            >Level {{ identityViewed?.system?.level?.value ?? '-' }}</span
+          >
+          <span v-if="identityViewed?.system?.traits?.rarity" class="text-sm capitalize"
+            >({{ identityViewed?.system?.traits?.rarity }})</span
+          >
+        </template>
+        <template #body>
+          <div v-html="removeUUIDs(identityViewed?.system?.description?.value)"></div>
+          <div v-if="identityViewed?.type === 'ancestry'">
+            <hr />
+            <div class="mt-2">
+              <h3 class="text-lg">{{ heritage?.name }}</h3>
+              <div v-html="removeUUIDs(heritage?.system?.description?.value)"></div>
+            </div>
           </div>
-        </div>
-      </template>
-    </InfoModal>
-  </Teleport>
+        </template>
+      </InfoModal>
+    </Teleport>
+  </div>
 </template>
