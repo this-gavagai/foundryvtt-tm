@@ -46,81 +46,87 @@ export interface CharacterSpells {
 
 export function useCharacterSpells(actor: Ref<Actor | undefined>): CharacterSpells {
   const { updateActor, castSpell, updateActorItem, consumeItem } = useApi()
-  return {
-    spellcastingEntries: computed(() =>
-      actor.value?.items
-        ?.filter?.((i: PF2eItem) => i?.type === 'spellcastingEntry')
-        ?.map((i: PF2eItem) => ({
-          ...(makeItem(i) as Item),
-          setPrepared: (
-            rank: number | undefined,
-            slot: number | undefined,
-            newSpellId: string | null,
-            expended: boolean = false
-          ) => {
-            const prepared = i?.system?.slots?.['slot' + rank]?.prepared
-            if (!prepared || !rank || !slot) return Promise.resolve(null)
-            if (!prepared[slot]) prepared[slot] = { id: null, expended: true }
-            prepared[slot].id = newSpellId
-            prepared[slot].expended = expended
-            const update = { system: { slots: { ['slot' + rank]: { prepared: prepared } } } }
-            return updateActorItem(actor as Ref<Actor>, i._id, update)
-          },
-          // setCharges: (newValue: number) => {
-          //   return updateActorItem(actor as Ref<Actor>, i._id, {
-          //     flags: { 'pf2e-dailies': { staff: { charges: newValue } } }
-          //   })
-          // },
-          setSlotCount: (rank: number, newValue: number) => {
-            const update = { system: { slots: { ['slot' + rank]: { value: newValue } } } }
-            return updateActorItem(actor as Ref<Actor>, i?._id, update)
-          }
-        }))
-    ),
-    spells: computed(() =>
-      actor.value?.items
-        ?.filter((i: PF2eItem) => i?.type === 'spell')
-        ?.concat(actor.value?.flags?.['pf2e-dailies']?.extra?.staffData?.spells ?? [])
-        ?.map((i: PF2eItem) => ({
-          ...(makeItem(i) as Item),
-          doSpell: (rank: number | undefined, slot: number | undefined) => {
-            if (rank === undefined || slot === undefined) return Promise.resolve(null)
-            return castSpell(actor as Ref<Actor>, i._id, rank, slot)
-          }
-        }))
-    ),
-    spellConsumables: computed(() =>
-      actor.value?.items
-        ?.filter(
-          (i: PF2eItem) =>
-            i.system?.traits.value?.includes('scroll') || i.system?.traits.value?.includes('wand')
-        )
-        ?.map((i: PF2eItem) => ({
-          ...(makeItem(i) as Item),
-          consumeItem: () => consumeItem(actor as Ref<Actor>, i._id),
-          changeUses: (newValue: number) => {
-            const updates = { system: { uses: { value: newValue } } }
-            return updateActorItem(actor as Ref<Actor>, i?._id, updates)
-          }
-        }))
-    ),
-    staff: computed(() => ({
-      staffId: actor.value?.flags?.['pf2e-dailies']?.extra?.staffData?.staffId,
-      charges: {
-        value: actor.value?.flags?.['pf2e-dailies']?.extra?.staffData?.charges?.value,
-        max: actor.value?.flags?.['pf2e-dailies']?.extra?.staffData?.charges?.max
-      },
-      spells: actor.value?.flags?.['pf2e-dailies']?.extra?.staffData?.spells.map((i: PF2eItem) =>
-        makeItem(i)
-      ),
-      expended: actor.value?.flags?.['pf2e-dailies']?.extra?.staffData?.expended,
-      // doStaffSpell: () => {},
-      setStaffCharges: (newValue: number) => {
-        const update = {
-          flags: { 'pf2e-dailies': { extra: { staffData: { charges: { value: newValue } } } } }
+
+  const spellcastingEntries = computed(() =>
+    actor.value?.items
+      ?.filter?.((i: PF2eItem) => i?.type === 'spellcastingEntry')
+      ?.map((i: PF2eItem) => ({
+        ...(makeItem(i) as Item),
+        setPrepared: (
+          rank: number | undefined,
+          slot: number | undefined,
+          newSpellId: string | null,
+          expended: boolean = false
+        ) => {
+          const prepared = i?.system?.slots?.['slot' + rank]?.prepared
+          if (!prepared || !rank || !slot) return Promise.resolve(null)
+          if (!prepared[slot]) prepared[slot] = { id: null, expended: true }
+          prepared[slot].id = newSpellId
+          prepared[slot].expended = expended
+          const update = { system: { slots: { ['slot' + rank]: { prepared: prepared } } } }
+          return updateActorItem(actor as Ref<Actor>, i._id, update)
+        },
+        // setCharges: (newValue: number) => {
+        //   return updateActorItem(actor as Ref<Actor>, i._id, {
+        //     flags: { 'pf2e-dailies': { staff: { charges: newValue } } }
+        //   })
+        // },
+        setSlotCount: (rank: number, newValue: number) => {
+          const update = { system: { slots: { ['slot' + rank]: { value: newValue } } } }
+          return updateActorItem(actor as Ref<Actor>, i?._id, update)
         }
-        return updateActor(actor as Ref<Actor>, update)
+      }))
+  )
+  const spells = computed(() =>
+    actor.value?.items
+      ?.filter((i: PF2eItem) => i?.type === 'spell')
+      ?.concat(actor.value?.flags?.['pf2e-dailies']?.extra?.staffData?.spells ?? [])
+      ?.map((i: PF2eItem) => ({
+        ...(makeItem(i) as Item),
+        doSpell: (rank: number | undefined, slot: number | undefined) => {
+          if (rank === undefined || slot === undefined) return Promise.resolve(null)
+          return castSpell(actor as Ref<Actor>, i._id, rank, slot)
+        }
+      }))
+  )
+  const spellConsumables = computed(() =>
+    actor.value?.items
+      ?.filter(
+        (i: PF2eItem) =>
+          i.system?.traits.value?.includes('scroll') || i.system?.traits.value?.includes('wand')
+      )
+      ?.map((i: PF2eItem) => ({
+        ...(makeItem(i) as Item),
+        consumeItem: () => consumeItem(actor as Ref<Actor>, i._id),
+        changeUses: (newValue: number) => {
+          const updates = { system: { uses: { value: newValue } } }
+          return updateActorItem(actor as Ref<Actor>, i?._id, updates)
+        }
+      }))
+  )
+  const staff = computed(() => ({
+    staffId: actor.value?.flags?.['pf2e-dailies']?.extra?.staffData?.staffId,
+    charges: {
+      value: actor.value?.flags?.['pf2e-dailies']?.extra?.staffData?.charges?.value,
+      max: actor.value?.flags?.['pf2e-dailies']?.extra?.staffData?.charges?.max
+    },
+    spells: actor.value?.flags?.['pf2e-dailies']?.extra?.staffData?.spells.map((i: PF2eItem) =>
+      makeItem(i)
+    ),
+    expended: actor.value?.flags?.['pf2e-dailies']?.extra?.staffData?.expended,
+    // doStaffSpell: () => {},
+    setStaffCharges: (newValue: number) => {
+      const update = {
+        flags: { 'pf2e-dailies': { extra: { staffData: { charges: { value: newValue } } } } }
       }
-    }))
+      return updateActor(actor as Ref<Actor>, update)
+    }
+  }))
+
+  return {
+    spellcastingEntries,
+    spells,
+    spellConsumables,
+    staff
   }
 }

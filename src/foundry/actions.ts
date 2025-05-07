@@ -1,4 +1,4 @@
-import type { Actor, Action, Modifier, Item } from '@/types/pf2e-types'
+import type { Actor, Action, Modifier, Item, Rule } from '@/types/pf2e-types'
 import type {
   RollCheckArgs,
   CharacterActionArgs,
@@ -40,6 +40,10 @@ export async function getCharacterDetails(
       value: { value: bulk.value.value, light: bulk.value.light, normal: bulk.value.normal }
     }
   }
+  const activeRules = new Set()
+  actor.rules.forEach((r: Rule) => {
+    if (r.option && r.test()) activeRules.add(r.option)
+  }, [])
   console.log('TABLEMATE: now sending ' + actor.name)
   return {
     action: 'updateCharacterDetails',
@@ -47,6 +51,7 @@ export async function getCharacterDetails(
     actor: JSON.stringify(actor),
     system: JSON.stringify(actor.system),
     inventory: JSON.stringify(inventory),
+    activeRules: JSON.stringify([...activeRules]),
     elementalBlasts: JSON.stringify(elementalBlasts, blastReplacer),
     uuid: args.uuid
   }

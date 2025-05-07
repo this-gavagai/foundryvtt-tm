@@ -31,65 +31,78 @@ export interface CharacterCore {
 
 export function useCharacterCore(actor: Ref<Actor | undefined>): CharacterCore {
   const { updateActor } = useApi()
-  return {
-    _id: computed(() => actor.value?._id),
-    name: computed(() => actor.value?.name),
-    portraitUrl: computed(() => actor.value?.prototypeToken?.texture?.src),
-    ancestry: computed(() => ({
-      ...(makeItem(actor.value?.items?.find((x: PF2eItem) => x.type === 'ancestry')) as Item)
-    })),
-    background: computed(() => ({
-      ...(makeItem(actor.value?.items?.find((x: PF2eItem) => x.type === 'background')) as Item)
-    })),
-    heritage: computed(() => ({
-      ...(makeItem(actor.value?.items?.find((x: PF2eItem) => x.type === 'heritage')) as Item)
-    })),
-    classType: computed(() => ({
-      ...(makeItem(actor.value?.items?.find((x: PF2eItem) => x.type === 'class')) as Item)
-    })),
-    level: computed(() => actor.value?.system?.details?.level?.value),
-    xp: {
-      current: computed({
-        get: () => actor.value?.system?.details?.xp?.value,
-        set: (newValue) => {
-          actor.value!.system.details.xp.value = newValue
-          const update = { system: { details: { xp: { value: newValue } } } }
-          updateActor(actor, update)
-        }
-      }),
-      max: computed(() => actor.value?.system?.details?.xp?.max)
-    },
-    movement: {
-      land: computed(() => makeStat(actor.value?.system?.attributes?.speed)),
-      swim: computed(() =>
-        makeStat(
-          actor.value?.system.attributes.speed.otherSpeeds.find(
-            (s: PF2eMovement) => s.type === 'swim'
-          )
-        )
-      ),
-      climb: computed(() =>
-        makeStat(
-          actor.value?.system.attributes.speed.otherSpeeds.find(
-            (s: PF2eMovement) => s.type === 'climb'
-          )
-        )
-      ),
-      fly: computed(() =>
-        makeStat(
-          actor.value?.system.attributes.speed.otherSpeeds.find(
-            (s: PF2eMovement) => s.type === 'fly'
-          )
-        )
-      ),
-      burrow: computed(() =>
-        makeStat(
-          actor.value?.system.attributes.speed.otherSpeeds.find(
-            (s: PF2eMovement) => s.type === 'burrow'
-          )
+
+  const _id = computed(() => actor.value?._id)
+  const name = computed(() => actor.value?.name)
+  const portraitUrl = computed(() => actor.value?.prototypeToken?.texture?.src)
+
+  const ancestry = computed(() =>
+    makeItem(actor.value?.items?.find((x: PF2eItem) => x.type === 'ancestry'))
+  )
+  const background = computed(() =>
+    makeItem(actor.value?.items?.find((x: PF2eItem) => x.type === 'background'))
+  )
+  const heritage = computed(() =>
+    makeItem(actor.value?.items?.find((x: PF2eItem) => x.type === 'heritage'))
+  )
+  const classType = computed(() =>
+    makeItem(actor.value?.items?.find((x: PF2eItem) => x.type === 'class'))
+  )
+
+  const level = computed(() => actor.value?.system?.details?.level?.value)
+  const xp = {
+    current: computed({
+      get: () => actor.value?.system?.details?.xp?.value,
+      set: (newValue) => {
+        actor.value!.system.details.xp.value = newValue
+        const update = { system: { details: { xp: { value: newValue } } } }
+        updateActor(actor, update)
+      }
+    }),
+    max: computed(() => actor.value?.system?.details?.xp?.max)
+  }
+  const movement = {
+    land: computed(() => makeStat(actor.value?.system?.attributes?.speed)),
+    swim: computed(() =>
+      makeStat(
+        actor.value?.system.attributes.speed.otherSpeeds.find(
+          (s: PF2eMovement) => s.type === 'swim'
         )
       )
-    },
-    languages: computed(() => actor.value?.system?.details?.languages?.value)
+    ),
+    climb: computed(() =>
+      makeStat(
+        actor.value?.system.attributes.speed.otherSpeeds.find(
+          (s: PF2eMovement) => s.type === 'climb'
+        )
+      )
+    ),
+    fly: computed(() =>
+      makeStat(
+        actor.value?.system.attributes.speed.otherSpeeds.find((s: PF2eMovement) => s.type === 'fly')
+      )
+    ),
+    burrow: computed(() =>
+      makeStat(
+        actor.value?.system.attributes.speed.otherSpeeds.find(
+          (s: PF2eMovement) => s.type === 'burrow'
+        )
+      )
+    )
+  }
+  const languages = computed(() => actor.value?.system?.details?.languages?.value)
+
+  return {
+    _id,
+    name,
+    portraitUrl,
+    ancestry,
+    background,
+    heritage,
+    classType,
+    level,
+    xp,
+    movement,
+    languages
   }
 }

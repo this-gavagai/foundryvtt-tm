@@ -28,6 +28,7 @@ export interface UpdateCharacterDetailsArgs {
   // feats: string
   system: string
   inventory: string
+  activeRules: string
   elementalBlasts: string
   uuid: string
 }

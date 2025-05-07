@@ -16,8 +16,8 @@ const effectViewed = computed(() => effects.value?.find((e) => e._id === effectV
     class="relative flex flex-wrap gap-2 overflow-hidden border border-t-0 px-6 transition-all duration-300"
     :class="[
       effects?.length && effects?.length > 0
-        ? 'h-[5.25rem] scale-y-100 border-opacity-100 py-4'
-        : 'h-0 scale-y-0 border-opacity-0 py-0'
+        ? 'border-opacity-100 scale-y-100 py-4'
+        : 'border-opacity-0 scale-y-0 py-0'
     ]"
   >
     <TransitionGroup
@@ -29,7 +29,7 @@ const effectViewed = computed(() => effects.value?.find((e) => e._id === effectV
       leave-to-class=" opacity-0 max-h-0"
     >
       <div
-        class="h-10 cursor-pointer"
+        class="cursor-pointer"
         v-for="effect in effects"
         :key="effect._id"
         @click="
@@ -39,19 +39,19 @@ const effectViewed = computed(() => effects.value?.find((e) => e._id === effectV
           }
         "
       >
-        <div class="w-10">
+        <div class="w-[38px]">
           <div class="relative">
             <div
               v-if="effect.system?.value?.isValued"
-              class="absolute bottom-0 right-0 border border-black bg-[#FFFFFFCC] px-1 text-xs"
+              class="absolute right-0 bottom-0 border border-black bg-[#FFFFFFCC] px-1 text-xs"
             >
               {{ effect.system?.value?.value }}
             </div>
             <img :src="getPath(effect.img ?? '')" class="rounded-full" alt="Effect icon" />
           </div>
-          <div class="overflow-hidden whitespace-nowrap text-center text-[0.5rem]">
+          <!-- <div class="overflow-hidden whitespace-nowrap text-center text-[0.5rem]">
             {{ effect?.name?.replace('Effect: ', '') }}
-          </div>
+          </div> -->
         </div>
       </div>
     </TransitionGroup>

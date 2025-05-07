@@ -126,7 +126,7 @@ async function setupSocketListenersForActor(
   socket.on('module.tablemate', (args: ModuleEventArgs) => {
     switch (args.action) {
       case 'listenerOnline':
-        // if (!parent.game) requestCharacterDetails[actorId]()
+        if (!actor.value?.inventory) requestCharacterDetails[actorId]()
         break
       case 'updateCharacterDetails':
         parseActorData(actorId, actor, args)
@@ -186,11 +186,13 @@ function parseActorData(
   if (!actor.value.system) actor.value.system = {} as System
   if (!actor.value.elementalBlasts) actor.value.elementalBlasts = {} as ElementalBlasts
   if (!actor.value.inventory) actor.value.inventory = {}
+  if (!actor.value.activeRules) actor.value.activeRules = []
 
   const incoming = JSON.parse(args.actor)
   incoming.system = JSON.parse(args.system)
   incoming.elementalBlasts = JSON.parse(args.elementalBlasts)
   incoming.inventory = JSON.parse(args.inventory)
+  incoming.activeRules = JSON.parse(args.activeRules)
 
   mergeWith(actor.value, incoming, mergeWithArrayReset)
 }

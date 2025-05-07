@@ -33,10 +33,28 @@ import EquipmentList from '@/components/EquipmentList.vue'
 import StrikeList from '@/components/StrikeList.vue'
 import { useUserId } from '@/composables/user'
 
-const { width } = useWindowSize()
 const props = defineProps(['characterId'])
+
+// sheet layout and tab management
+const { width } = useWindowSize()
 const sideMenu = ref()
 const panels = ref()
+
+const currentTab = ref<number>()
+const goLeft = ref(false)
+function changeTab(index: number) {
+  goLeft.value = (currentTab.value ?? 0) - index >= 0 ? true : false
+  currentTab.value = index
+}
+const dragOptions = {
+  preventWindowScrollY: true,
+  lockDirection: true,
+  swipeDistance: 100,
+  axis: 'x'
+}
+const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
+  if (swipe[0]) changeTab(Math.max(0, Math.min((currentTab.value ?? 0) - swipe[0], 5)))
+}
 
 // base data
 const { world } = useWorld()
@@ -77,22 +95,6 @@ onUnmounted(() => {
   console.log('TM-INIT: unmounted actor', props.characterId)
 })
 
-const currentTab = ref<number>()
-const goLeft = ref(false)
-function changeTab(index: number) {
-  goLeft.value = (currentTab.value ?? 0) - index >= 0 ? true : false
-  currentTab.value = index
-}
-const dragOptions = {
-  preventWindowScrollY: true,
-  lockDirection: true,
-  swipeDistance: 100,
-  axis: 'x'
-}
-const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
-  if (swipe[0]) changeTab(Math.max(0, Math.min((currentTab.value ?? 0) - swipe[0], 5)))
-}
-
 defineExpose({ actor, character, actorOrWorldActor })
 </script>
 <template>
@@ -110,7 +112,10 @@ defineExpose({ actor, character, actorOrWorldActor })
     >
       <TabGroup :selectedIndex="currentTab" @change="changeTab">
         <TabPanels tabindex="-1" class="h-dvh w-full overflow-auto md:order-last" ref="panels">
-          <CharacterHeader class="sticky top-0 z-10 h-32 bg-white md:hidden" />
+          <CharacterHeader
+            class="sticky top-0 z-10 h-32 bg-white md:hidden"
+            @sidebar-activated="sideMenu.sidebarOpen = true"
+          />
           <CharacterPanel :goLeft="goLeft" class="md:hidden">
             <FrontPage />
           </CharacterPanel>
@@ -133,7 +138,7 @@ defineExpose({ actor, character, actorOrWorldActor })
             <SpellList />
           </CharacterPanel>
         </TabPanels>
-        <TabList class="flex h-24 justify-around border-b border-t">
+        <TabList class="flex h-24 justify-around border-t border-b">
           <CharacterTab :src="cowled" label="Character" class="md:hidden" />
           <CharacterTab :src="biceps" label="Feats" />
           <CharacterTab :src="skills" label="Proficiencies" />

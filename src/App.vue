@@ -1,31 +1,32 @@
 <script setup lang="ts">
-import { ref, computed, type Ref } from 'vue'
-import { watchPostEffect } from 'vue'
+import { type Ref, computed, useTemplateRef, watchPostEffect } from 'vue'
 import { useWakeLock } from '@vueuse/core'
-import { type Socket } from 'socket.io-client'
-import type { Actor, World } from '@/types/pf2e-types'
-import type { Character } from '@/composables/character'
+import type { Socket } from 'socket.io-client'
+import type { World } from '@/types/pf2e-types'
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 
 import { useApi } from '@/composables/api'
 import { useServer } from '@/composables/server'
 import { useWorld } from '@/composables/world'
 import { useCharacterSelect } from '@/composables/characterSelect'
-
 import { usePixelDice } from './composables/pixelDice'
 
 import CharacterSheet from '@/components/CharacterSheet.vue'
-
 declare const BUILD_MODE: string
-interface CharacterPanel extends Ref {
-  actor: Actor
-  character: Character
-  actorOrWorldActor: Actor
-}
 
-const { pixelReconnect } = usePixelDice()
-pixelReconnect()
+// connect to server and ping it periodically
+const location = new URL(window.location.origin)
+const { connectToServer } = useServer()
+connectToServer(location).then((socket: Ref<Socket | undefined>) => {
+  setTimeout(() => socket.value?.emit('module.tablemate', { action: 'anybodyHome' }), 100)
+  if (BUILD_MODE !== 'development') {
+    setInterval(() => {
+      socket.value?.emit('module.tablemate', { action: 'anybodyHome' })
+    }, 10000)
+  }
+})
 
+// request and handle world
 const { world, refreshWorld } = useWorld()
 const { setupSocketListenersForWorld, setupSocketListenersForApp } = useApi()
 setupSocketListenersForApp()
@@ -33,19 +34,7 @@ refreshWorld().then((w) => {
   setupSocketListenersForWorld(w as Ref<World>)
 })
 
-const { connectToServer } = useServer()
-const location = new URL(window.location.origin)
-
-// connect to server and ping it periodically
-connectToServer(location).then((socket: Ref<Socket | undefined>) => {
-  setTimeout(() => socket.value?.emit('module.tablemate', { action: 'anybodyHome' }), 100)
-  if (BUILD_MODE !== 'development') {
-    setInterval(() => {
-      socket.value?.emit('module.tablemate', { action: 'anybodyHome' })
-    }, 60000)
-  }
-})
-
+// keep screen awake (hard to tell if this is working or not)
 const { request } = useWakeLock()
 document.addEventListener(
   'click',
@@ -56,18 +45,22 @@ document.addEventListener(
   false
 )
 
-// const activeIndex = ref<number>(0)
+// setup pixel dice handlers
+usePixelDice()
+
+// setup characters
 const urlId = new URLSearchParams(document.location.search).get('id')
 const { characterList, activeCharacterId } = useCharacterSelect(urlId)
 const activeIndex = computed(() => characterList.value.indexOf(activeCharacterId.value))
-const characterPanels = ref<CharacterPanel[]>([])
+const characters = useTemplateRef('characters')
 
 // debugging tools
 if (BUILD_MODE === 'development') {
   watchPostEffect(() => {
+    if (!characters.value || !Array.isArray(characters.value)) return
     window.altActors = new Map([])
     window.altCharacters = new Map([])
-    characterPanels.value.forEach((panel: CharacterPanel) => {
+    characters.value.forEach((panel) => {
       if (panel.actorOrWorldActor?._id === urlId) {
         window.actor = panel.actorOrWorldActor
         window.character = panel.character
@@ -89,14 +82,14 @@ if (BUILD_MODE === 'development') {
   <TabGroup :selectedIndex="activeIndex" as="div">
     <TabList class="hidden h-12 gap-0 border border-gray-300 bg-white text-xl">
       <Tab
-        class="relative top-0 p-2 focus:outline-hidden ui-selected:bg-blue-300"
-        v-for="c in characterList.length ? characterList : ['']"
+        class="ui-selected:bg-blue-300 relative top-0 p-2 focus:outline-hidden"
+        v-for="c in characterList"
         :key="c"
       />
     </TabList>
     <TabPanels>
       <TabPanel
-        v-for="(c, index) in characterList.length ? characterList : ['']"
+        v-for="c in characterList"
         :key="c"
         :unmount="false"
         :tabIndex="-1"
@@ -111,11 +104,7 @@ if (BUILD_MODE === 'development') {
           leave-from-class="opacity-100"
           leave-to-class="transform opacity-0"
         >
-          <CharacterSheet
-            v-show="selected"
-            :characterId="c"
-            :ref="(el: CharacterPanel) => (characterPanels[index] = el)"
-          />
+          <CharacterSheet v-show="selected" :characterId="c" ref="characters" />
         </Transition>
       </TabPanel>
     </TabPanels>

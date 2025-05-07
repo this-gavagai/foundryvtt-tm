@@ -9,6 +9,7 @@ export interface Actor {
   ownership: any
   elementalBlasts: ElementalBlasts
   flags: any
+  activeRules: string[]
 }
 
 export interface ElementalBlasts {
@@ -171,6 +172,7 @@ export interface Rule {
   label: string
   suboptions: { label: string; value: string }[]
   value: boolean | undefined
+  test: () => boolean
 }
 
 export interface Skill {

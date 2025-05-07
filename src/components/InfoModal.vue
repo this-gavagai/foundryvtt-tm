@@ -76,7 +76,7 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
           leave-from="opacity-100"
           leave-to="opacity-0"
         >
-          <div class="bg-opacity-25 fixed inset-0 bg-black" />
+          <div class="fixed inset-0 bg-[#000A]" />
         </TransitionChild>
 
         <div class="fixed inset-x-0 bottom-0 overflow-y-auto">

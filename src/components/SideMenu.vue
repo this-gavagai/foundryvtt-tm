@@ -11,13 +11,8 @@ import RollOptions from '@/components/RollOptions.vue'
 import Spinner from './widgets/SpinnerWidget.vue'
 
 const { world } = useWorld()
-const { pixelConnect, pixelReconnect, pixelDisconnect, pixel } = usePixelDice()
+const { pixelConnect, pixelReconnect, pixelDisconnect, pixel, pixelStatus } = usePixelDice()
 const { userList, targetingProxyId, updateProxyId } = useTargetHelper()
-
-const pixelStatus = ref<string | undefined>()
-setInterval(() => {
-  pixelStatus.value = pixel.value?.status
-}, 500)
 
 const targetProxySelector = ref()
 const sidebarOpen = ref(false)
@@ -68,7 +63,7 @@ defineExpose({ sidebarOpen })
               leave-from="opacity-100"
               leave-to="opacity-0"
             >
-              <div class="absolute -left-16 top-0 flex w-16 justify-center pt-5">
+              <div class="absolute top-0 -left-16 flex w-16 justify-center pt-5">
                 <button type="button" class="-m-2.5 p-2.5" @click="sidebarOpen = false">
                   <span class="sr-only">Close sidebar</span>
                   <XMarkIcon class="h-6 w-6 text-white" aria-hidden="true" />
