@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Equipment } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
-import { removeUUIDs, printPrice } from '@/utils/utilities'
+import { printPrice } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 import { useListeners } from '@/composables/listenersOnline'
 import { inventoryTypes } from '@/utils/constants'
@@ -16,15 +16,15 @@ import DropdownWidget from '@/components/widgets/DropdownWidget.vue'
 import CounterWidget from '@/components/widgets/CounterWidget.vue'
 import ToggleWidget from '@/components/widgets/ToggleWidget.vue'
 import ChoiceWidget from '@/components/widgets/ChoiceWidget.vue'
+import ParsedDescription from './ParsedDescription.vue'
+import EquipmentBulk from './EquipmentBulk.vue'
+import EquipmentHeld from './EquipmentHeld.vue'
 
 const infoModal = ref()
 const investedModal = ref()
 
 const character = inject(useKeys().characterKey)!
 const { inventory } = character
-const { max: bulkMax, encumberedAfter: bulkEncumberedAfter } = character.bulk
-const { value: bulkValue, normal: bulkNormal } = character.bulk.value
-
 const { isListening } = useListeners()
 
 const itemViewedId = ref<string | undefined>()
@@ -86,131 +86,15 @@ const toggleSet = [
     </div>
     <div v-else class="px-6 py-4">
       <!-- Held Items list -->
-      <ul class="peer mb-4 flex flex-col justify-start transition-all duration-1000">
-        <TransitionGroup
-          enter-active-class="transform duration-200 ease-out"
-          enter-from-class=" opacity-0 max-h-0 scale-0"
-          enter-to-class="opacity-100 max-h-7 scale-100"
-          leave-active-class="transform duration-200 ease-in"
-          leave-from-class="opacity-100 max-h-7 scale-100"
-          leave-to-class="opacity-0 max-h-0 scale-0"
-        >
-          <li
-            v-for="item in inventory?.filter((i: Equipment) => i.system?.equipped?.handsHeld)"
-            class="relative origin-left text-xl whitespace-nowrap transition-all duration-300"
-            :class="item.name ? 'max-h-7' : 'max-h-0'"
-            :key="item._id"
-          >
-            <a
-              class="cursor-pointer"
-              @click="
-                () => {
-                  itemViewedId = item._id
-                  infoModal.open()
-                }
-              "
-            >
-              <Transition
-                enter-active-class="transform duration-100 delay-200 ease-out"
-                :enter-from-class="
-                  item.system?.equipped?.handsHeld === 1 ? 'opacity-0 -top-4' : 'opacity-0 top-4'
-                "
-                enter-to-class="opacity-100 top-0"
-                leave-active-class="transform duration-300 ease-in"
-                leave-from-class="opacity-100 top-0"
-                :leave-to-class="
-                  item.system?.equipped?.handsHeld === 1 ? 'opacity-0 top-4' : 'opacity-0 -top-4'
-                "
-              >
-                <span
-                  v-if="item.system?.equipped?.handsHeld === 1"
-                  class="absolute origin-center pr-1"
-                  >❶</span
-                >
-                <span v-else class="absolute origin-center pr-1">❷</span>
-              </Transition>
-              <!-- <span class="pr-1">{{
-              item.system?.equipped?.handsHeld
-                ? item.system?.equipped?.handsHeld === 1
-                  ? '❶'
-                  : '❷'
-                : item.system?.equipped?.carryType === 'dropped'
-                  ? '⌵'
-                  : 'Ⓦ'
-            }}</span> -->
-              <span class="ml-6">{{ item.name }}</span>
-            </a>
-          </li>
-        </TransitionGroup>
-      </ul>
-      <!-- <hr
-      class="transition-all duration-300"
-      :class="[
-        inventory?.filter((i: Equipment) => i.system?.equipped?.handsHeld)?.length
-          ? 'mb-2 mt-4 scale-y-100'
-          : 'mb-0 mt-0 scale-y-0'
-      ]"
-    /> -->
-      <!-- Invested Items line -->
-      <svg
-        width="100%"
-        height="30"
-        class="trasition-all duration-500"
-        v-if="inventory?.length && bulkNormal && bulkMax"
-      >
-        <pattern id="diagonalHatch" patternUnits="userSpaceOnUse" width="4" height="4">
-          <path
-            d="M-1,1 l2,-2
-           M0,4 l4,-4
-           M3,5 l2,-2"
-            style="stroke: #faa; stroke-width: 1"
-          />
-        </pattern>
-        <rect
-          width="100%"
-          height="100%"
-          fill="url(#diagonalHatch)"
-          class="trasition-all duration-500 ease-in-out"
-        />
-        <rect
-          :width="((bulkEncumberedAfter ?? 0) / (bulkMax ?? 100)) * 100 + '%'"
-          height="100%"
-          style="fill: white"
-          class="trasition-all duration-500 ease-in-out"
-        />
-        <rect
-          :width="((bulkNormal ?? 0) / (bulkMax ?? 100)) * 100 + '%'"
-          height="100%"
-          style="stroke-width: 1; stroke: black"
-          :style="
-            'fill: ' +
-            ((bulkNormal ?? 0) < (bulkEncumberedAfter ?? 0)
-              ? '#8c8'
-              : (bulkNormal ?? 0) < (bulkMax ?? 0)
-                ? '#ee5'
-                : '#c88')
-          "
-          class="trasition-all duration-500 ease-in-out"
-        />
-        <rect
-          width="100%"
-          height="100%"
-          style="fill: transparent; stroke-width: 3; stroke: rgb(100, 100, 100)"
-        />
-        <text y="20" x="6" stroke="black" font-size="10pt" font-weight="lighter">
-          Current Bulk: {{ bulkValue }} / {{ bulkEncumberedAfter }}
-        </text>
-        <text
-          y="20"
-          x="100%"
-          text-anchor="end"
-          stroke="black"
-          font-size="10pt"
-          font-weight="lighter"
-        >
-          Max: {{ bulkMax }}&nbsp;&nbsp;
-        </text>
-      </svg>
+      <EquipmentHeld
+        @item-clicked="
+          (item) => {
+            itemViewedId = item._id
+            infoModal.open()
+          }
+        "
+      />
+      <EquipmentBulk v-if="inventory?.length" />
       <div v-if="inventory?.length">
         <span class="cursor-pointer text-sm text-gray-500" @click="investedModal.open()">
           (Items Invested:
@@ -219,48 +103,51 @@ const toggleSet = [
       </div>
       <!-- Comprehensive equipment list -->
       <div class="lg:columns-2 lg:gap-12">
-        <dl
+        <section
           v-for="inventoryType in inventoryTypes"
-          class="break-before-avoid break-inside-avoid-column pt-4 whitespace-nowrap [&:not(:has(dd))]:hidden"
+          class="break-before-avoid break-inside-avoid-column pt-4 whitespace-nowrap [&:not(:has(li))]:hidden"
           :class="{ 'break-before-column': inventoryType.type === 'backpack' }"
           :key="inventoryType.title"
         >
-          <dt class="text-lg underline only:hidden">{{ inventoryType.title }}</dt>
-          <dd
-            v-for="item in inventory?.filter(
-              (i: Equipment) => i.type === inventoryType.type && !i.system?.containerId
-            )"
-            :key="item._id"
-          >
-            <EquipmentListItem
-              :item="item"
-              @item-clicked="
-                () => {
-                  itemViewedId = item._id
-                  infoModal.open()
-                }
-              "
-            />
-            <ul class="pb-2" v-if="item.type === 'backpack'">
-              <li
-                v-for="stowed in inventory?.filter(
-                  (i: Equipment) => i.system?.containerId === item._id
-                )"
-                :key="stowed._id"
-              >
-                <EquipmentListItem
-                  :item="stowed"
-                  @item-clicked="
-                    () => {
-                      itemViewedId = stowed._id
-                      infoModal.open()
-                    }
-                  "
-                />
-              </li>
-            </ul>
-          </dd>
-        </dl>
+          <h3 class="text-lg underline only:hidden">{{ inventoryType.title }}</h3>
+          <ul>
+            <li
+              v-for="item in inventory?.filter(
+                (i: Equipment) => i.type === inventoryType.type && !i.system?.containerId
+              )"
+              :key="item._id"
+            >
+              <EquipmentListItem
+                :item="item"
+                @item-clicked="
+                  () => {
+                    itemViewedId = item._id
+                    infoModal.open()
+                  }
+                "
+              />
+              <!-- Sub-items (in container) -->
+              <ul class="pb-2" v-if="item.type === 'backpack'">
+                <li
+                  v-for="stowed in inventory?.filter(
+                    (i: Equipment) => i.system?.containerId === item._id
+                  )"
+                  :key="stowed._id"
+                >
+                  <EquipmentListItem
+                    :item="stowed"
+                    @item-clicked="
+                      () => {
+                        itemViewedId = stowed._id
+                        infoModal.open()
+                      }
+                    "
+                  />
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </section>
       </div>
     </div>
     <Teleport to="#modals">
@@ -333,22 +220,6 @@ const toggleSet = [
                 >
               </div>
             </Transition>
-            <!-- <Transition
-            enter-active-class="transform transition-all duration-100 overflow-hidden"
-            enter-from-class="opacity-0 max-h-0"
-            enter-to-class="opacity-100 max-h-6"
-            leave-active-class="transform transition-all duration-100 ease-in overflow-hidden"
-            leave-from-class="opacity-100 max-h-6"
-            leave-to-class="opacity-0 max-h-0"
-          > -->
-            <!-- <div
-              v-if="
-                itemViewed?.system?.equipped?.carryType === 'worn' &&
-                (itemViewed?.system?.equipped?.invested === true ||
-                  itemViewed?.system?.equipped?.invested === false)
-              "
-              class="flex py-1"
-            > -->
             <div
               class="flex py-1"
               v-if="
@@ -369,7 +240,6 @@ const toggleSet = [
                 }}</span
               >
             </div>
-            <!-- </Transition> -->
             <Transition
               enter-active-class="transform transition-all duration-100 overflow-hidden"
               enter-from-class="opacity-0 max-h-0"
@@ -407,7 +277,7 @@ const toggleSet = [
           </div>
         </template>
         <template #body>
-          <div v-html="removeUUIDs(itemViewed?.system?.description.value)"></div>
+          <ParsedDescription :text="itemViewed?.system?.description.value" />
           <div class="flex">
             <div class="flex-1 text-xl">Qty: {{ itemViewed?.system?.quantity }}</div>
             <div

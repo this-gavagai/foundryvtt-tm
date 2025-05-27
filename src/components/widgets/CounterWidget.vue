@@ -34,9 +34,9 @@ defineExpose({ click, close })
 </script>
 <template>
   <div @click="click" class="cursor-pointer">
-    <div class="flex h-full">
+    <div class="mt-1.5 flex h-full">
       <span v-for="i in Number(props.max ?? props.value ?? 0)" :key="'pip' + i">
-        <PipWidget :filled="i <= (props.value ?? 0)" class="relative inline h-full" />
+        <PipWidget :filled="i <= (props.value ?? 0)" class="h-full" />
       </span>
       <!-- <span v-for="i in props.max ? Number(props.max - (props.value ?? 0)) : 0" :key="'emp' + i">
         

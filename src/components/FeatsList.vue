@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { Item } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
-import { removeUUIDs } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 
 import InfoModal from '@/components/InfoModal.vue'
 import FeatsListItem from './FeatsListItem.vue'
+import ParsedDescription from './ParsedDescription.vue'
 
 const infoModal = ref()
 const character = inject(useKeys().characterKey)!
@@ -116,7 +116,7 @@ const featCategories = computed(() => {
           </div>
         </template>
         <template #body>
-          <div v-html="removeUUIDs(viewedFeat?.system?.description.value)"></div>
+          <ParsedDescription :text="viewedFeat?.system?.description.value" />
         </template>
       </InfoModal>
     </Teleport>

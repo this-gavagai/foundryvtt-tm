@@ -8,8 +8,8 @@ const props = defineProps<{ filled: boolean }>()
       cx="50"
       cy="50"
       r="40"
-      :fill="props.filled ? 'black' : 'transparent'"
-      stroke="black"
+      :fill="props.filled ? 'currentColor' : 'transparent'"
+      :stroke="'currentColor'"
       stroke-width="10"
       class="transition-all duration-200"
     />

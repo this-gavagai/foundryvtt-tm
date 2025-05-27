@@ -231,6 +231,9 @@ export interface World {
 export interface StatModifier {
   enabled: boolean
   hideIfDisabled: boolean
+  slug: string
+  label: string
+  modifier: number
 }
 
 export interface RollResult {}

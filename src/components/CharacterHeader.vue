@@ -26,9 +26,9 @@ const emit = defineEmits(['sidebarActivated'])
 </script>
 
 <template>
-  <div class="flex cursor-pointer items-center gap-2 border-y border-gray-300 p-4">
+  <div class="border-divider flex cursor-pointer items-center gap-2 border-y bg-white p-4">
     <div
-      class="xs:flex hidden h-24 w-24 items-center overflow-hidden rounded-full border-2 border-gray-300"
+      class="xs:flex border-divider hidden h-24 w-24 items-center overflow-hidden rounded-full border-2"
       @click="reloadPage"
     >
       <img
@@ -41,7 +41,7 @@ const emit = defineEmits(['sidebarActivated'])
         <Spinner class="mr-2 h-full w-full p-4" />
       </div>
     </div>
-    <div class="min-w-44 flex-1">
+    <div class="min-w-36 flex-1">
       <h3 class="mb-2 w-full text-2xl whitespace-nowrap">
         <Listbox>
           <ListboxButton class="block w-full">
@@ -91,7 +91,7 @@ const emit = defineEmits(['sidebarActivated'])
       </div>
     </div>
     <Bars3Icon
-      class="my-auto h-10 w-10 cursor-pointer rounded-md border-gray-500 p-1 text-gray-500 active:text-gray-300 md:hidden"
+      class="border-divider my-auto h-10 w-10 cursor-pointer rounded-md p-1 text-gray-500 active:text-gray-300 md:hidden"
       @click="() => emit('sidebarActivated')"
     />
     <!-- <SideMenu ref="sideMenu" /> -->

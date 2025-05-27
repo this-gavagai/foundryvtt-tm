@@ -10,7 +10,7 @@ const { perception } = character
 </script>
 <template>
   <div class="flex justify-between px-6 py-4">
-    <div class="flex w-7/12 justify-between">
+    <div class="flex w-7/12 justify-between gap-2">
       <StatBox
         heading="Fort"
         modalHeading="Fortitude Save"
@@ -42,7 +42,7 @@ const { perception } = character
         {{ formatModifier(will?.totalModifier) }}
       </StatBox>
     </div>
-    <div class="border border-gray-200"></div>
+    <div class="border-divider border"></div>
     <StatBox
       heading="Perception"
       :proficiency="perception?.rank"

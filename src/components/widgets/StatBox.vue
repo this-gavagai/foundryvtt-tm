@@ -4,24 +4,26 @@ import { SignedNumber } from '@/utils/utilities'
 import { proficiencies } from '@/utils/constants'
 import InfoModal from '@/components/InfoModal.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
-import type { StatModifier, RollResult } from '@/types/pf2e-types'
+import type { RollResult } from '@/types/pf2e-types'
 import { useListeners } from '@/composables/listenersOnline'
+import type { Modifier } from '@/composables/character'
 
-const props = defineProps([
-  'heading',
-  'subheading',
-  'modalHeading',
-  'proficiency',
-  'modifiers',
-  'breakdown',
-  'preventInfoModal',
-  'rollAction'
-])
+const props = defineProps<{
+  heading?: string
+  subheading?: string
+  fullHeading?: string
+  modalHeading?: string
+  proficiency?: number
+  modifiers?: Modifier[] | undefined
+  breakdown?: string
+  preventInfoModal?: boolean
+  rollAction?: (r: number | undefined) => Promise<RollResult | null>
+}>()
 const infoModal = ref()
 const { isListening } = useListeners()
 
 function makeRoll(result: number | undefined = undefined) {
-  return props.rollAction(result).then((r: RollResult) => {
+  return props.rollAction?.(result).then((r: RollResult | null) => {
     infoModal.value.rollResultModal.open(r)
     infoModal.value.close()
   })
@@ -31,11 +33,11 @@ const canOpen = computed(() => (props?.modifiers || props?.breakdown) && !props.
 defineExpose({ infoModal })
 </script>
 <template>
-  <div>
+  <div :data-proficiency-level="proficiency" :data-has-details="canOpen">
     <div
       class="fit-content"
       :class="{
-        'cursor-pointer active:drop-shadow-glow': canOpen
+        'active:drop-shadow-glow cursor-pointer': canOpen
       }"
       @click="
         () => {
@@ -44,14 +46,15 @@ defineExpose({ infoModal })
       "
     >
       <div
-        :class="proficiencies[props.proficiency]?.color"
-        class="whitespace-nowrap text-[0.8rem] uppercase"
+        :class="proficiencies[props.proficiency ?? 0]?.color"
+        class="text-[0.8rem] whitespace-nowrap uppercase"
       >
         {{ heading }}
       </div>
-      <div class="whitespace-nowrap text-lg">
+      <div class="text-lg whitespace-nowrap">
         <slot></slot>
       </div>
+      <div class="hidden whitespace-nowrap uppercase">{{ fullHeading }}</div>
     </div>
     <Teleport to="#modals">
       <InfoModal
@@ -80,14 +83,14 @@ defineExpose({ infoModal })
             <ul>
               <li
                 v-for="mod in props?.modifiers?.filter(
-                  (m: StatModifier) => m.enabled || !m.hideIfDisabled
+                  (m: Modifier) => m.enabled || !m.hideIfDisabled
                 )"
                 class="flex gap-2"
                 :class="{ 'text-gray-300': !mod.enabled }"
                 :key="'mod_' + mod.slug"
               >
                 <div class="w-8 text-right">
-                  {{ SignedNumber.format(mod.modifier) }}
+                  {{ SignedNumber.format(mod.modifier ?? 0) }}
                 </div>
                 <div class="overflow-hidden text-ellipsis whitespace-nowrap">{{ mod.label }}</div>
               </li>

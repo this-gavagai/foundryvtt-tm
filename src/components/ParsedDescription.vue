@@ -21,7 +21,7 @@ const parsedText = computed(() => {
   text = text?.replace(
     inline_actions,
     (match, p1, p2, p3, p4, offset, string, groups) =>
-      `<label class="has-checked:bg-blue-600 has-checked:text-white bg-gray-300 border-gray-400 border -my-0.5 py-0.5 px-1 cursor-pointer whitespace-nowrap">
+      `<label class="has-checked:bg-blue-600 has-checked:text-white bg-gray-300 border-divider border -my-0.5 py-0.5 px-1 cursor-pointer whitespace-nowrap">
         <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value='${JSON.stringify({ slug: groups.slug, label: groups.label, paramsString: groups.params })}'
         ><span class="pl-4">${groups.label ?? groups.slug}</span></label>`
   )

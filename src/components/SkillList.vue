@@ -11,15 +11,15 @@ const { skills, proficiencies } = character
 </script>
 <template>
   <div class="py-4 empty:hidden lg:flex lg:justify-between">
-    <div class="flex-1 px-6">
-      <dl
-        class="border-t border-gray-300 pt-4 first:border-t-0 first:p-0 empty:hidden [&:not(:has(dd))]:hidden"
+    <div class="flex-1 px-6 2xl:columns-2">
+      <section
+        class="border-divider break-inside-avoid-column border-t first:border-t-0 first:p-0 empty:hidden 2xl:border-t-0 2xl:pl-2 2xl:first:border-r 2xl:first:pr-6 [&:not(:has(li))]:hidden"
         v-for="isNonLore in [true, false]"
-        :key="isNonLore ? 'norm' : 'lore'"
+        :key="isNonLore ? 'base' : 'lore'"
       >
-        <dt class="pb-2 text-lg underline">{{ isNonLore ? 'Skills' : 'Lore' }}</dt>
-        <div class="columns-2">
-          <dd
+        <h3 class="pb-2 text-lg underline">{{ isNonLore ? 'Skills' : 'Lore' }}</h3>
+        <ul class="columns-2">
+          <li
             v-for="skill in skills?.filter((s: Stat) => !s.lore === isNonLore)"
             class="break-inside-avoid pb-4 text-lg leading-4"
             :key="skill.slug"
@@ -32,22 +32,22 @@ const { skills, proficiencies } = character
             >
               {{ formatModifier(skill.totalModifier) }}
             </StatBox>
-          </dd>
-        </div>
-      </dl>
+          </li>
+        </ul>
+      </section>
     </div>
     <div
-      class="flex-1 border-t border-gray-300 px-6 pt-4 lg:border-0 lg:border-l lg:pt-0 [&:not(:has(dd))]:hidden"
+      class="border-divider flex-1 border-t px-6 pt-4 lg:border-0 lg:border-l lg:pt-0 [&:not(:has(li))]:hidden"
     >
       <div
         v-for="proficiencyType in ['attacks', 'defenses', 'classDCs', 'spellcasting']"
         :key="proficiencyType"
-        class="[&:not(:has(dd))]:hidden"
+        class="[&:not(:has(li))]:hidden"
       >
-        <dl class="pt-4 first:p-0 empty:hidden">
-          <dt class="pb-2 text-lg capitalize underline">{{ proficiencyType }}</dt>
-          <div class="columns-2">
-            <dd
+        <section class="pt-4 first:p-0 empty:hidden">
+          <h3 class="pb-2 text-lg capitalize underline">{{ proficiencyType }}</h3>
+          <ul class="columns-2">
+            <li
               v-for="(prof, key) in proficiencies?.filter(
                 (p) => p.type === proficiencyType && p?.rank && p.rank > 0
               )"
@@ -61,9 +61,9 @@ const { skills, proficiencies } = character
                     : formatModifier(prof.value)
                 }}
               </StatBox>
-            </dd>
-          </div>
-        </dl>
+            </li>
+          </ul>
+        </section>
       </div>
     </div>
   </div>

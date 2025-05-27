@@ -51,7 +51,7 @@ const emit = defineEmits(['change'])
   <Listbox v-model="selected" class="w-full" :disabled="props.disabled">
     <div class="relative mt-1">
       <ListboxButton
-        class="relative w-full cursor-default rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left focus:outline-hidden focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
+        class="focus-visible:ring-opacity-75 relative w-full cursor-default rounded-md border border-gray-400 bg-white py-2 pr-10 pl-3 text-left focus:outline-hidden focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
         :class="[props.disabled || waiting ? 'bg-gray-200 opacity-50' : '']"
       >
         <span class="block truncate">{{ selected?.name }}</span>
@@ -69,7 +69,7 @@ const emit = defineEmits(['change'])
         leave-to-class="opacity-0 max-h-0!"
       >
         <ListboxOptions
-          class="z-50 ml-1 mt-1 max-h-60 w-[calc(100%-10px)] overflow-auto rounded-md bg-white py-1 pt-0 text-base shadow-lg ring-1 ring-black/5 transition-all focus:outline-hidden sm:text-sm"
+          class="z-50 mt-1 ml-1 max-h-60 w-[calc(100%-10px)] overflow-auto rounded-md bg-white py-1 pt-0 text-base shadow-lg ring-1 ring-black/5 transition-all focus:outline-hidden sm:text-sm"
           :class="[props.growContainer ? 'relative' : 'absolute']"
         >
           <ListboxOption
@@ -79,10 +79,10 @@ const emit = defineEmits(['change'])
             :value="option"
           >
             <div
-              class="relative h-10 cursor-default select-none py-2 pl-10 pr-4 font-bold"
+              class="relative h-10 cursor-default py-2 pr-4 pl-10 font-bold select-none"
               :class="[
                 active ? 'bg-amber-100 text-amber-900' : 'text-gray-900',
-                'relative cursor-default select-none py-2 pl-10 pr-4'
+                'relative cursor-default py-2 pr-4 pl-10 select-none'
               ]"
             >
               <span :class="[selected ? 'font-medium' : 'font-normal', 'block truncate']">

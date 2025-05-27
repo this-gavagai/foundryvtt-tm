@@ -27,7 +27,7 @@ defineExpose({ open, close, options, isOpen })
     <Dialog
       as="div"
       @close="close"
-      class="relative z-10"
+      class="relative z-10 touch-manipulation"
       :initial-focus="props.focusTarget ?? xButton"
     >
       <TransitionChild

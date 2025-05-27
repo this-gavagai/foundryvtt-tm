@@ -1,5 +1,6 @@
 @import 'tailwindcss';
-@import 'theme.css' layer(custom-theme);
+/* @import './themes/default/default.css' layer(default); */
+@import url('https://fonts.googleapis.com/css2?family=Dosis:wght@200..800&display=swap');
 @plugin '@headlessui/tailwindcss';
 
 /* Boilerplate Fixes */
@@ -11,6 +12,10 @@ html {
 *:after {
   box-sizing: inherit;
 }
+html {
+  font-size: 110%;
+  scrollbar-width: none;
+}
 
 @custom-variant pwa {
   @media (display-mode: standalone) {
@@ -20,9 +25,20 @@ html {
 
 @theme {
   --breakpoint-xs: 360px;
+  --font-sans: 'Dosis', 'sans-serif';
+  --color-divider: oklch(87.2% 0.01 258.338);
+  --color-hovered: var(--color-blue-100);
+  --color-selected: var(--color-blue-200);
+  --color-active: var(--color-blue-300);
+
+  --color-proficiency-untrained: var(--color-black);
+  --color-proficiency-trained: var(--color-blue-500);
+  --color-proficiency-expert: var(--color-purple-500);
+  --color-proficiency-master: var(--color-yellow-500);
+  --color-proficiency-legendary: var(--color-red-500);
+
   --drop-shadow-glow: 0 0 4px rgba(150, 150, 255, 0.85);
   --animate-rollin: shown 300ms ease-in-out;
-  --color-rojo: #ff0000;
   @keyframes shown {
     0% {
       opacity: 0;

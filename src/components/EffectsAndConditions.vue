@@ -7,16 +7,18 @@ import { inject, ref, computed } from 'vue'
 import InfoModal from '@/components/InfoModal.vue'
 import { useKeys } from '@/composables/injectKeys'
 import Button from '@/components/widgets/ButtonWidget.vue'
-import { removeUUIDs, getPath } from '@/utils/utilities'
+import ParsedDescription from './ParsedDescription.vue'
+import { getPath } from '@/utils/utilities'
 
 const character = inject(useKeys().characterKey)!
 const { effects } = character
 const infoModal = ref()
 const effectViewedId = ref<string | undefined>()
 const effectViewed = computed(() => effects.value?.find((e) => e._id === effectViewedId.value))
+// TODO: remove bottom border when no elements are present
 </script>
 <template>
-  <div>
+  <div :class="{ 'border-none': effects?.length === 0 }">
     <div
       class="relative flex flex-wrap gap-2 overflow-hidden px-6 transition-all duration-300"
       :class="[
@@ -79,7 +81,7 @@ const effectViewed = computed(() => effects.value?.find((e) => e._id === effectV
           <span class="capitalize">{{ effectViewed?.type }}</span>
         </template>
         <template #body>
-          <div v-html="removeUUIDs(effectViewed?.system?.description?.value)"></div>
+          <ParsedDescription :text="effectViewed?.system?.description?.value" />
         </template>
         <template #actionButtons>
           <Button

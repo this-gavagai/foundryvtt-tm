@@ -80,7 +80,7 @@ if (BUILD_MODE === 'development') {
 </script>
 <template>
   <TabGroup :selectedIndex="activeIndex" as="div">
-    <TabList class="hidden h-12 gap-0 border border-gray-300 bg-white text-xl">
+    <TabList class="border-divider hidden h-12 gap-0 border bg-white text-xl">
       <Tab
         class="ui-selected:bg-blue-300 relative top-0 p-2 focus:outline-hidden"
         v-for="c in characterList"

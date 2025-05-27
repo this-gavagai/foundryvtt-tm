@@ -100,7 +100,7 @@ defineExpose({ actor, character, actorOrWorldActor })
 <template>
   <div class="flex h-dvh select-none" v-if="userHasActorPermission">
     <!-- show this column only if on a tablet or laptop -->
-    <div class="hidden border-r border-gray-300 md:block md:h-dvh md:w-80 md:overflow-auto">
+    <div class="border-divider hidden border-r md:block md:h-dvh md:w-80 md:overflow-auto">
       <CharacterHeader class="sticky top-0 z-10 h-32" />
       <FrontPage />
     </div>
@@ -108,7 +108,7 @@ defineExpose({ actor, character, actorOrWorldActor })
     <div
       v-drag="handleDrag"
       :dragOptions="dragOptions"
-      class="flex w-0 flex-1 flex-col justify-between border-gray-300 md:h-dvh md:justify-start md:border-l"
+      class="border-divider no-scrollbar flex w-0 flex-1 flex-col justify-between md:h-dvh md:justify-start md:border-l"
     >
       <TabGroup :selectedIndex="currentTab" @change="changeTab">
         <TabPanels tabindex="-1" class="h-dvh w-full overflow-auto md:order-last" ref="panels">
@@ -138,13 +138,13 @@ defineExpose({ actor, character, actorOrWorldActor })
             <SpellList />
           </CharacterPanel>
         </TabPanels>
-        <TabList class="flex h-24 justify-around border-t border-b border-gray-300">
-          <CharacterTab :src="cowled" label="Character" class="md:hidden" />
-          <CharacterTab :src="biceps" label="Feats" />
-          <CharacterTab :src="skills" label="Proficiencies" />
-          <CharacterTab :src="backpack" label="Equipment" />
-          <CharacterTab :src="leapfrog" label="Actions" />
-          <CharacterTab :src="spellBook" label="Spells" />
+        <TabList class="border-divider bottom-0 flex h-24 justify-around border-t border-b">
+          <CharacterTab :src="cowled" label="Character" class="w-1/6 md:hidden" />
+          <CharacterTab :src="biceps" label="Feats" class="w-1/6" />
+          <CharacterTab :src="skills" label="Proficiencies" class="w-1/6" />
+          <CharacterTab :src="backpack" label="Equipment" class="w-1/6" />
+          <CharacterTab :src="leapfrog" label="Actions" class="w-1/6" />
+          <CharacterTab :src="spellBook" label="Spells" class="w-1/6" />
           <Bars3Icon
             class="mx-4 my-auto hidden h-10 w-10 cursor-pointer rounded-md border-gray-900 p-1 text-gray-600 active:text-gray-300 md:block"
             @click="sideMenu.sidebarOpen = true"

@@ -30,16 +30,16 @@ function updateExperience(input: string) {
           <rect
             :width="75 * ((xpCurrent ?? 0) / (xpMax ?? 1))"
             height="18"
-            style="fill: #ccc"
+            style="fill: currentColor; fill-opacity: 0.3"
             class="trasition-all duration-500 ease-in-out"
             v-if="xpCurrent"
           />
           <rect
             width="75"
             height="18"
-            style="fill: transparent; stroke-width: 3; stroke: rgb(0, 0, 0)"
+            style="fill: transparent; stroke-width: 3; stroke: currentColor"
           />
-          <text y="12" x="31" stroke="black" font-size="7pt" font-weight="lighter">
+          <text y="12" x="31" stroke="currentColor" font-size="7pt" font-weight="lighter">
             {{ xpCurrent }}
           </text>
         </svg>

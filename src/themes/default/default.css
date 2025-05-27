@@ -1,0 +1,210 @@
+body.theme-default {
+  /* background-color: white; */
+  color: #eee;
+  background: radial-gradient(#444, #666), url('themes/default/forest.jpg');
+  background-size: cover;
+  background-position: center;
+  background-blend-mode: multiply;
+
+  --color-divider: #ffffff22;
+  --color-hovered: var(--color-slate-700);
+  --color-selected: var(--color-slate-800);
+  --color-active: var(--color-slate-900);
+}
+body.theme-default {
+  img[src*='svg'] {
+    filter: invert(0.8);
+  }
+  [data-component='ToggleWidget'][data-active] button {
+    background-color: red;
+  }
+
+  [data-component='CharacterTab'] {
+    div {
+      font-size: 50%;
+      @media screen and (min-width: 480px) {
+        font-size: 80%;
+      }
+    }
+  }
+
+  [data-component='DialogPanel'] {
+    color: #333;
+  }
+
+  [data-component='CharacterHeader'] {
+    position: relative;
+    background: transparent;
+    h3 button > div {
+      text-decoration: underline solid 1px;
+      text-underline-offset: 2px;
+    }
+  }
+  /* [data-component='BackgroundExperience'] {
+    padding: 15px 10px 15px;
+  } */
+  [data-component='AncestryBackgroundClass'] span {
+    font-size: 110%;
+  }
+  [data-component='ExperiencePoints'] {
+    svg rect:first-child {
+      fill: green !important;
+      fill-opacity: 0.7 !important;
+    }
+  }
+
+  [data-component='EffectsAndConditions'] [data-part='label'] {
+    display: block;
+  }
+
+  [data-component='AttributeScores'] {
+    column-count: 2;
+    column-gap: 15px;
+    display: block;
+    color: black;
+    padding: 10px 10px;
+    width: 100%;
+    div {
+      display: flex;
+      width: 100%;
+      position: relative;
+      div {
+        div:nth-child(1) {
+          display: none;
+        }
+        div:nth-child(2) {
+          position: absolute;
+          order: 1;
+          padding: 3px 4px 3px 1px;
+          border: 2px solid;
+          border-radius: 50%;
+          margin: 5px 0;
+          height: 44px;
+          width: 44px;
+          justify-content: center;
+          font-size: 130%;
+          z-index: 3;
+          background-color: #eee;
+        }
+        div:nth-child(3) {
+          order: 2;
+          align-self: center;
+          font-size: 90%;
+          padding: 5px 0 5px 25px;
+          margin: 10px 5px 10px 25px;
+          z-index: 1;
+          width: 100%;
+          background-color: white;
+          color: white;
+          overflow: hidden;
+          border: 1px solid white;
+        }
+      }
+    }
+    [data-attribute-type='str'] div div:nth-child(3) {
+      background-image: url('themes/default/leaves.webp'), radial-gradient(black, white);
+      background-color: oklch(0.56 0.2234 22.97);
+      background-size: cover;
+      background-position: center;
+      background-blend-mode: multiply;
+    }
+    [data-attribute-type='dex'] div div:nth-child(3) {
+      background-image: url('themes/default/leaves.webp'), radial-gradient(black, transparent);
+      background-color: oklch(0.56 0.2234 264.39);
+      background-size: cover;
+      background-position: center;
+      background-blend-mode: multiply;
+    }
+    [data-attribute-type='con'] div div:nth-child(3) {
+      background-image: url('themes/default/leaves.webp'), radial-gradient(black, white);
+      background-color: oklch(0.66 0.2234 42.97);
+      background-size: cover;
+      background-position: center;
+      background-blend-mode: multiply;
+    }
+    [data-attribute-type='int'] div div:nth-child(3) {
+      background-image: url('themes/default/leaves.webp'), radial-gradient(black, white);
+      background-color: oklch(0.87 0.2334 102.02);
+      background-size: cover;
+      background-position: center;
+      background-blend-mode: multiply;
+    }
+    [data-attribute-type='wis'] div div:nth-child(3) {
+      background-image: url('themes/default/leaves.webp'), radial-gradient(black, white);
+      background-color: oklch(0.58 0.2268 134.47);
+      background-size: cover;
+      background-position: center;
+      background-blend-mode: multiply;
+    }
+    [data-attribute-type='cha'] div div:nth-child(3) {
+      background-image: url('themes/default/leaves.webp'), radial-gradient(black, white);
+      background-color: oklch(0.63 0.1939 314.39);
+      background-size: cover;
+      background-position: center;
+      background-blend-mode: multiply;
+    }
+  }
+
+  [data-component='SavingThrows'] {
+  }
+  /* [data-component='CharacterHeader'], */
+  [data-component='SavingThrows'],
+  [data-component='SkillList'] {
+    padding: 0.5rem 1.5rem;
+    [data-component='StatBox'] {
+      max-width: 120px;
+      border: 1px solid white;
+      div {
+        div:nth-child(1) {
+          color: white;
+          text-align: center;
+          padding: 3px;
+          background-image:
+            radial-gradient(#00000044, black), url('themes/default/cracked-ice.webp');
+          background-position: center;
+          background-size: cover;
+          /* background-blend-mode: multiply; */
+        }
+        div:nth-child(2) {
+          text-align: center;
+          padding: 5px;
+          border-top: 1px solid white;
+          background-color: white;
+          color: black;
+        }
+      }
+    }
+    [data-proficiency-level='1'] div div:nth-child(1) {
+      background-image:
+        radial-gradient(#00000044, var(--color-proficiency-trained)),
+        url('themes/default/cracked-ice.webp');
+    }
+    [data-proficiency-level='2'] div div:nth-child(1) {
+      background-image:
+        radial-gradient(#00000044, var(--color-proficiency-expert)),
+        url('themes/default/cracked-ice.webp');
+    }
+    [data-proficiency-level='3'] div div:nth-child(1) {
+      background-image:
+        radial-gradient(#00000044, var(--color-proficiency-master)),
+        url('themes/default/cracked-ice.webp');
+    }
+    [data-proficiency-level='4'] div div:nth-child(1) {
+      background-image:
+        radial-gradient(#00000044, var(--color-proficiency-legendary)),
+        url('themes/default/cracked-ice.webp');
+    }
+  }
+  [data-has-details] {
+    div div:nth-child(2) {
+      text-decoration: underline dotted;
+      text-underline-offset: 3px;
+    }
+  }
+
+  [data-component='StatBox'] {
+    div div {
+      color: inherit;
+    }
+  }
+}

@@ -5,7 +5,7 @@ import { useKeys } from '@/composables/injectKeys'
 import { useListeners } from '@/composables/listenersOnline'
 import InfoModal from './InfoModal.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
-import StrikeActionSet from './StrikeActionSet.vue'
+import StrikeActionSet from './StrikeListActionSet.vue'
 import type { Strike } from '@/composables/character'
 import type { RequestResolutionArgs } from '@/types/api-types'
 

@@ -2,7 +2,6 @@
 import type { Action } from '@/composables/character'
 import { actionTypes } from '@/utils/constants'
 import { inject, ref, computed } from 'vue'
-// import { removeUUIDs } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
 import { useListeners } from '@/composables/listenersOnline'
 
@@ -10,7 +9,7 @@ import ActionIcons from '@/components/widgets/ActionIcons.vue'
 import Button from './widgets/ButtonWidget.vue'
 
 import InfoModal from '@/components/InfoModal.vue'
-import DescriptionParser from './DescriptionParser.vue'
+import ParsedDescription from './ParsedDescription.vue'
 
 const infoModal = ref()
 const description = ref()
@@ -91,8 +90,7 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
           >
         </template>
         <template #body>
-          <DescriptionParser ref="description" :text="actionViewed?.system?.description.value" />
-          <!-- <div v-html="removeUUIDs(actionViewed?.system?.description.value)"></div> -->
+          <ParsedDescription ref="description" :text="actionViewed?.system?.description.value" />
         </template>
         <template #actionButtons v-if="isListening">
           <div class="align-items-center flex gap-2">

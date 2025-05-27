@@ -50,7 +50,7 @@ function updateHitPoints(hp_input: string) {
           {{ acCurrent ?? '??' }}
         </div>
       </StatBox>
-      <div class="border border-gray-200"></div>
+      <div class="border-divider border"></div>
       <div v-if="!shItemId" class="my-auto grow">
         <div class="italic">No shield equipped</div>
       </div>

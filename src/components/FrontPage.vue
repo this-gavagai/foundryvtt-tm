@@ -10,7 +10,7 @@ import MovementSpeed from '@/components/MovementSpeed.vue'
 import LanguagesKnown from '@/components/LanguagesKnown.vue'
 </script>
 <template>
-  <div class="border-collapse [&>*]:border-b [&>*]:border-gray-300">
+  <div class="[&>*]:border-divider border-collapse [&>*]:border-b">
     <BackgroundExperience />
     <EffectsAndConditions />
     <AttributeScores />

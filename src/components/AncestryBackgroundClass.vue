@@ -2,8 +2,8 @@
 import type { Item } from '@/composables/character'
 import type { Character } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
-import { removeUUIDs } from '@/utils/utilities'
 import InfoModal from '@/components/InfoModal.vue'
+import ParsedDescription from './ParsedDescription.vue'
 import { useKeys } from '@/composables/injectKeys'
 
 const infoModal = ref()
@@ -54,12 +54,12 @@ function viewItem(item: Item | undefined) {
           >
         </template>
         <template #body>
-          <div v-html="removeUUIDs(identityViewed?.system?.description?.value)"></div>
+          <ParsedDescription :text="identityViewed?.system?.description?.value" />
           <div v-if="identityViewed?.type === 'ancestry'">
             <hr />
             <div class="mt-2">
               <h3 class="text-lg">{{ heritage?.name }}</h3>
-              <div v-html="removeUUIDs(heritage?.system?.description?.value)"></div>
+              <ParsedDescription :text="heritage?.system?.description?.value" />
             </div>
           </div>
         </template>

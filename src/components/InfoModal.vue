@@ -100,6 +100,7 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
                 >
                   <div class="flex space-x-2">
                     <div
+                      v-if="props.itemId && characterId && isListening"
                       class="border"
                       :class="[isListening ? 'active:opacity-30' : '']"
                       @click="
