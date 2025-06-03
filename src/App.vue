@@ -10,6 +10,7 @@ import { useServer } from '@/composables/server'
 import { useWorld } from '@/composables/world'
 import { useCharacterSelect } from '@/composables/characterSelect'
 import { usePixelDice } from './composables/pixelDice'
+import { useUserId } from './composables/user'
 
 import CharacterSheet from '@/components/CharacterSheet.vue'
 declare const BUILD_MODE: string
@@ -17,11 +18,15 @@ declare const BUILD_MODE: string
 // connect to server and ping it periodically
 const location = new URL(window.location.origin)
 const { connectToServer } = useServer()
+const { getUserId } = useUserId()
 connectToServer(location).then((socket: Ref<Socket | undefined>) => {
-  setTimeout(() => socket.value?.emit('module.tablemate', { action: 'anybodyHome' }), 100)
+  setTimeout(
+    () => socket.value?.emit('module.tablemate', { action: 'anybodyHome', userId: getUserId() }),
+    100
+  )
   if (BUILD_MODE !== 'development') {
     setInterval(() => {
-      socket.value?.emit('module.tablemate', { action: 'anybodyHome' })
+      socket.value?.emit('module.tablemate', { action: 'anybodyHome', userId: getUserId() })
     }, 10000)
   }
 })

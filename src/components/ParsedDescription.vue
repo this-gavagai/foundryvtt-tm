@@ -22,10 +22,12 @@ const parsedText = computed(() => {
     inline_actions,
     (match, p1, p2, p3, p4, offset, string, groups) =>
       `<label class="has-checked:bg-blue-600 has-checked:text-white bg-gray-300 border-divider border -my-0.5 py-0.5 px-1 cursor-pointer whitespace-nowrap">
-        <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value='${JSON.stringify({ slug: groups.slug, label: groups.label, paramsString: groups.params })}'
-        ><span class="pl-4">${groups.label ?? groups.slug}</span></label>`
+        <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value='${JSON.stringify({ slug: groups.slug, label: groups.label, paramsString: groups.params })}'>
+        <span class="pl-4">${groups.label ?? groups.slug}</span>
+      </label>`
   )
 
+  // other, unparseable markup
   text = text
     ?.replace(/@(UUID|Compendium)\[.*?\]\{(.*?)\}/gm, '<span class="text-red-900">$2</span>')
     ?.replace(/\[\[\/r (.*)\]\]/gm, '<span class="text-green-900">$1</span>')

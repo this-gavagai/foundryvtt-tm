@@ -16,10 +16,11 @@ export type ModuleEventArgs =
 export interface AcknowledgementArgs {
   action: 'acknowledged'
   uuid: string
+  userId: string
 }
 export interface ListenderOnlineArgs {
   action: 'listenerOnline'
-  user: string
+  userId: string
 }
 export interface UpdateCharacterDetailsArgs {
   action: 'updateCharacterDetails'
@@ -31,6 +32,7 @@ export interface UpdateCharacterDetailsArgs {
   activeRules: string
   elementalBlasts: string
   uuid: string
+  userId: string
 }
 export interface RequestCharacterDetailsArgs {
   action: 'requestCharacterDetails'
@@ -40,6 +42,7 @@ export interface RequestCharacterDetailsArgs {
 }
 export interface AnybodyHomeArgs {
   action: 'anybodyHome'
+  userId: string
 }
 export interface RollCheckArgs {
   action: 'rollCheck'
@@ -93,6 +96,7 @@ export interface GetStrikeDamageArgs {
 export interface ShareTargetsArgs {
   action: 'shareTargets'
   targets: Record<string, string[]>
+  userId: string
 }
 export interface SendItemToChatArgs {
   action: 'sendItemToChat'

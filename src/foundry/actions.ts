@@ -53,7 +53,8 @@ export async function getCharacterDetails(
     inventory: JSON.stringify(inventory),
     activeRules: JSON.stringify([...activeRules]),
     elementalBlasts: JSON.stringify(elementalBlasts, blastReplacer),
-    uuid: args.uuid
+    uuid: args.uuid,
+    userId: game.user._id
   }
 }
 
@@ -100,6 +101,7 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       break
     }
     case 'damage': {
+      console.log('TM-params', params)
       const [damageSlug, damageDegree, damageAltUsage] = args.checkSubtype.split(',')
       if (damageAltUsage?.length)
         roll = actor.system.actions
@@ -144,7 +146,7 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   if (!r) return {}
   if (r.hasOwnProperty('roll')) console.log('this one has a weird property') // trying to figure out where this is necessary; don't remember
   const actualRoll = r.hasOwnProperty('roll') ? r.roll : r
-  console.log(r)
+  // console.log(r)
 
   const isSecret =
     r?.[0]?.message?.whisper?.length === 0 && !r?.[0]?.message?.whisper?.includes(args.userId)
@@ -152,6 +154,7 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   return {
     action: 'acknowledged',
     uuid: args.uuid,
+    userId: game.user._id,
     roll: { formula, result, total, dice, isSecret }
   }
 }
@@ -187,6 +190,7 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
   return {
     action: 'acknowledged',
     uuid: args.uuid,
+    userId: game.user._id,
     roll: { formula, result, total, dice, isSecret }
   }
 }
@@ -199,7 +203,7 @@ export async function foundryCastSpell(args: CastSpellArgs) {
   const spellLocation = actor.items.get(item.system.location.value)
 
   spellLocation.cast(item, { rank: args.rank, slotId: args.slotId })
-  return { action: 'acknowledged', uuid: args.uuid }
+  return { action: 'acknowledged', uuid: args.uuid, userId: game.user._id }
 }
 
 export async function foundryConsumeItem(args: ConsumeItemArgs) {
@@ -207,7 +211,7 @@ export async function foundryConsumeItem(args: ConsumeItemArgs) {
   const actor = source.actors.get(args.characterId, { strict: true })
   const item = actor.items.get(args.consumableId, { strict: true })
   item.consume()
-  return { action: 'acknowledged', uuid: args.uuid }
+  return { action: 'acknowledged', uuid: args.uuid, userId: game.user._id }
 }
 
 export async function foundrySendItemToChat(args: SendItemToChatArgs) {
@@ -215,7 +219,7 @@ export async function foundrySendItemToChat(args: SendItemToChatArgs) {
   const item = actor?.items?.get(args.itemId)
 
   if (item) item.toChat()
-  return { action: 'acknowledged', uuid: args.uuid }
+  return { action: 'acknowledged', uuid: args.uuid, userId: game.user._id }
 }
 
 export async function foundryCallMacro(args: CallMacroArgs) {
@@ -239,7 +243,7 @@ export async function foundryCallMacro(args: CallMacroArgs) {
     temp_macro.execute({ actor })
   }
 
-  return { action: 'acknowledged', uuid: args.uuid }
+  return { action: 'acknowledged', uuid: args.uuid, userId: game.user._id }
 }
 
 export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
@@ -308,6 +312,7 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
   return {
     action: 'acknowledged',
     uuid: args.uuid,
+    userId: game.user._id,
     response: {
       damage: results[0],
       critical: results[1],

@@ -63,7 +63,7 @@ async function setupSocketListenersForApp() {
         break
       case 'listenerOnline':
         console.log('listener online!', args)
-        addListener(args.user)
+        addListener(args.userId)
         break
     }
   })
@@ -79,7 +79,7 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
   //     // case 'listenerOnline':
   //     //   refreshWorld()
   //     //   console.log('listener online!', args)
-  //     //   addListener(args.user)
+  //     //   addListener(args.userId)
   //     //   break
   //   ) {
   //   }

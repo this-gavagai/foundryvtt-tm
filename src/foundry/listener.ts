@@ -32,7 +32,6 @@ const getChar: Record<string, (args: RequestCharacterDetailsArgs) => void> = {}
 
 export function setupListener() {
   console.log('TABLEMATE: Setting up listener')
-  if (!iAmObserverOrFallbackGM()) return
   announceSelf()
 
   game.socket.onAnyOutgoing((event: string, ...args: ModuleEventArgs[] | GetEvent[]) => {
@@ -48,6 +47,8 @@ export function setupListener() {
   })
 
   game.socket.on(MODNAME, (args: ModuleEventArgs) => {
+    if (!args.userId) console.log('missing!', args)
+    if (!iAmProxyOrFallbackGM(args.userId)) return
     console.log('TM.RECV (listener)', args)
     if (args.action === 'anybodyHome') {
       announceSelf()
@@ -65,7 +66,9 @@ export function setupListener() {
     }
 
     switch (args.action) {
+      case 'listenerOnline':
       case 'updateCharacterDetails':
+      case 'shareTargets':
         break
       case 'requestCharacterDetails':
         if (!getChar[args.actorId]) {
@@ -120,10 +123,6 @@ export function setupListener() {
         console.log('event not caught', args.action, args)
     }
   })
-  // Hooks.on('targetToken', (user, token) => {
-  //   console.log('wee!', a)
-  //   broadcastTargets()
-  // })
 }
 
 // utility functions
@@ -135,22 +134,26 @@ function iAmFirstGM() {
       .some((other: User) => other._id < game.user._id)
   )
 }
-function iAmObserver() {
-  return game.user.getFlag('tablemate', 'shared_display')
+function iAmProxy(userId: string) {
+  return game.users.get(userId)?.flags?.tablemate?.targeting_proxy === game.user._id
 }
-function observerIsOnline() {
+function proxyIsOnline(userId: string) {
   return (
-    game.users.filter((user: User) => user.flags?.['tablemate']?.['shared_display'] && user.active)
-      .length > 0
+    game.users.filter(
+      (user: User) =>
+        game.users.get(userId)?.flags?.tablemate?.targeting_proxy === user._id && user.active
+    ).length > 0
   )
 }
-function iAmObserverOrFallbackGM() {
-  return iAmObserver() || (!observerIsOnline() && iAmFirstGM())
+function iAmProxyOrFallbackGM(userId: string) {
+  // console.log(iAmProxy(userId), !proxyIsOnline(userId), iAmFirstGM())
+  // console.log('result', iAmProxy(userId) || (!proxyIsOnline(userId) && iAmFirstGM()))
+  return iAmProxy(userId) || (!proxyIsOnline(userId) && iAmFirstGM())
 }
 function announceSelf() {
   game.socket.emit(MODNAME, {
     action: 'listenerOnline',
-    user: game.user._id
+    userId: game.user._id
   })
 }
 
@@ -161,6 +164,7 @@ function broadcastTargets() {
   }, {})
   game.socket.emit('module.tablemate', {
     action: 'shareTargets',
-    targets: targets
+    targets: targets,
+    userId: game.user._id
   })
 }
