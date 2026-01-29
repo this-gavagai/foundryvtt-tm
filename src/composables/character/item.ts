@@ -70,6 +70,7 @@ export interface Item {
     }
     spell: { system: { level: { value: Maybe<number> }; description: { value: Maybe<string> } } }
     uses: { value: Maybe<number>; max: Maybe<number> }
+    subitems: Maybe<Item[]>
   }
   delete?: () => Promise<DeleteEventArgs>
   consumeItem?: () => Promise<RequestResolutionArgs>
@@ -78,7 +79,6 @@ export interface Item {
 }
 export function makeItem(root: PF2eItem | undefined): Item | undefined {
   if (!root) return undefined
-  // if (root?.system?.location) console.log(root?.name, root?.type, root?.system?.location)
   return {
     _id: root?._id,
     name: root?.name,
@@ -185,7 +185,8 @@ export function makeItem(root: PF2eItem | undefined): Item | undefined {
           description: { value: root?.system?.spell?.system?.description?.value }
         }
       },
-      uses: { value: root?.system?.uses?.value, max: root?.system?.uses?.max }
+      uses: { value: root?.system?.uses?.value, max: root?.system?.uses?.max },
+      subitems: root?.system?.subitems
     }
   }
 }

@@ -13,7 +13,7 @@ import { usePixelDice } from './composables/pixelDice'
 import { useUserId } from './composables/user'
 
 import CharacterSheet from '@/components/CharacterSheet.vue'
-declare const BUILD_MODE: string
+const BUILD_MODE: string = import.meta.env.MODE
 
 // connect to server and ping it periodically
 const location = new URL(window.location.origin)
@@ -27,7 +27,7 @@ connectToServer(location).then((socket: Ref<Socket | undefined>) => {
   if (BUILD_MODE !== 'development') {
     setInterval(() => {
       socket.value?.emit('module.tablemate', { action: 'anybodyHome', userId: getUserId() })
-    }, 10000)
+    }, 50000)
   }
 })
 
@@ -66,12 +66,12 @@ if (BUILD_MODE === 'development') {
     window.altActors = new Map([])
     window.altCharacters = new Map([])
     characters.value.forEach((panel) => {
-      if (panel.actorOrWorldActor?._id === urlId) {
+      if (panel?.actorOrWorldActor?._id === urlId) {
         window.actor = panel.actorOrWorldActor
         window.character = panel.character
       } else {
-        window.altActors.set(panel.actor?._id, panel.actorOrWorldActor)
-        window.altCharacters.set(panel.actor?._id, panel.character)
+        window.altActors.set(panel?.actor?._id, panel?.actorOrWorldActor)
+        window.altCharacters.set(panel?.actor?._id, panel?.character)
       }
     })
   })

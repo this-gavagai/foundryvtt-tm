@@ -54,6 +54,7 @@ export interface Stat {
   attribute: string
   rank: number
   modifiers: Modifier[]
+  base: number
   total: number
   value: number
   totalModifier: number
@@ -162,6 +163,8 @@ export interface System {
   category?: any
   rules: Rule[]
   proficient: any
+  movement: any
+  subitems: any
 }
 export interface Rule {
   option: string

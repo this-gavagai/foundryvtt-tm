@@ -19,7 +19,7 @@ const { skills } = character
 const athletics = computed(() => skills.value?.find((s) => s.slug === 'athletics'))
 
 function parseSpeed(speed: SpeedType | undefined) {
-  if (speed?.total) return speed?.total
+  if (speed?.value) return speed?.value
   if (typeof speed?.value !== 'undefined' && typeof speed?.totalModifier !== 'undefined')
     return speed?.value + speed?.totalModifier
   else return '--'

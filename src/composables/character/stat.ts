@@ -12,6 +12,7 @@ export interface Stat {
   breakdown: Maybe<string>
   attribute: Maybe<string>
   rank: Maybe<number>
+  base: Maybe<number>
   total: Maybe<number>
   value: Maybe<number>
   totalModifier: Maybe<number>
@@ -30,6 +31,7 @@ export function makeStat(root: PF2eStat | undefined, key: string | null = null):
     breakdown: root?.breakdown,
     attribute: root?.attribute,
     rank: root?.rank,
+    base: root?.base,
     total: root?.total,
     value: root?.value,
     totalModifier: root?.totalModifier,

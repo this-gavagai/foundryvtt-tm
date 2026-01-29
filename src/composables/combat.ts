@@ -12,7 +12,7 @@ export function useCombat() {
     watchEffect(() => {
       activeScene.value = world.value?.scenes?.find((s: Scene) => s.active)
       activeCombat.value = world.value?.combats.find(
-        (c: Combat) => c.active && c.scene === activeScene.value._id
+        (c: Combat) => c.active //&& c.scene === activeScene.value._id
       )
     })
   }

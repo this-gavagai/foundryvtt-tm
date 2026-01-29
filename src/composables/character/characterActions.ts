@@ -31,7 +31,7 @@ export interface CharacterActions {
     stat: WritableField<string>
     modifiers: Field<Modifier[]>
     totalModifier: Field<number>
-    roll: (result?: number | undefined) => Promise<Roll> | null
+    roll: (result?: number | undefined) => Promise<Roll | null>
   }
 }
 

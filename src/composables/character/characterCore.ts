@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 import { computed } from 'vue'
-import type { Actor, Item as PF2eItem, Movement as PF2eMovement } from '@/types/pf2e-types'
+import type { Actor, Item as PF2eItem } from '@/types/pf2e-types'
 import type { Field, WritableField } from './helpers'
 import { type Item, makeItem } from './item'
 import { type Stat, makeStat } from './stat'
@@ -62,33 +62,39 @@ export function useCharacterCore(actor: Ref<Actor | undefined>): CharacterCore {
     max: computed(() => actor.value?.system?.details?.xp?.max)
   }
   const movement = {
-    land: computed(() => makeStat(actor.value?.system?.attributes?.speed)),
-    swim: computed(() =>
-      makeStat(
-        actor.value?.system.attributes.speed.otherSpeeds.find(
-          (s: PF2eMovement) => s.type === 'swim'
-        )
-      )
-    ),
-    climb: computed(() =>
-      makeStat(
-        actor.value?.system.attributes.speed.otherSpeeds.find(
-          (s: PF2eMovement) => s.type === 'climb'
-        )
-      )
-    ),
-    fly: computed(() =>
-      makeStat(
-        actor.value?.system.attributes.speed.otherSpeeds.find((s: PF2eMovement) => s.type === 'fly')
-      )
-    ),
-    burrow: computed(() =>
-      makeStat(
-        actor.value?.system.attributes.speed.otherSpeeds.find(
-          (s: PF2eMovement) => s.type === 'burrow'
-        )
-      )
-    )
+    land: computed(() => makeStat(actor.value?.system?.movement?.speeds?.land)),
+    swim: computed(() => makeStat(actor.value?.system?.movement?.speeds?.swim)),
+    climb: computed(() => makeStat(actor.value?.system?.movement?.speeds?.climb)),
+    fly: computed(() => makeStat(actor.value?.system?.movement?.speeds?.fly)),
+    burrow: computed(() => makeStat(actor.value?.system?.movement?.speeds?.burrow))
+
+    // land: computed(() => makeStat(actor.value?.system?.attributes?.speed)),
+    // swim: computed(() =>
+    //   makeStat(
+    //     actor.value?.system.attributes.speed.otherSpeeds.find(
+    //       (s: PF2eMovement) => s.type === 'swim'
+    //     )
+    //   )
+    // ),
+    // climb: computed(() =>
+    //   makeStat(
+    //     actor.value?.system.attributes.speed.otherSpeeds.find(
+    //       (s: PF2eMovement) => s.type === 'climb'
+    //     )
+    //   )
+    // ),
+    // fly: computed(() =>
+    //   makeStat(
+    //     actor.value?.system.attributes.speed.otherSpeeds.find((s: PF2eMovement) => s.type === 'fly')
+    //   )
+    // ),
+    // burrow: computed(() =>
+    //   makeStat(
+    //     actor.value?.system.attributes.speed.otherSpeeds.find(
+    //       (s: PF2eMovement) => s.type === 'burrow'
+    //     )
+    //   )
+    // )
   }
   const languages = computed(() => actor.value?.system?.details?.languages?.value)
 

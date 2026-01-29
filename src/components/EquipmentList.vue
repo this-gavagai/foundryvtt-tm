@@ -324,7 +324,7 @@ const toggleSet = [
                 }
               "
             >
-              Remove
+              Delete
             </Button>
             <Button
               v-if="isListening && itemViewed?.system?.uses?.max"
