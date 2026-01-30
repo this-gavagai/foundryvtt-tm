@@ -85,8 +85,8 @@ const viewedStrikeDamageTypeSelected = computed(() => {
     ? viewedStrikeItem.value?.flags?.pf2e?.damageSelections?.[
         (viewedStrike.value as ElementalBlast)?.blastElement as keyof object
       ]
-    : (viewedStrikeItem.value?.system?.traits?.toggles.modular?.selected ??
-        viewedStrikeItem.value?.system?.traits?.toggles.versatile?.selected ??
+    : (viewedStrikeItem.value?.system?.traits?.toggles?.modular?.selected ??
+        viewedStrikeItem.value?.system?.traits?.toggles?.versatile?.selected ??
         viewedStrikeItem.value?.system?.damage?.damageType)
 })
 const damageTypeOptions = computed(() => {
@@ -242,7 +242,7 @@ watch(viewedStrike, async () => updateDamageFormula())
             <StrikeActionSet
               type="strike"
               :id="i"
-              :label="strike?.item?.name ?? strike?.label"
+              :label="strike?.label ?? strike?.item?.name"
               :isRanged="strike?.item?.system?.range ?? NaN > 0"
               :range="strike?.item?.system?.range"
               :mapLabelSet="strike.variants"

@@ -38,7 +38,12 @@ export async function getCharacterDetails(
       encumberedAfterBreakdown: bulk.encumberedAfterBreakdown,
       maxBreakdown: bulk.maxBreakdown,
       value: { value: bulk.value.value, light: bulk.value.light, normal: bulk.value.normal }
-    }
+    },
+    labels: actor.items.reduce((acc: Record<string, string | undefined>, i: Item) => {
+      acc[i._id] = i.name
+      i?.subitems?.forEach((s: Item) => (acc[s._id] = s.name))
+      return acc
+    }, {})
   }
   const activeRules = new Set()
   actor.rules.forEach((r: Rule) => {

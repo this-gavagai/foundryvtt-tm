@@ -161,7 +161,7 @@ const toggleSet = [
         :traits="itemViewed?.system?.traits?.value"
       >
         <template #title>
-          {{ itemViewed?.name }}
+          {{ itemViewed?.label ?? itemViewed?.name }}
         </template>
         <template #description>
           Level {{ itemViewed?.system?.level?.value }}

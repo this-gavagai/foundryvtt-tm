@@ -7,6 +7,7 @@ import { inventoryTypes } from '@/utils/constants'
 import type { UpdateEventArgs } from '@/types/foundry-types'
 
 export interface Equipment extends Item {
+  label: Maybe<string>
   toggleInvested?: (newValue?: Maybe<boolean>) => Promise<UpdateEventArgs | null>
   changeCarry?: (
     method: Maybe<string>,
@@ -32,7 +33,6 @@ export interface CharacterItems {
 
 export function useCharacterItems(actor: Ref<Actor | undefined>): CharacterItems {
   const { deleteActorItem, updateActorItem, consumeItem } = useApi()
-
   const feats = computed(() =>
     actor.value?.items
       ?.filter((i: PF2eItem) => i.type === 'feat')
@@ -62,6 +62,7 @@ export function useCharacterItems(actor: Ref<Actor | undefined>): CharacterItems
       ?.filter((i: PF2eItem) => inventoryTypes.map((t) => t.type).includes(i?.type ?? ''))
       .map((i: PF2eItem) => ({
         ...(makeItem(i) as Equipment),
+        label: actor.value?.inventory?.labels?.[i?._id],
         toggleInvested: (newValue: boolean = !i?.system?.equipped?.invested) => {
           console.log('toggle invested!')
           const update = { system: { equipped: { invested: newValue } } }
@@ -100,6 +101,12 @@ export function useCharacterItems(actor: Ref<Actor | undefined>): CharacterItems
           return updateActorItem(actor as Ref<Actor>, i?._id, updates)
         }
       }))
+      .map((e: Equipment) => {
+        e.system.subitems?.forEach((s: Item) => {
+          ;(s as Equipment).label = actor.value?.inventory?.labels?.[s?._id ?? '']
+        })
+        return e
+      })
   )
   const bulk = {
     max: computed(() => actor.value?.inventory?.bulk?.max),

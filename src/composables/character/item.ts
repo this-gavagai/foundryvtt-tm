@@ -71,6 +71,12 @@ export interface Item {
     spell: { system: { level: { value: Maybe<number> }; description: { value: Maybe<string> } } }
     uses: { value: Maybe<number>; max: Maybe<number> }
     subitems: Maybe<Item[]>
+    runes: {
+      potency: Maybe<number>
+      property: Maybe<string[]>
+      striking: Maybe<number>
+      reinforcing: Maybe<number>
+    }
   }
   delete?: () => Promise<DeleteEventArgs>
   consumeItem?: () => Promise<RequestResolutionArgs>
@@ -186,7 +192,13 @@ export function makeItem(root: PF2eItem | undefined): Item | undefined {
         }
       },
       uses: { value: root?.system?.uses?.value, max: root?.system?.uses?.max },
-      subitems: root?.system?.subitems
+      subitems: root?.system?.subitems?.map((i: PF2eItem) => makeItem(i)),
+      runes: {
+        potency: root?.system?.runes?.potency,
+        property: Array.from(root?.system?.runes?.property ?? []),
+        striking: root?.system?.runes?.striking,
+        reinforcing: root?.system?.runes?.reinforcing
+      }
     }
   }
 }

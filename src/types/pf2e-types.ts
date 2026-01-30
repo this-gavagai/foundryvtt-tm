@@ -39,6 +39,7 @@ export interface Item {
   img?: string
   flags?: any
   contents?: string
+  subitems?: any
 }
 export interface IWR {
   type: string
@@ -165,6 +166,7 @@ export interface System {
   proficient: any
   movement: any
   subitems: any
+  runes: any
 }
 export interface Rule {
   option: string

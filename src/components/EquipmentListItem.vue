@@ -26,7 +26,7 @@ const totalWeight = computed(() => {
     @click="() => emits('itemClicked', item)"
   >
     <div class="truncate" :class="{ italic: item.type === 'backpack' }">
-      {{ item.name }}
+      {{ item.label ?? item.name }}
     </div>
     <div class="text-right text-xs font-light">(x{{ item?.system?.quantity }})</div>
     <div
@@ -40,7 +40,7 @@ const totalWeight = computed(() => {
       {{ totalWeight }}
     </div>
     <div v-for="subitem in item?.system?.subitems" :key="subitem._id" class="pl-4 text-sm">
-      {{ subitem.name }}
+      {{ subitem.label ?? subitem.name }}
     </div>
   </a>
 </template>

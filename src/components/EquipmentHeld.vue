@@ -50,7 +50,7 @@ const emits = defineEmits(['itemClicked'])
             >
             <span v-else class="absolute origin-center pr-1">❷</span>
           </Transition>
-          <span class="ml-6">{{ item.name }}</span>
+          <span class="ml-6">{{ item.label ?? item.name }}</span>
         </a>
       </li>
     </TransitionGroup>
