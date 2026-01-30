@@ -7,5 +7,6 @@
     {
       "path": "./tsconfig.app.json"
     }
-  ]
+  ],
+  "types": ["foundry-pf2e"]
 }
