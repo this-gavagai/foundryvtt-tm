@@ -26,7 +26,6 @@ export interface UpdateCharacterDetailsArgs {
   action: 'updateCharacterDetails'
   actorId: string
   actor: string
-  // feats: string
   system: string
   inventory: string
   activeRules: string

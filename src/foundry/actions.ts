@@ -1,4 +1,11 @@
-import type { Actor, Action, Modifier, Item, Rule } from '@/types/pf2e-types'
+import type {
+  ActorPF2e,
+  ItemPF2e,
+  PhysicalItemPF2e,
+  StatisticModifier,
+  Modifier,
+  RollOptionRuleElement
+} from 'foundry-pf2e'
 import type {
   RollCheckArgs,
   CharacterActionArgs,
@@ -13,13 +20,24 @@ import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import type { Game, Macro } from '@/types/foundry-types'
 import { useBackgroundRoll } from './backgroundRoll'
 
+// should be pulling this from constants, but that creates another loading dependency
+const inventoryTypes = [
+  'weapon',
+  'shield',
+  'consumable',
+  'equipment',
+  'armor',
+  'treasure',
+  'backpack'
+]
+
 declare const game: Game
 declare const Macro: Macro
 declare function fromUuidSync(uuid: string): Macro
 
-function blastReplacer(key: string, element: Actor | Item) {
+function blastReplacer(key: string, element: ActorPF2e | ItemPF2e) {
   if (key === 'actor') return undefined
-  else if (key === 'item') return { _id: (element as Item)?._id }
+  else if (key === 'item') return { _id: (element as ItemPF2e)?._id }
   else return element
 }
 
@@ -27,8 +45,9 @@ export async function getCharacterDetails(
   args: RequestCharacterDetailsArgs
 ): Promise<UpdateCharacterDetailsArgs> {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
-  const actor = source.actors.find((x: Actor) => x._id === args.actorId)
-  const elementalBlasts = { ...new game.pf2e.ElementalBlast(actor), actor: actor }
+  const actor = source.actors.find((x: ActorPF2e) => x._id === args.actorId)
+  const elementalBlasts =
+    actor.type !== 'party' ? { ...new game.pf2e.ElementalBlast(actor), actor: actor } : null
   const bulk = actor.inventory.bulk
   const inventory = {
     bulk: {
@@ -39,15 +58,18 @@ export async function getCharacterDetails(
       maxBreakdown: bulk.maxBreakdown,
       value: { value: bulk.value.value, light: bulk.value.light, normal: bulk.value.normal }
     },
-    labels: actor.items.reduce((acc: Record<string, string | undefined>, i: Item) => {
-      acc[i._id] = i.name
-      i?.subitems?.forEach((s: Item) => (acc[s._id] = s.name))
+    labels: actor.items.reduce((acc: Record<string, string | undefined>, i: ItemPF2e) => {
+      if (inventoryTypes.includes(i.type)) {
+        acc[i._id ?? ''] = i.name
+        ;(i as PhysicalItemPF2e)?.subitems?.forEach((s: ItemPF2e) => (acc[s._id ?? ''] = s.name))
+      }
       return acc
     }, {})
   }
   const activeRules = new Set()
-  actor.rules.forEach((r: Rule) => {
-    if (r.option && r.test()) activeRules.add(r.option)
+  actor.rules.forEach((r: RollOptionRuleElement) => {
+    const testFn = (r as unknown as { test?: () => boolean }).test
+    if (r.option && testFn?.call(r)) activeRules.add(r.option)
   }, [])
   console.log('TABLEMATE: now sending ' + actor.name)
   return {
@@ -96,11 +118,11 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       console.log("here's some stuff", args.checkSubtype, altUsage, altUsage?.length)
       if (altUsage?.length)
         roll = actor.system.actions
-          .find((a: Action) => a.slug === actionSlug)
+          .find((a: StatisticModifier) => a.slug === actionSlug)
           .altUsages[altUsage].variants[variant].roll(params)
       else
         roll = actor.system.actions
-          .find((a: Action) => a.slug === actionSlug)
+          .find((a: StatisticModifier) => a.slug === actionSlug)
           .variants[variant].roll(params)
 
       break
@@ -110,10 +132,12 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       const [damageSlug, damageDegree, damageAltUsage] = args.checkSubtype.split(',')
       if (damageAltUsage?.length)
         roll = actor.system.actions
-          .find((a: Action) => a.slug === damageSlug)
+          .find((a: StatisticModifier) => a.slug === damageSlug)
           .altUsages[Number(damageAltUsage)][damageDegree](params)
       else
-        roll = actor.system.actions.find((a: Action) => a.slug === damageSlug)[damageDegree](params)
+        roll = actor.system.actions
+          .find((a: StatisticModifier) => a.slug === damageSlug)
+          [damageDegree](params)
       break
     }
     case 'blast': {
@@ -254,7 +278,7 @@ export async function foundryCallMacro(args: CallMacroArgs) {
 export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
   // console.log('TM ALT DETAILS', args.altUsage)
   const source = typeof window.game === 'undefined' ? parent.game : window.game
-  const actor = source.actors.find((x: Actor) => x._id === args.characterId)
+  const actor = source.actors.find((x: ActorPF2e) => x._id === args.characterId)
   const target =
     args.targets.map((t: string) => source.scenes.active.tokens.get(t))?.[0]?.object ?? null
 
@@ -283,8 +307,10 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
   const action = isBlast
     ? new game.pf2e.ElementalBlast(actor)
     : args.altUsage === undefined
-      ? actor.system.actions.find((a: Action) => a.slug === actionString)
-      : actor.system.actions.find((a: Action) => a.slug === actionString)?.altUsages[args.altUsage]
+      ? actor.system.actions.find((a: StatisticModifier) => a.slug === actionString)
+      : actor.system.actions.find((a: StatisticModifier) => a.slug === actionString)?.altUsages[
+          args.altUsage
+        ]
 
   const doesDmg = isBlast ? true : action.item.dealsDamage
   const blastOptions = isBlast

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Combatant } from '@/types/pf2e-types'
+import type { CombatantPF2e } from 'foundry-pf2e'
 import { computed, inject } from 'vue'
 import { formatModifier } from '@/utils/utilities'
 import StatBox from '@/components/widgets/StatBox.vue'
@@ -24,10 +24,10 @@ const skillsPlusPerception = computed(() =>
 const { activeCombat } = useCombat()
 const initiativeReady = computed(() => {
   const inActiveCombat = activeCombat.value?.combatants
-    .map((a: Combatant) => a.actorId)
+    .map((a: CombatantPF2e) => a.actorId)
     .includes(currentActorId.value)
   const initiativeValue = activeCombat.value?.combatants.find(
-    (a: Combatant) => a.actorId === currentActorId.value
+    (a: CombatantPF2e) => a.actorId === currentActorId.value
   )?.initiative
   return inActiveCombat && !initiativeValue
 })

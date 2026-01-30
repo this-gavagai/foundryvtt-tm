@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Actor } from '@/types/pf2e-types'
+import type { ActorPF2e } from 'foundry-pf2e'
 import { inject } from 'vue'
 import { useCharacterSelect } from '@/composables/characterSelect'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
@@ -57,7 +57,7 @@ const emit = defineEmits(['sidebarActivated'])
               v-slot="{ active }"
               v-for="chr in characterList
                 .filter((c) => c !== _id)
-                .map((c: string) => world?.actors.find((a: Actor) => a._id === c))"
+                .map((c: string) => world?.actors.find((a: ActorPF2e) => a._id === c))"
               :value="chr"
               @click="setActiveCharacterId(chr?._id)"
               :key="chr?._id"

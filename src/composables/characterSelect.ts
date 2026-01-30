@@ -1,5 +1,5 @@
 import { ref, watch, type Ref } from 'vue'
-import type { Actor } from '@/types/pf2e-types'
+import type { ActorPF2e } from 'foundry-pf2e'
 import { useWorld } from './world'
 import { useSettings } from './settings'
 
@@ -22,8 +22,8 @@ export function useCharacterSelect(newUrlId: string | null = null) {
       if (urlId.value) characterIds.add(urlId.value)
       if (skipCharacterAlts.value !== true) {
         newValue?.actors
-          ?.filter((a: Actor) => a.ownership[newValue.userId] === 3)
-          .forEach((a: Actor) => characterIds.add(a?._id))
+          ?.filter((a: ActorPF2e) => a.ownership[newValue.userId] === 3)
+          .forEach((a: ActorPF2e) => characterIds.add(a?._id ?? ''))
       }
       characterList.value = [...characterIds]
     },
