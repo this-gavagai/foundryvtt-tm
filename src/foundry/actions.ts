@@ -28,7 +28,7 @@ export async function getCharacterDetails(
 ): Promise<UpdateCharacterDetailsArgs> {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.find((x: Actor) => x._id === args.actorId)
-  const elementalBlasts = { ...new game.pf2e.ElementalBlast(actor), actor: undefined }
+  const elementalBlasts = { ...new game.pf2e.ElementalBlast(actor), actor: actor }
   const bulk = actor.inventory.bulk
   const inventory = {
     bulk: {
