@@ -131,7 +131,7 @@ export function useCharacterActions(actor: Ref<Actor | undefined>): CharacterAct
         updateActor(actor, update)
       }
     }),
-    modifiers: computed(() => makeModifiers(actor.value?.system.initiative.modifiers)),
+    modifiers: computed(() => makeModifiers(actor.value?.system?.initiative?.modifiers)),
     totalModifier: computed(() => actor.value?.system?.initiative?.totalModifier),
     roll: (result: number | undefined) => {
       return rollCheck(actor as Ref<Actor>, 'initiative', '', { d20: [result ?? 0] })
