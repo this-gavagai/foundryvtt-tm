@@ -17,9 +17,12 @@ import { XMarkIcon } from '@heroicons/vue/24/outline'
 import { useListeners } from '@/composables/listenersOnline'
 import Modal from './ModalBox.vue'
 import Spinner from './widgets/SpinnerWidget.vue'
+import type { ActiveRoll } from '@/types/api-types'
+
+import Button from './widgets/ButtonWidget.vue'
 
 const character = inject(useKeys().characterKey)!
-const { _id: characterId } = character
+const { _id: characterId, doCharacterAction } = character
 
 const { sendItemToChat } = useApi()
 
@@ -31,6 +34,7 @@ const props = defineProps<{
   traits?: string[]
   itemId?: string
   diceRequest?: string[]
+  activeRoll?: ActiveRoll
 }>()
 const rollResultModal = ref()
 
@@ -157,6 +161,8 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
                   </div>
                   <div>
                     <slot></slot>
+                    <div>Hi</div>
+                    <div>{{ activeRoll }}</div>
                   </div>
                 </div>
                 <div class="mt-4 flex flex-wrap items-center justify-end gap-2">
@@ -173,6 +179,20 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
                     />
                   </div>
                   <slot name="actionButtons"></slot>
+                  <Button
+                    color="blue"
+                    class="capitalize"
+                    v-if="activeRoll?.slug"
+                    :clicked="
+                      () => {
+                        doCharacterAction(activeRoll?.slug!, activeRoll?.params).then((r) => {
+                          rollResultModal.open(r)
+                          close()
+                        })
+                      }
+                    "
+                    >Roll {{ activeRoll?.label }}</Button
+                  >
                 </div>
               </DialogPanel>
             </TransitionChild>

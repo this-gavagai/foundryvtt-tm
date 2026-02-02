@@ -356,7 +356,8 @@ async function rollCheck(
   checkSubtype = '',
   diceResults: DiceResults = {},
   modifiers: { label: string; modifier: number; enabled: boolean; ignored: boolean }[] = [],
-  options = {}
+  options = {},
+  item = null
 ): Promise<RequestResolutionArgs> {
   const { getTargets } = useTargetHelper()
   const userId = getUserId()
@@ -366,6 +367,7 @@ async function rollCheck(
     action: 'rollCheck',
     characterId: actor.value._id,
     targets: getTargets(),
+    item,
     checkType,
     checkSubtype,
     modifiers,

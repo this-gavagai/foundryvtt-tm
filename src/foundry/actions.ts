@@ -168,6 +168,18 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       roll = actor.initiative.roll(params)
       break
     }
+    case 'flat': {
+      const label = 'Generic Flat Check'
+      const dc = 11
+      await game.pf2e.Check.roll(new game.pf2e.StatisticModifier(label, []), {
+        actor: {},
+        type: 'flat-check',
+        dc: { value: dc, visible: true },
+        options: ['flat-check'],
+        createMessage: true,
+        skipDialog: true
+      })
+    }
   }
   const r = await roll
   unregisterBackgroundRoll()
@@ -175,7 +187,6 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   if (!r) return {}
   if (r.hasOwnProperty('roll')) console.log('this one has a weird property') // trying to figure out where this is necessary; don't remember
   const actualRoll = r.hasOwnProperty('roll') ? r.roll : r
-  // console.log(r)
 
   const isSecret =
     r?.[0]?.message?.whisper?.length === 0 && !r?.[0]?.message?.whisper?.includes(args.userId)

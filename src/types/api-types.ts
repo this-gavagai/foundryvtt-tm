@@ -53,6 +53,7 @@ export interface RollCheckArgs {
   options: any
   uuid: string
   targets?: string[]
+  item?: Item | null
   diceResults: DiceResults
 }
 export interface CharacterActionArgs {
@@ -124,6 +125,14 @@ export interface RequestResolutionArgs {
     critical?: string
     modifiers?: any
   }
+}
+
+export interface ActiveRoll {
+  action: 'action' | 'check'
+  slug?: string
+  label?: string
+  paramsString?: string
+  params?: Record<string, string>
 }
 
 export interface DiceResults {

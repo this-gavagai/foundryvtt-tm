@@ -10,7 +10,6 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "skipLibCheck": true,
-    "verbatimModuleSyntax": false
+    "skipLibCheck": true
   }
 }

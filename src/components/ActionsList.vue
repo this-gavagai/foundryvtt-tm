@@ -15,7 +15,7 @@ const infoModal = ref()
 const description = ref()
 
 const character = inject(useKeys().characterKey)!
-const { actions, doCharacterAction } = character
+const { actions } = character
 
 const { isListening } = useListeners()
 
@@ -64,7 +64,10 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
         :imageUrl="actionViewed?.img"
         :itemId="actionViewed?._id"
         :traits="actionViewed?.system?.traits?.value"
-        :diceRequest="description?.activeRoll?.slug ? ['d20'] : []"
+        :activeRoll="description?.activeRoll"
+      >
+        <div>{{ description?.activeRoll }}</div>
+        <!-- :diceRequest="description?.activeRoll?.slug ? ['d20'] : []"
         @diceResult="
           (face) => {
             doCharacterAction(
@@ -76,8 +79,7 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
               infoModal.close()
             })
           }
-        "
-      >
+        " -->
         <template #title>
           {{ actionViewed?.name }}
         </template>
@@ -94,7 +96,7 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
         </template>
         <template #actionButtons v-if="isListening">
           <div class="align-items-center flex gap-2">
-            <Button
+            <!-- <Button
               color="blue"
               class="capitalize"
               v-if="description?.activeRoll?.slug"
@@ -110,7 +112,7 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
                 }
               "
               >Roll {{ description?.activeRoll?.label }}</Button
-            >
+            > -->
             <Button
               color="blue"
               class="apitalize"

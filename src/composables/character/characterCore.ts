@@ -2,6 +2,7 @@ import type { Ref } from 'vue'
 import { computed } from 'vue'
 import type { Actor, Item as PF2eItem } from '@/types/pf2e-types'
 import type { Field, WritableField } from './helpers'
+import type { RequestResolutionArgs } from '@/types/api-types'
 import { type Item, makeItem } from './item'
 import { type Stat, makeStat } from './stat'
 import { useApi } from '../api'
@@ -27,10 +28,11 @@ export interface CharacterCore {
     burrow: Field<Stat>
   }
   languages: Field<string[]>
+  rollInline: (result: number | undefined) => Promise<RequestResolutionArgs | null>
 }
 
 export function useCharacterCore(actor: Ref<Actor | undefined>): CharacterCore {
-  const { updateActor } = useApi()
+  const { updateActor, rollCheck } = useApi()
 
   const _id = computed(() => actor.value?._id)
   const name = computed(() => actor.value?.name)
@@ -98,6 +100,11 @@ export function useCharacterCore(actor: Ref<Actor | undefined>): CharacterCore {
   }
   const languages = computed(() => actor.value?.system?.details?.languages?.value)
 
+  const rollInline = (result: number | undefined) => {
+    console.log('as promised')
+    return rollCheck(actor as Ref<Actor>, 'flat', '', { d20: [result ?? 0] })
+  }
+
   return {
     _id,
     name,
@@ -109,6 +116,7 @@ export function useCharacterCore(actor: Ref<Actor | undefined>): CharacterCore {
     level,
     xp,
     movement,
-    languages
+    languages,
+    rollInline
   }
 }
