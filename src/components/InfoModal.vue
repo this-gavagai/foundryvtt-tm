@@ -161,7 +161,6 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
                   </div>
                   <div>
                     <slot></slot>
-                    <div>Hi</div>
                     <div>{{ activeRoll }}</div>
                   </div>
                 </div>
