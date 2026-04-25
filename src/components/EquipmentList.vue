@@ -22,6 +22,7 @@ import EquipmentHeld from './EquipmentHeld.vue'
 
 const infoModal = ref()
 const investedModal = ref()
+const description = ref()
 
 const character = inject(useKeys().characterKey)!
 const { inventory } = character
@@ -159,6 +160,7 @@ const toggleSet = [
         :itemId="itemViewed?._id"
         :imageUrl="itemViewed?.img"
         :traits="itemViewed?.system?.traits?.value"
+        :activeRoll="description?.activeRoll"
       >
         <template #title>
           {{ itemViewed?.label ?? itemViewed?.name }}
@@ -277,7 +279,7 @@ const toggleSet = [
           </div>
         </template>
         <template #body>
-          <ParsedDescription :text="itemViewed?.system?.description.value" />
+          <ParsedDescription ref="description" :text="itemViewed?.system?.description.value" />
           <div class="flex">
             <div class="flex-1 text-xl">Qty: {{ itemViewed?.system?.quantity }}</div>
             <div
@@ -287,7 +289,7 @@ const toggleSet = [
               <div class="text-xl">Uses:</div>
               <CounterWidget
                 :title="itemViewed?.name + ' (uses)'"
-                class="mt-1 h-6"
+                class="-mt-1 h-6"
                 :value="itemViewed?.system?.uses?.value"
                 :max="itemViewed?.system?.uses?.max"
                 @changeCount="(newValue: number) => itemViewed?.changeUses?.(newValue)"
@@ -326,11 +328,18 @@ const toggleSet = [
             >
               Delete
             </Button>
-            <Button
+            <!-- <Button
               v-if="isListening && itemViewed?.system?.uses?.max"
               color="green"
               :disabled="itemViewed?.system?.uses?.value === 0"
               :clicked="() => itemViewed?.consumeItem?.().then(() => infoModal.close())"
+              >Use Item</Button
+            > -->
+            <Button
+              v-if="isListening && itemViewed?.system?.uses?.max"
+              color="green"
+              :disabled="itemViewed?.system?.uses?.value === 0"
+              :clicked="() => itemViewed?.consumeItem?.()"
               >Use Item</Button
             >
           </div>

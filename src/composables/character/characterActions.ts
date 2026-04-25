@@ -23,7 +23,7 @@ export interface CharacterActions {
     slug: string,
     options?: object | undefined,
     rollResult?: number | undefined
-  ) => Promise<Roll>
+  ) => Promise<Roll | null>
   actions: Field<Action[]>
   skills: Field<Stat[]>
   proficiencies: Field<Stat[]>
@@ -86,8 +86,15 @@ export function useCharacterActions(actor: Ref<Actor | undefined>): CharacterAct
       ([key, skill]) =>
         ({
           ...makeStat(skill, key),
-          roll: (result) =>
-            rollCheck(actor as Ref<Actor>, 'skill', skill.slug, { d20: [result ?? 0] })
+          roll: (result, options = {}) =>
+            rollCheck(
+              actor as Ref<Actor>,
+              'skill',
+              skill.slug,
+              { d20: [result ?? 0] },
+              [],
+              options ?? {}
+            )
         }) as Stat
     )
     const lores = actor.value?.items

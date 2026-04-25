@@ -66,20 +66,6 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
         :traits="actionViewed?.system?.traits?.value"
         :activeRoll="description?.activeRoll"
       >
-        <div>{{ description?.activeRoll }}</div>
-        <!-- :diceRequest="description?.activeRoll?.slug ? ['d20'] : []"
-        @diceResult="
-          (face) => {
-            doCharacterAction(
-              description?.activeRoll?.slug,
-              description?.activeRoll?.params,
-              face
-            ).then((r) => {
-              infoModal.rollResultModal.open(r)
-              infoModal.close()
-            })
-          }
-        " -->
         <template #title>
           {{ actionViewed?.name }}
         </template>
@@ -96,26 +82,9 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
         </template>
         <template #actionButtons v-if="isListening">
           <div class="align-items-center flex gap-2">
-            <!-- <Button
-              color="blue"
-              class="capitalize"
-              v-if="description?.activeRoll?.slug"
-              :clicked="
-                () => {
-                  doCharacterAction(
-                    description?.activeRoll?.slug,
-                    description?.activeRoll?.params
-                  ).then((r) => {
-                    infoModal.rollResultModal.open(r)
-                    infoModal.close()
-                  })
-                }
-              "
-              >Roll {{ description?.activeRoll?.label }}</Button
-            > -->
             <Button
               color="blue"
-              class="apitalize"
+              class="capitalize"
               v-if="actionViewed?.macroId"
               :clicked="
                 () => {

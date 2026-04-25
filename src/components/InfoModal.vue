@@ -22,12 +22,14 @@ import type { ActiveRoll } from '@/types/api-types'
 import Button from './widgets/ButtonWidget.vue'
 
 const character = inject(useKeys().characterKey)!
-const { _id: characterId, doCharacterAction } = character
+const { _id: characterId, doCharacterAction, doFlatCheck, saves, skills } = character
 
 const { sendItemToChat } = useApi()
-
 const { pixel, lastRoll } = usePixelDice()
 const { isListening } = useListeners()
+
+const rollResultModal = ref()
+const waiting = ref(false)
 
 const props = defineProps<{
   imageUrl?: string
@@ -36,9 +38,6 @@ const props = defineProps<{
   diceRequest?: string[]
   activeRoll?: ActiveRoll
 }>()
-const rollResultModal = ref()
-
-const waiting = ref(false)
 
 watch(lastRoll, () => {
   if (isOpen.value && props.diceRequest?.length) {
@@ -52,13 +51,14 @@ function open() {
   waiting.value = false
   emit('opening')
 }
-function close() {
+function close(ignoreModal = false) {
+  if (rollResultModal.value.isOpen && !ignoreModal) {
+    rollResultModal.value.close()
+    return
+  }
   isOpen.value = false
   emit('closing')
 }
-
-const emit = defineEmits(['opening', 'closing', 'imgClick', 'diceResult'])
-defineExpose({ open, close, rollResultModal })
 
 const dragOptions = {
   swipeDistance: 50
@@ -66,6 +66,9 @@ const dragOptions = {
 const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
   if (swipe[1]) close()
 }
+
+const emit = defineEmits(['opening', 'closing', 'imgClick', 'diceResult'])
+defineExpose({ open, close, rollResultModal })
 </script>
 <template>
   <div class="touch-manipulation transition-all">
@@ -135,7 +138,7 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
                         <button
                           type="button"
                           class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-hidden"
-                          @click="close"
+                          @click="close(true)"
                         >
                           <span class="sr-only">Close</span>
                           <XMarkIcon class="h-6 w-6" aria-hidden="true" />
@@ -161,7 +164,7 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
                   </div>
                   <div>
                     <slot></slot>
-                    <div>{{ activeRoll }}</div>
+                    <!-- <div>{{ activeRoll }}</div> -->
                   </div>
                 </div>
                 <div class="mt-4 flex flex-wrap items-center justify-end gap-2">
@@ -181,16 +184,46 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
                   <Button
                     color="blue"
                     class="capitalize"
-                    v-if="activeRoll?.slug"
+                    :class="['order-first mr-auto']"
+                    v-if="activeRoll"
                     :clicked="
                       () => {
-                        doCharacterAction(activeRoll?.slug!, activeRoll?.params).then((r) => {
-                          rollResultModal.open(r)
-                          close()
-                        })
+                        if (activeRoll?.action === 'action') {
+                          doCharacterAction(activeRoll?.slug!, activeRoll?.params).then((r) => {
+                            console.log('hello sir!', r)
+                            rollResultModal.open(r)
+                            close(true)
+                          })
+                        }
+                        if (activeRoll?.action === 'check') {
+                          const slug = activeRoll?.slug
+                          if (['fortitude', 'will', 'reflex'].includes(slug ?? '')) {
+                            saves[slug as 'fortitude' | 'will' | 'reflex'].value
+                              ?.roll?.(undefined, { dc: Number(activeRoll?.dc) ?? undefined })
+                              .then((r) => {
+                                rollResultModal.open(r)
+                              })
+                          } else if (slug === 'flat') {
+                            doFlatCheck(undefined, {
+                              dc: Number(activeRoll?.dc) ?? undefined
+                            }).then((r) => {
+                              rollResultModal.open(r)
+                            })
+                          } else {
+                            const slug = activeRoll?.slug
+                            console.log(slug, skills)
+                            skills
+                              ?.find((s) => s.slug === slug)
+                              ?.roll?.(undefined, { dc: Number(activeRoll?.dc) ?? undefined })
+                              .then((r) => {
+                                console.log('GOODBYESIR', r)
+                                rollResultModal.open(r)
+                              })
+                          }
+                        }
                       }
                     "
-                    >Roll {{ activeRoll?.label }}</Button
+                    >Roll {{ activeRoll?.label ?? activeRoll?.slug }}</Button
                   >
                 </div>
               </DialogPanel>

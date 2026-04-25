@@ -133,6 +133,7 @@ export interface ActiveRoll {
   label?: string
   paramsString?: string
   params?: Record<string, string>
+  dc?: number
 }
 
 export interface DiceResults {

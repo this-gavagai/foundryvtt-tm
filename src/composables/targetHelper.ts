@@ -24,8 +24,14 @@ const targetingProxyId = computed(
 function updateProxyId(newId: string) {
   console.log('newID incoming', newId)
   if (!world.value) return Promise.resolve(null)
-  world.value.users.find((u) => u._id === getUserId()).flags.tablemate.targeting_proxy = newId
+
+  // update remote
   const response = updateUserTargetingProxy(getUserId(), newId)
+  // update local
+  let flagsBase = world.value.users.find((u) => u._id === getUserId()).flags.tablemate
+  if (!flagsBase) flagsBase = {}
+  flagsBase.targeting_proxy = newId
+
   localProxyId.value = newId
   return response
 }

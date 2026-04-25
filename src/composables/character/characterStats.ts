@@ -1,5 +1,6 @@
 import { computed, type Ref } from 'vue'
 import type { Actor, IWR as PF2eIWR } from '@/types/pf2e-types'
+import type { Roll } from '@/types/foundry-types'
 import type { Field, WritableField, Maybe } from './helpers'
 import { type Modifier, makeModifiers } from './modifier'
 import { type Stat, makeStat } from './stat'
@@ -58,6 +59,11 @@ export interface CharacterStats {
   weaknesses: Field<IWR[]>
   resistances: Field<IWR[]>
   spellDC: Field<number>
+
+  doFlatCheck: (
+    rollResult?: number | undefined,
+    options?: object | undefined
+  ) => Promise<Roll | null>
 }
 
 export function useCharacterStats(actor: Ref<Actor | undefined>): CharacterStats {
@@ -102,18 +108,25 @@ export function useCharacterStats(actor: Ref<Actor | undefined>): CharacterStats
   const saves = {
     fortitude: computed(() => ({
       ...(makeStat(actor.value?.system?.saves?.fortitude) as Stat),
-      roll: (result: number | undefined) =>
-        rollCheck(actor as Ref<Actor>, 'save', 'fortitude', { d20: [result ?? 0] })
+      roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
+        rollCheck(
+          actor as Ref<Actor>,
+          'save',
+          'fortitude',
+          { d20: [result ?? 0] },
+          [],
+          options ?? {}
+        )
     })),
     reflex: computed(() => ({
       ...(makeStat(actor.value?.system?.saves?.reflex) as Stat),
-      roll: (result: number | undefined) =>
-        rollCheck(actor as Ref<Actor>, 'save', 'reflex', { d20: [result ?? 0] })
+      roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
+        rollCheck(actor as Ref<Actor>, 'save', 'reflex', { d20: [result ?? 0] }, [], options ?? {})
     })),
     will: computed(() => ({
       ...(makeStat(actor.value?.system?.saves?.will) as Stat),
-      roll: (result: number | undefined) =>
-        rollCheck(actor as Ref<Actor>, 'save', 'will', { d20: [result ?? 0] })
+      roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
+        rollCheck(actor as Ref<Actor>, 'save', 'will', { d20: [result ?? 0] }, [], options ?? {})
     }))
   }
   const perception = computed(() => ({
@@ -127,6 +140,13 @@ export function useCharacterStats(actor: Ref<Actor | undefined>): CharacterStats
   const resistances = computed(() => makeIWRs(actor.value?.system?.attributes?.resistances))
   const spellDC = computed(() => actor.value?.system?.attributes?.spellDC?.value)
 
+  const doFlatCheck = (
+    rollResult: number | undefined = undefined,
+    options: object | undefined = {}
+  ) => {
+    return rollCheck(actor as Ref<Actor>, 'flat', '', { d20: [rollResult ?? 0] }, [], options ?? {})
+  }
+
   return {
     attributes,
     ac,
@@ -136,7 +156,8 @@ export function useCharacterStats(actor: Ref<Actor | undefined>): CharacterStats
     immunities,
     weaknesses,
     resistances,
-    spellDC
+    spellDC,
+    doFlatCheck
   }
 }
 

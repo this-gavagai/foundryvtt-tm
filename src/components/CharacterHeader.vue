@@ -31,12 +31,7 @@ const emit = defineEmits(['sidebarActivated'])
       class="xs:flex border-divider hidden h-24 w-24 items-center overflow-hidden rounded-full border-2"
       @click="reloadPage"
     >
-      <img
-        v-if="portraitUrl"
-        :src="getPath(portraitUrl)"
-        class="scale-150"
-        alt="Character portrait"
-      />
+      <img v-if="portraitUrl" :src="getPath(portraitUrl)" alt="Character portrait" />
       <div v-else class="h-full min-h-24">
         <Spinner class="mr-2 h-full w-full p-4" />
       </div>
@@ -45,7 +40,7 @@ const emit = defineEmits(['sidebarActivated'])
       <h3 class="mb-2 w-full text-2xl whitespace-nowrap">
         <Listbox>
           <ListboxButton class="block w-full">
-            <div class="w-full truncate text-left">{{ name ?? 'Loading...' }}</div>
+            <div class="w-full cursor-pointer truncate text-left">{{ name ?? 'Loading...' }}</div>
           </ListboxButton>
           <ListboxOptions
             class="ring-opacity-5 absolute z-50 mt-1 max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-gray-200 empty:hidden focus:outline-hidden sm:text-sm"

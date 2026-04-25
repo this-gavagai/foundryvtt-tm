@@ -83,7 +83,7 @@ const effectViewed = computed(() => effects.value?.find((e) => e._id === effectV
         <template #body>
           <ParsedDescription
             :text="effectViewed?.system?.description?.value"
-            @check-initiated="() => rollInline()"
+            @check-initiated="() => rollInline(undefined)"
           />
         </template>
         <template #actionButtons>

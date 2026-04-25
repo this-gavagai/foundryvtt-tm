@@ -153,11 +153,12 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       break
     }
     case 'skill': {
-      roll = actor.skills[args.checkSubtype].check.roll(params)
+      roll = actor.skills[args.checkSubtype].check.roll({ ...args.options, ...params })
       break
     }
     case 'save': {
-      roll = actor.saves[args.checkSubtype].check.roll(params)
+      console.log('TM HERE', args)
+      roll = actor.saves[args.checkSubtype].check.roll({ ...args.options, ...params })
       break
     }
     case 'perception': {
@@ -170,8 +171,8 @@ export async function foundryRollCheck(args: RollCheckArgs) {
     }
     case 'flat': {
       const label = 'Generic Flat Check'
-      const dc = 11
-      await game.pf2e.Check.roll(new game.pf2e.StatisticModifier(label, []), {
+      const dc = args?.options?.dc ?? 11
+      roll = game.pf2e.Check.roll(new game.pf2e.StatisticModifier(label, []), {
         actor: {},
         type: 'flat-check',
         dc: { value: dc, visible: true },
@@ -179,6 +180,7 @@ export async function foundryRollCheck(args: RollCheckArgs) {
         createMessage: true,
         skipDialog: true
       })
+      break
     }
   }
   const r = await roll
