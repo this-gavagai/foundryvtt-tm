@@ -26,9 +26,13 @@ export function useCharacterSelect(newUrlId: string | null = null) {
           .forEach((a: ActorPF2e) => characterIds.add(a?._id ?? ''))
       }
       characterList.value = [...characterIds]
+      if (!activeCharacterId.value) {
+        activeCharacterId.value = characterList.value?.[0]
+      }
     },
     { immediate: true }
   )
+
   function setActiveCharacterId(newId: string | undefined) {
     if (newId) activeCharacterId.value = newId
   }

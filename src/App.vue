@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type Ref, computed, useTemplateRef, watchPostEffect } from 'vue'
+import { type Ref, useTemplateRef, watch, watchPostEffect } from 'vue'
 import { useWakeLock } from '@vueuse/core'
 import type { Socket } from 'socket.io-client'
 import type { World } from '@/types/pf2e-types'
@@ -56,7 +56,12 @@ usePixelDice()
 // setup characters
 const urlId = new URLSearchParams(document.location.search).get('id')
 const { characterList, activeCharacterId } = useCharacterSelect(urlId)
-const activeIndex = computed(() => characterList.value.indexOf(activeCharacterId.value))
+watch(activeCharacterId, (newValue) => {
+  if (urlId !== newValue) {
+    const url = `${window.location.origin}/modules/tablemate/index.html?id=${newValue}`
+    window.location.assign(url)
+  }
+})
 const characters = useTemplateRef('characters')
 
 // debugging tools
@@ -84,7 +89,7 @@ if (BUILD_MODE === 'development') {
 }
 </script>
 <template>
-  <TabGroup :selectedIndex="activeIndex" as="div">
+  <TabGroup :selectedIndex="characterList.indexOf(activeCharacterId)" as="div">
     <TabList class="border-divider hidden h-12 gap-0 border bg-white text-xl">
       <Tab
         class="ui-selected:bg-blue-300 relative top-0 p-2 focus:outline-hidden"
