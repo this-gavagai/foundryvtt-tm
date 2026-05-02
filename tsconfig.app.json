@@ -1,7 +1,7 @@
 {
   "extends": "@vue/tsconfig/tsconfig.dom.json",
   "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
-  "exclude": ["src/**/__tests__/*"],
+  "exclude": ["src/**/__tests__/*", "node_modules"],
   "compilerOptions": {
     "composite": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
@@ -10,6 +10,6 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "skipLibCheck": true
+    "verbatimModuleSyntax": false // turned off to prevent errors in pf2e-types and foundry-types
   }
 }
