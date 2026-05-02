@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ActorPF2e } from 'foundry-pf2e'
+import type { ActorPF2e } from '@7h3laughingman/pf2e-types'
 import { inject } from 'vue'
 import { useCharacterSelect } from '@/composables/characterSelect'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'

@@ -5,7 +5,7 @@ import type {
   StatisticModifier,
   Modifier,
   RollOptionRuleElement
-} from 'foundry-pf2e'
+} from '@7h3laughingman/pf2e-types'
 import type {
   RollCheckArgs,
   CharacterActionArgs,

@@ -1,5 +1,5 @@
 import { ref, watch, type Ref } from 'vue'
-import type { ActorPF2e } from 'foundry-pf2e'
+import type { ActorPF2e } from '@7h3laughingman/pf2e-types'
 import { useWorld } from './world'
 import { useSettings } from './settings'
 

@@ -1,4 +1,3 @@
-// TODO: player is able to see actor details for non-owned actors. fix the guardrail on this.
 import type {
   ModuleEventArgs,
   CastSpellArgs,
@@ -56,7 +55,6 @@ export function setupListener() {
       return
     }
 
-    // TODO: Install guard rails on actions with unowned characters (return error to sheet, don't just console.log it)
     if (args.hasOwnProperty('userId') && args.hasOwnProperty('actorId')) {
       const actorArgs = args as RequestCharacterDetailsArgs
       if (game.actors.get(actorArgs.actorId).ownership[actorArgs.userId] !== 3) {
