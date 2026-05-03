@@ -1,6 +1,6 @@
 import type { Maybe } from './helpers'
-import type { Roll } from '@/types/foundry-types'
 import type { Stat as PF2eStat, Modifier as PF2eModifier } from '@/types/pf2e-types'
+import type { RequestResolutionArgs } from '@/types/api-types'
 import { type Modifier, makeModifiers } from './modifier'
 
 import { capitalize } from 'lodash-es'
@@ -20,7 +20,7 @@ export interface Stat {
   dc: Maybe<number>
   armor: Maybe<boolean>
   lore: Maybe<boolean>
-  roll?: (result?: number | undefined, options?: object | undefined) => Promise<Roll | null>
+  roll?: (result?: number | undefined, options?: object | undefined) => Promise<RequestResolutionArgs | null>
 }
 export function makeStat(root: PF2eStat | undefined, key: string | null = null): Stat | undefined {
   if (!root) return undefined

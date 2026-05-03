@@ -1,6 +1,6 @@
 import type { Maybe } from './helpers'
 import type { Item as PF2eItem } from '@/types/pf2e-types'
-import type { DeleteEventArgs, UpdateEventArgs } from '@/types/foundry-types'
+import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type { RequestResolutionArgs } from '@/types/api-types'
 
 export interface Item {
@@ -78,10 +78,10 @@ export interface Item {
       reinforcing: Maybe<number>
     }
   }
-  delete?: () => Promise<DeleteEventArgs>
+  delete?: () => Promise<DocumentSocketResponse>
   consumeItem?: () => Promise<RequestResolutionArgs>
-  changeQty?: (newTotal: number) => Promise<UpdateEventArgs | null>
-  changeUses?: (newTotal: number) => Promise<UpdateEventArgs | null>
+  changeQty?: (newTotal: number) => Promise<DocumentSocketResponse | null>
+  changeUses?: (newTotal: number) => Promise<DocumentSocketResponse | null>
 }
 export function makeItem(root: PF2eItem | undefined): Item | undefined {
   if (!root) return undefined

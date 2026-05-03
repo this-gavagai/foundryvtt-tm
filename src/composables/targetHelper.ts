@@ -3,7 +3,8 @@ import { computed } from 'vue'
 import { useWorld } from './world'
 import { useUserId } from '@/composables/user'
 import { useApi } from '@/composables/api'
-import type { User } from '@/types/foundry-types'
+import type { UserPF2e } from '@7h3laughingman/pf2e-types'
+import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import { useStorage } from '@vueuse/core'
 
 const { world } = useWorld()
@@ -13,7 +14,7 @@ const localProxyId = useStorage('proxy-id', '')
 
 const targets = ref<string[]>([])
 const userList = computed(() => {
-  return world.value?.users.map((u: User) => ({ id: u._id, name: u.name })) ?? []
+  return world.value?.users.map((u: UserPF2e) => ({ id: u._id ?? undefined, name: u.name })) ?? []
 })
 const targetingProxyId = computed(
   () =>
@@ -21,7 +22,7 @@ const targetingProxyId = computed(
     localProxyId.value
 )
 
-function updateProxyId(newId: string) {
+function updateProxyId(newId: string): Promise<DocumentSocketResponse | null> {
   console.log('newID incoming', newId)
   if (!world.value) return Promise.resolve(null)
 

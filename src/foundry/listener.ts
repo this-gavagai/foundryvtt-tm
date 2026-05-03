@@ -19,12 +19,12 @@ import {
   foundrySendItemToChat,
   foundryCallMacro
 } from './actions'
-import type { Game, User, Hooks, GetEvent } from '@/types/foundry-types'
+import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
-// import './lodash.min.js'
 
-declare const game: Game
-declare const Hooks: Hooks
+type GetEvent = { action: 'get' }
+
+declare const game: GamePF2e
 const MODNAME = 'module.tablemate'
 
 const getChar: Record<string, (args: RequestCharacterDetailsArgs) => void> = {}
@@ -57,7 +57,7 @@ export function setupListener() {
 
     if (args.hasOwnProperty('userId') && args.hasOwnProperty('actorId')) {
       const actorArgs = args as RequestCharacterDetailsArgs
-      if (game.actors.get(actorArgs.actorId).ownership[actorArgs.userId] !== 3) {
+      if (game.actors.get(actorArgs.actorId)?.ownership[actorArgs.userId] !== 3) {
         console.log('unowned character')
         return
       }
@@ -128,8 +128,8 @@ function iAmFirstGM() {
   return (
     game.user.isGM &&
     !game.users
-      .filter((user: User) => user.isGM && user.active)
-      .some((other: User) => other._id < game.user._id)
+      .filter((user: UserPF2e) => user.isGM && user.active)
+      .some((other: UserPF2e) => other._id! < game.user._id!)
   )
 }
 function iAmProxy(userId: string) {
@@ -138,7 +138,7 @@ function iAmProxy(userId: string) {
 function proxyIsOnline(userId: string) {
   return (
     game.users.filter(
-      (user: User) =>
+      (user: UserPF2e) =>
         game.users.get(userId)?.flags?.tablemate?.targeting_proxy === user._id && user.active
     ).length > 0
   )
@@ -156,8 +156,8 @@ function announceSelf() {
 }
 
 function broadcastTargets() {
-  const targets = game.users.reduce((acc: Record<string, string[]>, user: User) => {
-    acc[user._id] = Array.from(user.targets.map((t: { id: string }) => t.id))
+  const targets = game.users.reduce((acc: Record<string, string[]>, user: UserPF2e) => {
+    acc[user._id ?? 0] = Array.from(user.targets.map((t: { id: string }) => t.id))
     return acc
   }, {})
   game.socket.emit('module.tablemate', {

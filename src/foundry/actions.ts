@@ -4,7 +4,11 @@ import type {
   PhysicalItemPF2e,
   StatisticModifier,
   Modifier,
-  RollOptionRuleElement
+  RollOptionRuleElement,
+  GamePF2e,
+  MacroPF2e,
+  EffectTrait,
+  DamageType
 } from '@7h3laughingman/pf2e-types'
 import type {
   RollCheckArgs,
@@ -17,7 +21,6 @@ import type {
   CallMacroArgs
 } from '@/types/api-types'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
-import type { Game, Macro } from '@/types/foundry-types'
 import { useBackgroundRoll } from './backgroundRoll'
 
 // should be pulling this from constants, but that creates another loading dependency
@@ -31,9 +34,9 @@ const inventoryTypes = [
   'backpack'
 ]
 
-declare const game: Game
-declare const Macro: Macro
-declare function fromUuidSync(uuid: string): Macro
+declare const game: GamePF2e
+declare const Macro: typeof MacroPF2e
+declare function fromUuidSync(uuid: string): MacroPF2e
 
 function blastReplacer(key: string, element: ActorPF2e | ItemPF2e) {
   if (key === 'actor') return undefined
@@ -81,7 +84,7 @@ export async function getCharacterDetails(
     activeRules: JSON.stringify([...activeRules]),
     elementalBlasts: JSON.stringify(elementalBlasts, blastReplacer),
     uuid: args.uuid,
-    userId: game.user._id
+    userId: game.user._id ?? ''
   }
 }
 
@@ -105,7 +108,7 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       ? targetTokenDoc?.object
       : null,
     skipDialog: true,
-    event: fakeEvent,
+    event: fakeEvent as unknown as PointerEvent,
     identifier: 'tm_background'
   }
 
@@ -143,13 +146,19 @@ export async function foundryRollCheck(args: RollCheckArgs) {
     case 'blast': {
       const [element, damageType, mapIncreases, isMelee] = args.checkSubtype.split(',')
       const blasts = new game.pf2e.ElementalBlast(actor)
-      roll = blasts.attack({ ...params, element, damageType, mapIncreases, melee: isMelee })
+      roll = blasts.attack({
+        ...params,
+        element: element as EffectTrait,
+        damageType: damageType as DamageType,
+        mapIncreases: Number(mapIncreases),
+        melee: isMelee === 'true'
+      })
       break
     }
     case 'blastDamage': {
       const [element, damageType, outcome, isMelee] = args.checkSubtype.split(',')
       const damageBlasts = new game.pf2e.ElementalBlast(actor)
-      roll = damageBlasts.damage({ ...params, element, damageType, outcome, melee: isMelee })
+      roll = damageBlasts.damage({ ...params, element: element as EffectTrait, damageType: damageType as DamageType, outcome: outcome as 'success' | 'criticalSuccess', melee: isMelee === 'true' })
       break
     }
     case 'skill': {
@@ -173,10 +182,10 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       const label = 'Generic Flat Check'
       const dc = args?.options?.dc ?? 11
       roll = game.pf2e.Check.roll(new game.pf2e.StatisticModifier(label, []), {
-        actor: {},
+        actor: {} as ActorPF2e,
         type: 'flat-check',
         dc: { value: dc, visible: true },
-        options: ['flat-check'],
+        options: new Set(['flat-check']),
         createMessage: true,
         skipDialog: true
       })
@@ -266,6 +275,7 @@ export async function foundrySendItemToChat(args: SendItemToChatArgs) {
 
 export async function foundryCallMacro(args: CallMacroArgs) {
   console.log('running macro', args)
+  if (!args.compendiumName) return
   const actor = game.actors.get(args.characterId)
   const pack = game.packs.get(args.compendiumName)
 

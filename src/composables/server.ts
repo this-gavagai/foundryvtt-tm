@@ -1,6 +1,5 @@
 import { ref } from 'vue'
 import { io, Socket } from 'socket.io-client'
-import type { SessionEventArgs } from '@/types/foundry-types'
 import { useUserId } from '@/composables/user'
 
 const socket = ref<Socket>()
@@ -56,7 +55,7 @@ async function connectToServer(url: URL) {
       socket.value.onAnyOutgoing((name, ...args) => {
         console.log('TM-SEND', name, ...args)
       })
-      socket.value.on('session', (args: SessionEventArgs) => {
+      socket.value.on('session', (args: { userId: string }) => {
         if (args?.userId) useUserId().setUserId(args?.userId)
         else window.location.href = window.location.origin
       })

@@ -13,13 +13,9 @@ import type {
   CallMacroArgs,
   DiceResults
 } from '@/types/api-types'
-import type {
-  DocumentEventArgs,
-  UpdateEventArgs,
-  DeleteEventArgs,
-  ModifyDocumentUpdate,
-  UserActivityEventArgs
-} from '@/types/foundry-types'
+import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
+
+type ModifyDocumentUpdate = { _id: string; [key: string]: unknown }
 
 import { mergeWith } from 'lodash-es'
 import { useServer } from '@/composables/server'
@@ -85,7 +81,7 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
   //   }
   // })
 
-  socket.on('modifyDocument', (args: DocumentEventArgs) => {
+  socket.on('modifyDocument', (args: DocumentSocketResponse) => {
     // let documentSource
     switch (args.type) {
       case 'Combat':
@@ -105,11 +101,11 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
         break
     }
   })
-  socket.on('userActivity', (user: string, args: UserActivityEventArgs) => {
+  socket.on('userActivity', (user: string, args: { targets?: unknown; active?: boolean }) => {
     if (args.targets) {
       console.log('user event', user, args)
       const { updateTargets } = useTargetHelper()
-      updateTargets(user, args.targets)
+      updateTargets(user, args.targets as string[])
     } else if (args.active) {
       console.log('user online', user, args)
     }
@@ -133,11 +129,11 @@ async function setupSocketListenersForActor(
         break
     }
   })
-  socket.on('modifyDocument', (args: DocumentEventArgs) => {
+  socket.on('modifyDocument', (args: DocumentSocketResponse) => {
     if (!actor.value) return
     switch (args.type) {
       case 'Actor':
-        ;(args as UpdateEventArgs).result.forEach((result: ModifyDocumentUpdate) => {
+        ;(args.result as ModifyDocumentUpdate[]).forEach((result: ModifyDocumentUpdate) => {
           if (actor.value && result._id === actorId) {
             mergeWith(actor.value, result, mergeWithArrayReset)
             requestCharacterDetails[actorId]()
@@ -203,9 +199,9 @@ function parseActorData(
 async function updateActor(
   actor: Ref<Actor | undefined>,
   update: object
-): Promise<DocumentEventArgs> {
+): Promise<DocumentSocketResponse> {
   const socket = await getSocket()
-  const promise = new Promise<DocumentEventArgs>((resolve) => {
+  const promise = new Promise<DocumentSocketResponse>((resolve) => {
     socket.emit(
       'modifyDocument',
       {
@@ -222,8 +218,8 @@ async function updateActor(
           ]
         }
       },
-      (r: UpdateEventArgs) => {
-        r.result.forEach((change: ModifyDocumentUpdate) => {
+      (r: DocumentSocketResponse) => {
+        ;(r.result as ModifyDocumentUpdate[]).forEach((change: ModifyDocumentUpdate) => {
           if (actor.value) mergeWith(actor.value, change, mergeWithArrayReset)
         })
         requestCharacterDetails[actor.value!._id]()
@@ -238,10 +234,10 @@ async function updateActorItem(
   actor: Ref<Actor>,
   itemId: string | string[],
   update: object | object[]
-): Promise<UpdateEventArgs> {
+): Promise<DocumentSocketResponse> {
   const socket = await getSocket()
   const itemIdArray = Array.isArray(itemId) ? itemId : [itemId]
-  const promise = new Promise<UpdateEventArgs>((resolve) => {
+  const promise = new Promise<DocumentSocketResponse>((resolve) => {
     socket.emit(
       'modifyDocument',
       {
@@ -259,8 +255,8 @@ async function updateActorItem(
           ]
         }
       },
-      (r: UpdateEventArgs) => {
-        processChanges(r, actor.value.items)
+      (r: DocumentSocketResponse) => {
+        processChanges(r as unknown as DocumentSocketResponse, actor.value.items)
         requestCharacterDetails[actor.value._id]()
         resolve(r)
       }
@@ -271,7 +267,7 @@ async function updateActorItem(
 
 async function deleteActorItem(actor: Ref<Actor>, itemId: string) {
   const socket = await getSocket()
-  const promise = new Promise<DeleteEventArgs>((resolve) => {
+  const promise = new Promise<DocumentSocketResponse>((resolve) => {
     socket.emit(
       'modifyDocument',
       {
@@ -282,8 +278,8 @@ async function deleteActorItem(actor: Ref<Actor>, itemId: string) {
           parentUuid: 'Actor.' + actor.value?._id
         }
       },
-      (r: DeleteEventArgs) => {
-        processChanges(r, actor.value.items)
+      (r: DocumentSocketResponse) => {
+        processChanges(r as unknown as DocumentSocketResponse, actor.value.items)
         requestCharacterDetails[actor.value._id]()
         resolve(r)
       }
@@ -295,9 +291,9 @@ async function deleteActorItem(actor: Ref<Actor>, itemId: string) {
 async function updateUserTargetingProxy(
   userId: string,
   proxyId: string
-): Promise<DocumentEventArgs> {
+): Promise<DocumentSocketResponse> {
   const socket = await getSocket()
-  const promise = new Promise<DocumentEventArgs>((resolve) => {
+  const promise = new Promise<DocumentSocketResponse>((resolve) => {
     socket.emit(
       'modifyDocument',
       {
@@ -312,7 +308,7 @@ async function updateUserTargetingProxy(
           ]
         }
       },
-      (r: DocumentEventArgs) => {
+      (r: DocumentSocketResponse) => {
         resolve(r)
       }
     )
@@ -509,23 +505,23 @@ async function callMacro(
 //////////////////////////////////////////////////
 // Processing Methods for Items (not Actor)     //
 //////////////////////////////////////////////////
-function processChanges(args: DocumentEventArgs, dataRoot: Item[]) {
+function processChanges(args: DocumentSocketResponse, dataRoot: Item[]) {
   switch (args.action) {
     case 'create':
-      _processCreates(args.result, dataRoot)
+      _processCreates(args.result as ModifyDocumentUpdate[], dataRoot)
       break
     case 'update':
-      _processUpdates(args.result, dataRoot)
+      _processUpdates(args.result as ModifyDocumentUpdate[], dataRoot)
       break
     case 'delete':
-      _processDeletes(args.result, dataRoot)
+      _processDeletes(args.result as string[], dataRoot)
       break
   }
 }
 
 function _processCreates(results: ModifyDocumentUpdate[], root: Item[]) {
   results.forEach((c: ModifyDocumentUpdate) => {
-    root.push(c as Item)
+    root.push(c as unknown as Item)
   })
 }
 function _processUpdates(results: ModifyDocumentUpdate[], root: Item[]) {

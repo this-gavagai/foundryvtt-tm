@@ -1,10 +1,10 @@
 import { computed, type Ref } from 'vue'
 import type { Actor, IWR as PF2eIWR } from '@/types/pf2e-types'
-import type { Roll } from '@/types/foundry-types'
 import type { Field, WritableField, Maybe } from './helpers'
 import { type Modifier, makeModifiers } from './modifier'
 import { type Stat, makeStat } from './stat'
 import { useApi } from '../api'
+import type { RequestResolutionArgs } from '@/types/api-types'
 
 export interface IWR {
   type: Maybe<string>
@@ -63,7 +63,7 @@ export interface CharacterStats {
   doFlatCheck: (
     rollResult?: number | undefined,
     options?: object | undefined
-  ) => Promise<Roll | null>
+  ) => Promise<RequestResolutionArgs>
 }
 
 export function useCharacterStats(actor: Ref<Actor | undefined>): CharacterStats {

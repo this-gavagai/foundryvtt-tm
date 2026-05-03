@@ -8,7 +8,7 @@ import type {
 import { type Modifier, makeModifiers } from './modifier'
 import { type Item, makeItem } from './item'
 import type { RequestResolutionArgs } from '@/types/api-types'
-import type { UpdateEventArgs } from '@/types/foundry-types'
+import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 
 interface BlastOptions {
   element: Maybe<string>
@@ -45,8 +45,8 @@ export interface Strike {
     altUsage: number | undefined,
     blastOptions?: BlastOptions
   ) => Promise<RequestResolutionArgs | null>
-  setDamageType?: (newType: string) => Promise<UpdateEventArgs | null>
-  changeAmmo?: (newId: string | null) => Promise<UpdateEventArgs | null>
+  setDamageType?: (newType: string) => Promise<DocumentSocketResponse | null>
+  changeAmmo?: (newId: string | null) => Promise<DocumentSocketResponse | null>
 }
 export function makeStrike(
   root: PF2eAction | undefined,

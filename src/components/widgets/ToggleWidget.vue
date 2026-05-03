@@ -2,11 +2,11 @@
 import { ref } from 'vue'
 import { Switch } from '@headlessui/vue'
 import type { ModuleEventArgs } from '@/types/api-types'
-import type { UpdateEventArgs } from '@/types/foundry-types'
+import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 
 const props = defineProps<{
   active: boolean | undefined
-  clicked?: () => Promise<ModuleEventArgs | UpdateEventArgs | null> | void | undefined
+  clicked?: () => Promise<ModuleEventArgs | DocumentSocketResponse | null> | void | undefined
 }>()
 const emit = defineEmits(['changed'])
 

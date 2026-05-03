@@ -3,7 +3,7 @@ import type { Actor, Item as PF2eItem } from '@/types/pf2e-types'
 import type { Field, Maybe } from './helpers'
 import { type Item, makeItem } from './item'
 import { useApi } from '../api'
-import type { DocumentEventArgs, UpdateEventArgs } from '@/types/foundry-types'
+import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type { RequestResolutionArgs } from '@/types/api-types'
 
 export interface SpellcastingEntry extends Item {
@@ -12,8 +12,8 @@ export interface SpellcastingEntry extends Item {
     slot: number | undefined,
     newSpellId: string | null,
     newTotal?: boolean | undefined
-  ) => Promise<UpdateEventArgs | null>
-  setSlotCount?: (rank: number, newValue: number) => Promise<UpdateEventArgs>
+  ) => Promise<DocumentSocketResponse | null>
+  setSlotCount?: (rank: number, newValue: number) => Promise<DocumentSocketResponse>
 }
 export interface Spell extends Item {
   doSpell?: (
@@ -29,7 +29,7 @@ export interface Staff {
   }
   spells: Spell[]
   expended: Maybe<boolean>
-  setStaffCharges?: (newValue: number) => Promise<DocumentEventArgs | null>
+  setStaffCharges?: (newValue: number) => Promise<DocumentSocketResponse | null>
   doStaffSpell?: (
     rank: number | undefined,
     slot: number | undefined,

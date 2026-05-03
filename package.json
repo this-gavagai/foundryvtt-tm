@@ -26,7 +26,8 @@
     "vue": "^3.5.13"
   },
   "devDependencies": {
-    "@7h3laughingman/pf2e-types": "^8.0.2",
+    "@7h3laughingman/pf2e-types": "^7.10.4",
+    "@7h3laughingman/foundry-types": "^13.351.20",
     "@tailwindcss/postcss": "^4.1.5",
     "@tsconfig/node22": "^22.0.0",
     "@types/lodash-es": "^4.17.12",

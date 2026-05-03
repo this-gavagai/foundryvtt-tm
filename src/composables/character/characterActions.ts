@@ -1,7 +1,7 @@
 import { computed, type Ref } from 'vue'
 import type { Actor, Item as PF2eItem, Stat as PF2eStat } from '@/types/pf2e-types'
 import type { Field, WritableField } from './helpers'
-import type { Roll } from '@/types/foundry-types'
+import type { RequestResolutionArgs } from '@/types/api-types'
 import { type Stat, makeStat } from './stat'
 import { type Modifier, makeModifiers } from './modifier'
 import { type Item, makeItem } from './item'
@@ -14,7 +14,7 @@ export interface Action extends Item {
   actionType: string | null
   item: Item
   macroId: string
-  doAction?: (options?: object | undefined, rollResult?: number | undefined) => Promise<Roll | null>
+  doAction?: (options?: object | undefined, rollResult?: number | undefined) => Promise<RequestResolutionArgs | null>
   doMacro?: (options?: object | undefined) => void
 }
 
@@ -23,7 +23,7 @@ export interface CharacterActions {
     slug: string,
     options?: object | undefined,
     rollResult?: number | undefined
-  ) => Promise<Roll | null>
+  ) => Promise<RequestResolutionArgs | null>
   actions: Field<Action[]>
   skills: Field<Stat[]>
   proficiencies: Field<Stat[]>
@@ -31,7 +31,7 @@ export interface CharacterActions {
     stat: WritableField<string>
     modifiers: Field<Modifier[]>
     totalModifier: Field<number>
-    roll: (result?: number | undefined) => Promise<Roll | null>
+    roll: (result?: number | undefined) => Promise<RequestResolutionArgs | null>
   }
 }
 

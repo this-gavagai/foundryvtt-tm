@@ -4,17 +4,17 @@ import type { Field, Maybe } from './helpers'
 import { type Item, makeItem } from './item'
 import { useApi } from '../api'
 import { inventoryTypes } from '@/utils/constants'
-import type { UpdateEventArgs } from '@/types/foundry-types'
+import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 
 export interface Equipment extends Item {
   label: Maybe<string>
-  toggleInvested?: (newValue?: Maybe<boolean>) => Promise<UpdateEventArgs | null>
+  toggleInvested?: (newValue?: Maybe<boolean>) => Promise<DocumentSocketResponse | null>
   changeCarry?: (
     method: Maybe<string>,
     hands: Maybe<number>,
     container: Maybe<string | null>,
     inSlot?: Maybe<boolean>
-  ) => Promise<UpdateEventArgs | null>
+  ) => Promise<DocumentSocketResponse | null>
 }
 export interface CharacterItems {
   feats: Field<Item[]>
