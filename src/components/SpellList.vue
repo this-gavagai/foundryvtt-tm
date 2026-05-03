@@ -13,11 +13,10 @@ import ActionIcons from '@/components/widgets/ActionIcons.vue'
 import ParsedDescription from './ParsedDescription.vue'
 
 interface Spellbook {
-  [key: string]: { [key: string]: [Item?] }
+  [key: string]: { [key: string]: (Spell | undefined)[] }
 }
 interface SpellInfo {
-  type?: 'focus' | 'charge' | 'spontaneous' | 'prepared' | 'wand'
-  entry?: Spell
+  entry?: SpellcastingEntry
   entryId?: string
   castingRank?: number
   castingSlot?: number
@@ -34,66 +33,88 @@ const { isListening } = useListeners()
 const infoModal = ref()
 const spellSelectionModal = ref()
 
-const viewedSpellId = ref<string | undefined>()
-const viewedSpell = computed(() =>
-  [...(spells.value ?? []), ...(spellConsumables.value ?? [])]?.find(
-    (i: Spell) => i._id === viewedSpellId.value
-  )
-)
+const viewedSpell = ref<Spell | undefined>()
+const viewedConsumable = ref<Item | undefined>()
+const viewedItem = computed(() => viewedSpell.value ?? viewedConsumable.value)
 const viewedSpellInfo = ref<SpellInfo | undefined>()
 
-const spellbook = computed((): Spellbook => {
-  const sb: Spellbook = {} // {location - rank - spell}
-  // set spellcastingEntry locations with empty ranks template
-  spellcastingEntries.value?.forEach((se: SpellcastingEntry) => {
-    const location = se._id ?? ''
-    // prettier-ignore
-    sb[location] = { '0': [], '1': [], '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], '8': [], '9': [], '10': [] }
+function openSpellModal(id: string | undefined, info: SpellInfo) {
+  if (info.isConsumable) {
+    viewedConsumable.value = spellConsumables.value?.find((i) => i._id === id)
+    viewedSpell.value = undefined
+  } else {
+    viewedSpell.value = spells.value?.find((i) => i._id === id)
+    viewedConsumable.value = undefined
+  }
+  viewedSpellInfo.value = info
+  infoModal.value.open()
+}
+
+const staffSpellsByRank = computed(() =>
+  (staff.value?.spells ?? []).reduce<Record<number, Spell[]>>((acc, s) => {
+    const rank = s.system.traits.value?.includes('cantrip') ? 0 : (s.system.level.value ?? 0)
+    ;(acc[rank] ??= []).push(s)
+    return acc
+  }, {})
+)
+
+function fillPreparedSlots(
+  sb: Spellbook,
+  locationId: string,
+  location: SpellcastingEntry,
+  allSpells: Spell[]
+) {
+  Object.values(location.system.slots).forEach((slot, slotRank) => {
+    const preparedSpells = slot.prepared.map((slotSpell) =>
+      allSpells.find((i) => i._id === slotSpell.id)
+    )
+    sb[locationId][slotRank] = Object.assign(new Array(slot.max), preparedSpells.slice(0, slot.max))
   })
-  // assign spells to spellbook ranks
-  for (const locationId of Object.keys(sb)) {
-    const location = spellcastingEntries.value?.find((i: Item) => i._id === locationId)
-    if (
-      location?.system.prepared.value === 'prepared' &&
-      location?.system?.prepared?.flexible === false
-    ) {
-      Object.values(location.system.slots).forEach((slot, slotRank: number) => {
-        const preparedSpells = slot.prepared.map((slotSpell) =>
-          spells.value?.find((i: Item) => i._id === slotSpell.id)
-        )
-        const spellSlots = Object.assign(new Array(slot.max), preparedSpells.slice(0, slot.max))
-        sb[locationId][slotRank] = spellSlots as [Item]
-      })
-    } else {
-      const spellsForLocation = spells.value?.filter(
-        (i: Item) => i.type === 'spell' && i.system.location.value === locationId
+}
+
+function fillAndSortSpells(
+  sb: Spellbook,
+  locationId: string,
+  location: SpellcastingEntry | undefined,
+  allSpells: Spell[]
+) {
+  allSpells
+    .filter((s) => s.type === 'spell' && s.system.location.value === locationId)
+    .forEach((s) => {
+      const rank = s.system.traits.value?.includes('cantrip') ? '0' : String(s.system.level.value)
+      sb[locationId][rank].push(s)
+      if (s.system.location.signature) {
+        Object.values(location?.system?.slots ?? {}).forEach((slot, slotRank) => {
+          if (slot.max && slotRank > (s.system.level.value ?? NaN)) {
+            sb[locationId][slotRank].push(s)
+          }
+        })
+      }
+    })
+  Object.entries(sb[locationId]).forEach(([rankStr, rankSpells]) => {
+    rankSpells
+      .sort((a, b) => (a?.system.level.value ?? NaN) - (b?.system.level.value ?? NaN))
+      .sort(
+        (a, b) =>
+          (a?.system.level.value == Number(rankStr) ? 0 : 1) -
+          (b?.system.level.value == Number(rankStr) ? 0 : 1)
       )
-      spellsForLocation?.forEach((s: Item) => {
-        const rank = s.system.traits.value?.includes('cantrip') ? '0' : String(s.system.level.value)
-        sb[locationId][rank].push(s)
-        // add signature spells by iterating through spellslots property
-        if (s.system.location.signature) {
-          Object.values(location?.system?.slots ?? {}).forEach((slot, slotRank) => {
-            if (slot.max && slotRank > (s.system.level.value ?? NaN)) {
-              sb[locationId][slotRank].push(s)
-            }
-          })
-        }
-      })
-      // put signature spells at the end
-      const spellRanks = Object.entries(sb[locationId]) as [string, [(Item | undefined)?]][]
-      spellRanks.forEach((rank: [string, [(Item | undefined)?]]) => {
-        rank[1]
-          .sort(
-            (a: Item | undefined, b: Item | undefined) =>
-              (a?.system.level.value ?? NaN) - (b?.system.level.value ?? NaN)
-          )
-          .sort(
-            (a: Item | undefined, b: Item | undefined) =>
-              (a?.system.level.value == Number(rank[0]) ? 0 : 1) -
-              (b?.system.level.value == Number(rank[0]) ? 0 : 1)
-          )
-      })
+  })
+}
+
+const spellbook = computed((): Spellbook => {
+  const sb: Spellbook = {}
+  spellcastingEntries.value?.forEach((se) => {
+    // prettier-ignore
+    sb[se._id ?? ''] = { '0': [], '1': [], '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], '8': [], '9': [], '10': [] }
+  })
+  const allSpells = spells.value ?? []
+  for (const locationId of Object.keys(sb)) {
+    const location = spellcastingEntries.value?.find((i) => i._id === locationId)
+    if (location?.system.prepared.value === 'prepared' && location?.system?.prepared?.flexible === false) {
+      fillPreparedSlots(sb, locationId, location, allSpells)
+    } else {
+      fillAndSortSpells(sb, locationId, location, allSpells)
     }
   }
   return sb
@@ -168,16 +189,12 @@ const spellbook = computed((): Spellbook => {
                 <span
                   v-if="spell"
                   @click="
-                    () => {
-                      viewedSpellId = spell?._id
-                      viewedSpellInfo = {
-                        entry: location,
-                        entryId: location._id,
-                        castingRank: Number(rank),
-                        castingSlot: index
-                      }
-                      infoModal.open()
-                    }
+                    openSpellModal(spell?._id, {
+                      entry: location,
+                      entryId: location._id,
+                      castingRank: Number(rank),
+                      castingSlot: index
+                    })
                   "
                   class="cursor-pointer"
                 >
@@ -254,29 +271,17 @@ const spellbook = computed((): Spellbook => {
           />
         </h3>
         <ul class="empty:hidden">
-          <li v-for="(i, rank) in 10" class="mb-1 [&:not(:has(div))]:hidden" :key="'rank' + i">
+          <li v-for="(rankSpells, rank) in staffSpellsByRank" class="mb-1" :key="'rank' + rank">
             <h4 class="flex justify-between px-4 align-bottom text-sm italic">
               <span class="pr-1">
-                {{ rank === 0 ? 'Cantrips' : 'Rank ' + rank }}
+                {{ rank == '0' ? 'Cantrips' : 'Rank ' + rank }}
               </span>
             </h4>
             <div
-              v-for="item in staff?.spells.filter((s) =>
-                rank === 0
-                  ? s.system.traits.value?.includes('cantrip')
-                  : s.system.level.value === rank && !s.system.traits.value?.includes('cantrip')
-              )"
+              v-for="item in rankSpells"
               class="flex cursor-pointer justify-between px-4"
               :key="item._id"
-              @click="
-                () => {
-                  viewedSpellId = item?._id
-                  viewedSpellInfo = {
-                    fromStaff: true
-                  }
-                  infoModal.open()
-                }
-              "
+              @click="openSpellModal(item?._id, { fromStaff: true })"
             >
               {{ item.name }}
             </div>
@@ -303,13 +308,7 @@ const spellbook = computed((): Spellbook => {
             <div>
               <span
                 v-if="item"
-                @click="
-                  () => {
-                    viewedSpellId = item?._id
-                    viewedSpellInfo = { isConsumable: true }
-                    infoModal.open()
-                  }
-                "
+                @click="openSpellModal(item?._id, { isConsumable: true })"
                 class="cursor-pointer"
               >
                 {{ item.name }}
@@ -330,12 +329,12 @@ const spellbook = computed((): Spellbook => {
     <Teleport to="#modals">
       <InfoModal
         ref="infoModal"
-        :itemId="viewedSpell?._id"
-        :imageUrl="viewedSpell?.img"
-        :traits="viewedSpell?.system?.traits?.value"
+        :itemId="viewedItem?._id"
+        :imageUrl="viewedItem?.img"
+        :traits="viewedItem?.system?.traits?.value"
       >
         <template #title>
-          {{ viewedSpell?.name }}
+          {{ viewedItem?.name }}
           <ActionIcons
             class="relative -mt-[.5rem] pl-1 text-2xl leading-4"
             :actions="viewedSpell?.system?.time?.value"
@@ -343,11 +342,11 @@ const spellbook = computed((): Spellbook => {
         </template>
         <template #description>
           {{
-            viewedSpell?.system.traits?.value?.includes('cantrip')
+            viewedItem?.system.traits?.value?.includes('cantrip')
               ? `Cantrip`
-              : `Rank ${viewedSpell?.system.level?.value}`
+              : `Rank ${viewedItem?.system.level?.value}`
           }}
-          <span class="text-sm capitalize">{{ viewedSpell?.system.traits.rarity }}</span>
+          <span class="text-sm capitalize">{{ viewedItem?.system.traits.rarity }}</span>
         </template>
         <template #body>
           <div class="flex gap-2 empty:hidden">
@@ -372,11 +371,11 @@ const spellbook = computed((): Spellbook => {
           </div>
           <div v-if="viewedSpellInfo?.isConsumable">
             <h4 class="text-xl">Spell Details</h4>
-            <ParsedDescription :text="viewedSpell?.system.spell.system.description?.value" />
+            <ParsedDescription :text="viewedConsumable?.system.spell.system.description?.value" />
             <hr />
             <h4 class="pt-1 text-xl">Wand Details</h4>
           </div>
-          <ParsedDescription :text="viewedSpell?.system.description?.value" />
+          <ParsedDescription :text="viewedItem?.system.description?.value" />
         </template>
         <template #actionButtons v-if="isListening">
           <Button
@@ -398,7 +397,7 @@ const spellbook = computed((): Spellbook => {
             v-if="!viewedSpellInfo?.isConsumable && !viewedSpellInfo?.fromStaff"
             :clicked="
               () =>
-                (viewedSpell as Spell)
+                viewedSpell
                   ?.doSpell?.(viewedSpellInfo?.castingRank, viewedSpellInfo?.castingSlot)
                   ?.then(() => infoModal.close())
             "
@@ -407,11 +406,7 @@ const spellbook = computed((): Spellbook => {
             label="Use"
             color="green"
             v-if="viewedSpellInfo?.isConsumable"
-            :clicked="
-              () => {
-                viewedSpell?.consumeItem?.()?.then(() => infoModal.close())
-              }
-            "
+            :clicked="() => viewedConsumable?.consumeItem?.()?.then(() => infoModal.close())"
           />
         </template>
       </InfoModal>
@@ -421,7 +416,7 @@ const spellbook = computed((): Spellbook => {
             class="cursor-pointer"
             v-for="spell in spells?.filter(
               (i) =>
-                i.system.location === spellSelectionModal.options?.entryId &&
+                i.system.location.value === spellSelectionModal.options?.entryId &&
                 (i.system.level.value ?? 0) <= spellSelectionModal.options.castingRank
             )"
             :clicked="
