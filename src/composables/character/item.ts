@@ -1,5 +1,6 @@
 import type { Maybe } from './helpers'
 import type { Item as PF2eItem } from '@/types/pf2e-types'
+import type { ItemPF2e } from '@7h3laughingman/pf2e-types'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type { RequestResolutionArgs } from '@/types/api-types'
 
@@ -61,18 +62,12 @@ export interface ItemSystem {
   spell: { system: { level: { value: Maybe<number> }; description: { value: Maybe<string> } } }
   uses: { value: Maybe<number>; max: Maybe<number> }
   subitems: Maybe<Item[]>
-  runes: {
-    potency: Maybe<number>
-    property: Maybe<string[]>
-    striking: Maybe<number>
-    reinforcing: Maybe<number>
-  }
 }
 
-export function makeItem(root: PF2eItem | undefined): Item | undefined {
+export function makeItem(root: ItemPF2e | undefined): Item | undefined {
   if (!root) return undefined
   return {
-    _id: root?._id,
+    _id: root?._id ?? undefined,
     name: root?.name,
     type: root?.type,
     img: root?.img,
@@ -93,7 +88,7 @@ export function makeItem(root: PF2eItem | undefined): Item | undefined {
       }
     },
     system: {
-      slug: root?.system?.slug,
+      slug: root?.system?.slug ?? undefined,
       category: root?.system?.category,
       description: { value: root?.system?.description?.value },
       value: { isValued: root?.system?.value?.isValued, value: root?.system?.value?.value },
@@ -135,13 +130,7 @@ export function makeItem(root: PF2eItem | undefined): Item | undefined {
         }
       },
       uses: { value: root?.system?.uses?.value, max: root?.system?.uses?.max },
-      subitems: root?.system?.subitems?.map((i: PF2eItem) => makeItem(i)),
-      runes: {
-        potency: root?.system?.runes?.potency,
-        property: Array.from(root?.system?.runes?.property ?? []),
-        striking: root?.system?.runes?.striking,
-        reinforcing: root?.system?.runes?.reinforcing
-      }
+      subitems: root?.system?.subitems?.map((i: PF2eItem) => makeItem(i))
     }
   }
 }
