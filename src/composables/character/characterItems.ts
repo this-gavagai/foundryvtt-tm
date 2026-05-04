@@ -15,6 +15,8 @@ import type { ArmorPF2e, ConditionPF2e, ConsumablePF2e, EffectPF2e, EquipmentPF2
 
 export type InventoryItem = PhysicalItem & {
   system: { uses?: { value: Maybe<number>; max: Maybe<number> } }
+  consumeItem?: Consumable['consumeItem']
+  changeUses?: Consumable['changeUses']
 }
 
 export type EffectItem = Effect & {

@@ -24,7 +24,7 @@ export interface PhysicalItemSystem extends ItemSystem {
   subitems: Maybe<Item[]>
 }
 
-export interface PhysicalItem extends Omit<Item, 'system'> {
+export interface PhysicalItem extends Item {
   system: PhysicalItemSystem
   label: Maybe<string>
   toggleInvested?: (newValue?: Maybe<boolean>) => Promise<DocumentSocketResponse | null>

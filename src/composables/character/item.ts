@@ -1,7 +1,6 @@
 import type { Maybe } from './helpers'
 import type { ItemPF2e } from '@7h3laughingman/pf2e-types'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
-import type { RequestResolutionArgs } from '@/types/api-types'
 
 export interface Item {
   _id: Maybe<string>
@@ -12,9 +11,7 @@ export interface Item {
   grantedBy: Maybe<string>
   system: ItemSystem
   delete?: () => Promise<DocumentSocketResponse>
-  consumeItem?: () => Promise<RequestResolutionArgs>
   changeQty?: (newTotal: number) => Promise<DocumentSocketResponse | null>
-  changeUses?: (newTotal: number) => Promise<DocumentSocketResponse | null>
 }
 
 export interface ItemSystem {

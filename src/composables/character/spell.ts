@@ -5,7 +5,7 @@ import type { Item, ItemSystem } from './item'
 import { makeItem } from './item'
 import type { RequestResolutionArgs } from '@/types/api-types'
 
-export interface Spell extends Omit<Item, 'system'> {
+export interface Spell extends Item {
   system: SpellSystem
   doSpell?: (
     rank: number | undefined,
@@ -21,9 +21,9 @@ export interface SpellSystem extends ItemSystem {
   time: { value: Maybe<string> }
 }
 
-export interface SpellcastingEntry extends Omit<Item, 'system'> {
+export interface SpellcastingEntry extends Item {
   system: SpellcastingEntrySystem
-  setPrepared: (
+  setPrepared?: (
     rank: number | undefined,
     slot: number | undefined,
     newSpellId: string | null,
@@ -74,7 +74,7 @@ export function makeSpell(root: SpellPF2e): Spell {
 
 export function makeSpellcastingEntry(
   root: SpellcastingEntryPF2e
-): Omit<SpellcastingEntry, 'setPrepared' | 'setSlotCount'> {
+): SpellcastingEntry {
   const base = makeItem(root as unknown as Parameters<typeof makeItem>[0])!
   const slots = Object.entries(root.system.slots ?? {}).reduce(
     (acc, [key, slot]) => {
@@ -98,5 +98,5 @@ export function makeSpellcastingEntry(
       },
       slots
     }
-  } as Omit<SpellcastingEntry, 'setPrepared' | 'setSlotCount'>
+  } as SpellcastingEntry
 }

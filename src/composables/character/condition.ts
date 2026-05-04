@@ -7,7 +7,7 @@ export interface ConditionSystem extends EffectSystem {
   value: { value: Maybe<number>; isValued: Maybe<boolean> }
 }
 
-export interface Condition extends Omit<Effect, 'system'> {
+export interface Condition extends Effect {
   system: ConditionSystem
 }
 

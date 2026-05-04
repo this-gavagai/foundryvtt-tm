@@ -1,9 +1,13 @@
 import type { Ref } from 'vue'
 import { computed } from 'vue'
 import type { Actor, Item as PF2eItem } from '@/types/pf2e-types'
+import type { AncestryPF2e, BackgroundPF2e, ClassPF2e as ClassPF2eType, HeritagePF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField } from './helpers'
 import type { RequestResolutionArgs } from '@/types/api-types'
-import { type Item, makeItem } from './item'
+import { type Ancestry, makeAncestry } from './ancestry'
+import { type Background, makeBackground } from './background'
+import { type Heritage, makeHeritage } from './heritage'
+import { type ClassType, makeClassType } from './classType'
 import { type Stat, makeStat } from './stat'
 import { useApi } from '../api'
 
@@ -11,10 +15,10 @@ export interface CharacterCore {
   _id: Field<string>
   name: Field<string>
   portraitUrl: Field<string>
-  ancestry: Field<Item>
-  heritage: Field<Item>
-  background: Field<Item>
-  classType: Field<Item>
+  ancestry: Field<Ancestry>
+  heritage: Field<Heritage>
+  background: Field<Background>
+  classType: Field<ClassType>
   level: Field<number>
   xp: {
     current: WritableField<number>
@@ -39,16 +43,16 @@ export function useCharacterCore(actor: Ref<Actor | undefined>): CharacterCore {
   const portraitUrl = computed(() => actor.value?.prototypeToken?.texture?.src)
 
   const ancestry = computed(() =>
-    makeItem(actor.value?.items?.find((x: PF2eItem) => x.type === 'ancestry'))
+    makeAncestry(actor.value?.items?.find((x: PF2eItem) => x.type === 'ancestry') as AncestryPF2e | undefined)
   )
   const background = computed(() =>
-    makeItem(actor.value?.items?.find((x: PF2eItem) => x.type === 'background'))
+    makeBackground(actor.value?.items?.find((x: PF2eItem) => x.type === 'background') as BackgroundPF2e | undefined)
   )
   const heritage = computed(() =>
-    makeItem(actor.value?.items?.find((x: PF2eItem) => x.type === 'heritage'))
+    makeHeritage(actor.value?.items?.find((x: PF2eItem) => x.type === 'heritage') as HeritagePF2e | undefined)
   )
   const classType = computed(() =>
-    makeItem(actor.value?.items?.find((x: PF2eItem) => x.type === 'class'))
+    makeClassType(actor.value?.items?.find((x: PF2eItem) => x.type === 'class') as ClassPF2eType | undefined)
   )
 
   const level = computed(() => actor.value?.system?.details?.level?.value)

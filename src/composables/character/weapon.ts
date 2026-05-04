@@ -18,7 +18,7 @@ export interface WeaponSystem extends PhysicalItemSystem {
   }
 }
 
-export interface Weapon extends Omit<PhysicalItem, 'system'> {
+export interface Weapon extends PhysicalItem {
   system: WeaponSystem
 }
 

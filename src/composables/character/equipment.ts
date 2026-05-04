@@ -2,10 +2,8 @@ import type { EquipmentPF2e } from '@7h3laughingman/pf2e-types'
 import type { PhysicalItem, PhysicalItemSystem } from './physicalItem'
 import { makePhysicalItem } from './physicalItem'
 
-export interface EquipmentSystem extends PhysicalItemSystem {}
-
-export interface Equipment extends Omit<PhysicalItem, 'system'> {
-  system: EquipmentSystem
+export interface Equipment extends PhysicalItem {
+  system: PhysicalItemSystem
 }
 
 export function makeEquipment(root: EquipmentPF2e): Equipment {
