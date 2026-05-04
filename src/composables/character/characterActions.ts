@@ -4,13 +4,15 @@ import type { Field, WritableField } from './helpers'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import { type Stat, makeStat } from './stat'
 import { type Modifier, makeModifiers } from './modifier'
-import { type Item, makeItem } from './item'
+import type { Maybe } from './helpers'
+import { type Item, type ItemSystem, makeItem } from './item'
 // import { type Strike, type ElementalBlast, makeStrike, makeElementalBlasts } from './strike'
 import { useApi } from '../api'
 import { actionTypes } from '@/utils/constants'
 import { kebabCase } from 'lodash-es'
 
 export interface Action extends Item {
+  system: ItemSystem & { actions?: { value: Maybe<string> } }
   actionType: string | null
   item: Item
   macroId: string
@@ -52,7 +54,7 @@ export function useCharacterActions(actor: Ref<Actor | undefined>): CharacterAct
         actionTypes.map((a) => a.type).includes(i?.system?.actionType?.value)
       )
       .map((i: PF2eItem) => ({
-        ...(makeItem(i) as Action),
+        ...(makeItem(i as unknown as Parameters<typeof makeItem>[0]) as Action),
         actionType:
           i?.system?.actionType?.value === 'action' &&
           i?.system?.traits.value.includes('skill') === false

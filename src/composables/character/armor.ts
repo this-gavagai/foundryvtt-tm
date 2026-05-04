@@ -1,9 +1,9 @@
 import type { Maybe } from './helpers'
 import type { ArmorPF2e } from '@7h3laughingman/pf2e-types'
-import type { Equipment, EquipmentSystem } from './equipment'
-import { makeItem } from './item'
+import type { PhysicalItem, PhysicalItemSystem } from './physicalItem'
+import { makePhysicalItem } from './physicalItem'
 
-export interface ArmorSystem extends EquipmentSystem {
+export interface ArmorSystem extends PhysicalItemSystem {
   runes: {
     potency: Maybe<number>
     resilient: Maybe<number>
@@ -11,15 +11,14 @@ export interface ArmorSystem extends EquipmentSystem {
   }
 }
 
-export interface Armor extends Omit<Equipment, 'system'> {
+export interface Armor extends Omit<PhysicalItem, 'system'> {
   system: ArmorSystem
 }
 
 export function makeArmor(root: ArmorPF2e): Armor {
-  const base = makeItem(root as unknown as Parameters<typeof makeItem>[0])!
+  const base = makePhysicalItem(root)
   return {
     ...base,
-    label: undefined,
     system: {
       ...base.system,
       runes: {

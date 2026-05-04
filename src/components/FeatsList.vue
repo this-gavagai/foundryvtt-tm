@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Item } from '@/composables/character'
+import type { Feat } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
 import { useKeys } from '@/composables/injectKeys'
 
@@ -17,17 +17,17 @@ const viewedFeat = computed(() => feats.value?.find((f) => f._id === viewedFeatI
 
 const featCategories = computed(() => {
   const categories = {
-    ancestryfeatures: { label: 'Ancestry Features', feats: [] as Item[] },
-    classfeatures: { label: 'Class Features', feats: [] as Item[] },
-    ancestry: { label: 'Ancestry Feats', feats: [] as Item[] },
-    class: { label: 'Class Feats', feats: [] as Item[] },
-    archetype: { label: 'Archetype Feats', feats: [] as Item[] },
-    skill: { label: 'Skill Feats', feats: [] as Item[] },
-    general: { label: 'General Feats', feats: [] as Item[] },
-    xdy_ancestryparagon: { label: 'Ancestry Paragon', feats: [] as Item[] },
-    bonus: { slug: 'bonus', label: 'Bonus Feats', feats: [] as Item[] }
+    ancestryfeatures: { label: 'Ancestry Features', feats: [] as Feat[] },
+    classfeatures: { label: 'Class Features', feats: [] as Feat[] },
+    ancestry: { label: 'Ancestry Feats', feats: [] as Feat[] },
+    class: { label: 'Class Feats', feats: [] as Feat[] },
+    archetype: { label: 'Archetype Feats', feats: [] as Feat[] },
+    skill: { label: 'Skill Feats', feats: [] as Feat[] },
+    general: { label: 'General Feats', feats: [] as Feat[] },
+    xdy_ancestryparagon: { label: 'Ancestry Paragon', feats: [] as Feat[] },
+    bonus: { slug: 'bonus', label: 'Bonus Feats', feats: [] as Feat[] }
   }
-  feats.value?.forEach((f: Item) => {
+  feats.value?.forEach((f: Feat) => {
     if (feats.value?.map((n) => n._id).includes(f?.grantedBy)) return
     else if (
       ['ancestryfeature', ancestry.value?._id].includes(f?.system?.location?.value) ||

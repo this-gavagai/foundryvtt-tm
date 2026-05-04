@@ -56,7 +56,7 @@ export function makeStrike(
   return {
     label: root?.label,
     slug: root?.slug,
-    item: makeItem(item),
+    item: makeItem(item as unknown as Parameters<typeof makeItem>[0]),
     variants: root?.variants.map((v, i) => ({ label: v?.label, map: i, type: undefined })),
     altUsages: root?.altUsages.map((a) => makeStrike(a, a.item)),
     traits: root?.traits?.map((t) => ({
@@ -102,7 +102,7 @@ export function makeElementalBlasts(root: PF2eElementalBlasts | undefined): Elem
     blastImg: config?.img,
     label: `Elemental Blast (${config?.element})`,
     slug: undefined,
-    item: makeItem(config?.item),
+    item: makeItem(config?.item as unknown as Parameters<typeof makeItem>[0]),
     variants: [
       { label: config?.maps?.melee.map0, map: 0, type: 'melee' },
       { label: config?.maps?.melee.map1, map: 1, type: 'melee' },

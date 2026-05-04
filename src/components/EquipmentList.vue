@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Equipment } from '@/composables/character'
+import type { InventoryItem } from '@/composables/character'
 import { inject, ref, computed } from 'vue'
 import { printPrice } from '@/utils/utilities'
 import { useKeys } from '@/composables/injectKeys'
@@ -30,7 +30,7 @@ const { isListening } = useListeners()
 
 const itemViewedId = ref<string | undefined>()
 const itemViewed = computed(() =>
-  inventory.value?.find((i: Equipment) => i._id === itemViewedId.value)
+  inventory.value?.find((i: InventoryItem) => i._id === itemViewedId.value)
 )
 const itemWornType = computed(() => {
   if (itemViewed.value?.type === 'armor') return 'Armor'
@@ -67,7 +67,7 @@ const toggleSet = [
     id: 'stowed',
     toggleText: 'Stowed',
     toggleTrigger: () => {
-      const backpackId = inventory.value?.find((i: Equipment) => i.type === 'backpack')?._id
+      const backpackId = inventory.value?.find((i: InventoryItem) => i.type === 'backpack')?._id
       itemViewed.value?.changeCarry?.('stowed', 0, backpackId)
     },
     toggleIsActive: () => itemViewed.value?.system?.equipped.carryType === 'stowed'
@@ -99,7 +99,7 @@ const toggleSet = [
       <div v-if="inventory?.length">
         <span class="cursor-pointer text-sm text-gray-500" @click="investedModal.open()">
           (Items Invested:
-          {{ inventory?.filter((i: Equipment) => i.system?.equipped?.invested).length }} / 10)
+          {{ inventory?.filter((i: InventoryItem) => i.system?.equipped?.invested).length }} / 10)
         </span>
       </div>
       <!-- Comprehensive equipment list -->
@@ -114,7 +114,7 @@ const toggleSet = [
           <ul>
             <li
               v-for="item in inventory?.filter(
-                (i: Equipment) => i.type === inventoryType.type && !i.system?.containerId
+                (i: InventoryItem) => i.type === inventoryType.type && !i.system?.containerId
               )"
               :key="item._id"
             >
@@ -131,7 +131,7 @@ const toggleSet = [
               <ul class="pb-2" v-if="item.type === 'backpack'">
                 <li
                   v-for="stowed in inventory?.filter(
-                    (i: Equipment) => i.system?.containerId === item._id
+                    (i: InventoryItem) => i.system?.containerId === item._id
                   )"
                   :key="stowed._id"
                 >
@@ -253,14 +253,14 @@ const toggleSet = [
               <div
                 v-if="
                   itemViewed?.system?.equipped?.carryType === 'stowed' &&
-                  (inventory?.filter((i: Equipment) => i.type === 'backpack').length ?? 0) > 1 &&
+                  (inventory?.filter((i: InventoryItem) => i.type === 'backpack').length ?? 0) > 1 &&
                   itemViewed?.type !== 'backpack'
                 "
               >
                 <DropdownWidget
                   :list="
                     inventory
-                      ?.filter((i: Equipment) => i.type === 'backpack')
+                      ?.filter((i: InventoryItem) => i.type === 'backpack')
                       .map((e) => ({ id: e._id ?? '', name: e.name ?? '' })) ?? []
                   "
                   :selectedId="itemViewed?.system?.containerId ?? ''"

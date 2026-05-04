@@ -8,7 +8,10 @@ export interface Feat extends Omit<Item, 'system'> {
 }
 
 export interface FeatSystem extends ItemSystem {
+  category: Maybe<string>
   location: { value: Maybe<string> }
+  level: { value: Maybe<number>; taken: Maybe<number> }
+  actions: { value: Maybe<string> }
 }
 
 export function makeFeat(root: FeatPF2e): Feat {
@@ -17,7 +20,10 @@ export function makeFeat(root: FeatPF2e): Feat {
     ...base,
     system: {
       ...base.system,
-      location: { value: root.system.location ?? undefined }
+      category: root.system.category ?? undefined,
+      location: { value: root.system.location ?? undefined },
+      level: { value: root.system.level?.value, taken: root.system.level?.taken ?? undefined },
+      actions: { value: root.system.actions?.value ?? undefined }
     }
   } as Feat
 }

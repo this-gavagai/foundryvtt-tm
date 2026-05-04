@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // TODO: make staff spells castable
-import type { SpellcastingEntry, Spell, Item } from '@/composables/character'
+import type { SpellcastingEntry, Spell, Consumable } from '@/composables/character'
 import { inject, computed, ref } from 'vue'
 import { useKeys } from '@/composables/injectKeys'
 import { useListeners } from '@/composables/listenersOnline'
@@ -34,7 +34,7 @@ const infoModal = ref()
 const spellSelectionModal = ref()
 
 const viewedSpell = ref<Spell | undefined>()
-const viewedConsumable = ref<Item | undefined>()
+const viewedConsumable = ref<Consumable | undefined>()
 const viewedItem = computed(() => viewedSpell.value ?? viewedConsumable.value)
 const viewedSpellInfo = ref<SpellInfo | undefined>()
 
@@ -51,7 +51,7 @@ function openSpellModal(id: string | undefined, info: SpellInfo) {
 }
 
 const staffSpellsByRank = computed(() =>
-  (staff.value?.spells ?? []).reduce<Record<number, Spell[]>>((acc, s) => {
+  (staff.value?.spells ?? []).reduce<Record<string, Spell[]>>((acc, s) => {
     const rank = s.system.traits.value?.includes('cantrip') ? 0 : (s.system.level.value ?? 0)
     ;(acc[rank] ??= []).push(s)
     return acc

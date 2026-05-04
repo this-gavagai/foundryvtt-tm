@@ -39,7 +39,7 @@ import type { Item } from './item'
 import type { Stat } from './stat'
 import type { Modifier } from './modifier'
 import type { Strike } from './strike'
-import type { Equipment } from './characterItems'
+import type { Equipment, InventoryItem, Feat, Consumable } from './characterItems'
 import type { SpellcastingEntry, Spell } from './characterSpells'
 import type { Action } from './characterActions'
-export type { Item, Stat, Modifier, Strike, Equipment, SpellcastingEntry, Spell, Action }
+export type { Item, Stat, Modifier, Strike, Equipment, InventoryItem, Feat, Consumable, SpellcastingEntry, Spell, Action }

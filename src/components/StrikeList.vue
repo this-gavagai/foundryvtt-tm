@@ -7,6 +7,7 @@ import InfoModal from './InfoModal.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import StrikeActionSet from './StrikeListActionSet.vue'
 import type { Strike } from '@/composables/character'
+import type { Weapon } from '@/composables/character/weapon'
 import type { RequestResolutionArgs } from '@/types/api-types'
 
 import ChoiceWidget from '@/components/widgets/ChoiceWidget.vue'
@@ -21,7 +22,7 @@ import electricity from '@/assets/icons/electric.svg'
 import fire from '@/assets/icons/celebration-fire.svg'
 import cold from '@/assets/icons/snowflake-2.svg'
 import vitality from '@/assets/icons/hearts.svg'
-import type { ElementalBlast } from '@/composables/character/strike'
+import type { ElementalBlast } from '@/composables/character/characterStrikes'
 const damageIcons = { bludgeoning, slashing, piercing, electricity, fire, cold, vitality }
 const actionIcons = { '1': action1, '2': action2 }
 
@@ -59,7 +60,7 @@ const viewedStrike = computed(() => {
 const viewedStrikeItem = computed(() => {
   return [...(inventory.value || []), ...(actions.value || [])].find(
     (i) => i._id === viewedStrike.value?.item?._id
-  )
+  ) as Weapon | undefined
 })
 const viewedStrikeTraits = computed(() => {
   return viewedStrike.value?.traits
@@ -73,8 +74,8 @@ const viewedStrikeTraits = computed(() => {
     ?.concat(
       viewedStrike.value?.hasOwnProperty('isBlast')
         ? [
-            viewedStrikeItem.value?.flags?.pf2e?.damageSelections?.[
-              (viewedStrike.value as ElementalBlast)?.blastElement as keyof object
+            (viewedStrike.value as ElementalBlast)?.damageSelections?.[
+              (viewedStrike.value as ElementalBlast)?.blastElement ?? ''
             ] ?? ''
           ].filter((i) => i && !['bludgeoning', 'piercing', 'slashing'].includes(i))
         : []
@@ -82,8 +83,8 @@ const viewedStrikeTraits = computed(() => {
 })
 const viewedStrikeDamageTypeSelected = computed(() => {
   return viewedStrike.value?.hasOwnProperty('isBlast')
-    ? viewedStrikeItem.value?.flags?.pf2e?.damageSelections?.[
-        (viewedStrike.value as ElementalBlast)?.blastElement as keyof object
+    ? (viewedStrike.value as ElementalBlast)?.damageSelections?.[
+        (viewedStrike.value as ElementalBlast)?.blastElement ?? ''
       ]
     : (viewedStrikeItem.value?.system?.traits?.toggles?.modular?.selected ??
         viewedStrikeItem.value?.system?.traits?.toggles?.versatile?.selected ??
@@ -110,8 +111,8 @@ function viewedStrikeAction(
   if (viewedStrike.value?.hasOwnProperty('isBlast')) {
     const element = (viewedStrike.value as ElementalBlast)?.blastElement ?? ''
     const damageType =
-      viewedStrike.value?.item?.flags?.pf2e?.damageSelections?.[
-        (viewedStrike.value as ElementalBlast)?.blastElement as keyof object
+      (viewedStrike.value as ElementalBlast)?.damageSelections?.[
+        (viewedStrike.value as ElementalBlast)?.blastElement ?? ''
       ] ??
       (viewedStrike.value as ElementalBlast)?.blastDamageTypes?.[0].value ??
       ''
@@ -144,8 +145,8 @@ function viewedDamageAction(): Promise<RequestResolutionArgs> {
   if (viewedStrike.value?.hasOwnProperty('isBlast')) {
     const element = (viewedStrike.value as ElementalBlast)?.blastElement ?? ''
     const damageType =
-      viewedStrike.value?.item?.flags?.pf2e?.damageSelections?.[
-        (viewedStrike.value as ElementalBlast)?.blastElement as keyof object
+      (viewedStrike.value as ElementalBlast)?.damageSelections?.[
+        (viewedStrike.value as ElementalBlast)?.blastElement ?? ''
       ] ??
       (viewedStrike.value as ElementalBlast)?.blastDamageTypes?.[0].value ??
       ''
@@ -184,8 +185,8 @@ async function updateDamageFormula() {
   } else {
     const element = (viewedStrike.value as ElementalBlast)?.blastElement ?? ''
     const damageType =
-      viewedStrike.value?.item?.flags?.pf2e?.damageSelections?.[
-        (viewedStrike.value as ElementalBlast)?.blastElement as keyof object
+      (viewedStrike.value as ElementalBlast)?.damageSelections?.[
+        (viewedStrike.value as ElementalBlast)?.blastElement ?? ''
       ] ??
       (viewedStrike.value as ElementalBlast)?.blastDamageTypes?.[0].value ??
       ''

@@ -1,5 +1,4 @@
 import type { Maybe } from './helpers'
-import type { Item as PF2eItem } from '@/types/pf2e-types'
 import type { ItemPF2e } from '@7h3laughingman/pf2e-types'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type { RequestResolutionArgs } from '@/types/api-types'
@@ -11,18 +10,6 @@ export interface Item {
   img: Maybe<string>
   itemGrants: Maybe<string[]>
   grantedBy: Maybe<string>
-  flags: {
-    pf2e: {
-      damageSelections: {
-        earth: Maybe<string>
-        fire: Maybe<string>
-        water: Maybe<string>
-        air: Maybe<string>
-        wood: Maybe<string>
-        metal: Maybe<string>
-      }
-    }
-  }
   system: ItemSystem
   delete?: () => Promise<DocumentSocketResponse>
   consumeItem?: () => Promise<RequestResolutionArgs>
@@ -32,36 +19,12 @@ export interface Item {
 
 export interface ItemSystem {
   slug: Maybe<string>
-  category: Maybe<string>
   description: { value: string }
-  value: { value: Maybe<number>; isValued: Maybe<boolean> }
   traits: {
     rarity: Maybe<string>
     value: Maybe<string[]>
-    toggles: { modular: { selected: Maybe<string> }; versatile: { selected: Maybe<string> } }
   }
-  level: { value: Maybe<number>; taken: Maybe<number> }
-  bulk: { value: Maybe<number> }
-  stackGroup: Maybe<string>
-  actions: { value: Maybe<string> }
-  damage: { damageType: Maybe<string> }
-  equipped: {
-    carryType: Maybe<string>
-    invested: Maybe<boolean>
-    handsHeld: Maybe<number>
-    inSlot: Maybe<boolean>
-  }
-  usage: { value: Maybe<string> }
-  hp: { value: Maybe<number> }
-  containerId: Maybe<string>
-  quantity: Maybe<number>
-  price: {
-    value: { gp: Maybe<number>; sp: Maybe<number>; cp: Maybe<number> }
-    per: Maybe<number>
-  }
-  spell: { system: { level: { value: Maybe<number> }; description: { value: Maybe<string> } } }
-  uses: { value: Maybe<number>; max: Maybe<number> }
-  subitems: Maybe<Item[]>
+  level: { value: Maybe<number> }
 }
 
 export function makeItem(root: ItemPF2e | undefined): Item | undefined {
@@ -75,62 +38,14 @@ export function makeItem(root: ItemPF2e | undefined): Item | undefined {
       ? Object.values(root?.flags?.pf2e?.itemGrants as object).map((i) => i?.id)
       : undefined,
     grantedBy: root?.flags?.pf2e?.grantedBy?.id,
-    flags: {
-      pf2e: {
-        damageSelections: {
-          earth: root?.flags?.pf2e?.damageSelections?.earth,
-          fire: root?.flags?.pf2e?.damageSelections?.fire,
-          water: root?.flags?.pf2e?.damageSelections?.water,
-          air: root?.flags?.pf2e?.damageSelections?.air,
-          wood: root?.flags?.pf2e?.damageSelections?.wood,
-          metal: root?.flags?.pf2e?.damageSelections?.metal
-        }
-      }
-    },
     system: {
       slug: root?.system?.slug ?? undefined,
-      category: root?.system?.category,
       description: { value: root?.system?.description?.value },
-      value: { isValued: root?.system?.value?.isValued, value: root?.system?.value?.value },
-      bulk: { value: root?.system?.bulk?.value },
-      stackGroup: root?.system?.stackGroup,
       traits: {
         rarity: root?.system?.traits?.rarity,
-        value: root?.system?.traits?.value ? [...root?.system?.traits?.value] : undefined,
-        toggles: {
-          modular: { selected: root?.system?.traits?.toggles?.modular?.selected },
-          versatile: { selected: root?.system?.traits?.toggles?.versatile?.selected }
-        }
+        value: root?.system?.traits?.value ? [...root?.system?.traits?.value] : undefined
       },
-      level: { value: root?.system?.level?.value, taken: root?.system?.level?.taken },
-      actions: { value: root?.system?.actions?.value },
-      damage: { damageType: root?.system?.damage?.damageType },
-      equipped: {
-        carryType: root?.system?.equipped?.carryType,
-        invested: root?.system?.equipped?.invested,
-        handsHeld: root?.system?.equipped?.handsHeld,
-        inSlot: root?.system?.equipped?.inSlot
-      },
-      usage: { value: root?.system?.usage?.value },
-      hp: { value: root?.system?.hp?.value },
-      containerId: root?.system?.containerId,
-      quantity: root?.system?.quantity,
-      price: {
-        value: {
-          gp: root?.system?.price?.value?.gp,
-          sp: root?.system?.price?.value?.sp,
-          cp: root?.system?.price?.value?.cp
-        },
-        per: root?.system?.price?.per
-      },
-      spell: {
-        system: {
-          level: { value: root?.system?.spell?.system?.level?.value },
-          description: { value: root?.system?.spell?.system?.description?.value }
-        }
-      },
-      uses: { value: root?.system?.uses?.value, max: root?.system?.uses?.max },
-      subitems: root?.system?.subitems?.map((i: PF2eItem) => makeItem(i))
+      level: { value: root?.system?.level?.value }
     }
   }
 }

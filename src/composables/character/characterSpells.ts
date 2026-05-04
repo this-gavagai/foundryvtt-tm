@@ -1,12 +1,12 @@
 import { computed, type Ref } from 'vue'
 import type { Actor } from '@/types/pf2e-types'
 import type { Field, Maybe } from './helpers'
-import { type Item, makeItem } from './item'
 import { type Spell, type SpellcastingEntry, makeSpell, makeSpellcastingEntry } from './spell'
+import { type Consumable, makeConsumable } from './consumable'
 import { useApi } from '../api'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type { RequestResolutionArgs } from '@/types/api-types'
-import type { SpellPF2e, SpellcastingEntryPF2e, SlotKey } from '@7h3laughingman/pf2e-types'
+import type { ConsumablePF2e, SpellPF2e, SpellcastingEntryPF2e, SlotKey } from '@7h3laughingman/pf2e-types'
 
 export type { Spell, SpellcastingEntry }
 
@@ -30,7 +30,7 @@ export interface CharacterSpells {
   spellcastingEntries: Field<SpellcastingEntry[]>
   spells: Field<Spell[]>
   staff: Field<Staff>
-  spellConsumables: Field<Item[]>
+  spellConsumables: Field<Consumable[]>
 }
 
 export function useCharacterSpells(actor: Ref<Actor | undefined>): CharacterSpells {
@@ -93,7 +93,7 @@ export function useCharacterSpells(actor: Ref<Actor | undefined>): CharacterSpel
           i.system?.traits.value?.includes('scroll') || i.system?.traits.value?.includes('wand')
       )
       ?.map((i) => ({
-        ...(makeItem(i) as Item),
+        ...makeConsumable(i as unknown as ConsumablePF2e),
         consumeItem: () => consumeItem(actor as Ref<Actor>, i._id),
         changeUses: (newValue: number) => {
           const updates = { system: { uses: { value: newValue } } }

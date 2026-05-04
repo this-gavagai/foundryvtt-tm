@@ -9,9 +9,11 @@ import type {
 import type { Field, WritableField, Maybe } from './helpers'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import { type Modifier, makeModifiers } from './modifier'
-import { type Item, makeItem } from './item'
+import { makeItem } from './item'
+import { type Weapon, makeWeapon } from './weapon'
 import { useApi } from '../api'
 import type { RequestResolutionArgs } from '@/types/api-types'
+import type { WeaponPF2e } from '@7h3laughingman/pf2e-types'
 
 interface BlastOptions {
   element: Maybe<string>
@@ -22,7 +24,7 @@ interface BlastOptions {
 export interface Strike {
   label: Maybe<string>
   slug: Maybe<string>
-  item?: Maybe<Item>
+  item?: Maybe<Weapon>
   variants: { label: Maybe<string>; map: Maybe<number>; type: Maybe<'melee' | 'ranged'> }[]
   altUsages: Maybe<Strike>[]
   traits: { name: Maybe<string>; label: Maybe<string>; description: Maybe<string> }[]
@@ -59,7 +61,7 @@ export function makeStrike(
   return {
     label: root?.label,
     slug: root?.slug,
-    item: makeItem(item),
+    item: makeWeapon(item as unknown as WeaponPF2e),
     variants: root?.variants.map((v, i) => ({ label: v?.label, map: i, type: undefined })),
     altUsages: root?.altUsages.map((a) => makeStrike(a, a.item)),
     traits: root?.traits?.map((t) => ({
@@ -89,6 +91,7 @@ export interface ElementalBlast extends Strike {
   blastElement: Maybe<string>
   blastRange: { increment: Maybe<number>; max: Maybe<number>; label: Maybe<string> }
   blastDamageTypes: { value: Maybe<string>; label: Maybe<string> }[]
+  damageSelections: Record<string, Maybe<string>>
 }
 
 export function makeElementalBlasts(root: PF2eElementalBlasts | undefined): ElementalBlast[] {
@@ -103,9 +106,10 @@ export function makeElementalBlasts(root: PF2eElementalBlasts | undefined): Elem
     },
     blastDamageTypes: config?.damageTypes.map((d) => ({ value: d?.value, label: d?.label })),
     blastImg: config?.img,
+    damageSelections: { ...((config?.item?.flags?.pf2e as any)?.damageSelections ?? {}) },
     label: `Elemental Blast (${config?.element})`,
     slug: undefined,
-    item: makeItem(config?.item),
+    item: makeItem(config?.item as unknown as Parameters<typeof makeItem>[0]) as unknown as Weapon,
     variants: [
       { label: config?.maps?.melee.map0, map: 0, type: 'melee' },
       { label: config?.maps?.melee.map1, map: 1, type: 'melee' },
@@ -215,11 +219,8 @@ export function useCharacterStrikes(actor: Ref<Actor | undefined>): CharacterStr
           setDamageType: (newType) => {
             const dmgs: Record<string, string> = {}
             dmgs[blast?.blastElement ?? ''] = newType
-            const update = {
-              flags: { pf2e: { damageSelections: dmgs } }
-            }
-            const flags = blast.item?.flags.pf2e.damageSelections as Record<string, string>
-            flags[blast?.blastElement ?? ''] = newType
+            const update = { flags: { pf2e: { damageSelections: dmgs } } }
+            blast.damageSelections[blast?.blastElement ?? ''] = newType
             return updateActorItem(actor as Ref<Actor>, blast.item?._id ?? '', update)
           }
         }) as ElementalBlast
