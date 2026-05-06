@@ -1,16 +1,16 @@
-import { ref, type Ref } from 'vue'
-import type { World } from '@/types/pf2e-types'
+import { shallowRef } from 'vue'
+import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import { useServer } from '@/composables/server'
 import { debounce } from 'lodash-es'
 
-const world = ref<World | undefined>(undefined)
+const world = shallowRef<GamePF2e | undefined>(undefined)
 
 const { getSocket } = useServer()
 
-async function sendWorldRequest(): Promise<Ref<World | undefined>> {
+async function sendWorldRequest(): Promise<typeof world> {
   const socket = await getSocket()
-  return new Promise((resolve) => {
-    socket.emit('world', (r: World) => {
+  return new Promise<typeof world>((resolve) => {
+    socket.emit('world', (r: GamePF2e) => {
       world.value = r
       resolve(world)
     })

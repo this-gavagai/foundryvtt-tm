@@ -1,5 +1,5 @@
 import type { Maybe } from './helpers'
-import type { Modifier as PF2eModifier } from '@/types/pf2e-types'
+import type { RawModifier } from '@7h3laughingman/pf2e-types'
 
 export interface Modifier {
   slug: Maybe<string>
@@ -11,15 +11,15 @@ export interface Modifier {
   enabled: Maybe<boolean>
   hideIfDisabled: Maybe<boolean>
 }
-export function makeModifiers(set: PF2eModifier[] | undefined): Modifier[] | undefined {
+export function makeModifiers(set: RawModifier[] | undefined): Modifier[] | undefined {
   if (!set) return undefined
-  return set?.map((m: PF2eModifier) => ({
+  return set?.map((m) => ({
     slug: m.slug,
     label: m.label,
     modifier: m.modifier,
-    diceNumber: m.diceNumber,
-    dieSize: m.dieSize,
-    damageType: m.damageType,
+    diceNumber: undefined,
+    dieSize: undefined,
+    damageType: m.damageType ?? undefined,
     enabled: m.enabled,
     hideIfDisabled: m.hideIfDisabled
   }))

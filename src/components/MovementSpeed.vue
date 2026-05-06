@@ -2,15 +2,9 @@
 import { inject, computed } from 'vue'
 import StatBox from './widgets/StatBox.vue'
 import { useKeys } from '@/composables/injectKeys'
+import type { Stat } from '@/composables/character'
 
 import d20 from '@/assets/icons/d20.svg'
-
-interface SpeedType {
-  type: string | undefined
-  total: number | undefined
-  value: number | undefined
-  totalModifier: number | undefined
-}
 
 const character = inject(useKeys().characterKey)!
 const { land, swim, climb, fly, burrow } = character.movement
@@ -18,7 +12,7 @@ const { skills } = character
 
 const athletics = computed(() => skills.value?.find((s) => s.slug === 'athletics'))
 
-function parseSpeed(speed: SpeedType | undefined) {
+function parseSpeed(speed: Stat | undefined) {
   if (speed?.value) return speed?.value
   if (typeof speed?.value !== 'undefined' && typeof speed?.totalModifier !== 'undefined')
     return speed?.value + speed?.totalModifier

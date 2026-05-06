@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Actor } from '@/types/pf2e-types'
-import { type Ref, onUnmounted, onMounted, type ComputedRef } from 'vue'
-import { ref, provide, computed } from 'vue'
+import type { ShallowRef, ComputedRef } from 'vue'
+import { ref, provide, computed, shallowRef, onUnmounted, onMounted } from 'vue'
 import { TabGroup, TabList, TabPanels } from '@headlessui/vue'
 import { debounce } from 'lodash-es'
 
@@ -59,9 +59,11 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
 // base data
 const { world } = useWorld()
 const { userId } = useUserId()
-const actor: Ref<Actor | undefined> = ref()
+const actor: ShallowRef<Actor | undefined> = shallowRef()
 const actorOrWorldActor = computed(
-  () => actor.value ?? world.value?.actors.find((a: Actor) => a._id == props.characterId)
+  () =>
+    actor.value ??
+    (world.value?.actors as unknown as Actor[] | undefined)?.find((a) => a._id == props.characterId)
 )
 const userHasActorPermission: ComputedRef<boolean> = computed(() => {
   if (

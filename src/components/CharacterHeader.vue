@@ -54,8 +54,8 @@ const emit = defineEmits(['sidebarActivated'])
                 .filter((c) => c !== _id)
                 .map((c: string) => world?.actors.find((a: ActorPF2e) => a._id === c))"
               :value="chr"
-              @click="setActiveCharacterId(chr?._id)"
-              :key="chr?._id"
+              @click="setActiveCharacterId(chr?._id ?? undefined)"
+              :key="chr?._id ?? undefined"
             >
               <div
                 v-if="chr?.name"

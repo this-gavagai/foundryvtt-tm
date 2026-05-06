@@ -1,6 +1,6 @@
 import { computed, type Ref } from 'vue'
-import type { Actor, Stat as PF2eStat } from '@/types/pf2e-types'
-import type { AbilityItemPF2e } from '@7h3laughingman/pf2e-types'
+import type { Actor } from '@/types/pf2e-types'
+import type { AbilityItemPF2e, MartialProficiency, ClassDCData } from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField } from './helpers'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import { type Stat, makeStat } from './stat'
@@ -118,15 +118,15 @@ export function useCharacterActions(actor: Ref<Actor | undefined>): CharacterAct
     return skills.length === 16 && lores?.length ? [...skills, ...(lores ?? [])] : skills
   })
   const proficiencies = computed(() => [
-    ...Object.entries((actor.value?.system?.proficiencies?.['attacks'] ?? []) as PF2eStat[]).map(
-      ([key, stat]) => ({ ...makeStat(stat, key), type: 'attacks', slug: key }) as Stat
-    ),
-    ...Object.entries((actor.value?.system?.proficiencies?.['defenses'] ?? []) as PF2eStat[]).map(
-      ([key, stat]) => ({ ...makeStat(stat, key), type: 'defenses', slug: key }) as Stat
-    ),
-    ...Object.entries((actor.value?.system?.proficiencies?.['classDCs'] ?? []) as PF2eStat[]).map(
-      ([key, stat]) => ({ ...makeStat(stat, key), type: 'classDCs', slug: key }) as Stat
-    ),
+    ...Object.entries(
+      (actor.value?.system?.proficiencies?.['attacks'] ?? []) as Record<string, MartialProficiency>
+    ).map(([key, stat]) => ({ ...makeStat(stat, key), type: 'attacks', slug: key }) as Stat),
+    ...Object.entries(
+      (actor.value?.system?.proficiencies?.['defenses'] ?? []) as Record<string, MartialProficiency>
+    ).map(([key, stat]) => ({ ...makeStat(stat, key), type: 'defenses', slug: key }) as Stat),
+    ...Object.entries(
+      (actor.value?.system?.proficiencies?.['classDCs'] ?? []) as Record<string, ClassDCData>
+    ).map(([key, stat]) => ({ ...makeStat(stat, key), type: 'classDCs', slug: key }) as Stat),
     ...[
       {
         ...(makeStat(actor.value?.system?.proficiencies?.['spellcasting']) as Stat),

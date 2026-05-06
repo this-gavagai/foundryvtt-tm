@@ -18,8 +18,8 @@ const userList = computed(() => {
 })
 const targetingProxyId = computed(
   () =>
-    world.value?.users.find((u) => u._id === userId.value)?.flags?.tablemate?.targeting_proxy ??
-    localProxyId.value
+    (world.value?.users.find((u) => u._id === userId.value)?.flags?.tablemate
+      ?.targeting_proxy as string | undefined) ?? localProxyId.value
 )
 
 function updateProxyId(newId: string): Promise<DocumentSocketResponse | null> {
@@ -29,8 +29,7 @@ function updateProxyId(newId: string): Promise<DocumentSocketResponse | null> {
   // update remote
   const response = updateUserTargetingProxy(getUserId(), newId)
   // update local
-  let flagsBase = world.value.users.find((u) => u._id === getUserId()).flags.tablemate
-  if (!flagsBase) flagsBase = {}
+  const flagsBase = (world.value.users.find((u) => u._id === getUserId())?.flags?.tablemate ?? {}) as Record<string, unknown>
   flagsBase.targeting_proxy = newId
 
   localProxyId.value = newId

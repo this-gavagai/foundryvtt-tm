@@ -1,5 +1,6 @@
 import { computed, type Ref } from 'vue'
-import type { Actor, IWR as PF2eIWR } from '@/types/pf2e-types'
+import type { Actor } from '@/types/pf2e-types'
+import type { Immunity, Weakness, Resistance } from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField, Maybe } from './helpers'
 import { type Modifier, makeModifiers } from './modifier'
 import { type Stat, makeStat } from './stat'
@@ -12,13 +13,13 @@ export interface IWR {
   definition: Maybe<string>
   value?: Maybe<number>
 }
-export function makeIWRs(set: PF2eIWR[] | undefined): IWR[] | undefined {
+export function makeIWRs(set: (Immunity | Weakness | Resistance)[] | undefined): IWR[] | undefined {
   if (!set) return undefined
-  return set?.map((e: PF2eIWR) => ({
-    type: e?.type,
-    exceptions: Array.from(e?.exceptions),
-    definition: e?.definition,
-    value: e?.value
+  return set.map((e) => ({
+    type: e.type,
+    exceptions: e.exceptions.map((ex) => (typeof ex === 'string' ? ex : ex.label)),
+    definition: undefined,
+    value: e.value as number | undefined
   }))
 }
 

@@ -4,7 +4,7 @@ import { SignedNumber } from '@/utils/utilities'
 import { proficiencies } from '@/utils/constants'
 import InfoModal from '@/components/InfoModal.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
-import type { RollResult } from '@/types/pf2e-types'
+import type { RequestResolutionArgs } from '@/types/api-types'
 import { useListeners } from '@/composables/listenersOnline'
 import type { Modifier } from '@/composables/character'
 
@@ -17,13 +17,13 @@ const props = defineProps<{
   modifiers?: Modifier[] | undefined
   breakdown?: string
   preventInfoModal?: boolean
-  rollAction?: (r: number | undefined) => Promise<RollResult | null>
+  rollAction?: (r: number | undefined) => Promise<RequestResolutionArgs | null>
 }>()
 const infoModal = ref()
 const { isListening } = useListeners()
 
 function makeRoll(result: number | undefined = undefined) {
-  return props.rollAction?.(result).then((r: RollResult | null) => {
+  return props.rollAction?.(result).then((r: RequestResolutionArgs | null) => {
     infoModal.value.rollResultModal.open(r)
     infoModal.value.close()
   })

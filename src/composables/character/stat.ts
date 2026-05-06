@@ -1,9 +1,18 @@
 import type { Maybe } from './helpers'
-import type { Stat as PF2eStat, Modifier as PF2eModifier } from '@/types/pf2e-types'
+import type { BaseStatisticTraceData, RawModifier } from '@7h3laughingman/pf2e-types'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import { type Modifier, makeModifiers } from './modifier'
 
 import { capitalize } from 'lodash-es'
+
+type StatInput = Partial<Omit<BaseStatisticTraceData, 'modifiers'>> & {
+  attribute?: string | null
+  rank?: number
+  lore?: boolean
+  totalModifier?: number
+  dc?: number
+  modifiers?: unknown[]
+}
 
 export interface Stat {
   label: Maybe<string>
@@ -12,32 +21,26 @@ export interface Stat {
   breakdown: Maybe<string>
   attribute: Maybe<string>
   rank: Maybe<number>
-  base: Maybe<number>
-  total: Maybe<number>
   value: Maybe<number>
   totalModifier: Maybe<number>
   modifiers: Maybe<Modifier[]>
   dc: Maybe<number>
-  armor: Maybe<boolean>
   lore: Maybe<boolean>
   roll?: (result?: number | undefined, options?: object | undefined) => Promise<RequestResolutionArgs | null>
 }
-export function makeStat(root: PF2eStat | undefined, key: string | null = null): Stat | undefined {
+export function makeStat(root: StatInput | undefined, key: string | null = null): Stat | undefined {
   if (!root) return undefined
   return {
-    slug: root?.slug ?? key,
+    slug: root?.slug ?? key ?? undefined,
     label: root?.label ?? root?.slug ?? capitalize(key ?? ''),
-    type: root?.type,
+    type: undefined,
     breakdown: root?.breakdown,
-    attribute: root?.attribute,
+    attribute: root?.attribute ?? undefined,
     rank: root?.rank,
-    base: root?.base,
-    total: root?.total,
     value: root?.value,
     totalModifier: root?.totalModifier,
     dc: root?.dc,
-    armor: root?.armor,
     lore: root?.lore,
-    modifiers: makeModifiers(root?.modifiers as PF2eModifier[])
+    modifiers: makeModifiers(root?.modifiers as RawModifier[])
   }
 }

@@ -1,5 +1,6 @@
 import type { Ref } from 'vue'
-import type { Actor, World, Combat, System, ElementalBlasts } from '@/types/pf2e-types'
+import type { Actor } from '@/types/pf2e-types'
+import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import type {
   RequestResolutionArgs,
   ModuleEventArgs,
@@ -65,7 +66,7 @@ async function setupSocketListenersForApp() {
     }
   })
 }
-async function setupSocketListenersForWorld(world: Ref<World>) {
+async function setupSocketListenersForWorld(world: Ref<GamePF2e>) {
   const socket = await getSocket()
   console.log('worldly')
   // const { refreshWorld } = useWorld()
@@ -86,16 +87,16 @@ async function setupSocketListenersForWorld(world: Ref<World>) {
     // let documentSource
     switch (args.type) {
       case 'Combat':
-        processChanges(args, world.value.combats)
+        processChanges(args, world.value.combats as unknown as DocumentData[])
         break
       case 'Combatant': {
         const combatId = args.operation.parentUuid?.split('.')?.[1]
-        const combat = world.value?.combats.find((c: Combat) => c._id === combatId)
-        processChanges(args, combat.combatants)
+        const combat = world.value?.combats.find((c) => c._id === combatId)
+        processChanges(args, combat?.combatants as unknown as DocumentData[])
         break
       }
       case 'ChatMessage':
-        processChanges(args, world.value?.messages)
+        processChanges(args, world.value?.messages as unknown as DocumentData[])
         break
       case 'User':
         console.log(args)
@@ -180,8 +181,8 @@ function parseActorData(
   if (characterLastRequest.get(actorId) !== args.uuid) return
 
   if (!actor.value) actor.value = {} as Actor
-  if (!actor.value.system) actor.value.system = {} as System
-  if (!actor.value.elementalBlasts) actor.value.elementalBlasts = {} as ElementalBlasts
+  if (!actor.value.system) actor.value.system = {} as Actor['system']
+  if (!actor.value.elementalBlasts) actor.value.elementalBlasts = {} as Actor['elementalBlasts']
   if (!actor.value.inventory) actor.value.inventory = {}
   if (!actor.value.activeRules) actor.value.activeRules = []
 
