@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 import { computed } from 'vue'
-import type { Actor, Item as PF2eItem } from '@/types/pf2e-types'
+import type { Actor } from '@/types/pf2e-types'
 import type { AncestryPF2e, BackgroundPF2e, ClassPF2e as ClassPF2eType, HeritagePF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField } from './helpers'
 import type { RequestResolutionArgs } from '@/types/api-types'
@@ -43,16 +43,16 @@ export function useCharacterCore(actor: Ref<Actor | undefined>): CharacterCore {
   const portraitUrl = computed(() => actor.value?.prototypeToken?.texture?.src)
 
   const ancestry = computed(() =>
-    makeAncestry(actor.value?.items?.find((x: PF2eItem) => x.type === 'ancestry') as AncestryPF2e | undefined)
+    makeAncestry(actor.value?.items?.find((x) =>x.type === 'ancestry') as AncestryPF2e | undefined)
   )
   const background = computed(() =>
-    makeBackground(actor.value?.items?.find((x: PF2eItem) => x.type === 'background') as BackgroundPF2e | undefined)
+    makeBackground(actor.value?.items?.find((x) =>x.type === 'background') as BackgroundPF2e | undefined)
   )
   const heritage = computed(() =>
-    makeHeritage(actor.value?.items?.find((x: PF2eItem) => x.type === 'heritage') as HeritagePF2e | undefined)
+    makeHeritage(actor.value?.items?.find((x) =>x.type === 'heritage') as HeritagePF2e | undefined)
   )
   const classType = computed(() =>
-    makeClassType(actor.value?.items?.find((x: PF2eItem) => x.type === 'class') as ClassPF2eType | undefined)
+    makeClassType(actor.value?.items?.find((x) =>x.type === 'class') as ClassPF2eType | undefined)
   )
 
   const level = computed(() => actor.value?.system?.details?.level?.value)

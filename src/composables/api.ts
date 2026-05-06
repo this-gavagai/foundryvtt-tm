@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import type { Actor, World, Item, Combat, System, ElementalBlasts } from '@/types/pf2e-types'
+import type { Actor, World, Combat, System, ElementalBlasts } from '@/types/pf2e-types'
 import type {
   RequestResolutionArgs,
   ModuleEventArgs,
@@ -16,6 +16,7 @@ import type {
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 
 type ModifyDocumentUpdate = { _id: string; [key: string]: unknown }
+type DocumentData = { _id: string | null }
 
 import { mergeWith } from 'lodash-es'
 import { useServer } from '@/composables/server'
@@ -505,7 +506,7 @@ async function callMacro(
 //////////////////////////////////////////////////
 // Processing Methods for Items (not Actor)     //
 //////////////////////////////////////////////////
-function processChanges(args: DocumentSocketResponse, dataRoot: Item[]) {
+function processChanges(args: DocumentSocketResponse, dataRoot: DocumentData[]) {
   switch (args.action) {
     case 'create':
       _processCreates(args.result as ModifyDocumentUpdate[], dataRoot)
@@ -519,20 +520,20 @@ function processChanges(args: DocumentSocketResponse, dataRoot: Item[]) {
   }
 }
 
-function _processCreates(results: ModifyDocumentUpdate[], root: Item[]) {
-  results.forEach((c: ModifyDocumentUpdate) => {
-    root.push(c as unknown as Item)
+function _processCreates(results: ModifyDocumentUpdate[], root: DocumentData[]) {
+  results.forEach((c) => {
+    root.push(c)
   })
 }
-function _processUpdates(results: ModifyDocumentUpdate[], root: Item[]) {
-  results.forEach((change: ModifyDocumentUpdate) => {
-    const item = root.find((a: Item) => a._id === change._id)
+function _processUpdates(results: ModifyDocumentUpdate[], root: DocumentData[]) {
+  results.forEach((change) => {
+    const item = root.find((a) => a._id === change._id)
     if (item) mergeWith(item, change, mergeWithArrayReset)
   })
 }
-function _processDeletes(results: string[], root: Item[]) {
-  results.forEach((d: string) => {
-    const index = root.findIndex((i: Item) => i._id === d)
+function _processDeletes(results: string[], root: DocumentData[]) {
+  results.forEach((d) => {
+    const index = root.findIndex((i) => i._id === d)
     if (index != -1) {
       root.splice(index, 1)
     }

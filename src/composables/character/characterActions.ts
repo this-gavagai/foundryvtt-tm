@@ -1,5 +1,6 @@
 import { computed, type Ref } from 'vue'
-import type { Actor, Item as PF2eItem, Stat as PF2eStat } from '@/types/pf2e-types'
+import type { Actor, Stat as PF2eStat } from '@/types/pf2e-types'
+import type { AbilityItemPF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField } from './helpers'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import { type Stat, makeStat } from './stat'
@@ -15,8 +16,11 @@ export interface Action extends Item {
   system: ItemSystem & { actions?: { value: Maybe<string> } }
   actionType: string | null
   item: Item
-  macroId: string
-  doAction?: (options?: object | undefined, rollResult?: number | undefined) => Promise<RequestResolutionArgs | null>
+  macroId: Maybe<string>
+  doAction?: (
+    options?: object | undefined,
+    rollResult?: number | undefined
+  ) => Promise<RequestResolutionArgs | null>
   doMacro?: (options?: object | undefined) => void
 }
 
@@ -49,12 +53,10 @@ export function useCharacterActions(actor: Ref<Actor | undefined>): CharacterAct
     return characterAction(actor as Ref<Actor>, slug, options ?? {}, { d20: [rollResult ?? 0] })
   }
   const actions = computed(() =>
-    actor.value?.items
-      ?.filter((i: PF2eItem) =>
-        actionTypes.map((a) => a.type).includes(i?.system?.actionType?.value)
-      )
-      .map((i: PF2eItem) => ({
-        ...(makeItem(i as unknown as Parameters<typeof makeItem>[0]) as Action),
+    (actor.value?.items as unknown as AbilityItemPF2e[])
+      ?.filter((i) => actionTypes.map((a) => a.type).includes(i?.system?.actionType?.value))
+      .map((i) => ({
+        ...(makeItem(i) as Action),
         actionType:
           i?.system?.actionType?.value === 'action' &&
           i?.system?.traits.value.includes('skill') === false
@@ -67,7 +69,9 @@ export function useCharacterActions(actor: Ref<Actor | undefined>): CharacterAct
                 : i?.system?.actionType?.value === 'free'
                   ? 'free'
                   : null,
-        macroId: i?.flags?.['pf2e-toolbelt']?.actionable?.macro,
+        macroId: (i?.flags as Record<string, { actionable?: { macro?: string } } | undefined>)?.[
+          'pf2e-toolbelt'
+        ]?.actionable?.macro,
         doAction: (options = {}, rollResult: number | undefined = undefined) => {
           if (i?.system?.slug)
             return characterAction(actor as Ref<Actor>, i?.system?.slug, options ?? {}, {
@@ -76,7 +80,9 @@ export function useCharacterActions(actor: Ref<Actor | undefined>): CharacterAct
           else return Promise.resolve(null)
         },
         doMacro: (options = {}) => {
-          const macroId = i?.flags?.['pf2e-toolbelt']?.actionable?.macro
+          const macroId = (
+            i?.flags as Record<string, { actionable?: { macro?: string } } | undefined>
+          )?.['pf2e-toolbelt']?.actionable?.macro
           if (macroId) {
             callMacro(actor.value?._id, null, null, macroId, options)
           }

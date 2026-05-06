@@ -1,10 +1,10 @@
 import type { Maybe } from './helpers'
 import type {
-  Action as PF2eAction,
-  Item as PF2eItem,
-  ElementalBlasts as PF2eElementalBlasts,
-  ElementalBlastConfig as PF2eElementalBlastConfig
-} from '@/types/pf2e-types'
+  CharacterStrike,
+  ElementalBlast as PF2eElementalBlast,
+  ElementalBlastConfig,
+  ItemPF2e
+} from '@7h3laughingman/pf2e-types'
 import { type Modifier, makeModifiers } from './modifier'
 import { type Item, makeItem } from './item'
 import type { RequestResolutionArgs } from '@/types/api-types'
@@ -48,35 +48,36 @@ export interface Strike {
   setDamageType?: (newType: string) => Promise<DocumentSocketResponse | null>
   changeAmmo?: (newId: string | null) => Promise<DocumentSocketResponse | null>
 }
+
 export function makeStrike(
-  root: PF2eAction | undefined,
-  item: PF2eItem | undefined
+  root: CharacterStrike | undefined,
+  item: ItemPF2e | undefined
 ): Strike | undefined {
   if (!root) return undefined
   return {
     label: root?.label,
     slug: root?.slug,
-    item: makeItem(item as unknown as Parameters<typeof makeItem>[0]),
+    item: makeItem(item),
     variants: root?.variants.map((v, i) => ({ label: v?.label, map: i, type: undefined })),
-    altUsages: root?.altUsages.map((a) => makeStrike(a, a.item)),
+    altUsages: root?.altUsages?.map((a) => makeStrike(a as CharacterStrike, a.item)),
     traits: root?.traits?.map((t) => ({
       name: t?.name,
       label: t?.label,
-      description: t?.description
+      description: t?.description ?? undefined
     })),
     weaponTraits: root?.weaponTraits?.map((t) => ({
       name: t?.name,
       label: t?.label,
-      description: t?.description
+      description: t?.description ?? undefined
     })),
     ammunition: {
       compatible: root?.ammunition?.compatible?.map((c: { id: string; label: string }) => ({
         id: c.id,
         name: c.label
-      })),
-      selected: { id: root?.ammunition?.selected?.id }
+      })) ?? [],
+      selected: { id: root?.ammunition?.selected?.id ?? '' }
     },
-    _modifiers: makeModifiers(root?._modifiers)
+    _modifiers: makeModifiers(root?.modifiers as unknown as Parameters<typeof makeModifiers>[0])
   }
 }
 
@@ -88,21 +89,21 @@ export interface ElementalBlast extends Strike {
   blastDamageTypes: { value: Maybe<string>; label: Maybe<string> }[]
 }
 
-export function makeElementalBlasts(root: PF2eElementalBlasts | undefined): ElementalBlast[] {
+export function makeElementalBlasts(root: PF2eElementalBlast | undefined): ElementalBlast[] {
   if (!root) return []
-  return root.configs.map((config: PF2eElementalBlastConfig) => ({
+  return root.configs.map((config: ElementalBlastConfig) => ({
     isBlast: true,
     blastElement: config?.element,
     blastRange: {
-      increment: config?.range?.increment,
-      max: config?.range?.max,
+      increment: config?.range?.increment ?? undefined,
+      max: config?.range?.max ?? undefined,
       label: config?.range?.label
     },
     blastDamageTypes: config?.damageTypes.map((d) => ({ value: d?.value, label: d?.label })),
     blastImg: config?.img,
     label: `Elemental Blast (${config?.element})`,
     slug: undefined,
-    item: makeItem(config?.item as unknown as Parameters<typeof makeItem>[0]),
+    item: makeItem(config?.item),
     variants: [
       { label: config?.maps?.melee.map0, map: 0, type: 'melee' },
       { label: config?.maps?.melee.map1, map: 1, type: 'melee' },
@@ -114,6 +115,6 @@ export function makeElementalBlasts(root: PF2eElementalBlasts | undefined): Elem
     altUsages: [],
     traits: [],
     weaponTraits: [],
-    _modifiers: makeModifiers(config?.statistic?.modifiers)
+    _modifiers: makeModifiers(config?.statistic?.modifiers as unknown as Parameters<typeof makeModifiers>[0])
   }))
 }

@@ -1,11 +1,5 @@
 import { computed, type Ref } from 'vue'
-import type {
-  Actor,
-  Item as PF2eItem,
-  Action as PF2eAction,
-  ElementalBlasts as PF2eElementalBlasts,
-  ElementalBlastConfig as PF2eElementalBlastConfig
-} from '@/types/pf2e-types'
+import type { Actor } from '@/types/pf2e-types'
 import type { Field, WritableField, Maybe } from './helpers'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import { type Modifier, makeModifiers } from './modifier'
@@ -13,7 +7,12 @@ import { makeItem } from './item'
 import { type Weapon, makeWeapon } from './weapon'
 import { useApi } from '../api'
 import type { RequestResolutionArgs } from '@/types/api-types'
-import type { WeaponPF2e } from '@7h3laughingman/pf2e-types'
+import type {
+  CharacterStrike,
+  ElementalBlast as PF2eElementalBlast,
+  ElementalBlastConfig,
+  WeaponPF2e
+} from '@7h3laughingman/pf2e-types'
 
 interface BlastOptions {
   element: Maybe<string>
@@ -53,35 +52,37 @@ export interface Strike {
   setDamageType?: (newType: string) => Promise<DocumentSocketResponse | null>
   changeAmmo?: (newId: string | null) => Promise<DocumentSocketResponse | null>
 }
+
 export function makeStrike(
-  root: PF2eAction | undefined,
-  item: PF2eItem | undefined
+  root: CharacterStrike | undefined,
+  item: WeaponPF2e | undefined
 ): Strike | undefined {
   if (!root) return undefined
   return {
     label: root?.label,
     slug: root?.slug,
-    item: makeWeapon(item as unknown as WeaponPF2e),
+    item: item ? makeWeapon(item) : undefined,
     variants: root?.variants.map((v, i) => ({ label: v?.label, map: i, type: undefined })),
-    altUsages: root?.altUsages.map((a) => makeStrike(a, a.item)),
+    altUsages: root?.altUsages?.map((a) => makeStrike(a as CharacterStrike, a.item)),
     traits: root?.traits?.map((t) => ({
       name: t?.name,
       label: t?.label,
-      description: t?.description
+      description: t?.description ?? undefined
     })),
     weaponTraits: root?.weaponTraits?.map((t) => ({
       name: t?.name,
       label: t?.label,
-      description: t?.description
+      description: t?.description ?? undefined
     })),
     ammunition: {
-      compatible: root?.ammunition?.compatible?.map((c: { id: string; label: string }) => ({
-        id: c.id,
-        name: c.label
-      })),
-      selected: { id: root?.ammunition?.selected?.id }
+      compatible:
+        root?.ammunition?.compatible?.map((c: { id: string; label: string }) => ({
+          id: c.id,
+          name: c.label
+        })) ?? [],
+      selected: { id: root?.ammunition?.selected?.id ?? '' }
     },
-    _modifiers: makeModifiers(root?._modifiers)
+    _modifiers: makeModifiers(root?.modifiers as unknown as Parameters<typeof makeModifiers>[0])
   }
 }
 
@@ -94,22 +95,24 @@ export interface ElementalBlast extends Strike {
   damageSelections: Record<string, Maybe<string>>
 }
 
-export function makeElementalBlasts(root: PF2eElementalBlasts | undefined): ElementalBlast[] {
+export function makeElementalBlasts(root: PF2eElementalBlast | undefined): ElementalBlast[] {
   if (!root) return []
-  return root.configs.map((config: PF2eElementalBlastConfig) => ({
+  return root.configs.map((config: ElementalBlastConfig) => ({
     isBlast: true,
     blastElement: config?.element,
     blastRange: {
-      increment: config?.range?.increment,
-      max: config?.range?.max,
+      increment: config?.range?.increment ?? undefined,
+      max: config?.range?.max ?? undefined,
       label: config?.range?.label
     },
     blastDamageTypes: config?.damageTypes.map((d) => ({ value: d?.value, label: d?.label })),
     blastImg: config?.img,
-    damageSelections: { ...((config?.item?.flags?.pf2e as any)?.damageSelections ?? {}) },
+    damageSelections: {
+      ...((config?.item?.flags?.pf2e?.damageSelections as Record<string, string> | undefined) ?? {})
+    },
     label: `Elemental Blast (${config?.element})`,
     slug: undefined,
-    item: makeItem(config?.item as unknown as Parameters<typeof makeItem>[0]) as unknown as Weapon,
+    item: makeItem(config?.item) as Weapon,
     variants: [
       { label: config?.maps?.melee.map0, map: 0, type: 'melee' },
       { label: config?.maps?.melee.map1, map: 1, type: 'melee' },
@@ -121,7 +124,9 @@ export function makeElementalBlasts(root: PF2eElementalBlasts | undefined): Elem
     altUsages: [],
     traits: [],
     weaponTraits: [],
-    _modifiers: makeModifiers(config?.statistic?.modifiers)
+    _modifiers: makeModifiers(
+      config?.statistic?.modifiers as unknown as Parameters<typeof makeModifiers>[0]
+    )
   }))
 }
 
@@ -135,11 +140,13 @@ export function useCharacterStrikes(actor: Ref<Actor | undefined>): CharacterStr
   const { rollCheck, updateActorItem, getStrikeDamage } = useApi()
   const strikes = computed(() => {
     return actor.value?.system?.actions?.map(
-      (action: PF2eAction) =>
+      (action: CharacterStrike) =>
         ({
           ...makeStrike(
             action,
-            actor.value?.items.find((i: PF2eItem) => i.system?.slug === action?.slug)
+            actor.value?.items.find((i) => i.system?.slug === action?.slug) as
+              | WeaponPF2e
+              | undefined
           ),
           getDamage: (altUsage = undefined) =>
             getStrikeDamage(actor as Ref<Actor>, action.slug, altUsage),
@@ -159,7 +166,7 @@ export function useCharacterStrikes(actor: Ref<Actor | undefined>): CharacterStr
               `${action.slug},${variant ? 'critical' : 'damage'},${altUsage ?? ''}`
             ),
           setDamageType: (newType) => {
-            const item = actor.value?.items.find((i: PF2eItem) => i._id === action?.item?._id)
+            const item = actor.value?.items.find((i) => i._id === action?.item?._id)
             if (!item || !actor.value) return Promise.resolve(null)
             const adjustment = item?.system?.damage?.damageType === newType ? null : newType
             const isModular = item?.system?.traits?.value?.includes('modular')
@@ -168,18 +175,18 @@ export function useCharacterStrikes(actor: Ref<Actor | undefined>): CharacterStr
               : { system: { traits: { toggles: { versatile: { selected: adjustment } } } } }
             if (isModular)
               actor.value.items.find(
-                (i: PF2eItem) => i._id === action?.item?._id
+                (i) => i._id === action?.item?._id
               )!.system.traits.toggles.modular.selected = adjustment
             else
               actor.value.items.find(
-                (i: PF2eItem) => i._id === action?.item?._id
+                (i) => i._id === action?.item?._id
               )!.system.traits.toggles.versatile.selected = adjustment
             return updateActorItem(actor as Ref<Actor>, action?.item?._id ?? '', update)
           },
           changeAmmo: (newId) => {
-            const item = actor.value?.items.find((i: PF2eItem) => i._id === action?.item?._id)
+            const item = actor.value?.items.find((i) => i._id === action?.item?._id)
             const actorAction = actor.value?.system.actions.find(
-              (a: PF2eAction) => a.slug === action?.slug
+              (a: CharacterStrike) => a.slug === action?.slug
             )
             if (item && item.system) item.system.selectedAmmoId = newId
             if (actorAction) actorAction.ammunition.selected = newId ? { id: newId } : null
@@ -194,7 +201,9 @@ export function useCharacterStrikes(actor: Ref<Actor | undefined>): CharacterStr
     )
   })
   const blasts = computed(() =>
-    makeElementalBlasts(actor.value?.elementalBlasts)?.map(
+    makeElementalBlasts(
+      actor.value?.elementalBlasts as unknown as PF2eElementalBlast | undefined
+    )?.map(
       (blast: ElementalBlast) =>
         ({
           ...blast,

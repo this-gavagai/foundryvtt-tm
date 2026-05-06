@@ -111,7 +111,10 @@ const spellbook = computed((): Spellbook => {
   const allSpells = spells.value ?? []
   for (const locationId of Object.keys(sb)) {
     const location = spellcastingEntries.value?.find((i) => i._id === locationId)
-    if (location?.system.prepared.value === 'prepared' && location?.system?.prepared?.flexible === false) {
+    if (
+      location?.system.prepared.value === 'prepared' &&
+      location?.system?.prepared?.flexible === false
+    ) {
       fillPreparedSlots(sb, locationId, location, allSpells)
     } else {
       fillAndSortSpells(sb, locationId, location, allSpells)
@@ -237,7 +240,7 @@ const spellbook = computed((): Spellbook => {
                 :title="`Rank ${rank}: ${spell?.name}`"
                 @change-count="
                   (newTotal) =>
-                    location?.setPrepared(
+                    location?.setPrepared?.(
                       Number(rank),
                       index,
                       spell?._id ?? null,
@@ -386,8 +389,8 @@ const spellbook = computed((): Spellbook => {
               () => {
                 spellcastingEntries
                   ?.find((e) => e._id === viewedSpellInfo?.entryId)
-                  ?.setPrepared(viewedSpellInfo?.castingRank, viewedSpellInfo?.castingSlot, null)
-                  .then(() => infoModal?.close())
+                  ?.setPrepared?.(viewedSpellInfo?.castingRank, viewedSpellInfo?.castingSlot, null)
+                  ?.then(() => infoModal?.close())
               }
             "
           />
@@ -419,16 +422,16 @@ const spellbook = computed((): Spellbook => {
                 i.system.location.value === spellSelectionModal.options?.entryId &&
                 (i.system.level.value ?? 0) <= spellSelectionModal.options.castingRank
             )"
-            :clicked="
+            @click="
               () => {
                 return spellcastingEntries
                   ?.find((e) => e._id === spellSelectionModal?.options?.entryId)
-                  ?.setPrepared(
+                  ?.setPrepared?.(
                     spellSelectionModal?.options?.castingRank,
                     spellSelectionModal?.options?.castingSlot,
                     spell._id ?? null
                   )
-                  .then(() => spellSelectionModal?.close())
+                  ?.then(() => spellSelectionModal?.close())
               }
             "
             :key="spell._id"
