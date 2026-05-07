@@ -77,7 +77,7 @@ export function makeStrike(
       })) ?? [],
       selected: { id: root?.ammunition?.selected?.id ?? '' }
     },
-    _modifiers: makeModifiers(root?.modifiers as unknown as Parameters<typeof makeModifiers>[0])
+    _modifiers: makeModifiers(root?.modifiers)
   }
 }
 
@@ -115,6 +115,6 @@ export function makeElementalBlasts(root: PF2eElementalBlast | undefined): Eleme
     altUsages: [],
     traits: [],
     weaponTraits: [],
-    _modifiers: makeModifiers(config?.statistic?.modifiers as unknown as Parameters<typeof makeModifiers>[0])
+    _modifiers: makeModifiers(config?.statistic?.modifiers)
   }))
 }

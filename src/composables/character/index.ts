@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import type { Actor } from '@/types/pf2e-types'
+import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 
 import { type CharacterCore, useCharacterCore } from './characterCore'
 import { type CharacterStats, useCharacterStats } from './characterStats'
@@ -21,7 +21,7 @@ export interface Character
     CharacterRules {}
 
 // TODO: switch these imports over to objects rather than functions so that errors show up in more useful places
-export function useCharacter(actor: Ref<Actor | undefined>) {
+export function useCharacter(actor: Ref<CharacterPF2e | undefined>) {
   const character: Character = {
     ...useCharacterCore(actor),
     ...useCharacterStats(actor),

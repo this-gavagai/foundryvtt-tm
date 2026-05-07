@@ -1,5 +1,5 @@
 import { computed, type Ref } from 'vue'
-import type { Actor } from '@/types/pf2e-types'
+import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { Immunity, Weakness, Resistance } from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField, Maybe } from './helpers'
 import { type Modifier, makeModifiers } from './modifier'
@@ -67,7 +67,7 @@ export interface CharacterStats {
   ) => Promise<RequestResolutionArgs>
 }
 
-export function useCharacterStats(actor: Ref<Actor | undefined>): CharacterStats {
+export function useCharacterStats(actor: Ref<CharacterPF2e | undefined>): CharacterStats {
   const { rollCheck, updateActorItem } = useApi()
   const attributes = {
     str: computed(() => actor.value?.system?.abilities?.str?.mod ?? calcAttribute(actor, 'str')),
@@ -88,30 +88,27 @@ export function useCharacterStats(actor: Ref<Actor | undefined>): CharacterStats
         set: (newValue) => {
           console.log(newValue)
           const shieldId = actor.value?.system?.attributes?.shield?.itemId
-          // const shieldItem = actor.value?.items.find((i: PF2eItem) => i._id === shieldId)
-          // console.log(shieldItem)
-          // if (shieldItem?.system?.hp) shieldItem.system.hp.value = newValue
-          actor.value!.system.attributes.shield.hp.value = newValue
+          actor.value!.system.attributes.shield.hp.value = newValue!
           const update = { system: { hp: { value: newValue } } }
-          updateActorItem(actor as Ref<Actor>, shieldId, update)
+          updateActorItem(actor as Ref<CharacterPF2e>, shieldId ?? '', update)
         }
       }),
       max: computed(() => actor.value?.system?.attributes?.shield?.hp?.max),
-      brokenThreshold: computed(() => actor.value?.system?.attributes?.shield?.hp?.brokenThreshold)
+      brokenThreshold: computed(() => (actor.value?.system?.attributes?.shield?.hp as { brokenThreshold?: number })?.brokenThreshold)
     },
     ac: computed(() => actor.value?.system?.attributes?.shield?.ac),
     hardness: computed(() => actor.value?.system?.attributes?.shield?.hardness),
     raised: computed(() => actor.value?.system?.attributes?.shield?.raised),
     broken: computed(() => actor.value?.system?.attributes?.shield?.broken),
     destroyed: computed(() => actor.value?.system?.attributes?.shield?.destroyed),
-    itemId: computed(() => actor.value?.system?.attributes?.shield?.itemId)
+    itemId: computed(() => actor.value?.system?.attributes?.shield?.itemId ?? undefined)
   }
   const saves = {
     fortitude: computed(() => ({
       ...(makeStat(actor.value?.system?.saves?.fortitude) as Stat),
       roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
         rollCheck(
-          actor as Ref<Actor>,
+          actor as Ref<CharacterPF2e>,
           'save',
           'fortitude',
           { d20: [result ?? 0] },
@@ -122,18 +119,18 @@ export function useCharacterStats(actor: Ref<Actor | undefined>): CharacterStats
     reflex: computed(() => ({
       ...(makeStat(actor.value?.system?.saves?.reflex) as Stat),
       roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
-        rollCheck(actor as Ref<Actor>, 'save', 'reflex', { d20: [result ?? 0] }, [], options ?? {})
+        rollCheck(actor as Ref<CharacterPF2e>, 'save', 'reflex', { d20: [result ?? 0] }, [], options ?? {})
     })),
     will: computed(() => ({
       ...(makeStat(actor.value?.system?.saves?.will) as Stat),
       roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
-        rollCheck(actor as Ref<Actor>, 'save', 'will', { d20: [result ?? 0] }, [], options ?? {})
+        rollCheck(actor as Ref<CharacterPF2e>, 'save', 'will', { d20: [result ?? 0] }, [], options ?? {})
     }))
   }
   const perception = computed(() => ({
     ...(makeStat(actor.value?.system?.perception) as Stat),
     roll: (result: number | undefined) =>
-      rollCheck(actor as Ref<Actor>, 'perception', '', { d20: [result ?? 0] })
+      rollCheck(actor as Ref<CharacterPF2e>, 'perception', '', { d20: [result ?? 0] })
   }))
 
   const immunities = computed(() => makeIWRs(actor.value?.system?.attributes?.immunities))
@@ -145,7 +142,7 @@ export function useCharacterStats(actor: Ref<Actor | undefined>): CharacterStats
     rollResult: number | undefined = undefined,
     options: object | undefined = {}
   ) => {
-    return rollCheck(actor as Ref<Actor>, 'flat', '', { d20: [rollResult ?? 0] }, [], options ?? {})
+    return rollCheck(actor as Ref<CharacterPF2e>, 'flat', '', { d20: [rollResult ?? 0] }, [], options ?? {})
   }
 
   return {
@@ -162,39 +159,57 @@ export function useCharacterStats(actor: Ref<Actor | undefined>): CharacterStats
   }
 }
 
+type AncestrySystem = {
+  alternateAncestryBoosts?: string[]
+  boosts?: Record<string, { selected?: string; value: string[] }>
+  flaws?: Record<string, { selected?: string; value: string[] }>
+  voluntary?: { boost?: string; flaws?: string[] }
+}
+type BackgroundSystem = {
+  boosts?: Record<string, { selected?: string; value: string[] }>
+}
+type ClassSystem = {
+  keyAbility?: { selected?: string; value: string[] }
+}
+type ApexSystem = {
+  apex?: { attribute?: string; selected?: boolean }
+}
+
 function calcAttribute(
-  actor: Ref<Actor | undefined>,
+  actor: Ref<CharacterPF2e | undefined>,
   stat: 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha'
 ) {
   if (!actor.value) return
   let count = 0
   // ancestry
   const ancestry = actor.value.items.find((i) => i.type === 'ancestry')
-  if (ancestry?.system?.alternateAncestryBoosts?.length) {
-    if (ancestry?.system?.alternateAncestryBoosts.includes(stat)) count++
+  const ancestrySystem = ancestry?.system as AncestrySystem | undefined
+  if (ancestrySystem?.alternateAncestryBoosts?.length) {
+    if (ancestrySystem?.alternateAncestryBoosts.includes(stat)) count++
   } else {
-    Object.values(ancestry?.system?.boosts ?? {}).forEach((b) => {
+    Object.values(ancestrySystem?.boosts ?? {}).forEach((b) => {
       if (b.selected && b.selected === stat) count++
       else if (!b.selected && b.value.length === 1 && b.value[0] === stat) count++
     })
-    Object.values(ancestry?.system?.flaws ?? {}).forEach((b) => {
+    Object.values(ancestrySystem?.flaws ?? {}).forEach((b) => {
       if (b.selected && b.selected === stat) count--
       else if (!b.selected && b.value.length === 1 && b.value[0] === stat) count--
     })
   }
-  if (ancestry?.system?.voluntary?.boost === stat) count++
-  if (ancestry?.system?.voluntary?.flaws?.includes(stat)) count--
+  if (ancestrySystem?.voluntary?.boost === stat) count++
+  if (ancestrySystem?.voluntary?.flaws?.includes(stat)) count--
 
   // background
   const background = actor.value.items.find((i) => i.type === 'background')
-  Object.values(background?.system?.boosts ?? {}).forEach((b) => {
+  const backgroundSystem = background?.system as BackgroundSystem | undefined
+  Object.values(backgroundSystem?.boosts ?? {}).forEach((b) => {
     if (b.selected && b.selected === stat) count++
     else if (!b.selected && b.value.length === 1 && b.value[0] === stat) count++
   })
 
   // class
   const classType = actor.value.items.find((i) => i.type === 'class')
-  const keyAbility = classType?.system?.keyAbility
+  const keyAbility = (classType?.system as ClassSystem | undefined)?.keyAbility
   if (keyAbility?.selected && keyAbility?.selected === stat) count++
   else if (!keyAbility?.selected && keyAbility?.value.length === 1 && keyAbility?.value[0] === stat)
     count++
@@ -208,7 +223,7 @@ function calcAttribute(
 
   // apex items
   const apex = actor.value.items.find(
-    (i) => i?.system?.apex?.attribute === stat && i?.system?.apex?.selected === true
+    (i) => (i?.system as ApexSystem)?.apex?.attribute === stat && (i?.system as ApexSystem)?.apex?.selected === true
   )
   if (apex) count = Math.max(count + 1, 4)
 

@@ -1,6 +1,6 @@
 import { type Ref, computed } from 'vue'
 import type { Field, Maybe } from './helpers'
-import { type Actor } from '@/types/pf2e-types'
+import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import { useApi } from '../api'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 
@@ -21,20 +21,34 @@ interface RollOption {
   ) => Promise<DocumentSocketResponse>
 }
 
-export function useCharacterRules(actor: Ref<Actor | undefined>): CharacterRules {
+type RollOptionRule = {
+  key?: string
+  option?: string
+  toggleable?: boolean
+  value?: boolean
+  alwaysActive?: boolean
+  suboptions?: { label?: string; value?: string }[]
+  selection?: string
+  label?: string
+}
+
+type ActorWithActiveRules = { activeRules?: string[] }
+
+export function useCharacterRules(actor: Ref<CharacterPF2e | undefined>): CharacterRules {
   const { updateActorItem } = useApi()
   const rollOptions = computed(() => {
     const rollOptions = new Map<string, RollOption>()
+    const activeRules = (actor.value as ActorWithActiveRules)?.activeRules
     actor.value?.items.forEach((item) => {
-      item.system.rules.forEach((rule) => {
+      (item.system.rules as RollOptionRule[]).forEach((rule) => {
         if (
           rule.key === 'RollOption' &&
-          actor.value?.activeRules.includes(rule.option) &&
-          (rule.toggleable === true || rule.suboptions?.length > 0)
+          activeRules?.includes(rule.option ?? '') &&
+          (rule.toggleable === true || (rule.suboptions?.length ?? 0) > 0)
         ) {
-          if (!rollOptions.get(rule.option)) {
-            rollOptions.set(rule.option, {
-              sourceId: item?._id,
+          if (!rollOptions.get(rule.option ?? '')) {
+            rollOptions.set(rule.option ?? '', {
+              sourceId: item?._id ?? undefined,
               label: rule?.label ?? item.name ?? '',
               toggleable: rule?.toggleable,
               value: rule?.value,
@@ -43,26 +57,26 @@ export function useCharacterRules(actor: Ref<Actor | undefined>): CharacterRules
               selection: rule?.selection,
               updateRule: (newToggleValue, newSelection) => {
                 const itemSet = actor.value?.items
-                  ?.filter((i) => i?.system?.rules.some((r) => r?.option === rule?.option))
-                  ?.map((i) => i._id)
+                  ?.filter((i) => (i?.system?.rules as RollOptionRule[]).some((r) => r?.option === rule?.option))
+                  ?.map((i) => i._id!)
                 const updateSet: object[] = []
                 itemSet?.forEach((i) => {
-                  const rules = actor.value?.items.find((j) => j._id === i)?.system.rules
+                  const rules = actor.value?.items.find((j) => j._id === i)?.system.rules as RollOptionRule[] | undefined
                   const rollOptionRule = rules?.find(
                     (r) => r.option === rule?.option && r.key === 'RollOption'
                   )
                   if (rollOptionRule) {
-                    if (newToggleValue !== null) rollOptionRule.value = newToggleValue
-                    if (newSelection !== null) rollOptionRule.selection = newSelection
+                    if (newToggleValue !== null) rollOptionRule.value = newToggleValue ?? undefined
+                    if (newSelection !== null) rollOptionRule.selection = newSelection ?? undefined
                   }
                   const update = { system: { rules: rules } }
                   updateSet.push(update)
                 })
-                return updateActorItem(actor as Ref<Actor>, itemSet ?? [], updateSet ?? [])
+                return updateActorItem(actor as Ref<CharacterPF2e>, itemSet ?? [], updateSet ?? [])
               }
             })
           }
-          const rollOption = rollOptions.get(rule.option)
+          const rollOption = rollOptions.get(rule.option ?? '')
           rule.suboptions?.forEach((s) => {
             rollOption?.suboptions.push({ label: s.label, value: s.value })
           })

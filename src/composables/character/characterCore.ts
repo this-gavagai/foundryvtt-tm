@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 import { computed } from 'vue'
-import type { Actor } from '@/types/pf2e-types'
+import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { AncestryPF2e, BackgroundPF2e, ClassPF2e as ClassPF2eType, HeritagePF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField } from './helpers'
 import type { RequestResolutionArgs } from '@/types/api-types'
@@ -35,12 +35,12 @@ export interface CharacterCore {
   rollInline: (result: number | undefined) => Promise<RequestResolutionArgs | null>
 }
 
-export function useCharacterCore(actor: Ref<Actor | undefined>): CharacterCore {
+export function useCharacterCore(actor: Ref<CharacterPF2e | undefined>): CharacterCore {
   const { updateActor, rollCheck } = useApi()
 
-  const _id = computed(() => actor.value?._id)
+  const _id = computed(() => actor.value?._id ?? undefined)
   const name = computed(() => actor.value?.name)
-  const portraitUrl = computed(() => actor.value?.prototypeToken?.texture?.src)
+  const portraitUrl = computed(() => actor.value?.prototypeToken?.texture?.src ?? undefined)
 
   const ancestry = computed(() =>
     makeAncestry(actor.value?.items?.find((x) =>x.type === 'ancestry') as AncestryPF2e | undefined)
@@ -60,7 +60,7 @@ export function useCharacterCore(actor: Ref<Actor | undefined>): CharacterCore {
     current: computed({
       get: () => actor.value?.system?.details?.xp?.value,
       set: (newValue) => {
-        actor.value!.system.details.xp.value = newValue
+        actor.value!.system.details.xp.value = newValue!
         const update = { system: { details: { xp: { value: newValue } } } }
         updateActor(actor, update)
       }
@@ -68,11 +68,11 @@ export function useCharacterCore(actor: Ref<Actor | undefined>): CharacterCore {
     max: computed(() => actor.value?.system?.details?.xp?.max)
   }
   const movement = {
-    land: computed(() => makeStat(actor.value?.system?.movement?.speeds?.land)),
-    swim: computed(() => makeStat(actor.value?.system?.movement?.speeds?.swim)),
-    climb: computed(() => makeStat(actor.value?.system?.movement?.speeds?.climb)),
-    fly: computed(() => makeStat(actor.value?.system?.movement?.speeds?.fly)),
-    burrow: computed(() => makeStat(actor.value?.system?.movement?.speeds?.burrow))
+    land: computed(() => makeStat(actor.value?.system?.movement?.speeds?.land ?? undefined)),
+    swim: computed(() => makeStat(actor.value?.system?.movement?.speeds?.swim ?? undefined)),
+    climb: computed(() => makeStat(actor.value?.system?.movement?.speeds?.climb ?? undefined)),
+    fly: computed(() => makeStat(actor.value?.system?.movement?.speeds?.fly ?? undefined)),
+    burrow: computed(() => makeStat(actor.value?.system?.movement?.speeds?.burrow ?? undefined))
 
     // land: computed(() => makeStat(actor.value?.system?.attributes?.speed)),
     // swim: computed(() =>
@@ -106,7 +106,7 @@ export function useCharacterCore(actor: Ref<Actor | undefined>): CharacterCore {
 
   const rollInline = (result: number | undefined) => {
     console.log('as promised')
-    return rollCheck(actor as Ref<Actor>, 'flat', '', { d20: [result ?? 0] })
+    return rollCheck(actor as Ref<CharacterPF2e>, 'flat', '', { d20: [result ?? 0] })
   }
 
   return {

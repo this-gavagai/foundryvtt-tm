@@ -44,7 +44,7 @@ export interface SpellcastingEntrySystem extends ItemSystem {
 }
 
 export function makeSpell(root: SpellPF2e): Spell {
-  const base = makeItem(root as unknown as Parameters<typeof makeItem>[0])!
+  const base = makeItem(root)!
   return {
     ...base,
     system: {
@@ -75,7 +75,7 @@ export function makeSpell(root: SpellPF2e): Spell {
 export function makeSpellcastingEntry(
   root: SpellcastingEntryPF2e
 ): SpellcastingEntry {
-  const base = makeItem(root as unknown as Parameters<typeof makeItem>[0])!
+  const base = makeItem(root)!
   const slots = Object.entries(root.system.slots ?? {}).reduce(
     (acc, [key, slot]) => {
       acc[key] = {

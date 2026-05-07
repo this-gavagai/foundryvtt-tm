@@ -37,7 +37,7 @@ export interface PhysicalItem extends Item {
 }
 
 export function makePhysicalItem(root: PhysicalItemPF2e): PhysicalItem {
-  const base = makeItem(root as unknown as Parameters<typeof makeItem>[0])!
+  const base = makeItem(root)!
   return {
     ...base,
     label: undefined,
@@ -63,7 +63,7 @@ export function makePhysicalItem(root: PhysicalItemPF2e): PhysicalItem {
         },
         per: root.system.price?.per
       },
-      subitems: root.system.subitems?.map((i) => makeItem(i as unknown as Parameters<typeof makeItem>[0]))
+      subitems: root.subitems?.contents.map((i) => makeItem(i))
     }
   } as PhysicalItem
 }

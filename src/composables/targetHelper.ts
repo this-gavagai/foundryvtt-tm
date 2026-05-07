@@ -29,8 +29,8 @@ function updateProxyId(newId: string): Promise<DocumentSocketResponse | null> {
   // update remote
   const response = updateUserTargetingProxy(getUserId(), newId)
   // update local
-  const flagsBase = (world.value.users.find((u) => u._id === getUserId())?.flags?.tablemate ?? {}) as Record<string, unknown>
-  flagsBase.targeting_proxy = newId
+  const tablemate = world.value.users.find((u) => u._id === getUserId())?.flags?.tablemate as { targeting_proxy?: string } | undefined
+  if (tablemate) tablemate.targeting_proxy = newId
 
   localProxyId.value = newId
   return response

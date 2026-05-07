@@ -15,7 +15,7 @@ export interface FeatSystem extends ItemSystem {
 }
 
 export function makeFeat(root: FeatPF2e): Feat {
-  const base = makeItem(root as unknown as Parameters<typeof makeItem>[0])!
+  const base = makeItem(root)!
   return {
     ...base,
     system: {

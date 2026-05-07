@@ -12,7 +12,7 @@ export interface Condition extends Effect {
 }
 
 export function makeCondition(root: ConditionPF2e): Condition {
-  const base = makeEffect(root as unknown as Parameters<typeof makeEffect>[0])
+  const base = makeEffect(root)
   return {
     ...base,
     system: {

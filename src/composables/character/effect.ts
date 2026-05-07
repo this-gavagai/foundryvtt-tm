@@ -1,4 +1,4 @@
-import type { EffectPF2e } from '@7h3laughingman/pf2e-types'
+import type { AbstractEffectPF2e } from '@7h3laughingman/pf2e-types'
 import type { Item, ItemSystem } from './item'
 import { makeItem } from './item'
 
@@ -8,8 +8,8 @@ export interface Effect extends Item {
 
 export interface EffectSystem extends ItemSystem {}
 
-export function makeEffect(root: EffectPF2e): Effect {
-  const base = makeItem(root as unknown as Parameters<typeof makeItem>[0])!
+export function makeEffect(root: AbstractEffectPF2e): Effect {
+  const base = makeItem(root)!
   return {
     ...base,
     system: {

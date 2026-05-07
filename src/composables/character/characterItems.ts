@@ -1,5 +1,5 @@
 import { computed, type Ref } from 'vue'
-import type { Actor } from '@/types/pf2e-types'
+import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, Maybe } from './helpers'
 import { type PhysicalItem, type PhysicalItemSystem } from './physicalItem'
 import { type Equipment, makeEquipment } from './equipment'
@@ -11,7 +11,7 @@ import { type Effect, makeEffect } from './effect'
 import { type Condition, makeCondition } from './condition'
 import { useApi } from '../api'
 import { inventoryTypes } from '@/utils/constants'
-import type { ArmorPF2e, ConditionPF2e, ConsumablePF2e, EffectPF2e, EquipmentPF2e, FeatPF2e, ItemPF2e, PhysicalItemPF2e, WeaponPF2e } from '@7h3laughingman/pf2e-types'
+import type { AbstractEffectPF2e, ArmorPF2e, ConditionPF2e, ConsumablePF2e, EquipmentPF2e, FeatPF2e, PhysicalItemPF2e, WeaponPF2e } from '@7h3laughingman/pf2e-types'
 
 export type InventoryItem = PhysicalItem & {
   system: { uses?: { value: Maybe<number>; max: Maybe<number> } }
@@ -39,11 +39,11 @@ export interface CharacterItems {
   }
 }
 
-export function useCharacterItems(actor: Ref<Actor | undefined>): CharacterItems {
+export function useCharacterItems(actor: Ref<CharacterPF2e | undefined>): CharacterItems {
   const { deleteActorItem, updateActorItem, consumeItem } = useApi()
   const feats = computed(() =>
-    (actor.value?.items as unknown as FeatPF2e[])
-      ?.filter((i) => i.type === 'feat')
+    actor.value?.items
+      ?.filter((i): i is FeatPF2e<CharacterPF2e> => i.type === 'feat')
       .sort(
         (a, b) =>
           (a?.system?.level?.taken ?? a?.system?.level?.value ?? 0) -
@@ -52,42 +52,42 @@ export function useCharacterItems(actor: Ref<Actor | undefined>): CharacterItems
       .map((i) => makeFeat(i))
   )
   const effects = computed(() =>
-    (actor.value?.items as unknown as ItemPF2e[])
-      ?.filter((i) => ['effect', 'condition'].includes(i?.type ?? ''))
+    actor.value?.items
+      ?.filter((i): i is AbstractEffectPF2e<CharacterPF2e> => ['effect', 'condition'].includes(i?.type ?? ''))
       .map((i) => ({
         ...(i.type === 'condition'
-          ? makeCondition(i as ConditionPF2e)
-          : makeEffect(i as EffectPF2e)),
-        delete: () => deleteActorItem(actor as Ref<Actor>, i._id!),
+          ? makeCondition(i as ConditionPF2e<CharacterPF2e>)
+          : makeEffect(i)),
+        delete: () => deleteActorItem(actor as Ref<CharacterPF2e>, i._id!),
         changeQty: (newValue: number) => {
           const update = { system: { value: { value: newValue } } }
-          return updateActorItem(actor as Ref<Actor>, i._id!, update)
+          return updateActorItem(actor as Ref<CharacterPF2e>, i._id!, update)
         }
       }))
   )
   const inventory = computed(() =>
-    (actor.value?.items as unknown as PhysicalItemPF2e[])
-      ?.filter((i) => inventoryTypes.map((t) => t.type).includes(i?.type ?? ''))
+    actor.value?.items
+      ?.filter((i): i is PhysicalItemPF2e<CharacterPF2e> => inventoryTypes.map((t) => t.type).includes(i?.type ?? ''))
       .map((i) => ({
         ...(i.type === 'weapon'
-          ? makeWeapon(i as WeaponPF2e)
+          ? makeWeapon(i as WeaponPF2e<CharacterPF2e>)
           : i.type === 'armor'
-            ? makeArmor(i as ArmorPF2e)
+            ? makeArmor(i as ArmorPF2e<CharacterPF2e>)
             : i.type === 'consumable'
-              ? makeConsumable(i as ConsumablePF2e)
-              : makeEquipment(i as EquipmentPF2e)),
-        label: actor.value?.inventory?.labels?.[i._id!],
+              ? makeConsumable(i as ConsumablePF2e<CharacterPF2e>)
+              : makeEquipment(i as EquipmentPF2e<CharacterPF2e>)),
+        label: (actor.value?.inventory as { labels?: Record<string, string> })?.labels?.[i._id!],
         toggleInvested: (newValue: boolean = !i?.system?.equipped?.invested) => {
           console.log('toggle invested!')
           const update = { system: { equipped: { invested: newValue } } }
-          return updateActorItem(actor as Ref<Actor>, i._id!, update)
+          return updateActorItem(actor as Ref<CharacterPF2e>, i._id!, update)
         },
-        delete: () => deleteActorItem(actor as Ref<Actor>, i._id!),
+        delete: () => deleteActorItem(actor as Ref<CharacterPF2e>, i._id!),
         changeQty: (newValue: number) => {
           if (i?.system?.quantity === undefined) return Promise.resolve(null)
           i.system.quantity = Math.max(newValue, 0)
           const update = { system: { quantity: Math.max(newValue, 0) } }
-          return updateActorItem(actor as Ref<Actor>, i._id!, update)
+          return updateActorItem(actor as Ref<CharacterPF2e>, i._id!, update)
         },
         changeCarry: (
           carryType: Maybe<string>,
@@ -107,17 +107,17 @@ export function useCharacterItems(actor: Ref<Actor | undefined>): CharacterItems
               equipped: { carryType, handsHeld, inSlot }
             }
           }
-          return updateActorItem(actor as Ref<Actor>, i._id!, update)
+          return updateActorItem(actor as Ref<CharacterPF2e>, i._id!, update)
         },
-        consumeItem: () => consumeItem(actor as Ref<Actor>, i._id!),
+        consumeItem: () => consumeItem(actor as Ref<CharacterPF2e>, i._id!),
         changeUses: (newValue: number) => {
           const updates = { system: { uses: { value: newValue } } }
-          return updateActorItem(actor as Ref<Actor>, i._id!, updates)
+          return updateActorItem(actor as Ref<CharacterPF2e>, i._id!, updates)
         }
       }))
       .map((e: PhysicalItem) => {
         e.system.subitems?.forEach((s) => {
-          ;(s as PhysicalItem).label = actor.value?.inventory?.labels?.[s?._id ?? '']
+          ;(s as PhysicalItem).label = (actor.value?.inventory as { labels?: Record<string, string> })?.labels?.[s?._id ?? '']
         })
         return e
       })

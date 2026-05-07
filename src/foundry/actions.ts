@@ -71,8 +71,7 @@ export async function getCharacterDetails(
   }
   const activeRules = new Set()
   actor.rules.forEach((r: RollOptionRuleElement) => {
-    const testFn = (r as unknown as { test?: () => boolean }).test
-    if (r.option && testFn?.call(r)) activeRules.add(r.option)
+    if (r.option && r.predicate.test([])) activeRules.add(r.option)
   }, [])
   console.log('TABLEMATE: now sending ' + actor.name)
   return {
@@ -90,7 +89,7 @@ export async function getCharacterDetails(
 
 export async function foundryRollCheck(args: RollCheckArgs) {
   const source = typeof window.game === 'undefined' ? parent.game : window.game
-  const fakeEvent = {
+  const fakeEvent: Partial<PointerEvent> = {
     ctrlKey: false,
     metaKey: false,
     shiftKey: source.user.settings['showDamageDialogs']
@@ -108,7 +107,7 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       ? targetTokenDoc?.object
       : null,
     skipDialog: true,
-    event: fakeEvent as unknown as PointerEvent,
+    event: fakeEvent as PointerEvent,
     identifier: 'tm_background'
   }
 

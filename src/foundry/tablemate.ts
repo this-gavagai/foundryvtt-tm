@@ -38,7 +38,7 @@ Hooks.on('ready', () => {
     name: 'User Select',
     label: 'Select Character Sheet users',
     hint: 'Select which users will load the alternate Character Sheet instead of the standard Foundry environment',
-    type: PlayerSelectMenu as unknown as ConstructorOf<foundry.applications.api.ApplicationV2>,
+    type: PlayerSelectMenu as ConstructorOf<foundry.applications.api.ApplicationV2>,
     icon: 'fas fa-user',
     restricted: true
   })

@@ -1,6 +1,5 @@
 import type { Ref } from 'vue'
-import type { Actor } from '@/types/pf2e-types'
-import type { GamePF2e } from '@7h3laughingman/pf2e-types'
+import type { CharacterPF2e, GamePF2e } from '@7h3laughingman/pf2e-types'
 import type {
   RequestResolutionArgs,
   ModuleEventArgs,
@@ -116,7 +115,7 @@ async function setupSocketListenersForWorld(world: Ref<GamePF2e>) {
 
 async function setupSocketListenersForActor(
   actorId: string,
-  actor: Ref<Actor | undefined>,
+  actor: Ref<CharacterPF2e | undefined>,
   refreshMethod: () => Promise<void>
 ) {
   const socket = await getSocket()
@@ -145,7 +144,7 @@ async function setupSocketListenersForActor(
       case 'Item':
         if (!actor.value) return
         if (args.operation.parentUuid === 'Actor.' + actorId) {
-          processChanges(args, actor.value.items)
+          processChanges(args, actor.value.items as unknown as DocumentData[])
           requestCharacterDetails[actorId]()
         }
         break
@@ -172,7 +171,7 @@ async function sendCharacterRequest(actorId: string): Promise<void> {
 }
 function parseActorData(
   actorId: string,
-  actor: Ref<Actor | undefined>,
+  actor: Ref<CharacterPF2e | undefined>,
   args: UpdateCharacterDetailsArgs
 ) {
   // return
@@ -180,11 +179,12 @@ function parseActorData(
   if (characterUnsynced.get(actorId)) return
   if (characterLastRequest.get(actorId) !== args.uuid) return
 
-  if (!actor.value) actor.value = {} as Actor
-  if (!actor.value.system) actor.value.system = {} as Actor['system']
-  if (!actor.value.elementalBlasts) actor.value.elementalBlasts = {} as Actor['elementalBlasts']
-  if (!actor.value.inventory) actor.value.inventory = {}
-  if (!actor.value.activeRules) actor.value.activeRules = []
+  if (!actor.value) actor.value = {} as unknown as CharacterPF2e
+  if (!actor.value.system) actor.value.system = {} as unknown as CharacterPF2e['system']
+  const actorRecord = actor.value as unknown as Record<string, unknown>
+  if (!actorRecord.elementalBlasts) actorRecord.elementalBlasts = {}
+  if (!actorRecord.inventory) actorRecord.inventory = {}
+  if (!actorRecord.activeRules) actorRecord.activeRules = []
 
   const incoming = JSON.parse(args.actor)
   incoming.system = JSON.parse(args.system)
@@ -199,7 +199,7 @@ function parseActorData(
 // Emit Methods                      //
 ///////////////////////////////////////
 async function updateActor(
-  actor: Ref<Actor | undefined>,
+  actor: Ref<CharacterPF2e | undefined>,
   update: object
 ): Promise<DocumentSocketResponse> {
   const socket = await getSocket()
@@ -224,7 +224,7 @@ async function updateActor(
         ;(r.result as ModifyDocumentUpdate[]).forEach((change: ModifyDocumentUpdate) => {
           if (actor.value) mergeWith(actor.value, change, mergeWithArrayReset)
         })
-        requestCharacterDetails[actor.value!._id]()
+        requestCharacterDetails[actor.value!._id!]()
         resolve(r)
       }
     )
@@ -233,7 +233,7 @@ async function updateActor(
 }
 
 async function updateActorItem(
-  actor: Ref<Actor>,
+  actor: Ref<CharacterPF2e>,
   itemId: string | string[],
   update: object | object[]
 ): Promise<DocumentSocketResponse> {
@@ -258,8 +258,8 @@ async function updateActorItem(
         }
       },
       (r: DocumentSocketResponse) => {
-        processChanges(r as unknown as DocumentSocketResponse, actor.value.items)
-        requestCharacterDetails[actor.value._id]()
+        processChanges(r, actor.value.items as unknown as DocumentData[])
+        requestCharacterDetails[actor.value._id!]()
         resolve(r)
       }
     )
@@ -267,7 +267,7 @@ async function updateActorItem(
   return promise
 }
 
-async function deleteActorItem(actor: Ref<Actor>, itemId: string) {
+async function deleteActorItem(actor: Ref<CharacterPF2e>, itemId: string) {
   const socket = await getSocket()
   const promise = new Promise<DocumentSocketResponse>((resolve) => {
     socket.emit(
@@ -281,8 +281,8 @@ async function deleteActorItem(actor: Ref<Actor>, itemId: string) {
         }
       },
       (r: DocumentSocketResponse) => {
-        processChanges(r as unknown as DocumentSocketResponse, actor.value.items)
-        requestCharacterDetails[actor.value._id]()
+        processChanges(r, actor.value.items as unknown as DocumentData[])
+        requestCharacterDetails[actor.value._id!]()
         resolve(r)
       }
     )
@@ -322,7 +322,7 @@ async function updateUserTargetingProxy(
 // Action Request                    //
 ///////////////////////////////////////
 async function castSpell(
-  actor: Ref<Actor>,
+  actor: Ref<CharacterPF2e>,
   spellId: string,
   castingLevel: number,
   castingSlot: number
@@ -334,7 +334,7 @@ async function castSpell(
     userId,
     action: 'castSpell',
     id: spellId,
-    characterId: actor.value._id,
+    characterId: actor.value._id!,
     targets: getTargets(),
     rank: castingLevel,
     slotId: castingSlot,
@@ -349,7 +349,7 @@ async function castSpell(
 }
 
 async function rollCheck(
-  actor: Ref<Actor>,
+  actor: Ref<CharacterPF2e>,
   checkType: string,
   checkSubtype = '',
   diceResults: DiceResults = {},
@@ -363,7 +363,7 @@ async function rollCheck(
   const args: RollCheckArgs = {
     userId,
     action: 'rollCheck',
-    characterId: actor.value._id,
+    characterId: actor.value._id!,
     targets: getTargets(),
     item,
     checkType,
@@ -382,7 +382,7 @@ async function rollCheck(
 }
 
 async function characterAction(
-  actor: Ref<Actor>,
+  actor: Ref<CharacterPF2e>,
   characterAction: string,
   options = {},
   diceResults: DiceResults = {}
@@ -393,7 +393,7 @@ async function characterAction(
   const args: CharacterActionArgs = {
     userId,
     action: 'characterAction',
-    characterId: actor.value._id,
+    characterId: actor.value._id!,
     targets: getTargets(),
     characterAction,
     diceResults,
@@ -409,7 +409,7 @@ async function characterAction(
 }
 
 async function consumeItem(
-  actor: Ref<Actor>,
+  actor: Ref<CharacterPF2e>,
   consumableId: string,
   options = {}
 ): Promise<RequestResolutionArgs> {
@@ -418,7 +418,7 @@ async function consumeItem(
   const args: ConsumeItemArgs = {
     userId,
     action: 'consumeItem',
-    characterId: actor.value._id,
+    characterId: actor.value._id!,
     consumableId,
     options,
     uuid
@@ -430,7 +430,7 @@ async function consumeItem(
   })
 }
 async function getStrikeDamage(
-  actor: Ref<Actor>,
+  actor: Ref<CharacterPF2e>,
   actionSlug: string,
   altUsage: number | undefined = undefined
 ): Promise<RequestResolutionArgs> {
@@ -440,7 +440,7 @@ async function getStrikeDamage(
   const args: GetStrikeDamageArgs = {
     userId,
     action: 'getStrikeDamage',
-    characterId: actor.value._id,
+    characterId: actor.value._id!,
     targets: getTargets(),
     actionSlug: actionSlug,
     altUsage,

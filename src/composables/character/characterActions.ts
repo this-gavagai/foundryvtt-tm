@@ -1,5 +1,5 @@
 import { computed, type Ref } from 'vue'
-import type { Actor } from '@/types/pf2e-types'
+import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { AbilityItemPF2e, MartialProficiency, ClassDCData } from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField } from './helpers'
 import type { RequestResolutionArgs } from '@/types/api-types'
@@ -41,7 +41,7 @@ export interface CharacterActions {
   }
 }
 
-export function useCharacterActions(actor: Ref<Actor | undefined>): CharacterActions {
+export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): CharacterActions {
   const { characterAction, rollCheck, updateActor, callMacro } = useApi()
 
   // TODO: is this separate method necessary?
@@ -50,11 +50,12 @@ export function useCharacterActions(actor: Ref<Actor | undefined>): CharacterAct
     options: object | undefined = {},
     rollResult: number | undefined = undefined
   ) => {
-    return characterAction(actor as Ref<Actor>, slug, options ?? {}, { d20: [rollResult ?? 0] })
+    return characterAction(actor as Ref<CharacterPF2e>, slug, options ?? {}, { d20: [rollResult ?? 0] })
   }
   const actions = computed(() =>
-    (actor.value?.items as unknown as AbilityItemPF2e[])
-      ?.filter((i) => actionTypes.map((a) => a.type).includes(i?.system?.actionType?.value))
+    actor.value?.items
+      ?.filter((i): i is AbilityItemPF2e<CharacterPF2e> => i.type === 'action')
+      .filter((i) => actionTypes.map((a) => a.type).includes(i.system?.actionType?.value))
       .map((i) => ({
         ...(makeItem(i) as Action),
         actionType:
@@ -74,7 +75,7 @@ export function useCharacterActions(actor: Ref<Actor | undefined>): CharacterAct
         ]?.actionable?.macro,
         doAction: (options = {}, rollResult: number | undefined = undefined) => {
           if (i?.system?.slug)
-            return characterAction(actor as Ref<Actor>, i?.system?.slug, options ?? {}, {
+            return characterAction(actor as Ref<CharacterPF2e>, i?.system?.slug, options ?? {}, {
               d20: [rollResult ?? 0]
             })
           else return Promise.resolve(null)
@@ -84,7 +85,7 @@ export function useCharacterActions(actor: Ref<Actor | undefined>): CharacterAct
             i?.flags as Record<string, { actionable?: { macro?: string } } | undefined>
           )?.['pf2e-toolbelt']?.actionable?.macro
           if (macroId) {
-            callMacro(actor.value?._id, null, null, macroId, options)
+            callMacro(actor.value?._id ?? undefined, null, null, macroId, options)
           }
         }
       }))
@@ -96,7 +97,7 @@ export function useCharacterActions(actor: Ref<Actor | undefined>): CharacterAct
           ...makeStat(skill, key),
           roll: (result, options = {}) =>
             rollCheck(
-              actor as Ref<Actor>,
+              actor as Ref<CharacterPF2e>,
               'skill',
               skill.slug,
               { d20: [result ?? 0] },
@@ -112,7 +113,7 @@ export function useCharacterActions(actor: Ref<Actor | undefined>): CharacterAct
           slug: kebabCase(lore.name),
           label: lore.name,
           lore: true,
-          rank: lore.system.proficient.value
+          rank: (lore.system as { proficient?: { value?: number } })?.proficient?.value
         } as Stat)
       }))
     return skills.length === 16 && lores?.length ? [...skills, ...(lores ?? [])] : skills
@@ -141,7 +142,7 @@ export function useCharacterActions(actor: Ref<Actor | undefined>): CharacterAct
     stat: computed({
       get: () => actor.value?.system?.initiative?.statistic,
       set: (newValue) => {
-        actor.value!.system.initiative.statistic = newValue
+        actor.value!.system.initiative.statistic = newValue!
         const update = { system: { initiative: { statistic: newValue } } }
         updateActor(actor, update)
       }
@@ -149,7 +150,7 @@ export function useCharacterActions(actor: Ref<Actor | undefined>): CharacterAct
     modifiers: computed(() => makeModifiers(actor.value?.system?.initiative?.modifiers)),
     totalModifier: computed(() => actor.value?.system?.initiative?.totalModifier),
     roll: (result: number | undefined) => {
-      return rollCheck(actor as Ref<Actor>, 'initiative', '', { d20: [result ?? 0] })
+      return rollCheck(actor as Ref<CharacterPF2e>, 'initiative', '', { d20: [result ?? 0] })
     }
   }
 

@@ -4,7 +4,7 @@ import { useWorld } from './world'
 const { world } = useWorld()
 
 const lastDamageAmount = computed(() => {
-  const lastMessage = (world.value?.messages as unknown as { rolls?: string[] }[] | undefined)?.slice(-1)?.[0]
+  const lastMessage = world.value?.messages?.contents.slice(-1)[0] as { rolls?: string[] } | undefined
 
   const lastRoll = lastMessage?.rolls?.[0]
   if (lastRoll && JSON.parse(lastRoll)?.class === 'DamageRoll') {

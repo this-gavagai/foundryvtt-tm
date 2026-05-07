@@ -1,5 +1,5 @@
 import { computed, type Ref } from 'vue'
-import type { Actor } from '@/types/pf2e-types'
+import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, Maybe } from './helpers'
 import { type Spell, type SpellcastingEntry, makeSpell, makeSpellcastingEntry } from './spell'
 import { type Consumable, makeConsumable } from './consumable'
@@ -33,53 +33,50 @@ export interface CharacterSpells {
   spellConsumables: Field<Consumable[]>
 }
 
-export function useCharacterSpells(actor: Ref<Actor | undefined>): CharacterSpells {
+export function useCharacterSpells(actor: Ref<CharacterPF2e | undefined>): CharacterSpells {
   const { updateActor, castSpell, updateActorItem, consumeItem } = useApi()
 
   const spellcastingEntries = computed(() =>
     actor.value?.items
-      ?.filter?.((i) => i?.type === 'spellcastingEntry')
-      ?.map((item) => {
-        const typedItem = item as unknown as SpellcastingEntryPF2e
-        return {
-          ...makeSpellcastingEntry(typedItem),
-          setPrepared: (
-            rank: number | undefined,
-            slot: number | undefined,
-            newSpellId: string | null,
-            expended: boolean = false
-          ) => {
-            const prepared = typedItem.system.slots[('slot' + rank) as SlotKey]?.prepared
-            if (!prepared || !rank || !slot) return Promise.resolve(null)
-            if (!prepared[slot]) prepared[slot] = { id: null, expended: true }
-            prepared[slot].id = newSpellId
-            prepared[slot].expended = expended
-            const update = { system: { slots: { ['slot' + rank]: { prepared: prepared } } } }
-            return updateActorItem(actor as Ref<Actor>, item._id, update)
-          },
-          setSlotCount: (rank: number, newValue: number) => {
-            const update = { system: { slots: { ['slot' + rank]: { value: newValue } } } }
-            return updateActorItem(actor as Ref<Actor>, item._id, update)
-          }
+      ?.filter((i): i is SpellcastingEntryPF2e<CharacterPF2e> => i?.type === 'spellcastingEntry')
+      ?.map((item) => ({
+        ...makeSpellcastingEntry(item),
+        setPrepared: (
+          rank: number | undefined,
+          slot: number | undefined,
+          newSpellId: string | null,
+          expended: boolean = false
+        ) => {
+          const prepared = item.system.slots[('slot' + rank) as SlotKey]?.prepared
+          if (!prepared || !rank || !slot) return Promise.resolve(null)
+          if (!prepared[slot]) prepared[slot] = { id: null, expended: true }
+          prepared[slot].id = newSpellId
+          prepared[slot].expended = expended
+          const update = { system: { slots: { ['slot' + rank]: { prepared: prepared } } } }
+          return updateActorItem(actor as Ref<CharacterPF2e>, item._id!, update)
+        },
+        setSlotCount: (rank: number, newValue: number) => {
+          const update = { system: { slots: { ['slot' + rank]: { value: newValue } } } }
+          return updateActorItem(actor as Ref<CharacterPF2e>, item._id!, update)
         }
-      })
+      }))
   )
 
   const spells = computed(() => {
     const actorSpells = actor.value?.items
-      ?.filter((i) => i?.type === 'spell')
+      ?.filter((i): i is SpellPF2e<CharacterPF2e> => i?.type === 'spell')
       ?.map((item) => ({
-        ...makeSpell(item as unknown as SpellPF2e),
+        ...makeSpell(item),
         doSpell: (rank: number | undefined, slot: number | undefined) => {
           if (rank === undefined || slot === undefined) return Promise.resolve(null)
-          return castSpell(actor as Ref<Actor>, item._id, rank, slot)
+          return castSpell(actor as Ref<CharacterPF2e>, item._id!, rank, slot)
         }
       }))
 
-    const staffSpells = (
-      actor.value?.flags?.['pf2e-dailies']?.extra?.staffData?.spells ?? []
-    ).map((i: unknown) => ({
-      ...makeSpell(i as unknown as SpellPF2e),
+    type StaffData = { spells?: unknown[]; staffId?: string; charges?: { value?: number; max?: number }; expended?: boolean }
+    const dailies = actor.value?.flags?.['pf2e-dailies'] as { extra?: { staffData?: StaffData } } | undefined
+    const staffSpells = (dailies?.extra?.staffData?.spells ?? []).map((i: unknown) => ({
+      ...makeSpell(i as SpellPF2e),
       doSpell: undefined
     }))
 
@@ -89,36 +86,41 @@ export function useCharacterSpells(actor: Ref<Actor | undefined>): CharacterSpel
   const spellConsumables = computed(() =>
     actor.value?.items
       ?.filter(
-        (i) =>
-          i.system?.traits.value?.includes('scroll') || i.system?.traits.value?.includes('wand')
+        (i): i is ConsumablePF2e<CharacterPF2e> =>
+          i.type === 'consumable' &&
+          !!(i.system?.traits.value?.includes('scroll') || i.system?.traits.value?.includes('wand'))
       )
       ?.map((i) => ({
-        ...makeConsumable(i as unknown as ConsumablePF2e),
-        consumeItem: () => consumeItem(actor as Ref<Actor>, i._id),
+        ...makeConsumable(i),
+        consumeItem: () => consumeItem(actor as Ref<CharacterPF2e>, i._id!),
         changeUses: (newValue: number) => {
           const updates = { system: { uses: { value: newValue } } }
-          return updateActorItem(actor as Ref<Actor>, i?._id, updates)
+          return updateActorItem(actor as Ref<CharacterPF2e>, i._id!, updates)
         }
       }))
   )
 
-  const staff = computed(() => ({
-    staffId: actor.value?.flags?.['pf2e-dailies']?.extra?.staffData?.staffId,
-    charges: {
-      value: actor.value?.flags?.['pf2e-dailies']?.extra?.staffData?.charges?.value,
-      max: actor.value?.flags?.['pf2e-dailies']?.extra?.staffData?.charges?.max
-    },
-    spells: (actor.value?.flags?.['pf2e-dailies']?.extra?.staffData?.spells ?? []).map(
-      (i: unknown) => makeSpell(i as unknown as SpellPF2e)
-    ),
-    expended: actor.value?.flags?.['pf2e-dailies']?.extra?.staffData?.expended,
-    setStaffCharges: (newValue: number) => {
-      const update = {
-        flags: { 'pf2e-dailies': { extra: { staffData: { charges: { value: newValue } } } } }
+  const staff = computed(() => {
+    type StaffData = { spells?: unknown[]; staffId?: string; charges?: { value?: number; max?: number }; expended?: boolean }
+    const staffData = (actor.value?.flags?.['pf2e-dailies'] as { extra?: { staffData?: StaffData } } | undefined)?.extra?.staffData
+    return {
+      staffId: staffData?.staffId,
+      charges: {
+        value: staffData?.charges?.value,
+        max: staffData?.charges?.max
+      },
+      spells: (staffData?.spells ?? []).map(
+        (i: unknown) => makeSpell(i as SpellPF2e)
+      ),
+      expended: staffData?.expended,
+      setStaffCharges: (newValue: number) => {
+        const update = {
+          flags: { 'pf2e-dailies': { extra: { staffData: { charges: { value: newValue } } } } }
+        }
+        return updateActor(actor as Ref<CharacterPF2e>, update)
       }
-      return updateActor(actor as Ref<Actor>, update)
     }
-  }))
+  })
 
   return {
     spellcastingEntries,
