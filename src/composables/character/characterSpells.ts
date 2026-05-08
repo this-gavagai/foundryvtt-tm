@@ -10,6 +10,9 @@ import type { ConsumablePF2e, SpellPF2e, SpellcastingEntryPF2e, SlotKey } from '
 
 export type { Spell, SpellcastingEntry }
 
+type StaffData = { spells?: SpellPF2e[]; staffId?: string; charges?: { value?: number; max?: number }; expended?: boolean }
+type PF2eDailiesFlags = { extra?: { staffData?: StaffData } } | undefined
+
 export interface Staff {
   staffId: Maybe<string>
   charges: {
@@ -73,10 +76,9 @@ export function useCharacterSpells(actor: Ref<CharacterPF2e | undefined>): Chara
         }
       }))
 
-    type StaffData = { spells?: unknown[]; staffId?: string; charges?: { value?: number; max?: number }; expended?: boolean }
-    const dailies = actor.value?.flags?.['pf2e-dailies'] as { extra?: { staffData?: StaffData } } | undefined
-    const staffSpells = (dailies?.extra?.staffData?.spells ?? []).map((i: unknown) => ({
-      ...makeSpell(i as SpellPF2e),
+    const dailies = actor.value?.flags?.['pf2e-dailies'] as PF2eDailiesFlags
+    const staffSpells = (dailies?.extra?.staffData?.spells ?? []).map((i) => ({
+      ...makeSpell(i),
       doSpell: undefined
     }))
 
@@ -101,17 +103,14 @@ export function useCharacterSpells(actor: Ref<CharacterPF2e | undefined>): Chara
   )
 
   const staff = computed(() => {
-    type StaffData = { spells?: unknown[]; staffId?: string; charges?: { value?: number; max?: number }; expended?: boolean }
-    const staffData = (actor.value?.flags?.['pf2e-dailies'] as { extra?: { staffData?: StaffData } } | undefined)?.extra?.staffData
+    const staffData = (actor.value?.flags?.['pf2e-dailies'] as PF2eDailiesFlags)?.extra?.staffData
     return {
       staffId: staffData?.staffId,
       charges: {
         value: staffData?.charges?.value,
         max: staffData?.charges?.max
       },
-      spells: (staffData?.spells ?? []).map(
-        (i: unknown) => makeSpell(i as SpellPF2e)
-      ),
+      spells: (staffData?.spells ?? []).map((i) => makeSpell(i)),
       expended: staffData?.expended,
       setStaffCharges: (newValue: number) => {
         const update = {

@@ -1,13 +1,7 @@
 import { setupListener } from './listener'
 import type { UserPF2e, UserSourcePF2e } from '@7h3laughingman/pf2e-types'
+import type FormDataExtended from '@7h3laughingman/foundry-types/client/applications/ux/form-data-extended.mjs'
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api
-
-declare interface Form {
-  [key: string]: object
-}
-declare interface FormData {
-  object: { [key: string]: unknown }
-}
 declare interface SheetableUser extends UserPF2e {
   sheeted: boolean
 }
@@ -76,7 +70,7 @@ class PlayerSelectMenu extends HandlebarsApplicationMixin(ApplicationV2) {
     return { users, buttons }
   }
 
-  static async updateUserFlags(event: Event, form: Form, formData: FormData) {
+  static async updateUserFlags(event: Event, form: HTMLFormElement, formData: FormDataExtended) {
     // Do things with the returned FormData
     for (const id in formData.object) {
       const usr = game.users.get(id)

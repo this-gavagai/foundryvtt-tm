@@ -11,7 +11,7 @@ type StatInput = Partial<Omit<BaseStatisticTraceData, 'modifiers'>> & {
   lore?: boolean
   totalModifier?: number
   dc?: number
-  modifiers?: unknown[]
+  modifiers?: RawModifier[]
 }
 
 export interface Stat {
@@ -41,6 +41,6 @@ export function makeStat(root: StatInput | undefined, key: string | null = null)
     totalModifier: root?.totalModifier,
     dc: root?.dc,
     lore: root?.lore,
-    modifiers: makeModifiers(root?.modifiers as RawModifier[])
+    modifiers: makeModifiers(root?.modifiers)
   }
 }

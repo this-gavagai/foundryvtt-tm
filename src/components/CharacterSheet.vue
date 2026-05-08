@@ -63,7 +63,7 @@ const actor: ShallowRef<CharacterPF2e | undefined> = shallowRef()
 const actorOrWorldActor = computed(
   () =>
     actor.value ??
-    (world.value?.actors as unknown as CharacterPF2e[] | undefined)?.find((a) => a._id == props.characterId)
+    world.value?.actors.find<CharacterPF2e<null>>((a) => a._id == props.characterId)
 )
 const userHasActorPermission: ComputedRef<boolean> = computed(() => {
   if (
