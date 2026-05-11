@@ -1,11 +1,19 @@
 import { computed, type Ref } from 'vue'
-import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
-import type { Immunity, Weakness, Resistance } from '@7h3laughingman/pf2e-types'
+import type {
+  CharacterPF2e,
+  Immunity,
+  Weakness,
+  Resistance,
+  MartialProficiency,
+  ClassDCData
+} from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField, Maybe } from './helpers'
 import { type Modifier, makeModifiers } from './modifier'
 import { type Stat, makeStat } from './stat'
-import { useApi } from '../api'
+import { useApi } from '@/composables/api'
 import type { RequestResolutionArgs } from '@/types/api-types'
+import { kebabCase } from 'lodash-es'
+import { calcAttribute } from './calcAttributes'
 
 export interface IWR {
   type: Maybe<string>
@@ -56,6 +64,8 @@ export interface CharacterStats {
     will: Field<Stat>
   }
   perception: Field<Stat>
+  skills: Field<Stat[]>
+  proficiencies: Field<Stat[]>
   immunities: Field<IWR[]>
   weaknesses: Field<IWR[]>
   resistances: Field<IWR[]>
@@ -86,7 +96,6 @@ export function useCharacterStats(actor: Ref<CharacterPF2e | undefined>): Charac
       current: computed({
         get: () => actor.value?.system?.attributes?.shield?.hp?.value,
         set: (newValue) => {
-          console.log(newValue)
           const shieldId = actor.value?.system?.attributes?.shield?.itemId
           actor.value!.system.attributes.shield.hp.value = newValue!
           const update = { system: { hp: { value: newValue } } }
@@ -94,7 +103,11 @@ export function useCharacterStats(actor: Ref<CharacterPF2e | undefined>): Charac
         }
       }),
       max: computed(() => actor.value?.system?.attributes?.shield?.hp?.max),
-      brokenThreshold: computed(() => (actor.value?.system?.attributes?.shield?.hp as { brokenThreshold?: number })?.brokenThreshold)
+      brokenThreshold: computed(
+        () =>
+          (actor.value?.system?.attributes?.shield?.hp as { brokenThreshold?: number })
+            ?.brokenThreshold
+      )
     },
     ac: computed(() => actor.value?.system?.attributes?.shield?.ac),
     hardness: computed(() => actor.value?.system?.attributes?.shield?.hardness),
@@ -119,12 +132,26 @@ export function useCharacterStats(actor: Ref<CharacterPF2e | undefined>): Charac
     reflex: computed(() => ({
       ...(makeStat(actor.value?.system?.saves?.reflex) as Stat),
       roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
-        rollCheck(actor as Ref<CharacterPF2e>, 'save', 'reflex', { d20: [result ?? 0] }, [], options ?? {})
+        rollCheck(
+          actor as Ref<CharacterPF2e>,
+          'save',
+          'reflex',
+          { d20: [result ?? 0] },
+          [],
+          options ?? {}
+        )
     })),
     will: computed(() => ({
       ...(makeStat(actor.value?.system?.saves?.will) as Stat),
       roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
-        rollCheck(actor as Ref<CharacterPF2e>, 'save', 'will', { d20: [result ?? 0] }, [], options ?? {})
+        rollCheck(
+          actor as Ref<CharacterPF2e>,
+          'save',
+          'will',
+          { d20: [result ?? 0] },
+          [],
+          options ?? {}
+        )
     }))
   }
   const perception = computed(() => ({
@@ -132,6 +159,54 @@ export function useCharacterStats(actor: Ref<CharacterPF2e | undefined>): Charac
     roll: (result: number | undefined) =>
       rollCheck(actor as Ref<CharacterPF2e>, 'perception', '', { d20: [result ?? 0] })
   }))
+
+  const skills = computed(() => {
+    const skills = Object.entries(actor.value?.system?.skills ?? [])?.map(
+      ([key, skill]) =>
+        ({
+          ...makeStat(skill, key),
+          roll: (result, options = {}) =>
+            rollCheck(
+              actor as Ref<CharacterPF2e>,
+              'skill',
+              skill.slug,
+              { d20: [result ?? 0] },
+              [],
+              options ?? {}
+            )
+        }) as Stat
+    )
+    const lores: Stat[] = (actor.value?.items
+      .filter((i) => i.type === 'lore')
+      .map((lore) => ({
+        slug: kebabCase(lore.name),
+        label: lore.name,
+        lore: true,
+        rank: (lore.system as { proficient?: { value?: number } })?.proficient?.value
+      })) ?? []) as Stat[]
+    return lores.length ? [...skills, ...lores] : skills
+  })
+
+  const proficiencies = computed(() => [
+    ...Object.entries(
+      (actor.value?.system?.proficiencies?.['attacks'] ?? []) as Record<string, MartialProficiency>
+    ).map(([key, stat]) => ({ ...makeStat(stat, key), type: 'attacks', slug: key }) as Stat),
+    ...Object.entries(
+      (actor.value?.system?.proficiencies?.['defenses'] ?? []) as Record<string, MartialProficiency>
+    ).map(([key, stat]) => ({ ...makeStat(stat, key), type: 'defenses', slug: key }) as Stat),
+    ...Object.entries(
+      (actor.value?.system?.proficiencies?.['classDCs'] ?? []) as Record<string, ClassDCData>
+    ).map(([key, stat]) => ({ ...makeStat(stat, key), type: 'classDCs', slug: key }) as Stat),
+    ...[
+      {
+        ...(makeStat(actor.value?.system?.proficiencies?.['spellcasting']) as Stat),
+        value: actor.value?.system?.attributes?.classOrSpellDC?.value,
+        type: 'spellcasting',
+        slug: 'Spell DC',
+        label: 'Spell DC'
+      }
+    ]
+  ])
 
   const immunities = computed(() => makeIWRs(actor.value?.system?.attributes?.immunities))
   const weaknesses = computed(() => makeIWRs(actor.value?.system?.attributes?.weaknesses))
@@ -142,7 +217,14 @@ export function useCharacterStats(actor: Ref<CharacterPF2e | undefined>): Charac
     rollResult: number | undefined = undefined,
     options: object | undefined = {}
   ) => {
-    return rollCheck(actor as Ref<CharacterPF2e>, 'flat', '', { d20: [rollResult ?? 0] }, [], options ?? {})
+    return rollCheck(
+      actor as Ref<CharacterPF2e>,
+      'flat',
+      '',
+      { d20: [rollResult ?? 0] },
+      [],
+      options ?? {}
+    )
   }
 
   return {
@@ -151,81 +233,12 @@ export function useCharacterStats(actor: Ref<CharacterPF2e | undefined>): Charac
     shield,
     saves,
     perception,
+    skills,
+    proficiencies,
     immunities,
     weaknesses,
     resistances,
     spellDC,
     doFlatCheck
   }
-}
-
-type AncestrySystem = {
-  alternateAncestryBoosts?: string[]
-  boosts?: Record<string, { selected?: string; value: string[] }>
-  flaws?: Record<string, { selected?: string; value: string[] }>
-  voluntary?: { boost?: string; flaws?: string[] }
-}
-type BackgroundSystem = {
-  boosts?: Record<string, { selected?: string; value: string[] }>
-}
-type ClassSystem = {
-  keyAbility?: { selected?: string; value: string[] }
-}
-type ApexSystem = {
-  apex?: { attribute?: string; selected?: boolean }
-}
-
-function calcAttribute(
-  actor: Ref<CharacterPF2e | undefined>,
-  stat: 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha'
-) {
-  if (!actor.value) return
-  let count = 0
-  // ancestry
-  const ancestry = actor.value.items.find((i) => i.type === 'ancestry')
-  const ancestrySystem = ancestry?.system as AncestrySystem | undefined
-  if (ancestrySystem?.alternateAncestryBoosts?.length) {
-    if (ancestrySystem?.alternateAncestryBoosts.includes(stat)) count++
-  } else {
-    Object.values(ancestrySystem?.boosts ?? {}).forEach((b) => {
-      if (b.selected && b.selected === stat) count++
-      else if (!b.selected && b.value.length === 1 && b.value[0] === stat) count++
-    })
-    Object.values(ancestrySystem?.flaws ?? {}).forEach((b) => {
-      if (b.selected && b.selected === stat) count--
-      else if (!b.selected && b.value.length === 1 && b.value[0] === stat) count--
-    })
-  }
-  if (ancestrySystem?.voluntary?.boost === stat) count++
-  if (ancestrySystem?.voluntary?.flaws?.includes(stat)) count--
-
-  // background
-  const background = actor.value.items.find((i) => i.type === 'background')
-  const backgroundSystem = background?.system as BackgroundSystem | undefined
-  Object.values(backgroundSystem?.boosts ?? {}).forEach((b) => {
-    if (b.selected && b.selected === stat) count++
-    else if (!b.selected && b.value.length === 1 && b.value[0] === stat) count++
-  })
-
-  // class
-  const classType = actor.value.items.find((i) => i.type === 'class')
-  const keyAbility = (classType?.system as ClassSystem | undefined)?.keyAbility
-  if (keyAbility?.selected && keyAbility?.selected === stat) count++
-  else if (!keyAbility?.selected && keyAbility?.value.length === 1 && keyAbility?.value[0] === stat)
-    count++
-
-  // levels
-  if (actor.value.system?.build?.attributes?.boosts[1]?.includes(stat)) count++
-  if (actor.value.system?.build?.attributes?.boosts[5]?.includes(stat)) count++
-  if (actor.value.system?.build?.attributes?.boosts[10]?.includes(stat)) count++
-  if (actor.value.system?.build?.attributes?.boosts[15]?.includes(stat)) count++
-  if (actor.value.system?.build?.attributes?.boosts[20]?.includes(stat)) count++
-
-  // apex items
-  const apex = actor.value.items.find(
-    (i) => (i?.system as ApexSystem)?.apex?.attribute === stat && (i?.system as ApexSystem)?.apex?.selected === true
-  )
-  if (apex) count = Math.max(count + 1, 4)
-
-  return count <= 4 ? count : Math.floor((count - 4) / 2) + 4
 }

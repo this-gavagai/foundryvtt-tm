@@ -11,7 +11,7 @@ import ParsedDescription from './ParsedDescription.vue'
 import { getPath } from '@/utils/utilities'
 
 const character = inject(useKeys().characterKey)!
-const { effects, rollInline } = character
+const { effects } = character
 const infoModal = ref()
 const effectViewedId = ref<string | undefined>()
 const effectViewed = computed(() => effects.value?.find((e) => e._id === effectViewedId.value))
@@ -81,10 +81,7 @@ const effectViewed = computed(() => effects.value?.find((e) => e._id === effectV
           <span class="capitalize">{{ effectViewed?.type }}</span>
         </template>
         <template #body>
-          <ParsedDescription
-            :text="effectViewed?.system?.description?.value"
-            @check-initiated="() => rollInline(undefined)"
-          />
+          <ParsedDescription :text="effectViewed?.system?.description?.value" />
         </template>
         <template #actionButtons>
           <Button

@@ -1,26 +1,18 @@
 import { computed, type Ref } from 'vue'
-import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
-import type { AbilityItemPF2e, MartialProficiency, ClassDCData } from '@7h3laughingman/pf2e-types'
+import type { CharacterPF2e, AbilityItemPF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField } from './helpers'
 import type { RequestResolutionArgs } from '@/types/api-types'
-import { type Stat, makeStat } from './stat'
 import { type Modifier, makeModifiers } from './modifier'
 import type { Maybe } from './helpers'
 import { type Item, type ItemSystem, makeItem } from './item'
-// import { type Strike, type ElementalBlast, makeStrike, makeElementalBlasts } from './strike'
 import { useApi } from '../api'
 import { actionTypes } from '@/utils/constants'
-import { kebabCase } from 'lodash-es'
 
 export interface Action extends Item {
   system: ItemSystem & { actions?: { value: Maybe<string> } }
   actionType: string | null
   item: Item
   macroId: Maybe<string>
-  doAction?: (
-    options?: object | undefined,
-    rollResult?: number | undefined
-  ) => Promise<RequestResolutionArgs | null>
   doMacro?: (options?: object | undefined) => void
 }
 
@@ -31,8 +23,6 @@ export interface CharacterActions {
     rollResult?: number | undefined
   ) => Promise<RequestResolutionArgs | null>
   actions: Field<Action[]>
-  skills: Field<Stat[]>
-  proficiencies: Field<Stat[]>
   initiative: {
     stat: WritableField<string>
     modifiers: Field<Modifier[]>
@@ -50,7 +40,9 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
     options: object | undefined = {},
     rollResult: number | undefined = undefined
   ) => {
-    return characterAction(actor as Ref<CharacterPF2e>, slug, options ?? {}, { d20: [rollResult ?? 0] })
+    return characterAction(actor as Ref<CharacterPF2e>, slug, options ?? {}, {
+      d20: [rollResult ?? 0]
+    })
   }
   const actions = computed(() =>
     actor.value?.items
@@ -73,13 +65,6 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
         macroId: (i?.flags as Record<string, { actionable?: { macro?: string } } | undefined>)?.[
           'pf2e-toolbelt'
         ]?.actionable?.macro,
-        doAction: (options = {}, rollResult: number | undefined = undefined) => {
-          if (i?.system?.slug)
-            return characterAction(actor as Ref<CharacterPF2e>, i?.system?.slug, options ?? {}, {
-              d20: [rollResult ?? 0]
-            })
-          else return Promise.resolve(null)
-        },
         doMacro: (options = {}) => {
           const macroId = (
             i?.flags as Record<string, { actionable?: { macro?: string } } | undefined>
@@ -90,54 +75,6 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
         }
       }))
   )
-  const skills = computed(() => {
-    const skills = Object.entries(actor.value?.system?.skills ?? [])?.map(
-      ([key, skill]) =>
-        ({
-          ...makeStat(skill, key),
-          roll: (result, options = {}) =>
-            rollCheck(
-              actor as Ref<CharacterPF2e>,
-              'skill',
-              skill.slug,
-              { d20: [result ?? 0] },
-              [],
-              options ?? {}
-            )
-        }) as Stat
-    )
-    const lores = actor.value?.items
-      .filter((i) => i.type === 'lore')
-      .map((lore) => ({
-        ...({
-          slug: kebabCase(lore.name),
-          label: lore.name,
-          lore: true,
-          rank: (lore.system as { proficient?: { value?: number } })?.proficient?.value
-        } as Stat)
-      }))
-    return skills.length === 16 && lores?.length ? [...skills, ...(lores ?? [])] : skills
-  })
-  const proficiencies = computed(() => [
-    ...Object.entries(
-      (actor.value?.system?.proficiencies?.['attacks'] ?? []) as Record<string, MartialProficiency>
-    ).map(([key, stat]) => ({ ...makeStat(stat, key), type: 'attacks', slug: key }) as Stat),
-    ...Object.entries(
-      (actor.value?.system?.proficiencies?.['defenses'] ?? []) as Record<string, MartialProficiency>
-    ).map(([key, stat]) => ({ ...makeStat(stat, key), type: 'defenses', slug: key }) as Stat),
-    ...Object.entries(
-      (actor.value?.system?.proficiencies?.['classDCs'] ?? []) as Record<string, ClassDCData>
-    ).map(([key, stat]) => ({ ...makeStat(stat, key), type: 'classDCs', slug: key }) as Stat),
-    ...[
-      {
-        ...(makeStat(actor.value?.system?.proficiencies?.['spellcasting']) as Stat),
-        value: actor.value?.system?.attributes?.classOrSpellDC?.value,
-        type: 'spellcasting',
-        slug: 'Spell DC',
-        label: 'Spell DC'
-      }
-    ]
-  ])
   const initiative = {
     stat: computed({
       get: () => actor.value?.system?.initiative?.statistic,
@@ -157,8 +94,6 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
   return {
     doCharacterAction,
     actions,
-    skills,
-    proficiencies,
     initiative
   }
 }

@@ -1,15 +1,19 @@
 import type { Ref } from 'vue'
 import { computed } from 'vue'
-import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
-import type { AncestryPF2e, BackgroundPF2e, ClassPF2e as ClassPF2eType, HeritagePF2e } from '@7h3laughingman/pf2e-types'
+import type {
+  CharacterPF2e,
+  AncestryPF2e,
+  BackgroundPF2e,
+  ClassPF2e as ClassPF2eType,
+  HeritagePF2e
+} from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField } from './helpers'
-import type { RequestResolutionArgs } from '@/types/api-types'
 import { type Ancestry, makeAncestry } from './ancestry'
 import { type Background, makeBackground } from './background'
 import { type Heritage, makeHeritage } from './heritage'
 import { type ClassType, makeClassType } from './classType'
 import { type Stat, makeStat } from './stat'
-import { useApi } from '../api'
+import { useApi } from '@/composables/api'
 
 export interface CharacterCore {
   _id: Field<string>
@@ -32,27 +36,28 @@ export interface CharacterCore {
     burrow: Field<Stat>
   }
   languages: Field<string[]>
-  rollInline: (result: number | undefined) => Promise<RequestResolutionArgs | null>
 }
 
 export function useCharacterCore(actor: Ref<CharacterPF2e | undefined>): CharacterCore {
-  const { updateActor, rollCheck } = useApi()
+  const { updateActor } = useApi()
 
   const _id = computed(() => actor.value?._id ?? undefined)
   const name = computed(() => actor.value?.name)
   const portraitUrl = computed(() => actor.value?.prototypeToken?.texture?.src ?? undefined)
 
   const ancestry = computed(() =>
-    makeAncestry(actor.value?.items?.find((x) =>x.type === 'ancestry') as AncestryPF2e | undefined)
+    makeAncestry(actor.value?.items?.find((x) => x.type === 'ancestry') as AncestryPF2e | undefined)
   )
   const background = computed(() =>
-    makeBackground(actor.value?.items?.find((x) =>x.type === 'background') as BackgroundPF2e | undefined)
+    makeBackground(
+      actor.value?.items?.find((x) => x.type === 'background') as BackgroundPF2e | undefined
+    )
   )
   const heritage = computed(() =>
-    makeHeritage(actor.value?.items?.find((x) =>x.type === 'heritage') as HeritagePF2e | undefined)
+    makeHeritage(actor.value?.items?.find((x) => x.type === 'heritage') as HeritagePF2e | undefined)
   )
   const classType = computed(() =>
-    makeClassType(actor.value?.items?.find((x) =>x.type === 'class') as ClassPF2eType | undefined)
+    makeClassType(actor.value?.items?.find((x) => x.type === 'class') as ClassPF2eType | undefined)
   )
 
   const level = computed(() => actor.value?.system?.details?.level?.value)
@@ -73,41 +78,8 @@ export function useCharacterCore(actor: Ref<CharacterPF2e | undefined>): Charact
     climb: computed(() => makeStat(actor.value?.system?.movement?.speeds?.climb ?? undefined)),
     fly: computed(() => makeStat(actor.value?.system?.movement?.speeds?.fly ?? undefined)),
     burrow: computed(() => makeStat(actor.value?.system?.movement?.speeds?.burrow ?? undefined))
-
-    // land: computed(() => makeStat(actor.value?.system?.attributes?.speed)),
-    // swim: computed(() =>
-    //   makeStat(
-    //     actor.value?.system.attributes.speed.otherSpeeds.find(
-    //       (s: PF2eMovement) => s.type === 'swim'
-    //     )
-    //   )
-    // ),
-    // climb: computed(() =>
-    //   makeStat(
-    //     actor.value?.system.attributes.speed.otherSpeeds.find(
-    //       (s: PF2eMovement) => s.type === 'climb'
-    //     )
-    //   )
-    // ),
-    // fly: computed(() =>
-    //   makeStat(
-    //     actor.value?.system.attributes.speed.otherSpeeds.find((s: PF2eMovement) => s.type === 'fly')
-    //   )
-    // ),
-    // burrow: computed(() =>
-    //   makeStat(
-    //     actor.value?.system.attributes.speed.otherSpeeds.find(
-    //       (s: PF2eMovement) => s.type === 'burrow'
-    //     )
-    //   )
-    // )
   }
   const languages = computed(() => actor.value?.system?.details?.languages?.value)
-
-  const rollInline = (result: number | undefined) => {
-    console.log('as promised')
-    return rollCheck(actor as Ref<CharacterPF2e>, 'flat', '', { d20: [result ?? 0] })
-  }
 
   return {
     _id,
@@ -120,7 +92,6 @@ export function useCharacterCore(actor: Ref<CharacterPF2e | undefined>): Charact
     level,
     xp,
     movement,
-    languages,
-    rollInline
+    languages
   }
 }

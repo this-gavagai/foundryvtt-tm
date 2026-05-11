@@ -86,27 +86,27 @@ async function setupSocketListenersForWorld(world: Ref<GamePF2e>) {
     // let documentSource
     switch (args.type) {
       case 'Combat':
-        processChanges(args, world.value.combats as unknown as DocumentData[])
+        processChanges(args, world.value.combats.contents as DocumentData[])
         break
       case 'Combatant': {
         const combatId = args.operation.parentUuid?.split('.')?.[1]
         const combat = world.value?.combats.find((c) => c._id === combatId)
-        processChanges(args, combat?.combatants as unknown as DocumentData[])
+        processChanges(args, (combat?.combatants?.contents ?? []) as DocumentData[])
         break
       }
       case 'ChatMessage':
-        processChanges(args, world.value?.messages as unknown as DocumentData[])
+        processChanges(args, (world.value?.messages?.contents ?? []) as DocumentData[])
         break
       case 'User':
         console.log(args)
         break
     }
   })
-  socket.on('userActivity', (user: string, args: { targets?: unknown; active?: boolean }) => {
+  socket.on('userActivity', (user: string, args: { targets?: string[]; active?: boolean }) => {
     if (args.targets) {
       console.log('user event', user, args)
       const { updateTargets } = useTargetHelper()
-      updateTargets(user, args.targets as string[])
+      updateTargets(user, args.targets)
     } else if (args.active) {
       console.log('user online', user, args)
     }
@@ -144,7 +144,7 @@ async function setupSocketListenersForActor(
       case 'Item':
         if (!actor.value) return
         if (args.operation.parentUuid === 'Actor.' + actorId) {
-          processChanges(args, actor.value.items as unknown as DocumentData[])
+          processChanges(args, actor.value.items.contents as DocumentData[])
           requestCharacterDetails[actorId]()
         }
         break
@@ -179,9 +179,9 @@ function parseActorData(
   if (characterUnsynced.get(actorId)) return
   if (characterLastRequest.get(actorId) !== args.uuid) return
 
-  if (!actor.value) actor.value = {} as unknown as CharacterPF2e
-  if (!actor.value.system) actor.value.system = {} as unknown as CharacterPF2e['system']
-  const actorRecord = actor.value as unknown as Record<string, unknown>
+  if (!actor.value) actor.value = {} as CharacterPF2e
+  if (!actor.value.system) actor.value.system = {} as CharacterPF2e['system']
+  const actorRecord = actor.value as { elementalBlasts?: unknown; inventory?: unknown; activeRules?: unknown[] }
   if (!actorRecord.elementalBlasts) actorRecord.elementalBlasts = {}
   if (!actorRecord.inventory) actorRecord.inventory = {}
   if (!actorRecord.activeRules) actorRecord.activeRules = []
@@ -258,7 +258,7 @@ async function updateActorItem(
         }
       },
       (r: DocumentSocketResponse) => {
-        processChanges(r, actor.value.items as unknown as DocumentData[])
+        processChanges(r, actor.value.items.contents as DocumentData[])
         requestCharacterDetails[actor.value._id!]()
         resolve(r)
       }
@@ -281,7 +281,7 @@ async function deleteActorItem(actor: Ref<CharacterPF2e>, itemId: string) {
         }
       },
       (r: DocumentSocketResponse) => {
-        processChanges(r, actor.value.items as unknown as DocumentData[])
+        processChanges(r, actor.value.items.contents as DocumentData[])
         requestCharacterDetails[actor.value._id!]()
         resolve(r)
       }

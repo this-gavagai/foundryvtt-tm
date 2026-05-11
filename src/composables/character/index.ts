@@ -10,8 +10,30 @@ import { type CharacterActions, useCharacterActions } from './characterActions'
 import { type CharacterStrikes, useCharacterStrikes } from './characterStrikes'
 import { type CharacterRules, useCharacterRules } from './characterRules'
 
+import type { Item } from './item'
+import type { Stat } from './stat'
+import type { Modifier } from './modifier'
+import type { Strike } from './strike'
+import type { Equipment, InventoryItem, Feat, Consumable } from './characterItems'
+import type { SpellcastingEntry, Spell } from './characterSpells'
+import type { Action } from './characterActions'
+export type {
+  Item,
+  Stat,
+  Modifier,
+  Strike,
+  Equipment,
+  InventoryItem,
+  Feat,
+  Consumable,
+  SpellcastingEntry,
+  Spell,
+  Action
+}
+
 export interface Character
-  extends CharacterCore,
+  extends
+    CharacterCore,
     CharacterStats,
     CharacterResources,
     CharacterItems,
@@ -20,7 +42,6 @@ export interface Character
     CharacterStrikes,
     CharacterRules {}
 
-// TODO: switch these imports over to objects rather than functions so that errors show up in more useful places
 export function useCharacter(actor: Ref<CharacterPF2e | undefined>) {
   const character: Character = {
     ...useCharacterCore(actor),
@@ -34,12 +55,3 @@ export function useCharacter(actor: Ref<CharacterPF2e | undefined>) {
   }
   return { character }
 }
-
-import type { Item } from './item'
-import type { Stat } from './stat'
-import type { Modifier } from './modifier'
-import type { Strike } from './strike'
-import type { Equipment, InventoryItem, Feat, Consumable } from './characterItems'
-import type { SpellcastingEntry, Spell } from './characterSpells'
-import type { Action } from './characterActions'
-export type { Item, Stat, Modifier, Strike, Equipment, InventoryItem, Feat, Consumable, SpellcastingEntry, Spell, Action }
