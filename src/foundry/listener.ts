@@ -21,6 +21,7 @@ import {
 } from './actions'
 import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
+import { logger } from '@/utils/utilities'
 
 type GetEvent = { action: 'get' }
 
@@ -30,7 +31,7 @@ const MODNAME = 'module.tablemate'
 const getChar: Record<string, (args: RequestCharacterDetailsArgs) => void> = {}
 
 export function setupListener() {
-  console.log('TABLEMATE: Setting up listener')
+  logger.info('TABLEMATE: Setting up listener')
   announceSelf()
 
   game.socket.onAnyOutgoing((event: string, ...args: ModuleEventArgs[] | GetEvent[]) => {
@@ -43,13 +44,13 @@ export function setupListener() {
       (event.match('module.') && !event.match('module.tablemate'))
     )
       return
-    console.log(`TM.SEND ${event}`, args?.[0]?.action, args)
+    logger.info(`TM.SEND ${event}`, args?.[0]?.action, args)
   })
 
   game.socket.on(MODNAME, (args: ModuleEventArgs) => {
-    if (!args.userId) console.log('missing!', args)
+    if (!args.userId) logger.warn('missing!', args)
     if (!iAmProxyOrFallbackGM(args.userId)) return
-    console.log('TM.RECV (listener)', args)
+    logger.info('TM.RECV (listener)', args)
     if (args.action === 'anybodyHome') {
       announceSelf()
       broadcastTargets()
@@ -59,7 +60,7 @@ export function setupListener() {
     if (args.hasOwnProperty('userId') && args.hasOwnProperty('actorId')) {
       const actorArgs = args as RequestCharacterDetailsArgs
       if (game.actors.get(actorArgs.actorId)?.ownership[actorArgs.userId] !== 3) {
-        console.log('unowned character')
+        logger.warn('unowned character')
         return
       }
     }
@@ -119,7 +120,7 @@ export function setupListener() {
         foundryCallMacro(args as CallMacroArgs).then((result) => game.socket.emit(MODNAME, result))
         break
       default:
-        console.log('event not caught', args.action, args)
+        logger.warn('event not caught', args.action, args)
     }
   })
 }
@@ -145,8 +146,6 @@ function proxyIsOnline(userId: string) {
   )
 }
 function iAmProxyOrFallbackGM(userId: string) {
-  // console.log(iAmProxy(userId), !proxyIsOnline(userId), iAmFirstGM())
-  // console.log('result', iAmProxy(userId) || (!proxyIsOnline(userId) && iAmFirstGM()))
   return iAmProxy(userId) || (!proxyIsOnline(userId) && iAmFirstGM())
 }
 function announceSelf() {

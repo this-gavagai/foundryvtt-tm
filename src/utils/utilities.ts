@@ -81,7 +81,6 @@ export function formatModifier(n: number | string | undefined) {
 }
 
 export function getPath(path: string) {
-  // console.log('input path', path)
   return path.slice(0, 4) === 'http' ? path : '../../' + path
 }
 
@@ -89,7 +88,6 @@ export function parseIncrement(input: string, startingValue: number): number {
   const transform = [...input.matchAll(/([\+\-]){0,1}([0-9]+)$/g)]?.[0]
   if (!transform) return startingValue
   let newValue: number
-  // console.log([...input.matchAll(/([\+\-]){0,1}([0-9]+)$/g)])
   if (transform[1] === '+') {
     newValue = startingValue + (Number(transform[2]) ?? 0)
   } else if (transform[1] === '-') {
@@ -104,4 +102,16 @@ export function uuidv4() {
   return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) =>
     (+c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (+c / 4)))).toString(16)
   )
+}
+
+const isProd = import.meta.env.PROD
+export const logger = {
+  debug: (...args: unknown[]) => {
+    if (!isProd) console.debug(...args)
+  },
+  info: (...args: unknown[]) => {
+    if (!isProd) console.info(...args)
+  },
+  warn: (...args: unknown[]) => console.warn(...args),
+  error: (...args: unknown[]) => console.error(...args)
 }

@@ -6,6 +6,7 @@ import { useApi } from '@/composables/api'
 import type { UserPF2e } from '@7h3laughingman/pf2e-types'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import { useStorage } from '@vueuse/core'
+import { logger } from '@/utils/utilities'
 
 const { world } = useWorld()
 const { getUserId, userId } = useUserId()
@@ -18,18 +19,21 @@ const userList = computed(() => {
 })
 const targetingProxyId = computed(
   () =>
-    (world.value?.users.find((u) => u._id === userId.value)?.flags?.tablemate
-      ?.targeting_proxy as string | undefined) ?? localProxyId.value
+    (world.value?.users.find((u) => u._id === userId.value)?.flags?.tablemate?.targeting_proxy as
+      | string
+      | undefined) ?? localProxyId.value
 )
 
 function updateProxyId(newId: string): Promise<DocumentSocketResponse | null> {
-  console.log('newID incoming', newId)
+  logger.debug('TM-info: newID incoming', newId)
   if (!world.value) return Promise.resolve(null)
 
   // update remote
   const response = updateUserTargetingProxy(getUserId(), newId)
   // update local
-  const tablemate = world.value.users.find((u) => u._id === getUserId())?.flags?.tablemate as { targeting_proxy?: string } | undefined
+  const tablemate = world.value.users.find((u) => u._id === getUserId())?.flags?.tablemate as
+    | { targeting_proxy?: string }
+    | undefined
   if (tablemate) tablemate.targeting_proxy = newId
 
   localProxyId.value = newId

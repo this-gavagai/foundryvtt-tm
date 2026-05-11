@@ -12,6 +12,7 @@ import { usePixelDice } from './composables/pixelDice'
 import { useUserId } from './composables/user'
 
 import CharacterSheet from '@/components/CharacterSheet.vue'
+import { logger } from './utils/utilities'
 const BUILD_MODE: string = import.meta.env.MODE
 
 // connect to server and ping it periodically
@@ -81,7 +82,7 @@ if (BUILD_MODE === 'development') {
   })
   watchPostEffect(() => {
     if (world.value) {
-      console.log('TM-RECV world')
+      logger.info('TM-RECV world')
       window.world = world.value
     }
   })

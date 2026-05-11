@@ -1,6 +1,7 @@
 import { setupListener } from './listener'
 import type { UserPF2e, UserSourcePF2e } from '@7h3laughingman/pf2e-types'
 import type FormDataExtended from '@7h3laughingman/foundry-types/client/applications/ux/form-data-extended.mjs'
+import { logger } from '@/utils/utilities'
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api
 declare interface SheetableUser extends UserPF2e {
   sheeted: boolean
@@ -11,12 +12,12 @@ declare interface PlayerSelectContext {
   tabs?: undefined
 }
 
-console.log('TM initializing...')
+logger.info('TM initializing...')
 
 Hooks.on('init', function () {
   const user = game.data.users.find((x: UserSourcePF2e) => x._id === game.userId)
   if (user?.flags?.['tablemate']?.['character_sheet'] === 'root') {
-    console.log('TM HERE', user?.character)
+    logger.info('TM HERE', user?.character)
     const url = user?.character
       ? `${window.location.origin}/modules/tablemate/index.html?id=${user.character}`
       : `${window.location.origin}/modules/tablemate/index.html`
@@ -27,7 +28,7 @@ Hooks.on('init', function () {
 Hooks.on('ready', () => {
   setupListener()
 
-  console.log('tablemate hello')
+  logger.info('tablemate hello')
   game.settings.registerMenu('tablemate', 'playerSelectMenu', {
     name: 'User Select',
     label: 'Select Character Sheet users',

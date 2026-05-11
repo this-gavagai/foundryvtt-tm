@@ -8,8 +8,8 @@ import {
   type Pixel
 } from '@systemic-games/pixels-web-connect'
 import { useStorage } from '@vueuse/core'
+import { logger } from '@/utils/utilities'
 
-console.log('TM first pixel experience')
 const lastRoll = ref<number>()
 const pixel = ref<Pixel>()
 window.pixel = pixel
@@ -30,7 +30,7 @@ async function pixelConnect() {
 async function pixelReconnect() {
   if (!systemIds.value) return
   pixel.value = await getPixel(systemIds.value)
-  console.log('TM-pixl: status', pixel.value?.status)
+  logger.debug('TM-pixl: status', pixel.value?.status)
   await setupListeners()
 }
 async function pixelDisconnect() {
@@ -42,18 +42,18 @@ async function pixelDisconnect() {
 async function setupListeners() {
   if (!pixel.value) return
   // Connect to die
-  console.log('TM-pixl: Connecting...')
+  logger.debug('TM-pixl: Connecting...')
   await repeatConnect(pixel.value)
-  console.log('TM-pixl: Connected')
+  logger.debug('TM-pixl: Connected')
   blink()
   // Add listener to get notified on rolls
   pixel.value.addEventListener('roll', (face) => {
-    console.log(`TM-pixl: => rolled face: ${face}`)
+    logger.debug(`TM-pixl: => rolled face: ${face}`)
     lastRoll.value = face
   })
   // detect disconnect, and then do...something?
   pixel.value.addEventListener('statusChanged', (status) => {
-    console.log(`TM-pixl: Dice status changed to ${status.status}`, status)
+    logger.debug(`TM-pixl: Dice status changed to ${status.status}`, status)
     if (status.status === 'disconnected' && pixel.value) repeatConnect(pixel.value)
   })
 }
@@ -68,9 +68,9 @@ function getLastRoll() {
 async function readStatus() {
   // Read RSSI (signal strength)
   const rssi = await pixel.value?.queryRssi()
-  console.log(`=> rssi: ${rssi}`)
+  logger.debug(`=> rssi: ${rssi}`)
   // And battery level
-  console.log(`=> Battery: ${pixel.value?.batteryLevel}%`)
+  logger.debug(`=> Battery: ${pixel.value?.batteryLevel}%`)
 }
 
 async function blink() {
@@ -80,7 +80,7 @@ async function blink() {
 
 // reestablish connection if needed
 if (systemIds.value && !pixel.value) {
-  console.log('TM: hello dere')
+  logger.debug('TM: hello dere')
   pixelReconnect()
 } else if (pixel.value && pixel.value.status === 'disconnected') {
   setupListeners()

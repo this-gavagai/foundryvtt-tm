@@ -50,7 +50,6 @@ function updateExperience(input: string) {
         <form
           @submit.prevent="
             (e: Event) => {
-              console.log(e)
               const { xp } = e.target as EventTarget & FormData
               if (e.target) updateExperience(xp.value)
               experienceModal.close()

@@ -86,7 +86,6 @@ const featCategories = computed(() => {
             :featId="feat._id"
             @clicked="
               (clickedFeatId: string) => {
-                console.log('outside', clickedFeatId)
                 viewedFeatId = clickedFeatId
                 infoModal.open()
               }

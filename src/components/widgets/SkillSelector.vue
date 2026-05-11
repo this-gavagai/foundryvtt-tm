@@ -16,10 +16,10 @@ defineExpose({ selected })
 </script>
 <template>
   <div class="w-48">
-    <Listbox v-model="selected" @change="console.log('help')">
+    <Listbox v-model="selected">
       <div class="relative">
         <ListboxButton
-          class="relative w-full cursor-default rounded-lg border border-gray-400 bg-white py-2 pl-3 pr-10 text-left focus:outline-hidden focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
+          class="relative w-full cursor-default rounded-lg border border-gray-400 bg-white py-2 pr-10 pl-3 text-left focus:outline-hidden focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
         >
           <span class="block truncate">{{ selected?.label }}</span>
           <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
@@ -45,7 +45,7 @@ defineExpose({ selected })
               <li
                 :class="[
                   active ? 'bg-blue-100 text-gray-900' : 'text-gray-900',
-                  'relative cursor-default select-none py-2 pl-10 pr-4'
+                  'relative cursor-default py-2 pr-4 pl-10 select-none'
                 ]"
               >
                 <span :class="[selected ? 'font-medium' : 'font-normal', 'block truncate']">{{

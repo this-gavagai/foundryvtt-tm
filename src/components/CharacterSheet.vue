@@ -10,6 +10,8 @@ import { useCharacter } from '@/composables/character'
 import { useApi } from '@/composables/api'
 import { useKeys } from '@/composables/injectKeys'
 import { useWindowSize } from '@vueuse/core'
+import { useUserId } from '@/composables/user'
+import { logger } from '@/utils/utilities'
 
 import { Bars3Icon } from '@heroicons/vue/24/solid'
 
@@ -31,7 +33,6 @@ import SpellList from '@/components/SpellList.vue'
 import FeatsList from '@/components/FeatsList.vue'
 import EquipmentList from '@/components/EquipmentList.vue'
 import StrikeList from '@/components/StrikeList.vue'
-import { useUserId } from '@/composables/user'
 
 const props = defineProps(['characterId'])
 
@@ -86,7 +87,7 @@ const requestCharacterDetails = async () => {
 // setup socket listeners and request character details on mount
 let removeRefresh: (() => void) | undefined
 onMounted(() => {
-  console.log('TM-INIT: initiating character', props.characterId)
+  logger.info('TM-INIT: initiating character', props.characterId)
   if (props.characterId) {
     setupSocketListenersForActor(props.characterId, actor, requestCharacterDetails).then(
       (cleanup) => {
@@ -98,7 +99,7 @@ onMounted(() => {
   currentTab.value = width.value >= 768 ? 1 : 0
 })
 onUnmounted(() => {
-  console.log('TM-INIT: unmounted actor', props.characterId)
+  logger.info('TM-INIT: unmounted actor', props.characterId)
   removeRefresh?.()
 })
 

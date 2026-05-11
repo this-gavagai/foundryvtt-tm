@@ -190,7 +190,6 @@ defineExpose({ open, close, rollResultModal })
                       () => {
                         if (activeRoll?.action === 'action') {
                           doCharacterAction(activeRoll?.slug!, activeRoll?.params).then((r) => {
-                            console.log('hello sir!', r)
                             rollResultModal.open(r)
                             close(true)
                           })
@@ -211,12 +210,10 @@ defineExpose({ open, close, rollResultModal })
                             })
                           } else {
                             const slug = activeRoll?.slug
-                            console.log(slug, skills)
                             skills
                               ?.find((s) => s.slug === slug)
                               ?.roll?.(undefined, { dc: Number(activeRoll?.dc) ?? undefined })
                               .then((r) => {
-                                console.log('GOODBYESIR', r)
                                 rollResultModal.open(r)
                               })
                           }

@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { io, Socket } from 'socket.io-client'
 import { useUserId } from '@/composables/user'
+import { logger } from '@/utils/utilities'
 
 const socket = ref<Socket>()
 const sessionId = ref<string>('')
@@ -44,16 +45,16 @@ async function connectToServer(url: URL) {
   sessionId.value = sid
   await establishSocket(url, sid, true)
     .then((newSocket) => {
-      console.log('TM-INIT: establishing socket connection')
+      logger.debug('TM-INIT: establishing socket connection')
       socket.value = newSocket
       socket.value.offAny()
       socket.value.onAny((name, ...args) => {
         if (name === 'userActivity' || (name.match('module.') && !name.match('module.tablemate')))
           return
-        console.log('TM-RECV', name, ...args)
+        logger.debug('TM-RECV', name, ...args)
       })
       socket.value.onAnyOutgoing((name, ...args) => {
-        console.log('TM-SEND', name, ...args)
+        logger.debug('TM-SEND', name, ...args)
       })
       socket.value.on('session', (args: { userId: string }) => {
         if (args?.userId) useUserId().setUserId(args?.userId)
@@ -61,7 +62,7 @@ async function connectToServer(url: URL) {
       })
     })
     .catch((e) => {
-      console.log('Error loading socket: ', e)
+      logger.debug('Error loading socket: ', e)
     })
 
   return socket

@@ -22,6 +22,7 @@ import type {
 } from '@/types/api-types'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import { useBackgroundRoll } from './backgroundRoll'
+import { logger } from '@/utils/utilities'
 
 // should be pulling this from constants, but that creates another loading dependency
 const inventoryTypes = [
@@ -73,7 +74,7 @@ export async function getCharacterDetails(
   actor.rules.forEach((r: RollOptionRuleElement) => {
     if (r.option && r.predicate.test([])) activeRules.add(r.option)
   }, [])
-  console.log('TABLEMATE: now sending ' + actor.name)
+  logger.debug('TABLEMATE: now sending ' + actor.name)
   return {
     action: 'updateCharacterDetails',
     actorId: actor._id,
@@ -117,7 +118,7 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   switch (args.checkType) {
     case 'strike': {
       const [actionSlug, variant, altUsage] = args.checkSubtype.split(',')
-      console.log("here's some stuff", args.checkSubtype, altUsage, altUsage?.length)
+      logger.debug("here's some stuff", args.checkSubtype, altUsage, altUsage?.length)
       if (altUsage?.length)
         roll = actor.system.actions
           .find((a: StatisticModifier) => a.slug === actionSlug)
@@ -130,7 +131,7 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       break
     }
     case 'damage': {
-      console.log('TM-params', params)
+      logger.debug('TM-params', params)
       const [damageSlug, damageDegree, damageAltUsage] = args.checkSubtype.split(',')
       if (damageAltUsage?.length)
         roll = actor.system.actions
@@ -157,7 +158,13 @@ export async function foundryRollCheck(args: RollCheckArgs) {
     case 'blastDamage': {
       const [element, damageType, outcome, isMelee] = args.checkSubtype.split(',')
       const damageBlasts = new game.pf2e.ElementalBlast(actor)
-      roll = damageBlasts.damage({ ...params, element: element as EffectTrait, damageType: damageType as DamageType, outcome: outcome as 'success' | 'criticalSuccess', melee: isMelee === 'true' })
+      roll = damageBlasts.damage({
+        ...params,
+        element: element as EffectTrait,
+        damageType: damageType as DamageType,
+        outcome: outcome as 'success' | 'criticalSuccess',
+        melee: isMelee === 'true'
+      })
       break
     }
     case 'skill': {
@@ -165,7 +172,6 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       break
     }
     case 'save': {
-      console.log('TM HERE', args)
       roll = actor.saves[args.checkSubtype].check.roll({ ...args.options, ...params })
       break
     }
@@ -195,7 +201,7 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   unregisterBackgroundRoll()
 
   if (!r) return {}
-  if (r.hasOwnProperty('roll')) console.log('this one has a weird property') // trying to figure out where this is necessary; don't remember
+  if (r.hasOwnProperty('roll')) logger.debug('this one has a weird property') // trying to figure out where this is necessary; don't remember
   const actualRoll = r.hasOwnProperty('roll') ? r.roll : r
 
   const isSecret =
@@ -232,7 +238,7 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
 
   const promise = source.pf2e.actions.get(args.characterAction)?.use(params)
   const r = await promise
-  console.log(r, promise, args.characterAction)
+  logger.debug(r, promise, args.characterAction)
   const isSecret =
     r?.[0]?.message?.whisper?.length > 0 && !r?.[0]?.message?.whisper?.includes(args.userId)
   const { formula, result, total, dice } = r?.[0]?.roll
@@ -246,7 +252,7 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
 }
 
 export async function foundryCastSpell(args: CastSpellArgs) {
-  console.log('cast spell', args)
+  logger.debug('cast spell', args)
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.get(args.characterId, { strict: true })
   const item = actor.items.get(args.id, { strict: true })
@@ -273,7 +279,7 @@ export async function foundrySendItemToChat(args: SendItemToChatArgs) {
 }
 
 export async function foundryCallMacro(args: CallMacroArgs) {
-  console.log('running macro', args)
+  logger.debug('running macro', args)
   if (!args.compendiumName) return
   const actor = game.actors.get(args.characterId)
   const pack = game.packs.get(args.compendiumName)
@@ -281,7 +287,7 @@ export async function foundryCallMacro(args: CallMacroArgs) {
   if (args.macroUuid) {
     const macro = fromUuidSync(args.macroUuid)
     // TODO: test args.targets stuff
-    console.log(args.targets)
+    logger.debug(args.targets)
     macro.execute({ scope: { actor, targets: args.targets } })
   } else {
     if (!pack) return Promise.resolve(null)
@@ -298,7 +304,6 @@ export async function foundryCallMacro(args: CallMacroArgs) {
 }
 
 export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
-  // console.log('TM ALT DETAILS', args.altUsage)
   const source = typeof window.game === 'undefined' ? parent.game : window.game
   const actor = source.actors.find((x: ActorPF2e) => x._id === args.characterId)
   const target =

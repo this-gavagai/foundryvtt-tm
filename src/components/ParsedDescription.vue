@@ -63,7 +63,6 @@ function formChange() {
 }
 function formClick(event: Event) {
   event.preventDefault()
-  console.log('bingbing')
   emit('checkInitiated', 'test')
   return false
 }

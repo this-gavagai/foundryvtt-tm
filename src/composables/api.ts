@@ -21,7 +21,7 @@ type DocumentData = { _id: string | null }
 import { mergeWith } from 'lodash-es'
 import { useServer } from '@/composables/server'
 import { useTargetHelper } from '@/composables/targetHelper'
-import { uuidv4 } from '@/utils/utilities'
+import { logger, uuidv4 } from '@/utils/utilities'
 import { useUserId } from '@/composables/user'
 import { useListeners } from './listenersOnline'
 
@@ -54,7 +54,7 @@ function pushToAckQueue(
     if (ackQueue[uuid]) {
       delete ackQueue[uuid]
       const message = `TM-WARN: request ${uuid} timed out after ${timeoutMs}ms`
-      console.warn(message)
+      logger.warn(message)
       reject(new Error(message))
     }
   }, timeoutMs)
@@ -64,14 +64,9 @@ function pushToAckQueue(
   }
 }
 
-const DEBUG = import.meta.env.DEV
-const log = (...args: unknown[]) => {
-  if (DEBUG) console.log(...args)
-}
-
 function mergeWithArrayReset(objValue: unknown, srcValue: unknown) {
   if (Array.isArray(srcValue) && Array.isArray(objValue) && srcValue.length < objValue.length) {
-    console.warn('TM-WARN: nuking array due to length mismatch', objValue, srcValue)
+    logger.warn('TM-WARN: nuking array due to length mismatch', objValue, srcValue)
     return srcValue
   }
 }
@@ -97,7 +92,7 @@ async function setupSocketListenersForApp() {
         )
         break
       case 'listenerOnline':
-        log('listener online!', args)
+        logger.info('listener online!', args)
         addListener(args.userId)
         break
     }
@@ -124,11 +119,11 @@ async function setupSocketListenersForWorld(world: Ref<GamePF2e>) {
   })
   socket.on('userActivity', (user: string, args: { targets?: string[]; active?: boolean }) => {
     if (args.targets) {
-      log('user event', user, args)
+      logger.info('user event', user, args)
       const { updateTargets } = useTargetHelper()
       updateTargets(user, args.targets)
     } else if (args.active) {
-      log('user online', user, args)
+      logger.info('user online', user, args)
     }
   })
 }

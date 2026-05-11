@@ -181,7 +181,6 @@ async function updateDamageFormula() {
     strikeModalDamage.value = await (viewedStrike.value as Strike)?.getDamage?.(
       viewedStrikeOptions.value?.altUsage
     )
-    console.log(strikeModalDamage.value)
   } else {
     const element = (viewedStrike.value as ElementalBlast)?.blastElement ?? ''
     const damageType =
@@ -342,7 +341,6 @@ watch(viewedStrike, async () => updateDamageFormula())
                 :selected="viewedStrikeDamageTypeSelected ?? ''"
                 :clicked="
                   (damageType) => {
-                    console.log(damageType, viewedStrike)
                     return strikes?.[viewedStrikeId ?? 0]
                       ?.setDamageType?.(damageType)
                       ?.then((r) => {
@@ -385,7 +383,6 @@ watch(viewedStrike, async () => updateDamageFormula())
             :clicked="
               () =>
                 viewedStrikeAction()?.then((r) => {
-                  console.log(r)
                   strikeModal.close()
                   strikeModal.rollResultModal.open(r)
                 })

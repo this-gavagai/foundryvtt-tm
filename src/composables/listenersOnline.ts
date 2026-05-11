@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { useServer } from '@/composables/server'
 import { useUserId } from '@/composables/user'
+import { logger } from '@/utils/utilities'
 
 const { getSocket } = useServer()
 const { userId } = useUserId()
@@ -19,7 +20,7 @@ setInterval(async () => {
 
 export function useListeners() {
   function addListener(listenerId: string) {
-    console.log('TM adding listener', listenerId)
+    logger.debug('TM adding listener', listenerId)
     listenersOnline.value.set(listenerId, Date.now())
   }
   function getListeners() {

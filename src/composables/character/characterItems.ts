@@ -11,7 +11,16 @@ import { type Effect, makeEffect } from './effect'
 import { type Condition, makeCondition } from './condition'
 import { useApi } from '../api'
 import { inventoryTypes } from '@/utils/constants'
-import type { AbstractEffectPF2e, ArmorPF2e, ConditionPF2e, ConsumablePF2e, EquipmentPF2e, FeatPF2e, PhysicalItemPF2e, WeaponPF2e } from '@7h3laughingman/pf2e-types'
+import type {
+  AbstractEffectPF2e,
+  ArmorPF2e,
+  ConditionPF2e,
+  ConsumablePF2e,
+  EquipmentPF2e,
+  FeatPF2e,
+  PhysicalItemPF2e,
+  WeaponPF2e
+} from '@7h3laughingman/pf2e-types'
 
 export type InventoryItem = PhysicalItem & {
   system: { uses?: { value: Maybe<number>; max: Maybe<number> } }
@@ -53,7 +62,9 @@ export function useCharacterItems(actor: Ref<CharacterPF2e | undefined>): Charac
   )
   const effects = computed(() =>
     actor.value?.items
-      ?.filter((i): i is AbstractEffectPF2e<CharacterPF2e> => ['effect', 'condition'].includes(i?.type ?? ''))
+      ?.filter((i): i is AbstractEffectPF2e<CharacterPF2e> =>
+        ['effect', 'condition'].includes(i?.type ?? '')
+      )
       .map((i) => ({
         ...(i.type === 'condition'
           ? makeCondition(i as ConditionPF2e<CharacterPF2e>)
@@ -67,7 +78,9 @@ export function useCharacterItems(actor: Ref<CharacterPF2e | undefined>): Charac
   )
   const inventory = computed(() =>
     actor.value?.items
-      ?.filter((i): i is PhysicalItemPF2e<CharacterPF2e> => inventoryTypes.map((t) => t.type).includes(i?.type ?? ''))
+      ?.filter((i): i is PhysicalItemPF2e<CharacterPF2e> =>
+        inventoryTypes.map((t) => t.type).includes(i?.type ?? '')
+      )
       .map((i) => ({
         ...(i.type === 'weapon'
           ? makeWeapon(i as WeaponPF2e<CharacterPF2e>)
@@ -78,7 +91,6 @@ export function useCharacterItems(actor: Ref<CharacterPF2e | undefined>): Charac
               : makeEquipment(i as EquipmentPF2e<CharacterPF2e>)),
         label: (actor.value?.inventory as { labels?: Record<string, string> })?.labels?.[i._id!],
         toggleInvested: (newValue: boolean = !i?.system?.equipped?.invested) => {
-          console.log('toggle invested!')
           const update = { system: { equipped: { invested: newValue } } }
           return updateActorItem(actor as Ref<CharacterPF2e>, i._id!, update)
         },
@@ -95,7 +107,6 @@ export function useCharacterItems(actor: Ref<CharacterPF2e | undefined>): Charac
           containerId: Maybe<string | null>,
           inSlot: Maybe<boolean> = i?.system?.equipped?.inSlot ?? undefined
         ) => {
-          console.log('changing carry!')
           if (!i?.system?.equipped) return Promise.resolve(null)
           ;(i.system as PhysicalItemSystem).equipped.carryType = carryType
           ;(i.system as PhysicalItemSystem).equipped.handsHeld = handsHeld
@@ -117,7 +128,9 @@ export function useCharacterItems(actor: Ref<CharacterPF2e | undefined>): Charac
       }))
       .map((e: PhysicalItem) => {
         e.system.subitems?.forEach((s) => {
-          ;(s as PhysicalItem).label = (actor.value?.inventory as { labels?: Record<string, string> })?.labels?.[s?._id ?? '']
+          ;(s as PhysicalItem).label = (
+            actor.value?.inventory as { labels?: Record<string, string> }
+          )?.labels?.[s?._id ?? '']
         })
         return e
       })
