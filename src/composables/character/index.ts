@@ -13,13 +13,18 @@ import { type CharacterRules, useCharacterRules } from './characterRules'
 import type { Item } from './defs/item'
 import type { Stat } from './defs/stat'
 import type { Modifier } from './defs/modifier'
-import type { Strike } from './defs/strike'
+import type { Strike, ElementalBlast } from './defs/strike'
 import type { Equipment } from './defs/equipment'
 import type { Feat } from './defs/feat'
 import type { Consumable } from './defs/consumable'
 import type { Action } from './defs/action'
 import type { Spell, SpellcastingEntry } from './defs/spell'
-import type { InventoryItem } from './characterItems'
+import type { Weapon } from './defs/weapon'
+import type { Armor } from './defs/armor'
+import type { Condition } from './defs/condition'
+import type { Effect } from './defs/effect'
+import type { IWR } from './characterStats'
+import type { InventoryItem, EffectItem } from './characterItems'
 export type {
   Item,
   Stat,
@@ -31,7 +36,14 @@ export type {
   Consumable,
   SpellcastingEntry,
   Spell,
-  Action
+  Action,
+  Weapon,
+  ElementalBlast,
+  IWR,
+  EffectItem,
+  Armor,
+  Condition,
+  Effect
 }
 
 export interface Character

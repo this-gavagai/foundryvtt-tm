@@ -9,7 +9,7 @@ import { type Consumable, makeConsumable } from './defs/consumable'
 import { type Feat, makeFeat } from './defs/feat'
 import { type Effect, makeEffect } from './defs/effect'
 import { makeCondition } from './defs/condition'
-import { useApi } from '../api'
+import { useApi } from '@/composables/api'
 import { inventoryTypes } from '@/utils/constants'
 import type {
   AbstractEffectPF2e,

@@ -116,43 +116,16 @@ export function useCharacterStats(actor: Ref<CharacterPF2e | undefined>): Charac
     destroyed: computed(() => actor.value?.system?.attributes?.shield?.destroyed),
     itemId: computed(() => actor.value?.system?.attributes?.shield?.itemId ?? undefined)
   }
-  const saves = {
-    fortitude: computed(() => ({
-      ...(makeStat(actor.value?.system?.saves?.fortitude) as Stat),
+  const makeSave = (subtype: 'fortitude' | 'reflex' | 'will') =>
+    computed(() => ({
+      ...(makeStat(actor.value?.system?.saves?.[subtype]) as Stat),
       roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
-        rollCheck(
-          actor as Ref<CharacterPF2e>,
-          'save',
-          'fortitude',
-          { d20: [result ?? 0] },
-          [],
-          options ?? {}
-        )
-    })),
-    reflex: computed(() => ({
-      ...(makeStat(actor.value?.system?.saves?.reflex) as Stat),
-      roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
-        rollCheck(
-          actor as Ref<CharacterPF2e>,
-          'save',
-          'reflex',
-          { d20: [result ?? 0] },
-          [],
-          options ?? {}
-        )
-    })),
-    will: computed(() => ({
-      ...(makeStat(actor.value?.system?.saves?.will) as Stat),
-      roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
-        rollCheck(
-          actor as Ref<CharacterPF2e>,
-          'save',
-          'will',
-          { d20: [result ?? 0] },
-          [],
-          options ?? {}
-        )
+        rollCheck(actor as Ref<CharacterPF2e>, 'save', subtype, { d20: [result ?? 0] }, [], options ?? {})
     }))
+  const saves = {
+    fortitude: makeSave('fortitude'),
+    reflex: makeSave('reflex'),
+    will: makeSave('will')
   }
   const perception = computed(() => ({
     ...(makeStat(actor.value?.system?.perception) as Stat),

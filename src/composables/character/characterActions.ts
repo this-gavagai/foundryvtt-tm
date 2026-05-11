@@ -4,7 +4,7 @@ import type { Field, WritableField } from './helpers'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import { type Modifier, makeModifiers } from './defs/modifier'
 import { type Action, makeAction } from './defs/action'
-import { useApi } from '../api'
+import { useApi } from '@/composables/api'
 import { actionTypes } from '@/utils/constants'
 
 export interface CharacterActions {
@@ -39,32 +39,25 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
     actor.value?.items
       ?.filter((i): i is AbilityItemPF2e<CharacterPF2e> => i.type === 'action')
       .filter((i) => actionTypes.map((a) => a.type).includes(i.system?.actionType?.value))
-      .map((i) => ({
-        ...(makeAction(i) as Action),
-        actionType:
-          i?.system?.actionType?.value === 'action' &&
-          i?.system?.traits.value.includes('skill') === false
-            ? 'action'
-            : i?.system?.actionType?.value === 'action' &&
-                i?.system?.traits.value.includes('skill') === true
-              ? 'skill'
-              : i?.system?.actionType?.value === 'reaction'
-                ? 'reaction'
-                : i?.system?.actionType?.value === 'free'
-                  ? 'free'
-                  : null,
-        macroId: (i?.flags as Record<string, { actionable?: { macro?: string } } | undefined>)?.[
-          'pf2e-toolbelt'
-        ]?.actionable?.macro,
-        doMacro: (options = {}) => {
-          const macroId = (
-            i?.flags as Record<string, { actionable?: { macro?: string } } | undefined>
-          )?.['pf2e-toolbelt']?.actionable?.macro
-          if (macroId) {
-            callMacro(actor.value?._id ?? undefined, null, null, macroId, options)
+      .map((i) => {
+        const macroId = (
+          i?.flags as Record<string, { actionable?: { macro?: string } } | undefined>
+        )?.['pf2e-toolbelt']?.actionable?.macro
+        const typeValue = i.system?.actionType?.value
+        return {
+          ...(makeAction(i) as Action),
+          actionType:
+            typeValue !== 'action'
+              ? (typeValue ?? null)
+              : i.system?.traits.value.includes('skill')
+                ? 'skill'
+                : 'action',
+          macroId,
+          doMacro: (options = {}) => {
+            if (macroId) callMacro(actor.value?._id ?? undefined, null, null, macroId, options)
           }
         }
-      }))
+      })
   )
   const initiative = {
     stat: computed({

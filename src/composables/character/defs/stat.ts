@@ -1,4 +1,4 @@
-import type { Maybe } from '../helpers'
+import type { Maybe } from '@/composables/character/helpers'
 import type { BaseStatisticTraceData, RawModifier } from '@7h3laughingman/pf2e-types'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import { type Modifier, makeModifiers } from './modifier'

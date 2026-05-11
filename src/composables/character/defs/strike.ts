@@ -1,4 +1,4 @@
-import type { Maybe } from '../helpers'
+import type { Maybe } from '@/composables/character/helpers'
 import type {
   CharacterStrike,
   ElementalBlast as PF2eElementalBlast,

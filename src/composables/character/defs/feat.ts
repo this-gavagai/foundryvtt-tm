@@ -1,4 +1,4 @@
-import type { Maybe } from '../helpers'
+import type { Maybe } from '@/composables/character/helpers'
 import type { FeatPF2e } from '@7h3laughingman/pf2e-types'
 import type { Item, ItemSystem } from './item'
 import { makeItem } from './item'
