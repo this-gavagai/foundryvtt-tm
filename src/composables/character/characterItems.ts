@@ -2,13 +2,13 @@ import { computed, type Ref } from 'vue'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, Maybe } from './helpers'
 import { type PhysicalItem, type PhysicalItemSystem } from './defs/physicalItem'
-import { type Equipment, makeEquipment } from './defs/equipment'
-import { type Weapon, makeWeapon } from './defs/weapon'
-import { type Armor, makeArmor } from './defs/armor'
+import { makeEquipment } from './defs/equipment'
+import { makeWeapon } from './defs/weapon'
+import { makeArmor } from './defs/armor'
 import { type Consumable, makeConsumable } from './defs/consumable'
 import { type Feat, makeFeat } from './defs/feat'
 import { type Effect, makeEffect } from './defs/effect'
-import { type Condition, makeCondition } from './defs/condition'
+import { makeCondition } from './defs/condition'
 import { useApi } from '../api'
 import { inventoryTypes } from '@/utils/constants'
 import type {
@@ -32,7 +32,7 @@ export type EffectItem = Effect & {
   system: { value?: { value: Maybe<number>; isValued: Maybe<boolean> } }
 }
 
-export type { PhysicalItem, Equipment, Weapon, Armor, Consumable, Feat, Effect, Condition }
+// export type { PhysicalItem, Weapon, Armor, Consumable, Feat, Effect, Condition }
 export interface CharacterItems {
   feats: Field<Feat[]>
   effects: Field<EffectItem[]>

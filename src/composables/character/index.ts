@@ -14,9 +14,12 @@ import type { Item } from './defs/item'
 import type { Stat } from './defs/stat'
 import type { Modifier } from './defs/modifier'
 import type { Strike } from './defs/strike'
-import type { Equipment, InventoryItem, Feat, Consumable } from './characterItems'
-import type { SpellcastingEntry, Spell } from './characterSpells'
+import type { Equipment } from './defs/equipment'
+import type { Feat } from './defs/feat'
+import type { Consumable } from './defs/consumable'
 import type { Action } from './defs/action'
+import type { Spell, SpellcastingEntry } from './defs/spell'
+import type { InventoryItem } from './characterItems'
 export type {
   Item,
   Stat,
