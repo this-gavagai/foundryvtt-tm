@@ -77,24 +77,30 @@ const { character } = useCharacter(actorOrWorldActor)
 provide(useKeys().characterKey, character)
 
 // setup refresh methods
-const { sendCharacterRequest, setupSocketListenersForActor, getCharUnsynced } = useApi()
+const { sendCharacterRequest, setupSocketListenersForActor, setCharUnsynced } = useApi()
 const debouncededCharacterRequest = debounce(sendCharacterRequest, 500, { leading: true })
 const requestCharacterDetails = async () => {
-  getCharUnsynced().set(props.characterId, true)
+  setCharUnsynced(props.characterId, true)
   debouncededCharacterRequest(props.characterId)
 }
 
 // setup socket listeners and request character details on mount
+let removeRefresh: (() => void) | undefined
 onMounted(() => {
   console.log('TM-INIT: initiating character', props.characterId)
   if (props.characterId) {
-    setupSocketListenersForActor(props.characterId, actor, requestCharacterDetails)
+    setupSocketListenersForActor(props.characterId, actor, requestCharacterDetails).then(
+      (cleanup) => {
+        removeRefresh = cleanup
+      }
+    )
     sendCharacterRequest(props.characterId)
   }
   currentTab.value = width.value >= 768 ? 1 : 0
 })
 onUnmounted(() => {
   console.log('TM-INIT: unmounted actor', props.characterId)
+  removeRefresh?.()
 })
 
 defineExpose({ actor, character, actorOrWorldActor })

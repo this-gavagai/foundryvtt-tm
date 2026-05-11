@@ -67,7 +67,7 @@ export function useCharacterCore(actor: Ref<CharacterPF2e | undefined>): Charact
       set: (newValue) => {
         actor.value!.system.details.xp.value = newValue!
         const update = { system: { details: { xp: { value: newValue } } } }
-        updateActor(actor, update)
+        updateActor(actor as Ref<CharacterPF2e>, update)
       }
     }),
     max: computed(() => actor.value?.system?.details?.xp?.max)

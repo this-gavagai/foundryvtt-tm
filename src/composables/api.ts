@@ -14,6 +14,7 @@ import type {
   DiceResults
 } from '@/types/api-types'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
+import type Collection from '@7h3laughingman/foundry-types/common/utils/collection.mjs'
 
 type ModifyDocumentUpdate = { _id: string; [key: string]: unknown }
 type DocumentData = { _id: string | null }
@@ -23,19 +24,58 @@ import { useServer } from '@/composables/server'
 import { useTargetHelper } from '@/composables/targetHelper'
 import { uuidv4 } from '@/utils/utilities'
 import { useUserId } from '@/composables/user'
-// import { useWorld } from '@/composables/world'
 import { useListeners } from './listenersOnline'
 
 const characterUnsynced = new Map<string, boolean>() // character document dirty state, update request pending
 const characterLastRequest = new Map<string, string>() // latest character update request uuid
 
-const { getSocket } = useServer()
-const requestCharacterDetails: { [key: string]: () => void } = {}
-const ackQueue: { [key: string]: (args: RequestResolutionArgs) => void } = {}
-function pushToAckQueue(uuid: string, callback: (args: RequestResolutionArgs) => void) {
-  ackQueue[uuid] = callback
+const refreshCallbacks: { [actorId: string]: Set<() => void> } = {}
+function addRefresh(actorId: string, fn: () => void): () => void {
+  ;(refreshCallbacks[actorId] ??= new Set()).add(fn)
+  return () => {
+    refreshCallbacks[actorId]?.delete(fn)
+    if (refreshCallbacks[actorId]?.size === 0) delete refreshCallbacks[actorId]
+  }
 }
-const { getUserId } = useUserId()
+function fireRefresh(actorId: string | null | undefined) {
+  if (!actorId) return
+  refreshCallbacks[actorId]?.forEach((fn) => fn())
+}
+const getSocket = () => useServer().getSocket()
+const getUserId = () => useUserId().getUserId()
+const ackQueue: { [key: string]: (args: RequestResolutionArgs) => void } = {}
+const ACK_TIMEOUT_MS = 30_000
+function pushToAckQueue(
+  uuid: string,
+  resolve: (args: RequestResolutionArgs) => void,
+  reject: (err: Error) => void,
+  timeoutMs = ACK_TIMEOUT_MS
+) {
+  const timer = setTimeout(() => {
+    if (ackQueue[uuid]) {
+      delete ackQueue[uuid]
+      const message = `TM-WARN: request ${uuid} timed out after ${timeoutMs}ms`
+      console.warn(message)
+      reject(new Error(message))
+    }
+  }, timeoutMs)
+  ackQueue[uuid] = (args) => {
+    clearTimeout(timer)
+    resolve(args)
+  }
+}
+
+const DEBUG = import.meta.env.DEV
+const log = (...args: unknown[]) => {
+  if (DEBUG) console.log(...args)
+}
+
+function mergeWithArrayReset(objValue: unknown, srcValue: unknown) {
+  if (Array.isArray(srcValue) && Array.isArray(objValue) && srcValue.length < objValue.length) {
+    console.warn('TM-WARN: nuking array due to length mismatch', objValue, srcValue)
+    return srcValue
+  }
+}
 
 ///////////////////////////////////////
 // Setup Methods                     //
@@ -46,7 +86,6 @@ async function setupSocketListenersForApp() {
   socket.on('module.tablemate', (args: ModuleEventArgs) => {
     switch (args.action) {
       case 'acknowledged':
-        // console.log('here args', args.uuid)
         if (ackQueue[args.uuid]) {
           ackQueue[args.uuid](args)
           delete ackQueue[args.uuid]
@@ -59,7 +98,7 @@ async function setupSocketListenersForApp() {
         )
         break
       case 'listenerOnline':
-        console.log('listener online!', args)
+        log('listener online!', args)
         addListener(args.userId)
         break
     }
@@ -67,48 +106,36 @@ async function setupSocketListenersForApp() {
 }
 async function setupSocketListenersForWorld(world: Ref<GamePF2e>) {
   const socket = await getSocket()
-  console.log('worldly')
-  // const { refreshWorld } = useWorld()
-  // const { addListener } = useListeners()
-  // socket.on('module.tablemate', (args: ModuleEventArgs) => {
-  //   switch (
-  //     args.action
-  //     // case 'listenerOnline':
-  //     //   refreshWorld()
-  //     //   console.log('listener online!', args)
-  //     //   addListener(args.userId)
-  //     //   break
-  //   ) {
-  //   }
-  // })
 
   socket.on('modifyDocument', (args: DocumentSocketResponse) => {
-    // let documentSource
     switch (args.type) {
       case 'Combat':
-        processChanges(args, world.value.combats.contents as DocumentData[])
+        processChanges(args, world.value.combats as unknown as Collection<string, DocumentData>)
         break
       case 'Combatant': {
         const combatId = args.operation.parentUuid?.split('.')?.[1]
         const combat = world.value?.combats.find((c) => c._id === combatId)
-        processChanges(args, (combat?.combatants?.contents ?? []) as DocumentData[])
+        processChanges(
+          args,
+          combat?.combatants as unknown as Collection<string, DocumentData> | undefined
+        )
         break
       }
       case 'ChatMessage':
-        processChanges(args, (world.value?.messages?.contents ?? []) as DocumentData[])
-        break
-      case 'User':
-        console.log(args)
+        processChanges(
+          args,
+          world.value?.messages as unknown as Collection<string, DocumentData> | undefined
+        )
         break
     }
   })
   socket.on('userActivity', (user: string, args: { targets?: string[]; active?: boolean }) => {
     if (args.targets) {
-      console.log('user event', user, args)
+      log('user event', user, args)
       const { updateTargets } = useTargetHelper()
       updateTargets(user, args.targets)
     } else if (args.active) {
-      console.log('user online', user, args)
+      log('user online', user, args)
     }
   })
 }
@@ -117,13 +144,13 @@ async function setupSocketListenersForActor(
   actorId: string,
   actor: Ref<CharacterPF2e | undefined>,
   refreshMethod: () => Promise<void>
-) {
+): Promise<() => void> {
   const socket = await getSocket()
-  requestCharacterDetails[actorId] = refreshMethod
+  const removeRefresh = addRefresh(actorId, refreshMethod)
   socket.on('module.tablemate', (args: ModuleEventArgs) => {
     switch (args.action) {
       case 'listenerOnline':
-        if (!actor.value?.inventory) requestCharacterDetails[actorId]()
+        if (!actor.value?.inventory) fireRefresh(actorId)
         break
       case 'updateCharacterDetails':
         parseActorData(actorId, actor, args)
@@ -135,21 +162,21 @@ async function setupSocketListenersForActor(
     switch (args.type) {
       case 'Actor':
         ;(args.result as ModifyDocumentUpdate[]).forEach((result: ModifyDocumentUpdate) => {
-          if (actor.value && result._id === actorId) {
+          if (result._id === actorId) {
             mergeWith(actor.value, result, mergeWithArrayReset)
-            requestCharacterDetails[actorId]()
+            fireRefresh(actorId)
           }
         })
         break
       case 'Item':
-        if (!actor.value) return
         if (args.operation.parentUuid === 'Actor.' + actorId) {
-          processChanges(args, actor.value.items.contents as DocumentData[])
-          requestCharacterDetails[actorId]()
+          processChanges(args, actor.value.items as unknown as Collection<string, DocumentData>)
+          fireRefresh(actorId)
         }
         break
     }
   })
+  return removeRefresh
 }
 
 /////////////////////////////////////////////////
@@ -192,157 +219,137 @@ function parseActorData(
 ///////////////////////////////////////
 // Emit Methods                      //
 ///////////////////////////////////////
-async function updateActor(
-  actor: Ref<CharacterPF2e | undefined>,
-  update: object
+const MODIFY_TIMEOUT_MS = 30_000
+async function modifyDocument(
+  payload: { action: string; type: string; operation: object },
+  onResponse?: (r: DocumentSocketResponse) => void,
+  timeoutMs = MODIFY_TIMEOUT_MS
 ): Promise<DocumentSocketResponse> {
   const socket = await getSocket()
-  const promise = new Promise<DocumentSocketResponse>((resolve) => {
-    socket.emit(
-      'modifyDocument',
-      {
-        action: 'update',
-        type: 'Actor',
-        operation: {
-          diff: true,
-          render: true,
-          updates: [
-            {
-              _id: actor.value!._id,
-              ...update
-            }
-          ]
+  return new Promise<DocumentSocketResponse>((resolve, reject) => {
+    socket
+      .timeout(timeoutMs)
+      .emit('modifyDocument', payload, (err: Error | null, r: DocumentSocketResponse) => {
+        if (err) {
+          console.warn(
+            `TM-WARN: modifyDocument ${payload.action} ${payload.type} failed: ${err.message}`
+          )
+          reject(err)
+          return
         }
-      },
-      (r: DocumentSocketResponse) => {
-        ;(r.result as ModifyDocumentUpdate[]).forEach((change: ModifyDocumentUpdate) => {
-          if (actor.value) mergeWith(actor.value, change, mergeWithArrayReset)
-        })
-        requestCharacterDetails[actor.value!._id!]()
+        onResponse?.(r)
         resolve(r)
-      }
-    )
+      })
   })
-  return promise
 }
 
-async function updateActorItem(
+function updateActor(actor: Ref<CharacterPF2e>, update: object) {
+  return modifyDocument(
+    {
+      action: 'update',
+      type: 'Actor',
+      operation: {
+        diff: true,
+        render: true,
+        updates: [{ _id: actor.value._id, ...update }]
+      }
+    },
+    (r) => {
+      ;(r.result as ModifyDocumentUpdate[]).forEach((change) => {
+        mergeWith(actor.value, change, mergeWithArrayReset)
+      })
+      fireRefresh(actor.value._id)
+    }
+  )
+}
+
+function updateActorItem(
   actor: Ref<CharacterPF2e>,
   itemId: string | string[],
   update: object | object[]
-): Promise<DocumentSocketResponse> {
-  const socket = await getSocket()
-  const itemIdArray = Array.isArray(itemId) ? itemId : [itemId]
-  const promise = new Promise<DocumentSocketResponse>((resolve) => {
-    socket.emit(
-      'modifyDocument',
-      {
-        action: 'update',
-        type: 'Item',
-        operation: {
-          diff: true,
-          render: true,
-          parentUuid: 'Actor.' + actor.value?._id,
-          updates: [
-            ...itemIdArray.map((itemId, index) => ({
-              _id: itemId,
-              ...(Array.isArray(update) ? update[index] : update)
-            }))
-          ]
-        }
-      },
-      (r: DocumentSocketResponse) => {
-        processChanges(r, actor.value.items.contents as DocumentData[])
-        requestCharacterDetails[actor.value._id!]()
-        resolve(r)
+) {
+  const itemIds = Array.isArray(itemId) ? itemId : [itemId]
+  return modifyDocument(
+    {
+      action: 'update',
+      type: 'Item',
+      operation: {
+        diff: true,
+        render: true,
+        parentUuid: 'Actor.' + actor.value._id,
+        updates: itemIds.map((id, i) => ({
+          _id: id,
+          ...(Array.isArray(update) ? update[i] : update)
+        }))
       }
-    )
-  })
-  return promise
+    },
+    (r) => {
+      processChanges(r, actor.value.items as unknown as Collection<string, DocumentData>)
+      fireRefresh(actor.value._id)
+    }
+  )
 }
 
-async function deleteActorItem(actor: Ref<CharacterPF2e>, itemId: string) {
-  const socket = await getSocket()
-  const promise = new Promise<DocumentSocketResponse>((resolve) => {
-    socket.emit(
-      'modifyDocument',
-      {
-        action: 'delete',
-        type: 'Item',
-        operation: {
-          ids: [itemId],
-          parentUuid: 'Actor.' + actor.value?._id
-        }
-      },
-      (r: DocumentSocketResponse) => {
-        processChanges(r, actor.value.items.contents as DocumentData[])
-        requestCharacterDetails[actor.value._id!]()
-        resolve(r)
+function deleteActorItem(actor: Ref<CharacterPF2e>, itemId: string) {
+  return modifyDocument(
+    {
+      action: 'delete',
+      type: 'Item',
+      operation: {
+        ids: [itemId],
+        parentUuid: 'Actor.' + actor.value._id
       }
-    )
-  })
-  return promise
+    },
+    (r) => {
+      processChanges(r, actor.value.items as unknown as Collection<string, DocumentData>)
+      fireRefresh(actor.value._id)
+    }
+  )
 }
 
-async function updateUserTargetingProxy(
-  userId: string,
-  proxyId: string
-): Promise<DocumentSocketResponse> {
-  const socket = await getSocket()
-  const promise = new Promise<DocumentSocketResponse>((resolve) => {
-    socket.emit(
-      'modifyDocument',
-      {
-        action: 'update',
-        type: 'User',
-        operation: {
-          updates: [
-            {
-              _id: userId,
-              flags: { tablemate: { targeting_proxy: proxyId } }
-            }
-          ]
-        }
-      },
-      (r: DocumentSocketResponse) => {
-        resolve(r)
-      }
-    )
+function updateUserTargetingProxy(userId: string, proxyId: string) {
+  return modifyDocument({
+    action: 'update',
+    type: 'User',
+    operation: {
+      updates: [{ _id: userId, flags: { tablemate: { targeting_proxy: proxyId } } }]
+    }
   })
-  return promise
 }
 
 ///////////////////////////////////////
 // Action Request                    //
 ///////////////////////////////////////
-async function castSpell(
+async function sendModuleRequest<T extends { action: string }>(
+  payload: Omit<T, 'userId' | 'uuid'>,
+  timeoutMs?: number
+): Promise<RequestResolutionArgs> {
+  const uuid = uuidv4()
+  const args = { ...payload, userId: getUserId(), uuid }
+  const socket = await getSocket()
+  return new Promise<RequestResolutionArgs>((resolve, reject) => {
+    socket.emit('module.tablemate', args)
+    pushToAckQueue(uuid, resolve, reject, timeoutMs)
+  })
+}
+
+function castSpell(
   actor: Ref<CharacterPF2e>,
   spellId: string,
   castingLevel: number,
   castingSlot: number
 ): Promise<RequestResolutionArgs> {
-  const { getTargets } = useTargetHelper()
-  const userId = getUserId()
-  const uuid = uuidv4()
-  const args: CastSpellArgs = {
-    userId,
+  return sendModuleRequest<CastSpellArgs>({
     action: 'castSpell',
     id: spellId,
     characterId: actor.value._id!,
-    targets: getTargets(),
+    targets: useTargetHelper().getTargets(),
     rank: castingLevel,
-    slotId: castingSlot,
-    uuid
-  }
-
-  const socket = await getSocket()
-  return new Promise((resolve) => {
-    socket.emit('module.tablemate', args)
-    pushToAckQueue(uuid, (args: RequestResolutionArgs) => resolve(args))
+    slotId: castingSlot
   })
 }
 
-async function rollCheck(
+function rollCheck(
   actor: Ref<CharacterPF2e>,
   checkType: string,
   checkSubtype = '',
@@ -351,193 +358,112 @@ async function rollCheck(
   options = {},
   item = null
 ): Promise<RequestResolutionArgs> {
-  const { getTargets } = useTargetHelper()
-  const userId = getUserId()
-  const uuid = uuidv4()
-  const args: RollCheckArgs = {
-    userId,
+  return sendModuleRequest<RollCheckArgs>({
     action: 'rollCheck',
     characterId: actor.value._id!,
-    targets: getTargets(),
+    targets: useTargetHelper().getTargets(),
     item,
     checkType,
     checkSubtype,
     modifiers,
     diceResults,
-    options,
-    uuid
-  }
-
-  const socket = await getSocket()
-  return new Promise((resolve) => {
-    socket.emit('module.tablemate', args)
-    pushToAckQueue(uuid, (args: RequestResolutionArgs) => resolve(args))
+    options
   })
 }
 
-async function characterAction(
+function characterAction(
   actor: Ref<CharacterPF2e>,
   characterAction: string,
   options = {},
   diceResults: DiceResults = {}
 ): Promise<RequestResolutionArgs> {
-  const { getTargets } = useTargetHelper()
-  const userId = getUserId()
-  const uuid = uuidv4()
-  const args: CharacterActionArgs = {
-    userId,
+  return sendModuleRequest<CharacterActionArgs>({
     action: 'characterAction',
     characterId: actor.value._id!,
-    targets: getTargets(),
+    targets: useTargetHelper().getTargets(),
     characterAction,
     diceResults,
-    options,
-    uuid
-  }
-
-  const socket = await getSocket()
-  return new Promise((resolve) => {
-    socket.emit('module.tablemate', args)
-    pushToAckQueue(uuid, (args: RequestResolutionArgs) => resolve(args))
+    options
   })
 }
 
-async function consumeItem(
+function consumeItem(
   actor: Ref<CharacterPF2e>,
   consumableId: string,
   options = {}
 ): Promise<RequestResolutionArgs> {
-  const uuid = uuidv4()
-  const userId = getUserId()
-  const args: ConsumeItemArgs = {
-    userId,
+  return sendModuleRequest<ConsumeItemArgs>({
     action: 'consumeItem',
     characterId: actor.value._id!,
     consumableId,
-    options,
-    uuid
-  }
-  const socket = await getSocket()
-  return new Promise((resolve) => {
-    socket.emit('module.tablemate', args)
-    pushToAckQueue(uuid, (args: RequestResolutionArgs) => resolve(args))
+    options
   })
 }
-async function getStrikeDamage(
+
+function getStrikeDamage(
   actor: Ref<CharacterPF2e>,
   actionSlug: string,
   altUsage: number | undefined = undefined
 ): Promise<RequestResolutionArgs> {
-  const { getTargets } = useTargetHelper()
-  const userId = getUserId()
-  const uuid = uuidv4()
-  const args: GetStrikeDamageArgs = {
-    userId,
+  return sendModuleRequest<GetStrikeDamageArgs>({
     action: 'getStrikeDamage',
     characterId: actor.value._id!,
-    targets: getTargets(),
-    actionSlug: actionSlug,
-    altUsage,
-    uuid
-  }
-  const socket = await getSocket()
-  return new Promise((resolve) => {
-    socket.emit('module.tablemate', args)
-    pushToAckQueue(uuid, (args: RequestResolutionArgs) => {
-      resolve(args)
-    })
+    targets: useTargetHelper().getTargets(),
+    actionSlug,
+    altUsage
   })
 }
 
-async function sendItemToChat(characterId: string, itemId: string): Promise<RequestResolutionArgs> {
-  const userId = getUserId()
-  const uuid = uuidv4()
-  const args: SendItemToChatArgs = {
-    userId,
+function sendItemToChat(characterId: string, itemId: string): Promise<RequestResolutionArgs> {
+  return sendModuleRequest<SendItemToChatArgs>({
     action: 'sendItemToChat',
     characterId,
-    itemId,
-    uuid
-  }
-  const socket = await getSocket()
-  return new Promise((resolve) => {
-    socket.emit('module.tablemate', args)
-    pushToAckQueue(uuid, (args: RequestResolutionArgs) => {
-      resolve(args)
-    })
+    itemId
   })
 }
 
-async function callMacro(
+function callMacro(
   characterId: string | undefined,
-  compendiumName: string | null,
-  macroName: string | null,
+  compendiumName: string | null = null,
+  macroName: string | null = null,
   macroUuid: string | null = null,
   options = {}
 ): Promise<RequestResolutionArgs | null> {
   if (characterId === undefined) return Promise.resolve(null)
-  const { getTargets } = useTargetHelper()
-  const userId = getUserId()
-  const uuid = uuidv4()
-  const args: CallMacroArgs = {
-    userId,
+  return sendModuleRequest<CallMacroArgs>({
     action: 'callMacro',
     characterId,
-    targets: getTargets(),
+    targets: useTargetHelper().getTargets(),
     compendiumName,
     macroName,
     macroUuid,
-    options,
-    uuid
-  }
-
-  const socket = await getSocket()
-  return new Promise((resolve) => {
-    socket.emit('module.tablemate', args)
-    pushToAckQueue(uuid, (args: RequestResolutionArgs) => resolve(args))
+    options
   })
 }
 
 //////////////////////////////////////////////////
 // Processing Methods for Items (not Actor)     //
 //////////////////////////////////////////////////
-function processChanges(args: DocumentSocketResponse, dataRoot: DocumentData[]) {
+function processChanges(
+  args: DocumentSocketResponse,
+  collection: Collection<string, DocumentData> | undefined
+) {
+  if (!collection) return
   switch (args.action) {
     case 'create':
-      _processCreates(args.result as ModifyDocumentUpdate[], dataRoot)
+      ;(args.result as ModifyDocumentUpdate[]).forEach((c) => {
+        if (c._id) collection.set(c._id, c as DocumentData)
+      })
       break
     case 'update':
-      _processUpdates(args.result as ModifyDocumentUpdate[], dataRoot)
+      ;(args.result as ModifyDocumentUpdate[]).forEach((change) => {
+        const item = collection.find((a) => a._id === change._id)
+        if (item) mergeWith(item, change, mergeWithArrayReset)
+      })
       break
     case 'delete':
-      _processDeletes(args.result as string[], dataRoot)
+      ;(args.result as string[]).forEach((id) => collection.delete(id))
       break
-  }
-}
-
-function _processCreates(results: ModifyDocumentUpdate[], root: DocumentData[]) {
-  results.forEach((c) => {
-    root.push(c)
-  })
-}
-function _processUpdates(results: ModifyDocumentUpdate[], root: DocumentData[]) {
-  results.forEach((change) => {
-    const item = root.find((a) => a._id === change._id)
-    if (item) mergeWith(item, change, mergeWithArrayReset)
-  })
-}
-function _processDeletes(results: string[], root: DocumentData[]) {
-  results.forEach((d) => {
-    const index = root.findIndex((i) => i._id === d)
-    if (index != -1) {
-      root.splice(index, 1)
-    }
-  })
-}
-function mergeWithArrayReset(objValue: unknown, srcValue: unknown) {
-  if (Array.isArray(srcValue) && Array.isArray(objValue) && srcValue.length < objValue.length) {
-    console.log('TM-WARN: nuking array due to length mismatch', objValue, srcValue)
-    return srcValue
   }
 }
 
@@ -561,7 +487,7 @@ export function useApi() {
     getStrikeDamage,
     sendItemToChat,
     callMacro,
-    getCharUnsynced: () => characterUnsynced,
-    getCharLastRequest: () => characterUnsynced
+    setCharUnsynced: (actorId: string, value: boolean) => characterUnsynced.set(actorId, value),
+    isCharUnsynced: (actorId: string) => characterUnsynced.get(actorId) ?? false
   }
 }

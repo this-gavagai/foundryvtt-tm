@@ -22,7 +22,7 @@ import electricity from '@/assets/icons/electric.svg'
 import fire from '@/assets/icons/celebration-fire.svg'
 import cold from '@/assets/icons/snowflake-2.svg'
 import vitality from '@/assets/icons/hearts.svg'
-import type { ElementalBlast } from '@/composables/character/characterStrikes'
+import type { ElementalBlast } from '@/composables/character/strike'
 const damageIcons = { bludgeoning, slashing, piercing, electricity, fire, cold, vitality }
 const actionIcons = { '1': action1, '2': action2 }
 

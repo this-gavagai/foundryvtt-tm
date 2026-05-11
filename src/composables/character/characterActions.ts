@@ -81,7 +81,7 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
       set: (newValue) => {
         actor.value!.system.initiative.statistic = newValue!
         const update = { system: { initiative: { statistic: newValue } } }
-        updateActor(actor, update)
+        updateActor(actor as Ref<CharacterPF2e>, update)
       }
     }),
     modifiers: computed(() => makeModifiers(actor.value?.system?.initiative?.modifiers)),
