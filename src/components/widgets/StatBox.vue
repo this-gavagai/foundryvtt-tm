@@ -24,8 +24,8 @@ const { isListening } = useListeners()
 
 function makeRoll(result: number | undefined = undefined) {
   return props.rollAction?.(result).then((r: RequestResolutionArgs | null) => {
-    infoModal.value.rollResultModal.open(r)
     infoModal.value.close()
+    infoModal.value.rollResultModal.open(r)
   })
 }
 const canOpen = computed(() => (props?.modifiers || props?.breakdown) && !props.preventInfoModal)
