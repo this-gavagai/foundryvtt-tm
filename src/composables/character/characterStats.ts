@@ -8,8 +8,8 @@ import type {
   ClassDCData
 } from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField, Maybe } from './helpers'
-import { type Modifier, makeModifiers } from './modifier'
-import { type Stat, makeStat } from './stat'
+import { type Modifier, makeModifiers } from './defs/modifier'
+import { type Stat, makeStat } from './defs/stat'
 import { useApi } from '@/composables/api'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import { kebabCase } from 'lodash-es'

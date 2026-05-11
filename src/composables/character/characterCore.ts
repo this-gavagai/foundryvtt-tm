@@ -8,11 +8,11 @@ import type {
   HeritagePF2e
 } from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField } from './helpers'
-import { type Ancestry, makeAncestry } from './ancestry'
-import { type Background, makeBackground } from './background'
-import { type Heritage, makeHeritage } from './heritage'
-import { type ClassType, makeClassType } from './classType'
-import { type Stat, makeStat } from './stat'
+import { type Ancestry, makeAncestry } from './defs/ancestry'
+import { type Background, makeBackground } from './defs/background'
+import { type Heritage, makeHeritage } from './defs/heritage'
+import { type ClassType, makeClassType } from './defs/classType'
+import { type Stat, makeStat } from './defs/stat'
 import { useApi } from '@/composables/api'
 
 export interface CharacterCore {

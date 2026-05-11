@@ -7,7 +7,7 @@ import InfoModal from './InfoModal.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import StrikeActionSet from './StrikeListActionSet.vue'
 import type { Strike } from '@/composables/character'
-import type { Weapon } from '@/composables/character/weapon'
+import type { Weapon } from '@/composables/character/defs/weapon'
 import type { RequestResolutionArgs } from '@/types/api-types'
 
 import ChoiceWidget from '@/components/widgets/ChoiceWidget.vue'
@@ -22,7 +22,7 @@ import electricity from '@/assets/icons/electric.svg'
 import fire from '@/assets/icons/celebration-fire.svg'
 import cold from '@/assets/icons/snowflake-2.svg'
 import vitality from '@/assets/icons/hearts.svg'
-import type { ElementalBlast } from '@/composables/character/strike'
+import type { ElementalBlast } from '@/composables/character/defs/strike'
 const damageIcons = { bludgeoning, slashing, piercing, electricity, fire, cold, vitality }
 const actionIcons = { '1': action1, '2': action2 }
 

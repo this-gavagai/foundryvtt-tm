@@ -40,7 +40,7 @@ export function useCharacterRules(actor: Ref<CharacterPF2e | undefined>): Charac
     const rollOptions = new Map<string, RollOption>()
     const activeRules = (actor.value as ActorWithActiveRules)?.activeRules
     actor.value?.items.forEach((item) => {
-      (item.system.rules as RollOptionRule[]).forEach((rule) => {
+      ;(item.system.rules as RollOptionRule[]).forEach((rule) => {
         if (
           rule.key === 'RollOption' &&
           activeRules?.includes(rule.option ?? '') &&
@@ -57,11 +57,15 @@ export function useCharacterRules(actor: Ref<CharacterPF2e | undefined>): Charac
               selection: rule?.selection,
               updateRule: (newToggleValue, newSelection) => {
                 const itemSet = actor.value?.items
-                  ?.filter((i) => (i?.system?.rules as RollOptionRule[]).some((r) => r?.option === rule?.option))
+                  ?.filter((i) =>
+                    (i?.system?.rules as RollOptionRule[]).some((r) => r?.option === rule?.option)
+                  )
                   ?.map((i) => i._id!)
                 const updateSet: object[] = []
                 itemSet?.forEach((i) => {
-                  const rules = actor.value?.items.find((j) => j._id === i)?.system.rules as RollOptionRule[] | undefined
+                  const rules = actor.value?.items.find((j) => j._id === i)?.system.rules as
+                    | RollOptionRule[]
+                    | undefined
                   const rollOptionRule = rules?.find(
                     (r) => r.option === rule?.option && r.key === 'RollOption'
                   )

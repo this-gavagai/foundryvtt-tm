@@ -1,14 +1,14 @@
 import { computed, type Ref } from 'vue'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, Maybe } from './helpers'
-import { type PhysicalItem, type PhysicalItemSystem } from './physicalItem'
-import { type Equipment, makeEquipment } from './equipment'
-import { type Weapon, makeWeapon } from './weapon'
-import { type Armor, makeArmor } from './armor'
-import { type Consumable, makeConsumable } from './consumable'
-import { type Feat, makeFeat } from './feat'
-import { type Effect, makeEffect } from './effect'
-import { type Condition, makeCondition } from './condition'
+import { type PhysicalItem, type PhysicalItemSystem } from './defs/physicalItem'
+import { type Equipment, makeEquipment } from './defs/equipment'
+import { type Weapon, makeWeapon } from './defs/weapon'
+import { type Armor, makeArmor } from './defs/armor'
+import { type Consumable, makeConsumable } from './defs/consumable'
+import { type Feat, makeFeat } from './defs/feat'
+import { type Effect, makeEffect } from './defs/effect'
+import { type Condition, makeCondition } from './defs/condition'
 import { useApi } from '../api'
 import { inventoryTypes } from '@/utils/constants'
 import type {
@@ -126,13 +126,13 @@ export function useCharacterItems(actor: Ref<CharacterPF2e | undefined>): Charac
           return updateActorItem(actor as Ref<CharacterPF2e>, i._id!, updates)
         }
       }))
-      .map((e: PhysicalItem) => {
-        e.system.subitems?.forEach((s) => {
-          ;(s as PhysicalItem).label = (
+      .map((e) => {
+        ;(e.system as PhysicalItemSystem).subitems?.forEach((s) => {
+          ;(s as { label?: string }).label = (
             actor.value?.inventory as { labels?: Record<string, string> }
           )?.labels?.[s?._id ?? '']
         })
-        return e
+        return e as InventoryItem
       })
   )
   const bulk = {

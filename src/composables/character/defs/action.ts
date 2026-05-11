@@ -1,6 +1,6 @@
 import type { AbilityItemPF2e } from '@7h3laughingman/pf2e-types'
 import type { Item, ItemSystem } from './item'
-import type { Maybe } from './helpers'
+import type { Maybe } from '../helpers'
 import { makeItem } from './item'
 
 export interface ActionSystem extends ItemSystem {

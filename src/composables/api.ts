@@ -421,8 +421,6 @@ function callMacro(
 //////////////////////////////////////////////////
 // Processing Methods for Items (not Actor)     //
 //////////////////////////////////////////////////
-// Note: the TypeScript types from pf2e-types say these are Foundry Collections,
-// but at runtime they're plain JSON arrays sent from the server. Treat as arrays.
 function processChanges(args: DocumentSocketResponse, root: DocumentData[] | undefined) {
   if (!root) return
   switch (args.action) {

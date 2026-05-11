@@ -1,4 +1,4 @@
-import type { Maybe } from './helpers'
+import type { Maybe } from '../helpers'
 import type { SpellPF2e, SpellcastingEntryPF2e } from '@7h3laughingman/pf2e-types'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type { Item, ItemSystem } from './item'
@@ -72,9 +72,7 @@ export function makeSpell(root: SpellPF2e): Spell {
   } as Spell
 }
 
-export function makeSpellcastingEntry(
-  root: SpellcastingEntryPF2e
-): SpellcastingEntry {
+export function makeSpellcastingEntry(root: SpellcastingEntryPF2e): SpellcastingEntry {
   const base = makeItem(root)!
   const slots = Object.entries(root.system.slots ?? {}).reduce(
     (acc, [key, slot]) => {

@@ -1,7 +1,7 @@
 import { computed, type Ref } from 'vue'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField } from './helpers'
-import { type Modifier, makeModifiers } from './modifier'
+import { type Modifier, makeModifiers } from './defs/modifier'
 import { useApi } from '../api'
 
 export interface CharacterResources {

@@ -1,4 +1,4 @@
-import type { Maybe } from './helpers'
+import type { Maybe } from '@/composables/character/helpers'
 import type { RawModifier } from '@7h3laughingman/pf2e-types'
 
 export interface Modifier {

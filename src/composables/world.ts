@@ -1,9 +1,9 @@
-import { ref, type Ref } from 'vue'
+import { shallowRef, type Ref } from 'vue'
 import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import { useServer } from '@/composables/server'
 import { debounce } from 'lodash-es'
 
-const world = ref<GamePF2e | undefined>(undefined)
+const world = shallowRef<GamePF2e | undefined>(undefined)
 
 const { getSocket } = useServer()
 

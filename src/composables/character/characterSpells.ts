@@ -1,16 +1,26 @@
 import { computed, type Ref } from 'vue'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, Maybe } from './helpers'
-import { type Spell, type SpellcastingEntry, makeSpell, makeSpellcastingEntry } from './spell'
-import { type Consumable, makeConsumable } from './consumable'
+import { type Spell, type SpellcastingEntry, makeSpell, makeSpellcastingEntry } from './defs/spell'
+import { type Consumable, makeConsumable } from './defs/consumable'
 import { useApi } from '../api'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type { RequestResolutionArgs } from '@/types/api-types'
-import type { ConsumablePF2e, SpellPF2e, SpellcastingEntryPF2e, SlotKey } from '@7h3laughingman/pf2e-types'
+import type {
+  ConsumablePF2e,
+  SpellPF2e,
+  SpellcastingEntryPF2e,
+  SlotKey
+} from '@7h3laughingman/pf2e-types'
 
 export type { Spell, SpellcastingEntry }
 
-type StaffData = { spells?: SpellPF2e[]; staffId?: string; charges?: { value?: number; max?: number }; expended?: boolean }
+type StaffData = {
+  spells?: SpellPF2e[]
+  staffId?: string
+  charges?: { value?: number; max?: number }
+  expended?: boolean
+}
 type PF2eDailiesFlags = { extra?: { staffData?: StaffData } } | undefined
 
 export interface Staff {

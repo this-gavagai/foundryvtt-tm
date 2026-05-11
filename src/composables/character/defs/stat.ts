@@ -1,4 +1,4 @@
-import type { Maybe } from './helpers'
+import type { Maybe } from '../helpers'
 import type { BaseStatisticTraceData, RawModifier } from '@7h3laughingman/pf2e-types'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import { type Modifier, makeModifiers } from './modifier'
@@ -26,7 +26,10 @@ export interface Stat {
   modifiers: Maybe<Modifier[]>
   dc: Maybe<number>
   lore: Maybe<boolean>
-  roll?: (result?: number | undefined, options?: object | undefined) => Promise<RequestResolutionArgs | null>
+  roll?: (
+    result?: number | undefined,
+    options?: object | undefined
+  ) => Promise<RequestResolutionArgs | null>
 }
 export function makeStat(root: StatInput | undefined, key: string | null = null): Stat | undefined {
   if (!root) return undefined

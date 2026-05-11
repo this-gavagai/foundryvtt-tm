@@ -1,4 +1,4 @@
-import type { Maybe } from './helpers'
+import type { Maybe } from '@/composables/character/helpers'
 import type { ItemPF2e } from '@7h3laughingman/pf2e-types'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 

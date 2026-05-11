@@ -10,13 +10,13 @@ import { type CharacterActions, useCharacterActions } from './characterActions'
 import { type CharacterStrikes, useCharacterStrikes } from './characterStrikes'
 import { type CharacterRules, useCharacterRules } from './characterRules'
 
-import type { Item } from './item'
-import type { Stat } from './stat'
-import type { Modifier } from './modifier'
-import type { Strike } from './strike'
+import type { Item } from './defs/item'
+import type { Stat } from './defs/stat'
+import type { Modifier } from './defs/modifier'
+import type { Strike } from './defs/strike'
 import type { Equipment, InventoryItem, Feat, Consumable } from './characterItems'
 import type { SpellcastingEntry, Spell } from './characterSpells'
-import type { Action } from './characterActions'
+import type { Action } from './defs/action'
 export type {
   Item,
   Stat,

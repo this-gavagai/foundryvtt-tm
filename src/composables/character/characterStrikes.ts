@@ -1,7 +1,7 @@
 import { computed, type Ref } from 'vue'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField } from './helpers'
-import { type Strike, makeStrike, type ElementalBlast, makeElementalBlasts } from './strike'
+import { type Strike, makeStrike, type ElementalBlast, makeElementalBlasts } from './defs/strike'
 import { useApi } from '../api'
 import type {
   CharacterStrike,
