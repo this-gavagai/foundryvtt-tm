@@ -1,9 +1,11 @@
 <script setup lang="ts">
+// TODO: refactor this to handle actions structure more cleanly
 const props = defineProps<{ actions: string | undefined }>()
 </script>
 <template>
   <span class="pf2-icon">
-    {{ props.actions?.replace('to', '-').replace('free', 'f').replace('reaction', 'r') ?? '' }}
+    <!-- {{ props.actions?.replace('to', '-').replace('free', 'f').replace('reaction', 'r') ?? '' }} -->
+    {{ props.actions ?? '' }}
   </span>
 </template>
 <style scoped>

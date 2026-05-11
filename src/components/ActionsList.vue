@@ -44,13 +44,13 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
             >
               {{ action.name }}
               <ActionIcons
-                class="relative -mt-[.5rem] pl-1 text-2xl leading-4"
+                class="relative -mt-2 pl-1 text-2xl leading-4"
                 :actions="
                   group.type === 'reaction'
                     ? 'r'
                     : group.type === 'free'
                       ? 'f'
-                      : action?.system?.actions?.value + ''
+                      : (action?.system?.actions?.value?.toString() ?? '')
                 "
               />
             </a>

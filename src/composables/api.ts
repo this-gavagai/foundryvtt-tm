@@ -1,4 +1,5 @@
 import type { Ref } from 'vue'
+import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type { CharacterPF2e, GamePF2e } from '@7h3laughingman/pf2e-types'
 import type {
   RequestResolutionArgs,
@@ -13,8 +14,6 @@ import type {
   CallMacroArgs,
   DiceResults
 } from '@/types/api-types'
-import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
-import type Collection from '@7h3laughingman/foundry-types/common/utils/collection.mjs'
 
 type ModifyDocumentUpdate = { _id: string; [key: string]: unknown }
 type DocumentData = { _id: string | null }
@@ -110,22 +109,16 @@ async function setupSocketListenersForWorld(world: Ref<GamePF2e>) {
   socket.on('modifyDocument', (args: DocumentSocketResponse) => {
     switch (args.type) {
       case 'Combat':
-        processChanges(args, world.value.combats as unknown as Collection<string, DocumentData>)
+        processChanges(args, world.value.combats as unknown as DocumentData[])
         break
       case 'Combatant': {
         const combatId = args.operation.parentUuid?.split('.')?.[1]
         const combat = world.value?.combats.find((c) => c._id === combatId)
-        processChanges(
-          args,
-          combat?.combatants as unknown as Collection<string, DocumentData> | undefined
-        )
+        processChanges(args, combat?.combatants as unknown as DocumentData[] | undefined)
         break
       }
       case 'ChatMessage':
-        processChanges(
-          args,
-          world.value?.messages as unknown as Collection<string, DocumentData> | undefined
-        )
+        processChanges(args, world.value?.messages as unknown as DocumentData[] | undefined)
         break
     }
   })
@@ -170,7 +163,7 @@ async function setupSocketListenersForActor(
         break
       case 'Item':
         if (args.operation.parentUuid === 'Actor.' + actorId) {
-          processChanges(args, actor.value.items as unknown as Collection<string, DocumentData>)
+          processChanges(args, actor.value.items as unknown as DocumentData[])
           fireRefresh(actorId)
         }
         break
@@ -219,27 +212,16 @@ function parseActorData(
 ///////////////////////////////////////
 // Emit Methods                      //
 ///////////////////////////////////////
-const MODIFY_TIMEOUT_MS = 30_000
 async function modifyDocument(
   payload: { action: string; type: string; operation: object },
-  onResponse?: (r: DocumentSocketResponse) => void,
-  timeoutMs = MODIFY_TIMEOUT_MS
+  onResponse?: (r: DocumentSocketResponse) => void
 ): Promise<DocumentSocketResponse> {
   const socket = await getSocket()
-  return new Promise<DocumentSocketResponse>((resolve, reject) => {
-    socket
-      .timeout(timeoutMs)
-      .emit('modifyDocument', payload, (err: Error | null, r: DocumentSocketResponse) => {
-        if (err) {
-          console.warn(
-            `TM-WARN: modifyDocument ${payload.action} ${payload.type} failed: ${err.message}`
-          )
-          reject(err)
-          return
-        }
-        onResponse?.(r)
-        resolve(r)
-      })
+  return new Promise<DocumentSocketResponse>((resolve) => {
+    socket.emit('modifyDocument', payload, (r: DocumentSocketResponse) => {
+      onResponse?.(r)
+      resolve(r)
+    })
   })
 }
 
@@ -284,7 +266,7 @@ function updateActorItem(
       }
     },
     (r) => {
-      processChanges(r, actor.value.items as unknown as Collection<string, DocumentData>)
+      processChanges(r, actor.value.items as unknown as DocumentData[])
       fireRefresh(actor.value._id)
     }
   )
@@ -301,7 +283,7 @@ function deleteActorItem(actor: Ref<CharacterPF2e>, itemId: string) {
       }
     },
     (r) => {
-      processChanges(r, actor.value.items as unknown as Collection<string, DocumentData>)
+      processChanges(r, actor.value.items as unknown as DocumentData[])
       fireRefresh(actor.value._id)
     }
   )
@@ -444,25 +426,25 @@ function callMacro(
 //////////////////////////////////////////////////
 // Processing Methods for Items (not Actor)     //
 //////////////////////////////////////////////////
-function processChanges(
-  args: DocumentSocketResponse,
-  collection: Collection<string, DocumentData> | undefined
-) {
-  if (!collection) return
+// Note: the TypeScript types from pf2e-types say these are Foundry Collections,
+// but at runtime they're plain JSON arrays sent from the server. Treat as arrays.
+function processChanges(args: DocumentSocketResponse, root: DocumentData[] | undefined) {
+  if (!root) return
   switch (args.action) {
     case 'create':
-      ;(args.result as ModifyDocumentUpdate[]).forEach((c) => {
-        if (c._id) collection.set(c._id, c as DocumentData)
-      })
+      ;(args.result as ModifyDocumentUpdate[]).forEach((c) => root.push(c))
       break
     case 'update':
       ;(args.result as ModifyDocumentUpdate[]).forEach((change) => {
-        const item = collection.find((a) => a._id === change._id)
+        const item = root.find((a) => a._id === change._id)
         if (item) mergeWith(item, change, mergeWithArrayReset)
       })
       break
     case 'delete':
-      ;(args.result as string[]).forEach((id) => collection.delete(id))
+      ;(args.result as string[]).forEach((id) => {
+        const i = root.findIndex((x) => x._id === id)
+        if (i !== -1) root.splice(i, 1)
+      })
       break
   }
 }

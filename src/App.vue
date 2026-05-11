@@ -2,7 +2,6 @@
 import { type Ref, useTemplateRef, watch, watchPostEffect } from 'vue'
 import { useWakeLock } from '@vueuse/core'
 import type { Socket } from 'socket.io-client'
-import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 
 import { useApi } from '@/composables/api'
@@ -36,7 +35,7 @@ const { world, refreshWorld } = useWorld()
 const { setupSocketListenersForWorld, setupSocketListenersForApp } = useApi()
 setupSocketListenersForApp()
 refreshWorld().then((w) => {
-  setupSocketListenersForWorld(w as Ref<GamePF2e>)
+  setupSocketListenersForWorld(w)
 })
 
 // keep screen awake (hard to tell if this is working or not)

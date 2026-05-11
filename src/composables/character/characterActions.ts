@@ -3,18 +3,9 @@ import type { CharacterPF2e, AbilityItemPF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField } from './helpers'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import { type Modifier, makeModifiers } from './modifier'
-import type { Maybe } from './helpers'
-import { type Item, type ItemSystem, makeItem } from './item'
+import { type Action, makeAction } from './action'
 import { useApi } from '../api'
 import { actionTypes } from '@/utils/constants'
-
-export interface Action extends Item {
-  system: ItemSystem & { actions?: { value: Maybe<string> } }
-  actionType: string | null
-  item: Item
-  macroId: Maybe<string>
-  doMacro?: (options?: object | undefined) => void
-}
 
 export interface CharacterActions {
   doCharacterAction: (
@@ -49,7 +40,7 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
       ?.filter((i): i is AbilityItemPF2e<CharacterPF2e> => i.type === 'action')
       .filter((i) => actionTypes.map((a) => a.type).includes(i.system?.actionType?.value))
       .map((i) => ({
-        ...(makeItem(i) as Action),
+        ...(makeAction(i) as Action),
         actionType:
           i?.system?.actionType?.value === 'action' &&
           i?.system?.traits.value.includes('skill') === false
