@@ -174,17 +174,11 @@ function parseActorData(
   actor: Ref<CharacterPF2e | undefined>,
   args: UpdateCharacterDetailsArgs
 ) {
-  // return
   if (actorId !== args.actorId) return
   if (characterUnsynced.get(actorId)) return
   if (characterLastRequest.get(actorId) !== args.uuid) return
 
   if (!actor.value) actor.value = {} as CharacterPF2e
-  if (!actor.value.system) actor.value.system = {} as CharacterPF2e['system']
-  const actorRecord = actor.value as { elementalBlasts?: unknown; inventory?: unknown; activeRules?: unknown[] }
-  if (!actorRecord.elementalBlasts) actorRecord.elementalBlasts = {}
-  if (!actorRecord.inventory) actorRecord.inventory = {}
-  if (!actorRecord.activeRules) actorRecord.activeRules = []
 
   const incoming = JSON.parse(args.actor)
   incoming.system = JSON.parse(args.system)
