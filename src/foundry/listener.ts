@@ -38,6 +38,7 @@ export function setupListener() {
       event === 'userActivity' ||
       event === 'template' ||
       event === 'manageFiles' ||
+      event === 'time' ||
       args?.[0]?.action === 'get' ||
       (event.match('module.') && !event.match('module.tablemate'))
     )
