@@ -2,7 +2,7 @@
   "name": "Tabula Mensa",
   "short_name": "Tabula Mensa",
   "description": "A PF2e Character Sheet for FoundryVTT",
-  "start_url": "/modules/tablemate/",
+  "start_url": "/modules/tablemate/index.html",
   "scope": "/modules/tablemate/",
   "display": "standalone",
   "orientation": "portrait",
