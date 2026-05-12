@@ -15,7 +15,6 @@ const { effects } = character
 const infoModal = ref()
 const effectViewedId = ref<string | undefined>()
 const effectViewed = computed(() => effects.value?.find((e) => e._id === effectViewedId.value))
-// TODO: remove bottom border when no elements are present
 </script>
 <template>
   <div :class="{ 'border-none': effects?.length === 0 }">

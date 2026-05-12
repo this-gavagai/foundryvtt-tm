@@ -25,7 +25,6 @@ export interface CharacterActions {
 export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): CharacterActions {
   const { characterAction, rollCheck, updateActor, callMacro } = useApi()
 
-  // TODO: is this separate method necessary?
   const doCharacterAction = (
     slug: string,
     options: object | undefined = {},

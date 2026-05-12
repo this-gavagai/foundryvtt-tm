@@ -1,3 +1,5 @@
+import type { ItemPF2e, RawModifier } from '@7h3laughingman/pf2e-types'
+
 export type ModuleEventArgs =
   | AcknowledgementArgs
   | ListenderOnlineArgs
@@ -49,21 +51,21 @@ export interface RollCheckArgs {
   characterId: string
   checkType: string
   checkSubtype: string
-  modifiers: any
-  options: any
+  modifiers: { label: string; modifier: number; enabled: boolean; ignored: boolean }[]
+  options: object
   uuid: string
   targets?: string[]
-  item?: Item | null
+  item?: ItemPF2e | null
   diceResults: DiceResults
 }
 export interface CharacterActionArgs {
   action: 'characterAction'
   userId: string
   characterId: string
-  targets: any
-  characterAction: any
+  targets: string[]
+  characterAction: string
   diceResults: DiceResults
-  options: any
+  options: object
   uuid: string
 }
 export interface CastSpellArgs {
@@ -123,7 +125,7 @@ export interface RequestResolutionArgs {
   response?: {
     damage?: string
     critical?: string
-    modifiers?: any
+    modifiers?: RawModifier[]
   }
 }
 
@@ -147,6 +149,7 @@ export interface DiceResults {
 }
 
 // debugging conveniences
+/* eslint-disable @typescript-eslint/no-explicit-any */
 declare global {
   interface Window {
     socket: any
@@ -162,3 +165,4 @@ declare global {
     pixel: any
   }
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */

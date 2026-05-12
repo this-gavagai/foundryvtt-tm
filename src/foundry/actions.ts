@@ -3,7 +3,6 @@ import type {
   ItemPF2e,
   PhysicalItemPF2e,
   StatisticModifier,
-  Modifier,
   RollOptionRuleElement,
   GamePF2e,
   MacroPF2e,
@@ -97,7 +96,7 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   }
   //https://github.com/foundryvtt/pf2e/blob/68988e12fbec7ea8359b9bee9b0c43eb6964ca3f/src/module/system/statistic/statistic.ts#L617
   const actor = source.actors.get(args.characterId, { strict: true })
-  const modifiers = args.modifiers.map((m: Modifier) => {
+  const modifiers = args.modifiers.map((m) => {
     return new source.pf2e.Modifier(m)
   })
   const targetTokenDoc =
@@ -185,7 +184,7 @@ export async function foundryRollCheck(args: RollCheckArgs) {
     }
     case 'flat': {
       const label = 'Generic Flat Check'
-      const dc = args?.options?.dc ?? 11
+      const dc = (args.options as { dc?: number }).dc ?? 11
       roll = game.pf2e.Check.roll(new game.pf2e.StatisticModifier(label, []), {
         actor: {} as ActorPF2e,
         type: 'flat-check',
