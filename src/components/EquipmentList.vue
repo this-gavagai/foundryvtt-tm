@@ -253,7 +253,8 @@ const toggleSet = [
               <div
                 v-if="
                   itemViewed?.system?.equipped?.carryType === 'stowed' &&
-                  (inventory?.filter((i: InventoryItem) => i.type === 'backpack').length ?? 0) > 1 &&
+                  (inventory?.filter((i: InventoryItem) => i.type === 'backpack').length ?? 0) >
+                    1 &&
                   itemViewed?.type !== 'backpack'
                 "
               >

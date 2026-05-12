@@ -6,6 +6,9 @@ import { logger } from '@/utils/utilities'
 const { getSocket } = useServer()
 const { userId } = useUserId()
 
+// TODO: do a sweep to deactivate things that need to be deactivated in the absence of a listner
+// Off hand, that includes Initiative skill, Hero Point modifiers, HP stats (crashing now)
+
 const listenersOnline = ref(new Map<string, number>())
 const isListening = computed(() => listenersOnline.value.size > 0)
 

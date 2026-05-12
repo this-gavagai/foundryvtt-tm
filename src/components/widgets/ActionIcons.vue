@@ -12,6 +12,7 @@ const props = defineProps<{ actions: string | undefined }>()
 @font-face {
   font-family: Pathfinder2eActions;
   src: url(@/assets/Pathfinder2eActions.ttf);
+  font-display: block;
 }
 .pf2-icon {
   font-family: 'Pathfinder2eActions', sans-serif;

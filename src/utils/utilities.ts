@@ -8,9 +8,6 @@ interface ItemPartial {
   }
 }
 
-// export function capitalize(s: string | undefined) {
-//   return s ? s?.[0]?.toUpperCase() + s?.slice(1) : null
-// }
 export function makeTraits(traits: string[] | undefined): string {
   let list = traits?.reduce((list, t) => {
     return (list += `<span class="bg-[#5E0000] text-[0.5rem] text-white px-1 uppercase">${t}${'\n'}</span>`)
@@ -54,24 +51,6 @@ export function printPrice(
     .filter((x) => x !== undefined)
     .join(' ')
 }
-
-// export function removeUUIDs(description: string | undefined) {
-//   const inline_actions = /\[\[\/act (?<slug>[^\s]+)[\s]*(?<params>.*?)\]\](\{(?<label>.+?)\})?/gm
-//   description = description?.replace(
-//     inline_actions,
-//     (match, p1, p2, p3, p4, offset, string, groups) =>
-//       `<label class="has-checked:bg-green-300 transition-all duration-50 bg-gray-300 border-gray-400 border -my-1 p-1 mx-1 cursor-pointer">
-//         <input class="fixed opacity-0 pointer-events-none" type="radio" name="roll" value="${groups.slug}">
-//         ${groups.label ?? groups.slug}
-//       </label>`
-//   )
-
-//   const changed = description
-//     ?.replace(/@(UUID|Compendium)\[.*?\]\{(.*?)\}/gm, '<span class="text-red-900">$2</span>')
-//     ?.replace(/\[\[\/r (.*)\]\]/gm, '<span class="text-green-900">$1</span>')
-
-//   return changed
-// }
 
 export const SignedNumber = new Intl.NumberFormat('en-US', {
   signDisplay: 'always'

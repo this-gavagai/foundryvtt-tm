@@ -229,7 +229,7 @@ watch(viewedStrike, async () => updateDamageFormula())
           </li>
         </ul>
       </div>
-      <div class="break-inside-avoid [&:not(:has(li))]:hidden [div_&:not(:hidden)]:pt-2">
+      <div class="break-inside-avoid [&:not(:has(li))]:hidden [div_&:not(.hidden)]:pt-2">
         <h3 class="text-lg underline">Strikes</h3>
         <ul>
           <li

@@ -127,8 +127,7 @@ export default defineConfig(({ mode }) => {
       open: '/',
       proxy: {
         '/modules/tablemate/tablemate.mjs': 'http://localhost:30000/',
-        '^/modules/tablemate/assets/actions.*': 'http://localhost:30000/',
-        '^/modules/tablemate/assets/debounce*': 'http://localhost:30000/',
+        '^/modules/tablemate/assets/': 'http://localhost:30000/',
         '^(?!/modules/tablemate/)': 'http://localhost:30000/',
         '/socket.io': {
           target: 'ws://localhost:30000',

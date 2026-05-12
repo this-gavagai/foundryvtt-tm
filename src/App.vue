@@ -12,12 +12,14 @@ import { usePixelDice } from './composables/pixelDice'
 import { useUserId } from './composables/user'
 
 import CharacterSheet from '@/components/CharacterSheet.vue'
+import LoginPage from '@/components/LoginPage.vue'
 import { logger } from './utils/utilities'
+
 const BUILD_MODE: string = import.meta.env.MODE
 
 // connect to server and ping it periodically
 const location = new URL(window.location.origin)
-const { connectToServer } = useServer()
+const { connectToServer, needsLogin } = useServer()
 const { getUserId } = useUserId()
 connectToServer(location).then((socket: Ref<Socket | undefined>) => {
   setTimeout(
@@ -39,6 +41,17 @@ refreshWorld().then((w) => {
   setupSocketListenersForWorld(w)
 })
 
+// setup characters
+const urlId = new URLSearchParams(document.location.search).get('id')
+const { characterList, activeCharacterId } = useCharacterSelect(urlId)
+watch(activeCharacterId, (newValue) => {
+  if (urlId !== newValue) {
+    const url = `${window.location.origin}/modules/tablemate/index.html?id=${newValue}`
+    window.location.assign(url)
+  }
+})
+const characters = useTemplateRef('characters')
+
 // keep screen awake (hard to tell if this is working or not)
 const { request } = useWakeLock()
 document.addEventListener(
@@ -52,17 +65,6 @@ document.addEventListener(
 
 // setup pixel dice handlers
 usePixelDice()
-
-// setup characters
-const urlId = new URLSearchParams(document.location.search).get('id')
-const { characterList, activeCharacterId } = useCharacterSelect(urlId)
-watch(activeCharacterId, (newValue) => {
-  if (urlId !== newValue) {
-    const url = `${window.location.origin}/modules/tablemate/index.html?id=${newValue}`
-    window.location.assign(url)
-  }
-})
-const characters = useTemplateRef('characters')
 
 // debugging tools
 if (BUILD_MODE === 'development') {
@@ -89,7 +91,8 @@ if (BUILD_MODE === 'development') {
 }
 </script>
 <template>
-  <TabGroup :selectedIndex="characterList.indexOf(activeCharacterId)" as="div">
+  <LoginPage v-if="needsLogin" />
+  <TabGroup v-else :selectedIndex="characterList.indexOf(activeCharacterId)" as="div">
     <TabList class="border-divider hidden h-12 gap-0 border bg-white text-xl">
       <Tab
         class="ui-selected:bg-blue-300 relative top-0 p-2 focus:outline-hidden"
