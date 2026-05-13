@@ -4,7 +4,6 @@ import { useUserId } from '@/composables/user'
 import { logger } from '@/utils/utilities'
 
 const socket = ref<Socket>()
-const sessionId = ref<string>('')
 const needsLogin = ref(false)
 let serverUrl: URL | undefined
 
@@ -20,19 +19,17 @@ export interface JoinData {
   userId: string | null
 }
 
-function getCookiesMap(cookiesString: string) {
-  return cookiesString
+function readSessionCookie(): string | undefined {
+  return document.cookie
     .split(';')
-    .map((cookieString): string[] => cookieString.trim().split('='))
-    .reduce((acc: { [key: string]: string }, curr: string[]) => {
-      acc[curr[0]] = curr[1]
-      return acc
-    }, {})
+    .map((c) => c.trim().split('='))
+    .find(([k]) => k === 'session')?.[1]
 }
 
-function establishSocket(url: URL, sessionId: string, keepAlive = false) {
+function establishSocket(url: URL, keepAlive = false) {
   return new Promise<Socket>((resolve, reject) => {
     const socketIoUrl = new URL('./socket.io', url)
+    const sid = readSessionCookie()
     const socket = io(socketIoUrl.origin, {
       upgrade: false,
       path: socketIoUrl.pathname,
@@ -41,23 +38,17 @@ function establishSocket(url: URL, sessionId: string, keepAlive = false) {
       reconnectionAttempts: 3,
       reconnectionDelayMax: 5000,
       transports: ['websocket'],
-      extraHeaders: {
-        cookie: `session=${sessionId}`
-      },
-      query: { session: sessionId }
+      withCredentials: true,
+      ...(sid ? { query: { session: sid } } : {})
     })
     socket.on('connect', async () => resolve(socket))
     socket.on('connect_error', (e) => reject(e))
   })
 }
 
-async function ensureSession(): Promise<string> {
-  let sid = getCookiesMap(document.cookie)['session']
-  if (!sid) {
-    await fetch(`${window.location.origin}/join`, { credentials: 'include' })
-    sid = getCookiesMap(document.cookie)['session']
-  }
-  return sid
+async function ensureSession(): Promise<void> {
+  if (readSessionCookie()) return
+  await fetch(`${window.location.origin}/join`, { credentials: 'include' })
 }
 
 async function getJoinData(): Promise<JoinData> {
@@ -119,9 +110,8 @@ async function login(userid: string, password: string): Promise<boolean> {
 
 async function connectToServer(url: URL, allowRelogin = true) {
   serverUrl = url
-  const sid = await ensureSession()
-  sessionId.value = sid
-  await establishSocket(url, sid, true)
+  await ensureSession()
+  await establishSocket(url, true)
     .then((newSocket) => {
       logger.debug('TM-INIT: establishing socket connection')
       socket.value = newSocket
