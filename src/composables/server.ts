@@ -47,12 +47,9 @@ function establishSocket(url: URL, keepAlive = false) {
 }
 
 async function ensureSession(): Promise<void> {
-  const before = readSessionCookie()
-  console.log('TM-AUTH ensureSession: cookie before =', before ?? '(not readable)')
-  if (before) return
-  await fetch(`${window.location.origin}/join`, { credentials: 'include' })
-  const after = readSessionCookie()
-  console.log('TM-AUTH ensureSession: cookie after  =', after ?? '(not readable)')
+  // No-op: GET /join on Foundry v14 resets an authenticated session to
+  // unauthenticated (cookie value stays the same, but server-side auth is
+  // wiped). POST /join during login establishes the session itself.
 }
 
 async function getJoinData(): Promise<JoinData> {
@@ -129,7 +126,6 @@ async function connectToServer(url: URL, allowRelogin = true) {
         logger.debug('TM-SEND', name, ...args)
       })
       socket.value.on('session', (args: { userId: string }) => {
-        console.log('TM-AUTH session event received:', args, 'allowRelogin =', allowRelogin)
         if (args?.userId) useUserId().setUserId(args?.userId)
         else handleAuthFailure(url, allowRelogin)
       })
