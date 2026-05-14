@@ -47,8 +47,12 @@ function establishSocket(url: URL, keepAlive = false) {
 }
 
 async function ensureSession(): Promise<void> {
-  if (readSessionCookie()) return
+  const before = readSessionCookie()
+  console.log('TM-AUTH ensureSession: cookie before =', before ?? '(not readable)')
+  if (before) return
   await fetch(`${window.location.origin}/join`, { credentials: 'include' })
+  const after = readSessionCookie()
+  console.log('TM-AUTH ensureSession: cookie after  =', after ?? '(not readable)')
 }
 
 async function getJoinData(): Promise<JoinData> {
@@ -125,6 +129,7 @@ async function connectToServer(url: URL, allowRelogin = true) {
         logger.debug('TM-SEND', name, ...args)
       })
       socket.value.on('session', (args: { userId: string }) => {
+        console.log('TM-AUTH session event received:', args, 'allowRelogin =', allowRelogin)
         if (args?.userId) useUserId().setUserId(args?.userId)
         else handleAuthFailure(url, allowRelogin)
       })
