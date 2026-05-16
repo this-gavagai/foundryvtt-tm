@@ -4,6 +4,12 @@ import { GesturePlugin } from '@vueuse/gesture'
 
 import App from './App.vue'
 
+window.__TM_ENV__ = {
+  MODE: import.meta.env.MODE,
+  DEV: import.meta.env.DEV,
+  PROD: import.meta.env.PROD
+}
+
 const app = createApp(App)
 app.use(GesturePlugin)
 

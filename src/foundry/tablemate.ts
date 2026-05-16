@@ -12,6 +12,7 @@ declare interface PlayerSelectContext {
   tabs?: undefined
 }
 
+console.log('TM tablemate.mjs MODE:', import.meta.env.MODE, 'PROD:', import.meta.env.PROD)
 logger.info('TM initializing...')
 
 Hooks.on('init', function () {

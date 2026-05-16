@@ -83,7 +83,7 @@ export function uuidv4() {
   )
 }
 
-const isProd = import.meta.env.PROD
+const isProd = import.meta.env.MODE === 'production'
 export const logger = {
   debug: (...args: unknown[]) => {
     if (!isProd) console.debug(...args)

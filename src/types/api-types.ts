@@ -163,6 +163,7 @@ declare global {
     character: any
     getBlastData: any
     pixel: any
+    __TM_ENV__: any
   }
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */

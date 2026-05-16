@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "vite --host",
-    "live": "vite build --watch",
+    "live": "NODE_ENV=development vite build --watch --mode development",
     "hot": "run-p dev live",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
