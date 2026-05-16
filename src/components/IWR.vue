@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { inject } from 'vue'
-import {} from '@/utils/utilities'
-import { useKeys } from '@/composables/injectKeys'
 
-const character = inject(useKeys().characterKey)!
+import {} from '@/utils/utilities'
+import { useInjectedCharacter } from '@/composables/injectKeys'
+
+const character = useInjectedCharacter()
 const { immunities, weaknesses, resistances } = character
 </script>
 <template>

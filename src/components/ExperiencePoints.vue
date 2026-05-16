@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import type { Character } from '@/composables/character'
-import { inject, ref } from 'vue'
+import { ref } from 'vue'
 import { parseIncrement } from '@/utils/utilities'
-import { useKeys } from '@/composables/injectKeys'
+import { useInjectedCharacter } from '@/composables/injectKeys'
 
 import StatBox from '@/components/widgets/StatBox.vue'
 import Modal from '@/components/ModalBox.vue'
@@ -12,7 +11,7 @@ interface FormData {
   xp: { value: string }
 }
 const experienceModal = ref()
-const character = inject(useKeys().characterKey) as Character
+const character = useInjectedCharacter()
 const { current: xpCurrent, max: xpMax } = character.xp
 
 function updateExperience(input: string) {

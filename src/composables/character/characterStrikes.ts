@@ -1,14 +1,10 @@
 import { computed, type Ref } from 'vue'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
+import type { TablemateCharacter } from '@/types/character'
 import type { Field, WritableField } from './helpers'
 import { type Strike, makeStrike, type ElementalBlast, makeElementalBlasts } from './defs/strike'
 import { useApi } from '@/composables/api'
-import type {
-  CharacterStrike,
-  DamageType,
-  ElementalBlast as PF2eElementalBlast,
-  WeaponPF2e
-} from '@7h3laughingman/pf2e-types'
+import type { CharacterStrike, DamageType, WeaponPF2e } from '@7h3laughingman/pf2e-types'
 
 export interface CharacterStrikes {
   strikes: Field<Strike[]>
@@ -16,7 +12,7 @@ export interface CharacterStrikes {
   blastActions: WritableField<string>
 }
 
-export function useCharacterStrikes(actor: Ref<CharacterPF2e | undefined>): CharacterStrikes {
+export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>): CharacterStrikes {
   const { rollCheck, updateActorItem, getStrikeDamage } = useApi()
   const strikes = computed(() => {
     return (actor.value?.system?.actions as CharacterStrike[] | undefined)?.map(
@@ -85,9 +81,7 @@ export function useCharacterStrikes(actor: Ref<CharacterPF2e | undefined>): Char
     )
   })
   const blasts = computed(() =>
-    makeElementalBlasts(
-      (actor.value as { elementalBlasts?: PF2eElementalBlast })?.elementalBlasts
-    )?.map(
+    makeElementalBlasts(actor.value?.elementalBlasts)?.map(
       (blast: ElementalBlast) =>
         ({
           ...blast,
@@ -119,18 +113,17 @@ export function useCharacterStrikes(actor: Ref<CharacterPF2e | undefined>): Char
         }) as ElementalBlast
     )
   )
-  type ActorWithBlasts = { elementalBlasts?: { item?: { _id?: string } } }
   type RuleWithOption = { option?: string; selection?: string }
   const blastActions = computed({
     get: () => {
-      const blastItemId = (actor.value as ActorWithBlasts)?.elementalBlasts?.item?._id
+      const blastItemId = actor.value?.elementalBlasts?.item?._id
       const rule = actor.value?.items
         ?.find((i) => i._id === blastItemId)
         ?.system?.rules?.find((r) => (r as RuleWithOption).option === 'action-cost')
       return (rule as RuleWithOption | undefined)?.selection
     },
     set: (newValue) => {
-      const blastItemId = (actor.value as ActorWithBlasts)?.elementalBlasts?.item?._id
+      const blastItemId = actor.value?.elementalBlasts?.item?._id
       const rules = actor.value?.items?.find((i) => i._id === blastItemId)?.system?.rules
       const actionRule = rules?.find((r) => (r as RuleWithOption).option === 'action-cost') as
         | RuleWithOption

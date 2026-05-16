@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
+import type { TablemateCharacter } from '@/types/character'
 
 import { type CharacterCore, useCharacterCore } from './characterCore'
 import { type CharacterStats, useCharacterStats } from './characterStats'
@@ -57,7 +57,7 @@ export interface Character
     CharacterStrikes,
     CharacterRules {}
 
-export function useCharacter(actor: Ref<CharacterPF2e | undefined>) {
+export function useCharacter(actor: Ref<TablemateCharacter | undefined>) {
   const character: Character = {
     ...useCharacterCore(actor),
     ...useCharacterStats(actor),

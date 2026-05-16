@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import type { Character } from '@/composables/character'
-import { inject, ref } from 'vue'
-import { useKeys } from '@/composables/injectKeys'
+import { ref } from 'vue'
+import { useInjectedCharacter } from '@/composables/injectKeys'
 
 import StatBox from '@/components/widgets/StatBox.vue'
 import CounterWidget from '@/components/widgets/CounterWidget.vue'
 
 const counter = ref()
 
-const character = inject(useKeys().characterKey) as Character
+const character = useInjectedCharacter()
 const { current: heroCurrent, max: heroMax } = character.heroPoints
 </script>
 <template>

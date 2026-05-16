@@ -1,6 +1,7 @@
 import { type Ref, computed } from 'vue'
 import type { Field, Maybe } from './helpers'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
+import type { TablemateCharacter } from '@/types/character'
 import { useApi } from '@/composables/api'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 
@@ -32,13 +33,11 @@ type RollOptionRule = {
   label?: string
 }
 
-type ActorWithActiveRules = { activeRules?: string[] }
-
-export function useCharacterRules(actor: Ref<CharacterPF2e | undefined>): CharacterRules {
+export function useCharacterRules(actor: Ref<TablemateCharacter | undefined>): CharacterRules {
   const { updateActorItem } = useApi()
   const rollOptions = computed(() => {
     const rollOptions = new Map<string, RollOption>()
-    const activeRules = (actor.value as ActorWithActiveRules)?.activeRules
+    const activeRules = actor.value?.activeRules
     actor.value?.items.forEach((item) => {
       ;(item.system.rules as RollOptionRule[]).forEach((rule) => {
         if (

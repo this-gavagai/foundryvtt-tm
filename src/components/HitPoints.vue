@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import type { Character } from '@/composables/character'
-import { inject, ref } from 'vue'
+import { ref } from 'vue'
 import { parseIncrement } from '@/utils/utilities'
-import { useKeys } from '@/composables/injectKeys'
+import { useInjectedCharacter } from '@/composables/injectKeys'
 
 import StatBox from '@/components/widgets/StatBox.vue'
 import Modal from '@/components/ModalBox.vue'
@@ -20,7 +19,7 @@ interface FormData {
 const hpStat = ref()
 const hitpointsModal = ref()
 
-const character = inject(useKeys().characterKey) as Character
+const character = useInjectedCharacter()
 const { current: hpCurrent, max: hpMax, temp: hpTemp, modifiers: hpModifiers } = character.hp
 const { lastDamageAmount } = useLastDamage()
 

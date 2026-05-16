@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { Equipment } from '@/composables/character'
-import { inject } from 'vue'
-import { useKeys } from '@/composables/injectKeys'
 
-const character = inject(useKeys().characterKey)!
+import { useInjectedCharacter } from '@/composables/injectKeys'
+
+const character = useInjectedCharacter()
 const { inventory } = character
 </script>
 <template>

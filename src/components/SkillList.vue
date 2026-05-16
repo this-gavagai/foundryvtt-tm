@@ -2,11 +2,11 @@
 import type { Stat } from '@/composables/character'
 
 import { formatModifier } from '@/utils/utilities'
-import { inject } from 'vue'
-import StatBox from './widgets/StatBox.vue'
-import { useKeys } from '@/composables/injectKeys'
 
-const character = inject(useKeys().characterKey)!
+import StatBox from './widgets/StatBox.vue'
+import { useInjectedCharacter } from '@/composables/injectKeys'
+
+const character = useInjectedCharacter()
 const { skills, proficiencies } = character
 </script>
 <template>

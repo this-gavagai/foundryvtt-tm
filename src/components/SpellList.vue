@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // TODO: make staff spells castable
 import type { SpellcastingEntry, Spell, Consumable } from '@/composables/character'
-import { inject, computed, ref } from 'vue'
-import { useKeys } from '@/composables/injectKeys'
+import { computed, ref } from 'vue'
+import { useInjectedCharacter } from '@/composables/injectKeys'
 import { useListeners } from '@/composables/listenersOnline'
 
 import Button from '@/components/widgets/ButtonWidget.vue'
@@ -24,7 +24,7 @@ interface SpellInfo {
   fromStaff?: boolean
 }
 
-const character = inject(useKeys().characterKey)!
+const character = useInjectedCharacter()
 const { spellcastingEntries, spells, spellConsumables, spellDC, staff, inventory } = character
 const { max: focusMax, current: focusCurrent } = character.focusPoints
 

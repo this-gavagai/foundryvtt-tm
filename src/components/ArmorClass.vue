@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { Character } from '@/composables/character'
-import { inject } from 'vue'
+
 import StatBox from './widgets/StatBox.vue'
-import { useKeys } from '@/composables/injectKeys'
+import { useInjectedCharacter } from '@/composables/injectKeys'
 import { parseIncrement } from '@/utils/utilities'
 import { useApi } from '@/composables/api'
 import { useListeners } from '@/composables/listenersOnline'
@@ -22,7 +21,7 @@ const shieldWaiting = ref(false)
 
 const shpModal = ref()
 
-const character = inject(useKeys().characterKey) as Character
+const character = useInjectedCharacter()
 const { _id: characterId, effects } = character
 const { current: acCurrent, modifiers: acModifiers } = character.ac
 const { hardness, ac: shAC, itemId: shItemId } = character.shield

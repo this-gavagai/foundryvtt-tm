@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { inject } from 'vue'
-import { useKeys } from '@/composables/injectKeys'
+
+import { useInjectedCharacter } from '@/composables/injectKeys'
 import type { Equipment } from '@/composables/character'
 
-const character = inject(useKeys().characterKey)!
+const character = useInjectedCharacter()
 const { inventory } = character
 const emits = defineEmits(['itemClicked'])
 </script>

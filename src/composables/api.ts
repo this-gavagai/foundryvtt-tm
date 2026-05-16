@@ -1,6 +1,7 @@
 import type { Ref } from 'vue'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type { CharacterPF2e, GamePF2e } from '@7h3laughingman/pf2e-types'
+import type { TablemateCharacter } from '@/types/character'
 import type {
   RequestResolutionArgs,
   ModuleEventArgs,
@@ -130,7 +131,7 @@ async function setupSocketListenersForWorld(world: Ref<GamePF2e>) {
 
 async function setupSocketListenersForActor(
   actorId: string,
-  actor: Ref<CharacterPF2e | undefined>,
+  actor: Ref<TablemateCharacter | undefined>,
   refreshMethod: () => Promise<void>
 ): Promise<() => void> {
   const socket = await getSocket()
@@ -186,16 +187,16 @@ async function sendCharacterRequest(actorId: string): Promise<void> {
 }
 function parseActorData(
   actorId: string,
-  actor: Ref<CharacterPF2e | undefined>,
+  actor: Ref<TablemateCharacter | undefined>,
   args: UpdateCharacterDetailsArgs
 ) {
   if (actorId !== args.actorId) return
   if (characterUnsynced.get(actorId)) return
   if (characterLastRequest.get(actorId) !== args.uuid) return
 
-  if (!actor.value) actor.value = {} as CharacterPF2e
+  if (!actor.value) actor.value = {} as TablemateCharacter
 
-  const incoming = JSON.parse(args.actor)
+  const incoming: Partial<TablemateCharacter> = JSON.parse(args.actor)
   incoming.system = JSON.parse(args.system)
   incoming.elementalBlasts = JSON.parse(args.elementalBlasts)
   incoming.inventory = JSON.parse(args.inventory)

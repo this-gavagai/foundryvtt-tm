@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { inject } from 'vue'
-import { useKeys } from '@/composables/injectKeys'
+
+import { useInjectedCharacter } from '@/composables/injectKeys'
 import { useStorage } from '@vueuse/core'
 
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/20/solid'
 
-const character = inject(useKeys().characterKey)!
+const character = useInjectedCharacter()
 const { skills } = character
 
 const selected = useStorage('skill-selector', skills.value?.[0])

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { InventoryItem } from '@/composables/character'
-import { inject, ref, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { printPrice } from '@/utils/utilities'
-import { useKeys } from '@/composables/injectKeys'
+import { useInjectedCharacter } from '@/composables/injectKeys'
 import { useListeners } from '@/composables/listenersOnline'
 import { inventoryTypes } from '@/utils/constants'
 import { capitalize } from 'lodash-es'
@@ -24,7 +24,7 @@ const infoModal = ref()
 const investedModal = ref()
 const description = ref()
 
-const character = inject(useKeys().characterKey)!
+const character = useInjectedCharacter()
 const { inventory } = character
 const { isListening } = useListeners()
 

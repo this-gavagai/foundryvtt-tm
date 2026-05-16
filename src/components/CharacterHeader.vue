@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { ActorPF2e } from '@7h3laughingman/pf2e-types'
-import { inject } from 'vue'
+
 import { useCharacterSelect } from '@/composables/characterSelect'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { getPath } from '@/utils/utilities'
 import { Bars3Icon } from '@heroicons/vue/24/solid'
-import { useKeys } from '@/composables/injectKeys'
+import { useInjectedCharacter } from '@/composables/injectKeys'
 import HitPoints from '@/components/HitPoints.vue'
 import HeroPoints from '@/components/HeroPoints.vue'
 import Spinner from '@/components/widgets/SpinnerWidget.vue'
@@ -14,7 +14,7 @@ import { useWorld } from '@/composables/world'
 
 const { world } = useWorld()
 
-const character = inject(useKeys().characterKey)!
+const character = useInjectedCharacter()
 const { _id, name, portraitUrl } = character
 
 const { characterList, setActiveCharacterId } = useCharacterSelect()

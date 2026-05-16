@@ -3,14 +3,14 @@ export default { name: 'EffectsAndConditions' }
 </script>
 <script setup lang="ts">
 // defineOptions({ name: 'EffectsAndConditions' })
-import { inject, ref, computed } from 'vue'
+import { ref, computed } from 'vue'
 import InfoModal from '@/components/InfoModal.vue'
-import { useKeys } from '@/composables/injectKeys'
+import { useInjectedCharacter } from '@/composables/injectKeys'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import ParsedDescription from './ParsedDescription.vue'
 import { getPath } from '@/utils/utilities'
 
-const character = inject(useKeys().characterKey)!
+const character = useInjectedCharacter()
 const { effects } = character
 const infoModal = ref()
 const effectViewedId = ref<string | undefined>()

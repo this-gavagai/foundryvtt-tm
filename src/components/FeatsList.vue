@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import type { Feat } from '@/composables/character'
-import { inject, ref, computed } from 'vue'
-import { useKeys } from '@/composables/injectKeys'
+import { ref, computed } from 'vue'
+import { useInjectedCharacter } from '@/composables/injectKeys'
 
 import InfoModal from '@/components/InfoModal.vue'
 import FeatsListItem from './FeatsListItem.vue'
 import ParsedDescription from './ParsedDescription.vue'
 
 const infoModal = ref()
-const character = inject(useKeys().characterKey)!
+const character = useInjectedCharacter()
 const { feats, ancestry, background, classType } = character
 
 const viewedFeatId = ref<string | undefined>()

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, inject, watch } from 'vue'
+import { ref, watch } from 'vue'
 import {
   Dialog,
   DialogPanel,
@@ -8,7 +8,7 @@ import {
   TransitionRoot,
   TransitionChild
 } from '@headlessui/vue'
-import { useKeys } from '@/composables/injectKeys'
+import { useInjectedCharacter } from '@/composables/injectKeys'
 import { useApi } from '@/composables/api'
 import { usePixelDice } from '@/composables/pixelDice'
 import { getPath } from '@/utils/utilities'
@@ -21,7 +21,7 @@ import type { ActiveRoll } from '@/types/api-types'
 
 import Button from './widgets/ButtonWidget.vue'
 
-const character = inject(useKeys().characterKey)!
+const character = useInjectedCharacter()
 const { _id: characterId, doCharacterAction, doFlatCheck, saves, skills } = character
 
 const { sendItemToChat } = useApi()

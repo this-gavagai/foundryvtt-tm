@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import type { Item } from '@/composables/character'
-import type { Character } from '@/composables/character'
-import { inject, ref, computed } from 'vue'
+import { ref, computed } from 'vue'
 import InfoModal from '@/components/InfoModal.vue'
 import ParsedDescription from './ParsedDescription.vue'
-import { useKeys } from '@/composables/injectKeys'
+import { useInjectedCharacter } from '@/composables/injectKeys'
 
 const infoModal = ref()
-const character = inject(useKeys().characterKey) as Character
+const character = useInjectedCharacter()
 const { ancestry, heritage, background, classType, level } = character
 const identityViewedId = ref<string | undefined>()
 const identityViewed = computed(

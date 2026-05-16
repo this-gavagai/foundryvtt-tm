@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
+import type { TablemateCharacter } from '@/types/character'
 import type { Ref, ComputedRef } from 'vue'
 import { ref, provide, computed, onUnmounted, onMounted } from 'vue'
 import { TabGroup, TabList, TabPanels } from '@headlessui/vue'
@@ -8,7 +9,7 @@ import { debounce } from 'lodash-es'
 import { useWorld } from '@/composables/world'
 import { useCharacter } from '@/composables/character'
 import { useApi } from '@/composables/api'
-import { useKeys } from '@/composables/injectKeys'
+import { characterKey } from '@/composables/injectKeys'
 import { useWindowSize } from '@vueuse/core'
 import { useUserId } from '@/composables/user'
 import { logger } from '@/utils/utilities'
@@ -60,10 +61,13 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
 // base data
 const { world } = useWorld()
 const { userId } = useUserId()
-const actor: Ref<CharacterPF2e | undefined> = ref()
-const actorOrWorldActor = computed(
+const actor: Ref<TablemateCharacter | undefined> = ref()
+const actorOrWorldActor = computed<TablemateCharacter | undefined>(
   () =>
-    actor.value ?? world.value?.actors.find<CharacterPF2e<null>>((a) => a._id == props.characterId)
+    actor.value ??
+    (world.value?.actors.find<CharacterPF2e<null>>(
+      (a) => a._id == props.characterId
+    ) as TablemateCharacter | undefined)
 )
 const userHasActorPermission: ComputedRef<boolean> = computed(() => {
   if (
@@ -74,7 +78,7 @@ const userHasActorPermission: ComputedRef<boolean> = computed(() => {
   else return false
 })
 const { character } = useCharacter(actorOrWorldActor)
-provide(useKeys().characterKey, character)
+provide(characterKey, character)
 
 // setup refresh methods
 const { sendCharacterRequest, setupSocketListenersForActor, setCharUnsynced } = useApi()

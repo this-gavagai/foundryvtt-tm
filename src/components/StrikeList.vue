@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { inject, ref, watch, computed } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { formatModifier } from '@/utils/utilities'
-import { useKeys } from '@/composables/injectKeys'
+import { useInjectedCharacter } from '@/composables/injectKeys'
 import { useListeners } from '@/composables/listenersOnline'
 import InfoModal from './InfoModal.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
@@ -39,7 +39,7 @@ interface EmitOptions {
   subtype: number
 }
 
-const character = inject(useKeys().characterKey)!
+const character = useInjectedCharacter()
 const { strikes, blasts, inventory, actions, blastActions } = character
 
 const strikeModal = ref()

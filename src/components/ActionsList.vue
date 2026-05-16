@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { Action } from '@/composables/character'
 import { actionTypes } from '@/utils/constants'
-import { inject, ref, computed } from 'vue'
-import { useKeys } from '@/composables/injectKeys'
+import { ref, computed } from 'vue'
+import { useInjectedCharacter } from '@/composables/injectKeys'
 import { useListeners } from '@/composables/listenersOnline'
 
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
@@ -14,7 +14,7 @@ import ParsedDescription from './ParsedDescription.vue'
 const infoModal = ref()
 const description = ref()
 
-const character = inject(useKeys().characterKey)!
+const character = useInjectedCharacter()
 const { actions } = character
 
 const { isListening } = useListeners()

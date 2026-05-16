@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { inject } from 'vue'
-import { useKeys } from '@/composables/injectKeys'
 
-const character = inject(useKeys().characterKey)!
+import { useInjectedCharacter } from '@/composables/injectKeys'
+
+const character = useInjectedCharacter()
 const { languages } = character
 </script>
 <template>

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { inject } from 'vue'
+
 import StatBox from './widgets/StatBox.vue'
 import { formatModifier } from '@/utils/utilities'
-import { useKeys } from '@/composables/injectKeys'
+import { useInjectedCharacter } from '@/composables/injectKeys'
 
-const character = inject(useKeys().characterKey)!
+const character = useInjectedCharacter()
 const { fortitude, reflex, will } = character.saves
 const { perception } = character
 </script>

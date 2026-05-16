@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { inject, computed } from 'vue'
-import { useKeys } from '@/composables/injectKeys'
+import { computed } from 'vue'
+import { useInjectedCharacter } from '@/composables/injectKeys'
 // import FeatsListItem from '@/components/FeatsListItem.vue'
 
 const { featId } = defineProps(['featId'])
-const { feats } = inject(useKeys().characterKey)!
+const { feats } = useInjectedCharacter()
 
 const feat = computed(() => feats.value?.find((f) => f._id === featId))
 function sendOff(this_featId: string) {
