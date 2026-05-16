@@ -20,7 +20,7 @@ const BUILD_MODE: string = import.meta.env.MODE
 // connect to server and ping it periodically
 const location = new URL(window.location.origin)
 const { connectToServer, needsLogin } = useServer()
-const { getUserId } = useUserId()
+const { getUserId, userId } = useUserId()
 connectToServer(location).then((socket: Ref<Socket | undefined>) => {
   setTimeout(
     () => socket.value?.emit('module.tablemate', { action: 'anybodyHome', userId: getUserId() }),
@@ -37,18 +37,26 @@ connectToServer(location).then((socket: Ref<Socket | undefined>) => {
 const { world, refreshWorld } = useWorld()
 const { setupSocketListenersForWorld, setupSocketListenersForApp } = useApi()
 setupSocketListenersForApp()
-refreshWorld().then((w) => {
-  setupSocketListenersForWorld(w)
-})
+const stopWorldWatch = watch(
+  userId,
+  (newId) => {
+    if (!newId) return
+    refreshWorld().then((w) => setupSocketListenersForWorld(w))
+    stopWorldWatch()
+  },
+  { immediate: true }
+)
 
 // setup characters
-const urlId = new URLSearchParams(document.location.search).get('id')
+const urlId =
+  new URLSearchParams(document.location.search).get('id') ??
+  localStorage.getItem('lastCharacterId')
 const { characterList, activeCharacterId } = useCharacterSelect(urlId)
 watch(activeCharacterId, (newValue) => {
-  if (urlId !== newValue) {
-    const url = `${window.location.origin}/modules/tablemate/index.html?id=${newValue}`
-    window.location.assign(url)
-  }
+  if (!newValue) return
+  localStorage.setItem('lastCharacterId', newValue)
+  const url = `${window.location.origin}/modules/tablemate/index.html?id=${newValue}`
+  history.replaceState({}, '', url)
 })
 const characters = useTemplateRef('characters')
 
