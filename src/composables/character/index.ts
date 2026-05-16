@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import type { TablemateCharacter } from '@/types/character'
+import type { TablemateCharacter } from '@/types/character-types'
 
 import { type CharacterCore, useCharacterCore } from './characterCore'
 import { type CharacterStats, useCharacterStats } from './characterStats'

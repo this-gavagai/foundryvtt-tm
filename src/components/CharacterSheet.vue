@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
-import type { TablemateCharacter } from '@/types/character'
+import type { TablemateCharacter } from '@/types/character-types'
 import type { Ref, ComputedRef } from 'vue'
 import { ref, provide, computed, onUnmounted, onMounted } from 'vue'
 import { TabGroup, TabList, TabPanels } from '@headlessui/vue'
@@ -65,9 +65,9 @@ const actor: Ref<TablemateCharacter | undefined> = ref()
 const actorOrWorldActor = computed<TablemateCharacter | undefined>(
   () =>
     actor.value ??
-    (world.value?.actors.find<CharacterPF2e<null>>(
-      (a) => a._id == props.characterId
-    ) as TablemateCharacter | undefined)
+    (world.value?.actors.find<CharacterPF2e<null>>((a) => a._id == props.characterId) as
+      | TablemateCharacter
+      | undefined)
 )
 const userHasActorPermission: ComputedRef<boolean> = computed(() => {
   if (

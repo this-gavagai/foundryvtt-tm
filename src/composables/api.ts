@@ -1,7 +1,7 @@
 import type { Ref } from 'vue'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type { CharacterPF2e, GamePF2e } from '@7h3laughingman/pf2e-types'
-import type { TablemateCharacter } from '@/types/character'
+import type { TablemateCharacter } from '@/types/character-types'
 import type {
   RequestResolutionArgs,
   ModuleEventArgs,
