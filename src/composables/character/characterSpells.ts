@@ -3,7 +3,8 @@ import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, Maybe } from './helpers'
 import { type Spell, type SpellcastingEntry, makeSpell, makeSpellcastingEntry } from './defs/spell'
 import { type Consumable, makeConsumable } from './defs/consumable'
-import { useApi } from '@/composables/api'
+import { castSpell, consumeItem } from '@/composables/api/actions'
+import { updateActor, updateActorItem } from '@/composables/api/documents'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type {
   ConsumablePF2e,
@@ -41,7 +42,6 @@ export interface CharacterSpells {
 }
 
 export function useCharacterSpells(actor: Ref<CharacterPF2e | undefined>): CharacterSpells {
-  const { updateActor, castSpell, updateActorItem, consumeItem } = useApi()
 
   const spellcastingEntries = computed(() =>
     actor.value?.items

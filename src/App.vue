@@ -4,7 +4,10 @@ import { useWakeLock } from '@vueuse/core'
 import type { Socket } from 'socket.io-client'
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 
-import { useApi } from '@/composables/api'
+import {
+  setupSocketListenersForApp,
+  setupSocketListenersForWorld
+} from '@/composables/api/socketSetup'
 import { useServerStore } from '@/stores/server'
 import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'
@@ -42,7 +45,6 @@ connectToServer(location).then((socket: Ref<Socket | undefined>) => {
 const worldStore = useWorldStore()
 const { world } = storeToRefs(worldStore)
 const { refreshWorld } = worldStore
-const { setupSocketListenersForWorld, setupSocketListenersForApp } = useApi()
 setupSocketListenersForApp()
 const stopWorldWatch = watch(
   userId,

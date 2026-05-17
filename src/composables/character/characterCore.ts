@@ -13,7 +13,7 @@ import { type Background, makeBackground } from './defs/background'
 import { type Heritage, makeHeritage } from './defs/heritage'
 import { type ClassType, makeClassType } from './defs/classType'
 import { type Stat, makeStat } from './defs/stat'
-import { useApi } from '@/composables/api'
+import { updateActor } from '@/composables/api/documents'
 
 export interface CharacterCore {
   _id: Field<string>
@@ -39,7 +39,6 @@ export interface CharacterCore {
 }
 
 export function useCharacterCore(actor: Ref<CharacterPF2e | undefined>): CharacterCore {
-  const { updateActor } = useApi()
 
   const _id = computed(() => actor.value?._id ?? undefined)
   const name = computed(() => actor.value?.name)

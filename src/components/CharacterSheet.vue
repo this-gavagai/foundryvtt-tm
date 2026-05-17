@@ -9,7 +9,8 @@ import { debounce } from 'lodash-es'
 import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'
 import { useCharacter } from '@/composables/character'
-import { useApi } from '@/composables/api'
+import { sendCharacterRequest, setCharUnsynced } from '@/composables/api/characterSync'
+import { setupSocketListenersForActor } from '@/composables/api/socketSetup'
 import { characterKey } from '@/composables/injectKeys'
 import { useWindowSize } from '@vueuse/core'
 import { useUserStore } from '@/stores/user'
@@ -82,7 +83,6 @@ const { character } = useCharacter(actorOrWorldActor)
 provide(characterKey, character)
 
 // setup refresh methods
-const { sendCharacterRequest, setupSocketListenersForActor, setCharUnsynced } = useApi()
 const debouncededCharacterRequest = debounce(sendCharacterRequest, 500, { leading: true })
 const requestCharacterDetails = async () => {
   setCharUnsynced(props.characterId, true)

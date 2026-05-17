@@ -10,7 +10,8 @@ import { type Consumable, makeConsumable } from './defs/consumable'
 import { type Feat, makeFeat } from './defs/feat'
 import { type Effect, makeEffect } from './defs/effect'
 import { makeCondition } from './defs/condition'
-import { useApi } from '@/composables/api'
+import { deleteActorItem, updateActorItem } from '@/composables/api/documents'
+import { consumeItem } from '@/composables/api/actions'
 import { inventoryTypes } from '@/utils/constants'
 import type {
   AbstractEffectPF2e,
@@ -50,7 +51,6 @@ export interface CharacterItems {
 }
 
 export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): CharacterItems {
-  const { deleteActorItem, updateActorItem, consumeItem } = useApi()
   const feats = computed(() =>
     actor.value?.items
       ?.filter((i): i is FeatPF2e<CharacterPF2e> => i.type === 'feat')

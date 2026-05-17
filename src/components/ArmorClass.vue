@@ -4,7 +4,7 @@ import { ref, computed } from 'vue'
 import StatBox from './widgets/StatBox.vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { parseIncrement } from '@/utils/utilities'
-import { useApi } from '@/composables/api'
+import { callMacro } from '@/composables/api/actions'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
 import Modal from './ModalBox.vue'
@@ -28,7 +28,6 @@ const { current: acCurrent, modifiers: acModifiers } = character.ac
 const { hardness, ac: shAC, itemId: shItemId } = character.shield
 const { current: shpCurrent, max: shpMax, brokenThreshold: shpBT } = character.shield.hp
 
-const { callMacro } = useApi()
 const { isListening } = storeToRefs(useListenersStore())
 
 const raisedShield = computed(

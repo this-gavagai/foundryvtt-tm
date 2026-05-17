@@ -3,7 +3,8 @@ import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { TablemateCharacter } from '@/types/character-types'
 import type { Field, WritableField } from './helpers'
 import { type Strike, makeStrike, type ElementalBlast, makeElementalBlasts } from './defs/strike'
-import { useApi } from '@/composables/api'
+import { rollCheck, getStrikeDamage } from '@/composables/api/actions'
+import { updateActorItem } from '@/composables/api/documents'
 import type { CharacterStrike, DamageType, WeaponPF2e } from '@7h3laughingman/pf2e-types'
 
 export interface CharacterStrikes {
@@ -13,7 +14,6 @@ export interface CharacterStrikes {
 }
 
 export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>): CharacterStrikes {
-  const { rollCheck, updateActorItem, getStrikeDamage } = useApi()
   const strikes = computed(() => {
     return (actor.value?.system?.actions as CharacterStrike[] | undefined)?.map(
       (action) =>

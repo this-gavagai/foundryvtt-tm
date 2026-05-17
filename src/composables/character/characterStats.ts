@@ -10,7 +10,8 @@ import type {
 import type { Field, WritableField, Maybe } from './helpers'
 import { type Modifier, makeModifiers } from './defs/modifier'
 import { type Stat, makeStat } from './defs/stat'
-import { useApi } from '@/composables/api'
+import { rollCheck } from '@/composables/api/actions'
+import { updateActorItem } from '@/composables/api/documents'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import { kebabCase } from 'lodash-es'
 import { calcAttribute } from './calcAttributes'
@@ -78,7 +79,6 @@ export interface CharacterStats {
 }
 
 export function useCharacterStats(actor: Ref<CharacterPF2e | undefined>): CharacterStats {
-  const { rollCheck, updateActorItem } = useApi()
   const attributes = {
     str: computed(() => actor.value?.system?.abilities?.str?.mod ?? calcAttribute(actor, 'str')),
     dex: computed(() => actor.value?.system?.abilities?.dex?.mod ?? calcAttribute(actor, 'dex')),

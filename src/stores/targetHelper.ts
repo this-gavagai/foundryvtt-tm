@@ -3,7 +3,7 @@ import { defineStore, storeToRefs } from 'pinia'
 import { useStorage } from '@vueuse/core'
 import { useWorldStore } from '@/stores/world'
 import { useUserStore } from '@/stores/user'
-import { useApi } from '@/composables/api'
+import { updateUserTargetingProxy } from '@/composables/api/documents'
 import type { UserPF2e } from '@7h3laughingman/pf2e-types'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import { logger } from '@/utils/utilities'
@@ -13,7 +13,6 @@ export const useTargetHelperStore = defineStore('targetHelper', () => {
   const userStore = useUserStore()
   const { userId } = storeToRefs(userStore)
   const { getUserId } = userStore
-  const { updateUserTargetingProxy } = useApi()
 
   const localProxyId = useStorage('proxy-id', '')
   const targets = ref<string[]>([])

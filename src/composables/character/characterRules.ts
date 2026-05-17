@@ -2,7 +2,7 @@ import { type Ref, computed } from 'vue'
 import type { Field, Maybe } from './helpers'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { TablemateCharacter } from '@/types/character-types'
-import { useApi } from '@/composables/api'
+import { updateActorItem } from '@/composables/api/documents'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 
 export interface CharacterRules {
@@ -34,7 +34,6 @@ type RollOptionRule = {
 }
 
 export function useCharacterRules(actor: Ref<TablemateCharacter | undefined>): CharacterRules {
-  const { updateActorItem } = useApi()
   const rollOptions = computed(() => {
     const rollOptions = new Map<string, RollOption>()
     const activeRules = actor.value?.activeRules
