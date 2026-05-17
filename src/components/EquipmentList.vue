@@ -3,7 +3,8 @@ import type { InventoryItem } from '@/composables/character'
 import { ref, computed } from 'vue'
 import { printPrice } from '@/utils/utilities'
 import { useInjectedCharacter } from '@/composables/injectKeys'
-import { useListeners } from '@/composables/listenersOnline'
+import { storeToRefs } from 'pinia'
+import { useListenersStore } from '@/stores/listenersOnline'
 import { inventoryTypes } from '@/utils/constants'
 import { capitalize } from 'lodash-es'
 
@@ -26,7 +27,7 @@ const description = ref()
 
 const character = useInjectedCharacter()
 const { inventory } = character
-const { isListening } = useListeners()
+const { isListening } = storeToRefs(useListenersStore())
 
 const itemViewedId = ref<string | undefined>()
 const itemViewed = computed(() =>

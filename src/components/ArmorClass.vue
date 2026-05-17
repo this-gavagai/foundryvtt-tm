@@ -5,7 +5,8 @@ import StatBox from './widgets/StatBox.vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { parseIncrement } from '@/utils/utilities'
 import { useApi } from '@/composables/api'
-import { useListeners } from '@/composables/listenersOnline'
+import { storeToRefs } from 'pinia'
+import { useListenersStore } from '@/stores/listenersOnline'
 import Modal from './ModalBox.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import shield from '@/assets/icons/shield-2.svg'
@@ -28,7 +29,7 @@ const { hardness, ac: shAC, itemId: shItemId } = character.shield
 const { current: shpCurrent, max: shpMax, brokenThreshold: shpBT } = character.shield.hp
 
 const { callMacro } = useApi()
-const { isListening } = useListeners()
+const { isListening } = storeToRefs(useListenersStore())
 
 const raisedShield = computed(
   () => effects.value?.find((e) => e?.system?.slug === 'effect-raise-a-shield') !== undefined

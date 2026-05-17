@@ -2,7 +2,8 @@
 import { ref, watch, computed } from 'vue'
 import { formatModifier } from '@/utils/utilities'
 import { useInjectedCharacter } from '@/composables/injectKeys'
-import { useListeners } from '@/composables/listenersOnline'
+import { storeToRefs } from 'pinia'
+import { useListenersStore } from '@/stores/listenersOnline'
 import InfoModal from './InfoModal.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import StrikeActionSet from './StrikeListActionSet.vue'
@@ -46,7 +47,7 @@ const strikeModal = ref()
 const strikeModalDamage = ref()
 const viewed = ref<Viewed | undefined>()
 
-const { isListening } = useListeners()
+const { isListening } = storeToRefs(useListenersStore())
 
 // builders for click handlers
 function pickStrike(opts: EmitOptions, index: number, altUsage?: number) {

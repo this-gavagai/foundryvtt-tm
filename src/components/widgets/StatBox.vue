@@ -5,7 +5,8 @@ import { proficiencies } from '@/utils/constants'
 import InfoModal from '@/components/InfoModal.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import type { RequestResolutionArgs } from '@/types/api-types'
-import { useListeners } from '@/composables/listenersOnline'
+import { storeToRefs } from 'pinia'
+import { useListenersStore } from '@/stores/listenersOnline'
 import type { Modifier } from '@/composables/character'
 
 const props = defineProps<{
@@ -20,7 +21,7 @@ const props = defineProps<{
   rollAction?: (r: number | undefined) => Promise<RequestResolutionArgs | null>
 }>()
 const infoModal = ref()
-const { isListening } = useListeners()
+const { isListening } = storeToRefs(useListenersStore())
 
 function makeRoll(result: number | undefined = undefined) {
   return props.rollAction?.(result).then((r: RequestResolutionArgs | null) => {

@@ -3,7 +3,8 @@ import type { Action } from '@/composables/character'
 import { actionTypes } from '@/utils/constants'
 import { ref, computed } from 'vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
-import { useListeners } from '@/composables/listenersOnline'
+import { storeToRefs } from 'pinia'
+import { useListenersStore } from '@/stores/listenersOnline'
 
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
 import Button from './widgets/ButtonWidget.vue'
@@ -17,7 +18,7 @@ const description = ref()
 const character = useInjectedCharacter()
 const { actions } = character
 
-const { isListening } = useListeners()
+const { isListening } = storeToRefs(useListenersStore())
 
 const actionViewedId = ref<string | undefined>()
 const actionViewed = computed(() => actions.value?.find((a) => a._id === actionViewedId.value))

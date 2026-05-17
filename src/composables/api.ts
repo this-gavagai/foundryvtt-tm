@@ -24,7 +24,7 @@ import { useServerStore } from '@/stores/server'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { logger, uuidv4 } from '@/utils/utilities'
 import { useUserStore } from '@/stores/user'
-import { useListeners } from './listenersOnline'
+import { useListenersStore } from '@/stores/listenersOnline'
 
 const characterUnsynced = new Map<string, boolean>() // character document dirty state, update request pending
 const characterLastRequest = new Map<string, string>() // latest character update request uuid
@@ -77,7 +77,7 @@ function mergeWithArrayReset(objValue: unknown, srcValue: unknown) {
 ///////////////////////////////////////
 async function setupSocketListenersForApp() {
   const socket = await getSocket()
-  const { addListener } = useListeners()
+  const { addListener } = useListenersStore()
   socket.on('module.tablemate', (args: ModuleEventArgs) => {
     switch (args.action) {
       case 'acknowledged':

@@ -14,7 +14,8 @@ import { usePixelDice } from '@/composables/pixelDice'
 import { getPath } from '@/utils/utilities'
 import { makeTraits } from '@/utils/utilities'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
-import { useListeners } from '@/composables/listenersOnline'
+import { storeToRefs } from 'pinia'
+import { useListenersStore } from '@/stores/listenersOnline'
 import Modal from './ModalBox.vue'
 import Spinner from './widgets/SpinnerWidget.vue'
 import type { ActiveRoll } from '@/types/api-types'
@@ -26,7 +27,7 @@ const { _id: characterId, doCharacterAction, doFlatCheck, saves, skills } = char
 
 const { sendItemToChat } = useApi()
 const { pixel, lastRoll } = usePixelDice()
-const { isListening } = useListeners()
+const { isListening } = storeToRefs(useListenersStore())
 
 const rollResultModal = ref()
 const waiting = ref(false)

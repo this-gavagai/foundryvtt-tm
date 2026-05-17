@@ -3,7 +3,8 @@
 import type { SpellcastingEntry, Spell, Consumable } from '@/composables/character'
 import { computed, ref } from 'vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
-import { useListeners } from '@/composables/listenersOnline'
+import { storeToRefs } from 'pinia'
+import { useListenersStore } from '@/stores/listenersOnline'
 
 import Button from '@/components/widgets/ButtonWidget.vue'
 import CounterWidget from '@/components/widgets/CounterWidget.vue'
@@ -28,7 +29,7 @@ const character = useInjectedCharacter()
 const { spellcastingEntries, spells, spellConsumables, spellDC, staff, inventory } = character
 const { max: focusMax, current: focusCurrent } = character.focusPoints
 
-const { isListening } = useListeners()
+const { isListening } = storeToRefs(useListenersStore())
 
 const infoModal = ref()
 const spellSelectionModal = ref()
