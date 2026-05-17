@@ -1,9 +1,8 @@
 import { ref, computed } from 'vue'
-import { useServer } from '@/composables/server'
+import { useServerStore } from '@/stores/server'
 import { useUserId } from '@/composables/user'
 import { logger } from '@/utils/utilities'
 
-const { getSocket } = useServer()
 const { userId } = useUserId()
 
 // TODO: do a sweep to deactivate things that need to be deactivated in the absence of a listner
@@ -13,7 +12,9 @@ const listenersOnline = ref(new Map<string, number>())
 const isListening = computed(() => listenersOnline.value.size > 0)
 
 setInterval(async () => {
-  const socket = await getSocket()
+  // useServerStore() resolved lazily — Pinia is installed by the time the
+  // first 30s tick fires.
+  const socket = await useServerStore().getSocket()
   socket?.emit('module.tablemate', { userId: userId.value, action: 'anybodyHome' })
 
   listenersOnline.value.forEach((value, key, map) => {

@@ -20,7 +20,7 @@ type ModifyDocumentUpdate = { _id: string; [key: string]: unknown }
 type DocumentData = { _id: string | null }
 
 import { mergeWith } from 'lodash-es'
-import { useServer } from '@/composables/server'
+import { useServerStore } from '@/stores/server'
 import { useTargetHelper } from '@/composables/targetHelper'
 import { logger, uuidv4 } from '@/utils/utilities'
 import { useUserId } from '@/composables/user'
@@ -41,7 +41,7 @@ function fireRefresh(actorId: string | null | undefined) {
   if (!actorId) return
   refreshCallbacks[actorId]?.forEach((fn) => fn())
 }
-const getSocket = () => useServer().getSocket()
+const getSocket = () => useServerStore().getSocket()
 const getUserId = () => useUserId().getUserId()
 const ackQueue: { [key: string]: (args: RequestResolutionArgs) => void } = {}
 const ACK_TIMEOUT_MS = 30_000

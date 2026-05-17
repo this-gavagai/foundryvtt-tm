@@ -2,11 +2,11 @@ import { shallowRef, type Ref } from 'vue'
 import { defineStore } from 'pinia'
 import { debounce } from 'lodash-es'
 import type { GamePF2e } from '@7h3laughingman/pf2e-types'
-import { useServer } from '@/composables/server'
+import { useServerStore } from '@/stores/server'
 
 export const useWorldStore = defineStore('world', () => {
   const world = shallowRef<GamePF2e | undefined>(undefined)
-  const { getSocket } = useServer()
+  const { getSocket } = useServerStore()
 
   async function sendWorldRequest(): Promise<Ref<GamePF2e>> {
     const socket = await getSocket()

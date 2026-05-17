@@ -5,7 +5,7 @@ import type { Socket } from 'socket.io-client'
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 
 import { useApi } from '@/composables/api'
-import { useServer } from '@/composables/server'
+import { useServerStore } from '@/stores/server'
 import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'
 import { useCharacterSelect } from '@/composables/characterSelect'
@@ -20,7 +20,9 @@ const BUILD_MODE: string = import.meta.env.MODE
 
 // connect to server and ping it periodically
 const location = new URL(window.location.origin)
-const { connectToServer, needsLogin } = useServer()
+const serverStore = useServerStore()
+const { needsLogin } = storeToRefs(serverStore)
+const { connectToServer } = serverStore
 const { getUserId, userId } = useUserId()
 connectToServer(location).then((socket: Ref<Socket | undefined>) => {
   setTimeout(

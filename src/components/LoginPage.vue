@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useServer, type JoinUser } from '@/composables/server'
+import { useServerStore, type JoinUser } from '@/stores/server'
 
-const { login, getJoinData, getSocket } = useServer()
+const { login, getJoinData, getSocket } = useServerStore()
 const userid = ref('')
 const password = ref('')
 const submitting = ref(false)
