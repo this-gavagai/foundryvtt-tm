@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ActorPF2e } from '@7h3laughingman/pf2e-types'
 
-import { useCharacterSelect } from '@/composables/characterSelect'
+import { useCharacterSelectStore } from '@/stores/characterSelect'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { getPath } from '@/utils/utilities'
 import { Bars3Icon } from '@heroicons/vue/24/solid'
@@ -18,7 +18,9 @@ const { world } = storeToRefs(useWorldStore())
 const character = useInjectedCharacter()
 const { _id, name, portraitUrl } = character
 
-const { characterList, setActiveCharacterId } = useCharacterSelect()
+const characterSelectStore = useCharacterSelectStore()
+const { characterList } = storeToRefs(characterSelectStore)
+const { setActiveCharacterId } = characterSelectStore
 // const sideMenu = ref()
 function reloadPage() {
   window.location.reload()

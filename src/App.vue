@@ -8,7 +8,7 @@ import { useApi } from '@/composables/api'
 import { useServerStore } from '@/stores/server'
 import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'
-import { useCharacterSelect } from '@/composables/characterSelect'
+import { useCharacterSelectStore } from '@/stores/characterSelect'
 import { usePixelDiceStore } from '@/stores/pixelDice'
 import { useUserStore } from '@/stores/user'
 
@@ -58,7 +58,9 @@ const stopWorldWatch = watch(
 const urlId =
   new URLSearchParams(document.location.search).get('id') ??
   localStorage.getItem('lastCharacterId')
-const { characterList, activeCharacterId } = useCharacterSelect(urlId)
+const characterSelectStore = useCharacterSelectStore()
+characterSelectStore.initialize(urlId)
+const { characterList, activeCharacterId } = storeToRefs(characterSelectStore)
 watch(activeCharacterId, (newValue) => {
   if (!newValue) return
   localStorage.setItem('lastCharacterId', newValue)
