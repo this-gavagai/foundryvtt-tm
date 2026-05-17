@@ -48,12 +48,6 @@ export const useServerStore = defineStore('server', () => {
   const needsLogin = ref(false)
   let serverUrl: URL | undefined
 
-  async function ensureSession(): Promise<void> {
-    // No-op: GET /join on Foundry v14 resets an authenticated session to
-    // unauthenticated (cookie value stays the same, but server-side auth is
-    // wiped). POST /join during login establishes the session itself.
-  }
-
   function getSocket(): Promise<Socket> {
     return new Promise((resolve) => {
       ;(function waitForSocket() {
@@ -122,7 +116,6 @@ export const useServerStore = defineStore('server', () => {
 
   async function connectToServer(url: URL, allowRelogin = true) {
     serverUrl = url
-    await ensureSession()
     await establishSocket(url, true)
       .then((newSocket) => {
         logger.debug('TM-INIT: establishing socket connection')
