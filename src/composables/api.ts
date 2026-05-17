@@ -196,11 +196,13 @@ function parseActorData(
 
   if (!actor.value) actor.value = {} as TablemateCharacter
 
-  const incoming: Partial<TablemateCharacter> = JSON.parse(args.actor)
-  incoming.system = JSON.parse(args.system)
-  incoming.elementalBlasts = JSON.parse(args.elementalBlasts)
-  incoming.inventory = JSON.parse(args.inventory)
-  incoming.activeRules = JSON.parse(args.activeRules)
+  const incoming: Partial<TablemateCharacter> = {
+    ...(args.actor as Partial<TablemateCharacter>),
+    system: args.system as TablemateCharacter['system'],
+    elementalBlasts: (args.elementalBlasts ?? undefined) as TablemateCharacter['elementalBlasts'],
+    inventory: args.inventory as TablemateCharacter['inventory'],
+    activeRules: args.activeRules
+  }
 
   mergeWith(actor.value, incoming, mergeWithArrayReset)
 }

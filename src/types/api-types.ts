@@ -27,11 +27,15 @@ export interface ListenderOnlineArgs {
 export interface UpdateCharacterDetailsArgs {
   action: 'updateCharacterDetails'
   actorId: string
-  actor: string
-  system: string
-  inventory: string
-  activeRules: string
-  elementalBlasts: string
+  // Fields below are sent as live objects (not pre-stringified). socket.io
+  // handles wire serialization itself; the Foundry side runs a single
+  // JSON.parse(JSON.stringify(...)) pass on elementalBlasts only, to break
+  // its circular `actor` reference and shrink nested `item` references.
+  actor: object
+  system: object
+  inventory: object
+  activeRules: string[]
+  elementalBlasts: object | null
   uuid: string
   userId: string
 }

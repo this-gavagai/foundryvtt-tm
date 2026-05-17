@@ -69,19 +69,26 @@ export async function getCharacterDetails(
       return acc
     }, {})
   }
-  const activeRules = new Set()
+  const activeRules = new Set<string>()
   actor.rules.forEach((r: RollOptionRuleElement) => {
     if (r.option && r.predicate.test([])) activeRules.add(r.option)
   }, [])
+  // elementalBlasts has a circular `actor` back-reference and pulls in entire
+  // item objects; round-trip through blastReplacer once to flatten it into a
+  // plain serializable object. Other fields are already JSON-safe (Foundry
+  // documents define toJSON), so socket.io can serialize them directly.
+  const cleanBlasts = elementalBlasts
+    ? JSON.parse(JSON.stringify(elementalBlasts, blastReplacer))
+    : null
   logger.debug('TABLEMATE: now sending ' + actor.name)
   return {
     action: 'updateCharacterDetails',
     actorId: actor._id,
-    actor: JSON.stringify(actor),
-    system: JSON.stringify(actor.system),
-    inventory: JSON.stringify(inventory),
-    activeRules: JSON.stringify([...activeRules]),
-    elementalBlasts: JSON.stringify(elementalBlasts, blastReplacer),
+    actor,
+    system: actor.system,
+    inventory,
+    activeRules: [...activeRules],
+    elementalBlasts: cleanBlasts,
     uuid: args.uuid,
     userId: game.user._id ?? ''
   }
