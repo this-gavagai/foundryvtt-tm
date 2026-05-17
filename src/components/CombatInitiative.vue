@@ -3,7 +3,8 @@ import type { CombatantPF2e } from '@7h3laughingman/pf2e-types'
 import { computed } from 'vue'
 import { formatModifier } from '@/utils/utilities'
 import StatBox from '@/components/widgets/StatBox.vue'
-import { useCombat } from '@/composables/combat'
+import { storeToRefs } from 'pinia'
+import { useCombatStore } from '@/stores/combat'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 
 import DropdownWidget from './widgets/DropdownWidget.vue'
@@ -21,7 +22,7 @@ const skillsPlusPerception = computed(() =>
   (perception.value ? [perception.value] : []).concat(skills.value ?? [])
 )
 
-const { activeCombat } = useCombat()
+const { activeCombat } = storeToRefs(useCombatStore())
 const initiativeReady = computed(() => {
   const inActiveCombat = activeCombat.value?.combatants
     .map((a: CombatantPF2e) => a.actorId)

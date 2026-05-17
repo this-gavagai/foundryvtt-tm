@@ -5,14 +5,16 @@ import { XMarkIcon } from '@heroicons/vue/24/solid'
 import { storeToRefs } from 'pinia'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useWorldStore } from '@/stores/world'
-import { usePixelDice } from '@/composables/pixelDice'
+import { usePixelDiceStore } from '@/stores/pixelDice'
 
 import Dropdown from '@/components/widgets/DropdownWidget.vue'
 import RollOptions from '@/components/RollOptions.vue'
 import Spinner from './widgets/SpinnerWidget.vue'
 
 const { world } = storeToRefs(useWorldStore())
-const { pixelConnect, pixelReconnect, pixelDisconnect, pixel, pixelStatus } = usePixelDice()
+const pixelStore = usePixelDiceStore()
+const { pixel, pixelStatus } = storeToRefs(pixelStore)
+const { pixelConnect, pixelReconnect, pixelDisconnect } = pixelStore
 const targetHelperStore = useTargetHelperStore()
 const { userList, targetingProxyId } = storeToRefs(targetHelperStore)
 const { updateProxyId } = targetHelperStore

@@ -10,7 +10,7 @@ import {
 } from '@headlessui/vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { useApi } from '@/composables/api'
-import { usePixelDice } from '@/composables/pixelDice'
+import { usePixelDiceStore } from '@/stores/pixelDice'
 import { getPath } from '@/utils/utilities'
 import { makeTraits } from '@/utils/utilities'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
@@ -26,7 +26,7 @@ const character = useInjectedCharacter()
 const { _id: characterId, doCharacterAction, doFlatCheck, saves, skills } = character
 
 const { sendItemToChat } = useApi()
-const { pixel, lastRoll } = usePixelDice()
+const { pixel, lastRoll } = storeToRefs(usePixelDiceStore())
 const { isListening } = storeToRefs(useListenersStore())
 
 const rollResultModal = ref()

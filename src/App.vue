@@ -9,7 +9,7 @@ import { useServerStore } from '@/stores/server'
 import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'
 import { useCharacterSelect } from '@/composables/characterSelect'
-import { usePixelDice } from './composables/pixelDice'
+import { usePixelDiceStore } from '@/stores/pixelDice'
 import { useUserStore } from '@/stores/user'
 
 import CharacterSheet from '@/components/CharacterSheet.vue'
@@ -79,7 +79,7 @@ document.addEventListener(
 )
 
 // setup pixel dice handlers
-usePixelDice()
+usePixelDiceStore()
 
 // debugging tools
 if (BUILD_MODE === 'development') {
