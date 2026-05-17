@@ -4,8 +4,8 @@ import type { Field, WritableField } from './helpers'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import { type Modifier, makeModifiers } from './defs/modifier'
 import { type Action, makeAction } from './defs/action'
-import { characterAction, rollCheck, callMacro } from '@/composables/api/actions'
-import { updateActor } from '@/composables/api/documents'
+import { characterAction, rollCheck, callMacro } from '@/api/actions'
+import { updateActor } from '@/api/documents'
 import { actionTypes } from '@/utils/constants'
 
 export interface CharacterActions {

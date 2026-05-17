@@ -13,7 +13,7 @@ import { type Background, makeBackground } from './defs/background'
 import { type Heritage, makeHeritage } from './defs/heritage'
 import { type ClassType, makeClassType } from './defs/classType'
 import { type Stat, makeStat } from './defs/stat'
-import { updateActor } from '@/composables/api/documents'
+import { updateActor } from '@/api/documents'
 
 export interface CharacterCore {
   _id: Field<string>

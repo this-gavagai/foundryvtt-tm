@@ -2,7 +2,7 @@ import { type Ref, computed } from 'vue'
 import type { Field, Maybe } from './helpers'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { TablemateCharacter } from '@/types/character-types'
-import { updateActorItem } from '@/composables/api/documents'
+import { updateActorItem } from '@/api/documents'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 
 export interface CharacterRules {

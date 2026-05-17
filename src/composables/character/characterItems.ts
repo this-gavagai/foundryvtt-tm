@@ -10,8 +10,8 @@ import { type Consumable, makeConsumable } from './defs/consumable'
 import { type Feat, makeFeat } from './defs/feat'
 import { type Effect, makeEffect } from './defs/effect'
 import { makeCondition } from './defs/condition'
-import { deleteActorItem, updateActorItem } from '@/composables/api/documents'
-import { consumeItem } from '@/composables/api/actions'
+import { deleteActorItem, updateActorItem } from '@/api/documents'
+import { consumeItem } from '@/api/actions'
 import { inventoryTypes } from '@/utils/constants'
 import type {
   AbstractEffectPF2e,

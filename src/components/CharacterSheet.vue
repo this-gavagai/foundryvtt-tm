@@ -2,19 +2,16 @@
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { TablemateCharacter } from '@/types/character-types'
 import type { Ref, ComputedRef } from 'vue'
-import { ref, provide, computed, onUnmounted, onMounted } from 'vue'
+import { ref, provide, computed, onMounted } from 'vue'
 import { TabGroup, TabList, TabPanels } from '@headlessui/vue'
-import { debounce } from 'lodash-es'
 
 import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'
 import { useCharacter } from '@/composables/character'
-import { sendCharacterRequest, setCharUnsynced } from '@/composables/api/characterSync'
-import { setupSocketListenersForActor } from '@/composables/api/socketSetup'
+import { useActorSync } from '@/composables/useActorSync'
 import { characterKey } from '@/composables/injectKeys'
 import { useWindowSize } from '@vueuse/core'
 import { useUserStore } from '@/stores/user'
-import { logger } from '@/utils/utilities'
 
 import { Bars3Icon } from '@heroicons/vue/24/solid'
 
@@ -82,30 +79,12 @@ const userHasActorPermission: ComputedRef<boolean> = computed(() => {
 const { character } = useCharacter(actorOrWorldActor)
 provide(characterKey, character)
 
-// setup refresh methods
-const debouncededCharacterRequest = debounce(sendCharacterRequest, 500, { leading: true })
-const requestCharacterDetails = async () => {
-  setCharUnsynced(props.characterId, true)
-  debouncededCharacterRequest(props.characterId)
-}
+// keep the local actor ref synced with Foundry via socket events
+useActorSync(props.characterId, actor)
 
-// setup socket listeners and request character details on mount
-let removeRefresh: (() => void) | undefined
+// set initial tab based on viewport
 onMounted(() => {
-  logger.info('TM-INIT: initiating character', props.characterId)
-  if (props.characterId) {
-    setupSocketListenersForActor(props.characterId, actor, requestCharacterDetails).then(
-      (cleanup) => {
-        removeRefresh = cleanup
-      }
-    )
-    sendCharacterRequest(props.characterId)
-  }
   currentTab.value = width.value >= 768 ? 1 : 0
-})
-onUnmounted(() => {
-  logger.info('TM-INIT: unmounted actor', props.characterId)
-  removeRefresh?.()
 })
 
 defineExpose({ actor, character, actorOrWorldActor })

@@ -7,7 +7,7 @@ import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 import {
   setupSocketListenersForApp,
   setupSocketListenersForWorld
-} from '@/composables/api/socketSetup'
+} from '@/api/socketSetup'
 import { useServerStore } from '@/stores/server'
 import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'

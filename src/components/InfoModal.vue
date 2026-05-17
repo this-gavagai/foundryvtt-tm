@@ -9,7 +9,7 @@ import {
   TransitionChild
 } from '@headlessui/vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
-import { sendItemToChat } from '@/composables/api/actions'
+import { sendItemToChat } from '@/api/actions'
 import { usePixelDiceStore } from '@/stores/pixelDice'
 import { getPath } from '@/utils/utilities'
 import { makeTraits } from '@/utils/utilities'
