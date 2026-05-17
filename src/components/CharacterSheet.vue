@@ -6,7 +6,8 @@ import { ref, provide, computed, onUnmounted, onMounted } from 'vue'
 import { TabGroup, TabList, TabPanels } from '@headlessui/vue'
 import { debounce } from 'lodash-es'
 
-import { useWorld } from '@/composables/world'
+import { storeToRefs } from 'pinia'
+import { useWorldStore } from '@/stores/world'
 import { useCharacter } from '@/composables/character'
 import { useApi } from '@/composables/api'
 import { characterKey } from '@/composables/injectKeys'
@@ -59,7 +60,7 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
 }
 
 // base data
-const { world } = useWorld()
+const { world } = storeToRefs(useWorldStore())
 const { userId } = useUserId()
 const actor: Ref<TablemateCharacter | undefined> = ref()
 const actorOrWorldActor = computed<TablemateCharacter | undefined>(

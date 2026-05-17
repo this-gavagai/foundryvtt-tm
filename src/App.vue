@@ -6,7 +6,8 @@ import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 
 import { useApi } from '@/composables/api'
 import { useServer } from '@/composables/server'
-import { useWorld } from '@/composables/world'
+import { storeToRefs } from 'pinia'
+import { useWorldStore } from '@/stores/world'
 import { useCharacterSelect } from '@/composables/characterSelect'
 import { usePixelDice } from './composables/pixelDice'
 import { useUserId } from './composables/user'
@@ -34,7 +35,9 @@ connectToServer(location).then((socket: Ref<Socket | undefined>) => {
 })
 
 // request and handle world
-const { world, refreshWorld } = useWorld()
+const worldStore = useWorldStore()
+const { world } = storeToRefs(worldStore)
+const { refreshWorld } = worldStore
 const { setupSocketListenersForWorld, setupSocketListenersForApp } = useApi()
 setupSocketListenersForApp()
 const stopWorldWatch = watch(

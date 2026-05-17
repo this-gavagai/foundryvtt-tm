@@ -1,9 +1,9 @@
 import { ref, watch, type Ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import type { ActorPF2e } from '@7h3laughingman/pf2e-types'
-import { useWorld } from './world'
+import { useWorldStore } from '@/stores/world'
 import { useSettings } from './settings'
 
-const { world } = useWorld()
 const { skipCharacterAlts } = useSettings()
 
 const urlId = ref<string>()
@@ -11,6 +11,7 @@ const characterList = ref<string[]>([])
 const activeCharacterId: Ref<string> = ref('')
 
 export function useCharacterSelect(newUrlId: string | null = null) {
+  const { world } = storeToRefs(useWorldStore())
   if (newUrlId) {
     urlId.value = newUrlId
     activeCharacterId.value = newUrlId

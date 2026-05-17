@@ -6,7 +6,7 @@ export interface Effect extends Item {
   system: EffectSystem
 }
 
-export interface EffectSystem extends ItemSystem {}
+export type EffectSystem = ItemSystem
 
 export function makeEffect(root: AbstractEffectPF2e): Effect {
   const base = makeItem(root)!

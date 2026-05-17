@@ -10,9 +10,10 @@ import HitPoints from '@/components/HitPoints.vue'
 import HeroPoints from '@/components/HeroPoints.vue'
 import Spinner from '@/components/widgets/SpinnerWidget.vue'
 // import SideMenu from '@/components/SideMenu.vue'
-import { useWorld } from '@/composables/world'
+import { storeToRefs } from 'pinia'
+import { useWorldStore } from '@/stores/world'
 
-const { world } = useWorld()
+const { world } = storeToRefs(useWorldStore())
 
 const character = useInjectedCharacter()
 const { _id, name, portraitUrl } = character

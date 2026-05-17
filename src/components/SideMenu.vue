@@ -2,15 +2,16 @@
 import { ref } from 'vue'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
 import { XMarkIcon } from '@heroicons/vue/24/solid'
+import { storeToRefs } from 'pinia'
 import { useTargetHelper } from '@/composables/targetHelper'
-import { useWorld } from '@/composables/world'
+import { useWorldStore } from '@/stores/world'
 import { usePixelDice } from '@/composables/pixelDice'
 
 import Dropdown from '@/components/widgets/DropdownWidget.vue'
 import RollOptions from '@/components/RollOptions.vue'
 import Spinner from './widgets/SpinnerWidget.vue'
 
-const { world } = useWorld()
+const { world } = storeToRefs(useWorldStore())
 const { pixelConnect, pixelReconnect, pixelDisconnect, pixel, pixelStatus } = usePixelDice()
 const { userList, targetingProxyId, updateProxyId } = useTargetHelper()
 
