@@ -12,7 +12,7 @@ import { useCharacter } from '@/composables/character'
 import { useApi } from '@/composables/api'
 import { characterKey } from '@/composables/injectKeys'
 import { useWindowSize } from '@vueuse/core'
-import { useUserId } from '@/composables/user'
+import { useUserStore } from '@/stores/user'
 import { logger } from '@/utils/utilities'
 
 import { Bars3Icon } from '@heroicons/vue/24/solid'
@@ -61,7 +61,7 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
 
 // base data
 const { world } = storeToRefs(useWorldStore())
-const { userId } = useUserId()
+const { userId } = storeToRefs(useUserStore())
 const actor: Ref<TablemateCharacter | undefined> = ref()
 const actorOrWorldActor = computed<TablemateCharacter | undefined>(
   () =>

@@ -23,7 +23,7 @@ import { mergeWith } from 'lodash-es'
 import { useServerStore } from '@/stores/server'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { logger, uuidv4 } from '@/utils/utilities'
-import { useUserId } from '@/composables/user'
+import { useUserStore } from '@/stores/user'
 import { useListeners } from './listenersOnline'
 
 const characterUnsynced = new Map<string, boolean>() // character document dirty state, update request pending
@@ -42,7 +42,7 @@ function fireRefresh(actorId: string | null | undefined) {
   refreshCallbacks[actorId]?.forEach((fn) => fn())
 }
 const getSocket = () => useServerStore().getSocket()
-const getUserId = () => useUserId().getUserId()
+const getUserId = () => useUserStore().getUserId()
 const ackQueue: { [key: string]: (args: RequestResolutionArgs) => void } = {}
 const ACK_TIMEOUT_MS = 30_000
 function pushToAckQueue(

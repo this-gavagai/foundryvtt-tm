@@ -10,7 +10,7 @@ import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'
 import { useCharacterSelect } from '@/composables/characterSelect'
 import { usePixelDice } from './composables/pixelDice'
-import { useUserId } from './composables/user'
+import { useUserStore } from '@/stores/user'
 
 import CharacterSheet from '@/components/CharacterSheet.vue'
 import LoginPage from '@/components/LoginPage.vue'
@@ -23,7 +23,9 @@ const location = new URL(window.location.origin)
 const serverStore = useServerStore()
 const { needsLogin } = storeToRefs(serverStore)
 const { connectToServer } = serverStore
-const { getUserId, userId } = useUserId()
+const userStore = useUserStore()
+const { userId } = storeToRefs(userStore)
+const { getUserId } = userStore
 connectToServer(location).then((socket: Ref<Socket | undefined>) => {
   setTimeout(
     () => socket.value?.emit('module.tablemate', { action: 'anybodyHome', userId: getUserId() }),

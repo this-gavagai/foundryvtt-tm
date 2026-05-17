@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { io, Socket } from 'socket.io-client'
-import { useUserId } from '@/composables/user'
+import { useUserStore } from '@/stores/user'
 import { logger } from '@/utils/utilities'
 
 export interface JoinUser {
@@ -137,7 +137,7 @@ export const useServerStore = defineStore('server', () => {
           logger.debug('TM-SEND', name, ...args)
         })
         socket.value.on('session', (args: { userId: string }) => {
-          if (args?.userId) useUserId().setUserId(args?.userId)
+          if (args?.userId) useUserStore().setUserId(args?.userId)
           else handleAuthFailure(url, allowRelogin)
         })
       })
