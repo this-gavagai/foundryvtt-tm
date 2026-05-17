@@ -1,26 +1,26 @@
 import { ref, computed } from 'vue'
-import { storeToRefs } from 'pinia'
+import { defineStore, storeToRefs } from 'pinia'
+import { useStorage } from '@vueuse/core'
 import { useWorldStore } from '@/stores/world'
 import { useUserId } from '@/composables/user'
 import { useApi } from '@/composables/api'
 import type { UserPF2e } from '@7h3laughingman/pf2e-types'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
-import { useStorage } from '@vueuse/core'
 import { logger } from '@/utils/utilities'
 
-const { getUserId, userId } = useUserId()
-const { updateUserTargetingProxy } = useApi()
-const localProxyId = useStorage('proxy-id', '')
-const targets = ref<string[]>([])
-
-export function useTargetHelper() {
+export const useTargetHelperStore = defineStore('targetHelper', () => {
   const { world } = storeToRefs(useWorldStore())
+  const { getUserId, userId } = useUserId()
+  const { updateUserTargetingProxy } = useApi()
 
-  const userList = computed(() => {
-    return (
+  const localProxyId = useStorage('proxy-id', '')
+  const targets = ref<string[]>([])
+
+  const userList = computed(
+    () =>
       world.value?.users.map((u: UserPF2e) => ({ id: u._id ?? undefined, name: u.name })) ?? []
-    )
-  })
+  )
+
   const targetingProxyId = computed(
     () =>
       (world.value?.users.find((u) => u._id === userId.value)?.flags?.tablemate?.targeting_proxy as
@@ -55,10 +55,11 @@ export function useTargetHelper() {
   }
 
   return {
+    targets,
     getTargets,
     userList,
     targetingProxyId,
     updateProxyId,
     updateTargets
   }
-}
+})

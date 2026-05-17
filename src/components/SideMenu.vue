@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
 import { XMarkIcon } from '@heroicons/vue/24/solid'
 import { storeToRefs } from 'pinia'
-import { useTargetHelper } from '@/composables/targetHelper'
+import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useWorldStore } from '@/stores/world'
 import { usePixelDice } from '@/composables/pixelDice'
 
@@ -13,7 +13,9 @@ import Spinner from './widgets/SpinnerWidget.vue'
 
 const { world } = storeToRefs(useWorldStore())
 const { pixelConnect, pixelReconnect, pixelDisconnect, pixel, pixelStatus } = usePixelDice()
-const { userList, targetingProxyId, updateProxyId } = useTargetHelper()
+const targetHelperStore = useTargetHelperStore()
+const { userList, targetingProxyId } = storeToRefs(targetHelperStore)
+const { updateProxyId } = targetHelperStore
 
 const targetProxySelector = ref()
 const sidebarOpen = ref(false)

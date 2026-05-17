@@ -21,7 +21,7 @@ type DocumentData = { _id: string | null }
 
 import { mergeWith } from 'lodash-es'
 import { useServerStore } from '@/stores/server'
-import { useTargetHelper } from '@/composables/targetHelper'
+import { useTargetHelperStore } from '@/stores/targetHelper'
 import { logger, uuidv4 } from '@/utils/utilities'
 import { useUserId } from '@/composables/user'
 import { useListeners } from './listenersOnline'
@@ -87,7 +87,7 @@ async function setupSocketListenersForApp() {
         }
         break
       case 'shareTargets':
-        const { updateTargets } = useTargetHelper()
+        const { updateTargets } = useTargetHelperStore()
         Object.entries(args.targets).forEach(([userId, targets]) =>
           updateTargets(userId, targets as string[])
         )
@@ -121,7 +121,7 @@ async function setupSocketListenersForWorld(world: Ref<GamePF2e>) {
   socket.on('userActivity', (user: string, args: { targets?: string[]; active?: boolean }) => {
     if (args.targets) {
       logger.info('user event', user, args)
-      const { updateTargets } = useTargetHelper()
+      const { updateTargets } = useTargetHelperStore()
       updateTargets(user, args.targets)
     } else if (args.active) {
       logger.info('user online', user, args)
@@ -323,7 +323,7 @@ function castSpell(
     action: 'castSpell',
     id: spellId,
     characterId: actor.value._id!,
-    targets: useTargetHelper().getTargets(),
+    targets: useTargetHelperStore().getTargets(),
     rank: castingLevel,
     slotId: castingSlot
   })
@@ -341,7 +341,7 @@ function rollCheck(
   return sendModuleRequest<RollCheckArgs>({
     action: 'rollCheck',
     characterId: actor.value._id!,
-    targets: useTargetHelper().getTargets(),
+    targets: useTargetHelperStore().getTargets(),
     item,
     checkType,
     checkSubtype,
@@ -360,7 +360,7 @@ function characterAction(
   return sendModuleRequest<CharacterActionArgs>({
     action: 'characterAction',
     characterId: actor.value._id!,
-    targets: useTargetHelper().getTargets(),
+    targets: useTargetHelperStore().getTargets(),
     characterAction,
     diceResults,
     options
@@ -388,7 +388,7 @@ function getStrikeDamage(
   return sendModuleRequest<GetStrikeDamageArgs>({
     action: 'getStrikeDamage',
     characterId: actor.value._id!,
-    targets: useTargetHelper().getTargets(),
+    targets: useTargetHelperStore().getTargets(),
     actionSlug,
     altUsage
   })
@@ -413,7 +413,7 @@ function callMacro(
   return sendModuleRequest<CallMacroArgs>({
     action: 'callMacro',
     characterId,
-    targets: useTargetHelper().getTargets(),
+    targets: useTargetHelperStore().getTargets(),
     compendiumName,
     macroName,
     macroUuid,
