@@ -2,11 +2,11 @@ import { ref, computed, watch } from 'vue'
 import { defineStore, storeToRefs } from 'pinia'
 import type { ActorPF2e } from '@7h3laughingman/pf2e-types'
 import { useWorldStore } from '@/stores/world'
-import { useSettings } from '@/composables/settings'
+import { useSettingsStore } from '@/stores/settings'
 
 export const useCharacterSelectStore = defineStore('characterSelect', () => {
   const { world } = storeToRefs(useWorldStore())
-  const { skipCharacterAlts } = useSettings()
+  const { skipCharacterAlts } = storeToRefs(useSettingsStore())
 
   const urlId = ref<string>()
   const activeCharacterId = ref<string>('')
