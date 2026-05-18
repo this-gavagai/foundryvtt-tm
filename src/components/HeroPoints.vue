@@ -20,11 +20,7 @@ const { current: heroCurrent, max: heroMax } = character.heroPoints
         :max="heroMax ?? 0"
         editable
         class="h-4"
-        @change-count="
-          (newTotal) => {
-            heroCurrent = newTotal
-          }
-        "
+        @change-count="(newTotal) => (heroCurrent = newTotal)"
       />
     </StatBox>
   </div>

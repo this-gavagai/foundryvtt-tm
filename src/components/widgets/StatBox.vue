@@ -31,6 +31,14 @@ function makeRoll(result: number | undefined = undefined) {
 }
 const canOpen = computed(() => (props?.modifiers || props?.breakdown) && !props.preventInfoModal)
 
+function openIfDetailed() {
+  if (canOpen.value) infoModal.value.open()
+}
+
+function handleDiceResult(face: number) {
+  if (props.rollAction && isListening.value) makeRoll(face)
+}
+
 defineExpose({ infoModal })
 </script>
 <template>
@@ -40,11 +48,7 @@ defineExpose({ infoModal })
       :class="{
         'active:drop-shadow-glow cursor-pointer': canOpen
       }"
-      @click="
-        () => {
-          if (canOpen) infoModal.open()
-        }
-      "
+      @click="openIfDetailed"
     >
       <div
         :class="proficiencies[props.proficiency ?? 0]?.color"
@@ -61,11 +65,7 @@ defineExpose({ infoModal })
       <InfoModal
         ref="infoModal"
         :diceRequest="rollAction ? ['d20'] : undefined"
-        @diceResult="
-          (face) => {
-            if (rollAction && isListening) makeRoll(face)
-          }
-        "
+        @diceResult="handleDiceResult"
       >
         <template #default>
           <div>

@@ -42,11 +42,7 @@ const initiativeReady = computed(() => {
         ]
       "
       :selectedId="initiativeStat ?? ''"
-      :changed="
-        (newValue) => {
-          initiativeStat = newValue
-        }
-      "
+      :changed="(newValue) => (initiativeStat = newValue)"
     />
     <StatBox
       heading="Initiative"

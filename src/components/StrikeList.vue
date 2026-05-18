@@ -181,6 +181,23 @@ function doViewedDamage(): Promise<RequestResolutionArgs | null> {
   )
 }
 
+// Run an attack/damage promise, then close the strike modal and show the
+// roll-result modal with the returned value.
+function presentRollResult(promise: Promise<RequestResolutionArgs | null> | undefined) {
+  promise?.then((r) => {
+    strikeModal.value.close()
+    strikeModal.value.rollResultModal.open(r)
+  })
+}
+
+function attack(diceResult?: number) {
+  presentRollResult(doViewedAttack(diceResult))
+}
+
+function damage() {
+  presentRollResult(doViewedDamage())
+}
+
 async function updateDamageFormula() {
   const v = viewed.value
   if (!v || !isListening.value) return
@@ -258,13 +275,7 @@ watch(viewed, () => updateDamageFormula())
         :itemId="viewedItem?._id"
         :traits="viewedTraits"
         :diceRequest="viewed?.phase === 'attack' ? ['d20'] : undefined"
-        @diceResult="
-          (diceResult: number | undefined) =>
-            doViewedAttack(diceResult)?.then((r) => {
-              strikeModal.close()
-              strikeModal.rollResultModal.open(r)
-            })
-        "
+        @diceResult="(diceResult: number | undefined) => attack(diceResult)"
         :imageUrl="
           (viewed?.target.kind === 'blast' ? viewed.target.data.blastImg : undefined) ??
           viewedItem?.img ??
@@ -351,13 +362,7 @@ watch(viewed, () => updateDamageFormula())
           <Button
             v-if="viewed?.phase === 'attack'"
             color="blue"
-            :clicked="
-              () =>
-                doViewedAttack()?.then((r) => {
-                  strikeModal.close()
-                  strikeModal.rollResultModal.open(r)
-                })
-            "
+            :clicked="() => attack()"
           >
             <span v-if="!viewed?.subtype">Strike&nbsp;</span>
             <span>{{
@@ -375,13 +380,7 @@ watch(viewed, () => updateDamageFormula())
             v-if="viewed?.phase === 'damage'"
             :label="viewed?.subtype ? 'Critical' : 'Damage'"
             color="red"
-            :clicked="
-              () =>
-                doViewedDamage()?.then((r) => {
-                  strikeModal.close()
-                  strikeModal.rollResultModal.open(r)
-                })
-            "
+            :clicked="damage"
           />
         </template>
       </InfoModal>
