@@ -35,6 +35,40 @@ function updateHitPoints(hp_input: string, temp_input: string) {
   hpCurrent.value = newHP
   hpTemp.value = newTemp
 }
+
+function handleHpFormSubmit(e: Event) {
+  const event = e as Event & SubmissionEvent
+  const { hp, temp_hp } = e.target as EventTarget & FormData
+  switch (event.submitter.name) {
+    case 'update':
+      updateHitPoints(hp.value, temp_hp.value)
+      break
+    case 'reset':
+      updateHitPoints(hpMax.value + '', '0')
+      break
+    case 'lastDamageMinus': {
+      const newTempHP = Math.max((hpTemp.value ?? 0) - lastDamageAmount.value, 0)
+      const hpAdjustment = Math.max(lastDamageAmount.value - (hpTemp.value ?? 0), 0)
+      updateHitPoints('-' + hpAdjustment, newTempHP + '')
+      break
+    }
+    case 'lastDamagePlus':
+      updateHitPoints('+' + lastDamageAmount.value, hpTemp.value + '')
+      break
+  }
+  hitpointsModal.value.close()
+}
+
+function selectInputOnClick(e: Event) {
+  const field = e.target as HTMLInputElement
+  field.focus()
+  field.select()
+}
+
+function openInfoFromHpModal() {
+  hitpointsModal.value.close()
+  hpStat.value.infoModal.open()
+}
 </script>
 <template>
   <div>
@@ -51,33 +85,8 @@ function updateHitPoints(hp_input: string, temp_input: string) {
       <span v-else> / {{ hpMax ?? '??' }} </span>
     </StatBox>
     <Teleport to="#modals">
-      <Modal
-        ref="hitpointsModal"
-        title="Hit Points"
-        :infoButton="
-          () => {
-            hitpointsModal.close()
-            hpStat.infoModal.open()
-          }
-        "
-      >
-        <form
-          @submit.prevent="
-            (e: Event) => {
-              const event = e as Event & SubmissionEvent
-              const { hp, temp_hp } = e.target as EventTarget & FormData
-              if (event.submitter.name === 'update') updateHitPoints(hp.value, temp_hp.value)
-              else if (event.submitter.name === 'reset') updateHitPoints(hpMax + '', '0')
-              else if (event.submitter.name === 'lastDamageMinus') {
-                const newTempHP = Math.max((hpTemp ?? 0) - lastDamageAmount, 0)
-                const hpAdjustment = Math.max(lastDamageAmount - (hpTemp ?? 0), 0)
-                updateHitPoints('-' + hpAdjustment, newTempHP + '')
-              } else if (event.submitter.name === 'lastDamagePlus')
-                updateHitPoints('+' + lastDamageAmount, hpTemp + '')
-              hitpointsModal.close()
-            }
-          "
-        >
+      <Modal ref="hitpointsModal" title="Hit Points" :infoButton="openInfoFromHpModal">
+        <form @submit.prevent="handleHpFormSubmit">
           <div class="flex w-full items-center justify-center pt-4 pb-1">
             <div class="w-1/3">Standard:</div>
             <input
@@ -88,13 +97,7 @@ function updateHitPoints(hp_input: string, temp_input: string) {
               :placeholder="hpCurrent + ''"
               :value="hpCurrent"
               inputmode="numeric"
-              @click="
-                (e: Event) => {
-                  const field = e.target as HTMLInputElement
-                  field.focus()
-                  field.select()
-                }
-              "
+              @click="selectInputOnClick"
             />
             <div class="w-1/3 text-xl">/ {{ hpMax }}</div>
           </div>
@@ -108,13 +111,7 @@ function updateHitPoints(hp_input: string, temp_input: string) {
               :placeholder="hpTemp + ''"
               :value="hpTemp"
               inputmode="numeric"
-              @click="
-                (e: Event) => {
-                  const field = e.target as HTMLInputElement
-                  field.focus()
-                  field.select()
-                }
-              "
+              @click="selectInputOnClick"
             />
             <div class="w-1/3"></div>
           </div>

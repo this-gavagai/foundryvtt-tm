@@ -67,6 +67,36 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
   if (swipe[1]) close()
 }
 
+function sendCurrentItemToChat() {
+  if (!props.itemId || !characterId.value || !isListening.value) return
+  waiting.value = true
+  sendItemToChat(characterId.value, props.itemId).then(() => (waiting.value = false))
+}
+
+function rollActiveRoll() {
+  if (!props.activeRoll) return
+  const { action, slug, params, dc } = props.activeRoll
+  if (action === 'action') {
+    doCharacterAction(slug!, params).then((r) => {
+      rollResultModal.value.open(r)
+      close(true)
+    })
+    return
+  }
+  if (action !== 'check') return
+  const rollOptions = { dc: Number(dc) ?? undefined }
+  if (slug === 'fortitude' || slug === 'will' || slug === 'reflex') {
+    saves[slug].value?.roll?.(undefined, rollOptions).then((r) => rollResultModal.value.open(r))
+  } else if (slug === 'flat') {
+    doFlatCheck(undefined, rollOptions).then((r) => rollResultModal.value.open(r))
+  } else {
+    skills.value
+      ?.find((s) => s.slug === slug)
+      ?.roll?.(undefined, rollOptions)
+      .then((r) => rollResultModal.value.open(r))
+  }
+}
+
 const emit = defineEmits(['opening', 'closing', 'imgClick', 'diceResult'])
 defineExpose({ open, close, rollResultModal })
 </script>
@@ -110,13 +140,7 @@ defineExpose({ open, close, rollResultModal })
                       v-if="props.itemId && characterId && isListening"
                       class="border"
                       :class="[isListening ? 'active:opacity-30' : '']"
-                      @click="
-                        () => {
-                          if (!props.itemId || !characterId || !isListening) return
-                          waiting = true
-                          sendItemToChat(characterId, props.itemId).then(() => (waiting = false))
-                        }
-                      "
+                      @click="sendCurrentItemToChat"
                     >
                       <img
                         class="h-12 w-12"
@@ -186,40 +210,7 @@ defineExpose({ open, close, rollResultModal })
                     class="capitalize"
                     :class="['order-first mr-auto']"
                     v-if="activeRoll"
-                    :clicked="
-                      () => {
-                        if (activeRoll?.action === 'action') {
-                          doCharacterAction(activeRoll?.slug!, activeRoll?.params).then((r) => {
-                            rollResultModal.open(r)
-                            close(true)
-                          })
-                        }
-                        if (activeRoll?.action === 'check') {
-                          const slug = activeRoll?.slug
-                          if (['fortitude', 'will', 'reflex'].includes(slug ?? '')) {
-                            saves[slug as 'fortitude' | 'will' | 'reflex'].value
-                              ?.roll?.(undefined, { dc: Number(activeRoll?.dc) ?? undefined })
-                              .then((r) => {
-                                rollResultModal.open(r)
-                              })
-                          } else if (slug === 'flat') {
-                            doFlatCheck(undefined, {
-                              dc: Number(activeRoll?.dc) ?? undefined
-                            }).then((r) => {
-                              rollResultModal.open(r)
-                            })
-                          } else {
-                            const slug = activeRoll?.slug
-                            skills
-                              ?.find((s) => s.slug === slug)
-                              ?.roll?.(undefined, { dc: Number(activeRoll?.dc) ?? undefined })
-                              .then((r) => {
-                                rollResultModal.open(r)
-                              })
-                          }
-                        }
-                      }
-                    "
+                    :clicked="rollActiveRoll"
                     >Roll {{ activeRoll?.label ?? activeRoll?.slug }}</Button
                   >
                 </div>

@@ -33,6 +33,11 @@ const itemViewedId = ref<string | undefined>()
 const itemViewed = computed(() =>
   inventory.value?.find((i: InventoryItem) => i._id === itemViewedId.value)
 )
+
+function viewItem(item: InventoryItem) {
+  itemViewedId.value = item._id
+  infoModal.value.open()
+}
 const itemWornType = computed(() => {
   if (itemViewed.value?.type === 'armor') return 'Armor'
   const usage = itemViewed.value?.system?.usage?.value
@@ -88,14 +93,7 @@ const toggleSet = [
     </div>
     <div v-else class="px-6 py-4">
       <!-- Held Items list -->
-      <EquipmentHeld
-        @item-clicked="
-          (item) => {
-            itemViewedId = item._id
-            infoModal.open()
-          }
-        "
-      />
+      <EquipmentHeld @item-clicked="viewItem" />
       <EquipmentBulk v-if="inventory?.length" />
       <div v-if="inventory?.length">
         <span class="cursor-pointer text-sm text-gray-500" @click="investedModal.open()">
@@ -119,15 +117,7 @@ const toggleSet = [
               )"
               :key="item._id"
             >
-              <EquipmentListItem
-                :item="item"
-                @item-clicked="
-                  () => {
-                    itemViewedId = item._id
-                    infoModal.open()
-                  }
-                "
-              />
+              <EquipmentListItem :item="item" @item-clicked="viewItem(item)" />
               <!-- Sub-items (in container) -->
               <ul class="pb-2" v-if="item.type === 'backpack'">
                 <li
@@ -136,15 +126,7 @@ const toggleSet = [
                   )"
                   :key="stowed._id"
                 >
-                  <EquipmentListItem
-                    :item="stowed"
-                    @item-clicked="
-                      () => {
-                        itemViewedId = stowed._id
-                        infoModal.open()
-                      }
-                    "
-                  />
+                  <EquipmentListItem :item="stowed" @item-clicked="viewItem(stowed)" />
                 </li>
               </ul>
             </li>
