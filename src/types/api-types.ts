@@ -1,4 +1,5 @@
 import type { ItemPF2e, RawModifier } from '@7h3laughingman/pf2e-types'
+import type { TM } from '@/api/constants'
 
 export type ModuleEventArgs =
   | AcknowledgementArgs
@@ -16,16 +17,16 @@ export type ModuleEventArgs =
   | CallMacroArgs
 
 export interface AcknowledgementArgs {
-  action: 'acknowledged'
+  action: typeof TM.ACK
   uuid: string
   userId: string
 }
 export interface ListenderOnlineArgs {
-  action: 'listenerOnline'
+  action: typeof TM.LISTENER_ONLINE
   userId: string
 }
 export interface UpdateCharacterDetailsArgs {
-  action: 'updateCharacterDetails'
+  action: typeof TM.UPDATE_CHARACTER
   actorId: string
   // Fields below are sent as live objects (not pre-stringified). socket.io
   // handles wire serialization itself; the Foundry side runs a single
@@ -40,17 +41,17 @@ export interface UpdateCharacterDetailsArgs {
   userId: string
 }
 export interface RequestCharacterDetailsArgs {
-  action: 'requestCharacterDetails'
+  action: typeof TM.REQUEST_CHARACTER
   userId: string
   actorId: string
   uuid: string
 }
 export interface AnybodyHomeArgs {
-  action: 'anybodyHome'
+  action: typeof TM.ANYBODY_HOME
   userId: string
 }
 export interface RollCheckArgs {
-  action: 'rollCheck'
+  action: typeof TM.ROLL_CHECK
   userId: string
   characterId: string
   checkType: string
@@ -63,7 +64,7 @@ export interface RollCheckArgs {
   diceResults: DiceResults
 }
 export interface CharacterActionArgs {
-  action: 'characterAction'
+  action: typeof TM.CHARACTER_ACTION
   userId: string
   characterId: string
   targets: string[]
@@ -73,7 +74,7 @@ export interface CharacterActionArgs {
   uuid: string
 }
 export interface CastSpellArgs {
-  action: 'castSpell'
+  action: typeof TM.CAST_SPELL
   userId: string
   id: string
   characterId: string
@@ -83,7 +84,7 @@ export interface CastSpellArgs {
   targets: string[]
 }
 export interface ConsumeItemArgs {
-  action: 'consumeItem'
+  action: typeof TM.CONSUME_ITEM
   userId: string
   characterId: string
   consumableId: string
@@ -91,7 +92,7 @@ export interface ConsumeItemArgs {
   uuid: string
 }
 export interface GetStrikeDamageArgs {
-  action: 'getStrikeDamage'
+  action: typeof TM.GET_STRIKE_DAMAGE
   userId: string
   characterId: string
   actionSlug: string
@@ -100,19 +101,19 @@ export interface GetStrikeDamageArgs {
   uuid: string
 }
 export interface ShareTargetsArgs {
-  action: 'shareTargets'
+  action: typeof TM.SHARE_TARGETS
   targets: Record<string, string[]>
   userId: string
 }
 export interface SendItemToChatArgs {
-  action: 'sendItemToChat'
+  action: typeof TM.SEND_ITEM_TO_CHAT
   userId: string
   characterId: string
   itemId: string
   uuid: string
 }
 export interface CallMacroArgs {
-  action: 'callMacro'
+  action: typeof TM.CALL_MACRO
   userId: string
   characterId: string
   targets: string[]
@@ -124,7 +125,7 @@ export interface CallMacroArgs {
 }
 
 export interface RequestResolutionArgs {
-  action: 'acknowledged'
+  action: typeof TM.ACK
   uuid: string
   response?: {
     damage?: string

@@ -8,6 +8,7 @@ import {
   setupSocketListenersForApp,
   setupSocketListenersForWorld
 } from '@/api/socketSetup'
+import { TM } from '@/api/constants'
 import { useServerStore } from '@/stores/server'
 import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'
@@ -31,12 +32,12 @@ const { userId } = storeToRefs(userStore)
 const { getUserId } = userStore
 connectToServer(location).then((socket: Ref<Socket | undefined>) => {
   setTimeout(
-    () => socket.value?.emit('module.tablemate', { action: 'anybodyHome', userId: getUserId() }),
+    () => socket.value?.emit(TM.CHANNEL, { action: TM.ANYBODY_HOME, userId: getUserId() }),
     100
   )
   if (BUILD_MODE !== 'development') {
     setInterval(() => {
-      socket.value?.emit('module.tablemate', { action: 'anybodyHome', userId: getUserId() })
+      socket.value?.emit(TM.CHANNEL, { action: TM.ANYBODY_HOME, userId: getUserId() })
     }, 50000)
   }
 })

@@ -14,7 +14,7 @@ import { logger } from '@/utils/utilities'
 export const usePixelDiceStore = defineStore('pixelDice', () => {
   const lastRoll = ref<number>()
   const pixel = ref<Pixel>()
-  window.pixel = pixel
+  if (import.meta.env.DEV) window.pixel = pixel
 
   const systemIds = useStorage('pixel-system-id', '')
 

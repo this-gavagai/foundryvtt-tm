@@ -16,22 +16,23 @@ import {
 import { addRefresh, fireRefresh, parseActorData } from './characterSync'
 import { processChanges } from './documents'
 import { resolveAck } from './actions'
+import { TM } from './constants'
 
 export async function setupSocketListenersForApp() {
   const socket = await getSocket()
   const { addListener } = useListenersStore()
-  socket.on('module.tablemate', (args: ModuleEventArgs) => {
+  socket.on(TM.CHANNEL, (args: ModuleEventArgs) => {
     switch (args.action) {
-      case 'acknowledged':
+      case TM.ACK:
         resolveAck(args.uuid, args)
         break
-      case 'shareTargets':
+      case TM.SHARE_TARGETS:
         const { updateTargets } = useTargetHelperStore()
         Object.entries(args.targets).forEach(([userId, targets]) =>
           updateTargets(userId, targets as string[])
         )
         break
-      case 'listenerOnline':
+      case TM.LISTENER_ONLINE:
         logger.info('listener online!', args)
         addListener(args.userId)
         break
@@ -76,12 +77,12 @@ export async function setupSocketListenersForActor(
 ): Promise<() => void> {
   const socket = await getSocket()
   const removeRefresh = addRefresh(actorId, refreshMethod)
-  socket.on('module.tablemate', (args: ModuleEventArgs) => {
+  socket.on(TM.CHANNEL, (args: ModuleEventArgs) => {
     switch (args.action) {
-      case 'listenerOnline':
+      case TM.LISTENER_ONLINE:
         if (!actor.value?.inventory) fireRefresh(actorId)
         break
-      case 'updateCharacterDetails':
+      case TM.UPDATE_CHARACTER:
         parseActorData(actorId, actor, args)
         break
     }

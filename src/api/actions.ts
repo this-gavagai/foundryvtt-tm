@@ -14,6 +14,7 @@ import type {
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { logger, uuidv4 } from '@/utils/utilities'
 import { getSocket, getUserId } from './internal'
+import { TM } from './constants'
 
 // Pending ack queue: uuid → resolver. Populated when an action RPC is sent,
 // drained either by resolveAck() when the server acknowledges or by the
@@ -58,7 +59,7 @@ async function sendModuleRequest<T extends { action: string }>(
   const args = { ...payload, userId: getUserId(), uuid }
   const socket = await getSocket()
   return new Promise<RequestResolutionArgs>((resolve, reject) => {
-    socket.emit('module.tablemate', args)
+    socket.emit(TM.CHANNEL, args)
     pushToAckQueue(uuid, resolve, reject, timeoutMs)
   })
 }
@@ -70,7 +71,7 @@ export function castSpell(
   castingSlot: number
 ): Promise<RequestResolutionArgs> {
   return sendModuleRequest<CastSpellArgs>({
-    action: 'castSpell',
+    action: TM.CAST_SPELL,
     id: spellId,
     characterId: actor.value._id!,
     targets: useTargetHelperStore().getTargets(),
@@ -89,7 +90,7 @@ export function rollCheck(
   item = null
 ): Promise<RequestResolutionArgs> {
   return sendModuleRequest<RollCheckArgs>({
-    action: 'rollCheck',
+    action: TM.ROLL_CHECK,
     characterId: actor.value._id!,
     targets: useTargetHelperStore().getTargets(),
     item,
@@ -108,7 +109,7 @@ export function characterAction(
   diceResults: DiceResults = {}
 ): Promise<RequestResolutionArgs> {
   return sendModuleRequest<CharacterActionArgs>({
-    action: 'characterAction',
+    action: TM.CHARACTER_ACTION,
     characterId: actor.value._id!,
     targets: useTargetHelperStore().getTargets(),
     characterAction,
@@ -123,7 +124,7 @@ export function consumeItem(
   options = {}
 ): Promise<RequestResolutionArgs> {
   return sendModuleRequest<ConsumeItemArgs>({
-    action: 'consumeItem',
+    action: TM.CONSUME_ITEM,
     characterId: actor.value._id!,
     consumableId,
     options
@@ -136,7 +137,7 @@ export function getStrikeDamage(
   altUsage: number | undefined = undefined
 ): Promise<RequestResolutionArgs> {
   return sendModuleRequest<GetStrikeDamageArgs>({
-    action: 'getStrikeDamage',
+    action: TM.GET_STRIKE_DAMAGE,
     characterId: actor.value._id!,
     targets: useTargetHelperStore().getTargets(),
     actionSlug,
@@ -149,7 +150,7 @@ export function sendItemToChat(
   itemId: string
 ): Promise<RequestResolutionArgs> {
   return sendModuleRequest<SendItemToChatArgs>({
-    action: 'sendItemToChat',
+    action: TM.SEND_ITEM_TO_CHAT,
     characterId,
     itemId
   })
@@ -164,7 +165,7 @@ export function callMacro(
 ): Promise<RequestResolutionArgs | null> {
   if (characterId === undefined) return Promise.resolve(null)
   return sendModuleRequest<CallMacroArgs>({
-    action: 'callMacro',
+    action: TM.CALL_MACRO,
     characterId,
     targets: useTargetHelperStore().getTargets(),
     compendiumName,

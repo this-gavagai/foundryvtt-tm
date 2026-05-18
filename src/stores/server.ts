@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { io, Socket } from 'socket.io-client'
 import { useUserStore } from '@/stores/user'
 import { logger } from '@/utils/utilities'
+import { TM } from '@/api/constants'
 
 export interface JoinUser {
   _id: string
@@ -122,7 +123,7 @@ export const useServerStore = defineStore('server', () => {
         socket.value = newSocket
         socket.value.offAny()
         socket.value.onAny((name, ...args) => {
-          if (name === 'userActivity' || (name.match('module.') && !name.match('module.tablemate')))
+          if (name === 'userActivity' || (name.match('module.') && !name.match(TM.CHANNEL)))
             return
           logger.debug('TM-RECV', name, ...args)
         })

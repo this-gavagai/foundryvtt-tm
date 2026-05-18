@@ -4,6 +4,7 @@ import type { TablemateCharacter } from '@/types/character-types'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import { uuidv4 } from '@/utils/utilities'
 import { getSocket, getUserId, mergeWithArrayReset } from './internal'
+import { TM } from './constants'
 
 // Per-actor dirty flag and last-sent request UUID — used by parseActorData
 // to ignore stale or unrelated update responses.
@@ -35,9 +36,9 @@ export async function sendCharacterRequest(actorId: string): Promise<void> {
   const socket = await getSocket()
   const userId = getUserId()
   const uuid = uuidv4()
-  socket.emit('module.tablemate', {
+  socket.emit(TM.CHANNEL, {
     userId,
-    action: 'requestCharacterDetails',
+    action: TM.REQUEST_CHARACTER,
     actorId: actorId,
     uuid
   })

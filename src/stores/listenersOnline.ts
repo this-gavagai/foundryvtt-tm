@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { useServerStore } from '@/stores/server'
 import { useUserStore } from '@/stores/user'
 import { logger } from '@/utils/utilities'
+import { TM } from '@/api/constants'
 
 // TODO: do a sweep to deactivate things that need to be deactivated in the absence of a listener
 // Off hand, that includes Initiative skill, Hero Point modifiers, HP stats (crashing now)
@@ -24,9 +25,9 @@ export const useListenersStore = defineStore('listenersOnline', () => {
   // first useListenersStore() invocation (store setup runs once).
   setInterval(async () => {
     const socket = await useServerStore().getSocket()
-    socket?.emit('module.tablemate', {
+    socket?.emit(TM.CHANNEL, {
       userId: useUserStore().getUserId(),
-      action: 'anybodyHome'
+      action: TM.ANYBODY_HOME
     })
     listenersOnline.value.forEach((value, key, map) => {
       if (Date.now() - value > 40000) map.delete(key)

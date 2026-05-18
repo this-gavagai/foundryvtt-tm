@@ -22,6 +22,7 @@ import type {
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import { useBackgroundRoll } from './backgroundRoll'
 import { logger } from '@/utils/utilities'
+import { TM } from '@/api/constants'
 
 // should be pulling this from constants, but that creates another loading dependency
 const inventoryTypes = [
@@ -82,7 +83,7 @@ export async function getCharacterDetails(
     : null
   logger.debug('TABLEMATE: now sending ' + actor.name)
   return {
-    action: 'updateCharacterDetails',
+    action: TM.UPDATE_CHARACTER,
     actorId: actor._id,
     actor,
     system: actor.system,
@@ -214,7 +215,7 @@ export async function foundryRollCheck(args: RollCheckArgs) {
     r?.[0]?.message?.whisper?.length === 0 && !r?.[0]?.message?.whisper?.includes(args.userId)
   const { formula, result, total, dice } = actualRoll
   return {
-    action: 'acknowledged',
+    action: TM.ACK,
     uuid: args.uuid,
     userId: game.user._id,
     roll: { formula, result, total, dice, isSecret }
@@ -250,7 +251,7 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
   const { formula, result, total, dice } = r?.[0]?.roll
   unregisterBackgroundRoll()
   return {
-    action: 'acknowledged',
+    action: TM.ACK,
     uuid: args.uuid,
     userId: game.user._id,
     roll: { formula, result, total, dice, isSecret }
@@ -265,7 +266,7 @@ export async function foundryCastSpell(args: CastSpellArgs) {
   const spellLocation = actor.items.get(item.system.location.value)
 
   spellLocation.cast(item, { rank: args.rank, slotId: args.slotId })
-  return { action: 'acknowledged', uuid: args.uuid, userId: game.user._id }
+  return { action: TM.ACK, uuid: args.uuid, userId: game.user._id }
 }
 
 export async function foundryConsumeItem(args: ConsumeItemArgs) {
@@ -273,7 +274,7 @@ export async function foundryConsumeItem(args: ConsumeItemArgs) {
   const actor = source.actors.get(args.characterId, { strict: true })
   const item = actor.items.get(args.consumableId, { strict: true })
   item.consume()
-  return { action: 'acknowledged', uuid: args.uuid, userId: game.user._id }
+  return { action: TM.ACK, uuid: args.uuid, userId: game.user._id }
 }
 
 export async function foundrySendItemToChat(args: SendItemToChatArgs) {
@@ -281,7 +282,7 @@ export async function foundrySendItemToChat(args: SendItemToChatArgs) {
   const item = actor?.items?.get(args.itemId)
 
   if (item) item.toChat()
-  return { action: 'acknowledged', uuid: args.uuid, userId: game.user._id }
+  return { action: TM.ACK, uuid: args.uuid, userId: game.user._id }
 }
 
 export async function foundryCallMacro(args: CallMacroArgs) {
@@ -306,7 +307,7 @@ export async function foundryCallMacro(args: CallMacroArgs) {
     temp_macro.execute({ actor })
   }
 
-  return { action: 'acknowledged', uuid: args.uuid, userId: game.user._id }
+  return { action: TM.ACK, uuid: args.uuid, userId: game.user._id }
 }
 
 export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
@@ -374,7 +375,7 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
   unregisterBackgroundRoll()
 
   return {
-    action: 'acknowledged',
+    action: TM.ACK,
     uuid: args.uuid,
     userId: game.user._id,
     response: {

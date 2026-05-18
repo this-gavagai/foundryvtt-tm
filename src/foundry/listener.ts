@@ -22,11 +22,11 @@ import {
 import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
 import { logger } from '@/utils/utilities'
+import { TM } from '@/api/constants'
 
 type GetEvent = { action: 'get' }
 
 declare const game: GamePF2e
-const MODNAME = 'module.tablemate'
 
 const getChar: Record<string, (args: RequestCharacterDetailsArgs) => void> = {}
 
@@ -41,17 +41,17 @@ export function setupListener() {
       event === 'manageFiles' ||
       event === 'time' ||
       args?.[0]?.action === 'get' ||
-      (event.match('module.') && !event.match('module.tablemate'))
+      (event.match('module.') && !event.match(TM.CHANNEL))
     )
       return
     logger.info(`TM.SEND ${event}`, args?.[0]?.action, args)
   })
 
-  game.socket.on(MODNAME, (args: ModuleEventArgs) => {
+  game.socket.on(TM.CHANNEL, (args: ModuleEventArgs) => {
     if (!args.userId) logger.warn('missing!', args)
     if (!iAmProxyOrFallbackGM(args.userId)) return
     logger.info('TM.RECV (listener)', args)
-    if (args.action === 'anybodyHome') {
+    if (args.action === TM.ANYBODY_HOME) {
       announceSelf()
       broadcastTargets()
       return
@@ -66,16 +66,16 @@ export function setupListener() {
     }
 
     switch (args.action) {
-      case 'listenerOnline':
-      case 'updateCharacterDetails':
-      case 'shareTargets':
+      case TM.LISTENER_ONLINE:
+      case TM.UPDATE_CHARACTER:
+      case TM.SHARE_TARGETS:
         break
-      case 'requestCharacterDetails':
+      case TM.REQUEST_CHARACTER:
         if (!getChar[args.actorId]) {
           getChar[args.actorId] = debounce(
             (args) => {
               getCharacterDetails(args as RequestCharacterDetailsArgs).then((result) =>
-                game.socket.emit(MODNAME, result)
+                game.socket.emit(TM.CHANNEL, result)
               )
             },
             2000,
@@ -86,38 +86,41 @@ export function setupListener() {
           )
         }
         getChar[args.actorId](args as RequestCharacterDetailsArgs)
-        // getCharacterDetails(args as RequestCharacterDetailsArgs).then((result) =>
-        //   game.socket.emit(MODNAME, result)
-        // )
         break
-      case 'rollCheck':
-        foundryRollCheck(args as RollCheckArgs).then((result) => game.socket.emit(MODNAME, result))
+      case TM.ROLL_CHECK:
+        foundryRollCheck(args as RollCheckArgs).then((result) =>
+          game.socket.emit(TM.CHANNEL, result)
+        )
         break
-      case 'characterAction':
+      case TM.CHARACTER_ACTION:
         foundryCharacterAction(args as CharacterActionArgs).then((result) =>
-          game.socket.emit(MODNAME, result)
+          game.socket.emit(TM.CHANNEL, result)
         )
         break
-      case 'castSpell':
-        foundryCastSpell(args as CastSpellArgs).then((result) => game.socket.emit(MODNAME, result))
+      case TM.CAST_SPELL:
+        foundryCastSpell(args as CastSpellArgs).then((result) =>
+          game.socket.emit(TM.CHANNEL, result)
+        )
         break
-      case 'consumeItem':
+      case TM.CONSUME_ITEM:
         foundryConsumeItem(args as ConsumeItemArgs).then((result) =>
-          game.socket.emit(MODNAME, result)
+          game.socket.emit(TM.CHANNEL, result)
         )
         break
-      case 'getStrikeDamage':
+      case TM.GET_STRIKE_DAMAGE:
         foundryGetStrikeDamage(args as GetStrikeDamageArgs).then((result) =>
-          game.socket.emit(MODNAME, result)
+          game.socket.emit(TM.CHANNEL, result)
         )
         break
-      case 'sendItemToChat':
+      case TM.SEND_ITEM_TO_CHAT:
         foundrySendItemToChat(args as SendItemToChatArgs).then((result) =>
-          game.socket.emit(MODNAME, result)
+          game.socket.emit(TM.CHANNEL, result)
         )
         break
-      case 'callMacro':
-        foundryCallMacro(args as CallMacroArgs).then((result) => game.socket.emit(MODNAME, result))
+      case TM.CALL_MACRO:
+        foundryCallMacro(args as CallMacroArgs).then((result) =>
+          game.socket.emit(TM.CHANNEL, result)
+        )
         break
       default:
         logger.warn('event not caught', args.action, args)
@@ -149,8 +152,8 @@ function iAmProxyOrFallbackGM(userId: string) {
   return iAmProxy(userId) || (!proxyIsOnline(userId) && iAmFirstGM())
 }
 function announceSelf() {
-  game.socket.emit(MODNAME, {
-    action: 'listenerOnline',
+  game.socket.emit(TM.CHANNEL, {
+    action: TM.LISTENER_ONLINE,
     userId: game.user._id
   })
 }
@@ -160,8 +163,8 @@ function broadcastTargets() {
     acc[user._id ?? 0] = Array.from(user.targets.map((t: { id: string }) => t.id))
     return acc
   }, {})
-  game.socket.emit('module.tablemate', {
-    action: 'shareTargets',
+  game.socket.emit(TM.CHANNEL, {
+    action: TM.SHARE_TARGETS,
     targets: targets,
     userId: game.user._id
   })
