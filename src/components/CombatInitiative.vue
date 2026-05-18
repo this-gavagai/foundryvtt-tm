@@ -24,9 +24,9 @@ const skillsPlusPerception = computed(() =>
 
 const { activeCombat } = storeToRefs(useCombatStore())
 const initiativeReady = computed(() => {
-  const inActiveCombat = activeCombat.value?.combatants
-    .map((a: CombatantPF2e) => a.actorId)
-    .includes(currentActorId.value)
+  const inActiveCombat = activeCombat.value?.combatants.some(
+    (a: CombatantPF2e) => a.actorId === currentActorId.value
+  )
   const initiativeValue = activeCombat.value?.combatants.find(
     (a: CombatantPF2e) => a.actorId === currentActorId.value
   )?.initiative
