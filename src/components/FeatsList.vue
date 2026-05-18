@@ -12,8 +12,12 @@ const character = useInjectedCharacter()
 const { feats, ancestry, background, classType } = character
 
 const viewedFeatId = ref<string | undefined>()
-// const viewedFeat = ref<Item | undefined>()
 const viewedFeat = computed(() => feats.value?.find((f) => f._id === viewedFeatId.value))
+
+function viewFeat(clickedFeatId: string) {
+  viewedFeatId.value = clickedFeatId
+  infoModal.value.open()
+}
 
 const featCategories = computed(() => {
   const categories = {
@@ -82,15 +86,7 @@ const featCategories = computed(() => {
           )"
           :key="feat._id"
         >
-          <FeatsListItem
-            :featId="feat._id"
-            @clicked="
-              (clickedFeatId: string) => {
-                viewedFeatId = clickedFeatId
-                infoModal.open()
-              }
-            "
-          />
+          <FeatsListItem :featId="feat._id" @clicked="viewFeat" />
         </dd>
       </dl>
     </div>

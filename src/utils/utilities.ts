@@ -63,6 +63,15 @@ export function getPath(path: string) {
   return path.slice(0, 4) === 'http' ? path : '../../' + path
 }
 
+// Focus + select-all on the input that fired the event. Used as a click
+// handler on numeric inputs where we want the existing value pre-selected
+// so the user can immediately overwrite it.
+export function selectAllOnClick(e: Event) {
+  const field = e.target as HTMLInputElement
+  field.focus()
+  field.select()
+}
+
 export function parseIncrement(input: string, startingValue: number): number {
   const transform = [...input.matchAll(/([\+\-]){0,1}([0-9]+)$/g)]?.[0]
   if (!transform) return startingValue

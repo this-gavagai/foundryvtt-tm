@@ -9,12 +9,27 @@ import { useInjectedCharacter } from '@/composables/injectKeys'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import ParsedDescription from './ParsedDescription.vue'
 import { getPath } from '@/utils/utilities'
+import type { EffectItem } from '@/composables/character'
 
 const character = useInjectedCharacter()
 const { effects } = character
 const infoModal = ref()
 const effectViewedId = ref<string | undefined>()
 const effectViewed = computed(() => effects.value?.find((e) => e._id === effectViewedId.value))
+
+function viewEffect(effect: EffectItem) {
+  effectViewedId.value = effect._id
+  infoModal.value.open()
+}
+
+function removeViewedEffect() {
+  infoModal.value.close()
+  if (effectViewed.value?.delete) return effectViewed.value.delete()
+}
+
+function adjustViewedEffectQty(delta: number) {
+  return effectViewed.value?.changeQty?.((effectViewed.value?.system?.value?.value ?? NaN) + delta)
+}
 </script>
 <template>
   <div :class="{ 'border-none': effects?.length === 0 }">
@@ -38,12 +53,7 @@ const effectViewed = computed(() => effects.value?.find((e) => e._id === effectV
           class="cursor-pointer"
           v-for="effect in effects"
           :key="effect._id"
-          @click="
-            () => {
-              effectViewedId = effect._id
-              infoModal.open()
-            }
-          "
+          @click="viewEffect(effect)"
         >
           <div class="w-[38px]">
             <div class="relative">
@@ -83,32 +93,18 @@ const effectViewed = computed(() => effects.value?.find((e) => e._id === effectV
           <ParsedDescription :text="effectViewed?.system?.description?.value" />
         </template>
         <template #actionButtons>
-          <Button
-            color="red"
-            :clicked="
-              () => {
-                infoModal.close()
-                if (effectViewed?.delete) return effectViewed?.delete()
-              }
-            "
-          >
-            Remove
-          </Button>
+          <Button color="red" :clicked="removeViewedEffect">Remove</Button>
           <Button
             v-if="effectViewed?.system?.value?.isValued"
             color="lightgray"
-            :clicked="
-              () => effectViewed?.changeQty?.((effectViewed?.system?.value?.value ?? NaN) - 1)
-            "
+            :clicked="() => adjustViewedEffectQty(-1)"
           >
             -
           </Button>
           <Button
             v-if="effectViewed?.system?.value?.isValued"
             color="lightgray"
-            :clicked="
-              () => effectViewed?.changeQty?.((effectViewed?.system?.value?.value ?? NaN) + 1)
-            "
+            :clicked="() => adjustViewedEffectQty(1)"
           >
             +
           </Button>

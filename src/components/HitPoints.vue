@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { parseIncrement } from '@/utils/utilities'
+import { parseIncrement, selectAllOnClick } from '@/utils/utilities'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 
 import StatBox from '@/components/widgets/StatBox.vue'
@@ -59,12 +59,6 @@ function handleHpFormSubmit(e: Event) {
   hitpointsModal.value.close()
 }
 
-function selectInputOnClick(e: Event) {
-  const field = e.target as HTMLInputElement
-  field.focus()
-  field.select()
-}
-
 function openInfoFromHpModal() {
   hitpointsModal.value.close()
   hpStat.value.infoModal.open()
@@ -97,7 +91,7 @@ function openInfoFromHpModal() {
               :placeholder="hpCurrent + ''"
               :value="hpCurrent"
               inputmode="numeric"
-              @click="selectInputOnClick"
+              @click="selectAllOnClick"
             />
             <div class="w-1/3 text-xl">/ {{ hpMax }}</div>
           </div>
@@ -111,7 +105,7 @@ function openInfoFromHpModal() {
               :placeholder="hpTemp + ''"
               :value="hpTemp"
               inputmode="numeric"
-              @click="selectInputOnClick"
+              @click="selectAllOnClick"
             />
             <div class="w-1/3"></div>
           </div>

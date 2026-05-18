@@ -92,14 +92,7 @@ defineExpose({ sidebarOpen })
                     <RollOptions />
                   </li>
                   <li>
-                    <div
-                      class="cursor-pointer text-lg font-bold"
-                      @click="
-                        async () => {
-                          await pixelConnect()
-                        }
-                      "
-                    >
+                    <div class="cursor-pointer text-lg font-bold" @click="pixelConnect">
                       Pair Pixel Dice
                     </div>
                     <ul v-if="pixel">

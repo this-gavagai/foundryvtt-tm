@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 
 import StatBox from './widgets/StatBox.vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
-import { parseIncrement } from '@/utils/utilities'
+import { parseIncrement, selectAllOnClick } from '@/utils/utilities'
 import { callMacro } from '@/api/actions'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
@@ -39,6 +39,22 @@ function updateHitPoints(hp_input: string) {
   let newHP = parseIncrement(hp_input, shpCurrent.value)
   newHP = Math.max(Math.min(newHP, shpMax.value), 0)
   shpCurrent.value = newHP
+}
+
+function raiseShield() {
+  if (!isListening.value || !characterId.value) return
+  shieldWaiting.value = true
+  callMacro(characterId.value, 'pf2e.action-macros', 'Raise a Shield').then(() => {
+    shieldWaiting.value = false
+  })
+}
+
+function handleShpFormSubmit(e: Event) {
+  const event = e as Event & SubmissionEvent
+  const { hp } = e.target as EventTarget & FormData
+  if (event.submitter.name === 'update') updateHitPoints(hp.value)
+  else if (event.submitter.name === 'reset') updateHitPoints(shpMax.value + '')
+  shpModal.value.close()
 }
 </script>
 <template>
@@ -83,15 +99,7 @@ function updateHitPoints(hp_input: string) {
           </div>
         </div>
         <div
-          @click="
-            () => {
-              if (!isListening) return
-              shieldWaiting = true
-              callMacro(characterId, 'pf2e.action-macros', 'Raise a Shield').then((a) => {
-                shieldWaiting = false
-              })
-            }
-          "
+          @click="raiseShield"
           class="cursor-pointer transition-all"
           :class="[
             raisedShield ? 'active:opacity-40' : 'opacity-20 active:opacity-10',
@@ -105,17 +113,7 @@ function updateHitPoints(hp_input: string) {
     </div>
     <Teleport to="#modals">
       <Modal ref="shpModal" title="Shield">
-        <form
-          @submit.prevent="
-            (e: Event) => {
-              const event = e as Event & SubmissionEvent
-              const { hp } = e.target as EventTarget & FormData
-              if (event.submitter.name === 'update') updateHitPoints(hp.value)
-              else if (event.submitter.name === 'reset') updateHitPoints(shpMax + '')
-              shpModal.close()
-            }
-          "
-        >
+        <form @submit.prevent="handleShpFormSubmit">
           <div class="flex w-full items-center justify-center pt-4 pb-1">
             <div class="w-1/3">Hit Points:</div>
             <input
@@ -125,13 +123,7 @@ function updateHitPoints(hp_input: string) {
               pattern="[\+\-]{0,1}[0-9]*"
               :placeholder="shpCurrent + ''"
               :value="shpCurrent"
-              @click="
-                (e: Event) => {
-                  const field = e.target as HTMLInputElement
-                  field.focus()
-                  field.select()
-                }
-              "
+              @click="selectAllOnClick"
             />
             <div class="w-1/3 text-xl">/ {{ shpMax }}</div>
           </div>

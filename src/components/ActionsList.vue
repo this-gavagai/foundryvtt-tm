@@ -22,6 +22,15 @@ const { isListening } = storeToRefs(useListenersStore())
 
 const actionViewedId = ref<string | undefined>()
 const actionViewed = computed(() => actions.value?.find((a) => a._id === actionViewedId.value))
+
+function viewAction(action: Action) {
+  actionViewedId.value = action._id
+  infoModal.value.open()
+}
+
+function runViewedActionMacro() {
+  actionViewed.value?.doMacro?.()
+}
 </script>
 
 <template>
@@ -34,15 +43,7 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
             v-for="action in actions?.filter((a: Action) => a.actionType === group.type)"
             :key="action._id"
           >
-            <a
-              class="cursor-pointer"
-              @click="
-                () => {
-                  actionViewedId = action._id
-                  infoModal.open()
-                }
-              "
-            >
+            <a class="cursor-pointer" @click="viewAction(action)">
               {{ action.name }}
               <ActionIcons
                 class="relative -mt-2 pl-1 text-2xl leading-4"
@@ -87,11 +88,7 @@ const actionViewed = computed(() => actions.value?.find((a) => a._id === actionV
               color="blue"
               class="capitalize"
               v-if="actionViewed?.macroId"
-              :clicked="
-                () => {
-                  actionViewed?.doMacro?.()
-                }
-              "
+              :clicked="runViewedActionMacro"
             >
               Run Macro
             </Button>

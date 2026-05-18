@@ -51,6 +51,34 @@ function openSpellModal(id: string | undefined, info: SpellInfo) {
   infoModal.value.open()
 }
 
+function clearPreparedSpell() {
+  spellcastingEntries.value
+    ?.find((e) => e._id === viewedSpellInfo.value?.entryId)
+    ?.setPrepared?.(viewedSpellInfo.value?.castingRank, viewedSpellInfo.value?.castingSlot, null)
+    ?.then(() => infoModal.value?.close())
+}
+
+function castViewedSpell() {
+  return viewedSpell.value
+    ?.doSpell?.(viewedSpellInfo.value?.castingRank, viewedSpellInfo.value?.castingSlot)
+    ?.then(() => infoModal.value.close())
+}
+
+function consumeViewedSpellItem() {
+  return viewedConsumable.value?.consumeItem?.()?.then(() => infoModal.value.close())
+}
+
+function setPreparedSpell(spell: Spell) {
+  return spellcastingEntries.value
+    ?.find((e) => e._id === spellSelectionModal.value?.options?.entryId)
+    ?.setPrepared?.(
+      spellSelectionModal.value?.options?.castingRank,
+      spellSelectionModal.value?.options?.castingSlot,
+      spell._id ?? null
+    )
+    ?.then(() => spellSelectionModal.value?.close())
+}
+
 const staffSpellsByRank = computed(() =>
   (staff.value?.spells ?? []).reduce<Record<string, Spell[]>>((acc, s) => {
     const rank = s.system.traits.value?.includes('cantrip') ? 0 : (s.system.level.value ?? 0)
@@ -386,31 +414,19 @@ const spellbook = computed((): Spellbook => {
             label="Remove"
             color="red"
             v-if="viewedSpellInfo?.entry?.system.prepared?.value === 'prepared'"
-            :clicked="
-              () => {
-                spellcastingEntries
-                  ?.find((e) => e._id === viewedSpellInfo?.entryId)
-                  ?.setPrepared?.(viewedSpellInfo?.castingRank, viewedSpellInfo?.castingSlot, null)
-                  ?.then(() => infoModal?.close())
-              }
-            "
+            :clicked="clearPreparedSpell"
           />
           <Button
             label="Cast"
             color="blue"
             v-if="!viewedSpellInfo?.isConsumable && !viewedSpellInfo?.fromStaff"
-            :clicked="
-              () =>
-                viewedSpell
-                  ?.doSpell?.(viewedSpellInfo?.castingRank, viewedSpellInfo?.castingSlot)
-                  ?.then(() => infoModal.close())
-            "
+            :clicked="castViewedSpell"
           />
           <Button
             label="Use"
             color="green"
             v-if="viewedSpellInfo?.isConsumable"
-            :clicked="() => viewedConsumable?.consumeItem?.()?.then(() => infoModal.close())"
+            :clicked="consumeViewedSpellItem"
           />
         </template>
       </InfoModal>
@@ -423,18 +439,7 @@ const spellbook = computed((): Spellbook => {
                 i.system.location.value === spellSelectionModal.options?.entryId &&
                 (i.system.level.value ?? 0) <= spellSelectionModal.options.castingRank
             )"
-            @click="
-              () => {
-                return spellcastingEntries
-                  ?.find((e) => e._id === spellSelectionModal?.options?.entryId)
-                  ?.setPrepared?.(
-                    spellSelectionModal?.options?.castingRank,
-                    spellSelectionModal?.options?.castingSlot,
-                    spell._id ?? null
-                  )
-                  ?.then(() => spellSelectionModal?.close())
-              }
-            "
+            @click="setPreparedSpell(spell)"
             :key="spell._id"
           >
             {{ spell.name }}

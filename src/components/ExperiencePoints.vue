@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { parseIncrement } from '@/utils/utilities'
+import { parseIncrement, selectAllOnClick } from '@/utils/utilities'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 
 import StatBox from '@/components/widgets/StatBox.vue'
@@ -19,6 +19,12 @@ function updateExperience(input: string) {
   let newValue: number = parseIncrement(input, xpCurrent.value)
   newValue = Math.max(newValue, 0)
   xpCurrent.value = newValue
+}
+
+function handleXpFormSubmit(e: Event) {
+  const { xp } = e.target as EventTarget & FormData
+  if (e.target) updateExperience(xp.value)
+  experienceModal.value.close()
 }
 </script>
 <template>
@@ -46,15 +52,7 @@ function updateExperience(input: string) {
     </StatBox>
     <Teleport to="#modals">
       <Modal ref="experienceModal" title="Experience Points">
-        <form
-          @submit.prevent="
-            (e: Event) => {
-              const { xp } = e.target as EventTarget & FormData
-              if (e.target) updateExperience(xp.value)
-              experienceModal.close()
-            }
-          "
-        >
+        <form @submit.prevent="handleXpFormSubmit">
           <div class="flex w-full items-center justify-center pt-4 text-3xl">
             <input
               class="mr-4 w-36 border-2 border-black p-1 text-right text-3xl"
@@ -64,13 +62,7 @@ function updateExperience(input: string) {
               pattern="[\+\-]{0,1}[0-9]*"
               :value="xpCurrent"
               inputmode="numeric"
-              @click="
-                (e: Event) => {
-                  const field = e.target as HTMLInputElement
-                  field.focus()
-                  field.select()
-                }
-              "
+              @click="selectAllOnClick"
             />
           </div>
           <div class="mt-5 flex flex-row-reverse sm:mt-4">
