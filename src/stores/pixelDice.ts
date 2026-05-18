@@ -18,11 +18,11 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
 
   const systemIds = useStorage('pixel-system-id', '')
 
-  // this shouldn't be necessasry, but not sure how else to make pixel reactive
+  // Mirror of pixel.status as a reactive ref. The underlying Pixel object
+  // is an external class instance and not reactive, so we drive this from
+  // the SDK's statusChanged event (registered in setupListeners) plus a
+  // post-connect read.
   const pixelStatus = ref<string | undefined>(pixel.value?.status)
-  setInterval(() => {
-    pixelStatus.value = pixel.value?.status
-  }, 500)
 
   async function pixelConnect() {
     pixel.value = await requestPixel()
@@ -37,6 +37,7 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
   }
   async function pixelDisconnect() {
     pixel.value = undefined
+    pixelStatus.value = undefined
     systemIds.value = undefined
   }
 
@@ -47,15 +48,18 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
     logger.debug('TM-pixl: Connecting...')
     await repeatConnect(pixel.value)
     logger.debug('TM-pixl: Connected')
+    pixelStatus.value = pixel.value.status
     blink()
     // Add listener to get notified on rolls
     pixel.value.addEventListener('roll', (face) => {
       logger.debug(`TM-pixl: => rolled face: ${face}`)
       lastRoll.value = face
     })
-    // detect disconnect, and then do...something?
+    // Mirror status changes onto the reactive pixelStatus ref, and trigger
+    // a reconnect if we get unexpectedly dropped.
     pixel.value.addEventListener('statusChanged', (status) => {
       logger.debug(`TM-pixl: Dice status changed to ${status.status}`, status)
+      pixelStatus.value = status.status
       if (status.status === 'disconnected' && pixel.value) repeatConnect(pixel.value)
     })
   }
