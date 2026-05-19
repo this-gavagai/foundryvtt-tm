@@ -22,6 +22,12 @@ export function useActorSync(
     debouncedRequest(characterId)
   }
 
+  // Re-fetch character details when the tab comes back into focus, in case
+  // we missed updates while backgrounded.
+  function onVisibilityChange() {
+    if (document.visibilityState === 'visible' && characterId) requestCharacterDetails()
+  }
+
   let removeRefresh: (() => void) | undefined
   onMounted(() => {
     logger.info('TM-INIT: initiating character', characterId)
@@ -30,9 +36,11 @@ export function useActorSync(
       removeRefresh = cleanup
     })
     sendCharacterRequest(characterId)
+    document.addEventListener('visibilitychange', onVisibilityChange)
   })
   onUnmounted(() => {
     logger.info('TM-INIT: unmounted actor', characterId)
     removeRefresh?.()
+    document.removeEventListener('visibilitychange', onVisibilityChange)
   })
 }

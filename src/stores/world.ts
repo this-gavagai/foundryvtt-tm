@@ -21,5 +21,13 @@ export const useWorldStore = defineStore('world', () => {
   const debouncedWorldRequest = debounce(sendWorldRequest, 2000, { leading: true })
   const refreshWorld = () => debouncedWorldRequest()
 
+  // Catch up on missed modifyDocument events that arrived while the page
+  // was backgrounded by re-fetching the world on visibility return. The
+  // 2s leading-edge debounce on refreshWorld absorbs spurious repeated
+  // visibility events.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && world.value) refreshWorld()
+  })
+
   return { world, refreshWorld }
 })

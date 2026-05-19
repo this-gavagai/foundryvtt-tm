@@ -1,15 +1,17 @@
 // TODO: be more responsive with pixel dice. Potentially, show result on roll, but give some indication that it hasn't yet been returned from the server?
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import {
-  repeatConnect,
-  requestPixel,
-  getPixel,
-  Color,
-  type Pixel
-} from '@systemic-games/pixels-web-connect'
+import type { Pixel } from '@systemic-games/pixels-web-connect'
 import { useStorage } from '@vueuse/core'
 import { logger } from '@/utils/utilities'
+
+// Lazy-load the Pixel SDK. The library is ~30 KB gzipped and only needed
+// when the user actually pairs a die — most users will never trigger this.
+// The returned promise is cached so subsequent calls are free.
+let sdkPromise: Promise<typeof import('@systemic-games/pixels-web-connect')> | undefined
+function loadSdk() {
+  return (sdkPromise ??= import('@systemic-games/pixels-web-connect'))
+}
 
 export const usePixelDiceStore = defineStore('pixelDice', () => {
   const lastRoll = ref<number>()
@@ -25,12 +27,14 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
   const pixelStatus = ref<string | undefined>(pixel.value?.status)
 
   async function pixelConnect() {
+    const { requestPixel } = await loadSdk()
     pixel.value = await requestPixel()
     systemIds.value = pixel.value?.systemId
     await setupListeners()
   }
   async function pixelReconnect() {
     if (!systemIds.value) return
+    const { getPixel } = await loadSdk()
     pixel.value = await getPixel(systemIds.value)
     logger.debug('TM-pixl: status', pixel.value?.status)
     await setupListeners()
@@ -44,6 +48,7 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
   // setup listeners
   async function setupListeners() {
     if (!pixel.value) return
+    const { repeatConnect } = await loadSdk()
     // Connect to die
     logger.debug('TM-pixl: Connecting...')
     await repeatConnect(pixel.value)
@@ -80,11 +85,14 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
   }
 
   async function blink() {
+    const { Color } = await loadSdk()
     // Make LEDs flash a color
     await pixel.value?.blink(Color.green)
   }
 
-  // reestablish connection if needed
+  // Reestablish connection if the user has previously paired a die. This
+  // triggers the SDK download — but only for returning Pixel users, not
+  // first-time visitors.
   if (systemIds.value && !pixel.value) {
     logger.debug('TM: hello dere')
     pixelReconnect()

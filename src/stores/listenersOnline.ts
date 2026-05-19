@@ -21,9 +21,7 @@ export const useListenersStore = defineStore('listenersOnline', () => {
     return listenersOnline
   }
 
-  // Heartbeat: ping every 30s and prune stale listeners. Scheduled on the
-  // first useListenersStore() invocation (store setup runs once).
-  setInterval(async () => {
+  async function pingHeartbeat() {
     const socket = await useServerStore().getSocket()
     socket?.emit(TM.CHANNEL, {
       userId: useUserStore().getUserId(),
@@ -32,7 +30,19 @@ export const useListenersStore = defineStore('listenersOnline', () => {
     listenersOnline.value.forEach((value, key, map) => {
       if (Date.now() - value > 40000) map.delete(key)
     })
-  }, 30000)
+  }
+
+  // Heartbeat: ping every 30s. Scheduled on the first useListenersStore()
+  // invocation (store setup runs once).
+  setInterval(pingHeartbeat, 30000)
+
+  // Mobile browsers throttle or pause setInterval when the tab is in the
+  // background, so the heartbeat can lapse — leaving isListening stuck on
+  // false (and roll buttons hidden) until the next tick. Re-ping immediately
+  // when the page comes back into focus.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') pingHeartbeat()
+  })
 
   return { listenersOnline, isListening, addListener, getListeners }
 })
