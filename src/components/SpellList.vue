@@ -155,7 +155,7 @@ const spellbook = computed((): Spellbook => {
 <template>
   <div>
     <div v-if="spellcastingEntries?.length === 0" class="px-6 py-4 italic">
-      This character does not cast spells.
+      {{ $t('spells.noSpells') }}
     </div>
     <div v-else class="lg:columns-2 lg:gap-12 2xl:columns-3">
       <!-- Spell Sources -->
@@ -179,7 +179,7 @@ const spellbook = computed((): Spellbook => {
               class="relative bottom-[-2px] mt-[1px] mr-2 h-4 text-sm"
               :value="focusCurrent"
               :max="focusMax"
-              title="Focus Pool"
+              :title="$t('spells.focusPool')"
               editable
               @change-count="(newTotal) => (focusCurrent = newTotal)"
             />
@@ -324,7 +324,7 @@ const spellbook = computed((): Spellbook => {
       <section class="mt-4 break-inside-avoid-column [&:not(:has(li))]:hidden">
         <h3 class="flex justify-between px-4 py-2 align-bottom">
           <span>
-            <span class="text-xl"> Wands and Scrolls </span>
+            <span class="text-xl"> {{ $t('spells.wandsAndScrolls') }} </span>
             <span v-if="spellDC" class="text-xs"> (DC {{ spellDC }}) </span>
           </span>
         </h3>
@@ -396,41 +396,41 @@ const spellbook = computed((): Spellbook => {
           <div class="flex [&:not(:has(span))]:hidden">
             <label class="font-bold">Defense:&nbsp;</label>
             <span v-if="viewedSpell?.system?.defense?.save?.statistic">
-              <span>{{ viewedSpell?.system?.defense?.save?.basic ? 'basic&nbsp;' : '' }}</span>
+              <span v-if="viewedSpell?.system?.defense?.save?.basic">{{ $t('spells.basic') }}&nbsp;</span>
               <span class="capitalize">{{ viewedSpell?.system?.defense?.save?.statistic }}</span>
             </span>
-            <span v-if="viewedSpell?.system?.traits?.value?.includes('attack')">AC</span>
+            <span v-if="viewedSpell?.system?.traits?.value?.includes('attack')">{{ $t('spells.ac') }}</span>
           </div>
           <div v-if="viewedSpellInfo?.isConsumable">
-            <h4 class="text-xl">Spell Details</h4>
+            <h4 class="text-xl">{{ $t('spells.spellDetails') }}</h4>
             <ParsedDescription :text="viewedConsumable?.system.spell.system.description?.value" />
             <hr />
-            <h4 class="pt-1 text-xl">Wand Details</h4>
+            <h4 class="pt-1 text-xl">{{ $t('spells.wandDetails') }}</h4>
           </div>
           <ParsedDescription :text="viewedItem?.system.description?.value" />
         </template>
         <template #actionButtons v-if="isListening">
           <Button
-            label="Remove"
+            :label="$t('common.remove')"
             color="red"
             v-if="viewedSpellInfo?.entry?.system.prepared?.value === 'prepared'"
             :clicked="clearPreparedSpell"
           />
           <Button
-            label="Cast"
+            :label="$t('spells.cast')"
             color="blue"
             v-if="!viewedSpellInfo?.isConsumable && !viewedSpellInfo?.fromStaff"
             :clicked="castViewedSpell"
           />
           <Button
-            label="Use"
+            :label="$t('common.use')"
             color="green"
             v-if="viewedSpellInfo?.isConsumable"
             :clicked="consumeViewedSpellItem"
           />
         </template>
       </InfoModal>
-      <Modal ref="spellSelectionModal" title="Select a spell">
+      <Modal ref="spellSelectionModal" :title="$t('spells.selectSpell')">
         <ul>
           <li
             class="cursor-pointer"

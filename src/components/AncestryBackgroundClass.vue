@@ -46,7 +46,7 @@ function viewItem(item: Item | undefined) {
         </template>
         <template #description>
           <span v-if="identityViewed?.system?.level?.value"
-            >Level {{ identityViewed?.system?.level?.value ?? '-' }}</span
+            >{{ $t('common.level') }} {{ identityViewed?.system?.level?.value ?? '-' }}</span
           >
           <span v-if="identityViewed?.system?.traits?.rarity" class="text-sm capitalize"
             >({{ identityViewed?.system?.traits?.rarity }})</span

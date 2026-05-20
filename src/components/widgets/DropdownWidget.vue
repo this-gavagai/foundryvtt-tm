@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'
 interface ListChoice {
   id: string | undefined
   name: string | undefined
 }
+
+const { t } = useI18n()
 
 const props = defineProps<{
   list: ListChoice[] | undefined
@@ -18,8 +21,8 @@ const props = defineProps<{
 const selectedOrNone = computed({
   get: () =>
     props.selectedId === 'loading'
-      ? { id: '-1', name: 'Loading...' }
-      : (props.list?.find((l) => l.id === props.selectedId) ?? { id: '0', name: 'None' }),
+      ? { id: '-1', name: t('common.loading') }
+      : (props.list?.find((l) => l.id === props.selectedId) ?? { id: '0', name: t('common.none') }),
   set: (newValue) => handleChange(newValue)
 })
 

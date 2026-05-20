@@ -1,0 +1,215 @@
+// German message catalog. Mirror the shape of en.ts.
+
+export default {
+  common: {
+    loading: 'Wird geladen...',
+    none: 'Keine',
+    close: 'Schließen',
+    delete: 'Löschen',
+    update: 'Aktualisieren',
+    remove: 'Entfernen',
+    use: 'Benutzen',
+    roll: 'Würfeln',
+    level: 'Stufe'
+  },
+  login: {
+    signIn: 'Anmelden',
+    signingIn: 'Anmelden…',
+    loadingUsers: 'Benutzer werden geladen…',
+    noUsersAvailable: 'Keine Benutzer verfügbar',
+    userLabel: 'Benutzer',
+    passwordLabel: 'Passwort',
+    error: 'Anmeldung fehlgeschlagen — bitte Zugangsdaten prüfen.',
+    couldNotLoadUsers: 'Benutzerliste konnte nicht geladen werden. Zum erneuten Versuch neu laden.',
+    activeMarker: '(aktiv)'
+  },
+  app: {
+    userDoesNotOwnCharacter: 'Der Benutzer besitzt diesen Charakter nicht',
+    characterPortrait: 'Charakterporträt'
+  },
+  tabs: {
+    character: 'Charakter',
+    feats: 'Talente',
+    proficiencies: 'Fertigkeiten',
+    equipment: 'Ausrüstung',
+    actions: 'Aktionen',
+    spells: 'Zauber'
+  },
+  attributes: {
+    str: 'Stä',
+    dex: 'Ges',
+    con: 'Kon',
+    int: 'Int',
+    wis: 'Wei',
+    cha: 'Cha'
+  },
+  attributesFull: {
+    str: 'Stärke',
+    dex: 'Geschicklichkeit',
+    con: 'Konstitution',
+    int: 'Intelligenz',
+    wis: 'Weisheit',
+    cha: 'Charisma'
+  },
+  saves: {
+    fortitude: 'Zäh',
+    reflex: 'Ref',
+    will: 'Wil',
+    perception: 'Wahrnehmung'
+  },
+  proficiencyLevels: {
+    untrained: 'Ungeübt',
+    trained: 'Ausgebildet',
+    expert: 'Experte',
+    master: 'Meister',
+    legendary: 'Legendär'
+  },
+  savesFull: {
+    fortitude: 'Zähigkeitswurf',
+    reflex: 'Reflexwurf',
+    will: 'Willenswurf'
+  },
+  combat: {
+    initiative: 'Initiative'
+  },
+  hp: {
+    heading: 'Trefferpunkte',
+    totalMax: '(Maximal: {max})',
+    standard: 'Standard:',
+    temporary: 'Temporär:',
+    reset: 'TP zurücksetzen'
+  },
+  heroPoints: {
+    heading: 'Heldenpkt',
+    title: 'Heldenpunkte'
+  },
+  ac: {
+    heading: 'RK',
+    shieldModal: 'Schild',
+    shieldHpHeading: 'Schild-TP',
+    noShieldEquipped: 'Kein Schild ausgerüstet',
+    acBonusLabel: 'RK-Bonus:',
+    hardnessLabel: 'Härte:',
+    brokenAtLabel: 'Zerstört bei:',
+    hitPointsLabel: 'Trefferpunkte:'
+  },
+  xp: {
+    heading: 'Erfahrung',
+    title: 'Erfahrungspunkte'
+  },
+  movement: {
+    land: 'Land',
+    swim: 'Schwimmen',
+    climb: 'Klettern',
+    fly: 'Fliegen',
+    burrow: 'Graben',
+    athleticsSwim: 'Athletik-Probe (Schwimmen)',
+    athleticsClimb: 'Athletik-Probe (Klettern)'
+  },
+  iwr: {
+    immunity: 'Immunität',
+    weakness: 'Anfälligkeit',
+    resistance: 'Resistenz'
+  },
+  languages: {
+    heading: 'Sprachen',
+    none: 'Keine Sprachen bekannt'
+  },
+  skills: {
+    skills: 'Fertigkeiten',
+    lore: 'Wissensgebiete'
+  },
+  proficiencyTypes: {
+    attacks: 'Angriffe',
+    defenses: 'Verteidigung',
+    classDCs: 'Klassen-SG',
+    spellcasting: 'Zauberwirken',
+    spellDC: 'Zauber-SG'
+  },
+  feats: {
+    none: 'Dieser Charakter hat keine Talente.',
+    categories: {
+      ancestryfeatures: 'Abstammungsmerkmale',
+      classfeatures: 'Klassenmerkmale',
+      ancestry: 'Abstammungstalente',
+      class: 'Klassentalente',
+      archetype: 'Archetyp-Talente',
+      skill: 'Fertigkeitstalente',
+      general: 'Allgemeine Talente',
+      xdy_ancestryparagon: 'Abstammungsparagon',
+      bonus: 'Bonustalente'
+    }
+  },
+  effects: {
+    effectIcon: 'Effekt-Symbol'
+  },
+  actions: {
+    runMacro: 'Makro ausführen'
+  },
+  actionTypes: {
+    action: 'Aktionen',
+    reaction: 'Reaktionen',
+    free: 'Freie Aktionen',
+    skill: 'Fertigkeitsaktionen'
+  },
+  inventoryTypes: {
+    weapon: 'Waffen',
+    shield: 'Schilde',
+    consumable: 'Verbrauchsgüter',
+    equipment: 'Ausrüstung',
+    armor: 'Rüstung',
+    treasure: 'Schätze',
+    backpack: 'Behälter'
+  },
+  equipment: {
+    noInventory: 'Dieser Charakter hat kein Inventar.',
+    investedTitle: 'Investierte Gegenstände',
+    investedCount: '(Investierte Gegenstände: {count} / 10)',
+    usesLabel: 'Benutzungen:',
+    useItem: 'Gegenstand benutzen'
+  },
+  spells: {
+    noSpells: 'Dieser Charakter wirkt keine Zauber.',
+    focusPool: 'Fokus-Pool',
+    spellDetails: 'Zauberdetails',
+    wandDetails: 'Stab-Details',
+    wandsAndScrolls: 'Zauberstäbe und Schriftrollen',
+    selectSpell: 'Zauber auswählen',
+    basic: 'einfach',
+    ac: 'RK',
+    cast: 'Wirken'
+  },
+  strikes: {
+    elementalBlastsHeading: 'Elementarstöße',
+    elementalBlastLabel: 'Elementarstoß ({element})',
+    strikesHeading: 'Angriffe',
+    strike: 'Angriff',
+    blast: 'Stoß',
+    damage: 'Schaden',
+    critical: 'Kritisch',
+    noAmmo: 'Keine Munition',
+    rangeLabel: 'Reichweite:',
+    rangeUnit: 'Fuß',
+    damageTypeLabel: 'Schadensart:',
+    meleeIcon: 'Nahkampfsymbol',
+    rangedIcon: 'Fernkampfsymbol'
+  },
+  rollOptions: {
+    heading: 'Charakteroptionen',
+    experimentalWarning:
+      'Die RollOption-Implementierung ist noch sehr experimentell. Backups und Vorsicht empfohlen.'
+  },
+  sideMenu: {
+    closeSidebar: 'Seitenleiste schließen',
+    targetingProxy: 'Ziel-Stellvertreter',
+    pairPixelDice: 'Pixel Dice koppeln',
+    language: 'Sprache'
+  },
+  widgets: {
+    toggleSwitch: 'Umschalter'
+  },
+  infoModal: {
+    systemIcon: 'PF2e-Systemsymbol',
+    dieImage: 'd{faces}-Bild'
+  }
+}

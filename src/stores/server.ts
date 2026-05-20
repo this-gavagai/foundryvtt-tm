@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { io, Socket } from 'socket.io-client'
 import { useUserStore } from '@/stores/user'
 import { logger } from '@/utils/utilities'
-import { TM } from '@/api/constants'
+import { TM } from '@/api/protocol'
 
 export interface JoinUser {
   _id: string

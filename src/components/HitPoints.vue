@@ -67,8 +67,8 @@ function openInfoFromHpModal() {
 <template>
   <div>
     <StatBox
-      heading="Hit Points"
-      :subheading="`(Total Max: ${hpMax})`"
+      :heading="$t('hp.heading')"
+      :subheading="$t('hp.totalMax', { max: hpMax })"
       @click="hitpointsModal.open()"
       ref="hpStat"
       :modifiers="hpModifiers"
@@ -79,10 +79,10 @@ function openInfoFromHpModal() {
       <span v-else> / {{ hpMax ?? '??' }} </span>
     </StatBox>
     <Teleport to="#modals">
-      <Modal ref="hitpointsModal" title="Hit Points" :infoButton="openInfoFromHpModal">
+      <Modal ref="hitpointsModal" :title="$t('hp.heading')" :infoButton="openInfoFromHpModal">
         <form @submit.prevent="handleHpFormSubmit">
           <div class="flex w-full items-center justify-center pt-4 pb-1">
-            <div class="w-1/3">Standard:</div>
+            <div class="w-1/3">{{ $t('hp.standard') }}</div>
             <input
               class="mr-4 ml-[32px] w-1/3 border-2 border-black p-1 text-right text-3xl selection:bg-blue-700 selection:text-white"
               name="hp"
@@ -96,7 +96,7 @@ function openInfoFromHpModal() {
             <div class="w-1/3 text-xl">/ {{ hpMax }}</div>
           </div>
           <div class="flex w-full items-center justify-center pt-1 pb-4">
-            <div class="w-1/3">Temporary:</div>
+            <div class="w-1/3">{{ $t('hp.temporary') }}</div>
             <input
               class="mr-4 ml-[32px] w-1/3 border-2 border-black p-1 text-right text-3xl selection:bg-blue-700 selection:text-white"
               name="temp_hp"
@@ -110,8 +110,8 @@ function openInfoFromHpModal() {
             <div class="w-1/3"></div>
           </div>
           <div class="mt-5 flex flex-row-reverse flex-wrap-reverse gap-1 sm:mt-4">
-            <Button type="submit" name="update" label="Update" color="blue" />
-            <Button type="submit" name="reset" color="gray" label="Reset HP" />
+            <Button type="submit" name="update" :label="$t('common.update')" color="blue" />
+            <Button type="submit" name="reset" color="gray" :label="$t('hp.reset')" />
             <span class="flex gap-1">
               <Button
                 type="submit"

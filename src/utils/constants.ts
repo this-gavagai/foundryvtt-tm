@@ -53,62 +53,25 @@ export const skillMacros = [
 	{ skill: 'thievery', name: 'Steal', trained: false, compendium: 'pf2e.action-macros', macro: 'zjovbAeuLvyuWFKd' },
   ]
 
-export const featCategoryLabels = new Map([
-  ['PF2E.FeaturesAncestryHeader', 'Ancestry Features'],
-  ['PF2E.Actor.Character.FeatSlot.AncestryFeaturesHeader', 'Ancestry Features'],
-  ['PF2E.FeaturesClassHeader', 'Class Features'],
-  ['PF2E.Actor.Character.FeatSlot.ClassFeaturesHeader', 'Class Features'],
-  ['PF2E.FeatAncestryHeader', 'Ancestry Feats'],
-  ['PF2E.Actor.Character.FeatSlot.AncestryHeader', 'Ancestry Feats'],
-  ['PF2E.FeatClassHeader', 'Class Feats'],
-  ['PF2E.Actor.Character.FeatSlot.ClassHeader', 'Class Feats'],
-  ['PF2E.FeatArchetypeHeader', 'Archetype Feats'],
-  ['PF2E.Actor.Character.FeatSlot.ArchetypeHeader', 'Archetype Feats'],
-  ['PF2E.FeatSkillHeader', 'Skill Feats'],
-  ['PF2E.Actor.Character.FeatSlot.SkillHeader', 'Skill Feats'],
-  ['PF2E.FeatGeneralHeader', 'General Feats'],
-  ['PF2E.Actor.Character.FeatSlot.GeneralHeader', 'General Feats'],
-  ['PF2E.FeatBonusHeader', 'Bonus Feats']
-])
-
-export const proficiencies = [
-  { label: 'Untrained', color: 'text-black', dots: '' },
-  { label: 'Trained', color: 'text-blue-800', dots: '⠄' },
-  { label: 'Expert', color: 'text-purple-800', dots: '⠆' },
-  { label: 'Master', color: 'text-yellow-800', dots: '⠦' },
-  { label: 'Legendary', color: 'text-red-800', dots: '⠶' }
+export const proficiencyLevels = [
+  { labelKey: 'proficiencyLevels.untrained', color: 'text-black', dots: '' },
+  { labelKey: 'proficiencyLevels.trained', color: 'text-blue-800', dots: '⠄' },
+  { labelKey: 'proficiencyLevels.expert', color: 'text-purple-800', dots: '⠆' },
+  { labelKey: 'proficiencyLevels.master', color: 'text-yellow-800', dots: '⠦' },
+  { labelKey: 'proficiencyLevels.legendary', color: 'text-red-800', dots: '⠶' }
 ]
-
-export const attributes = [
-  { heading: 'Str', abbr: 'str' },
-  { heading: 'Dex', abbr: 'dex' },
-  { heading: 'Con', abbr: 'con' },
-  { heading: 'Int', abbr: 'int' },
-  { heading: 'Wis', abbr: 'wis' },
-  { heading: 'Cha', abbr: 'cha' }
-]
-
 export const inventoryTypes = [
-  { type: 'weapon', title: 'Weapons' },
-  { type: 'shield', title: 'Shields' },
-  { type: 'consumable', title: 'Consumables' },
-  { type: 'equipment', title: 'Equipment' },
-  { type: 'armor', title: 'Armor' },
-  { type: 'treasure', title: 'Treasure' },
-  { type: 'backpack', title: 'Containers' }
+  { type: 'weapon', titleKey: 'inventoryTypes.weapon' },
+  { type: 'shield', titleKey: 'inventoryTypes.shield' },
+  { type: 'consumable', titleKey: 'inventoryTypes.consumable' },
+  { type: 'equipment', titleKey: 'inventoryTypes.equipment' },
+  { type: 'armor', titleKey: 'inventoryTypes.armor' },
+  { type: 'treasure', titleKey: 'inventoryTypes.treasure' },
+  { type: 'backpack', titleKey: 'inventoryTypes.backpack' }
 ]
 export const actionTypes = [
-  { title: 'Actions', type: 'action' },
-  { title: 'Reactions', type: 'reaction' },
-  { title: 'Free Actions', type: 'free' },
-  { title: 'Skill Actions', type: 'skill' }
+  { type: 'action', titleKey: 'actionTypes.action' },
+  { type: 'reaction', titleKey: 'actionTypes.reaction' },
+  { type: 'free', titleKey: 'actionTypes.free' },
+  { type: 'skill', titleKey: 'actionTypes.skill' }
 ]
-
-export const actionDefs = new Map<string, { skill: string | null; alias?: string }>([
-  // just different
-  // ['aid', { skill: '*' }],
-  // ['raise-a-shield', { skill: null }],
-  // ['rest-for-the-night', { skill: null }],
-  // ['battle-medicine', { alias: 'legacy.treatWounds', skill: 'medicine' }],
-  // ['treat-wounds', { alias: 'legacy.treatWounds', skill: 'medicine' }]
-])

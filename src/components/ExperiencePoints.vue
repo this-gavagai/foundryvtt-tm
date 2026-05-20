@@ -29,7 +29,7 @@ function handleXpFormSubmit(e: Event) {
 </script>
 <template>
   <div>
-    <StatBox heading="Experience" @click="experienceModal.open()" class="cursor-pointer">
+    <StatBox :heading="$t('xp.heading')" @click="experienceModal.open()" class="cursor-pointer">
       <div class="py-1">
         <svg width="75" height="18" class="trasition-all duration-500">
           <rect
@@ -51,7 +51,7 @@ function handleXpFormSubmit(e: Event) {
       </div>
     </StatBox>
     <Teleport to="#modals">
-      <Modal ref="experienceModal" title="Experience Points">
+      <Modal ref="experienceModal" :title="$t('xp.title')">
         <form @submit.prevent="handleXpFormSubmit">
           <div class="flex w-full items-center justify-center pt-4 text-3xl">
             <input
@@ -66,7 +66,7 @@ function handleXpFormSubmit(e: Event) {
             />
           </div>
           <div class="mt-5 flex flex-row-reverse sm:mt-4">
-            <Button type="submit" color="green" label="Update" />
+            <Button type="submit" color="green" :label="$t('common.update')" />
           </div>
         </form>
       </Modal>

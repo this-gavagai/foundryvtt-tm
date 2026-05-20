@@ -7,6 +7,7 @@ import type {
   ClassPF2e as ClassPF2eType,
   HeritagePF2e
 } from '@7h3laughingman/pf2e-types'
+import type { TablemateCharacter } from '@/types/character-types'
 import type { Field, WritableField } from './helpers'
 import { type Ancestry, makeAncestry } from './defs/ancestry'
 import { type Background, makeBackground } from './defs/background'
@@ -38,7 +39,7 @@ export interface CharacterCore {
   languages: Field<string[]>
 }
 
-export function useCharacterCore(actor: Ref<CharacterPF2e | undefined>): CharacterCore {
+export function useCharacterCore(actor: Ref<TablemateCharacter | undefined>): CharacterCore {
 
   const _id = computed(() => actor.value?._id ?? undefined)
   const name = computed(() => actor.value?.name)
@@ -78,7 +79,7 @@ export function useCharacterCore(actor: Ref<CharacterPF2e | undefined>): Charact
     fly: computed(() => makeStat(actor.value?.system?.movement?.speeds?.fly ?? undefined)),
     burrow: computed(() => makeStat(actor.value?.system?.movement?.speeds?.burrow ?? undefined))
   }
-  const languages = computed(() => actor.value?.system?.details?.languages?.value)
+  const languages = computed(() => actor.value?.languages)
 
   return {
     _id,

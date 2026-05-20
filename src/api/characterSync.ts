@@ -4,7 +4,7 @@ import type { TablemateCharacter } from '@/types/character-types'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import { uuidv4 } from '@/utils/utilities'
 import { getSocket, getUserId, mergeWithArrayReset } from './internal'
-import { TM } from './constants'
+import { TM } from './protocol'
 
 // Per-actor dirty flag and last-sent request UUID — used by parseActorData
 // to ignore stale or unrelated update responses.
@@ -60,6 +60,8 @@ export function parseActorData(
   const incoming: Partial<TablemateCharacter> = {
     ...(args.actor as Partial<TablemateCharacter>),
     system: args.system as TablemateCharacter['system'],
+    languages: args.languages,
+    proficiencyLabels: args.proficiencyLabels,
     elementalBlasts: (args.elementalBlasts ?? undefined) as TablemateCharacter['elementalBlasts'],
     inventory: args.inventory as TablemateCharacter['inventory'],
     activeRules: args.activeRules

@@ -63,7 +63,7 @@ function adjustViewedEffectQty(delta: number) {
               >
                 {{ effect.system?.value?.value }}
               </div>
-              <img :src="getPath(effect.img ?? '')" class="rounded-full" alt="Effect icon" />
+              <img :src="getPath(effect.img ?? '')" class="rounded-full" :alt="$t('effects.effectIcon')" />
             </div>
             <div
               class="hidden overflow-hidden text-center text-[0.5rem] whitespace-nowrap"
@@ -93,7 +93,7 @@ function adjustViewedEffectQty(delta: number) {
           <ParsedDescription :text="effectViewed?.system?.description?.value" />
         </template>
         <template #actionButtons>
-          <Button color="red" :clicked="removeViewedEffect">Remove</Button>
+          <Button color="red" :clicked="removeViewedEffect">{{ $t('common.remove') }}</Button>
           <Button
             v-if="effectViewed?.system?.value?.isValued"
             color="lightgray"

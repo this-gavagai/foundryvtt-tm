@@ -12,8 +12,8 @@ const { perception } = character
   <div class="flex justify-between px-6 py-4">
     <div class="flex w-7/12 justify-between gap-2">
       <StatBox
-        heading="Fort"
-        modalHeading="Fortitude Save"
+        :heading="$t('saves.fortitude')"
+        :modalHeading="$t('savesFull.fortitude')"
         :proficiency="fortitude?.rank"
         :modifiers="fortitude?.modifiers"
         :rollAction="fortitude?.roll"
@@ -22,8 +22,8 @@ const { perception } = character
         {{ formatModifier(fortitude?.totalModifier) }}
       </StatBox>
       <StatBox
-        heading="Refl"
-        modalHeading="Reflex Save"
+        :heading="$t('saves.reflex')"
+        :modalHeading="$t('savesFull.reflex')"
         :proficiency="reflex?.rank"
         :modifiers="reflex?.modifiers"
         :rollAction="reflex?.roll"
@@ -32,8 +32,8 @@ const { perception } = character
         {{ formatModifier(reflex?.totalModifier) }}
       </StatBox>
       <StatBox
-        heading="Will"
-        modalHeading="Will Save"
+        :heading="$t('saves.will')"
+        :modalHeading="$t('savesFull.will')"
         :proficiency="will?.rank"
         :modifiers="will?.modifiers"
         :rollAction="will?.roll"
@@ -44,7 +44,7 @@ const { perception } = character
     </div>
     <div class="border-divider border"></div>
     <StatBox
-      heading="Perception"
+      :heading="$t('saves.perception')"
       :proficiency="perception?.rank"
       :modifiers="perception?.modifiers"
       :rollAction="perception?.roll"

@@ -89,7 +89,7 @@ const toggleSet = [
 <template>
   <div>
     <div v-if="inventory?.length === 0" class="px-6 py-4 italic">
-      This character has no inventory.
+      {{ $t('equipment.noInventory') }}
     </div>
     <div v-else class="px-6 py-4">
       <!-- Held Items list -->
@@ -97,8 +97,11 @@ const toggleSet = [
       <EquipmentBulk v-if="inventory?.length" />
       <div v-if="inventory?.length">
         <span class="cursor-pointer text-sm text-gray-500" @click="investedModal.open()">
-          (Items Invested:
-          {{ inventory?.filter((i: InventoryItem) => i.system?.equipped?.invested).length }} / 10)
+          {{
+            $t('equipment.investedCount', {
+              count: inventory?.filter((i: InventoryItem) => i.system?.equipped?.invested).length
+            })
+          }}
         </span>
       </div>
       <!-- Comprehensive equipment list -->
@@ -107,9 +110,9 @@ const toggleSet = [
           v-for="inventoryType in inventoryTypes"
           class="break-before-avoid break-inside-avoid-column pt-4 whitespace-nowrap [&:not(:has(li))]:hidden"
           :class="{ 'break-before-column': inventoryType.type === 'backpack' }"
-          :key="inventoryType.title"
+          :key="inventoryType.type"
         >
-          <h3 class="text-lg underline only:hidden">{{ inventoryType.title }}</h3>
+          <h3 class="text-lg underline only:hidden">{{ $t(inventoryType.titleKey) }}</h3>
           <ul>
             <li
               v-for="item in inventory?.filter(
@@ -135,7 +138,7 @@ const toggleSet = [
       </div>
     </div>
     <Teleport to="#modals">
-      <Modal ref="investedModal" title="Invested Items">
+      <Modal ref="investedModal" :title="$t('equipment.investedTitle')">
         <EquipmentInvested />
       </Modal>
       <InfoModal
@@ -270,7 +273,7 @@ const toggleSet = [
               class="ml-auto flex justify-end gap-1"
               v-if="itemViewed?.system?.uses?.value !== undefined"
             >
-              <div class="text-xl">Uses:</div>
+              <div class="text-xl">{{ $t('equipment.usesLabel') }}</div>
               <CounterWidget
                 :title="itemViewed?.name + ' (uses)'"
                 class="-mt-1 h-6"
@@ -310,21 +313,21 @@ const toggleSet = [
                 }
               "
             >
-              Delete
+              {{ $t('common.delete') }}
             </Button>
             <!-- <Button
               v-if="isListening && itemViewed?.system?.uses?.max"
               color="green"
               :disabled="itemViewed?.system?.uses?.value === 0"
               :clicked="() => itemViewed?.consumeItem?.().then(() => infoModal.close())"
-              >Use Item</Button
+              >{{ $t('equipment.useItem') }}</Button
             > -->
             <Button
               v-if="isListening && itemViewed?.system?.uses?.max"
               color="green"
               :disabled="itemViewed?.system?.uses?.value === 0"
               :clicked="() => itemViewed?.consumeItem?.()"
-              >Use Item</Button
+              >{{ $t('equipment.useItem') }}</Button
             >
           </div>
         </template>

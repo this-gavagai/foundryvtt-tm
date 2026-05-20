@@ -1,0 +1,217 @@
+// English message catalog.
+// Add keys as needed; consumers reference them via $t('key.path') in
+// templates or t('key.path') from useI18n() in <script setup>.
+
+export default {
+  common: {
+    loading: 'Loading...',
+    none: 'None',
+    close: 'Close',
+    delete: 'Delete',
+    update: 'Update',
+    remove: 'Remove',
+    use: 'Use',
+    roll: 'Roll',
+    level: 'Level'
+  },
+  login: {
+    signIn: 'Sign in',
+    signingIn: 'Signing in…',
+    loadingUsers: 'Loading users…',
+    noUsersAvailable: 'No users available',
+    userLabel: 'User',
+    passwordLabel: 'Password',
+    error: 'Login failed — check your credentials.',
+    couldNotLoadUsers: 'Could not load user list. Refresh to retry.',
+    activeMarker: '(active)'
+  },
+  app: {
+    userDoesNotOwnCharacter: 'User does not own this character',
+    characterPortrait: 'Character portrait'
+  },
+  tabs: {
+    character: 'Character',
+    feats: 'Feats',
+    proficiencies: 'Proficiencies',
+    equipment: 'Equipment',
+    actions: 'Actions',
+    spells: 'Spells'
+  },
+  attributes: {
+    str: 'Str',
+    dex: 'Dex',
+    con: 'Con',
+    int: 'Int',
+    wis: 'Wis',
+    cha: 'Cha'
+  },
+  attributesFull: {
+    str: 'Strength',
+    dex: 'Dexterity',
+    con: 'Constitution',
+    int: 'Intelligence',
+    wis: 'Wisdom',
+    cha: 'Charisma'
+  },
+  saves: {
+    fortitude: 'Fort',
+    reflex: 'Refl',
+    will: 'Will',
+    perception: 'Perception'
+  },
+  proficiencyLevels: {
+    untrained: 'Untrained',
+    trained: 'Trained',
+    expert: 'Expert',
+    master: 'Master',
+    legendary: 'Legendary'
+  },
+  savesFull: {
+    fortitude: 'Fortitude Save',
+    reflex: 'Reflex Save',
+    will: 'Will Save'
+  },
+  combat: {
+    initiative: 'Initiative'
+  },
+  hp: {
+    heading: 'Hit Points',
+    totalMax: '(Total Max: {max})',
+    standard: 'Standard:',
+    temporary: 'Temporary:',
+    reset: 'Reset HP'
+  },
+  heroPoints: {
+    heading: 'Hero Pts',
+    title: 'Hero Points'
+  },
+  ac: {
+    heading: 'AC',
+    shieldModal: 'Shield',
+    shieldHpHeading: 'Shield HP',
+    noShieldEquipped: 'No shield equipped',
+    acBonusLabel: 'AC Bonus:',
+    hardnessLabel: 'Hardness:',
+    brokenAtLabel: 'Broken at:',
+    hitPointsLabel: 'Hit Points:'
+  },
+  xp: {
+    heading: 'Experience',
+    title: 'Experience Points'
+  },
+  movement: {
+    land: 'Land',
+    swim: 'Swim',
+    climb: 'Climb',
+    fly: 'Fly',
+    burrow: 'Burrow',
+    athleticsSwim: 'Athletics Check (Swim)',
+    athleticsClimb: 'Athletics Check (Climb)'
+  },
+  iwr: {
+    immunity: 'Immunity',
+    weakness: 'Weakness',
+    resistance: 'Resistance'
+  },
+  languages: {
+    heading: 'Languages',
+    none: 'No languages known'
+  },
+  skills: {
+    skills: 'Skills',
+    lore: 'Lore'
+  },
+  proficiencyTypes: {
+    attacks: 'Attacks',
+    defenses: 'Defenses',
+    classDCs: 'Class DCs',
+    spellcasting: 'Spellcasting',
+    spellDC: 'Spell DC'
+  },
+  feats: {
+    none: 'This character has no feats.',
+    categories: {
+      ancestryfeatures: 'Ancestry Features',
+      classfeatures: 'Class Features',
+      ancestry: 'Ancestry Feats',
+      class: 'Class Feats',
+      archetype: 'Archetype Feats',
+      skill: 'Skill Feats',
+      general: 'General Feats',
+      xdy_ancestryparagon: 'Ancestry Paragon',
+      bonus: 'Bonus Feats'
+    }
+  },
+  effects: {
+    effectIcon: 'Effect icon'
+  },
+  actions: {
+    runMacro: 'Run Macro'
+  },
+  actionTypes: {
+    action: 'Actions',
+    reaction: 'Reactions',
+    free: 'Free Actions',
+    skill: 'Skill Actions'
+  },
+  inventoryTypes: {
+    weapon: 'Weapons',
+    shield: 'Shields',
+    consumable: 'Consumables',
+    equipment: 'Equipment',
+    armor: 'Armor',
+    treasure: 'Treasure',
+    backpack: 'Containers'
+  },
+  equipment: {
+    noInventory: 'This character has no inventory.',
+    investedTitle: 'Invested Items',
+    investedCount: '(Items Invested: {count} / 10)',
+    usesLabel: 'Uses:',
+    useItem: 'Use Item'
+  },
+  spells: {
+    noSpells: 'This character does not cast spells.',
+    focusPool: 'Focus Pool',
+    spellDetails: 'Spell Details',
+    wandDetails: 'Wand Details',
+    wandsAndScrolls: 'Wands and Scrolls',
+    selectSpell: 'Select a spell',
+    basic: 'basic',
+    ac: 'AC',
+    cast: 'Cast'
+  },
+  strikes: {
+    elementalBlastsHeading: 'Elemental Blasts',
+    elementalBlastLabel: 'Elemental Blast ({element})',
+    strikesHeading: 'Strikes',
+    strike: 'Strike',
+    blast: 'Blast',
+    damage: 'Damage',
+    critical: 'Critical',
+    noAmmo: 'No ammo',
+    rangeLabel: 'Range:',
+    rangeUnit: 'ft.',
+    damageTypeLabel: 'Damage Type:',
+    meleeIcon: 'melee icon',
+    rangedIcon: 'ranged icon'
+  },
+  rollOptions: {
+    heading: 'Character Options',
+    experimentalWarning:
+      'RollOption implementation is still very experimental. Backups and caution advised.'
+  },
+  sideMenu: {
+    closeSidebar: 'Close sidebar',
+    targetingProxy: 'Targeting Proxy',
+    pairPixelDice: 'Pair Pixel Dice',
+    language: 'Language'
+  },
+  widgets: {
+    toggleSwitch: 'Toggle Switch'
+  },
+  infoModal: {
+    systemIcon: 'PF2e system icon',
+    dieImage: 'd{faces} image'
+  }
+}

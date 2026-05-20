@@ -60,19 +60,19 @@ function handleShpFormSubmit(e: Event) {
 <template>
   <div>
     <div class="flex justify-between gap-4 px-6 py-4">
-      <StatBox heading="AC" :modifiers="acModifiers" class="">
+      <StatBox :heading="$t('ac.heading')" :modifiers="acModifiers" class="">
         <div class="w-8">
           {{ acCurrent ?? '??' }}
         </div>
       </StatBox>
       <div class="border-divider border"></div>
       <div v-if="!shItemId" class="my-auto grow">
-        <div class="italic">No shield equipped</div>
+        <div class="italic">{{ $t('ac.noShieldEquipped') }}</div>
       </div>
       <div v-else class="my-auto flex grow justify-between gap-4">
         <StatBox
-          heading="Shield HP"
-          :subheading="`(Total Max: ${shpMax})`"
+          :heading="$t('ac.shieldHpHeading')"
+          :subheading="$t('hp.totalMax', { max: shpMax })"
           ref="hpStat"
           class="cursor-pointer"
           :preventInfoModal="true"
@@ -83,18 +83,18 @@ function handleShpFormSubmit(e: Event) {
         </StatBox>
         <div>
           <div class="flex justify-between text-[.65rem]">
-            <div class="pr-2">AC Bonus:</div>
+            <div class="pr-2">{{ $t('ac.acBonusLabel') }}</div>
             <div>{{ shAC }}</div>
           </div>
           <div class="flex justify-between text-[.65rem]">
-            <div class="pr-2">Hardness:</div>
+            <div class="pr-2">{{ $t('ac.hardnessLabel') }}</div>
             <div>{{ hardness }}</div>
           </div>
           <div
             class="flex justify-between text-[.65rem]"
             :class="[(shpBT ?? 0) >= (shpCurrent ?? 0) ? 'text-red-600' : '']"
           >
-            <div class="pr-2">Broken at:</div>
+            <div class="pr-2">{{ $t('ac.brokenAtLabel') }}</div>
             <div>{{ shpBT }}</div>
           </div>
         </div>
@@ -112,10 +112,10 @@ function handleShpFormSubmit(e: Event) {
       </div>
     </div>
     <Teleport to="#modals">
-      <Modal ref="shpModal" title="Shield">
+      <Modal ref="shpModal" :title="$t('ac.shieldModal')">
         <form @submit.prevent="handleShpFormSubmit">
           <div class="flex w-full items-center justify-center pt-4 pb-1">
-            <div class="w-1/3">Hit Points:</div>
+            <div class="w-1/3">{{ $t('ac.hitPointsLabel') }}</div>
             <input
               class="mr-4 ml-[32px] w-1/3 border-2 border-black p-1 text-right text-3xl selection:bg-blue-700 selection:text-white"
               name="hp"
@@ -128,8 +128,8 @@ function handleShpFormSubmit(e: Event) {
             <div class="w-1/3 text-xl">/ {{ shpMax }}</div>
           </div>
           <div class="mt-5 flex flex-row-reverse flex-wrap-reverse gap-1 sm:mt-4">
-            <Button type="submit" name="update" label="Update" color="blue" />
-            <Button type="submit" name="reset" label="Reset HP" color="gray" />
+            <Button type="submit" name="update" :label="$t('common.update')" color="blue" />
+            <Button type="submit" name="reset" :label="$t('hp.reset')" color="gray" />
           </div>
         </form>
       </Modal>

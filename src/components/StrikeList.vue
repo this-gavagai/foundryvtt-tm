@@ -218,7 +218,7 @@ watch(viewed, () => updateDamageFormula())
   <div>
     <div class="break-inside-avoid px-6 py-4 [&:not(:has(li))]:hidden">
       <div class="break-inside-avoid [&:not(:has(li))]:hidden">
-        <h3 class="text-lg underline">Elemental Blasts</h3>
+        <h3 class="text-lg underline">{{ $t('strikes.elementalBlastsHeading') }}</h3>
         <ul>
           <li v-for="(blast, i) in blasts" class="cursor-pointer pb-2" :key="blast.blastElement">
             <div v-for="attackType in ['melee', 'ranged']" :key="'at_' + attackType">
@@ -227,7 +227,7 @@ watch(viewed, () => updateDamageFormula())
                 :id="i"
                 :isRanged="attackType === 'ranged'"
                 :range="attackType === 'ranged' ? blast?.blastRange?.max : undefined"
-                :label="`Elemental Blast (${blast.blastElement})`"
+                :label="$t('strikes.elementalBlastLabel', { element: blast.blastElement })"
                 :mapLabelSet="blast?.variants.filter((v) => v.type === attackType)"
                 @clicked="(_id, options) => pickBlast(options, i, attackType === 'melee')"
               />
@@ -236,7 +236,7 @@ watch(viewed, () => updateDamageFormula())
         </ul>
       </div>
       <div class="break-inside-avoid [&:not(:has(li))]:hidden [div_&:not(.hidden)]:pt-2">
-        <h3 class="text-lg underline">Strikes</h3>
+        <h3 class="text-lg underline">{{ $t('strikes.strikesHeading') }}</h3>
         <ul>
           <li
             v-for="(strike, i) in strikes?.filter(
@@ -294,7 +294,7 @@ watch(viewed, () => updateDamageFormula())
             :growContainer="true"
             v-if="viewed?.target.kind === 'strike' && viewed.target.data.ammunition?.compatible?.length"
             :list="
-              [{ id: '', name: 'No ammo' }].concat(viewed.target.data.ammunition?.compatible ?? [])
+              [{ id: '', name: $t('strikes.noAmmo') }].concat(viewed.target.data.ammunition?.compatible ?? [])
             "
             :selectedId="viewed.target.data.ammunition?.selected?.id ?? ''"
             :changed="(newId) => viewed?.target.kind === 'strike' && viewed.target.data.changeAmmo?.(newId)"
@@ -308,7 +308,7 @@ watch(viewed, () => updateDamageFormula())
               : viewed?.target.data.item?.system?.range)
           "
         >
-          Range:
+          {{ $t('strikes.rangeLabel') }}
           {{
             viewed?.target.kind === 'blast' && viewed.target.isMelee
               ? undefined
@@ -316,11 +316,11 @@ watch(viewed, () => updateDamageFormula())
                 ? viewed.target.data.blastRange?.max
                 : viewed?.target.data.item?.system?.range
           }}
-          ft.
+          {{ $t('strikes.rangeUnit') }}
         </div>
         <div class="flex justify-end gap-2">
           <div v-if="damageTypeOptions.length > 1">
-            <span class="mt-2">Damage Type:</span>
+            <span class="mt-2">{{ $t('strikes.damageTypeLabel') }}</span>
             <ChoiceWidget
               :choiceSet="damageTypeOptions"
               :iconSet="damageIcons"
@@ -364,7 +364,7 @@ watch(viewed, () => updateDamageFormula())
             color="blue"
             :clicked="() => attack()"
           >
-            <span v-if="!viewed?.subtype">Strike&nbsp;</span>
+            <span v-if="!viewed?.subtype">{{ $t('strikes.strike') }}&nbsp;</span>
             <span>{{
               viewed?.target.data.variants?.find(
                 (v) =>
@@ -378,7 +378,7 @@ watch(viewed, () => updateDamageFormula())
           </Button>
           <Button
             v-if="viewed?.phase === 'damage'"
-            :label="viewed?.subtype ? 'Critical' : 'Damage'"
+            :label="viewed?.subtype ? $t('strikes.critical') : $t('strikes.damage')"
             color="red"
             :clicked="damage"
           />

@@ -12,10 +12,10 @@ const { current: heroCurrent, max: heroMax } = character.heroPoints
 </script>
 <template>
   <div>
-    <StatBox heading="Hero Pts" @click="counter.click()">
+    <StatBox :heading="$t('heroPoints.heading')" @click="counter.click()">
       <CounterWidget
         ref="counter"
-        title="Hero Points"
+        :title="$t('heroPoints.title')"
         :value="heroCurrent ?? 0"
         :max="heroMax ?? 0"
         editable

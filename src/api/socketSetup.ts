@@ -16,7 +16,7 @@ import {
 import { addRefresh, fireRefresh, parseActorData } from './characterSync'
 import { processChanges } from './documents'
 import { resolveAck } from './actions'
-import { TM } from './constants'
+import { TM } from './protocol'
 
 export async function setupSocketListenersForApp() {
   const socket = await getSocket()

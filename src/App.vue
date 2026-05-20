@@ -8,7 +8,7 @@ import {
   setupSocketListenersForApp,
   setupSocketListenersForWorld
 } from '@/api/socketSetup'
-import { TM } from '@/api/constants'
+import { TM } from '@/api/protocol'
 import { useServerStore } from '@/stores/server'
 import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'

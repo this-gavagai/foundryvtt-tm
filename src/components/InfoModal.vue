@@ -147,7 +147,7 @@ defineExpose({ open, close, rollResultModal })
                         :class="[waiting ? 'opacity-50' : '']"
                         v-if="props.imageUrl"
                         :src="getPath(props.imageUrl)"
-                        alt="PF2e system icon"
+                        :alt="$t('infoModal.systemIcon')"
                       />
                       <Spinner
                         class="absolute -mt-9 ml-3 h-6 w-6 transition-opacity"
@@ -164,7 +164,7 @@ defineExpose({ open, close, rollResultModal })
                           class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-hidden"
                           @click="close(true)"
                         >
-                          <span class="sr-only">Close</span>
+                          <span class="sr-only">{{ $t('common.close') }}</span>
                           <XMarkIcon class="h-6 w-6" aria-hidden="true" />
                         </button>
                       </div>
@@ -240,37 +240,37 @@ defineExpose({ open, close, rollResultModal })
                     v-if="die.faces === 4"
                     src="@/assets/icons/d4.svg"
                     class="mt-1 h-6 w-6"
-                    alt="d4 image"
+                    :alt="$t('infoModal.dieImage', { faces: 4 })"
                   />
                   <img
                     v-if="die.faces === 6"
                     src="@/assets/icons/d6.svg"
                     class="mt-1 h-6 w-6"
-                    alt="d6 image"
+                    :alt="$t('infoModal.dieImage', { faces: 6 })"
                   />
                   <img
                     v-if="die.faces === 8"
                     src="@/assets/icons/d8.svg"
                     class="mt-1 h-6 w-6"
-                    alt="d8 image"
+                    :alt="$t('infoModal.dieImage', { faces: 8 })"
                   />
                   <img
                     v-if="die.faces === 10"
                     src="@/assets/icons/d10.svg"
                     class="mt-1 h-6 w-6"
-                    alt="d10 image"
+                    :alt="$t('infoModal.dieImage', { faces: 10 })"
                   />
                   <img
                     v-if="die.faces === 12"
                     src="@/assets/icons/d12.svg"
                     class="mt-1 h-6 w-6"
-                    alt="d12 image"
+                    :alt="$t('infoModal.dieImage', { faces: 12 })"
                   />
                   <img
                     v-if="die.faces === 20"
                     src="@/assets/icons/d20.svg"
                     class="mt-1 h-6 w-6"
-                    alt="d20 image"
+                    :alt="$t('infoModal.dieImage', { faces: 20 })"
                   />
                   <span>
                     {{ rollResultModal.options.roll?.isSecret ? '?' : result.result }}

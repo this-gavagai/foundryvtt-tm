@@ -7,6 +7,7 @@ import type {
   MartialProficiency,
   ClassDCData
 } from '@7h3laughingman/pf2e-types'
+import type { TablemateCharacter } from '@/types/character-types'
 import type { Field, WritableField, Maybe } from './helpers'
 import { type Modifier, makeModifiers } from './defs/modifier'
 import { type Stat, makeStat } from './defs/stat'
@@ -15,6 +16,7 @@ import { updateActorItem } from '@/api/documents'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import { kebabCase } from 'lodash-es'
 import { calcAttribute } from './calcAttributes'
+import { i18n } from '@/i18n'
 
 export interface IWR {
   type: Maybe<string>
@@ -78,7 +80,7 @@ export interface CharacterStats {
   ) => Promise<RequestResolutionArgs>
 }
 
-export function useCharacterStats(actor: Ref<CharacterPF2e | undefined>): CharacterStats {
+export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): CharacterStats {
   const attributes = {
     str: computed(() => actor.value?.system?.abilities?.str?.mod ?? calcAttribute(actor, 'str')),
     dex: computed(() => actor.value?.system?.abilities?.dex?.mod ?? calcAttribute(actor, 'dex')),
@@ -120,7 +122,14 @@ export function useCharacterStats(actor: Ref<CharacterPF2e | undefined>): Charac
     computed(() => ({
       ...(makeStat(actor.value?.system?.saves?.[subtype]) as Stat),
       roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
-        rollCheck(actor as Ref<CharacterPF2e>, 'save', subtype, { d20: [result ?? 0] }, [], options ?? {})
+        rollCheck(
+          actor as Ref<CharacterPF2e>,
+          'save',
+          subtype,
+          { d20: [result ?? 0] },
+          [],
+          options ?? {}
+        )
     }))
   const saves = {
     fortitude: makeSave('fortitude'),
@@ -160,26 +169,56 @@ export function useCharacterStats(actor: Ref<CharacterPF2e | undefined>): Charac
     return lores.length ? [...skills, ...lores] : skills
   })
 
-  const proficiencies = computed(() => [
-    ...Object.entries(
-      (actor.value?.system?.proficiencies?.['attacks'] ?? []) as Record<string, MartialProficiency>
-    ).map(([key, stat]) => ({ ...makeStat(stat, key), type: 'attacks', slug: key }) as Stat),
-    ...Object.entries(
-      (actor.value?.system?.proficiencies?.['defenses'] ?? []) as Record<string, MartialProficiency>
-    ).map(([key, stat]) => ({ ...makeStat(stat, key), type: 'defenses', slug: key }) as Stat),
-    ...Object.entries(
-      (actor.value?.system?.proficiencies?.['classDCs'] ?? []) as Record<string, ClassDCData>
-    ).map(([key, stat]) => ({ ...makeStat(stat, key), type: 'classDCs', slug: key }) as Stat),
-    ...[
-      {
-        ...(makeStat(actor.value?.system?.proficiencies?.['spellcasting']) as Stat),
-        value: actor.value?.system?.attributes?.classOrSpellDC?.value,
-        type: 'spellcasting',
-        slug: 'Spell DC',
-        label: 'Spell DC'
-      }
+  const proficiencies = computed(() => {
+    const labels = actor.value?.proficiencyLabels ?? {}
+    return [
+      ...Object.entries(
+        (actor.value?.system?.proficiencies?.['attacks'] ?? []) as Record<
+          string,
+          MartialProficiency
+        >
+      ).map(
+        ([key, stat]) =>
+          ({
+            ...makeStat({ ...stat, label: labels[key] ?? stat.label }, key),
+            type: 'attacks',
+            slug: key
+          }) as Stat
+      ),
+      ...Object.entries(
+        (actor.value?.system?.proficiencies?.['defenses'] ?? []) as Record<
+          string,
+          MartialProficiency
+        >
+      ).map(
+        ([key, stat]) =>
+          ({
+            ...makeStat({ ...stat, label: labels[key] ?? stat.label }, key),
+            type: 'defenses',
+            slug: key
+          }) as Stat
+      ),
+      ...Object.entries(
+        (actor.value?.system?.proficiencies?.['classDCs'] ?? []) as Record<string, ClassDCData>
+      ).map(
+        ([key, stat]) =>
+          ({
+            ...makeStat({ ...stat, label: labels[key] ?? stat.label }, key),
+            type: 'classDCs',
+            slug: key
+          }) as Stat
+      ),
+      ...[
+        {
+          ...(makeStat(actor.value?.system?.proficiencies?.['spellcasting']) as Stat),
+          value: actor.value?.system?.attributes?.classOrSpellDC?.value,
+          type: 'spellcasting',
+          slug: 'Spell DC',
+          label: i18n.global.t('proficiencyTypes.spellDC')
+        }
+      ]
     ]
-  ])
+  })
 
   const immunities = computed(() => makeIWRs(actor.value?.system?.attributes?.immunities))
   const weaknesses = computed(() => makeIWRs(actor.value?.system?.attributes?.weaknesses))

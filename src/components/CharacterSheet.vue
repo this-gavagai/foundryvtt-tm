@@ -131,12 +131,12 @@ defineExpose({ actor, character, actorOrWorldActor })
           </CharacterPanel>
         </TabPanels>
         <TabList class="border-divider bottom-0 flex h-24 justify-around border-t border-b">
-          <CharacterTab :src="cowled" label="Character" class="w-1/6 md:hidden" />
-          <CharacterTab :src="biceps" label="Feats" class="w-1/6" />
-          <CharacterTab :src="skills" label="Proficiencies" class="w-1/6" />
-          <CharacterTab :src="backpack" label="Equipment" class="w-1/6" />
-          <CharacterTab :src="leapfrog" label="Actions" class="w-1/6" />
-          <CharacterTab :src="spellBook" label="Spells" class="w-1/6" />
+          <CharacterTab :src="cowled" :label="$t('tabs.character')" class="w-1/6 md:hidden" />
+          <CharacterTab :src="biceps" :label="$t('tabs.feats')" class="w-1/6" />
+          <CharacterTab :src="skills" :label="$t('tabs.proficiencies')" class="w-1/6" />
+          <CharacterTab :src="backpack" :label="$t('tabs.equipment')" class="w-1/6" />
+          <CharacterTab :src="leapfrog" :label="$t('tabs.actions')" class="w-1/6" />
+          <CharacterTab :src="spellBook" :label="$t('tabs.spells')" class="w-1/6" />
           <Bars3Icon
             class="mx-4 my-auto hidden h-10 w-10 cursor-pointer rounded-md border-gray-900 p-1 text-gray-600 active:text-gray-300 md:block"
             @click="sideMenu.sidebarOpen = true"
@@ -146,5 +146,5 @@ defineExpose({ actor, character, actorOrWorldActor })
     </div>
     <SideMenu ref="sideMenu" />
   </div>
-  <div v-else>User does not own this character</div>
+  <div v-else>{{ $t('app.userDoesNotOwnCharacter') }}</div>
 </template>

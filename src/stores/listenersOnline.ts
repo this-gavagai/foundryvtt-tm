@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { useServerStore } from '@/stores/server'
 import { useUserStore } from '@/stores/user'
 import { logger } from '@/utils/utilities'
-import { TM } from '@/api/constants'
+import { TM } from '@/api/protocol'
 
 // TODO: do a sweep to deactivate things that need to be deactivated in the absence of a listener
 // Off hand, that includes Initiative skill, Hero Point modifiers, HP stats (crashing now)

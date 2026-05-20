@@ -37,7 +37,7 @@ function runViewedActionMacro() {
   <div>
     <div class="break-inside-avoid-column px-6 py-4">
       <div class="pb-4 [&:not(:has(li))]:hidden" v-for="group in actionTypes" :key="group.type">
-        <h3 class="text-lg underline">{{ group.title }}</h3>
+        <h3 class="text-lg underline">{{ $t(group.titleKey) }}</h3>
         <ul>
           <li
             v-for="action in actions?.filter((a: Action) => a.actionType === group.type)"
@@ -73,7 +73,7 @@ function runViewedActionMacro() {
         </template>
         <template #description>
           <span v-if="actionViewed?.system?.level?.value"
-            >Level {{ actionViewed?.system?.level?.value }}</span
+            >{{ $t('common.level') }} {{ actionViewed?.system?.level?.value }}</span
           >
           <span v-if="actionViewed?.system?.traits?.rarity" class="text-sm capitalize">
             ({{ actionViewed?.system?.traits?.rarity }})</span
@@ -90,7 +90,7 @@ function runViewedActionMacro() {
               v-if="actionViewed?.macroId"
               :clicked="runViewedActionMacro"
             >
-              Run Macro
+              {{ $t('actions.runMacro') }}
             </Button>
           </div>
         </template>

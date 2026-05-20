@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
 import { XMarkIcon } from '@heroicons/vue/24/solid'
 import { storeToRefs } from 'pinia'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useWorldStore } from '@/stores/world'
 import { usePixelDiceStore } from '@/stores/pixelDice'
+import { availableLocales, setLocale } from '@/i18n'
 
 import Dropdown from '@/components/widgets/DropdownWidget.vue'
 import RollOptions from '@/components/RollOptions.vue'
 import Spinner from './widgets/SpinnerWidget.vue'
 
+const { locale } = useI18n()
 const { world } = storeToRefs(useWorldStore())
 const pixelStore = usePixelDiceStore()
 const { pixel, pixelStatus } = storeToRefs(pixelStore)
@@ -70,7 +73,7 @@ defineExpose({ sidebarOpen })
             >
               <div class="absolute top-0 -left-16 flex w-16 justify-center pt-5">
                 <button type="button" class="-m-2.5 p-2.5" @click="sidebarOpen = false">
-                  <span class="sr-only">Close sidebar</span>
+                  <span class="sr-only">{{ $t('sideMenu.closeSidebar') }}</span>
                   <XMarkIcon class="h-6 w-6 text-white" aria-hidden="true" />
                 </button>
               </div>
@@ -79,7 +82,15 @@ defineExpose({ sidebarOpen })
               <nav class="flex flex-1 flex-col">
                 <ul role="list" class="flex flex-1 flex-col gap-y-7 pt-4">
                   <li>
-                    <div class="text-lg italic">Targeting Proxy</div>
+                    <div class="text-lg italic">{{ $t('sideMenu.language') }}</div>
+                    <Dropdown
+                      :list="availableLocales"
+                      :selectedId="locale"
+                      :changed="(newId: string) => setLocale(newId)"
+                    />
+                  </li>
+                  <li>
+                    <div class="text-lg italic">{{ $t('sideMenu.targetingProxy') }}</div>
                     <Dropdown
                       ref="targetProxySelector"
                       :list="userList ?? []"
@@ -93,7 +104,7 @@ defineExpose({ sidebarOpen })
                   </li>
                   <li>
                     <div class="cursor-pointer text-lg font-bold" @click="pixelConnect">
-                      Pair Pixel Dice
+                      {{ $t('sideMenu.pairPixelDice') }}
                     </div>
                     <ul v-if="pixel">
                       <li class="flex gap-1">

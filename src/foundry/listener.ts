@@ -22,7 +22,7 @@ import {
 import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
 import { logger } from '@/utils/utilities'
-import { TM } from '@/api/constants'
+import { TM } from '@/api/protocol'
 
 type GetEvent = { action: 'get' }
 

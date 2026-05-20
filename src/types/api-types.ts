@@ -1,5 +1,5 @@
 import type { ItemPF2e, RawModifier } from '@7h3laughingman/pf2e-types'
-import type { TM } from '@/api/constants'
+import type { TM } from '@/api/protocol'
 
 export type ModuleEventArgs =
   | AcknowledgementArgs
@@ -34,6 +34,8 @@ export interface UpdateCharacterDetailsArgs {
   // its circular `actor` reference and shrink nested `item` references.
   actor: object
   system: object
+  languages: string[]
+  proficiencyLabels: Record<string, string>
   inventory: object
   activeRules: string[]
   elementalBlasts: object | null

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useServerStore, type JoinUser } from '@/stores/server'
 
+const { t } = useI18n()
 const { login, getJoinData, getSocket } = useServerStore()
 const userid = ref('')
 const password = ref('')
@@ -34,7 +36,7 @@ onMounted(async () => {
     const firstAvailable = data.users.find((u) => !data.activeUsers.includes(u._id))
     if (firstAvailable) userid.value = firstAvailable._id
   } catch {
-    error.value = 'Could not load user list. Refresh to retry.'
+    error.value = t('login.couldNotLoadUsers')
   } finally {
     loadingUsers.value = false
   }
@@ -56,7 +58,7 @@ async function handleLogin() {
     return
   }
   submitting.value = false
-  error.value = 'Login failed — check your credentials.'
+  error.value = t('login.error')
 }
 </script>
 <template>
@@ -65,9 +67,9 @@ async function handleLogin() {
       @submit.prevent="handleLogin"
       class="border-divider flex w-80 flex-col gap-4 rounded border p-6"
     >
-      <h1 class="text-xl">Sign in</h1>
+      <h1 class="text-xl">{{ $t('login.signIn') }}</h1>
       <label class="flex flex-col gap-1">
-        <span class="text-sm text-gray-600">User</span>
+        <span class="text-sm text-gray-600">{{ $t('login.userLabel') }}</span>
         <select
           v-model="userid"
           required
@@ -75,8 +77,8 @@ async function handleLogin() {
           autocomplete="username"
           class="border-divider rounded border bg-white p-2"
         >
-          <option v-if="loadingUsers" value="">Loading users…</option>
-          <option v-else-if="users.length === 0" value="">No users available</option>
+          <option v-if="loadingUsers" value="">{{ $t('login.loadingUsers') }}</option>
+          <option v-else-if="users.length === 0" value="">{{ $t('login.noUsersAvailable') }}</option>
           <option
             v-for="u in users"
             :key="u._id"
@@ -88,7 +90,7 @@ async function handleLogin() {
         </select>
       </label>
       <label class="flex flex-col gap-1">
-        <span class="text-sm text-gray-600">Password</span>
+        <span class="text-sm text-gray-600">{{ $t('login.passwordLabel') }}</span>
         <input
           v-model="password"
           type="password"
@@ -101,7 +103,7 @@ async function handleLogin() {
         :disabled="submitting || loadingUsers || !userid"
         class="rounded bg-blue-500 p-2 text-white disabled:opacity-50"
       >
-        {{ submitting ? 'Signing in…' : 'Sign in' }}
+        {{ submitting ? $t('login.signingIn') : $t('login.signIn') }}
       </button>
       <div v-if="error" class="text-sm text-red-600">{{ error }}</div>
     </form>

@@ -14,7 +14,7 @@ import type {
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { logger, uuidv4 } from '@/utils/utilities'
 import { getSocket, getUserId } from './internal'
-import { TM } from './constants'
+import { TM } from './protocol'
 
 // Pending ack queue: uuid → resolver. Populated when an action RPC is sent,
 // drained either by resolveAck() when the server acknowledges or by the

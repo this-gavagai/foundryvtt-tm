@@ -20,18 +20,18 @@ function parseSpeed(speed: Stat | undefined) {
 }
 </script>
 <template>
-  <div class="flex justify-between border-b px-6 py-4">
-    <StatBox heading="Land" :breakdown="land?.breakdown" class="w-1/5">
+  <div class="flex justify-between gap-1 border-b px-6 py-4">
+    <StatBox :heading="$t('movement.land')" :breakdown="land?.breakdown" class="w-1/5">
       {{ parseSpeed(land) }}
     </StatBox>
     <div class="w-1/5">
-      <StatBox v-if="swim?.value" heading="Swim" :breakdown="swim?.breakdown">
+      <StatBox v-if="swim?.value" :heading="$t('movement.swim')" :breakdown="swim?.breakdown">
         {{ parseSpeed(swim) }}
       </StatBox>
       <StatBox
         v-else
-        heading="Swim"
-        modalHeading="Athletics Check (Swim)"
+        :heading="$t('movement.swim')"
+        :modalHeading="$t('movement.athleticsSwim')"
         :modifiers="athletics?.modifiers"
         :rollAction="athletics?.roll"
       >
@@ -40,13 +40,13 @@ function parseSpeed(speed: Stat | undefined) {
       </StatBox>
     </div>
     <div class="w-1/5">
-      <StatBox v-if="climb?.value" heading="Climb" :breakdown="climb?.breakdown">
+      <StatBox v-if="climb?.value" :heading="$t('movement.climb')" :breakdown="climb?.breakdown">
         {{ parseSpeed(climb) }}
       </StatBox>
       <StatBox
         v-else
-        heading="Climb"
-        modalHeading="Athletics Check (Climb)"
+        :heading="$t('movement.climb')"
+        :modalHeading="$t('movement.athleticsClimb')"
         :modifiers="athletics?.modifiers"
         :rollAction="athletics?.roll"
       >
@@ -54,10 +54,10 @@ function parseSpeed(speed: Stat | undefined) {
         <span v-else>--</span>
       </StatBox>
     </div>
-    <StatBox heading="Fly" :breakdown="fly?.breakdown" class="w-1/5">
+    <StatBox :heading="$t('movement.fly')" :breakdown="fly?.breakdown" class="w-1/5">
       {{ parseSpeed(fly) }}
     </StatBox>
-    <StatBox heading="Burrow" :breakdown="burrow?.breakdown" class="w-1/5">
+    <StatBox :heading="$t('movement.burrow')" :breakdown="burrow?.breakdown" class="w-1/5">
       {{ parseSpeed(burrow) }}
     </StatBox>
   </div>

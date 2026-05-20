@@ -45,7 +45,7 @@ const initiativeReady = computed(() => {
       :changed="(newValue) => (initiativeStat = newValue)"
     />
     <StatBox
-      heading="Initiative"
+      :heading="$t('combat.initiative')"
       :modifiers="initiativeMods"
       :rollAction="initiativeReady ? rollInitiative : undefined"
     >

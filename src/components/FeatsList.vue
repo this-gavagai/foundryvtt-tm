@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import type { Feat } from '@/composables/character'
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 
 import InfoModal from '@/components/InfoModal.vue'
 import FeatsListItem from './FeatsListItem.vue'
 import ParsedDescription from './ParsedDescription.vue'
 
+const { t } = useI18n()
 const infoModal = ref()
 const character = useInjectedCharacter()
 const { feats, ancestry, background, classType } = character
@@ -21,15 +23,15 @@ function viewFeat(clickedFeatId: string) {
 
 const featCategories = computed(() => {
   const categories = {
-    ancestryfeatures: { label: 'Ancestry Features', feats: [] as Feat[] },
-    classfeatures: { label: 'Class Features', feats: [] as Feat[] },
-    ancestry: { label: 'Ancestry Feats', feats: [] as Feat[] },
-    class: { label: 'Class Feats', feats: [] as Feat[] },
-    archetype: { label: 'Archetype Feats', feats: [] as Feat[] },
-    skill: { label: 'Skill Feats', feats: [] as Feat[] },
-    general: { label: 'General Feats', feats: [] as Feat[] },
-    xdy_ancestryparagon: { label: 'Ancestry Paragon', feats: [] as Feat[] },
-    bonus: { slug: 'bonus', label: 'Bonus Feats', feats: [] as Feat[] }
+    ancestryfeatures: { label: t('feats.categories.ancestryfeatures'), feats: [] as Feat[] },
+    classfeatures: { label: t('feats.categories.classfeatures'), feats: [] as Feat[] },
+    ancestry: { label: t('feats.categories.ancestry'), feats: [] as Feat[] },
+    class: { label: t('feats.categories.class'), feats: [] as Feat[] },
+    archetype: { label: t('feats.categories.archetype'), feats: [] as Feat[] },
+    skill: { label: t('feats.categories.skill'), feats: [] as Feat[] },
+    general: { label: t('feats.categories.general'), feats: [] as Feat[] },
+    xdy_ancestryparagon: { label: t('feats.categories.xdy_ancestryparagon'), feats: [] as Feat[] },
+    bonus: { slug: 'bonus', label: t('feats.categories.bonus'), feats: [] as Feat[] }
   }
   feats.value?.forEach((f: Feat) => {
     if (feats.value?.map((n) => n._id).includes(f?.grantedBy)) return
@@ -62,7 +64,7 @@ const featCategories = computed(() => {
 </script>
 <template>
   <div>
-    <div v-if="feats?.length === 0" class="px-6 py-4 italic">This character has no feats.</div>
+    <div v-if="feats?.length === 0" class="px-6 py-4 italic">{{ $t('feats.none') }}</div>
     <div v-else class="px-6 py-4 lg:columns-2">
       <dl
         v-for="(category, slug) in featCategories"
@@ -103,7 +105,7 @@ const featCategories = computed(() => {
         <template #description>
           <div class="flex gap-1">
             <span v-if="viewedFeat?.system?.level?.value" class="inline-block">
-              Level {{ viewedFeat?.system?.level?.value ?? '-' }}
+              {{ $t('common.level') }} {{ viewedFeat?.system?.level?.value ?? '-' }}
             </span>
             <span v-if="viewedFeat?.system?.traits?.rarity" class="inline-block">
               <span class="text-sm capitalize">({{ viewedFeat?.system.traits.rarity }})</span>

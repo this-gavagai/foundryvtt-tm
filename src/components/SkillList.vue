@@ -17,7 +17,7 @@ const { skills, proficiencies } = character
         v-for="isNonLore in [true, false]"
         :key="isNonLore ? 'base' : 'lore'"
       >
-        <h3 class="pb-2 text-lg underline">{{ isNonLore ? 'Skills' : 'Lore' }}</h3>
+        <h3 class="pb-2 text-lg underline">{{ isNonLore ? $t('skills.skills') : $t('skills.lore') }}</h3>
         <ul class="columns-2">
           <li
             v-for="skill in skills?.filter((s: Stat) => !s.lore === isNonLore)"
@@ -45,7 +45,7 @@ const { skills, proficiencies } = character
         class="[&:not(:has(li))]:hidden"
       >
         <section class="pt-4 first:p-0 empty:hidden">
-          <h3 class="pb-2 text-lg capitalize underline">{{ proficiencyType }}</h3>
+          <h3 class="pb-2 text-lg underline">{{ $t('proficiencyTypes.' + proficiencyType) }}</h3>
           <ul class="columns-2">
             <li
               v-for="(prof, key) in proficiencies?.filter(

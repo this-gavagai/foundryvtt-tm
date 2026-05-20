@@ -9,7 +9,7 @@ const { immunities, weaknesses, resistances } = character
 <template>
   <div class="flex justify-between px-6 py-4 empty:hidden">
     <section v-if="immunities?.length" class="w-1/3">
-      <h3 class="underline">Immunity</h3>
+      <h3 class="underline">{{ $t('iwr.immunity') }}</h3>
       <ul>
         <li v-for="immunity in immunities" :key="immunity.type" class="text-sm capitalize">
           {{ immunity.type?.replace('-', ' ') }}
@@ -17,7 +17,7 @@ const { immunities, weaknesses, resistances } = character
       </ul>
     </section>
     <section v-if="weaknesses?.length" class="w-1/3">
-      <h3 class="underline">Weakness</h3>
+      <h3 class="underline">{{ $t('iwr.weakness') }}</h3>
       <ul>
         <li v-for="weakness in weaknesses" :key="weakness.type" class="text-sm capitalize">
           {{ weakness.type?.replace('-', ' ') }} {{ weakness.value }}
@@ -25,7 +25,7 @@ const { immunities, weaknesses, resistances } = character
       </ul>
     </section>
     <section v-if="resistances?.length" class="w-1/3">
-      <h3 class="underline">Resistance</h3>
+      <h3 class="underline">{{ $t('iwr.resistance') }}</h3>
       <ul>
         <li v-for="resistance in resistances" :key="resistance.type" class="text-sm capitalize">
           {{ resistance.type?.replace('-', ' ') }} {{ resistance.value }}

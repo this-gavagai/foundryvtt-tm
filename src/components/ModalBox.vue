@@ -74,7 +74,7 @@ defineExpose({ open, close, options, isOpen })
                   type="button"
                   ref="xButton"
                 >
-                  <span class="sr-only">Close</span>
+                  <span class="sr-only">{{ $t('common.close') }}</span>
                   <XMarkIcon class="h-6 w-6" aria-hidden="true" v-if="!noX" />
                 </button>
               </div>

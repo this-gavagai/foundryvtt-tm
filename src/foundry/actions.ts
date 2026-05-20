@@ -1,5 +1,6 @@
 import type {
   ActorPF2e,
+  CharacterPF2e,
   ItemPF2e,
   PhysicalItemPF2e,
   StatisticModifier,
@@ -22,18 +23,8 @@ import type {
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import { useBackgroundRoll } from './backgroundRoll'
 import { logger } from '@/utils/utilities'
-import { TM } from '@/api/constants'
-
-// should be pulling this from constants, but that creates another loading dependency
-const inventoryTypes = [
-  'weapon',
-  'shield',
-  'consumable',
-  'equipment',
-  'armor',
-  'treasure',
-  'backpack'
-]
+import { TM } from '@/api/protocol'
+import { inventoryTypes } from '@/utils/constants'
 
 declare const game: GamePF2e
 declare const Macro: typeof MacroPF2e
@@ -43,6 +34,62 @@ function blastReplacer(key: string, element: ActorPF2e | ItemPF2e) {
   if (key === 'actor') return undefined
   else if (key === 'item') return { _id: (element as ItemPF2e)?._id }
   else return element
+}
+
+const WEAPON_CATEGORIES = ['unarmed', 'simple', 'martial', 'advanced']
+
+// Martial-proficiency labels (weapon/armor categories, class DCs) are stored as
+// bare slugs or i18n keys and resolved at sheet-render time by PF2e; the raw
+// system data we send carries the unresolved values. Mirror PF2e's own label
+// logic here so each proficiency arrives already localized.
+// See pf2e: CharacterSheetPF2e#getData (martialProficiencies) and #prepareClassDC.
+function localizeProficiencyLabels(system: CharacterPF2e['system']): Record<string, string> {
+  const cfg = CONFIG.PF2E as unknown as {
+    weaponCategories: Record<string, string>
+    weaponGroups: Record<string, string>
+    baseWeaponTypes: Record<string, string>
+    baseShieldTypes: Record<string, string>
+    armorCategories: Record<string, string>
+  }
+  const toPascal = (slug: string) =>
+    slug.replace(/(?:^|-)(\w)/g, (_m, c: string) => c.toUpperCase())
+  const labels: Record<string, string> = {}
+
+  const attacks = (system?.proficiencies?.attacks ?? {}) as Record<string, { label?: string }>
+  for (const [key, data] of Object.entries(attacks)) {
+    const group = /^weapon-group-([-\w]+)$/.exec(key)
+    const base = /^weapon-base-([-\w]+)$/.exec(key)
+    let label: string | undefined
+    if (key in cfg.weaponCategories) {
+      label = WEAPON_CATEGORIES.includes(key)
+        ? game.i18n.localize('PF2E.Actor.Character.Proficiency.Attack.' + toPascal(key))
+        : game.i18n.localize(cfg.weaponCategories[key])
+    } else if (group) {
+      label = game.i18n.localize(cfg.weaponGroups[group[1]] ?? group[1])
+    } else if (base) {
+      const bt = base[1]
+      label = game.i18n.localize(cfg.baseWeaponTypes[bt] ?? cfg.baseShieldTypes[bt] ?? bt)
+    } else if (data.label) {
+      label = game.i18n.localize(data.label)
+    }
+    if (label) labels[key] = label
+  }
+
+  const defenses = (system?.proficiencies?.defenses ?? {}) as Record<string, { label?: string }>
+  for (const [key, data] of Object.entries(defenses)) {
+    if (key in cfg.armorCategories) {
+      labels[key] = game.i18n.localize('PF2E.Actor.Character.Proficiency.Defense.' + toPascal(key))
+    } else if (data.label) {
+      labels[key] = game.i18n.localize(data.label)
+    }
+  }
+
+  const classDCs = (system?.proficiencies?.classDCs ?? {}) as Record<string, { label?: string }>
+  for (const [key, data] of Object.entries(classDCs)) {
+    if (data.label) labels[key] = game.i18n.localize(data.label)
+  }
+
+  return labels
 }
 
 export async function getCharacterDetails(
@@ -63,7 +110,7 @@ export async function getCharacterDetails(
       value: { value: bulk.value.value, light: bulk.value.light, normal: bulk.value.normal }
     },
     labels: actor.items.reduce((acc: Record<string, string | undefined>, i: ItemPF2e) => {
-      if (inventoryTypes.includes(i.type)) {
+      if (inventoryTypes.some((t) => t.type === i.type)) {
         acc[i._id ?? ''] = i.name
         ;(i as PhysicalItemPF2e)?.subitems?.forEach((s: ItemPF2e) => (acc[s._id ?? ''] = s.name))
       }
@@ -81,12 +128,23 @@ export async function getCharacterDetails(
   const cleanBlasts = elementalBlasts
     ? JSON.parse(JSON.stringify(elementalBlasts, blastReplacer))
     : null
+  // Languages are stored on the actor as bare slugs; everything else PF2e sends
+  // (feat/spell/item names) is already localized, so resolve them here too.
+  // CONFIG.PF2E.languages maps each slug to its i18n key (version-proof — the key
+  // path has differed across PF2e releases); homebrew slugs fall back to the slug.
+  const langKeys = CONFIG.PF2E.languages as Record<string, string>
+  const languages = ((actor as CharacterPF2e).system?.details?.languages?.value ?? []).map(
+    (slug: string) => (langKeys[slug] ? game.i18n.localize(langKeys[slug]) : slug)
+  )
+  const proficiencyLabels = localizeProficiencyLabels((actor as CharacterPF2e).system)
   logger.debug('TABLEMATE: now sending ' + actor.name)
   return {
     action: TM.UPDATE_CHARACTER,
     actorId: actor._id,
     actor,
     system: actor.system,
+    languages,
+    proficiencyLabels,
     inventory,
     activeRules: [...activeRules],
     elementalBlasts: cleanBlasts,
