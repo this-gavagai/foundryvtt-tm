@@ -163,7 +163,7 @@ export default {
   },
   equipment: {
     noInventory: 'Dieser Charakter hat kein Inventar.',
-    investedTitle: 'Resonanzegenstände',
+    investedTitle: 'Resonanzgegenstände',
     investedCount: '(Resonanzgegenstände: {count} / 10)',
     usesLabel: 'Benutzungen:',
     useItem: 'Gegenstand benutzen'
