@@ -59,10 +59,10 @@ export default {
   },
   proficiencyLevels: {
     untrained: 'Ungeübt',
-    trained: 'Ausgebildet',
+    trained: 'Geübt',
     expert: 'Experte',
     master: 'Meister',
-    legendary: 'Legendär'
+    legendary: 'Legende'
   },
   savesFull: {
     fortitude: 'Zähigkeitswurf',
@@ -103,12 +103,12 @@ export default {
     climb: 'Klettern',
     fly: 'Fliegen',
     burrow: 'Graben',
-    athleticsSwim: 'Athletik-Probe (Schwimmen)',
-    athleticsClimb: 'Athletik-Probe (Klettern)'
+    athleticsSwim: 'Athletikwurf (Schwimmen)',
+    athleticsClimb: 'Athletikwurf (Klettern)'
   },
   iwr: {
     immunity: 'Immunität',
-    weakness: 'Anfälligkeit',
+    weakness: 'Schwäche',
     resistance: 'Resistenz'
   },
   languages: {
@@ -117,7 +117,7 @@ export default {
   },
   skills: {
     skills: 'Fertigkeiten',
-    lore: 'Wissensgebiete'
+    lore: 'Kenntnisse'
   },
   proficiencyTypes: {
     attacks: 'Angriffe',
@@ -155,7 +155,7 @@ export default {
   inventoryTypes: {
     weapon: 'Waffen',
     shield: 'Schilde',
-    consumable: 'Verbrauchsgüter',
+    consumable: 'Verbrauchsgegenstände',
     equipment: 'Ausrüstung',
     armor: 'Rüstung',
     treasure: 'Schätze',
@@ -163,14 +163,14 @@ export default {
   },
   equipment: {
     noInventory: 'Dieser Charakter hat kein Inventar.',
-    investedTitle: 'Investierte Gegenstände',
-    investedCount: '(Investierte Gegenstände: {count} / 10)',
+    investedTitle: 'Resonanzegenstände',
+    investedCount: '(Resonanzgegenstände: {count} / 10)',
     usesLabel: 'Benutzungen:',
     useItem: 'Gegenstand benutzen'
   },
   spells: {
     noSpells: 'Dieser Charakter wirkt keine Zauber.',
-    focusPool: 'Fokus-Pool',
+    focusPool: 'Fokusvorrat',
     spellDetails: 'Zauberdetails',
     wandDetails: 'Stab-Details',
     wandsAndScrolls: 'Zauberstäbe und Schriftrollen',
