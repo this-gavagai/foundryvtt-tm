@@ -11,7 +11,8 @@ import type {
   CallMacroArgs,
   SetWeaponLoadedArgs,
   ToggleKineticAuraArgs,
-  DiceResults
+  DiceResults,
+  CheckModifier
 } from '@/types/api-types'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { logger, uuidv4 } from '@/utils/utilities'
@@ -87,7 +88,7 @@ export function rollCheck(
   checkType: string,
   checkSubtype = '',
   diceResults: DiceResults = {},
-  modifiers: { label: string; modifier: number; enabled: boolean; ignored: boolean }[] = [],
+  modifiers: CheckModifier[] = [],
   options = {},
   item = null
 ): Promise<RequestResolutionArgs> {

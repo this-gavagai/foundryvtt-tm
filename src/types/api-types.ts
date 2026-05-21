@@ -56,13 +56,20 @@ export interface AnybodyHomeArgs {
   action: typeof TM.ANYBODY_HOME
   userId: string
 }
+export interface CheckModifier {
+  label: string
+  modifier: number
+  enabled: boolean
+  ignored: boolean
+}
+
 export interface RollCheckArgs {
   action: typeof TM.ROLL_CHECK
   userId: string
   characterId: string
   checkType: string
   checkSubtype: string
-  modifiers: { label: string; modifier: number; enabled: boolean; ignored: boolean }[]
+  modifiers: CheckModifier[]
   options: object
   uuid: string
   targets?: string[]

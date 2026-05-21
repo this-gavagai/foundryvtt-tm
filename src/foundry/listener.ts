@@ -22,7 +22,7 @@ import {
   foundryCallMacro,
   foundrySetWeaponLoaded,
   foundryToggleKineticAura
-} from './actions'
+} from './handlers'
 import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
 import { logger } from '@/utils/utilities'
