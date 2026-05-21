@@ -194,7 +194,11 @@ export default {
     rangeUnit: 'ft.',
     damageTypeLabel: 'Damage Type:',
     meleeIcon: 'melee icon',
-    rangedIcon: 'ranged icon'
+    rangedIcon: 'ranged icon',
+    loaded: 'Loaded',
+    notLoaded: 'Not loaded',
+    reload: 'Reload',
+    unload: 'Unload'
   },
   rollOptions: {
     heading: 'Character Options',

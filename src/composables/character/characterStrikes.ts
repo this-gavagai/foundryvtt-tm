@@ -3,7 +3,7 @@ import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { TablemateCharacter } from '@/types/character-types'
 import type { Field, WritableField } from './helpers'
 import { type Strike, makeStrike, type ElementalBlast, makeElementalBlasts } from './defs/strike'
-import { rollCheck, getStrikeDamage } from '@/api/actions'
+import { rollCheck, getStrikeDamage, setWeaponLoaded } from '@/api/actions'
 import { updateActorItem } from '@/api/documents'
 import type { CharacterStrike, DamageType, WeaponPF2e } from '@7h3laughingman/pf2e-types'
 
@@ -15,70 +15,117 @@ export interface CharacterStrikes {
 
 export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>): CharacterStrikes {
   const strikes = computed(() => {
-    return (actor.value?.system?.actions as CharacterStrike[] | undefined)?.map(
-      (action) =>
-        ({
-          ...makeStrike(
-            action,
-            actor.value?.items.find<WeaponPF2e<CharacterPF2e>>(
-              (i) => i.system?.slug === action?.slug
-            )
+    return (actor.value?.system?.actions as CharacterStrike[] | undefined)?.map((action) => {
+      const weaponItem = actor.value?.items.find<WeaponPF2e<CharacterPF2e>>(
+        (i) => i.system?.slug === action?.slug
+      )
+      const weaponId = weaponItem?._id ?? action?.item?._id ?? undefined
+      // PF2e populates the strike's ammunition data from the weapon's loaded
+      // subitems, so reloadable/loaded come straight from it.
+      const reloadable = !!action?.ammunition?.requiresReload
+      const loaded = (action?.ammunition?.loaded?.length ?? 0) > 0
+      const reloadActions = weaponItem?.system?.reload?.value ?? undefined
+      // Effective ammo: the last-used choice (selectedAmmoId, persisted on the
+      // weapon), else default to the compatible ammo with the most in inventory.
+      const compatible = action?.ammunition?.compatible ?? []
+      const qtyOf = (id: string) =>
+        (actor.value?.items.find((i) => i._id === id)?.system as { quantity?: number } | undefined)
+          ?.quantity ?? 0
+      const persisted = (action as { selectedAmmoId?: string | null })?.selectedAmmoId
+      const effectiveAmmoId =
+        persisted && compatible.some((c) => c.id === persisted)
+          ? persisted
+          : compatible.length
+            ? [...compatible].sort((a, b) => qtyOf(b.id) - qtyOf(a.id))[0].id
+            : undefined
+      const base = makeStrike(action, weaponItem)
+      return {
+        ...base,
+        reloadable,
+        loaded,
+        reloadActions,
+        ammunition: base?.ammunition
+          ? { ...base.ammunition, selected: { id: effectiveAmmoId ?? '' } }
+          : base?.ammunition,
+        setLoaded: (load: boolean) => {
+          if (load && !effectiveAmmoId) return Promise.resolve(null)
+          // Optimistic update: mutate the reactive actor object immediately so
+          // the UI reflects the new state without waiting for a full refresh.
+          const ammoData = action?.ammunition as { loaded?: unknown[] } | undefined
+          if (ammoData) ammoData.loaded = load ? [{}] : []
+          return weaponId
+            ? setWeaponLoaded(
+                actor as Ref<CharacterPF2e>,
+                weaponId,
+                load,
+                load ? effectiveAmmoId : null
+              )
+            : Promise.resolve(null)
+        },
+        getDamage: (altUsage = undefined) =>
+          getStrikeDamage(actor as Ref<CharacterPF2e>, action.slug, altUsage),
+        doStrike: (variant, altUsage, blastOptions, result) =>
+          rollCheck(
+            actor as Ref<CharacterPF2e>,
+            'strike',
+            `${action.slug},${variant},${altUsage ?? ''}`,
+            {
+              d20: [result ?? 0]
+            }
           ),
-          getDamage: (altUsage = undefined) =>
-            getStrikeDamage(actor as Ref<CharacterPF2e>, action.slug, altUsage),
-          doStrike: (variant, altUsage, blastOptions, result) =>
-            rollCheck(
-              actor as Ref<CharacterPF2e>,
-              'strike',
-              `${action.slug},${variant},${altUsage ?? ''}`,
-              {
-                d20: [result ?? 0]
-              }
-            ),
-          doDamage: (variant, altUsage) =>
-            rollCheck(
-              actor as Ref<CharacterPF2e>,
-              'damage',
-              `${action.slug},${variant ? 'critical' : 'damage'},${altUsage ?? ''}`
-            ),
-          setDamageType: (newType) => {
-            const item = actor.value?.items.find<WeaponPF2e<CharacterPF2e>>(
-              (i) => i._id === action?.item?._id
-            )
-            if (!item || !actor.value) return Promise.resolve(null)
-            const adjustment = item.system?.damage?.damageType === newType ? null : newType
-            const isModular = item.system?.traits?.value?.includes('modular' as never)
-            const toggleKey = isModular ? 'modular' : 'versatile'
-            const toggles = item.system.traits.toggles
-            if (isModular) {
-              if (toggles.modular) Object.assign(toggles.modular, { selected: adjustment })
-            } else {
-              toggles.versatile.selected = adjustment as DamageType | null
-            }
-            const update = {
-              system: { traits: { toggles: { [toggleKey]: { selected: adjustment } } } }
-            }
-            return updateActorItem(actor as Ref<CharacterPF2e>, action?.item?._id ?? '', update)
-          },
-          changeAmmo: (newId) => {
-            const item = actor.value?.items.find<WeaponPF2e<CharacterPF2e>>(
-              (i) => i._id === action?.item?._id
-            )
-            const actorAction = (actor.value?.system.actions as CharacterStrike[])?.find(
-              (a) => a.slug === action?.slug
-            )
-            if (item && item.system) item.system.selectedAmmoId = newId
-            if (actorAction?.ammunition)
-              actorAction.ammunition.selected = newId ? { id: newId, compatible: false } : null
-
-            const update = { system: { selectedAmmoId: newId || null } }
-            return (
-              updateActorItem(actor as Ref<CharacterPF2e>, action?.item?._id ?? '', update) ??
-              Promise.resolve(null)
-            )
+        doDamage: (variant, altUsage) =>
+          rollCheck(
+            actor as Ref<CharacterPF2e>,
+            'damage',
+            `${action.slug},${variant ? 'critical' : 'damage'},${altUsage ?? ''}`
+          ),
+        setDamageType: (newType) => {
+          const item = actor.value?.items.find<WeaponPF2e<CharacterPF2e>>(
+            (i) => i._id === action?.item?._id
+          )
+          if (!item || !actor.value) return Promise.resolve(null)
+          const adjustment = item.system?.damage?.damageType === newType ? null : newType
+          const isModular = item.system?.traits?.value?.includes('modular' as never)
+          const toggleKey = isModular ? 'modular' : 'versatile'
+          const toggles = item.system.traits.toggles
+          if (isModular) {
+            if (toggles.modular) Object.assign(toggles.modular, { selected: adjustment })
+          } else {
+            toggles.versatile.selected = adjustment as DamageType | null
           }
-        }) as Strike
-    )
+          const update = {
+            system: { traits: { toggles: { [toggleKey]: { selected: adjustment } } } }
+          }
+          return updateActorItem(actor as Ref<CharacterPF2e>, action?.item?._id ?? '', update)
+        },
+        changeAmmo: (newId) => {
+          const item = actor.value?.items.find<WeaponPF2e<CharacterPF2e>>(
+            (i) => i._id === action?.item?._id
+          )
+          const actorAction = (actor.value?.system.actions as CharacterStrike[])?.find(
+            (a) => a.slug === action?.slug
+          )
+          if (item && item.system) item.system.selectedAmmoId = newId
+          if (actorAction)
+            (actorAction as { selectedAmmoId?: string | null }).selectedAmmoId = newId || null
+
+          const persistAmmoId =
+            updateActorItem(actor as Ref<CharacterPF2e>, action?.item?._id ?? '', {
+              system: { selectedAmmoId: newId || null }
+            }) ?? Promise.resolve(null)
+
+          if (!loaded || !weaponId) return persistAmmoId
+
+          // Weapon is loaded — unload so the new ammo selection stays in sync.
+          const ammoData = action?.ammunition as { loaded?: unknown[] } | undefined
+          if (ammoData) ammoData.loaded = []
+          return Promise.all([
+            persistAmmoId,
+            setWeaponLoaded(actor as Ref<CharacterPF2e>, weaponId, false, null)
+          ])
+        }
+      } as Strike
+    })
   })
   const blasts = computed(() =>
     makeElementalBlasts(actor.value?.elementalBlasts)?.map(

@@ -7,7 +7,8 @@ import type {
   RollCheckArgs,
   GetStrikeDamageArgs,
   SendItemToChatArgs,
-  CallMacroArgs
+  CallMacroArgs,
+  SetWeaponLoadedArgs
 } from '@/types/api-types'
 import {
   getCharacterDetails,
@@ -17,7 +18,8 @@ import {
   foundryConsumeItem,
   foundryGetStrikeDamage,
   foundrySendItemToChat,
-  foundryCallMacro
+  foundryCallMacro,
+  foundrySetWeaponLoaded
 } from './actions'
 import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
@@ -119,6 +121,11 @@ export function setupListener() {
         break
       case TM.CALL_MACRO:
         foundryCallMacro(args as CallMacroArgs).then((result) =>
+          game.socket.emit(TM.CHANNEL, result)
+        )
+        break
+      case TM.SET_WEAPON_LOADED:
+        foundrySetWeaponLoaded(args as SetWeaponLoadedArgs).then((result) =>
           game.socket.emit(TM.CHANNEL, result)
         )
         break

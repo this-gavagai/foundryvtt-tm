@@ -15,6 +15,7 @@ export type ModuleEventArgs =
   | ShareTargetsArgs
   | SendItemToChatArgs
   | CallMacroArgs
+  | SetWeaponLoadedArgs
 
 export interface AcknowledgementArgs {
   action: typeof TM.ACK
@@ -123,6 +124,15 @@ export interface CallMacroArgs {
   macroName: string | null
   macroUuid: string | null
   options: object
+  uuid: string
+}
+export interface SetWeaponLoadedArgs {
+  action: typeof TM.SET_WEAPON_LOADED
+  userId: string
+  characterId: string
+  weaponId: string
+  loaded: boolean
+  ammoId?: string | null
   uuid: string
 }
 

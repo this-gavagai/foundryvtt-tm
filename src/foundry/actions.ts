@@ -3,6 +3,7 @@ import type {
   CharacterPF2e,
   ItemPF2e,
   PhysicalItemPF2e,
+  WeaponPF2e,
   StatisticModifier,
   RollOptionRuleElement,
   GamePF2e,
@@ -18,7 +19,8 @@ import type {
   GetStrikeDamageArgs,
   RequestCharacterDetailsArgs,
   SendItemToChatArgs,
-  CallMacroArgs
+  CallMacroArgs,
+  SetWeaponLoadedArgs
 } from '@/types/api-types'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import { useBackgroundRoll } from './backgroundRoll'
@@ -333,6 +335,35 @@ export async function foundryConsumeItem(args: ConsumeItemArgs) {
   const item = actor.items.get(args.consumableId, { strict: true })
   item.consume()
   return { action: TM.ACK, uuid: args.uuid, userId: game.user._id }
+}
+
+// Load/unload a weapon using PF2e's native mechanism: loaded ammo lives in the
+// weapon's `subitems` (the same state the default character sheet's reload
+// button manages via WeaponPF2e#attach / subitem#detach). Loading attaches the
+// weapon's selected ammo; unloading detaches whatever is currently loaded.
+export async function foundrySetWeaponLoaded(args: SetWeaponLoadedArgs) {
+  const source = typeof window.game === 'undefined' ? parent.game : window.game
+  const ack = { action: TM.ACK, uuid: args.uuid, userId: game.user._id }
+
+  const actor = source.actors.get(args.characterId, { strict: true })
+  const weapon = actor.items.get(args.weaponId, { strict: true }) as WeaponPF2e<CharacterPF2e>
+  const loadedAmmo = weapon.subitems.filter(
+    (i: PhysicalItemPF2e) =>
+      i.isOfType('ammo') || (i.isOfType('weapon') && (i as WeaponPF2e).isAmmoFor(weapon))
+  )
+
+  if (args.loaded) {
+    // Only load the explicitly-chosen ammo (no automatic fallback).
+    const ammo = args.ammoId ? actor.inventory.get(args.ammoId) : undefined
+    const capacity = (weapon.system.ammo as { capacity?: number } | null)?.capacity ?? 1
+    const numLoaded = loadedAmmo.reduce((sum, a) => sum + (a.quantity ?? 0), 0)
+    if (ammo && capacity - numLoaded > 0) {
+      await weapon.attach(ammo, { quantity: 1, stack: true })
+    }
+  } else {
+    for (const sub of loadedAmmo) await sub.detach({ skipConfirm: true })
+  }
+  return ack
 }
 
 export async function foundrySendItemToChat(args: SendItemToChatArgs) {

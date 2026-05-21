@@ -9,6 +9,7 @@ import type {
   GetStrikeDamageArgs,
   SendItemToChatArgs,
   CallMacroArgs,
+  SetWeaponLoadedArgs,
   DiceResults
 } from '@/types/api-types'
 import { useTargetHelperStore } from '@/stores/targetHelper'
@@ -153,6 +154,21 @@ export function sendItemToChat(
     action: TM.SEND_ITEM_TO_CHAT,
     characterId,
     itemId
+  })
+}
+
+export function setWeaponLoaded(
+  actor: Ref<CharacterPF2e>,
+  weaponId: string,
+  loaded: boolean,
+  ammoId: string | null = null
+): Promise<RequestResolutionArgs> {
+  return sendModuleRequest<SetWeaponLoadedArgs>({
+    action: TM.SET_WEAPON_LOADED,
+    characterId: actor.value._id!,
+    weaponId,
+    loaded,
+    ammoId
   })
 }
 

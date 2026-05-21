@@ -22,5 +22,6 @@ export const TM = {
   CONSUME_ITEM: 'consumeItem',
   GET_STRIKE_DAMAGE: 'getStrikeDamage',
   SEND_ITEM_TO_CHAT: 'sendItemToChat',
-  CALL_MACRO: 'callMacro'
+  CALL_MACRO: 'callMacro',
+  SET_WEAPON_LOADED: 'setWeaponLoaded'
 } as const

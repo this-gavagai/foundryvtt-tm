@@ -12,6 +12,7 @@ import type { RequestResolutionArgs } from '@/types/api-types'
 
 import ChoiceWidget from '@/components/widgets/ChoiceWidget.vue'
 import DropdownWidget from './widgets/DropdownWidget.vue'
+import ActionIcons from './widgets/ActionIcons.vue'
 
 import action1 from '@/assets/icons/action1.svg'
 import action2 from '@/assets/icons/action2.svg'
@@ -49,9 +50,18 @@ const viewed = ref<Viewed | undefined>()
 
 const { isListening } = storeToRefs(useListenersStore())
 
+// A reloadable weapon that isn't loaded can't strike until it's reloaded.
+const viewedNeedsReload = computed(
+  () =>
+    viewed.value?.target.kind === 'strike' &&
+    !!viewed.value.target.data.reloadable &&
+    !viewed.value.target.data.loaded
+)
+
 // builders for click handlers
 function pickStrike(opts: EmitOptions, index: number, altUsage?: number) {
-  const strike = altUsage === undefined ? strikes.value?.[index] : strikes.value?.[index]?.altUsages[altUsage]
+  const strike =
+    altUsage === undefined ? strikes.value?.[index] : strikes.value?.[index]?.altUsages[altUsage]
   if (!strike) return
   viewed.value = {
     target: { kind: 'strike', data: strike, index, altUsage },
@@ -75,9 +85,7 @@ function pickBlast(opts: EmitOptions, index: number, isMelee: boolean) {
 // helpers
 function blastDamageType(blast: ElementalBlast): string {
   return (
-    blast.damageSelections?.[blast.blastElement ?? ''] ??
-    blast.blastDamageTypes?.[0]?.value ??
-    ''
+    blast.damageSelections?.[blast.blastElement ?? ''] ?? blast.blastDamageTypes?.[0]?.value ?? ''
   )
 }
 
@@ -91,9 +99,9 @@ const attackTypeMap = new Map<boolean | undefined, 'melee' | 'ranged' | undefine
 const viewedItem = computed<Weapon | undefined>(() => {
   const itemId = viewed.value?.target.data.item?._id
   if (!itemId) return undefined
-  return [...(inventory.value || []), ...(actions.value || [])].find(
-    (i) => i._id === itemId
-  ) as Weapon | undefined
+  return [...(inventory.value || []), ...(actions.value || [])].find((i) => i._id === itemId) as
+    | Weapon
+    | undefined
 })
 
 const viewedTraits = computed<string[]>(() => {
@@ -124,7 +132,7 @@ const damageTypeOptions = computed<string[]>(() => {
   const v = viewed.value
   if (!v) return []
   if (v.target.kind === 'blast') {
-    return (v.target.data.blastDamageTypes?.map((x) => x.value).filter((x): x is string => !!x)) ?? []
+    return v.target.data.blastDamageTypes?.map((x) => x.value).filter((x): x is string => !!x) ?? []
   }
   const item = viewedItem.value
   if (!item) return []
@@ -134,7 +142,8 @@ const damageTypeOptions = computed<string[]>(() => {
   if (traits.includes('versatile-b')) types.add('bludgeoning')
   if (traits.includes('versatile-p')) types.add('piercing')
   if (traits.includes('versatile-s')) types.add('slashing')
-  if (traits.includes('modular')) ['slashing', 'piercing', 'bludgeoning'].forEach((t) => types.add(t))
+  if (traits.includes('modular'))
+    ['slashing', 'piercing', 'bludgeoning'].forEach((t) => types.add(t))
   return Array.from(types)
 })
 
@@ -147,7 +156,11 @@ function doViewedAttack(diceResult?: number): Promise<RequestResolutionArgs | nu
       (blast.doStrike?.(
         v.subtype,
         undefined,
-        { element: blast.blastElement, damageType: blastDamageType(blast), isMelee: v.target.isMelee },
+        {
+          element: blast.blastElement,
+          damageType: blastDamageType(blast),
+          isMelee: v.target.isMelee
+        },
         diceResult
       ) as Promise<RequestResolutionArgs>) ?? Promise.resolve(null)
     )
@@ -191,11 +204,19 @@ function presentRollResult(promise: Promise<RequestResolutionArgs | null> | unde
 }
 
 function attack(diceResult?: number) {
+  if (viewedNeedsReload.value) return
   presentRollResult(doViewedAttack(diceResult))
 }
 
 function damage() {
+  if (viewedNeedsReload.value) return
   presentRollResult(doViewedDamage())
+}
+
+function toggleLoaded() {
+  const v = viewed.value
+  if (!v || v.target.kind !== 'strike') return
+  v.target.data.setLoaded?.(!v.target.data.loaded)
 }
 
 async function updateDamageFormula() {
@@ -213,6 +234,25 @@ async function updateDamageFormula() {
   }
 }
 watch(viewed, () => updateDamageFormula())
+
+// The modal captures a snapshot of the opened strike/blast. When the character
+// re-syncs (after changing ammo, reloading, etc.) the strikes/blasts arrays are
+// rebuilt, so rebind the snapshot to the fresh object — otherwise the modal
+// keeps showing stale state (e.g. the ammo dropdown snapping back).
+watch([strikes, blasts], () => {
+  const v = viewed.value
+  if (!v) return
+  if (v.target.kind === 'strike') {
+    const fresh =
+      v.target.altUsage === undefined
+        ? strikes.value?.[v.target.index]
+        : strikes.value?.[v.target.index]?.altUsages?.[v.target.altUsage]
+    if (fresh) v.target.data = fresh
+  } else {
+    const fresh = blasts.value?.[v.target.index]
+    if (fresh) v.target.data = fresh
+  }
+})
 </script>
 <template>
   <div>
@@ -249,7 +289,7 @@ watch(viewed, () => updateDamageFormula())
               type="strike"
               :id="i"
               :label="strike?.label ?? strike?.item?.name"
-              :isRanged="strike?.item?.system?.range ?? NaN > 0"
+              :isRanged="(strike?.item?.system?.range ?? 0) > 0"
               :range="strike?.item?.system?.range"
               :mapLabelSet="strike.variants"
               @clicked="(_id, options) => pickStrike(options, i)"
@@ -259,7 +299,7 @@ watch(viewed, () => updateDamageFormula())
                 type="strike"
                 :id="i"
                 :label="altUsage?.item?.name ?? altUsage?.label"
-                :isRanged="altUsage?.item?.system?.range ?? NaN > 0"
+                :isRanged="(altUsage?.item?.system?.range ?? 0) > 0"
                 :range="altUsage?.item?.system?.range"
                 :mapLabelSet="altUsage?.variants"
                 @clicked="(_id, options) => pickStrike(options, i, j)"
@@ -288,24 +328,49 @@ watch(viewed, () => updateDamageFormula())
             ? strikeModalDamage?.response?.critical
             : strikeModalDamage?.response?.damage
         }}</template>
-        <div class="m-1">
+        <div
+          class="m-1 flex items-end gap-2"
+          v-if="
+            viewed?.target.kind === 'strike' &&
+            (viewed.target.data.ammunition?.compatible?.length || viewed.target.data.reloadable)
+          "
+        >
           <DropdownWidget
-            class="relative"
+            class="relative flex-1"
             :growContainer="true"
-            v-if="viewed?.target.kind === 'strike' && viewed.target.data.ammunition?.compatible?.length"
             :list="
-              [{ id: '', name: $t('strikes.noAmmo') }].concat(viewed.target.data.ammunition?.compatible ?? [])
+              viewed.target.data.ammunition?.compatible?.length
+                ? viewed.target.data.ammunition.compatible
+                : [{ id: '', name: $t('strikes.noAmmo') }]
             "
             :selectedId="viewed.target.data.ammunition?.selected?.id ?? ''"
-            :changed="(newId) => viewed?.target.kind === 'strike' && viewed.target.data.changeAmmo?.(newId)"
+            :changed="
+              (newId) => viewed?.target.kind === 'strike' && viewed.target.data.changeAmmo?.(newId)
+            "
           />
+          <Button
+            v-if="isListening && viewed.target.data.reloadable"
+            :color="viewed.target.data.loaded ? 'lightgray' : 'blue'"
+            :disabled="!viewed.target.data.loaded && !viewed.target.data.ammunition?.selected?.id"
+            :clicked="toggleLoaded"
+            class="h-10 w-25"
+          >
+            <span v-if="viewed.target.data.loaded">{{ $t('strikes.unload') }}</span>
+            <span v-else class="inline-flex items-center gap-1">
+              <ActionIcons
+                :actions="viewed.target.data.reloadActions ?? '1'"
+                class="pf2-icon relative float-left -mt-2 h-0 text-lg leading-none"
+              />
+              {{ $t('strikes.reload') }}
+            </span>
+          </Button>
         </div>
         <div
           class="pb-2"
           v-if="
-            (viewed?.target.kind === 'blast'
+            viewed?.target.kind === 'blast'
               ? viewed.target.data.blastRange?.max
-              : viewed?.target.data.item?.system?.range)
+              : viewed?.target.data.item?.system?.range
           "
         >
           {{ $t('strikes.rangeLabel') }}
@@ -327,9 +392,7 @@ watch(viewed, () => updateDamageFormula())
               :selected="viewedDamageTypeSelected ?? ''"
               :clicked="
                 (damageType) =>
-                  viewed?.target.data
-                    .setDamageType?.(damageType)
-                    ?.then(() => updateDamageFormula())
+                  viewed?.target.data.setDamageType?.(damageType)?.then(() => updateDamageFormula())
               "
             />
           </div>
@@ -362,6 +425,7 @@ watch(viewed, () => updateDamageFormula())
           <Button
             v-if="viewed?.phase === 'attack'"
             color="blue"
+            :disabled="viewedNeedsReload"
             :clicked="() => attack()"
           >
             <span v-if="!viewed?.subtype">{{ $t('strikes.strike') }}&nbsp;</span>
@@ -380,6 +444,7 @@ watch(viewed, () => updateDamageFormula())
             v-if="viewed?.phase === 'damage'"
             :label="viewed?.subtype ? $t('strikes.critical') : $t('strikes.damage')"
             color="red"
+            :disabled="viewedNeedsReload"
             :clicked="damage"
           />
         </template>

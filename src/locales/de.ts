@@ -192,7 +192,11 @@ export default {
     rangeUnit: 'Fuß',
     damageTypeLabel: 'Schadensart:',
     meleeIcon: 'Nahkampfsymbol',
-    rangedIcon: 'Fernkampfsymbol'
+    rangedIcon: 'Fernkampfsymbol',
+    loaded: 'Geladen',
+    notLoaded: 'Nicht geladen',
+    reload: 'Nachladen',
+    unload: 'Entladen'
   },
   rollOptions: {
     heading: 'Charakteroptionen',

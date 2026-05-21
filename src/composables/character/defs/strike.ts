@@ -28,6 +28,9 @@ export interface Strike {
     compatible: { id: string; name: string }[]
     selected: { id: string }
   }
+  reloadable?: Maybe<boolean>
+  loaded?: Maybe<boolean>
+  reloadActions?: Maybe<string>
   _modifiers: Maybe<Modifier[]>
 
   getDamage?: (
@@ -46,7 +49,8 @@ export interface Strike {
     blastOptions?: BlastOptions
   ) => Promise<RequestResolutionArgs | null>
   setDamageType?: (newType: string) => Promise<DocumentSocketResponse | null>
-  changeAmmo?: (newId: string | null) => Promise<DocumentSocketResponse | null>
+  changeAmmo?: (newId: string | null) => Promise<unknown>
+  setLoaded?: (loaded: boolean) => Promise<RequestResolutionArgs | null>
 }
 
 export function makeStrike(
@@ -76,7 +80,10 @@ export function makeStrike(
           id: c.id,
           name: c.label
         })) ?? [],
-      selected: { id: root?.ammunition?.selected?.id ?? '' }
+      // PF2e's strike carries the chosen ammo as `selectedAmmoId`; bind to it
+      // rather than `ammunition.selected`, which for reload weapons reflects the
+      // physically-loaded subitem (not what the dropdown sets).
+      selected: { id: (root as { selectedAmmoId?: string | null })?.selectedAmmoId ?? '' }
     },
     _modifiers: makeModifiers(root?.modifiers)
   }
