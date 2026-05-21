@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ActiveRoll } from '@/types/api-types'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 
 const props = defineProps<{ text: string | undefined }>()
 
@@ -8,9 +8,10 @@ interface DescriptionForm extends HTMLFormElement {
   roll: RadioNodeList | HTMLInputElement
 }
 
+const formRef = ref<HTMLFormElement>()
 const activeRoll = ref<ActiveRoll>()
 
-const emit = defineEmits(['checkInitiated'])
+const emit = defineEmits(['checkInitiated', 'update:activeRoll'])
 
 const parsedText = computed(() => {
   let text = props.text
@@ -57,11 +58,22 @@ const parsedText = computed(() => {
   return text
 })
 
+function initRolls() {
+  const form = formRef.value as DescriptionForm | undefined
+  const rolls = form?.roll
+  if (!rolls) {
+    activeRoll.value = undefined
+    emit('update:activeRoll', undefined)
+    return
+  }
+  if (rolls instanceof RadioNodeList) (rolls[0] as HTMLInputElement).checked = true
+  else if (rolls instanceof HTMLInputElement) rolls.checked = true
+  formChange()
+}
+
 function formChange() {
-  const form = document.getElementById('description')
-  activeRoll.value = (form as DescriptionForm)?.roll
-    ? JSON.parse((form as DescriptionForm)?.roll?.value)
-    : undefined
+  const form = formRef.value as DescriptionForm | undefined
+  activeRoll.value = form?.roll ? JSON.parse(form.roll.value) : undefined
   if (activeRoll.value?.paramsString)
     activeRoll.value.params = activeRoll.value.paramsString
       .split(' ')
@@ -69,23 +81,19 @@ function formChange() {
         (acc, cur) => ({ ...acc, [cur.split('=')[0]]: cur.split('=')[1] }),
         {} as Record<string, string>
       )
+  emit('update:activeRoll', activeRoll.value)
 }
 function formClick(event: Event) {
   event.preventDefault()
   emit('checkInitiated', 'test')
   return false
 }
-onMounted(() => {
-  const rolls = (document.getElementById('description') as DescriptionForm)?.roll
-  if (!rolls) return
-  if (rolls instanceof RadioNodeList) (rolls[0] as HTMLInputElement).checked = true
-  else if (rolls instanceof HTMLInputElement) rolls.checked = true
-  formChange()
-})
+onMounted(initRolls)
+watch(() => props.text, () => nextTick(initRolls))
 defineExpose({ activeRoll })
 </script>
 <template>
-  <form id="description" @change="formChange" @submit="formClick">
+  <form ref="formRef" @change="formChange" @submit="formClick">
     <div v-html="parsedText"></div>
   </form>
 </template>

@@ -10,15 +10,18 @@ import Button from '@/components/widgets/ButtonWidget.vue'
 import ParsedDescription from './ParsedDescription.vue'
 import { getPath } from '@/utils/utilities'
 import type { EffectItem } from '@/composables/character'
+import type { ActiveRoll } from '@/types/api-types'
 
 const character = useInjectedCharacter()
 const { effects } = character
 const infoModal = ref()
 const effectViewedId = ref<string | undefined>()
 const effectViewed = computed(() => effects.value?.find((e) => e._id === effectViewedId.value))
+const activeRoll = ref<ActiveRoll>()
 
 function viewEffect(effect: EffectItem) {
   effectViewedId.value = effect._id
+  activeRoll.value = undefined
   infoModal.value.open()
 }
 
@@ -81,6 +84,7 @@ function adjustViewedEffectQty(delta: number) {
         :itemId="effectViewed?._id"
         :imageUrl="effectViewed?.img"
         :traits="[]"
+        :activeRoll="activeRoll"
       >
         <template #title>
           {{ effectViewed?.name }}
@@ -90,7 +94,10 @@ function adjustViewedEffectQty(delta: number) {
           <span class="capitalize">{{ effectViewed?.type }}</span>
         </template>
         <template #body>
-          <ParsedDescription :text="effectViewed?.system?.description?.value" />
+          <ParsedDescription
+            :text="effectViewed?.system?.description?.value"
+            @update:activeRoll="activeRoll = $event"
+          />
         </template>
         <template #actionButtons>
           <Button color="red" :clicked="removeViewedEffect">{{ $t('common.remove') }}</Button>
