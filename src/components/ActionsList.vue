@@ -16,7 +16,7 @@ const infoModal = ref()
 const description = ref()
 
 const character = useInjectedCharacter()
-const { actions } = character
+const { actions, rollOptionLabels } = character
 
 const { isListening } = storeToRefs(useListenersStore())
 
@@ -80,7 +80,7 @@ function runViewedActionMacro() {
           >
         </template>
         <template #body>
-          <ParsedDescription ref="description" :text="actionViewed?.system?.description.value" />
+          <ParsedDescription ref="description" :text="actionViewed?.system?.description.value" :labels="rollOptionLabels" />
         </template>
         <template #actionButtons v-if="isListening">
           <div class="align-items-center flex gap-2">

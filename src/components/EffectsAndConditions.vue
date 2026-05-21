@@ -13,7 +13,7 @@ import type { EffectItem } from '@/composables/character'
 import type { ActiveRoll } from '@/types/api-types'
 
 const character = useInjectedCharacter()
-const { effects } = character
+const { effects, rollOptionLabels } = character
 const infoModal = ref()
 const effectViewedId = ref<string | undefined>()
 const effectViewed = computed(() => effects.value?.find((e) => e._id === effectViewedId.value))
@@ -96,6 +96,7 @@ function adjustViewedEffectQty(delta: number) {
         <template #body>
           <ParsedDescription
             :text="effectViewed?.system?.description?.value"
+            :labels="rollOptionLabels"
             @update:activeRoll="activeRoll = $event"
           />
         </template>

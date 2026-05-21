@@ -45,9 +45,10 @@ export function useCharacterRules(actor: Ref<TablemateCharacter | undefined>): C
           (rule.toggleable === true || (rule.suboptions?.length ?? 0) > 0)
         ) {
           if (!rollOptions.get(rule.option ?? '')) {
+            const labels = actor.value?.rollOptionLabels
             rollOptions.set(rule.option ?? '', {
               sourceId: item?._id ?? undefined,
-              label: rule?.label ?? item.name ?? '',
+              label: (rule.label ? labels?.[rule.label] : undefined) ?? item.name ?? '',
               toggleable: rule?.toggleable,
               value: rule?.value,
               alwaysActive: rule?.alwaysActive,
@@ -80,7 +81,11 @@ export function useCharacterRules(actor: Ref<TablemateCharacter | undefined>): C
           }
           const rollOption = rollOptions.get(rule.option ?? '')
           rule.suboptions?.forEach((s) => {
-            rollOption?.suboptions.push({ label: s.label, value: s.value })
+            const labels = actor.value?.rollOptionLabels
+            rollOption?.suboptions.push({
+              label: (s.label ? labels?.[s.label] : undefined) ?? s.label,
+              value: s.value
+            })
           })
         }
       })

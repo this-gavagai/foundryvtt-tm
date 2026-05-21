@@ -37,6 +37,7 @@ export interface CharacterCore {
     burrow: Field<Stat>
   }
   languages: Field<string[]>
+  rollOptionLabels: Field<Record<string, string>>
 }
 
 export function useCharacterCore(actor: Ref<TablemateCharacter | undefined>): CharacterCore {
@@ -80,6 +81,7 @@ export function useCharacterCore(actor: Ref<TablemateCharacter | undefined>): Ch
     burrow: computed(() => makeStat(actor.value?.system?.movement?.speeds?.burrow ?? undefined))
   }
   const languages = computed(() => actor.value?.languages)
+  const rollOptionLabels = computed(() => actor.value?.rollOptionLabels)
 
   return {
     _id,
@@ -92,6 +94,7 @@ export function useCharacterCore(actor: Ref<TablemateCharacter | undefined>): Ch
     level,
     xp,
     movement,
-    languages
+    languages,
+    rollOptionLabels
   }
 }

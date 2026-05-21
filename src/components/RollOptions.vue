@@ -32,10 +32,10 @@ const { rollOptions } = character
             class="font-bold"
           >
             <span>
-              {{ startCase(key) }}
+              {{ rollOption.label ?? startCase(key) }}
             </span>
             <span v-if="rollOption.suboptions.length === 1">
-              ({{ startCase(rollOption.suboptions[0].value) }})
+              ({{ rollOption.suboptions[0].label ?? startCase(rollOption.suboptions[0].value) }})
             </span>
           </div>
           <Toggle
@@ -52,7 +52,7 @@ const { rollOptions } = character
           :list="
             rollOption.suboptions.map((s) => ({
               id: s.value ?? '',
-              name: startCase(s.value) ?? ''
+              name: s.label ?? startCase(s.value) ?? ''
             })) ?? []
           "
           :selectedId="

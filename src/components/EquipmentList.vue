@@ -26,7 +26,7 @@ const investedModal = ref()
 const description = ref()
 
 const character = useInjectedCharacter()
-const { inventory } = character
+const { inventory, rollOptionLabels } = character
 const { isListening } = storeToRefs(useListenersStore())
 
 const itemViewedId = ref<string | undefined>()
@@ -266,7 +266,7 @@ const toggleSet = [
           </div>
         </template>
         <template #body>
-          <ParsedDescription ref="description" :text="itemViewed?.system?.description.value" />
+          <ParsedDescription ref="description" :text="itemViewed?.system?.description.value" :labels="rollOptionLabels" />
           <div class="flex">
             <div class="flex-1 text-xl">Qty: {{ itemViewed?.system?.quantity }}</div>
             <div

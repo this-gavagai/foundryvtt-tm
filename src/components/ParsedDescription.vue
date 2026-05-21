@@ -2,7 +2,7 @@
 import type { ActiveRoll } from '@/types/api-types'
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 
-const props = defineProps<{ text: string | undefined }>()
+const props = defineProps<{ text: string | undefined; labels?: Record<string, string> }>()
 
 interface DescriptionForm extends HTMLFormElement {
   roll: RadioNodeList | HTMLInputElement
@@ -24,7 +24,7 @@ const parsedText = computed(() => {
         <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value="${JSON.stringify(
           { action: 'action', slug: groups.slug, label: groups.label, paramsString: groups.params }
         ).replace(/"/g, '&quot;')}">
-        <span class="pl-4 capitalize"><span class="pf2-icon-inline">1</span>${groups.label ?? groups.slug}</span>
+        <span class="pl-4 capitalize"><span class="pf2-icon-inline">1</span>${props.labels?.[groups.slug] ?? groups.label ?? groups.slug}</span>
       </label> `
   )
 
@@ -38,7 +38,7 @@ const parsedText = computed(() => {
     }
     return `<label class="has-checked:bg-blue-600 has-checked:text-white bg-gray-300 border-divider border -my-0.5 pb-px px-1 cursor-pointer whitespace-nowrap">
         <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value="${JSON.stringify(obj).replace(/"/g, '&quot;')}">
-        <span class="capitalize pl-4">${obj.name ?? obj.slug} Check (${obj.name ? obj.slug + ' ' : ''}DC ${obj.dc})</span>
+        <span class="capitalize pl-4">${props.labels?.[obj.slug] ?? obj.name ?? obj.slug} Check (${obj.name ? obj.slug + ' ' : ''}DC ${obj.dc})</span>
       </label> `
   })
 

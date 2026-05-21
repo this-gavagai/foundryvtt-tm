@@ -28,7 +28,7 @@ interface SpellInfo {
 }
 
 const character = useInjectedCharacter()
-const { spellcastingEntries, spells, spellConsumables, spellDC, staff, inventory } = character
+const { spellcastingEntries, spells, spellConsumables, spellDC, staff, inventory, rollOptionLabels } = character
 const { max: focusMax, current: focusCurrent } = character.focusPoints
 
 const { isListening } = storeToRefs(useListenersStore())
@@ -448,11 +448,11 @@ const spellbook = computed((): Spellbook => {
             </div>
             <div v-if="viewedSpellInfo?.isConsumable">
               <h4 class="text-xl">{{ $t('spells.spellDetails') }}</h4>
-              <ParsedDescription :text="viewedConsumable?.system.spell.system.description?.value" />
+              <ParsedDescription :text="viewedConsumable?.system.spell.system.description?.value" :labels="rollOptionLabels" />
               <hr />
               <h4 class="pt-1 text-xl">{{ $t('spells.wandDetails') }}</h4>
             </div>
-            <ParsedDescription :text="viewedItem?.system.description?.value" />
+            <ParsedDescription :text="viewedItem?.system.description?.value" :labels="rollOptionLabels" />
           </template>
         </template>
         <template #actionButtons v-if="isListening">

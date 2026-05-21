@@ -140,6 +140,25 @@ export async function getCharacterDetails(
     (slug: string) => (langKeys[slug] ? game.i18n.localize(langKeys[slug]) : slug)
   )
   const proficiencyLabels = localizeProficiencyLabels((actor as CharacterPF2e).system)
+  const rollOptionLabels: Record<string, string> = {}
+  type StatWithLabel = { label?: string }
+  for (const [slug, skill] of Object.entries((actor as CharacterPF2e).system?.skills ?? {}))
+    if ((skill as StatWithLabel).label) rollOptionLabels[slug] = game.i18n.localize((skill as StatWithLabel).label!)
+  for (const [slug, save] of Object.entries((actor as CharacterPF2e).system?.saves ?? {}))
+    if ((save as StatWithLabel).label) rollOptionLabels[slug] = game.i18n.localize((save as StatWithLabel).label!)
+  const percLabel = ((actor as CharacterPF2e).system?.perception as StatWithLabel | undefined)?.label
+  if (percLabel) rollOptionLabels['perception'] = game.i18n.localize(percLabel)
+  for (const item of actor.items as ItemPF2e[]) {
+    if (item.slug && item.name) rollOptionLabels[item.slug] = item.name
+    type RuleWithLabel = { key?: string; label?: string; suboptions?: { label?: string }[] }
+    for (const rule of (item.system.rules as RuleWithLabel[]) ?? []) {
+      if (rule.key === 'RollOption') {
+        if (rule.label) rollOptionLabels[rule.label] = game.i18n.localize(rule.label)
+        for (const sub of rule.suboptions ?? [])
+          if (sub.label) rollOptionLabels[sub.label] = game.i18n.localize(sub.label)
+      }
+    }
+  }
   type SpellcastingStatistic = { mod?: number; check?: { modifiers?: StatisticModifier[] } }
   const spellcastingModifiers: Record<string, object> = {}
   for (const item of actor.items as ItemPF2e[]) {
@@ -168,6 +187,7 @@ export async function getCharacterDetails(
     activeRules: [...activeRules],
     elementalBlasts: cleanBlasts,
     spellcastingModifiers,
+    rollOptionLabels,
     uuid: args.uuid,
     userId: game.user._id ?? ''
   }

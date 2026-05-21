@@ -7,7 +7,7 @@ import { useInjectedCharacter } from '@/composables/injectKeys'
 
 const infoModal = ref()
 const character = useInjectedCharacter()
-const { ancestry, heritage, background, classType, level } = character
+const { ancestry, heritage, background, classType, level, rollOptionLabels } = character
 const identityViewedId = ref<string | undefined>()
 const identityViewed = computed(
   () =>
@@ -53,12 +53,12 @@ function viewItem(item: Item | undefined) {
           >
         </template>
         <template #body>
-          <ParsedDescription :text="identityViewed?.system?.description?.value" />
+          <ParsedDescription :text="identityViewed?.system?.description?.value" :labels="rollOptionLabels" />
           <div v-if="identityViewed?.type === 'ancestry'">
             <hr />
             <div class="mt-2">
               <h3 class="text-lg">{{ heritage?.name }}</h3>
-              <ParsedDescription :text="heritage?.system?.description?.value" />
+              <ParsedDescription :text="heritage?.system?.description?.value" :labels="rollOptionLabels" />
             </div>
           </div>
         </template>

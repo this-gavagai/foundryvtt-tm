@@ -11,7 +11,7 @@ import ParsedDescription from './ParsedDescription.vue'
 const { t } = useI18n()
 const infoModal = ref()
 const character = useInjectedCharacter()
-const { feats, ancestry, background, classType } = character
+const { feats, ancestry, background, classType, rollOptionLabels } = character
 
 const viewedFeatId = ref<string | undefined>()
 const viewedFeat = computed(() => feats.value?.find((f) => f._id === viewedFeatId.value))
@@ -113,7 +113,7 @@ const featCategories = computed(() => {
           </div>
         </template>
         <template #body>
-          <ParsedDescription :text="viewedFeat?.system?.description.value" />
+          <ParsedDescription :text="viewedFeat?.system?.description.value" :labels="rollOptionLabels" />
         </template>
       </InfoModal>
     </Teleport>
