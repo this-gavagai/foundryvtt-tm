@@ -158,8 +158,9 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
             )
         }) as Stat
     )
+    const skillSlugs = new Set(skills.map((s) => s.slug))
     const lores: Stat[] = (actor.value?.items
-      .filter((i) => i.type === 'lore')
+      .filter((i) => i.type === 'lore' && !skillSlugs.has(kebabCase(i.name)))
       .map((lore) => ({
         slug: kebabCase(lore.name),
         label: lore.name,

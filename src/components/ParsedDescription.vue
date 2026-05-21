@@ -17,12 +17,12 @@ const parsedText = computed(() => {
 
   // [[/act slug variation=type proficiency=skill]]{Description}
   text = text?.replace(
-    /\[\[\/act (?<slug>[^\s]+)[\s]*(?<params>.*?)\]\](\{(?<label>.+?)\})?/gm,
+    /\[\[\/act (?<slug>[^\s\]]+)[\s]*(?<params>.*?)\]\](\{(?<label>.+?)\})?/gm,
     (match, p1, p2, p3, p4, offset, string, groups) =>
       `<label class="has-checked:bg-blue-600 has-checked:text-white bg-gray-300 border-divider border -my-0.5 pb-px px-1 cursor-pointer whitespace-nowrap">
-        <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value='${JSON.stringify(
+        <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value="${JSON.stringify(
           { action: 'action', slug: groups.slug, label: groups.label, paramsString: groups.params }
-        )}'>
+        ).replace(/"/g, '&quot;')}">
         <span class="pl-4 capitalize"><span class="pf2-icon-inline">1</span>${groups.label ?? groups.slug}</span>
       </label> `
   )
@@ -36,15 +36,24 @@ const parsedText = computed(() => {
       obj[part.slice(0, i)] = part.slice(i + 1)
     }
     return `<label class="has-checked:bg-blue-600 has-checked:text-white bg-gray-300 border-divider border -my-0.5 pb-px px-1 cursor-pointer whitespace-nowrap">
-        <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value='${JSON.stringify(obj)}'>
+        <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value="${JSON.stringify(obj).replace(/"/g, '&quot;')}">
         <span class="capitalize pl-4">${obj.name ?? obj.slug} Check (${obj.name ? obj.slug + ' ' : ''}DC ${obj.dc})</span>
       </label> `
   })
 
   // other, unparseable markup
-  text = text
-    ?.replace(/@(UUID|Compendium|Damage)\[.*?\]\{(.*?)\}/gm, '<span class="text-red-900">$2</span>')
-    ?.replace(/\[\[\/r (.*)\]\]/gm, '<span class="text-green-900">$1</span>')
+  // @UUID/@Compendium[...]{label} — content never contains brackets
+  text = text?.replace(
+    /@(?:UUID|Compendium)\[([^\]]+)\]\{([^}]*)\}/gm,
+    '<span class="text-red-900">$2</span>'
+  )
+  // @Damage[XdY[type]]{label} — formula may have one level of nested [type]; label is optional
+  text = text?.replace(
+    /@Damage\[([^\[\]]*(?:\[[^\]]*\])?[^\[\]]*)\](?:\{([^}]*)\})?/gm,
+    (_, formula, label) => `<span class="text-red-900">${label ?? formula}</span>`
+  )
+  // [[/r formula]] inline rolls — [^\]]* prevents overshooting past ]]
+  text = text?.replace(/\[\[\/r ([^\]]*)\]\]/gm, '<span class="text-green-900">$1</span>')
   return text
 })
 

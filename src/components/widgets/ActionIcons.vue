@@ -5,7 +5,7 @@ const props = defineProps<{ actions: string | undefined }>()
 <template>
   <span class="pf2-icon">
     <!-- {{ props.actions?.replace('to', '-').replace('free', 'f').replace('reaction', 'r') ?? '' }} -->
-    {{ props.actions ?? '' }}
+    {{ props.actions?.replace('to', '-').replace('free', 'f').replace('reaction', 'r') ?? '' }}
   </span>
 </template>
 <style scoped>
