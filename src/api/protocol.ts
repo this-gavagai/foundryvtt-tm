@@ -23,5 +23,6 @@ export const TM = {
   GET_STRIKE_DAMAGE: 'getStrikeDamage',
   SEND_ITEM_TO_CHAT: 'sendItemToChat',
   CALL_MACRO: 'callMacro',
-  SET_WEAPON_LOADED: 'setWeaponLoaded'
+  SET_WEAPON_LOADED: 'setWeaponLoaded',
+  TOGGLE_KINETIC_AURA: 'toggleKineticAura'
 } as const

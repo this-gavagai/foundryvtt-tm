@@ -3,7 +3,7 @@ import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { TablemateCharacter } from '@/types/character-types'
 import type { Field, WritableField } from './helpers'
 import { type Strike, makeStrike, type ElementalBlast, makeElementalBlasts } from './defs/strike'
-import { rollCheck, getStrikeDamage, setWeaponLoaded } from '@/api/actions'
+import { rollCheck, getStrikeDamage, setWeaponLoaded, toggleKineticAura } from '@/api/actions'
 import { updateActorItem } from '@/api/documents'
 import type { CharacterStrike, DamageType, WeaponPF2e } from '@7h3laughingman/pf2e-types'
 
@@ -11,6 +11,8 @@ export interface CharacterStrikes {
   strikes: Field<Strike[]>
   blasts: Field<ElementalBlast[]>
   blastActions: WritableField<string>
+  kineticAuraActive: Field<boolean>
+  toggleKineticAura: () => Promise<unknown>
 }
 
 export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>): CharacterStrikes {
@@ -181,9 +183,32 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
     }
   })
 
+  type ItemWithSlug = { system?: { slug?: string } }
+  const hasAura = (i: ItemWithSlug) => i.system?.slug === 'effect-kinetic-aura'
+
+  const kineticAuraActive = computed(
+    () => (actor.value?.items as ItemWithSlug[] | undefined)?.some(hasAura) ?? false
+  )
+
+  const doToggleKineticAura = () => {
+    // Optimistic update so the button flips immediately.
+    const items = actor.value?.items as ItemWithSlug[] | undefined
+    if (items) {
+      if (kineticAuraActive.value) {
+        const idx = items.findIndex(hasAura)
+        if (idx >= 0) items.splice(idx, 1)
+      } else {
+        items.push({ system: { slug: 'effect-kinetic-aura' } })
+      }
+    }
+    return toggleKineticAura(actor as Ref<CharacterPF2e>)
+  }
+
   return {
     strikes,
     blasts,
-    blastActions
+    blastActions,
+    kineticAuraActive,
+    toggleKineticAura: doToggleKineticAura
   }
 }

@@ -16,6 +16,7 @@ export type ModuleEventArgs =
   | SendItemToChatArgs
   | CallMacroArgs
   | SetWeaponLoadedArgs
+  | ToggleKineticAuraArgs
 
 export interface AcknowledgementArgs {
   action: typeof TM.ACK
@@ -133,6 +134,12 @@ export interface SetWeaponLoadedArgs {
   weaponId: string
   loaded: boolean
   ammoId?: string | null
+  uuid: string
+}
+export interface ToggleKineticAuraArgs {
+  action: typeof TM.TOGGLE_KINETIC_AURA
+  userId: string
+  characterId: string
   uuid: string
 }
 

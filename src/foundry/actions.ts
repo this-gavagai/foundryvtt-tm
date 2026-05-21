@@ -20,7 +20,8 @@ import type {
   RequestCharacterDetailsArgs,
   SendItemToChatArgs,
   CallMacroArgs,
-  SetWeaponLoadedArgs
+  SetWeaponLoadedArgs,
+  ToggleKineticAuraArgs
 } from '@/types/api-types'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import { useBackgroundRoll } from './backgroundRoll'
@@ -340,6 +341,31 @@ export async function foundryConsumeItem(args: ConsumeItemArgs) {
 // Load/unload a weapon using PF2e's native mechanism: loaded ammo lives in the
 // weapon's `subitems` (the same state the default character sheet's reload
 // button manages via WeaponPF2e#attach / subitem#detach). Loading attaches the
+const KINETIC_AURA_EFFECT_UUID = 'Compendium.pf2e.feat-effects.Item.pLurcSPQb2gjAzoP'
+const KINETIC_AURA_DEFAULT_RADIUS = 10
+
+export async function foundryToggleKineticAura(args: ToggleKineticAuraArgs) {
+  const source = typeof window.game === 'undefined' ? parent.game : window.game
+  const ack = { action: TM.ACK, uuid: args.uuid, userId: game.user._id }
+  const actor = source.actors.get(args.characterId, { strict: true })
+  const existingAura = actor.items.find((i: ItemPF2e) => i.slug === 'effect-kinetic-aura')
+  if (existingAura) {
+    await existingAura.delete()
+  } else {
+    // Fetch the effect from compendium and pre-set the ChoiceSet selection so
+    // PF2e skips the aura-radius dialog and uses the default 10ft radius.
+    const effectDoc = await fromUuid(KINETIC_AURA_EFFECT_UUID)
+    if (effectDoc) {
+      type RuleData = { key: string; selection?: number }
+      const effectData = (effectDoc as ItemPF2e).toObject()
+      const choiceSet = (effectData.system.rules as RuleData[]).find((r) => r.key === 'ChoiceSet')
+      if (choiceSet) choiceSet.selection = KINETIC_AURA_DEFAULT_RADIUS
+      await actor.createEmbeddedDocuments('Item', [effectData])
+    }
+  }
+  return ack
+}
+
 // weapon's selected ammo; unloading detaches whatever is currently loaded.
 export async function foundrySetWeaponLoaded(args: SetWeaponLoadedArgs) {
   const source = typeof window.game === 'undefined' ? parent.game : window.game

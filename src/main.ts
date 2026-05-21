@@ -4,7 +4,7 @@ import { createPinia } from 'pinia'
 import { GesturePlugin } from '@vueuse/gesture'
 
 import App from './App.vue'
-import { i18n } from '@/i18n'
+import { i18n } from '@/plugins/i18n'
 
 window.__TM_ENV__ = {
   MODE: import.meta.env.MODE,

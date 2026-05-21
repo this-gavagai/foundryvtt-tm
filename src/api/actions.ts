@@ -10,6 +10,7 @@ import type {
   SendItemToChatArgs,
   CallMacroArgs,
   SetWeaponLoadedArgs,
+  ToggleKineticAuraArgs,
   DiceResults
 } from '@/types/api-types'
 import { useTargetHelperStore } from '@/stores/targetHelper'
@@ -169,6 +170,13 @@ export function setWeaponLoaded(
     weaponId,
     loaded,
     ammoId
+  })
+}
+
+export function toggleKineticAura(actor: Ref<CharacterPF2e>): Promise<RequestResolutionArgs> {
+  return sendModuleRequest<ToggleKineticAuraArgs>({
+    action: TM.TOGGLE_KINETIC_AURA,
+    characterId: actor.value._id!
   })
 }
 

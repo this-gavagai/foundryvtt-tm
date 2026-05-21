@@ -194,7 +194,9 @@
     "loaded": "Loaded",
     "notLoaded": "Not loaded",
     "reload": "Reload",
-    "unload": "Unload"
+    "unload": "Unload",
+    "activateAura": "Channel Elements",
+    "deactivateAura": "End Aura"
   },
   "rollOptions": {
     "heading": "Character Options",

@@ -16,7 +16,7 @@ import { updateActorItem } from '@/api/documents'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import { kebabCase } from 'lodash-es'
 import { calcAttribute } from './calcAttributes'
-import { i18n } from '@/i18n'
+import { i18n } from '@/plugins/i18n'
 
 export interface IWR {
   type: Maybe<string>

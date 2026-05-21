@@ -7,7 +7,7 @@ import { storeToRefs } from 'pinia'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useWorldStore } from '@/stores/world'
 import { usePixelDiceStore } from '@/stores/pixelDice'
-import { availableLocales, setLocale } from '@/i18n'
+import { availableLocales, setLocale } from '@/plugins/i18n'
 
 import Dropdown from '@/components/widgets/DropdownWidget.vue'
 import RollOptions from '@/components/RollOptions.vue'

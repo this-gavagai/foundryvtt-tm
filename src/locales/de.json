@@ -194,7 +194,9 @@
     "loaded": "Geladen",
     "notLoaded": "Nicht geladen",
     "reload": "Nachladen",
-    "unload": "Entladen"
+    "unload": "Entladen",
+    "activateAura": "Elemente kanalisieren",
+    "deactivateAura": "Aura beenden"
   },
   "rollOptions": {
     "heading": "Charakteroptionen",

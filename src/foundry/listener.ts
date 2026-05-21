@@ -8,7 +8,8 @@ import type {
   GetStrikeDamageArgs,
   SendItemToChatArgs,
   CallMacroArgs,
-  SetWeaponLoadedArgs
+  SetWeaponLoadedArgs,
+  ToggleKineticAuraArgs
 } from '@/types/api-types'
 import {
   getCharacterDetails,
@@ -19,7 +20,8 @@ import {
   foundryGetStrikeDamage,
   foundrySendItemToChat,
   foundryCallMacro,
-  foundrySetWeaponLoaded
+  foundrySetWeaponLoaded,
+  foundryToggleKineticAura
 } from './actions'
 import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
@@ -126,6 +128,11 @@ export function setupListener() {
         break
       case TM.SET_WEAPON_LOADED:
         foundrySetWeaponLoaded(args as SetWeaponLoadedArgs).then((result) =>
+          game.socket.emit(TM.CHANNEL, result)
+        )
+        break
+      case TM.TOGGLE_KINETIC_AURA:
+        foundryToggleKineticAura(args as ToggleKineticAuraArgs).then((result) =>
           game.socket.emit(TM.CHANNEL, result)
         )
         break

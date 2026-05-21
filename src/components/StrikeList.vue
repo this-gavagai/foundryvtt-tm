@@ -42,7 +42,8 @@ interface EmitOptions {
 }
 
 const character = useInjectedCharacter()
-const { strikes, blasts, inventory, actions, blastActions } = character
+const { strikes, blasts, inventory, actions, blastActions, kineticAuraActive, toggleKineticAura } =
+  character
 
 const strikeModal = ref()
 const strikeModalDamage = ref()
@@ -259,7 +260,20 @@ watch([strikes, blasts], () => {
     <div class="break-inside-avoid px-6 py-4 [&:not(:has(li))]:hidden">
       <div class="break-inside-avoid [&:not(:has(li))]:hidden">
         <h3 class="text-lg underline">{{ $t('strikes.elementalBlastsHeading') }}</h3>
-        <ul>
+        <Button
+          v-if="isListening"
+          class="mt-1 mb-2"
+          :color="kineticAuraActive ? 'lightgray' : 'blue'"
+          :clicked="toggleKineticAura"
+        >
+          <ActionIcons
+            v-if="!kineticAuraActive"
+            actions="1"
+            class="relative float-left mt-0.75 h-0 pr-2 text-lg leading-none"
+          />
+          {{ kineticAuraActive ? $t('strikes.deactivateAura') : $t('strikes.activateAura') }}
+        </Button>
+        <ul :class="{ 'pointer-events-none opacity-40': !kineticAuraActive }">
           <li v-for="(blast, i) in blasts" class="cursor-pointer pb-2" :key="blast.blastElement">
             <div v-for="attackType in ['melee', 'ranged']" :key="'at_' + attackType">
               <StrikeActionSet
