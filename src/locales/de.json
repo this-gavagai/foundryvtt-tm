@@ -175,7 +175,9 @@
     "selectSpell": "Zauber auswählen",
     "basic": "einfach",
     "ac": "RK",
-    "cast": "Wirken"
+    "cast": "Wirken",
+    "spellAttack": "Zauberangriff",
+    "rollSpellAttack": "Zauberangriff würfeln"
   },
   "strikes": {
     "elementalBlastsHeading": "Elementarstöße",

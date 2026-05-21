@@ -4,6 +4,7 @@ import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/ab
 import type { Item, ItemSystem } from './item'
 import { makeItem } from './item'
 import type { RequestResolutionArgs } from '@/types/api-types'
+import type { Modifier } from './modifier'
 
 export interface Spell extends Item {
   system: SpellSystem
@@ -23,6 +24,9 @@ export interface SpellSystem extends ItemSystem {
 
 export interface SpellcastingEntry extends Item {
   system: SpellcastingEntrySystem
+  spellAttackModifier?: Maybe<number>
+  spellAttackModifiers?: Modifier[]
+  doSpellAttack?: (result?: number) => Promise<RequestResolutionArgs>
   setPrepared?: (
     rank: number | undefined,
     slot: number | undefined,
@@ -95,6 +99,6 @@ export function makeSpellcastingEntry(root: SpellcastingEntryPF2e): Spellcasting
         flexible: root.system.prepared?.flexible
       },
       slots
-    }
+    },
   } as SpellcastingEntry
 }

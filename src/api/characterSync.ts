@@ -64,7 +64,8 @@ export function parseActorData(
     proficiencyLabels: args.proficiencyLabels,
     elementalBlasts: (args.elementalBlasts ?? undefined) as TablemateCharacter['elementalBlasts'],
     inventory: args.inventory as TablemateCharacter['inventory'],
-    activeRules: args.activeRules
+    activeRules: args.activeRules,
+    spellcastingModifiers: args.spellcastingModifiers as TablemateCharacter['spellcastingModifiers']
   }
 
   mergeWith(actor.value, incoming, mergeWithArrayReset)

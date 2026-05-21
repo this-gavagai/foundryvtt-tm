@@ -175,7 +175,9 @@
     "selectSpell": "Select a spell",
     "basic": "basic",
     "ac": "AC",
-    "cast": "Cast"
+    "cast": "Cast",
+    "spellAttack": "Spell Attack",
+    "rollSpellAttack": "Roll Spell Attack"
   },
   "strikes": {
     "elementalBlastsHeading": "Elemental Blasts",

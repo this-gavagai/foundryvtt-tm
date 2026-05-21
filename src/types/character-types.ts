@@ -8,10 +8,16 @@ import type { CharacterPF2e, ElementalBlast as PF2eElementalBlast } from '@7h3la
 //   - inventory.labels: a precomputed name lookup for items + subitems
 // These don't exist on CharacterPF2e from the upstream type package, so we extend it here.
 
+export type SpellcastingModifierData = {
+  mod: number
+  modifiers: { slug?: string | null; label?: string | null; modifier?: number | null; enabled?: boolean | null; hideIfDisabled?: boolean | null }[]
+}
+
 export type TablemateCharacter = CharacterPF2e & {
   activeRules?: string[]
   elementalBlasts?: PF2eElementalBlast
   languages?: string[]
   proficiencyLabels?: Record<string, string>
+  spellcastingModifiers?: Record<string, SpellcastingModifierData>
   inventory: CharacterPF2e['inventory'] & { labels?: Record<string, string | undefined> }
 }

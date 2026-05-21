@@ -140,6 +140,22 @@ export async function getCharacterDetails(
     (slug: string) => (langKeys[slug] ? game.i18n.localize(langKeys[slug]) : slug)
   )
   const proficiencyLabels = localizeProficiencyLabels((actor as CharacterPF2e).system)
+  type SpellcastingStatistic = { mod?: number; check?: { modifiers?: StatisticModifier[] } }
+  const spellcastingModifiers: Record<string, object> = {}
+  for (const item of actor.items as ItemPF2e[]) {
+    if (item.type !== 'spellcastingEntry') continue
+    const stat = (item as unknown as { statistic?: SpellcastingStatistic }).statistic
+    spellcastingModifiers[item._id ?? ''] = {
+      mod: stat?.mod ?? 0,
+      modifiers: (stat?.check?.modifiers ?? []).map((m: StatisticModifier) => ({
+        slug: m.slug,
+        label: m.label,
+        modifier: m.modifier,
+        enabled: m.enabled,
+        hideIfDisabled: m.hideIfDisabled
+      }))
+    }
+  }
   logger.debug('TABLEMATE: now sending ' + actor.name)
   return {
     action: TM.UPDATE_CHARACTER,
@@ -151,6 +167,7 @@ export async function getCharacterDetails(
     inventory,
     activeRules: [...activeRules],
     elementalBlasts: cleanBlasts,
+    spellcastingModifiers,
     uuid: args.uuid,
     userId: game.user._id ?? ''
   }
@@ -172,7 +189,7 @@ export async function foundryRollCheck(args: RollCheckArgs) {
     args.targets?.map((t: string) => source.scenes.active.tokens.get(t))[0] ?? null
   const params = {
     modifiers: modifiers,
-    target: ['strike', 'damage', 'blast', 'blastDamage'].includes(args.checkType)
+    target: ['strike', 'damage', 'blast', 'blastDamage', 'spellAttack'].includes(args.checkType)
       ? targetTokenDoc?.object
       : null,
     skipDialog: true,
@@ -249,6 +266,10 @@ export async function foundryRollCheck(args: RollCheckArgs) {
     }
     case 'initiative': {
       roll = actor.initiative.roll(params)
+      break
+    }
+    case 'spellAttack': {
+      roll = actor.spellcasting.get(args.checkSubtype).statistic.check.roll({ ...args.options, ...params })
       break
     }
     case 'flat': {

@@ -3,7 +3,9 @@ import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, Maybe } from './helpers'
 import { type Spell, type SpellcastingEntry, makeSpell, makeSpellcastingEntry } from './defs/spell'
 import { type Consumable, makeConsumable } from './defs/consumable'
-import { castSpell, consumeItem } from '@/api/actions'
+import { castSpell, consumeItem, rollCheck } from '@/api/actions'
+import { makeModifiers } from './defs/modifier'
+import type { RawModifier } from '@7h3laughingman/pf2e-types'
 import { updateActor, updateActorItem } from '@/api/documents'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type {
@@ -48,6 +50,12 @@ export function useCharacterSpells(actor: Ref<CharacterPF2e | undefined>): Chara
       ?.filter((i): i is SpellcastingEntryPF2e<CharacterPF2e> => i?.type === 'spellcastingEntry')
       ?.map((item) => ({
         ...makeSpellcastingEntry(item),
+        spellAttackModifier: actor.value?.spellcastingModifiers?.[item._id ?? '']?.mod,
+        spellAttackModifiers: makeModifiers(
+          actor.value?.spellcastingModifiers?.[item._id ?? '']?.modifiers as RawModifier[] | undefined
+        ),
+        doSpellAttack: (result?: number) =>
+          rollCheck(actor as Ref<CharacterPF2e>, 'spellAttack', item._id ?? '', { d20: [result ?? 0] }),
         setPrepared: (
           rank: number | undefined,
           slot: number | undefined,

@@ -5,6 +5,8 @@ import { computed, ref } from 'vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
+import { SignedNumber } from '@/utils/utilities'
+import type { Modifier } from '@/composables/character'
 
 import Button from '@/components/widgets/ButtonWidget.vue'
 import CounterWidget from '@/components/widgets/CounterWidget.vue'
@@ -36,10 +38,13 @@ const spellSelectionModal = ref()
 
 const viewedSpell = ref<Spell | undefined>()
 const viewedConsumable = ref<Consumable | undefined>()
+const viewedEntry = ref<SpellcastingEntry | undefined>()
 const viewedItem = computed(() => viewedSpell.value ?? viewedConsumable.value)
+const viewedModalItem = computed(() => viewedItem.value ?? viewedEntry.value)
 const viewedSpellInfo = ref<SpellInfo | undefined>()
 
 function openSpellModal(id: string | undefined, info: SpellInfo) {
+  viewedEntry.value = undefined
   if (info.isConsumable) {
     viewedConsumable.value = spellConsumables.value?.find((i) => i._id === id)
     viewedSpell.value = undefined
@@ -49,6 +54,21 @@ function openSpellModal(id: string | undefined, info: SpellInfo) {
   }
   viewedSpellInfo.value = info
   infoModal.value.open()
+}
+
+function openEntryModal(entry: SpellcastingEntry) {
+  viewedEntry.value = entry
+  viewedSpell.value = undefined
+  viewedConsumable.value = undefined
+  viewedSpellInfo.value = undefined
+  infoModal.value.open()
+}
+
+function rollEntrySpellAttack() {
+  return viewedEntry.value?.doSpellAttack?.()?.then((r) => {
+    infoModal.value?.close()
+    infoModal.value?.rollResultModal?.open(r)
+  })
 }
 
 function clearPreparedSpell() {
@@ -166,7 +186,7 @@ const spellbook = computed((): Spellbook => {
       >
         <h3 class="flex justify-between px-4 py-2 align-bottom">
           <span>
-            <span class="text-xl">
+            <span class="cursor-pointer text-xl" @click="openEntryModal(location)">
               {{ location.name }}
             </span>
             <span v-if="location.system.spelldc.dc || spellDC" class="text-xs">
@@ -361,55 +381,87 @@ const spellbook = computed((): Spellbook => {
     <Teleport to="#modals">
       <InfoModal
         ref="infoModal"
-        :itemId="viewedItem?._id"
-        :imageUrl="viewedItem?.img"
-        :traits="viewedItem?.system?.traits?.value"
+        :itemId="viewedModalItem?._id"
+        :imageUrl="viewedModalItem?.img"
+        :traits="viewedEntry && !viewedItem ? [] : viewedItem?.system?.traits?.value"
       >
         <template #title>
-          {{ viewedItem?.name }}
+          {{ viewedModalItem?.name }}
           <ActionIcons
+            v-if="viewedSpell"
             class="relative -mt-[.5rem] pl-1 text-2xl leading-4"
             :actions="viewedSpell?.system?.time?.value"
           />
         </template>
         <template #description>
-          {{
-            viewedItem?.system.traits?.value?.includes('cantrip')
-              ? `Cantrip`
-              : `Rank ${viewedItem?.system.level?.value}`
-          }}
-          <span class="text-sm capitalize">{{ viewedItem?.system.traits.rarity }}</span>
+          <template v-if="viewedEntry && !viewedItem">
+            <span v-if="viewedEntry.spellAttackModifier != null">
+              {{ $t('spells.spellAttack') }}
+              {{ viewedEntry.spellAttackModifier >= 0 ? '+' : '' }}{{ viewedEntry.spellAttackModifier }}
+            </span>
+          </template>
+          <template v-else>
+            {{
+              viewedItem?.system.traits?.value?.includes('cantrip')
+                ? `Cantrip`
+                : `Rank ${viewedItem?.system.level?.value}`
+            }}
+            <span class="text-sm capitalize">{{ viewedItem?.system.traits.rarity }}</span>
+          </template>
         </template>
         <template #body>
-          <div class="flex gap-2 empty:hidden">
-            <div v-if="viewedSpell?.system?.range">
-              <span class="font-bold">Range:</span> {{ viewedSpell?.system?.range }}
+          <template v-if="viewedEntry && !viewedItem">
+            <ul>
+              <li
+                v-for="mod in (viewedEntry.spellAttackModifiers ?? []).filter(
+                  (m: Modifier) => m.enabled || !m.hideIfDisabled
+                )"
+                class="flex gap-2"
+                :class="{ 'text-gray-300': !mod.enabled }"
+                :key="'mod_' + mod.slug"
+              >
+                <div class="w-8 text-right">{{ SignedNumber.format(mod.modifier ?? 0) }}</div>
+                <div class="overflow-hidden text-ellipsis whitespace-nowrap">{{ mod.label }}</div>
+              </li>
+            </ul>
+          </template>
+          <template v-else-if="!viewedEntry || viewedItem">
+            <div class="flex gap-2 empty:hidden">
+              <div v-if="viewedSpell?.system?.range">
+                <span class="font-bold">Range:</span> {{ viewedSpell?.system?.range }}
+              </div>
+              <div v-if="viewedSpell?.system?.area?.value && viewedSpell?.system?.area?.type">
+                <span class="font-bold">Area:</span> {{ viewedSpell?.system?.area?.value }}-foot
+                {{ viewedSpell?.system?.area?.type }}
+              </div>
+              <div v-if="viewedSpell?.system?.target">
+                <span class="font-bold">Target:</span> {{ viewedSpell?.system?.target }}
+              </div>
             </div>
-            <div v-if="viewedSpell?.system?.area?.value && viewedSpell?.system?.area?.type">
-              <span class="font-bold">Area:</span> {{ viewedSpell?.system?.area?.value }}-foot
-              {{ viewedSpell?.system?.area?.type }}
+            <div class="flex [&:not(:has(span))]:hidden">
+              <label class="font-bold">Defense:&nbsp;</label>
+              <span v-if="viewedSpell?.system?.defense?.save?.statistic">
+                <span v-if="viewedSpell?.system?.defense?.save?.basic">{{ $t('spells.basic') }}&nbsp;</span>
+                <span class="capitalize">{{ viewedSpell?.system?.defense?.save?.statistic }}</span>
+              </span>
+              <span v-if="viewedSpell?.system?.traits?.value?.includes('attack')">{{ $t('spells.ac') }}</span>
             </div>
-            <div v-if="viewedSpell?.system?.target">
-              <span class="font-bold">Target:</span> {{ viewedSpell?.system?.target }}
+            <div v-if="viewedSpellInfo?.isConsumable">
+              <h4 class="text-xl">{{ $t('spells.spellDetails') }}</h4>
+              <ParsedDescription :text="viewedConsumable?.system.spell.system.description?.value" />
+              <hr />
+              <h4 class="pt-1 text-xl">{{ $t('spells.wandDetails') }}</h4>
             </div>
-          </div>
-          <div class="flex [&:not(:has(span))]:hidden">
-            <label class="font-bold">Defense:&nbsp;</label>
-            <span v-if="viewedSpell?.system?.defense?.save?.statistic">
-              <span v-if="viewedSpell?.system?.defense?.save?.basic">{{ $t('spells.basic') }}&nbsp;</span>
-              <span class="capitalize">{{ viewedSpell?.system?.defense?.save?.statistic }}</span>
-            </span>
-            <span v-if="viewedSpell?.system?.traits?.value?.includes('attack')">{{ $t('spells.ac') }}</span>
-          </div>
-          <div v-if="viewedSpellInfo?.isConsumable">
-            <h4 class="text-xl">{{ $t('spells.spellDetails') }}</h4>
-            <ParsedDescription :text="viewedConsumable?.system.spell.system.description?.value" />
-            <hr />
-            <h4 class="pt-1 text-xl">{{ $t('spells.wandDetails') }}</h4>
-          </div>
-          <ParsedDescription :text="viewedItem?.system.description?.value" />
+            <ParsedDescription :text="viewedItem?.system.description?.value" />
+          </template>
         </template>
         <template #actionButtons v-if="isListening">
+          <Button
+            v-if="viewedEntry && !viewedItem && viewedEntry.doSpellAttack"
+            :label="$t('spells.rollSpellAttack')"
+            color="blue"
+            :clicked="rollEntrySpellAttack"
+          />
           <Button
             :label="$t('common.remove')"
             color="red"
@@ -419,7 +471,7 @@ const spellbook = computed((): Spellbook => {
           <Button
             :label="$t('spells.cast')"
             color="blue"
-            v-if="!viewedSpellInfo?.isConsumable && !viewedSpellInfo?.fromStaff"
+            v-if="!viewedSpellInfo?.isConsumable && !viewedSpellInfo?.fromStaff && viewedItem"
             :clicked="castViewedSpell"
           />
           <Button
