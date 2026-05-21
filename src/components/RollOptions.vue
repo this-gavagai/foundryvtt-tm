@@ -58,7 +58,7 @@ const { rollOptions } = character
           :selectedId="
             rollOption.suboptions.find((s) => s.value === rollOption.selection)?.value ?? '0'
           "
-          @change="(newId: any) => rollOption.updateRule(null, newId.id)"
+          @change="(newId: string) => rollOption.updateRule(null, newId)"
         />
       </li>
     </ul>

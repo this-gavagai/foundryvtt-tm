@@ -82,10 +82,12 @@ export function useCharacterRules(actor: Ref<TablemateCharacter | undefined>): C
           const rollOption = rollOptions.get(rule.option ?? '')
           rule.suboptions?.forEach((s) => {
             const labels = actor.value?.rollOptionLabels
-            rollOption?.suboptions.push({
-              label: (s.label ? labels?.[s.label] : undefined) ?? s.label,
-              value: s.value
-            })
+            const label = s.label
+              ? s.label.includes('{item|')
+                ? s.label.replace(/\{item\|name\}/g, item.name ?? s.label)
+                : labels?.[s.label] ?? s.label
+              : undefined
+            rollOption?.suboptions.push({ label, value: s.value })
           })
         }
       })
