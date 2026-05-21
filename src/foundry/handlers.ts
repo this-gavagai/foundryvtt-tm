@@ -4,13 +4,17 @@ import type {
   ItemPF2e,
   PhysicalItemPF2e,
   WeaponPF2e,
-  StatisticModifier,
   RawModifier,
   RollOptionRuleElement,
   GamePF2e,
   MacroPF2e,
   EffectTrait,
-  DamageType
+  DamageType,
+  StatisticRollParameters,
+  SpellPF2e,
+  ConsumablePF2e,
+  SpellcastingEntryPF2e,
+  ActionUseOptions
 } from '@7h3laughingman/pf2e-types'
 import type {
   RollCheckArgs,
@@ -22,9 +26,9 @@ import type {
   SendItemToChatArgs,
   CallMacroArgs,
   SetWeaponLoadedArgs,
-  ToggleKineticAuraArgs
+  ToggleKineticAuraArgs,
+  UpdateCharacterDetailsArgs
 } from '@/types/api-types'
-import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import { useBackgroundRoll } from './backgroundRoll'
 import { logger } from '@/utils/utilities'
 import { TM } from '@/api/protocol'
@@ -33,6 +37,33 @@ import { inventoryTypes } from '@/utils/constants'
 declare const game: GamePF2e
 declare const Macro: typeof MacroPF2e
 declare function fromUuidSync(uuid: string): MacroPF2e
+
+type StrikeRollFn = (opts: object) => Promise<unknown>
+type StrikeActionRuntime = {
+  slug: string
+  item: { dealsDamage: boolean } | null
+  altUsages?: StrikeActionRuntime[]
+  variants: { label: string; roll: StrikeRollFn }[]
+  damage: StrikeRollFn
+  critical: StrikeRollFn
+}
+type SaveKey = 'fortitude' | 'reflex' | 'will'
+
+function getGame(): GamePF2e {
+  return (typeof window.game === 'undefined' ? parent.game : window.game) as GamePF2e
+}
+
+function getCharacter(source: GamePF2e, id: string): CharacterPF2e {
+  return source.actors.get(id, { strict: true }) as unknown as CharacterPF2e
+}
+
+function makeAck(args: { uuid: string }) {
+  return { action: TM.ACK, uuid: args.uuid, userId: game.user._id }
+}
+
+function makeFakeEvent(source: GamePF2e) {
+  return { ctrlKey: false, metaKey: false, shiftKey: source.user.settings['showDamageDialogs'] }
+}
 
 function blastReplacer(key: string, element: ActorPF2e | ItemPF2e) {
   if (key === 'actor') return undefined
@@ -99,8 +130,8 @@ function localizeProficiencyLabels(system: CharacterPF2e['system']): Record<stri
 export async function getCharacterDetails(
   args: RequestCharacterDetailsArgs
 ): Promise<UpdateCharacterDetailsArgs> {
-  const source = typeof window.game === 'undefined' ? parent.game : window.game
-  const actor = source.actors.find((x: ActorPF2e) => x._id === args.actorId)
+  const source = getGame()
+  const actor = getCharacter(source, args.actorId)
   const elementalBlasts =
     actor.type !== 'party' ? { ...new game.pf2e.ElementalBlast(actor), actor: actor } : null
   const bulk = actor.inventory.bulk
@@ -113,7 +144,7 @@ export async function getCharacterDetails(
       maxBreakdown: bulk.maxBreakdown,
       value: { value: bulk.value.value, light: bulk.value.light, normal: bulk.value.normal }
     },
-    labels: actor.items.reduce((acc: Record<string, string | undefined>, i: ItemPF2e) => {
+    labels: [...actor.items].reduce((acc: Record<string, string | undefined>, i: ItemPF2e) => {
       if (inventoryTypes.some((t) => t.type === i.type)) {
         acc[i._id ?? ''] = i.name
         ;(i as PhysicalItemPF2e)?.subitems?.forEach((s: ItemPF2e) => (acc[s._id ?? ''] = s.name))
@@ -122,8 +153,9 @@ export async function getCharacterDetails(
     }, {})
   }
   const activeRules = new Set<string>()
-  actor.rules.forEach((r: RollOptionRuleElement) => {
-    if (r.option && r.predicate.test([])) activeRules.add(r.option)
+  actor.rules.forEach((r) => {
+    const ro = r as RollOptionRuleElement
+    if (ro.option && ro.predicate.test([])) activeRules.add(ro.option)
   }, [])
   // elementalBlasts has a circular `actor` back-reference and pulls in entire
   // item objects; round-trip through blastReplacer once to flatten it into a
@@ -137,19 +169,21 @@ export async function getCharacterDetails(
   // CONFIG.PF2E.languages maps each slug to its i18n key (version-proof — the key
   // path has differed across PF2e releases); homebrew slugs fall back to the slug.
   const langKeys = CONFIG.PF2E.languages as Record<string, string>
-  const languages = ((actor as CharacterPF2e).system?.details?.languages?.value ?? []).map(
-    (slug: string) => (langKeys[slug] ? game.i18n.localize(langKeys[slug]) : slug)
+  const languages = (actor.system?.details?.languages?.value ?? []).map((slug: string) =>
+    langKeys[slug] ? game.i18n.localize(langKeys[slug]) : slug
   )
-  const proficiencyLabels = localizeProficiencyLabels((actor as CharacterPF2e).system)
+  const proficiencyLabels = localizeProficiencyLabels(actor.system)
   const rollOptionLabels: Record<string, string> = {}
   type StatWithLabel = { label?: string }
-  for (const [slug, skill] of Object.entries((actor as CharacterPF2e).system?.skills ?? {}))
-    if ((skill as StatWithLabel).label) rollOptionLabels[slug] = game.i18n.localize((skill as StatWithLabel).label!)
-  for (const [slug, save] of Object.entries((actor as CharacterPF2e).system?.saves ?? {}))
-    if ((save as StatWithLabel).label) rollOptionLabels[slug] = game.i18n.localize((save as StatWithLabel).label!)
-  const percLabel = ((actor as CharacterPF2e).system?.perception as StatWithLabel | undefined)?.label
+  for (const [slug, skill] of Object.entries(actor.system?.skills ?? {}))
+    if ((skill as StatWithLabel).label)
+      rollOptionLabels[slug] = game.i18n.localize((skill as StatWithLabel).label!)
+  for (const [slug, save] of Object.entries(actor.system?.saves ?? {}))
+    if ((save as StatWithLabel).label)
+      rollOptionLabels[slug] = game.i18n.localize((save as StatWithLabel).label!)
+  const percLabel = (actor.system?.perception as StatWithLabel | undefined)?.label
   if (percLabel) rollOptionLabels['perception'] = game.i18n.localize(percLabel)
-  for (const item of actor.items as ItemPF2e[]) {
+  for (const item of actor.items) {
     if (item.slug && item.name) rollOptionLabels[item.slug] = item.name
     type RuleWithLabel = { key?: string; label?: string; suboptions?: { label?: string }[] }
     for (const rule of (item.system.rules as RuleWithLabel[]) ?? []) {
@@ -162,9 +196,9 @@ export async function getCharacterDetails(
   }
   type SpellcastingStatistic = { mod?: number; check?: { modifiers?: RawModifier[] } }
   const spellcastingModifiers: Record<string, object> = {}
-  for (const item of actor.items as ItemPF2e[]) {
+  for (const item of actor.items) {
     if (item.type !== 'spellcastingEntry') continue
-    const stat = (item as unknown as { statistic?: SpellcastingStatistic }).statistic
+    const stat = (item as ItemPF2e<CharacterPF2e> & { statistic?: SpellcastingStatistic }).statistic
     spellcastingModifiers[item._id ?? ''] = {
       mod: stat?.mod ?? 0,
       modifiers: (stat?.check?.modifiers ?? []).map((m: RawModifier) => ({
@@ -179,7 +213,7 @@ export async function getCharacterDetails(
   logger.debug('TABLEMATE: now sending ' + actor.name)
   return {
     action: TM.UPDATE_CHARACTER,
-    actorId: actor._id,
+    actorId: actor._id ?? '',
     actor,
     system: actor.system,
     languages,
@@ -195,26 +229,21 @@ export async function getCharacterDetails(
 }
 
 export async function foundryRollCheck(args: RollCheckArgs) {
-  const source = typeof window.game === 'undefined' ? parent.game : window.game
-  const fakeEvent: Partial<PointerEvent> = {
-    ctrlKey: false,
-    metaKey: false,
-    shiftKey: source.user.settings['showDamageDialogs']
-  }
+  const source = getGame()
   //https://github.com/foundryvtt/pf2e/blob/68988e12fbec7ea8359b9bee9b0c43eb6964ca3f/src/module/system/statistic/statistic.ts#L617
-  const actor = source.actors.get(args.characterId, { strict: true })
+  const actor = getCharacter(source, args.characterId)
   const modifiers = args.modifiers.map((m) => {
     return new source.pf2e.Modifier(m)
   })
   const targetTokenDoc =
-    args.targets?.map((t: string) => source.scenes.active.tokens.get(t))[0] ?? null
+    args.targets?.map((t: string) => source.scenes.active?.tokens.get(t))[0] ?? null
   const params = {
     modifiers: modifiers,
     target: ['strike', 'damage', 'blast', 'blastDamage', 'spellAttack'].includes(args.checkType)
       ? targetTokenDoc?.object
       : null,
     skipDialog: true,
-    event: fakeEvent as PointerEvent,
+    event: makeFakeEvent(source) as PointerEvent,
     identifier: 'tm_background'
   }
 
@@ -225,28 +254,23 @@ export async function foundryRollCheck(args: RollCheckArgs) {
     case 'strike': {
       const [actionSlug, variant, altUsage] = args.checkSubtype.split(',')
       logger.debug("here's some stuff", args.checkSubtype, altUsage, altUsage?.length)
-      if (altUsage?.length)
-        roll = actor.system.actions
-          .find((a: StatisticModifier) => a.slug === actionSlug)
-          .altUsages[altUsage].variants[variant].roll(params)
-      else
-        roll = actor.system.actions
-          .find((a: StatisticModifier) => a.slug === actionSlug)
-          .variants[variant].roll(params)
-
+      const baseStrike = actor.system.actions.find((a) => a.slug === actionSlug) as
+        | StrikeActionRuntime
+        | undefined
+      const strikeTarget = altUsage?.length ? baseStrike?.altUsages?.[Number(altUsage)] : baseStrike
+      roll = strikeTarget?.variants[Number(variant)]?.roll(params)
       break
     }
     case 'damage': {
       logger.debug('TM-params', params)
       const [damageSlug, damageDegree, damageAltUsage] = args.checkSubtype.split(',')
-      if (damageAltUsage?.length)
-        roll = actor.system.actions
-          .find((a: StatisticModifier) => a.slug === damageSlug)
-          .altUsages[Number(damageAltUsage)][damageDegree](params)
-      else
-        roll = actor.system.actions
-          .find((a: StatisticModifier) => a.slug === damageSlug)
-          [damageDegree](params)
+      const baseDmgStrike = actor.system.actions.find((a) => a.slug === damageSlug) as
+        | StrikeActionRuntime
+        | undefined
+      const dmgTarget = damageAltUsage?.length
+        ? baseDmgStrike?.altUsages?.[Number(damageAltUsage)]
+        : baseDmgStrike
+      roll = damageDegree === 'critical' ? dmgTarget?.critical(params) : dmgTarget?.damage(params)
       break
     }
     case 'blast': {
@@ -274,23 +298,31 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       break
     }
     case 'skill': {
-      roll = actor.skills[args.checkSubtype].check.roll({ ...args.options, ...params })
+      roll = actor.skills[args.checkSubtype].check.roll({
+        ...args.options,
+        ...params
+      } as StatisticRollParameters)
       break
     }
     case 'save': {
-      roll = actor.saves[args.checkSubtype].check.roll({ ...args.options, ...params })
+      roll = actor.saves[args.checkSubtype as SaveKey].check.roll({
+        ...args.options,
+        ...params
+      } as StatisticRollParameters)
       break
     }
     case 'perception': {
-      roll = actor.perception.check.roll(params)
+      roll = actor.perception.check.roll(params as StatisticRollParameters)
       break
     }
     case 'initiative': {
-      roll = actor.initiative.roll(params)
+      roll = actor.initiative.roll(params as StatisticRollParameters)
       break
     }
     case 'spellAttack': {
-      roll = actor.spellcasting.get(args.checkSubtype).statistic.check.roll({ ...args.options, ...params })
+      roll = actor.spellcasting
+        .get(args.checkSubtype)
+        ?.statistic?.check.roll({ ...args.options, ...params } as StatisticRollParameters)
       break
     }
     case 'flat': {
@@ -307,77 +339,84 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       break
     }
   }
-  const r = await roll
+  type RollResult = {
+    formula?: unknown
+    result?: unknown
+    total?: unknown
+    dice?: unknown
+    roll?: { formula?: unknown; result?: unknown; total?: unknown; dice?: unknown }
+    [n: number]: { message?: { whisper?: string[] } } | undefined
+  }
+  const rRaw = await roll
   unregisterBackgroundRoll()
+  if (!rRaw) return {}
+  const r = rRaw as RollResult
 
-  if (!r) return {}
   if (r.hasOwnProperty('roll')) logger.debug('this one has a weird property') // trying to figure out where this is necessary; don't remember
-  const actualRoll = r.hasOwnProperty('roll') ? r.roll : r
+  const actualRoll = r.roll ?? r
 
   const isSecret =
-    r?.[0]?.message?.whisper?.length === 0 && !r?.[0]?.message?.whisper?.includes(args.userId)
+    r[0]?.message?.whisper?.length === 0 && !r[0]?.message?.whisper?.includes(args.userId)
   const { formula, result, total, dice } = actualRoll
-  return {
-    action: TM.ACK,
-    uuid: args.uuid,
-    userId: game.user._id,
-    roll: { formula, result, total, dice, isSecret }
-  }
+  return { ...makeAck(args), roll: { formula, result, total, dice, isSecret } }
 }
 
 export async function foundryCharacterAction(args: CharacterActionArgs) {
-  const source = typeof window.game === 'undefined' ? parent.game : window.game
-  const fakeEvent = {
-    ctrlKey: false,
-    metaKey: false,
-    shiftKey: source.user.settings['showDamageDialogs']
-  }
+  const source = getGame()
   const actor = source.actors.get(args.characterId, { strict: true })
   const targetTokenDoc =
-    args.targets.map((t: string) => source.scenes.active.tokens.get(t))[0] ?? null
+    args.targets.map((t: string) => source.scenes.active?.tokens.get(t))[0] ?? null
   // tricky code: https://github.com/foundryvtt/pf2e/blob/2eaef272f3e17f340eba1b7f2dc82e857d8d296e/src/module/actor/actions/single-check.ts#L160
   const params = {
     ...args.options,
     actors: actor,
     target: targetTokenDoc?.object,
-    event: fakeEvent
+    event: makeFakeEvent(source)
   }
 
   const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll(args.diceResults)
   registerBackgroundRoll()
 
-  const promise = source.pf2e.actions.get(args.characterAction)?.use(params)
-  const r = await promise
+  const promise = source.pf2e.actions
+    .get(args.characterAction)
+    ?.use(params as unknown as Partial<ActionUseOptions>)
+  type ActionResult = {
+    message?: { whisper?: string[] }
+    roll?: { formula: unknown; result: unknown; total: unknown; dice: unknown }
+  }
+  const r = (await promise) as ActionResult[] | undefined
   logger.debug(r, promise, args.characterAction)
   const isSecret =
-    r?.[0]?.message?.whisper?.length > 0 && !r?.[0]?.message?.whisper?.includes(args.userId)
-  const { formula, result, total, dice } = r?.[0]?.roll
+    (r?.[0]?.message?.whisper?.length ?? 0) > 0 && !r?.[0]?.message?.whisper?.includes(args.userId)
+  const { formula, result, total, dice } = r?.[0]?.roll ?? {}
   unregisterBackgroundRoll()
-  return {
-    action: TM.ACK,
-    uuid: args.uuid,
-    userId: game.user._id,
-    roll: { formula, result, total, dice, isSecret }
-  }
+  return { ...makeAck(args), roll: { formula, result, total, dice, isSecret } }
 }
 
 export async function foundryCastSpell(args: CastSpellArgs) {
   logger.debug('cast spell', args)
-  const source = typeof window.game === 'undefined' ? parent.game : window.game
+  const source = getGame()
   const actor = source.actors.get(args.characterId, { strict: true })
-  const item = actor.items.get(args.id, { strict: true })
-  const spellLocation = actor.items.get(item.system.location.value)
-
-  spellLocation.cast(item, { rank: args.rank, slotId: args.slotId })
-  return { action: TM.ACK, uuid: args.uuid, userId: game.user._id }
+  const item = actor.items.get(args.id, { strict: true }) as SpellPF2e<ActorPF2e<null>>
+  const locationId = item.system.location.value
+  const spellLocation = locationId
+    ? (actor.items.get(locationId) as SpellcastingEntryPF2e<ActorPF2e<null>>)
+    : undefined
+  await spellLocation?.cast(item, {
+    rank: args.rank as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10,
+    slotId: args.slotId
+  })
+  return makeAck(args)
 }
 
 export async function foundryConsumeItem(args: ConsumeItemArgs) {
-  const source = typeof window.game === 'undefined' ? parent.game : window.game
+  const source = getGame()
   const actor = source.actors.get(args.characterId, { strict: true })
-  const item = actor.items.get(args.consumableId, { strict: true })
+  const item = actor.items.get(args.consumableId, { strict: true }) as ConsumablePF2e<
+    ActorPF2e<null>
+  >
   item.consume()
-  return { action: TM.ACK, uuid: args.uuid, userId: game.user._id }
+  return makeAck(args)
 }
 
 // Load/unload a weapon using PF2e's native mechanism: loaded ammo lives in the
@@ -387,8 +426,8 @@ const KINETIC_AURA_EFFECT_UUID = 'Compendium.pf2e.feat-effects.Item.pLurcSPQb2gj
 const KINETIC_AURA_DEFAULT_RADIUS = 10
 
 export async function foundryToggleKineticAura(args: ToggleKineticAuraArgs) {
-  const source = typeof window.game === 'undefined' ? parent.game : window.game
-  const ack = { action: TM.ACK, uuid: args.uuid, userId: game.user._id }
+  const source = getGame()
+  const ack = makeAck(args)
   const actor = source.actors.get(args.characterId, { strict: true })
   const existingAura = actor.items.find((i: ItemPF2e) => i.slug === 'effect-kinetic-aura')
   if (existingAura) {
@@ -410,11 +449,11 @@ export async function foundryToggleKineticAura(args: ToggleKineticAuraArgs) {
 
 // weapon's selected ammo; unloading detaches whatever is currently loaded.
 export async function foundrySetWeaponLoaded(args: SetWeaponLoadedArgs) {
-  const source = typeof window.game === 'undefined' ? parent.game : window.game
-  const ack = { action: TM.ACK, uuid: args.uuid, userId: game.user._id }
+  const source = getGame()
+  const ack = makeAck(args)
 
   const actor = source.actors.get(args.characterId, { strict: true })
-  const weapon = actor.items.get(args.weaponId, { strict: true }) as WeaponPF2e<CharacterPF2e>
+  const weapon = actor.items.get(args.weaponId, { strict: true }) as WeaponPF2e<ActorPF2e<null>>
   const loadedAmmo = weapon.subitems.filter(
     (i: PhysicalItemPF2e) =>
       i.isOfType('ammo') || (i.isOfType('weapon') && (i as WeaponPF2e).isAmmoFor(weapon))
@@ -439,7 +478,7 @@ export async function foundrySendItemToChat(args: SendItemToChatArgs) {
   const item = actor?.items?.get(args.itemId)
 
   if (item) item.toChat()
-  return { action: TM.ACK, uuid: args.uuid, userId: game.user._id }
+  return makeAck(args)
 }
 
 export async function foundryCallMacro(args: CallMacroArgs) {
@@ -464,81 +503,70 @@ export async function foundryCallMacro(args: CallMacroArgs) {
     temp_macro.execute({ actor })
   }
 
-  return { action: TM.ACK, uuid: args.uuid, userId: game.user._id }
+  return makeAck(args)
 }
 
 export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
-  const source = typeof window.game === 'undefined' ? parent.game : window.game
-  const actor = source.actors.find((x: ActorPF2e) => x._id === args.characterId)
+  const source = getGame()
+  const actor = getCharacter(source, args.characterId)
   const target =
-    args.targets.map((t: string) => source.scenes.active.tokens.get(t))?.[0]?.object ?? null
-
-  const fakeEvent = {
-    ctrlKey: false,
-    metaKey: false,
-    shiftKey: source.user.settings['showDamageDialogs']
-  }
-  const baseDamageOptions = {
-    getFormula: true,
-    target: target
-  }
-  const baseModifierOptions = {
-    context: { rollMode: 'blindroll' },
-    rollMode: 'blindroll',
-    createMessage: false,
-    skipDialog: true,
-    event: fakeEvent,
-    target: target
-  }
+    args.targets.map((t: string) => source.scenes.active?.tokens.get(t))?.[0]?.object ?? null
 
   const split = args.actionSlug.split(':')
   const isBlast = split[0] === 'blast'
   const actionString = isBlast ? split[1] : split[0]
 
-  const action = isBlast
-    ? new game.pf2e.ElementalBlast(actor)
-    : args.altUsage === undefined
-      ? actor.system.actions.find((a: StatisticModifier) => a.slug === actionString)
-      : actor.system.actions.find((a: StatisticModifier) => a.slug === actionString)?.altUsages[
-          args.altUsage
-        ]
-
-  const doesDmg = isBlast ? true : action.item.dealsDamage
-  const blastOptions = isBlast
-    ? {
-        element: actionString.split(',')[0],
-        damageType: actionString.split(',')[1],
-        melee: actionString.split(',')[2]
-      }
-    : {}
-
-  const damageOptions = isBlast ? { ...baseDamageOptions, ...blastOptions } : baseDamageOptions
-  const modifierOptions = isBlast
-    ? { ...baseModifierOptions, ...blastOptions }
-    : baseModifierOptions
-
   const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll()
   registerBackgroundRoll()
 
-  const damage = doesDmg ? action.damage(damageOptions) : null
-  const critical = isBlast
-    ? action.damage({ ...damageOptions, outcome: 'criticalSuccess' })
-    : doesDmg
-      ? action.critical(damageOptions)
-      : null
-  const modifiers = doesDmg && !isBlast ? action.damage(modifierOptions) : null
-  const results = await Promise.all([damage, critical, modifiers])
+  let damage: Promise<unknown> | null
+  let critical: Promise<unknown> | null
+  let modifiers: Promise<unknown> | null
 
+  if (isBlast) {
+    const [element, damageType, isMelee] = actionString.split(',')
+    const blast = new game.pf2e.ElementalBlast(actor)
+    type BlastParams = Parameters<typeof blast.damage>[0]
+    const blastBase: BlastParams = {
+      element: element as EffectTrait,
+      damageType: damageType as DamageType,
+      melee: isMelee === 'true',
+      getFormula: true,
+      target
+    }
+    damage = blast.damage(blastBase)
+    critical = blast.damage({ ...blastBase, outcome: 'criticalSuccess' })
+    modifiers = null
+  } else {
+    const baseDamageOptions = { getFormula: true, target }
+    const baseModifierOptions = {
+      context: { rollMode: 'blindroll' },
+      rollMode: 'blindroll',
+      createMessage: false,
+      skipDialog: true,
+      event: makeFakeEvent(source),
+      target
+    }
+    const baseStrike = actor.system.actions.find((a) => a.slug === actionString) as
+      | StrikeActionRuntime
+      | undefined
+    const strike = args.altUsage !== undefined ? baseStrike?.altUsages?.[args.altUsage] : baseStrike
+    const doesDmg = strike?.item?.dealsDamage ?? false
+    damage = doesDmg && strike ? strike.damage(baseDamageOptions) : null
+    critical = doesDmg && strike ? strike.critical(baseDamageOptions) : null
+    modifiers = doesDmg && strike ? strike.damage(baseModifierOptions) : null
+  }
+
+  const results = await Promise.all([damage, critical, modifiers])
   unregisterBackgroundRoll()
 
+  type DamageModifiers = { options?: { damage?: { modifiers?: unknown[] } } }
   return {
-    action: TM.ACK,
-    uuid: args.uuid,
-    userId: game.user._id,
+    ...makeAck(args),
     response: {
       damage: results[0],
       critical: results[1],
-      modifiers: results[2]?.options?.damage?.modifiers
+      modifiers: (results[2] as DamageModifiers | null)?.options?.damage?.modifiers
     }
   }
 }
