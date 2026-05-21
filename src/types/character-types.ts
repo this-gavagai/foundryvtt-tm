@@ -1,4 +1,4 @@
-import type { CharacterPF2e, ElementalBlast as PF2eElementalBlast } from '@7h3laughingman/pf2e-types'
+import type { CharacterPF2e, ElementalBlast as PF2eElementalBlast, RawModifier } from '@7h3laughingman/pf2e-types'
 
 // Tablemate enriches the raw Foundry actor with extra fields during parseActorData:
 //   - activeRules: rules that the actor's items have which are currently active
@@ -10,7 +10,7 @@ import type { CharacterPF2e, ElementalBlast as PF2eElementalBlast } from '@7h3la
 
 export type SpellcastingModifierData = {
   mod: number
-  modifiers: { slug?: string | null; label?: string | null; modifier?: number | null; enabled?: boolean | null; hideIfDisabled?: boolean | null }[]
+  modifiers: RawModifier[]
 }
 
 export type TablemateCharacter = CharacterPF2e & {

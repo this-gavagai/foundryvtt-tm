@@ -5,6 +5,7 @@ import type {
   PhysicalItemPF2e,
   WeaponPF2e,
   StatisticModifier,
+  RawModifier,
   RollOptionRuleElement,
   GamePF2e,
   MacroPF2e,
@@ -159,14 +160,14 @@ export async function getCharacterDetails(
       }
     }
   }
-  type SpellcastingStatistic = { mod?: number; check?: { modifiers?: StatisticModifier[] } }
+  type SpellcastingStatistic = { mod?: number; check?: { modifiers?: RawModifier[] } }
   const spellcastingModifiers: Record<string, object> = {}
   for (const item of actor.items as ItemPF2e[]) {
     if (item.type !== 'spellcastingEntry') continue
     const stat = (item as unknown as { statistic?: SpellcastingStatistic }).statistic
     spellcastingModifiers[item._id ?? ''] = {
       mod: stat?.mod ?? 0,
-      modifiers: (stat?.check?.modifiers ?? []).map((m: StatisticModifier) => ({
+      modifiers: (stat?.check?.modifiers ?? []).map((m: RawModifier) => ({
         slug: m.slug,
         label: m.label,
         modifier: m.modifier,

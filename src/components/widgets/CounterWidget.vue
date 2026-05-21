@@ -74,7 +74,7 @@ defineExpose({ click, close })
             </div>
           </div>
           <Button
-            :disabled="updating || (props.max && (props.value ?? 0) >= props.max)"
+            :disabled="updating || (props.max !== undefined && (props.value ?? 0) >= props.max)"
             @click="changeCount(+1)"
             color="unstyled"
           >
