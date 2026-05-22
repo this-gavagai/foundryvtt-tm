@@ -350,12 +350,16 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   if (!rRaw) return {}
   const r = rRaw as RollResult
 
-  if (r.hasOwnProperty('roll')) logger.debug('this one has a weird property') // trying to figure out where this is necessary; don't remember
-  const actualRoll = r.roll ?? r
+  // r[0] handles array-form results (e.g. strike variants); hasOwnProperty guards against
+  // the inherited Roll.prototype.roll() method being mistaken for a data wrapper.
+  const rollEl = (r as RollResult)[0] ?? r
+  const actualRoll = (
+    Object.prototype.hasOwnProperty.call(rollEl, 'roll') ? (rollEl as RollResult).roll : rollEl
+  ) as RollResult | undefined
 
   const isSecret =
-    r[0]?.message?.whisper?.length === 0 && !r[0]?.message?.whisper?.includes(args.userId)
-  const { formula, result, total, dice } = actualRoll
+    (r?.[0]?.message?.whisper?.length ?? 0) > 0 && !r?.[0]?.message?.whisper?.includes(args.userId)
+  const { formula, result, total, dice } = actualRoll ?? {}
   return { ...makeAck(args), roll: { formula, result, total, dice, isSecret } }
 }
 
