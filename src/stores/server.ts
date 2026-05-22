@@ -49,10 +49,11 @@ export const useServerStore = defineStore('server', () => {
   const needsLogin = ref(false)
   let serverUrl: URL | undefined
 
-  function getSocket(): Promise<Socket> {
-    return new Promise((resolve) => {
+  function getSocket(timeoutMs = 15_000): Promise<Socket> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Socket not available')), timeoutMs)
       ;(function waitForSocket() {
-        if (socket.value) return resolve(socket.value)
+        if (socket.value) { clearTimeout(timer); return resolve(socket.value) }
         setTimeout(waitForSocket, 100)
       })()
     })

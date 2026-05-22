@@ -18,7 +18,8 @@
     "userLabel": "User",
     "passwordLabel": "Password",
     "error": "Login failed — check your credentials.",
-    "couldNotLoadUsers": "Could not load user list. Refresh to retry.",
+    "couldNotLoadUsers": "Could not load user list.",
+    "retry": "Retry",
     "activeMarker": "(active)"
   },
   "app": {

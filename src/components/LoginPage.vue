@@ -28,25 +28,34 @@ function onUserActivity(userId: string, data: { active?: boolean }) {
   }
 }
 
-onMounted(async () => {
+async function loadUsers() {
+  loadingUsers.value = true
+  error.value = ''
   try {
     const data = await getJoinData()
     users.value = data.users
     activeUsers.value = data.activeUsers
     const firstAvailable = data.users.find((u) => !data.activeUsers.includes(u._id))
     if (firstAvailable) userid.value = firstAvailable._id
+    const socket = await getSocket()
+    socket.off('userActivity', onUserActivity)
+    socket.on('userActivity', onUserActivity)
   } catch {
     error.value = t('login.couldNotLoadUsers')
   } finally {
     loadingUsers.value = false
   }
-  const socket = await getSocket()
-  socket.on('userActivity', onUserActivity)
-})
+}
+
+onMounted(loadUsers)
 
 onUnmounted(async () => {
-  const socket = await getSocket()
-  socket.off('userActivity', onUserActivity)
+  try {
+    const socket = await getSocket(1_000)
+    socket.off('userActivity', onUserActivity)
+  } catch {
+    // socket never connected — nothing to clean up
+  }
 })
 
 async function handleLogin() {
@@ -105,7 +114,10 @@ async function handleLogin() {
       >
         {{ submitting ? $t('login.signingIn') : $t('login.signIn') }}
       </button>
-      <div v-if="error" class="text-sm text-red-600">{{ error }}</div>
+      <div v-if="error" class="flex items-center justify-between gap-2 text-sm text-red-600">
+        <span>{{ error }}</span>
+        <button type="button" class="underline" @click="loadUsers">{{ $t('login.retry') }}</button>
+      </div>
     </form>
   </div>
 </template>

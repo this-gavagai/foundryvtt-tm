@@ -18,7 +18,8 @@
     "userLabel": "Benutzer",
     "passwordLabel": "Passwort",
     "error": "Anmeldung fehlgeschlagen — bitte Zugangsdaten prüfen.",
-    "couldNotLoadUsers": "Benutzerliste konnte nicht geladen werden. Zum erneuten Versuch neu laden.",
+    "couldNotLoadUsers": "Benutzerliste konnte nicht geladen werden.",
+    "retry": "Erneut versuchen",
     "activeMarker": "(aktiv)"
   },
   "app": {
