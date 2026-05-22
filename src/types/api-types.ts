@@ -152,9 +152,18 @@ export interface ToggleKineticAuraArgs {
   uuid: string
 }
 
+export interface RollResult {
+  formula: string
+  result: string
+  total: number
+  dice: DiceResults
+  isSecret: boolean
+}
+
 export interface RequestResolutionArgs {
   action: typeof TM.ACK
   uuid: string
+  roll?: RollResult
   response?: {
     damage?: string
     critical?: string

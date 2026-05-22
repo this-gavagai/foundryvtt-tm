@@ -31,31 +31,40 @@ export function useActorSync(
   }
 
   let removeRefresh: (() => void) | undefined
+  let stopUserIdWatch: (() => void) | undefined
+
   onMounted(() => {
     logger.info('TM-INIT: initiating character', characterId)
     if (!characterId) return
+    // Register the UPDATE_CHARACTER listener first, then send the initial
+    // request. Sending before the listener is registered means the GM's
+    // response can arrive on the socket with nothing to catch it.
     setupSocketListenersForActor(characterId, actor, requestCharacterDetails).then((cleanup) => {
       removeRefresh = cleanup
-    })
-    // Defer the initial request until userId is known — sending with an empty
-    // userId causes the GM listener to drop it as "unowned" (ownership check
-    // on the GM side uses the userId from the request payload). On a fresh
-    // post-login load the Foundry session event arrives after the socket
-    // connects, so userId may still be '' when onMounted fires.
-    const { userId } = storeToRefs(useUserStore())
-    if (userId.value) {
-      sendCharacterRequest(characterId)
-    } else {
-      const stopWatch = watch(userId, (newId) => {
-        if (!newId) return
+      // Also defer until userId is known — an empty userId causes the GM's
+      // ownership check to reject the request as "unowned". On a fresh
+      // post-login load the Foundry session event can arrive after the socket
+      // connects, so userId may still be '' here.
+      const { userId } = storeToRefs(useUserStore())
+      if (userId.value) {
         sendCharacterRequest(characterId)
-        stopWatch()
-      })
-    }
+      } else {
+        // This watch is created outside Vue's setup scope, so we track it
+        // manually and clean it up in onUnmounted.
+        stopUserIdWatch = watch(userId, (newId) => {
+          if (!newId) return
+          sendCharacterRequest(characterId)
+          stopUserIdWatch?.()
+          stopUserIdWatch = undefined
+        })
+      }
+    })
     document.addEventListener('visibilitychange', onVisibilityChange)
   })
+
   onUnmounted(() => {
     logger.info('TM-INIT: unmounted actor', characterId)
+    stopUserIdWatch?.()
     removeRefresh?.()
     document.removeEventListener('visibilitychange', onVisibilityChange)
   })
