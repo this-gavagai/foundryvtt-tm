@@ -71,14 +71,8 @@ function blastReplacer(key: string, element: ActorPF2e | ItemPF2e) {
   else return element
 }
 
-const WEAPON_CATEGORIES = ['unarmed', 'simple', 'martial', 'advanced']
-
-// Martial-proficiency labels (weapon/armor categories, class DCs) are stored as
-// bare slugs or i18n keys and resolved at sheet-render time by PF2e; the raw
-// system data we send carries the unresolved values. Mirror PF2e's own label
-// logic here so each proficiency arrives already localized.
-// See pf2e: CharacterSheetPF2e#getData (martialProficiencies) and #prepareClassDC.
 function localizeProficiencyLabels(system: CharacterPF2e['system']): Record<string, string> {
+  const WEAPON_CATEGORIES = ['unarmed', 'simple', 'martial', 'advanced']
   const cfg = CONFIG.PF2E as unknown as {
     weaponCategories: Record<string, string>
     weaponGroups: Record<string, string>
@@ -127,6 +121,51 @@ function localizeProficiencyLabels(system: CharacterPF2e['system']): Record<stri
   return labels
 }
 
+function localizeRollOptionLabels(actor: CharacterPF2e): Record<string, string> {
+  type StatWithLabel = { label?: string }
+  type RuleWithLabel = { key?: string; label?: string; suboptions?: { label?: string }[] }
+  const labels: Record<string, string> = {}
+  for (const [slug, skill] of Object.entries(actor.system?.skills ?? {}))
+    if ((skill as StatWithLabel).label)
+      labels[slug] = game.i18n.localize((skill as StatWithLabel).label!)
+  for (const [slug, save] of Object.entries(actor.system?.saves ?? {}))
+    if ((save as StatWithLabel).label)
+      labels[slug] = game.i18n.localize((save as StatWithLabel).label!)
+  const percLabel = (actor.system?.perception as StatWithLabel | undefined)?.label
+  if (percLabel) labels['perception'] = game.i18n.localize(percLabel)
+  for (const item of actor.items) {
+    if (item.slug && item.name) labels[item.slug] = item.name
+    for (const rule of (item.system.rules as RuleWithLabel[]) ?? []) {
+      if (rule.key === 'RollOption') {
+        if (rule.label) labels[rule.label] = game.i18n.localize(rule.label)
+        for (const sub of rule.suboptions ?? [])
+          if (sub.label) labels[sub.label] = game.i18n.localize(sub.label)
+      }
+    }
+  }
+  return labels
+}
+
+function buildSpellcastingModifiers(actor: CharacterPF2e): Record<string, object> {
+  type SpellcastingStatistic = { mod?: number; check?: { modifiers?: RawModifier[] } }
+  const result: Record<string, object> = {}
+  for (const item of actor.items) {
+    if (item.type !== 'spellcastingEntry') continue
+    const stat = (item as ItemPF2e<CharacterPF2e> & { statistic?: SpellcastingStatistic }).statistic
+    result[item._id ?? ''] = {
+      mod: stat?.mod ?? 0,
+      modifiers: (stat?.check?.modifiers ?? []).map((m: RawModifier) => ({
+        slug: m.slug,
+        label: m.label,
+        modifier: m.modifier,
+        enabled: m.enabled,
+        hideIfDisabled: m.hideIfDisabled
+      }))
+    }
+  }
+  return result
+}
+
 export async function getCharacterDetails(
   args: RequestCharacterDetailsArgs
 ): Promise<UpdateCharacterDetailsArgs> {
@@ -157,59 +196,18 @@ export async function getCharacterDetails(
     const ro = r as RollOptionRuleElement
     if (ro.option && ro.predicate.test([])) activeRules.add(ro.option)
   }, [])
-  // elementalBlasts has a circular `actor` back-reference and pulls in entire
-  // item objects; round-trip through blastReplacer once to flatten it into a
-  // plain serializable object. Other fields are already JSON-safe (Foundry
-  // documents define toJSON), so socket.io can serialize them directly.
+  // elementalBlasts has a circular `actor` back-reference
   const cleanBlasts = elementalBlasts
     ? JSON.parse(JSON.stringify(elementalBlasts, blastReplacer))
     : null
-  // Languages are stored on the actor as bare slugs; everything else PF2e sends
-  // (feat/spell/item names) is already localized, so resolve them here too.
-  // CONFIG.PF2E.languages maps each slug to its i18n key (version-proof — the key
-  // path has differed across PF2e releases); homebrew slugs fall back to the slug.
+  // Languages are stored on the actor as bare slugs; need to be localized
   const langKeys = CONFIG.PF2E.languages as Record<string, string>
   const languages = (actor.system?.details?.languages?.value ?? []).map((slug: string) =>
     langKeys[slug] ? game.i18n.localize(langKeys[slug]) : slug
   )
   const proficiencyLabels = localizeProficiencyLabels(actor.system)
-  const rollOptionLabels: Record<string, string> = {}
-  type StatWithLabel = { label?: string }
-  for (const [slug, skill] of Object.entries(actor.system?.skills ?? {}))
-    if ((skill as StatWithLabel).label)
-      rollOptionLabels[slug] = game.i18n.localize((skill as StatWithLabel).label!)
-  for (const [slug, save] of Object.entries(actor.system?.saves ?? {}))
-    if ((save as StatWithLabel).label)
-      rollOptionLabels[slug] = game.i18n.localize((save as StatWithLabel).label!)
-  const percLabel = (actor.system?.perception as StatWithLabel | undefined)?.label
-  if (percLabel) rollOptionLabels['perception'] = game.i18n.localize(percLabel)
-  for (const item of actor.items) {
-    if (item.slug && item.name) rollOptionLabels[item.slug] = item.name
-    type RuleWithLabel = { key?: string; label?: string; suboptions?: { label?: string }[] }
-    for (const rule of (item.system.rules as RuleWithLabel[]) ?? []) {
-      if (rule.key === 'RollOption') {
-        if (rule.label) rollOptionLabels[rule.label] = game.i18n.localize(rule.label)
-        for (const sub of rule.suboptions ?? [])
-          if (sub.label) rollOptionLabels[sub.label] = game.i18n.localize(sub.label)
-      }
-    }
-  }
-  type SpellcastingStatistic = { mod?: number; check?: { modifiers?: RawModifier[] } }
-  const spellcastingModifiers: Record<string, object> = {}
-  for (const item of actor.items) {
-    if (item.type !== 'spellcastingEntry') continue
-    const stat = (item as ItemPF2e<CharacterPF2e> & { statistic?: SpellcastingStatistic }).statistic
-    spellcastingModifiers[item._id ?? ''] = {
-      mod: stat?.mod ?? 0,
-      modifiers: (stat?.check?.modifiers ?? []).map((m: RawModifier) => ({
-        slug: m.slug,
-        label: m.label,
-        modifier: m.modifier,
-        enabled: m.enabled,
-        hideIfDisabled: m.hideIfDisabled
-      }))
-    }
-  }
+  const rollOptionLabels = localizeRollOptionLabels(actor)
+  const spellcastingModifiers = buildSpellcastingModifiers(actor)
   logger.debug('TABLEMATE: now sending ' + actor.name)
   return {
     action: TM.UPDATE_CHARACTER,
@@ -419,13 +417,9 @@ export async function foundryConsumeItem(args: ConsumeItemArgs) {
   return makeAck(args)
 }
 
-// Load/unload a weapon using PF2e's native mechanism: loaded ammo lives in the
-// weapon's `subitems` (the same state the default character sheet's reload
-// button manages via WeaponPF2e#attach / subitem#detach). Loading attaches the
-const KINETIC_AURA_EFFECT_UUID = 'Compendium.pf2e.feat-effects.Item.pLurcSPQb2gjAzoP'
-const KINETIC_AURA_DEFAULT_RADIUS = 10
-
 export async function foundryToggleKineticAura(args: ToggleKineticAuraArgs) {
+  const KINETIC_AURA_EFFECT_UUID = 'Compendium.pf2e.feat-effects.Item.pLurcSPQb2gjAzoP'
+  const KINETIC_AURA_DEFAULT_RADIUS = 10
   const source = getGame()
   const ack = makeAck(args)
   const actor = source.actors.get(args.characterId, { strict: true })
