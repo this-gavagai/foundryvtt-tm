@@ -8,12 +8,13 @@ import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useWorldStore } from '@/stores/world'
 import { usePixelDiceStore } from '@/stores/pixelDice'
 import { availableLocales, setLocale } from '@/plugins/i18n'
+import { useTheme, THEMES } from '@/composables/useTheme'
 
 import Dropdown from '@/components/widgets/DropdownWidget.vue'
 import RollOptions from '@/components/RollOptions.vue'
 import Spinner from './widgets/SpinnerWidget.vue'
 
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 const { world } = storeToRefs(useWorldStore())
 const pixelStore = usePixelDiceStore()
 const { pixel, pixelStatus } = storeToRefs(pixelStore)
@@ -24,6 +25,12 @@ const { updateProxyId } = targetHelperStore
 
 const targetProxySelector = ref()
 const sidebarOpen = ref(false)
+
+const { activeTheme, setTheme } = useTheme()
+const themeList = [
+  { id: '', name: t('common.none') },
+  ...THEMES.map((id) => ({ id, name: id.charAt(0).toUpperCase() + id.slice(1) }))
+]
 
 defineExpose({ sidebarOpen })
 </script>
@@ -87,6 +94,14 @@ defineExpose({ sidebarOpen })
                       :list="availableLocales"
                       :selectedId="locale"
                       :changed="(newId: string) => setLocale(newId)"
+                    />
+                  </li>
+                  <li>
+                    <div class="text-lg italic">{{ $t('sideMenu.theme') }}</div>
+                    <Dropdown
+                      :list="themeList"
+                      :selectedId="activeTheme ?? ''"
+                      :changed="(newId: string) => setTheme(newId || null)"
                     />
                   </li>
                   <li>

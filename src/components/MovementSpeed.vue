@@ -20,7 +20,7 @@ function parseSpeed(speed: Stat | undefined) {
 }
 </script>
 <template>
-  <div class="flex justify-between gap-1 border-b px-6 py-4">
+  <div class="flex justify-between gap-1">
     <StatBox :heading="$t('movement.land')" :breakdown="land?.breakdown" class="w-1/5">
       {{ parseSpeed(land) }}
     </StatBox>

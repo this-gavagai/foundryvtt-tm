@@ -19,4 +19,13 @@ app.use(GesturePlugin)
 app.use(i18n)
 app.use(pinia)
 
+app.mixin({
+  mounted() {
+    const name = this.$options.name ?? this.$options.__name
+    if (name && this.$el && this.$el.setAttribute) {
+      this.$el.setAttribute('data-component', name)
+    }
+  }
+})
+
 app.mount('#app')

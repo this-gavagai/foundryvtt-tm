@@ -19,6 +19,9 @@ import { useUserStore } from '@/stores/user'
 import CharacterSheet from '@/components/CharacterSheet.vue'
 import LoginPage from '@/components/LoginPage.vue'
 import { logger } from './utils/utilities'
+import { initTheme } from '@/composables/useTheme'
+
+initTheme()
 
 const BUILD_MODE: string = import.meta.env.MODE
 

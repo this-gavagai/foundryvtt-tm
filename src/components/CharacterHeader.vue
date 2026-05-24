@@ -29,7 +29,7 @@ const emit = defineEmits(['sidebarActivated'])
 </script>
 
 <template>
-  <div class="border-divider flex cursor-pointer items-center gap-2 border-y bg-white p-4">
+  <div class="border-divider flex cursor-pointer items-center gap-2 border-y p-4">
     <div
       class="xs:flex border-divider hidden h-24 w-24 items-center overflow-hidden rounded-full border-2"
       @click="reloadPage"
@@ -43,13 +43,17 @@ const emit = defineEmits(['sidebarActivated'])
       <h3 class="mb-2 w-full text-2xl whitespace-nowrap">
         <Listbox>
           <ListboxButton class="block w-full">
-            <div class="w-full cursor-pointer truncate text-left">{{ name ?? $t('common.loading') }}</div>
+            <div class="w-full cursor-pointer truncate text-left">
+              {{ name ?? $t('common.loading') }}
+            </div>
           </ListboxButton>
           <ListboxOptions
             class="ring-opacity-5 absolute z-50 mt-1 max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-gray-200 empty:hidden focus:outline-hidden sm:text-sm"
           >
             <ListboxOption v-if="!characterList">
-              <div class="relative py-2 pr-4 pl-6 text-gray-400 select-none">{{ $t('common.loading') }}</div>
+              <div class="relative py-2 pr-4 pl-6 text-gray-400 select-none">
+                {{ $t('common.loading') }}
+              </div>
             </ListboxOption>
             <ListboxOption
               v-slot="{ active }"

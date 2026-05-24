@@ -1,21 +1,7 @@
 @import 'tailwindcss';
-/* @import './themes/default/default.css' layer(default); */
+@import './themes/default/default.css' layer(themes);
 @import url('https://fonts.googleapis.com/css2?family=Dosis:wght@200..800&display=swap');
 @plugin '@headlessui/tailwindcss';
-
-/* Boilerplate Fixes */
-html {
-  box-sizing: border-box;
-}
-*,
-*:before,
-*:after {
-  box-sizing: inherit;
-}
-html {
-  font-size: 110%;
-  scrollbar-width: none;
-}
 
 @custom-variant pwa {
   @media (display-mode: standalone) {

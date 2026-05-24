@@ -35,7 +35,7 @@ function adjustViewedEffectQty(delta: number) {
 }
 </script>
 <template>
-  <div :class="{ 'border-none': effects?.length === 0 }">
+  <div class="px-0! py-0!" :class="{ 'border-none': effects?.length === 0 }">
     <div
       class="relative flex flex-wrap gap-2 overflow-hidden px-6 transition-all duration-300"
       :class="[
@@ -66,7 +66,11 @@ function adjustViewedEffectQty(delta: number) {
               >
                 {{ effect.system?.value?.value }}
               </div>
-              <img :src="getPath(effect.img ?? '')" class="rounded-full" :alt="$t('effects.effectIcon')" />
+              <img
+                :src="getPath(effect.img ?? '')"
+                class="rounded-full"
+                :alt="$t('effects.effectIcon')"
+              />
             </div>
             <div
               class="hidden overflow-hidden text-center text-[0.5rem] whitespace-nowrap"

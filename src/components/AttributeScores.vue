@@ -1,5 +1,4 @@
 <script setup lang="ts">
-
 import StatBox from './widgets/StatBox.vue'
 import { formatModifier } from '@/utils/utilities'
 import { useInjectedCharacter } from '@/composables/injectKeys'
@@ -8,7 +7,7 @@ const character = useInjectedCharacter()
 const { str, dex, con, int, wis, cha } = character.attributes
 </script>
 <template>
-  <div class="flex justify-between px-6 py-4 [&>*]:w-1/6">
+  <div class="flex grow justify-between">
     <StatBox
       :heading="$t('attributes.str')"
       :fullHeading="$t('attributesFull.str')"

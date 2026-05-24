@@ -209,7 +209,8 @@
     "closeSidebar": "Close sidebar",
     "targetingProxy": "Targeting Proxy",
     "pairPixelDice": "Pair Pixel Dice",
-    "language": "Language"
+    "language": "Language",
+    "theme": "Theme"
   },
   "widgets": {
     "toggleSwitch": "Toggle Switch"

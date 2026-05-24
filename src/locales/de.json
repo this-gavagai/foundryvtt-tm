@@ -209,7 +209,8 @@
     "closeSidebar": "Seitenleiste schließen",
     "targetingProxy": "Ziel-Stellvertreter",
     "pairPixelDice": "Pixel Dice koppeln",
-    "language": "Sprache"
+    "language": "Sprache",
+    "theme": "Thema"
   },
   "widgets": {
     "toggleSwitch": "Umschalter"
