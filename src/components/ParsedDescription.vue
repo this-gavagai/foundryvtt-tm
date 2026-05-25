@@ -46,12 +46,13 @@ const parsedText = computed(() => {
   // @UUID/@Compendium[...]{label} — content never contains brackets
   text = text?.replace(
     /@(?:UUID|Compendium)\[([^\]]+)\]\{([^}]*)\}/gm,
-    '<span class="text-red-900">$2</span>'
+    '<span data-type="compendiumLink" class="text-red-600">$2</span>'
   )
   // @Damage[XdY[type]]{label} — formula may have one level of nested [type]; label is optional
   text = text?.replace(
     /@Damage\[([^\[\]]*(?:\[[^\]]*\])?[^\[\]]*)\](?:\{([^}]*)\})?/gm,
-    (_, formula, label) => `<span class="text-red-900">${label ?? formula}</span>`
+    (_, formula, label) =>
+      `<span data-type="compendiumLink" class="text-red-600">${label ?? formula}</span>`
   )
   // [[/r formula]] inline rolls — [^\]]* prevents overshooting past ]]
   text = text?.replace(/\[\[\/r ([^\]]*)\]\]/gm, '<span class="text-green-900">$1</span>')
@@ -89,7 +90,10 @@ function formClick(event: Event) {
   return false
 }
 onMounted(initRolls)
-watch(() => props.text, () => nextTick(initRolls))
+watch(
+  () => props.text,
+  () => nextTick(initRolls)
+)
 defineExpose({ activeRoll })
 </script>
 <template>
