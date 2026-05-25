@@ -8,9 +8,11 @@ const { perception } = useInjectedCharacter()
 <template>
   <StatBox
     :heading="$t('saves.perception')"
+    :modalHeading="$t('saves.perceptionFull')"
     :proficiency="perception?.rank"
     :modifiers="perception?.modifiers"
     :rollAction="perception?.roll"
+    class="pl-2"
   >
     {{ formatModifier(perception?.totalModifier) }}
   </StatBox>

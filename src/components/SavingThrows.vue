@@ -7,14 +7,13 @@ const character = useInjectedCharacter()
 const { fortitude, reflex, will } = character.saves
 </script>
 <template>
-  <div class="flex grow justify-between gap-2">
+  <div class="flex grow justify-around gap-2">
     <StatBox
       :heading="$t('saves.fortitude')"
       :modalHeading="$t('savesFull.fortitude')"
       :proficiency="fortitude?.rank"
       :modifiers="fortitude?.modifiers"
       :rollAction="fortitude?.roll"
-      class="w-1/3"
     >
       {{ formatModifier(fortitude?.totalModifier) }}
     </StatBox>
@@ -24,7 +23,6 @@ const { fortitude, reflex, will } = character.saves
       :proficiency="reflex?.rank"
       :modifiers="reflex?.modifiers"
       :rollAction="reflex?.roll"
-      class="w-1/3"
     >
       {{ formatModifier(reflex?.totalModifier) }}
     </StatBox>
@@ -34,7 +32,6 @@ const { fortitude, reflex, will } = character.saves
       :proficiency="will?.rank"
       :modifiers="will?.modifiers"
       :rollAction="will?.roll"
-      class="w-1/3"
     >
       {{ formatModifier(will?.totalModifier) }}
     </StatBox>

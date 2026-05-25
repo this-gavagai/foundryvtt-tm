@@ -18,7 +18,7 @@ function applyTheme(theme: Theme | null) {
 
 export function initTheme() {
   const saved = localStorage.getItem(STORAGE_KEY) as Theme | null
-  const theme = saved && (THEMES as readonly string[]).includes(saved) ? (saved as Theme) : null
+  const theme = saved && (THEMES as readonly string[]).includes(saved) ? (saved as Theme) : 'default'
   activeTheme.value = theme
   applyTheme(theme)
 }

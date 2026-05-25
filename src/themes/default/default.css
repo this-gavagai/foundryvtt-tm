@@ -1,3 +1,518 @@
 body.theme-default {
-  background: radial-gradient(ellipse at top, oklch(20% 0.025 250 / 0.4), transparent 60%);
+  background-color: oklch(23% 0.018 258);
+  background-image: radial-gradient(
+    ellipse 150% 45% at 50% 0%,
+    oklch(33% 0.05 270 / 0.5),
+    transparent
+  );
+  color: oklch(86% 0.008 250);
+
+  --color-divider: oklch(20% 0.018 258);
+  --color-hovered: oklch(17% 0.02 258);
+  --color-selected: oklch(20% 0.026 258);
+  --color-active: oklch(23% 0.032 258);
+
+  --color-proficiency-untrained: oklch(90% 0.005 258);
+  --color-proficiency-trained: oklch(68% 0.18 250);
+  --color-proficiency-expert: oklch(70% 0.2 305);
+  --color-proficiency-master: oklch(78% 0.18 88);
+  --color-proficiency-legendary: oklch(68% 0.22 22);
+}
+
+body.theme-default {
+  /* invert monochrome SVG icons for dark bg */
+  img[src*='svg'] {
+    filter: invert(0.85);
+  }
+
+  /* --- StatBox headings without a proficiency level use text-black; remap for dark bg --- */
+  [data-component='StatBox']:not([data-proficiency-level]) > div > div:first-child {
+    color: oklch(60% 0.008 258);
+  }
+
+  /* --- Proficiency coloring ---
+     Set --proficiency-color on the StatBox root so both the value slot
+     (which has no explicit color class and therefore inherits) and the
+     heading (which has an explicit text-* utility class that we override
+     directly below) pick up the right hue for the current rank.       */
+
+  [data-proficiency-level='0'] {
+    --proficiency-color: var(--color-proficiency-untrained);
+  }
+  [data-proficiency-level='1'] {
+    --proficiency-color: var(--color-proficiency-trained);
+  }
+  [data-proficiency-level='2'] {
+    --proficiency-color: var(--color-proficiency-expert);
+  }
+  [data-proficiency-level='3'] {
+    --proficiency-color: var(--color-proficiency-master);
+  }
+  [data-proficiency-level='4'] {
+    --proficiency-color: var(--color-proficiency-legendary);
+  }
+
+  /* value slot inherits from container */
+  [data-proficiency-level] {
+    color: var(--proficiency-color, inherit);
+  }
+
+  /* heading carries an explicit text-{color}-800 utility class;
+     target it directly so the themes layer overrides utilities */
+  [data-proficiency-level] > div > div:first-child {
+    color: var(--proficiency-color, inherit);
+  }
+
+  /* --- Rollable StatBox value -------------------------- */
+  [data-rollable] > div > div:nth-child(2) {
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+  }
+
+  /* --- Inputs ------------------------------------------ */
+  input {
+    background-color: oklch(8% 0.01 258);
+    border-color: var(--color-divider);
+    color: inherit;
+  }
+
+  /* --- Modals ------------------------------------------ */
+  /* Headless UI renders DialogPanel as a div with role="dialog" on the outer wrapper,
+     not a native <dialog>, so target [role='dialog'] descendants instead */
+  [role='dialog'] {
+    .bg-white {
+      background-color: oklch(14% 0.02 258);
+      color: oklch(86% 0.008 250);
+      border: 1px solid oklch(36% 0.025 258);
+    }
+    .text-gray-900 {
+      color: oklch(86% 0.008 250);
+    }
+    .text-gray-400 {
+      color: oklch(55% 0.01 258);
+    }
+    .hover\:text-gray-500:hover {
+      color: oklch(70% 0.01 258);
+    }
+
+    /* proficiency level labels — remap dark-shade utilities to theme palette */
+    .text-blue-800 {
+      color: var(--color-proficiency-trained);
+    }
+    .text-purple-800 {
+      color: var(--color-proficiency-expert);
+    }
+    .text-yellow-800 {
+      color: var(--color-proficiency-master);
+    }
+    .text-red-800 {
+      color: var(--color-proficiency-legendary);
+    }
+  }
+
+  /* --- Shared section-card design language ------------- */
+  [data-component='SkillList'],
+  [data-component='FeatsList'],
+  [data-component='EquipmentList'],
+  [data-component='ActionsList'],
+  [data-component='StrikeList'] {
+    section,
+    dl,
+    div[data-section] {
+      background-color: oklch(17% 0.022 258);
+      border-radius: 0.5rem;
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    h3,
+    dt {
+      text-decoration: none;
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 1.1rem;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      text-transform: none;
+      color: oklch(85% 0.008 258);
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid;
+      border-image: linear-gradient(
+          to right,
+          var(--section-color, var(--color-divider)),
+          transparent
+        )
+        1;
+      margin-bottom: 0.6rem;
+    }
+
+    li,
+    dd {
+      padding-top: 0.35rem;
+      padding-bottom: 0.35rem;
+      border-bottom: 1px solid var(--color-divider);
+    }
+
+    li:last-child,
+    dd:last-child {
+      border-bottom: none;
+    }
+  }
+
+  /* --- SkillList ---------------------------------------- */
+  [data-component='SkillList'] {
+    [data-section='skills'] {
+      --section-color: var(--color-proficiency-master);
+    }
+    [data-section='lore'] {
+      --section-color: var(--color-proficiency-master);
+    }
+    [data-section='attacks'] {
+      --section-color: var(--color-proficiency-legendary);
+    }
+    [data-section='defenses'] {
+      --section-color: var(--color-proficiency-trained);
+    }
+    [data-section='classDCs'] {
+      --section-color: var(--color-proficiency-expert);
+    }
+    [data-section='spellcasting'] {
+      --section-color: var(--color-proficiency-expert);
+    }
+
+    ul {
+      column-rule: 1px solid var(--color-divider);
+      column-gap: 1.5rem;
+    }
+
+    /* Put skill name and value on the same row */
+    [data-proficiency-level] > div {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    [data-proficiency-level] > div > div:first-child {
+      font-size: 1rem;
+      text-transform: none;
+      letter-spacing: 0.02em;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    [data-proficiency-level] > div > div:nth-child(2) {
+      font-size: 1rem;
+      white-space: nowrap;
+    }
+  }
+
+  /* --- FeatsList --------------------------------------- */
+  [data-component='FeatsList'] {
+    .ml-3 {
+      font-style: italic;
+    }
+
+    .relative + div > .ml-3 {
+      margin-top: 0.3rem;
+    }
+
+    [data-section='ancestryfeatures'] {
+      --section-color: var(--color-proficiency-legendary);
+    }
+    [data-section='classfeatures'] {
+      --section-color: var(--color-proficiency-expert);
+    }
+    [data-section='ancestry'] {
+      --section-color: var(--color-proficiency-legendary);
+    }
+    [data-section='class'] {
+      --section-color: var(--color-proficiency-expert);
+    }
+    [data-section='archetype'] {
+      --section-color: var(--color-proficiency-trained);
+    }
+    [data-section='skill'] {
+      --section-color: var(--color-proficiency-master);
+    }
+    [data-section='general'] {
+      --section-color: var(--color-proficiency-trained);
+    }
+    [data-section='xdy_ancestryparagon'] {
+      --section-color: var(--color-proficiency-legendary);
+    }
+    [data-section='bonus'] {
+      --section-color: var(--color-proficiency-legendary);
+    }
+  }
+
+  /* --- ActionsList ------------------------------------- */
+  [data-component='ActionsList'] {
+    [data-section='action'] {
+      --section-color: var(--color-proficiency-legendary);
+    }
+    [data-section='reaction'] {
+      --section-color: var(--color-proficiency-expert);
+    }
+    [data-section='free'] {
+      --section-color: var(--color-proficiency-trained);
+    }
+    [data-section='skill'] {
+      --section-color: var(--color-proficiency-master);
+    }
+  }
+
+  /* --- StrikeList -------------------------------------- */
+  [data-component='StrikeList'] {
+    [data-section='strikes'] {
+      --section-color: var(--color-proficiency-legendary);
+    }
+    [data-section='blasts'] {
+      --section-color: var(--color-proficiency-expert);
+    }
+
+    /* remove the trailing gap so the stacked ActionsList doesn't double up on spacing */
+    > div {
+      padding-bottom: 0;
+    }
+    div[data-section]:last-child {
+      margin-bottom: 0;
+    }
+
+    /* tighten the button row — leading-9 adds excess height, mb-1 leaks into li padding */
+    .flex.flex-wrap {
+      line-height: 1;
+      row-gap: 0.2rem;
+    }
+
+    /* all strike/blast buttons */
+    .flex.flex-wrap > span > span {
+      background-color: oklch(19% 0.022 258);
+      border-color: oklch(32% 0.022 258);
+      color: oklch(72% 0.015 258);
+      transition: background-color 120ms;
+      margin-bottom: 0;
+    }
+
+    /* attack / MAP buttons */
+    .flex.flex-wrap > span:first-child > span {
+      color: var(--color-proficiency-trained);
+    }
+
+    /* primary strike button (first in the attack group) */
+    .flex.flex-wrap > span:first-child > span:first-child {
+      background-color: oklch(22% 0.03 258);
+      border-color: oklch(38% 0.025 258);
+    }
+
+    /* damage / critical buttons */
+    .flex.flex-wrap > span:last-child > span {
+      color: var(--color-proficiency-legendary);
+    }
+
+    .flex.flex-wrap > span > span:hover {
+      background-color: oklch(26% 0.025 258);
+    }
+
+    .flex.flex-wrap > span > span:active {
+      background-color: oklch(30% 0.028 258);
+    }
+  }
+
+  /* --- EquipmentList ----------------------------------- */
+  [data-component='EquipmentList'] {
+    [data-part='invested-count'] {
+      color: oklch(82% 0.01 258);
+      margin-bottom: 0.75rem;
+    }
+
+    /* bulk bar: give the SVG a white base so the overbulk hatch shows stripes-on-white */
+    svg {
+      background-color: white;
+    }
+    [data-section='weapon'] {
+      --section-color: var(--color-proficiency-legendary);
+    }
+    [data-section='armor'] {
+      --section-color: var(--color-proficiency-master);
+    }
+    [data-section='shield'] {
+      --section-color: var(--color-proficiency-trained);
+    }
+    [data-section='consumable'] {
+      --section-color: var(--color-proficiency-expert);
+    }
+    [data-section='equipment'] {
+      --section-color: var(--color-proficiency-trained);
+    }
+    [data-section='treasure'] {
+      --section-color: var(--color-proficiency-master);
+    }
+    [data-section='backpack'] {
+      --section-color: var(--color-proficiency-trained);
+    }
+  }
+
+  /* --- SpellList --------------------------------------- */
+  [data-component='SpellList'] {
+    [data-section='arcane'] {
+      --section-color: var(--color-proficiency-expert);
+    }
+    [data-section='divine'] {
+      --section-color: var(--color-proficiency-legendary);
+    }
+    [data-section='primal'] {
+      --section-color: var(--color-proficiency-master);
+    }
+    [data-section='occult'] {
+      --section-color: var(--color-proficiency-expert);
+    }
+    [data-section='focus'] {
+      --section-color: var(--color-proficiency-trained);
+    }
+    [data-section='staff'] {
+      --section-color: var(--color-proficiency-master);
+    }
+    [data-section='consumables'] {
+      --section-color: var(--color-proficiency-trained);
+    }
+
+    /* outer card per spell source */
+    section[data-section] {
+      background-color: oklch(17% 0.022 258);
+      border-radius: 0.5rem;
+      margin-bottom: 0.75rem;
+      overflow: hidden;
+    }
+
+    /* entry header — preserves existing flex layout, adds serif + gradient border */
+    h3 {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-weight: 400;
+      color: oklch(85% 0.008 258);
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid;
+      border-image: linear-gradient(
+          to right,
+          var(--section-color, var(--color-divider)),
+          transparent
+        )
+        1;
+      margin-bottom: 0.6rem;
+    }
+
+    /* rank group separator — visible top border between ranks */
+    section:not([data-section]):not(.hidden) + section:not([data-section]):not(.hidden) {
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid oklch(35% 0.018 258);
+    }
+
+    /* rank sub-header */
+    h4 {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: oklch(62% 0.015 258);
+      padding-bottom: 0.25rem;
+      border-bottom: 1px solid oklch(35% 0.018 258);
+      margin-bottom: 0.25rem;
+    }
+
+    /* counter widgets — shift up 4px extra and brighten pips */
+    h3 > span:last-child > div {
+      bottom: 2px;
+      color: oklch(82% 0.01 258);
+    }
+
+    h4 > div {
+      bottom: 3px;
+      color: oklch(82% 0.01 258);
+    }
+
+    /* spell items */
+    ul > li {
+      padding-top: 0.3rem;
+      padding-bottom: 0.3rem;
+      border-bottom: 1px solid var(--color-divider);
+    }
+
+    ul > li:last-child {
+      border-bottom: none;
+    }
+  }
+
+  /* --- Dropdown (Listbox) ------------------------------ */
+  [data-part='dropdown'] {
+    [aria-haspopup='listbox'] {
+      background-color: oklch(17% 0.022 258);
+      border-color: oklch(36% 0.025 258);
+      color: inherit;
+
+      &.bg-gray-200 {
+        background-color: oklch(22% 0.02 258);
+      }
+
+      .text-gray-400 {
+        color: oklch(50% 0.01 258);
+      }
+    }
+
+    [role='listbox'] {
+      background-color: oklch(14% 0.02 258);
+      border: 1px solid oklch(36% 0.025 258);
+      box-shadow: 0 4px 16px oklch(5% 0.01 258 / 0.8);
+    }
+
+    [role='option'] > div {
+      &.bg-amber-100 {
+        background-color: oklch(22% 0.025 258);
+      }
+      &.text-amber-900 {
+        color: oklch(86% 0.008 250);
+      }
+      &.text-gray-900 {
+        color: oklch(86% 0.008 250);
+      }
+    }
+
+    [role='option'] .text-amber-600 {
+      color: var(--color-proficiency-master);
+    }
+  }
+
+  /* --- Tab selected indicator -------------------------- */
+  [data-part='tab'] {
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(
+        to right,
+        transparent,
+        var(--color-proficiency-legendary),
+        transparent
+      );
+      transform: scaleX(0.2);
+      opacity: 0;
+      transition:
+        transform 250ms ease,
+        opacity 250ms ease;
+    }
+
+    &[data-headlessui-state~='selected']::after {
+      transform: scaleX(1);
+      opacity: 1;
+    }
+  }
+
+  /* --- Effects & conditions label ---------------------- */
+  [data-part='label'] {
+    display: block;
+  }
 }

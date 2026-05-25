@@ -54,7 +54,8 @@
     "fortitude": "Fort",
     "reflex": "Refl",
     "will": "Will",
-    "perception": "Perception"
+    "perception": "Per.",
+    "perceptionFull": "Perception"
   },
   "proficiencyLevels": {
     "untrained": "Untrained",

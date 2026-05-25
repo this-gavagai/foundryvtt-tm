@@ -256,9 +256,9 @@ watch([strikes, blasts], () => {
 })
 </script>
 <template>
-  <div>
+  <div data-component="StrikeList">
     <div class="break-inside-avoid px-6 py-4 [&:not(:has(li))]:hidden">
-      <div class="break-inside-avoid [&:not(:has(li))]:hidden">
+      <div data-section="blasts" class="break-inside-avoid [&:not(:has(li))]:hidden">
         <h3 class="text-lg underline">{{ $t('strikes.elementalBlastsHeading') }}</h3>
         <Button
           v-if="isListening"
@@ -289,7 +289,7 @@ watch([strikes, blasts], () => {
           </li>
         </ul>
       </div>
-      <div class="break-inside-avoid [&:not(:has(li))]:hidden [div_&:not(.hidden)]:pt-2">
+      <div data-section="strikes" class="break-inside-avoid [&:not(:has(li))]:hidden [div_&:not(.hidden)]:pt-2">
         <h3 class="text-lg underline">{{ $t('strikes.strikesHeading') }}</h3>
         <ul>
           <li

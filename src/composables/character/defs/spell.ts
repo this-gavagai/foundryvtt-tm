@@ -37,6 +37,7 @@ export interface SpellcastingEntry extends Item {
 }
 export interface SpellcastingEntrySystem extends ItemSystem {
   spelldc: { dc: Maybe<number> }
+  tradition: { value: Maybe<string> }
   prepared: { value: Maybe<string>; flexible: Maybe<boolean> }
   slots: {
     [key: string]: {

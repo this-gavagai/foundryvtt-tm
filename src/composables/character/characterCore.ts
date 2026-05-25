@@ -20,6 +20,8 @@ export interface CharacterCore {
   _id: Field<string>
   name: Field<string>
   portraitUrl: Field<string>
+  portraitScaleX: Field<number>
+  portraitScaleY: Field<number>
   ancestry: Field<Ancestry>
   heritage: Field<Heritage>
   background: Field<Background>
@@ -41,10 +43,11 @@ export interface CharacterCore {
 }
 
 export function useCharacterCore(actor: Ref<TablemateCharacter | undefined>): CharacterCore {
-
   const _id = computed(() => actor.value?._id ?? undefined)
   const name = computed(() => actor.value?.name)
   const portraitUrl = computed(() => actor.value?.prototypeToken?.texture?.src ?? undefined)
+  const portraitScaleX = computed(() => actor.value?.prototypeToken?.texture?.scaleX ?? undefined)
+  const portraitScaleY = computed(() => actor.value?.prototypeToken?.texture?.scaleX ?? undefined)
 
   const ancestry = computed(() =>
     makeAncestry(actor.value?.items?.find((x) => x.type === 'ancestry') as AncestryPF2e | undefined)
@@ -87,6 +90,8 @@ export function useCharacterCore(actor: Ref<TablemateCharacter | undefined>): Ch
     _id,
     name,
     portraitUrl,
+    portraitScaleX,
+    portraitScaleY,
     ancestry,
     background,
     heritage,

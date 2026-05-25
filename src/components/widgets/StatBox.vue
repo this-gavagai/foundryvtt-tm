@@ -42,7 +42,7 @@ function handleDiceResult(face: number) {
 defineExpose({ infoModal })
 </script>
 <template>
-  <div :data-proficiency-level="proficiency" :data-has-details="canOpen">
+  <div data-component="StatBox" :data-proficiency-level="proficiency" :data-has-details="canOpen" :data-rollable="rollAction ? true : undefined">
     <div
       class="fit-content"
       :class="{
@@ -52,7 +52,7 @@ defineExpose({ infoModal })
     >
       <div
         :class="proficiencyLevels[props.proficiency ?? 0]?.color"
-        class="overflow-hidden text-[0.8rem] whitespace-nowrap uppercase"
+        class="overflow-visible pb-1 text-[0.8rem] whitespace-nowrap uppercase"
       >
         {{ heading }}
       </div>
@@ -92,7 +92,9 @@ defineExpose({ infoModal })
               <div class="w-8 text-right">
                 {{ SignedNumber.format(mod.modifier ?? 0) }}
               </div>
-              <div class="overflow-hidden text-ellipsis whitespace-nowrap">{{ mod.label }}</div>
+              <div class="text-ellipsis whitespace-nowrap">
+                {{ mod.label }}
+              </div>
             </li>
           </ul>
         </div>

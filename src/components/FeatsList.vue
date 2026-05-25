@@ -63,11 +63,12 @@ const featCategories = computed(() => {
 })
 </script>
 <template>
-  <div>
+  <div data-component="FeatsList">
     <div v-if="feats?.length === 0" class="px-6 py-4 italic">{{ $t('feats.none') }}</div>
     <div v-else class="px-6 py-4 lg:columns-2">
       <dl
         v-for="(category, slug) in featCategories"
+        :data-section="slug"
         class="break-inside-avoid-column overflow-hidden pb-4 [&:not(:has(dd))]:hidden"
         :key="slug"
       >

@@ -55,7 +55,7 @@ function handleShpFormSubmit(e: Event) {
 </script>
 <template>
   <div v-if="shItemId">
-    <div class="my-auto flex grow justify-between gap-4 px-6 py-4">
+    <div class="my-auto flex grow justify-between gap-4">
       <StatBox
         :heading="$t('ac.shieldHpHeading')"
         :subheading="$t('hp.totalMax', { max: shpMax })"

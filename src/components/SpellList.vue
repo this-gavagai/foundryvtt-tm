@@ -28,7 +28,15 @@ interface SpellInfo {
 }
 
 const character = useInjectedCharacter()
-const { spellcastingEntries, spells, spellConsumables, spellDC, staff, inventory, rollOptionLabels } = character
+const {
+  spellcastingEntries,
+  spells,
+  spellConsumables,
+  spellDC,
+  staff,
+  inventory,
+  rollOptionLabels
+} = character
 const { max: focusMax, current: focusCurrent } = character.focusPoints
 
 const { isListening } = storeToRefs(useListenersStore())
@@ -173,14 +181,19 @@ const spellbook = computed((): Spellbook => {
 })
 </script>
 <template>
-  <div>
+  <div data-component="SpellList">
     <div v-if="spellcastingEntries?.length === 0" class="px-6 py-4 italic">
       {{ $t('spells.noSpells') }}
     </div>
-    <div v-else class="lg:columns-2 lg:gap-12 2xl:columns-3">
+    <div v-else class="px-6 py-4 lg:columns-2 lg:gap-12">
       <!-- Spell Sources -->
       <section
         v-for="location in spellcastingEntries"
+        :data-section="
+          location.system.prepared.value === 'focus'
+            ? 'focus'
+            : location.system.tradition?.value || 'arcane'
+        "
         class="mb-4 break-inside-avoid-column"
         :key="location._id"
       >
@@ -217,7 +230,7 @@ const spellbook = computed((): Spellbook => {
               {{ rank == '0' ? 'Cantrips' : 'Rank ' + rank }}
             </span>
             <CounterWidget
-              class="relative bottom-[-1px] -m-[2px] mr-2 h-4 pb-1 text-sm"
+              class="relative bottom-px -m-0.5 mr-2 h-4 pb-1 text-sm"
               v-if="
                 location.system?.prepared.value === 'spontaneous' ||
                 (location.system?.prepared?.value === 'prepared' &&
@@ -303,6 +316,7 @@ const spellbook = computed((): Spellbook => {
       </section>
       <!-- Staff from PF2e-Dailies -->
       <section
+        data-section="staff"
         class="mt-4 break-inside-avoid-column [&:not(:has(li))]:hidden"
         v-if="staff?.staffId"
       >
@@ -341,7 +355,10 @@ const spellbook = computed((): Spellbook => {
         </ul>
       </section>
       <!-- Wands and Scrolls -->
-      <section class="mt-4 break-inside-avoid-column [&:not(:has(li))]:hidden">
+      <section
+        data-section="consumables"
+        class="mt-4 break-inside-avoid-column [&:not(:has(li))]:hidden"
+      >
         <h3 class="flex justify-between px-4 py-2 align-bottom">
           <span>
             <span class="text-xl"> {{ $t('spells.wandsAndScrolls') }} </span>
@@ -397,7 +414,8 @@ const spellbook = computed((): Spellbook => {
           <template v-if="viewedEntry && !viewedItem">
             <span v-if="viewedEntry.spellAttackModifier != null">
               {{ $t('spells.spellAttack') }}
-              {{ viewedEntry.spellAttackModifier >= 0 ? '+' : '' }}{{ viewedEntry.spellAttackModifier }}
+              {{ viewedEntry.spellAttackModifier >= 0 ? '+' : ''
+              }}{{ viewedEntry.spellAttackModifier }}
             </span>
           </template>
           <template v-else>
@@ -441,18 +459,28 @@ const spellbook = computed((): Spellbook => {
             <div class="flex [&:not(:has(span))]:hidden">
               <label class="font-bold">Defense:&nbsp;</label>
               <span v-if="viewedSpell?.system?.defense?.save?.statistic">
-                <span v-if="viewedSpell?.system?.defense?.save?.basic">{{ $t('spells.basic') }}&nbsp;</span>
+                <span v-if="viewedSpell?.system?.defense?.save?.basic"
+                  >{{ $t('spells.basic') }}&nbsp;</span
+                >
                 <span class="capitalize">{{ viewedSpell?.system?.defense?.save?.statistic }}</span>
               </span>
-              <span v-if="viewedSpell?.system?.traits?.value?.includes('attack')">{{ $t('spells.ac') }}</span>
+              <span v-if="viewedSpell?.system?.traits?.value?.includes('attack')">{{
+                $t('spells.ac')
+              }}</span>
             </div>
             <div v-if="viewedSpellInfo?.isConsumable">
               <h4 class="text-xl">{{ $t('spells.spellDetails') }}</h4>
-              <ParsedDescription :text="viewedConsumable?.system.spell.system.description?.value" :labels="rollOptionLabels" />
+              <ParsedDescription
+                :text="viewedConsumable?.system.spell.system.description?.value"
+                :labels="rollOptionLabels"
+              />
               <hr />
               <h4 class="pt-1 text-xl">{{ $t('spells.wandDetails') }}</h4>
             </div>
-            <ParsedDescription :text="viewedItem?.system.description?.value" :labels="rollOptionLabels" />
+            <ParsedDescription
+              :text="viewedItem?.system.description?.value"
+              :labels="rollOptionLabels"
+            />
           </template>
         </template>
         <template #actionButtons v-if="isListening">

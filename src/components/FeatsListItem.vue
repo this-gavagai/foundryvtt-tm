@@ -28,7 +28,7 @@ const emit = defineEmits(['clicked'])
             feat?.system?.level?.value
           }}
         </span>
-        <span class="truncate pl-6">{{ feat?.name }}</span>
+        <span class="pl-6">{{ feat?.name }}</span>
       </a>
     </div>
     <div v-for="grant in feat?.itemGrants" :key="grant">

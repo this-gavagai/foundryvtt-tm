@@ -44,7 +44,7 @@ const emit = defineEmits(['change'])
 </script>
 
 <template>
-  <Listbox v-model="selected" class="w-full" :disabled="props.disabled">
+  <Listbox v-model="selected" data-part="dropdown" class="w-full" :disabled="props.disabled">
     <div class="relative mt-1">
       <ListboxButton
         class="focus-visible:ring-opacity-75 relative w-full cursor-default rounded-md border border-gray-400 bg-white py-2 pr-10 pl-3 text-left focus:outline-hidden focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"

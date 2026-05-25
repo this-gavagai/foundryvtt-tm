@@ -12,6 +12,7 @@ type StatInput = Partial<Omit<BaseStatisticTraceData, 'modifiers'>> & {
   totalModifier?: number
   dc?: number
   modifiers?: RawModifier[]
+  visible?: boolean
 }
 
 export interface Stat {
@@ -26,6 +27,7 @@ export interface Stat {
   modifiers: Maybe<Modifier[]>
   dc: Maybe<number>
   lore: Maybe<boolean>
+  visible: Maybe<boolean>
   roll?: (
     result?: number | undefined,
     options?: object | undefined
@@ -36,6 +38,7 @@ export function makeStat(root: StatInput | undefined, key: string | null = null)
   return {
     slug: root?.slug ?? key ?? undefined,
     label: root?.label ?? root?.slug ?? capitalize(key ?? ''),
+    visible: root?.visible ?? undefined,
     type: undefined,
     breakdown: root?.breakdown,
     attribute: root?.attribute ?? undefined,

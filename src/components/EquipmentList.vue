@@ -87,7 +87,7 @@ const toggleSet = [
 ]
 </script>
 <template>
-  <div>
+  <div data-component="EquipmentList">
     <div v-if="inventory?.length === 0" class="px-6 py-4 italic">
       {{ $t('equipment.noInventory') }}
     </div>
@@ -95,7 +95,7 @@ const toggleSet = [
       <!-- Held Items list -->
       <EquipmentHeld @item-clicked="viewItem" />
       <EquipmentBulk v-if="inventory?.length" />
-      <div v-if="inventory?.length">
+      <div v-if="inventory?.length" data-part="invested-count">
         <span class="cursor-pointer text-sm text-gray-500" @click="investedModal.open()">
           {{
             $t('equipment.investedCount', {
@@ -108,6 +108,7 @@ const toggleSet = [
       <div class="lg:columns-2 lg:gap-12">
         <section
           v-for="inventoryType in inventoryTypes"
+          :data-section="inventoryType.type"
           class="break-before-avoid break-inside-avoid-column pt-4 whitespace-nowrap [&:not(:has(li))]:hidden"
           :class="{ 'break-before-column': inventoryType.type === 'backpack' }"
           :key="inventoryType.type"

@@ -54,7 +54,8 @@
     "fortitude": "Zäh",
     "reflex": "Ref",
     "will": "Wil",
-    "perception": "Wahrnehmung"
+    "perception": "Wahr.",
+    "perceptionFull": "Wahrnehmung"
   },
   "proficiencyLevels": {
     "untrained": "Ungeübt",
