@@ -417,36 +417,37 @@ body.theme-default {
 
   /* --- EquipmentBulk bar ------------------------------- */
   [data-component='EquipmentBulk'] {
-    /* dark base; hatch stripes show against it for the over-encumbered zone */
-    background-color: oklch(12% 0.018 258);
-    border-radius: 3px;
+    height: 38px;
+    border-radius: 5px;
     overflow: hidden;
 
-    /* hatch stripe: muted red-orange to signal danger zone */
+    /* danger zone: clean dark red solid instead of noisy hatch */
     [data-part='hatch-line'] {
-      stroke: oklch(55% 0.12 25);
-      stroke-width: 1;
+      stroke: transparent;
+    }
+    [data-part='bulk-hatch'] {
+      fill: oklch(24% 0.06 25);
     }
 
-    /* safe-zone fill (0 → encumberedAfter): dark inset so bulk fill sits on top of it */
+    /* safe zone: barely elevated from danger zone — just enough to read */
     [data-part='bulk-safe'] {
-      fill: oklch(20% 0.02 258);
+      fill: oklch(18% 0.018 258);
     }
 
-    /* bulk fill: three states */
+    /* bulk fill states */
     [data-part='bulk-fill'][data-state='safe'] {
-      fill: oklch(58% 0.16 145);
+      fill: oklch(62% 0.19 145);
     }
     [data-part='bulk-fill'][data-state='encumbered'] {
-      fill: oklch(72% 0.16 80);
+      fill: oklch(74% 0.18 80);
     }
     [data-part='bulk-fill'][data-state='over-max'] {
-      fill: oklch(60% 0.15 25);
+      fill: oklch(62% 0.19 25);
     }
 
-    /* hairline border */
+    /* border */
     [data-part='bulk-border'] {
-      stroke: oklch(40% 0.025 258);
+      stroke: oklch(36% 0.022 258);
       stroke-width: 1;
     }
 
@@ -454,7 +455,9 @@ body.theme-default {
     [data-part='bulk-label'] {
       fill: var(--color-text);
       stroke: none;
-      font-size: 9pt;
+      font-size: 11pt;
+      font-weight: 500;
+      transform: translateY(6px);
     }
   }
 
