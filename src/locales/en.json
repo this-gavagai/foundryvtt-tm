@@ -212,7 +212,7 @@
     "pairPixelDice": "Pair Pixel Dice",
     "language": "Language",
     "theme": "Theme",
-    "manualDicePicker": "Manual dice picker"
+    "manualDicePicker": "Manual dice results"
   },
   "widgets": {
     "toggleSwitch": "Toggle Switch"

@@ -212,7 +212,7 @@
     "pairPixelDice": "Pixel Dice koppeln",
     "language": "Sprache",
     "theme": "Thema",
-    "manualDicePicker": "Würfel manuell auswählen"
+    "manualDicePicker": "Manuelle Würfelergebnisse"
   },
   "widgets": {
     "toggleSwitch": "Umschalter"
