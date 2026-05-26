@@ -29,7 +29,6 @@ function handleClicked() {
     <slot></slot>
     <Switch
       :modelValue="props.active"
-      @update:modelValue="emit('changed', !props.active)"
       :class="[props.active ? 'bg-green-600' : 'bg-gray-500', waiting ? 'opacity-50' : '']"
       class="relative z-auto inline-flex h-[24px] w-[40px] shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/75"
     >
