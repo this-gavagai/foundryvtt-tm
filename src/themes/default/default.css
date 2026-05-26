@@ -154,6 +154,11 @@ body.theme-default {
     [data-part='close']:hover {
       color: oklch(70% 0.01 258);
     }
+
+    /* disabled modifier rows in stat / strike / spell breakdowns */
+    [data-part='modifier'][data-disabled] {
+      color: oklch(45% 0.01 258);
+    }
   }
 
   /* --- Section accent colors ---------------------------

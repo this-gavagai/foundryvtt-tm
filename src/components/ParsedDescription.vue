@@ -24,7 +24,7 @@ const parsedText = computed(() => {
         <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value="${JSON.stringify(
           { action: 'action', slug: groups.slug, label: groups.label, paramsString: groups.params }
         ).replace(/"/g, '&quot;')}">
-        <span class="pl-4 capitalize"><span class="pf2-icon-inline">1</span>${props.labels?.[groups.slug] ?? groups.label ?? groups.slug}</span>
+        <span class="pl-4"><span class="pf2-icon-inline">1</span>${groups.label ?? props.labels?.[groups.slug] ?? groups.slug}</span>
       </label> `
   )
 

@@ -451,6 +451,8 @@ watch([strikes, blasts], () => {
             v-for="mod in viewed?.phase === 'damage'
               ? strikeModalDamage?.response?.modifiers
               : viewed?.target.data._modifiers"
+            data-part="modifier"
+            :data-disabled="!mod.enabled || undefined"
             class="flex gap-2"
             :class="{ 'text-gray-300': !mod.enabled }"
             :key="mod.slug"
