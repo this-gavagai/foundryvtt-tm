@@ -15,7 +15,7 @@ const emit = defineEmits(['clicked'])
 </script>
 <template>
   <div>
-    <div class="relative">
+    <div data-part="feat-row" class="relative">
       <a
         class="flex cursor-pointer truncate whitespace-nowrap"
         @click="sendOff(featId)"
@@ -31,10 +31,13 @@ const emit = defineEmits(['clicked'])
         <span class="pl-6">{{ feat?.name }}</span>
       </a>
     </div>
-    <div v-for="grant in feat?.itemGrants" :key="grant">
-      <div class="ml-3">
-        <FeatsListItem :featId="grant" @clicked="(local_featId: string) => sendOff(local_featId)" />
-      </div>
+    <div
+      data-part="sub-feat"
+      class="ml-3"
+      v-for="grant in feat?.itemGrants"
+      :key="grant"
+    >
+      <FeatsListItem :featId="grant" @clicked="(local_featId: string) => sendOff(local_featId)" />
     </div>
   </div>
 </template>

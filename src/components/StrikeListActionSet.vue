@@ -38,8 +38,8 @@ const damageVariants = computed(() => [
       />
       <div v-if="range" class="pt-1 text-xs">&nbsp;({{ range }} {{ $t('strikes.rangeUnit') }})</div>
     </div>
-    <div class="flex flex-wrap leading-9">
-      <span>
+    <div data-part="strike-buttons" class="flex flex-wrap leading-9">
+      <span data-part="attack">
         <span
           v-for="(variant, index) in mapLabelSet"
           class="mr-1 mb-1 inline-block border border-gray-400 bg-gray-100 p-2 text-xs whitespace-nowrap text-blue-600 transition-colors select-none active:bg-gray-300"
@@ -57,7 +57,7 @@ const damageVariants = computed(() => [
           <span>{{ index ? (variant.label?.match(/\((.*)\)/)?.pop() || variant.label || '—') : variant.label }}</span>
         </span>
       </span>
-      <span>
+      <span data-part="damage">
         <span
           v-for="(variant, index) in damageVariants"
           class="mr-1 mb-1 inline-block border border-gray-400 bg-gray-100 p-2 text-xs text-red-600 transition-colors select-none active:bg-gray-300"

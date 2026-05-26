@@ -35,7 +35,7 @@ function runViewedActionMacro() {
 
 <template>
   <div data-component="ActionsList">
-    <div class="break-inside-avoid-column px-6 py-4">
+    <div class="break-inside-avoid-column py-4">
       <div :data-section="group.type" class="pb-4 [&:not(:has(li))]:hidden" v-for="group in actionTypes" :key="group.type">
         <h3 class="text-lg underline">{{ $t(group.titleKey) }}</h3>
         <ul>

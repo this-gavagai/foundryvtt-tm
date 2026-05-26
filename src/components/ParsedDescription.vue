@@ -97,7 +97,7 @@ watch(
 defineExpose({ activeRoll })
 </script>
 <template>
-  <form ref="formRef" @change="formChange" @submit="formClick">
+  <form data-component="ParsedDescription" ref="formRef" @change="formChange" @submit="formClick">
     <div v-html="parsedText"></div>
   </form>
 </template>

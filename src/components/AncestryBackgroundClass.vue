@@ -22,14 +22,11 @@ function viewItem(item: Item | undefined) {
 <template>
   <div>
     <div class="my-auto shrink">
-      <div class="cursor-pointer overflow-hidden text-sm whitespace-nowrap">
+      <div class="cursor-pointer overflow-hidden whitespace-nowrap">
         <span @click="viewItem(ancestry)">{{ ancestry?.name ?? '-' }}&nbsp;</span>
         <span @click="viewItem(background)">{{ background?.name }}</span>
       </div>
-      <div
-        class="cursor-pointer overflow-hidden text-sm whitespace-nowrap"
-        @click="viewItem(classType)"
-      >
+      <div class="cursor-pointer overflow-hidden whitespace-nowrap" @click="viewItem(classType)">
         <span>{{ classType?.name ?? '-' }}</span>
         <span v-if="level && classType?.name">{{ ` (Level ${level})` }}</span>
       </div>
@@ -48,17 +45,23 @@ function viewItem(item: Item | undefined) {
           <span v-if="identityViewed?.system?.level?.value"
             >{{ $t('common.level') }} {{ identityViewed?.system?.level?.value ?? '-' }}</span
           >
-          <span v-if="identityViewed?.system?.traits?.rarity" class="text-sm capitalize"
+          <span v-if="identityViewed?.system?.traits?.rarity" class="capitalize"
             >({{ identityViewed?.system?.traits?.rarity }})</span
           >
         </template>
         <template #body>
-          <ParsedDescription :text="identityViewed?.system?.description?.value" :labels="rollOptionLabels" />
+          <ParsedDescription
+            :text="identityViewed?.system?.description?.value"
+            :labels="rollOptionLabels"
+          />
           <div v-if="identityViewed?.type === 'ancestry'">
             <hr />
             <div class="mt-2">
               <h3 class="text-lg">{{ heritage?.name }}</h3>
-              <ParsedDescription :text="heritage?.system?.description?.value" :labels="rollOptionLabels" />
+              <ParsedDescription
+                :text="heritage?.system?.description?.value"
+                :labels="rollOptionLabels"
+              />
             </div>
           </div>
         </template>

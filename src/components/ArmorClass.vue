@@ -7,6 +7,6 @@ const { current, modifiers } = ac
 </script>
 <template>
   <StatBox :heading="$t('ac.heading')" :modifiers="modifiers">
-    <div class="w-8">{{ current ?? '??' }}</div>
+    <div>{{ current ?? '??' }}</div>
   </StatBox>
 </template>

@@ -72,6 +72,7 @@ defineExpose({ infoModal })
             {{ modalHeading ?? heading }}
             <span
               v-if="props.proficiency"
+              :data-proficiency-level="props.proficiency"
               :class="proficiencyLevels[props.proficiency].color"
               class="text-sm"
             >

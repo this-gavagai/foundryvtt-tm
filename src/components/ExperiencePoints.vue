@@ -30,7 +30,7 @@ function handleXpFormSubmit(e: Event) {
 <template>
   <div>
     <StatBox :heading="$t('xp.heading')" @click="experienceModal.open()" class="cursor-pointer">
-      <div class="py-1">
+      <div>
         <svg width="75" height="18" class="trasition-all duration-500">
           <rect
             :width="75 * ((xpCurrent ?? 0) / (xpMax ?? 1))"

@@ -22,9 +22,9 @@ import LanguagesKnown from '@/components/LanguagesKnown.vue'
     <AttributeScores />
     <div class="flex gap-4">
       <ArmorClass />
-      <div class="border-divider border"></div>
+      <div class="border-divider border-[0.5px]"></div>
       <SavingThrows />
-      <div class="border-divider border"></div>
+      <div class="border-divider border-[0.5px]"></div>
       <PerceptionDetails />
     </div>
     <CombatInitiative />

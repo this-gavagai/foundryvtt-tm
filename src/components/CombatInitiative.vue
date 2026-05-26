@@ -34,22 +34,28 @@ const initiativeReady = computed(() => {
 })
 </script>
 <template>
-  <div class="flex justify-between gap-4">
-    <DropdownWidget
-      :list="
-        skillsPlusPerception.map((s) => ({ id: s.slug, name: s.label })) ?? [
-          { id: null, name: '...' }
-        ]
-      "
-      :selectedId="initiativeStat ?? ''"
-      :changed="(newValue) => (initiativeStat = newValue)"
-    />
-    <StatBox
-      :heading="$t('combat.initiative')"
-      :modifiers="initiativeMods"
-      :rollAction="initiativeReady ? rollInitiative : undefined"
-    >
-      {{ formatModifier(initiativeTotalModifier ?? NaN) }}
-    </StatBox>
+  <div>
+    <div class="pb-1 text-[0.8rem] text-gray-500 uppercase">{{ $t('combat.initiative') }}</div>
+    <div class="flex gap-4">
+      <DropdownWidget
+        class="grow"
+        :list="
+          skillsPlusPerception.map((s) => ({ id: s.slug, name: s.label })) ?? [
+            { id: null, name: '...' }
+          ]
+        "
+        :selectedId="initiativeStat ?? ''"
+        :changed="(newValue) => (initiativeStat = newValue)"
+      />
+      <div data-component="InitiativeBox">
+        <StatBox
+          :modalHeading="$t('combat.initiative')"
+          :modifiers="initiativeMods"
+          :rollAction="initiativeReady ? rollInitiative : undefined"
+        >
+          {{ formatModifier(initiativeTotalModifier ?? NaN) }}
+        </StatBox>
+      </div>
+    </div>
   </div>
 </template>

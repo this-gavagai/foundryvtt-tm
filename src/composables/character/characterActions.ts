@@ -1,5 +1,5 @@
 import { computed, type Ref } from 'vue'
-import type { CharacterPF2e, AbilityItemPF2e } from '@7h3laughingman/pf2e-types'
+import type { CharacterPF2e, AbilityItemPF2e, FeatPF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField } from './helpers'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import { type Modifier, makeModifiers } from './defs/modifier'
@@ -24,7 +24,6 @@ export interface CharacterActions {
 }
 
 export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): CharacterActions {
-
   const doCharacterAction = (
     slug: string,
     options: object | undefined = {},
@@ -36,7 +35,13 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
   }
   const actions = computed(() =>
     actor.value?.items
-      ?.filter((i): i is AbilityItemPF2e<CharacterPF2e> => i.type === 'action')
+      // Include both ability items (type 'action') and actionable feats/features.
+      // Many reactions/free actions (e.g. Counterspell) are stored as feats with a
+      // non-passive actionType rather than as separate granted action items.
+      ?.filter(
+        (i): i is AbilityItemPF2e<CharacterPF2e> | FeatPF2e<CharacterPF2e> =>
+          i.type === 'action' || i.type === 'feat'
+      )
       .filter((i) => actionTypes.map((a) => a.type).includes(i.system?.actionType?.value))
       .map((i) => {
         const macroId = (
@@ -44,7 +49,7 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
         )?.['pf2e-toolbelt']?.actionable?.macro
         const typeValue = i.system?.actionType?.value
         return {
-          ...(makeAction(i) as Action),
+          ...(makeAction(i as AbilityItemPF2e<CharacterPF2e>) as Action),
           actionType:
             typeValue !== 'action'
               ? (typeValue ?? null)

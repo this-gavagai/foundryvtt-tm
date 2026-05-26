@@ -11,7 +11,7 @@ const { skills, proficiencies } = character
 </script>
 <template>
   <div data-component="SkillList" class="py-4 empty:hidden lg:flex lg:justify-between">
-    <div class="flex-1 px-6">
+    <div class="flex-1 px-6 lg:pr-2">
       <section
         class="border-divider break-inside-avoid-column border-t first:border-t-0 first:p-0 empty:hidden 2xl:border-t-0 2xl:pl-2 2xl:first:border-r 2xl:first:pr-6 [&:not(:has(li))]:hidden"
         :data-section="isNonLore ? 'skills' : 'lore'"
@@ -40,7 +40,7 @@ const { skills, proficiencies } = character
       </section>
     </div>
     <div
-      class="border-divider flex-1 border-t px-6 pt-4 lg:border-0 lg:border-l lg:pt-0 [&:not(:has(li))]:hidden"
+      class="border-divider flex-1 border-t px-6 pt-4 lg:border-0 lg:pt-0 lg:pl-2 [&:not(:has(li))]:hidden"
     >
       <div
         v-for="proficiencyType in ['attacks', 'defenses', 'classDCs', 'spellcasting']"

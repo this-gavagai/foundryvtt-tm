@@ -105,7 +105,7 @@ const toggleSet = [
         </span>
       </div>
       <!-- Comprehensive equipment list -->
-      <div class="lg:columns-2 lg:gap-12">
+      <div class="lg:columns-2">
         <section
           v-for="inventoryType in inventoryTypes"
           :data-section="inventoryType.type"

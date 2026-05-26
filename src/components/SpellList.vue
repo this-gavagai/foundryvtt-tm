@@ -185,7 +185,7 @@ const spellbook = computed((): Spellbook => {
     <div v-if="spellcastingEntries?.length === 0" class="px-6 py-4 italic">
       {{ $t('spells.noSpells') }}
     </div>
-    <div v-else class="px-6 py-4 lg:columns-2 lg:gap-12">
+    <div v-else class="px-6 py-4 lg:columns-2">
       <!-- Spell Sources -->
       <section
         v-for="location in spellcastingEntries"

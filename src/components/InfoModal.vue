@@ -128,6 +128,7 @@ defineExpose({ open, close, rollResultModal })
               leave-to="translate-y-full"
             >
               <DialogPanel
+                data-part="panel"
                 class="relative w-full max-w-4xl transform overflow-hidden bg-white p-6 text-left shadow-xl transition-all"
               >
                 <div
@@ -161,7 +162,8 @@ defineExpose({ open, close, rollResultModal })
                       <div class="absolute top-0 right-0 pt-4 pr-4 sm:block">
                         <button
                           type="button"
-                          class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-hidden"
+                          data-part="close"
+                          class="cursor-pointer rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-hidden"
                           @click="close(true)"
                         >
                           <span class="sr-only">{{ $t('common.close') }}</span>

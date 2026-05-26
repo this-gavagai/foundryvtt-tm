@@ -35,6 +35,7 @@ defineExpose({ waiting })
   <button
     type="button"
     :disabled="props.disabled"
+    :data-color="props.color"
     class="inline-flex min-h-10 min-w-16 cursor-pointer items-end justify-center border border-transparent px-4 py-2 font-medium transition-colors focus:outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
     :class="[{ 'opacity-50': waiting }, ...(styles.get(props.color) ?? ['bg-gray-500'])]"
     @click="handleClick"

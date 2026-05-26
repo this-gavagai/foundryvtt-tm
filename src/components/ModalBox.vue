@@ -54,6 +54,7 @@ defineExpose({ open, close, options, isOpen })
             leave-to="opacity-0 scale-95"
           >
             <DialogPanel
+              data-part="panel"
               class="relative w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all"
             >
               <DialogTitle
@@ -69,6 +70,7 @@ defineExpose({ open, close, options, isOpen })
               </DialogTitle>
               <div class="absolute top-0 right-0 pt-4 pr-4 sm:block">
                 <button
+                  data-part="close"
                   class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-hidden"
                   @click="close"
                   type="button"

@@ -30,6 +30,7 @@ function handleChanged(newChoice: string) {
 
 <template>
   <div
+    data-component="ChoiceWidget"
     class="isolate mb-2 flex rounded-lg border border-gray-400 shadow-inner transition-opacity"
     :class="[waiting ? 'opacity-50' : '']"
     v-if="choiceSet.length > 1"

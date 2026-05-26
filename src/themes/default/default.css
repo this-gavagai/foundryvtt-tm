@@ -5,21 +5,27 @@ body.theme-default {
     oklch(33% 0.05 270 / 0.5),
     transparent
   );
-  color: oklch(86% 0.008 250);
+  color: var(--color-text);
 
   --color-divider: oklch(20% 0.018 258);
   --color-hovered: oklch(17% 0.02 258);
   --color-selected: oklch(20% 0.026 258);
   --color-active: oklch(23% 0.032 258);
 
+  /* shared surfaces */
+  --color-card: oklch(17% 0.022 258); /* section / list cards, dropdown button */
+  --color-surface: oklch(14% 0.02 258); /* modals, dropdown popovers */
+  --color-border: oklch(36% 0.025 258); /* modal / dropdown outlines */
+  --color-text: oklch(86% 0.008 250);
+  --color-heading: oklch(60% 0.008 258);
+  /* --color-heading: oklch(85% 0.008 258); */
+
   --color-proficiency-untrained: oklch(90% 0.005 258);
   --color-proficiency-trained: oklch(68% 0.18 250);
   --color-proficiency-expert: oklch(70% 0.2 305);
   --color-proficiency-master: oklch(78% 0.18 88);
   --color-proficiency-legendary: oklch(68% 0.22 22);
-}
 
-body.theme-default {
   /* invert monochrome SVG icons for dark bg */
   img[src*='svg'] {
     filter: invert(0.85);
@@ -28,6 +34,18 @@ body.theme-default {
   /* --- StatBox headings without a proficiency level use text-black; remap for dark bg --- */
   [data-component='StatBox']:not([data-proficiency-level]) > div > div:first-child {
     color: oklch(60% 0.008 258);
+  }
+
+  /* Initiative value: no card, just align the bare number with the dropdown */
+  [data-component='InitiativeBox'] {
+    display: flex;
+    align-items: center;
+    padding-inline: 0.5rem;
+  }
+
+  /* InitiativeBox has no heading (it lives above the dropdown) — drop the empty slot */
+  [data-component='InitiativeBox'] [data-component='StatBox'] > div > div:first-child {
+    display: none;
   }
 
   /* --- Proficiency coloring ---
@@ -52,13 +70,9 @@ body.theme-default {
     --proficiency-color: var(--color-proficiency-legendary);
   }
 
-  /* value slot inherits from container */
-  [data-proficiency-level] {
-    color: var(--proficiency-color, inherit);
-  }
-
-  /* heading carries an explicit text-{color}-800 utility class;
-     target it directly so the themes layer overrides utilities */
+  /* value slot inherits from container; heading carries an explicit
+     text-{color}-800 utility class so it is targeted directly */
+  [data-proficiency-level],
   [data-proficiency-level] > div > div:first-child {
     color: var(--proficiency-color, inherit);
   }
@@ -76,41 +90,123 @@ body.theme-default {
     color: inherit;
   }
 
-  /* --- Modals ------------------------------------------ */
-  /* Headless UI renders DialogPanel as a div with role="dialog" on the outer wrapper,
-     not a native <dialog>, so target [role='dialog'] descendants instead */
-  [role='dialog'] {
-    .bg-white {
-      background-color: oklch(14% 0.02 258);
-      color: oklch(86% 0.008 250);
-      border: 1px solid oklch(36% 0.025 258);
-    }
-    .text-gray-900 {
-      color: oklch(86% 0.008 250);
-    }
-    .text-gray-400 {
-      color: oklch(55% 0.01 258);
-    }
-    .hover\:text-gray-500:hover {
-      color: oklch(70% 0.01 258);
+  /* --- ButtonWidget "lightgray" variant: dark surface in dark theme --- */
+  [data-color='lightgray'] {
+    background-color: oklch(30% 0.02 258);
+    color: var(--color-text);
+  }
+  [data-color='lightgray']:active {
+    background-color: oklch(36% 0.025 258);
+  }
+
+  /* --- ParsedDescription inline roll pills (unselected only) --- */
+  [data-component='ParsedDescription'] label:not(:has(:checked)) {
+    background-color: oklch(30% 0.02 258);
+    color: var(--color-text);
+  }
+
+  /* --- Choice toggle (carry type / hands selector) --- */
+  [data-component='ChoiceWidget'] {
+    background-color: oklch(24% 0.022 258);
+    border-color: oklch(40% 0.025 258);
+
+    button {
+      border-color: oklch(40% 0.025 258);
+      color: var(--color-text);
     }
 
-    /* proficiency level labels — remap dark-shade utilities to theme palette */
-    .text-blue-800 {
-      color: var(--color-proficiency-trained);
+    /* selected segment */
+    button[data-selected] {
+      background-color: oklch(45% 0.13 255);
+      color: oklch(96% 0.01 255);
     }
-    .text-purple-800 {
-      color: var(--color-proficiency-expert);
+
+    button:hover {
+      background-color: oklch(26% 0.025 258);
     }
-    .text-yellow-800 {
-      color: var(--color-proficiency-master);
-    }
-    .text-red-800 {
-      color: var(--color-proficiency-legendary);
+
+    button[data-selected]:hover,
+    button:active {
+      background-color: oklch(50% 0.13 255);
     }
   }
 
-  /* --- Shared section-card design language ------------- */
+  /* --- Modals ------------------------------------------ */
+  /* Headless UI renders DialogPanel as a div with role="dialog" on the outer wrapper,
+     not a native <dialog>. The panel and close button carry data-part hooks; the
+     DialogTitle is just an h3. Proficiency labels inside use the regular
+     [data-proficiency-level] system, no per-color overrides needed.            */
+  [role='dialog'] {
+    [data-part='panel'] {
+      background-color: var(--color-surface);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+    }
+
+    h3 {
+      color: var(--color-text);
+    }
+
+    [data-part='close'] {
+      background-color: transparent;
+      color: oklch(55% 0.01 258);
+    }
+    [data-part='close']:hover {
+      color: oklch(70% 0.01 258);
+    }
+  }
+
+  /* --- Section accent colors ---------------------------
+     --section-color drives the gradient underline on each list header.
+     Section slugs are unique across components, so they are mapped once
+     here, grouped by proficiency hue.                                  */
+  [data-section='attacks'],
+  [data-section='ancestryfeatures'],
+  [data-section='ancestry'],
+  [data-section='xdy_ancestryparagon'],
+  [data-section='bonus'],
+  [data-section='action'],
+  [data-section='strikes'],
+  [data-section='weapon'],
+  [data-section='divine'] {
+    --section-color: var(--color-proficiency-legendary);
+  }
+
+  [data-section='classDCs'],
+  [data-section='spellcasting'],
+  [data-section='classfeatures'],
+  [data-section='class'],
+  [data-section='reaction'],
+  [data-section='blasts'],
+  [data-section='consumable'],
+  [data-section='arcane'],
+  [data-section='occult'] {
+    --section-color: var(--color-proficiency-expert);
+  }
+
+  [data-section='skills'],
+  [data-section='lore'],
+  [data-section='skill'],
+  [data-section='armor'],
+  [data-section='treasure'],
+  [data-section='primal'],
+  [data-section='staff'] {
+    --section-color: var(--color-proficiency-master);
+  }
+
+  [data-section='defenses'],
+  [data-section='archetype'],
+  [data-section='general'],
+  [data-section='free'],
+  [data-section='shield'],
+  [data-section='equipment'],
+  [data-section='backpack'],
+  [data-section='focus'],
+  [data-section='consumables'] {
+    --section-color: var(--color-proficiency-trained);
+  }
+
+  /* --- Shared list cards + dividers -------------------- */
   [data-component='SkillList'],
   [data-component='FeatsList'],
   [data-component='EquipmentList'],
@@ -119,30 +215,10 @@ body.theme-default {
     section,
     dl,
     div[data-section] {
-      background-color: oklch(17% 0.022 258);
+      background-color: var(--color-card);
       border-radius: 0.5rem;
       padding: 0.75rem 1rem;
       margin-bottom: 0.75rem;
-    }
-
-    h3,
-    dt {
-      text-decoration: none;
-      font-family: Georgia, 'Times New Roman', serif;
-      font-size: 1.1rem;
-      font-weight: 400;
-      letter-spacing: 0.01em;
-      text-transform: none;
-      color: oklch(85% 0.008 258);
-      padding-bottom: 0.5rem;
-      border-bottom: 2px solid;
-      border-image: linear-gradient(
-          to right,
-          var(--section-color, var(--color-divider)),
-          transparent
-        )
-        1;
-      margin-bottom: 0.6rem;
     }
 
     li,
@@ -158,27 +234,31 @@ body.theme-default {
     }
   }
 
-  /* --- SkillList ---------------------------------------- */
-  [data-component='SkillList'] {
-    [data-section='skills'] {
-      --section-color: var(--color-proficiency-master);
-    }
-    [data-section='lore'] {
-      --section-color: var(--color-proficiency-master);
-    }
-    [data-section='attacks'] {
-      --section-color: var(--color-proficiency-legendary);
-    }
-    [data-section='defenses'] {
-      --section-color: var(--color-proficiency-trained);
-    }
-    [data-section='classDCs'] {
-      --section-color: var(--color-proficiency-expert);
-    }
-    [data-section='spellcasting'] {
-      --section-color: var(--color-proficiency-expert);
-    }
+  /* --- Shared section headers (fading accent rule) --- */
+  :is(
+      [data-component='SkillList'],
+      [data-component='FeatsList'],
+      [data-component='EquipmentList'],
+      [data-component='ActionsList'],
+      [data-component='StrikeList'],
+      [data-component='SpellList']
+    )
+    :is(h3, dt) {
+    text-decoration: none;
+    font-size: 1.1rem;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    color: var(--color-heading);
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid;
+    border-image: linear-gradient(to right, var(--section-color, var(--color-divider)), transparent)
+      1;
+    margin-bottom: 0.6rem;
+  }
 
+  /* --- SkillList --------------------------------------- */
+  [data-component='SkillList'] {
     ul {
       column-rule: 1px solid var(--color-divider);
       column-gap: 1.5rem;
@@ -208,70 +288,19 @@ body.theme-default {
     }
   }
 
-  /* --- FeatsList --------------------------------------- */
+  /* --- FeatsList: sub-feats are italic and the first one gets extra top space --- */
   [data-component='FeatsList'] {
-    .ml-3 {
+    [data-part='sub-feat'] {
       font-style: italic;
     }
 
-    .relative + div > .ml-3 {
+    [data-part='feat-row'] + [data-part='sub-feat'] {
       margin-top: 0.3rem;
-    }
-
-    [data-section='ancestryfeatures'] {
-      --section-color: var(--color-proficiency-legendary);
-    }
-    [data-section='classfeatures'] {
-      --section-color: var(--color-proficiency-expert);
-    }
-    [data-section='ancestry'] {
-      --section-color: var(--color-proficiency-legendary);
-    }
-    [data-section='class'] {
-      --section-color: var(--color-proficiency-expert);
-    }
-    [data-section='archetype'] {
-      --section-color: var(--color-proficiency-trained);
-    }
-    [data-section='skill'] {
-      --section-color: var(--color-proficiency-master);
-    }
-    [data-section='general'] {
-      --section-color: var(--color-proficiency-trained);
-    }
-    [data-section='xdy_ancestryparagon'] {
-      --section-color: var(--color-proficiency-legendary);
-    }
-    [data-section='bonus'] {
-      --section-color: var(--color-proficiency-legendary);
-    }
-  }
-
-  /* --- ActionsList ------------------------------------- */
-  [data-component='ActionsList'] {
-    [data-section='action'] {
-      --section-color: var(--color-proficiency-legendary);
-    }
-    [data-section='reaction'] {
-      --section-color: var(--color-proficiency-expert);
-    }
-    [data-section='free'] {
-      --section-color: var(--color-proficiency-trained);
-    }
-    [data-section='skill'] {
-      --section-color: var(--color-proficiency-master);
     }
   }
 
   /* --- StrikeList -------------------------------------- */
   [data-component='StrikeList'] {
-    [data-section='strikes'] {
-      --section-color: var(--color-proficiency-legendary);
-    }
-    [data-section='blasts'] {
-      --section-color: var(--color-proficiency-expert);
-    }
-
     /* remove the trailing gap so the stacked ActionsList doesn't double up on spacing */
     > div {
       padding-bottom: 0;
@@ -281,13 +310,14 @@ body.theme-default {
     }
 
     /* tighten the button row — leading-9 adds excess height, mb-1 leaks into li padding */
-    .flex.flex-wrap {
+    [data-part='strike-buttons'] {
       line-height: 1;
       row-gap: 0.2rem;
     }
 
-    /* all strike/blast buttons */
-    .flex.flex-wrap > span > span {
+    /* all attack + damage buttons share the same chrome */
+    [data-part='attack'] > span,
+    [data-part='damage'] > span {
       background-color: oklch(19% 0.022 258);
       border-color: oklch(32% 0.022 258);
       color: oklch(72% 0.015 258);
@@ -296,26 +326,22 @@ body.theme-default {
     }
 
     /* attack / MAP buttons */
-    .flex.flex-wrap > span:first-child > span {
+    [data-part='attack'] > span {
       color: var(--color-proficiency-trained);
     }
 
-    /* primary strike button (first in the attack group) */
-    .flex.flex-wrap > span:first-child > span:first-child {
-      background-color: oklch(22% 0.03 258);
-      border-color: oklch(38% 0.025 258);
-    }
-
     /* damage / critical buttons */
-    .flex.flex-wrap > span:last-child > span {
+    [data-part='damage'] > span {
       color: var(--color-proficiency-legendary);
     }
 
-    .flex.flex-wrap > span > span:hover {
+    [data-part='attack'] > span:hover,
+    [data-part='damage'] > span:hover {
       background-color: oklch(26% 0.025 258);
     }
 
-    .flex.flex-wrap > span > span:active {
+    [data-part='attack'] > span:active,
+    [data-part='damage'] > span:active {
       background-color: oklch(30% 0.028 258);
     }
   }
@@ -331,75 +357,16 @@ body.theme-default {
     svg {
       background-color: white;
     }
-    [data-section='weapon'] {
-      --section-color: var(--color-proficiency-legendary);
-    }
-    [data-section='armor'] {
-      --section-color: var(--color-proficiency-master);
-    }
-    [data-section='shield'] {
-      --section-color: var(--color-proficiency-trained);
-    }
-    [data-section='consumable'] {
-      --section-color: var(--color-proficiency-expert);
-    }
-    [data-section='equipment'] {
-      --section-color: var(--color-proficiency-trained);
-    }
-    [data-section='treasure'] {
-      --section-color: var(--color-proficiency-master);
-    }
-    [data-section='backpack'] {
-      --section-color: var(--color-proficiency-trained);
-    }
   }
 
-  /* --- SpellList --------------------------------------- */
+  /* --- SpellList (two-level hierarchy: source card > rank groups) --- */
   [data-component='SpellList'] {
-    [data-section='arcane'] {
-      --section-color: var(--color-proficiency-expert);
-    }
-    [data-section='divine'] {
-      --section-color: var(--color-proficiency-legendary);
-    }
-    [data-section='primal'] {
-      --section-color: var(--color-proficiency-master);
-    }
-    [data-section='occult'] {
-      --section-color: var(--color-proficiency-expert);
-    }
-    [data-section='focus'] {
-      --section-color: var(--color-proficiency-trained);
-    }
-    [data-section='staff'] {
-      --section-color: var(--color-proficiency-master);
-    }
-    [data-section='consumables'] {
-      --section-color: var(--color-proficiency-trained);
-    }
-
     /* outer card per spell source */
     section[data-section] {
-      background-color: oklch(17% 0.022 258);
+      background-color: var(--color-card);
       border-radius: 0.5rem;
       margin-bottom: 0.75rem;
       overflow: hidden;
-    }
-
-    /* entry header — preserves existing flex layout, adds serif + gradient border */
-    h3 {
-      font-family: Georgia, 'Times New Roman', serif;
-      font-weight: 400;
-      color: oklch(85% 0.008 258);
-      padding-bottom: 0.5rem;
-      border-bottom: 2px solid;
-      border-image: linear-gradient(
-          to right,
-          var(--section-color, var(--color-divider)),
-          transparent
-        )
-        1;
-      margin-bottom: 0.6rem;
     }
 
     /* rank group separator — visible top border between ranks */
@@ -421,7 +388,7 @@ body.theme-default {
       margin-bottom: 0.25rem;
     }
 
-    /* counter widgets — shift up 4px extra and brighten pips */
+    /* counter widgets — shift up and brighten pips */
     h3 > span:last-child > div {
       bottom: 2px;
       color: oklch(82% 0.01 258);
@@ -446,39 +413,42 @@ body.theme-default {
 
   /* --- Dropdown (Listbox) ------------------------------ */
   [data-part='dropdown'] {
+    /* collapsed-list button */
     [aria-haspopup='listbox'] {
-      background-color: oklch(17% 0.022 258);
-      border-color: oklch(36% 0.025 258);
+      background-color: var(--color-card);
+      border-color: var(--color-border);
       color: inherit;
 
-      &.bg-gray-200 {
+      &:disabled,
+      &[data-waiting] {
         background-color: oklch(22% 0.02 258);
       }
 
-      .text-gray-400 {
+      /* chevron is the only svg here */
+      svg {
         color: oklch(50% 0.01 258);
       }
     }
 
+    /* dropdown popover */
     [role='listbox'] {
-      background-color: oklch(14% 0.02 258);
-      border: 1px solid oklch(36% 0.025 258);
+      background-color: var(--color-surface);
+      border: 1px solid var(--color-border);
       box-shadow: 0 4px 16px oklch(5% 0.01 258 / 0.8);
     }
 
+    /* default option contents */
     [role='option'] > div {
-      &.bg-amber-100 {
-        background-color: oklch(22% 0.025 258);
-      }
-      &.text-amber-900 {
-        color: oklch(86% 0.008 250);
-      }
-      &.text-gray-900 {
-        color: oklch(86% 0.008 250);
-      }
+      color: var(--color-text);
     }
 
-    [role='option'] .text-amber-600 {
+    /* hovered / keyboard-focused option (Headless UI active state) */
+    [role='option'][data-headlessui-state~='active'] > div {
+      background-color: oklch(22% 0.025 258);
+    }
+
+    /* check icon on the selected option */
+    [role='option'][aria-selected='true'] svg {
       color: var(--color-proficiency-master);
     }
   }
