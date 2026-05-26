@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { SignedNumber } from '@/utils/utilities'
 import { proficiencyLevels } from '@/utils/constants'
 import InfoModal from '@/components/InfoModal.vue'
-import Button from '@/components/widgets/ButtonWidget.vue'
 import type { RequestResolutionArgs } from '@/types/api-types'
+import type { Roll } from '@/types/roll-types'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
 import type { Modifier } from '@/composables/character'
 
+const { t } = useI18n()
 const props = defineProps<{
   heading?: string
   subheading?: string
@@ -23,26 +25,35 @@ const props = defineProps<{
 const infoModal = ref()
 const { isListening } = storeToRefs(useListenersStore())
 
-function makeRoll(result: number | undefined = undefined) {
-  return props.rollAction?.(result).then((r: RequestResolutionArgs | null) => {
-    infoModal.value.close()
-    infoModal.value.rollResultModal.open(r)
-  })
-}
 const canOpen = computed(() => (props?.modifiers || props?.breakdown) && !props.preventInfoModal)
 
 function openIfDetailed() {
   if (canOpen.value) infoModal.value.open()
 }
 
-function handleDiceResult(face: number) {
-  if (props.rollAction && isListening.value) makeRoll(face)
-}
+const rolls = computed<Roll[]>(() => {
+  if (!props.rollAction || !isListening.value) return []
+  return [
+    {
+      key: 'statbox-roll',
+      label: t('common.roll'),
+      color: 'blue',
+      dice: ['d20'],
+      armed: true,
+      execute: (faces) => props.rollAction!(faces?.[0])
+    }
+  ]
+})
 
 defineExpose({ infoModal })
 </script>
 <template>
-  <div data-component="StatBox" :data-proficiency-level="proficiency" :data-has-details="canOpen" :data-rollable="rollAction ? true : undefined">
+  <div
+    data-component="StatBox"
+    :data-proficiency-level="proficiency"
+    :data-has-details="canOpen"
+    :data-rollable="rollAction ? true : undefined"
+  >
     <div
       class="fit-content"
       :class="{
@@ -62,11 +73,7 @@ defineExpose({ infoModal })
       <div class="hidden whitespace-nowrap uppercase">{{ fullHeading }}</div>
     </div>
     <Teleport to="#modals">
-      <InfoModal
-        ref="infoModal"
-        :diceRequest="rollAction ? ['d20'] : undefined"
-        @diceResult="handleDiceResult"
-      >
+      <InfoModal ref="infoModal" :rolls="rolls">
         <div>
           <h3 class="mb-2 text-xl">
             {{ modalHeading ?? heading }}
@@ -99,14 +106,6 @@ defineExpose({ infoModal })
             </li>
           </ul>
         </div>
-        <template #actionButtons v-if="isListening">
-          <Button
-            v-if="props.rollAction"
-            color="blue"
-            :label="$t('common.roll')"
-            :clicked="() => makeRoll()"
-          />
-        </template>
       </InfoModal>
     </Teleport>
   </div>

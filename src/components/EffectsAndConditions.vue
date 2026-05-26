@@ -11,6 +11,7 @@ import ParsedDescription from './ParsedDescription.vue'
 import { getPath } from '@/utils/utilities'
 import type { EffectItem } from '@/composables/character'
 import type { ActiveRoll } from '@/types/api-types'
+import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 
 const character = useInjectedCharacter()
 const { effects, rollOptionLabels } = character
@@ -18,6 +19,7 @@ const infoModal = ref()
 const effectViewedId = ref<string | undefined>()
 const effectViewed = computed(() => effects.value?.find((e) => e._id === effectViewedId.value))
 const activeRoll = ref<ActiveRoll>()
+const inlineRolls = useRollsFromActiveRoll(activeRoll)
 
 function viewEffect(effect: EffectItem) {
   effectViewedId.value = effect._id
@@ -88,7 +90,7 @@ function adjustViewedEffectQty(delta: number) {
         :itemId="effectViewed?._id"
         :imageUrl="effectViewed?.img"
         :traits="[]"
-        :activeRoll="activeRoll"
+        :rolls="inlineRolls"
       >
         <template #title>
           {{ effectViewed?.name }}

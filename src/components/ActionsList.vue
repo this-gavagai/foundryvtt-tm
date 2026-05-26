@@ -5,6 +5,7 @@ import { ref, computed } from 'vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
+import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
 import Button from './widgets/ButtonWidget.vue'
@@ -14,6 +15,7 @@ import ParsedDescription from './ParsedDescription.vue'
 
 const infoModal = ref()
 const description = ref()
+const inlineRolls = useRollsFromActiveRoll(computed(() => description.value?.activeRoll))
 
 const character = useInjectedCharacter()
 const { actions, rollOptionLabels } = character
@@ -66,7 +68,7 @@ function runViewedActionMacro() {
         :imageUrl="actionViewed?.img"
         :itemId="actionViewed?._id"
         :traits="actionViewed?.system?.traits?.value"
-        :activeRoll="description?.activeRoll"
+        :rolls="inlineRolls"
       >
         <template #title>
           {{ actionViewed?.name }}

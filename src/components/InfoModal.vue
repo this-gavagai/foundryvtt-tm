@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   Dialog,
   DialogPanel,
@@ -18,12 +18,12 @@ import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
 import Modal from './ModalBox.vue'
 import Spinner from './widgets/SpinnerWidget.vue'
-import type { ActiveRoll } from '@/types/api-types'
+import type { RequestResolutionArgs } from '@/types/api-types'
+import type { Roll } from '@/types/roll-types'
 
 import Button from './widgets/ButtonWidget.vue'
 
-const character = useInjectedCharacter()
-const { _id: characterId, doCharacterAction, doFlatCheck, saves, skills } = character
+const { _id: characterId } = useInjectedCharacter()
 
 const { pixel, lastRoll } = storeToRefs(usePixelDiceStore())
 const { isListening } = storeToRefs(useListenersStore())
@@ -35,14 +35,28 @@ const props = defineProps<{
   imageUrl?: string
   traits?: string[]
   itemId?: string
-  diceRequest?: string[]
-  activeRoll?: ActiveRoll
+  rolls?: Roll[]
 }>()
 
+// The roll that consumes the next physical-die input: prefer an explicitly
+// armed roll; otherwise the first dice-eligible roll.
+const armedRoll = computed<Roll | undefined>(() => {
+  const list = props.rolls ?? []
+  return list.find((r) => r.armed && r.dice?.length) ?? list.find((r) => r.dice?.length)
+})
+
+function executeRoll(roll: Roll, faces?: number[]) {
+  if (roll.disabled) return
+  return Promise.resolve(roll.execute(faces)).then(
+    (r: RequestResolutionArgs | null | undefined) => {
+      close(true)
+      rollResultModal.value.open(r)
+    }
+  )
+}
+
 watch(lastRoll, () => {
-  if (isOpen.value && props.diceRequest?.length) {
-    emit('diceResult', lastRoll.value)
-  }
+  if (isOpen.value && armedRoll.value) executeRoll(armedRoll.value, [lastRoll.value!])
 })
 
 const isOpen = ref(false)
@@ -73,31 +87,7 @@ function sendCurrentItemToChat() {
   sendItemToChat(characterId.value, props.itemId).then(() => (waiting.value = false))
 }
 
-function rollActiveRoll() {
-  if (!props.activeRoll) return
-  const { action, slug, params, dc } = props.activeRoll
-  if (action === 'action') {
-    doCharacterAction(slug!, params).then((r) => {
-      rollResultModal.value.open(r)
-      close(true)
-    })
-    return
-  }
-  if (action !== 'check') return
-  const rollOptions = { dc: Number(dc) ?? undefined }
-  if (slug === 'fortitude' || slug === 'will' || slug === 'reflex') {
-    saves[slug].value?.roll?.(undefined, rollOptions).then((r) => rollResultModal.value.open(r))
-  } else if (slug === 'flat') {
-    doFlatCheck(undefined, rollOptions).then((r) => rollResultModal.value.open(r))
-  } else {
-    skills.value
-      ?.find((s) => s.slug === slug)
-      ?.roll?.(undefined, rollOptions)
-      .then((r) => rollResultModal.value.open(r))
-  }
-}
-
-const emit = defineEmits(['opening', 'closing', 'imgClick', 'diceResult'])
+const emit = defineEmits(['opening', 'closing', 'imgClick'])
 defineExpose({ open, close, rollResultModal })
 </script>
 <template>
@@ -190,17 +180,15 @@ defineExpose({ open, close, rollResultModal })
                   </div>
                   <div>
                     <slot></slot>
-                    <!-- <div>{{ activeRoll }}</div> -->
                   </div>
                 </div>
                 <div class="mt-4 flex flex-wrap items-center justify-end gap-2">
                   <div
-                    v-if="pixel && pixel.status === 'ready' && diceRequest?.length"
+                    v-if="pixel && pixel.status === 'ready' && armedRoll?.dice?.length"
                     class="grow cursor-pointer"
                   >
-                    <!-- <div class="absolute mt-1 w-8 text-center text-xl font-bold">20</div> -->
                     <img
-                      v-for="(die, i) in diceRequest"
+                      v-for="(die, i) in armedRoll.dice"
                       class="h-8 animate-bounce opacity-30"
                       src="@/assets/icons/d20.svg"
                       :key="i + '_' + die"
@@ -208,12 +196,13 @@ defineExpose({ open, close, rollResultModal })
                   </div>
                   <slot name="actionButtons"></slot>
                   <Button
-                    color="blue"
-                    class="capitalize"
-                    :class="['order-first mr-auto']"
-                    v-if="activeRoll"
-                    :clicked="rollActiveRoll"
-                    >Roll {{ activeRoll?.label ?? activeRoll?.slug }}</Button
+                    v-for="roll in props.rolls ?? []"
+                    :key="roll.key"
+                    :color="roll.color ?? 'blue'"
+                    :disabled="roll.disabled"
+                    :data-armed="roll.key === armedRoll?.key ? true : undefined"
+                    :clicked="() => executeRoll(roll)"
+                    >{{ roll.label }}</Button
                   >
                 </div>
               </DialogPanel>

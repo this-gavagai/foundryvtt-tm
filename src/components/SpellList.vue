@@ -2,11 +2,14 @@
 // TODO: make staff spells castable
 import type { SpellcastingEntry, Spell, Consumable } from '@/composables/character'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { SignedNumber } from '@/utils/utilities'
 import type { Modifier } from '@/composables/character'
+import type { Roll } from '@/types/roll-types'
+import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 
 import Button from '@/components/widgets/ButtonWidget.vue'
 import CounterWidget from '@/components/widgets/CounterWidget.vue'
@@ -27,6 +30,7 @@ interface SpellInfo {
   fromStaff?: boolean
 }
 
+const { t } = useI18n()
 const character = useInjectedCharacter()
 const {
   spellcastingEntries,
@@ -43,6 +47,7 @@ const { isListening } = storeToRefs(useListenersStore())
 
 const infoModal = ref()
 const spellSelectionModal = ref()
+const description = ref()
 
 const viewedSpell = ref<Spell | undefined>()
 const viewedConsumable = ref<Consumable | undefined>()
@@ -50,6 +55,27 @@ const viewedEntry = ref<SpellcastingEntry | undefined>()
 const viewedItem = computed(() => viewedSpell.value ?? viewedConsumable.value)
 const viewedModalItem = computed(() => viewedItem.value ?? viewedEntry.value)
 const viewedSpellInfo = ref<SpellInfo | undefined>()
+
+const inlineRolls = useRollsFromActiveRoll(computed(() => description.value?.activeRoll))
+
+// When the spellcasting-entry modal is open and the entry has a spell attack,
+// the entry contributes a Roll. Otherwise the modal shows inline rolls only.
+const spellRolls = computed<Roll[]>(() => {
+  const entry = viewedEntry.value
+  if (entry && !viewedItem.value && entry.doSpellAttack && isListening.value) {
+    return [
+      {
+        key: 'spell-attack',
+        label: t('spells.rollSpellAttack'),
+        color: 'blue',
+        dice: ['d20'],
+        armed: true,
+        execute: (faces) => entry.doSpellAttack!(faces?.[0])
+      }
+    ]
+  }
+  return inlineRolls.value
+})
 
 function openSpellModal(id: string | undefined, info: SpellInfo) {
   viewedEntry.value = undefined
@@ -70,13 +96,6 @@ function openEntryModal(entry: SpellcastingEntry) {
   viewedConsumable.value = undefined
   viewedSpellInfo.value = undefined
   infoModal.value.open()
-}
-
-function rollEntrySpellAttack() {
-  return viewedEntry.value?.doSpellAttack?.()?.then((r) => {
-    infoModal.value?.close()
-    infoModal.value?.rollResultModal?.open(r)
-  })
 }
 
 function clearPreparedSpell() {
@@ -401,6 +420,7 @@ const spellbook = computed((): Spellbook => {
         :itemId="viewedModalItem?._id"
         :imageUrl="viewedModalItem?.img"
         :traits="viewedEntry && !viewedItem ? [] : viewedItem?.system?.traits?.value"
+        :rolls="spellRolls"
       >
         <template #title>
           {{ viewedModalItem?.name }}
@@ -478,18 +498,13 @@ const spellbook = computed((): Spellbook => {
               <h4 class="pt-1 text-xl">{{ $t('spells.wandDetails') }}</h4>
             </div>
             <ParsedDescription
+              ref="description"
               :text="viewedItem?.system.description?.value"
               :labels="rollOptionLabels"
             />
           </template>
         </template>
         <template #actionButtons v-if="isListening">
-          <Button
-            v-if="viewedEntry && !viewedItem && viewedEntry.doSpellAttack"
-            :label="$t('spells.rollSpellAttack')"
-            color="blue"
-            :clicked="rollEntrySpellAttack"
-          />
           <Button
             :label="$t('common.remove')"
             color="red"

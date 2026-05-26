@@ -3,6 +3,7 @@ import type { Feat } from '@/composables/character'
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 
 import InfoModal from '@/components/InfoModal.vue'
 import FeatsListItem from './FeatsListItem.vue'
@@ -10,11 +11,13 @@ import ParsedDescription from './ParsedDescription.vue'
 
 const { t } = useI18n()
 const infoModal = ref()
+const description = ref()
 const character = useInjectedCharacter()
 const { feats, ancestry, background, classType, rollOptionLabels } = character
 
 const viewedFeatId = ref<string | undefined>()
 const viewedFeat = computed(() => feats.value?.find((f) => f._id === viewedFeatId.value))
+const inlineRolls = useRollsFromActiveRoll(computed(() => description.value?.activeRoll))
 
 function viewFeat(clickedFeatId: string) {
   viewedFeatId.value = clickedFeatId
@@ -99,6 +102,7 @@ const featCategories = computed(() => {
         :itemId="viewedFeat?._id"
         :imageUrl="viewedFeat?.img"
         :traits="viewedFeat?.system?.traits?.value"
+        :rolls="inlineRolls"
       >
         <template #title>
           {{ viewedFeat?.name }}
@@ -114,7 +118,11 @@ const featCategories = computed(() => {
           </div>
         </template>
         <template #body>
-          <ParsedDescription :text="viewedFeat?.system?.description.value" :labels="rollOptionLabels" />
+          <ParsedDescription
+            ref="description"
+            :text="viewedFeat?.system?.description.value"
+            :labels="rollOptionLabels"
+          />
         </template>
       </InfoModal>
     </Teleport>

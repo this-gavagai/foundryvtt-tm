@@ -4,8 +4,10 @@ import { ref, computed } from 'vue'
 import InfoModal from '@/components/InfoModal.vue'
 import ParsedDescription from './ParsedDescription.vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 
 const infoModal = ref()
+const description = ref()
 const character = useInjectedCharacter()
 const { ancestry, heritage, background, classType, level, rollOptionLabels } = character
 const identityViewedId = ref<string | undefined>()
@@ -14,6 +16,7 @@ const identityViewed = computed(
     [ancestry, heritage, background, classType].find((i) => i.value?._id === identityViewedId.value)
       ?.value
 )
+const inlineRolls = useRollsFromActiveRoll(computed(() => description.value?.activeRoll))
 function viewItem(item: Item | undefined) {
   identityViewedId.value = item?._id
   if (item) infoModal.value.open()
@@ -37,6 +40,7 @@ function viewItem(item: Item | undefined) {
         :imageUrl="identityViewed?.img"
         :itemId="identityViewed?._id"
         :traits="identityViewed?.system?.traits?.value"
+        :rolls="inlineRolls"
       >
         <template #title>
           {{ identityViewed?.name }}
@@ -51,6 +55,7 @@ function viewItem(item: Item | undefined) {
         </template>
         <template #body>
           <ParsedDescription
+            ref="description"
             :text="identityViewed?.system?.description?.value"
             :labels="rollOptionLabels"
           />

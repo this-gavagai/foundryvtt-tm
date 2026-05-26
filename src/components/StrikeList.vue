@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { formatModifier } from '@/utils/utilities'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { storeToRefs } from 'pinia'
@@ -9,6 +10,7 @@ import Button from '@/components/widgets/ButtonWidget.vue'
 import StrikeActionSet from './StrikeListActionSet.vue'
 import type { Strike, ElementalBlast, Weapon } from '@/composables/character'
 import type { RequestResolutionArgs } from '@/types/api-types'
+import type { Roll } from '@/types/roll-types'
 
 import ChoiceWidget from '@/components/widgets/ChoiceWidget.vue'
 import DropdownWidget from './widgets/DropdownWidget.vue'
@@ -41,6 +43,7 @@ interface EmitOptions {
   subtype: number
 }
 
+const { t } = useI18n()
 const character = useInjectedCharacter()
 const { strikes, blasts, inventory, actions, blastActions, kineticAuraActive, toggleKineticAura } =
   character
@@ -195,24 +198,47 @@ function doViewedDamage(): Promise<RequestResolutionArgs | null> {
   )
 }
 
-// Run an attack/damage promise, then close the strike modal and show the
-// roll-result modal with the returned value.
-function presentRollResult(promise: Promise<RequestResolutionArgs | null> | undefined) {
-  promise?.then((r) => {
-    strikeModal.value.close()
-    strikeModal.value.rollResultModal.open(r)
-  })
+function variantLabelForViewed(): string {
+  const v = viewed.value
+  if (!v) return ''
+  return (
+    v.target.data.variants?.find(
+      (variant) =>
+        variant.map === v.subtype &&
+        variant.type ===
+          (v.target.kind === 'blast' ? attackTypeMap.get(v.target.isMelee) : undefined)
+    )?.label ?? ''
+  )
 }
 
-function attack(diceResult?: number) {
-  if (viewedNeedsReload.value) return
-  presentRollResult(doViewedAttack(diceResult))
-}
-
-function damage() {
-  if (viewedNeedsReload.value) return
-  presentRollResult(doViewedDamage())
-}
+const strikeRolls = computed<Roll[]>(() => {
+  const v = viewed.value
+  if (!v || !isListening.value) return []
+  if (v.phase === 'attack') {
+    const variantLabel = variantLabelForViewed()
+    const label = v.subtype === 0 ? `${t('strikes.strike')} ${variantLabel}` : variantLabel
+    return [
+      {
+        key: 'strike-attack',
+        label: label.trim(),
+        color: 'blue',
+        dice: ['d20'],
+        disabled: viewedNeedsReload.value,
+        armed: true,
+        execute: (faces) => doViewedAttack(faces?.[0])
+      }
+    ]
+  }
+  return [
+    {
+      key: 'strike-damage',
+      label: v.subtype ? t('strikes.critical') : t('strikes.damage'),
+      color: 'red',
+      disabled: viewedNeedsReload.value,
+      execute: () => doViewedDamage()
+    }
+  ]
+})
 
 function toggleLoaded() {
   const v = viewed.value
@@ -289,7 +315,10 @@ watch([strikes, blasts], () => {
           </li>
         </ul>
       </div>
-      <div data-section="strikes" class="break-inside-avoid [&:not(:has(li))]:hidden [div_&:not(.hidden)]:pt-2">
+      <div
+        data-section="strikes"
+        class="break-inside-avoid [&:not(:has(li))]:hidden [div_&:not(.hidden)]:pt-2"
+      >
         <h3 class="text-lg underline">{{ $t('strikes.strikesHeading') }}</h3>
         <ul>
           <li
@@ -328,8 +357,7 @@ watch([strikes, blasts], () => {
         ref="strikeModal"
         :itemId="viewedItem?._id"
         :traits="viewedTraits"
-        :diceRequest="viewed?.phase === 'attack' ? ['d20'] : undefined"
-        @diceResult="(diceResult: number | undefined) => attack(diceResult)"
+        :rolls="strikeRolls"
         :imageUrl="
           (viewed?.target.kind === 'blast' ? viewed.target.data.blastImg : undefined) ??
           viewedItem?.img ??
@@ -435,33 +463,6 @@ watch([strikes, blasts], () => {
             <div v-if="mod.damageType">({{ mod.damageType }})</div>
           </li>
         </ul>
-        <template #actionButtons v-if="isListening">
-          <Button
-            v-if="viewed?.phase === 'attack'"
-            color="blue"
-            :disabled="viewedNeedsReload"
-            :clicked="() => attack()"
-          >
-            <span v-if="!viewed?.subtype">{{ $t('strikes.strike') }}&nbsp;</span>
-            <span>{{
-              viewed?.target.data.variants?.find(
-                (v) =>
-                  v.map === viewed?.subtype &&
-                  v.type ===
-                    (viewed?.target.kind === 'blast'
-                      ? attackTypeMap.get(viewed.target.isMelee)
-                      : undefined)
-              )?.label
-            }}</span>
-          </Button>
-          <Button
-            v-if="viewed?.phase === 'damage'"
-            :label="viewed?.subtype ? $t('strikes.critical') : $t('strikes.damage')"
-            color="red"
-            :disabled="viewedNeedsReload"
-            :clicked="damage"
-          />
-        </template>
       </InfoModal>
     </Teleport>
   </div>

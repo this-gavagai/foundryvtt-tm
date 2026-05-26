@@ -7,6 +7,7 @@ import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { inventoryTypes } from '@/utils/constants'
 import { capitalize } from 'lodash-es'
+import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 
 import EquipmentInvested from '@/components/EquipmentInvested.vue'
 import EquipmentListItem from '@/components/EquipmentListItem.vue'
@@ -24,6 +25,7 @@ import EquipmentHeld from './EquipmentHeld.vue'
 const infoModal = ref()
 const investedModal = ref()
 const description = ref()
+const inlineRolls = useRollsFromActiveRoll(computed(() => description.value?.activeRoll))
 
 const character = useInjectedCharacter()
 const { inventory, rollOptionLabels } = character
@@ -147,7 +149,7 @@ const toggleSet = [
         :itemId="itemViewed?._id"
         :imageUrl="itemViewed?.img"
         :traits="itemViewed?.system?.traits?.value"
-        :activeRoll="description?.activeRoll"
+        :rolls="inlineRolls"
       >
         <template #title>
           {{ itemViewed?.label ?? itemViewed?.name }}
