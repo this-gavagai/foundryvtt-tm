@@ -35,7 +35,7 @@ function parseSpeed(speed: Stat | undefined) {
         :modifiers="athletics?.modifiers"
         :rollAction="athletics?.roll"
       >
-        <img v-if="land?.value" :src="d20" class="mt-1 h-6 w-5" style="stroke: currentColor" />
+        <img v-if="land?.value" :src="d20" class="mx-auto mt-1 h-6 w-5" style="stroke: currentColor" />
         <span v-else>--</span>
       </StatBox>
     </div>
@@ -50,7 +50,7 @@ function parseSpeed(speed: Stat | undefined) {
         :modifiers="athletics?.modifiers"
         :rollAction="athletics?.roll"
       >
-        <img v-if="land?.value" :src="d20" class="mt-1 h-6 w-5" />
+        <img v-if="land?.value" :src="d20" class="mx-auto mt-1 h-6 w-5" />
         <span v-else>--</span>
       </StatBox>
     </div>

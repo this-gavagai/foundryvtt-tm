@@ -7,7 +7,7 @@ const character = useInjectedCharacter()
 const { fortitude, reflex, will } = character.saves
 </script>
 <template>
-  <div class="flex grow justify-around gap-2">
+  <div data-component="SavingThrows" class="flex grow justify-around gap-2">
     <StatBox
       :heading="$t('saves.fortitude')"
       :modalHeading="$t('savesFull.fortitude')"

@@ -32,10 +32,11 @@ function scrollToTop() {
       <div
         ref="scrollbox"
         v-show="selected"
-        class="absolute h-[calc(100%-13.5rem)] w-full overflow-auto overscroll-contain md:h-[calc(100%-5.5rem)] md:w-[calc(100%-20rem)]"
+        class="scrollbar-none absolute h-[calc(100%-13.5rem)] w-full overflow-auto overscroll-contain md:h-[calc(100%-5.5rem)] md:w-[calc(100%-20rem)]"
+        style="scrollbar-width: none"
       >
         <!-- For a while, I was forcing this to 100.1%, but I don't know why. It created scroll issues so I removed it. -->
-        <div class="min-h-[100%]">
+        <div class="min-h-full">
           <slot></slot>
         </div>
       </div>

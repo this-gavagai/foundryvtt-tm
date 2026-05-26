@@ -63,11 +63,11 @@ defineExpose({ infoModal })
     >
       <div
         :class="proficiencyLevels[props.proficiency ?? 0]?.color"
-        class="overflow-visible pb-1 text-[0.8rem] whitespace-nowrap uppercase"
+        class="overflow-visible pb-1 text-[0.65rem] whitespace-nowrap uppercase text-center"
       >
         {{ heading }}
       </div>
-      <div class="text-lg whitespace-nowrap">
+      <div class="text-lg whitespace-nowrap text-center">
         <slot></slot>
       </div>
       <div class="hidden whitespace-nowrap uppercase">{{ fullHeading }}</div>

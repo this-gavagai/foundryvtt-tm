@@ -31,6 +31,14 @@ body.theme-default {
     filter: invert(0.85);
   }
 
+  /* sidebar toggle icon matches tab icon luminance */
+  [data-part='sidebar-toggle'] {
+    color: var(--color-text);
+    &:active {
+      color: oklch(96% 0.005 250);
+    }
+  }
+
   /* --- StatBox headings without a proficiency level use text-black; remap for dark bg --- */
   [data-component='StatBox']:not([data-proficiency-level]) > div > div:first-child {
     color: oklch(60% 0.008 258);
@@ -230,20 +238,41 @@ body.theme-default {
     --section-color: var(--color-proficiency-trained);
   }
 
-  /* --- FrontPage section cards ----------------------------------------
-     Every direct child of FrontPage becomes a card matching the FeatsList
-     look. The parent applies `*:border-b` so override the border with
-     transparent and trim its blanket padding to the same dimensions as the
-     other list cards.                                                       */
-  [data-component='FrontPage'] > * {
-    background-color: var(--color-card);
+  /* --- Shared glass card treatment ------------------------------------
+     Every section "card" in the app — FrontPage rows, list cards inside the
+     tabs, and the SpellList source containers — gets the same translucent
+     background + backdrop-blur + hairline highlight + drop shadow. The
+     body's radial gradient refracts behind every card for the glass look. */
+  [data-component='FrontPage'] > *,
+  :is(
+      [data-component='SkillList'],
+      [data-component='FeatsList'],
+      [data-component='EquipmentList'],
+      [data-component='ActionsList'],
+      [data-component='StrikeList']
+    )
+    :is(section, dl, div[data-section]),
+  [data-component='SpellList'] section[data-section] {
+    background-color: oklch(17% 0.022 258 / 0.45);
+    backdrop-filter: blur(14px) saturate(1.4);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    border: 1px solid oklch(100% 0 0 / 0.06);
     border-radius: 0.5rem;
+    box-shadow:
+      inset 0 1px 0 oklch(100% 0 0 / 0.06),
+      0 8px 24px oklch(0% 0 0 / 0.25);
+  }
+
+  /* --- FrontPage section cards: layout only ---------------------------
+     Glass styling comes from the shared rule above; here we just neutralise
+     the parent's `*:border-b` rule and apply gutter margin + padding.       */
+  [data-component='FrontPage'] > * {
     border-bottom-color: transparent;
-    margin: 0.75rem 1.5rem;
+    margin: 0.75rem 0.75rem;
     padding: 0.75rem 1rem;
   }
 
-  /* --- Shared list cards + dividers -------------------- */
+  /* --- Shared list cards: layout + dividers ---------------------------- */
   [data-component='SkillList'],
   [data-component='FeatsList'],
   [data-component='EquipmentList'],
@@ -252,8 +281,6 @@ body.theme-default {
     section,
     dl,
     div[data-section] {
-      background-color: var(--color-card);
-      border-radius: 0.5rem;
       padding: 0.75rem 1rem;
       margin-bottom: 0.75rem;
     }
@@ -313,6 +340,7 @@ body.theme-default {
       font-size: 1rem;
       text-transform: none;
       letter-spacing: 0.02em;
+      text-align: left;
       flex: 1;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -329,10 +357,6 @@ body.theme-default {
   [data-component='FeatsList'] {
     [data-part='sub-feat'] {
       font-style: italic;
-    }
-
-    [data-part='feat-row'] + [data-part='sub-feat'] {
-      margin-top: 0.3rem;
     }
   }
 
@@ -389,19 +413,56 @@ body.theme-default {
       color: oklch(82% 0.01 258);
       margin-bottom: 0.75rem;
     }
+  }
 
-    /* bulk bar: give the SVG a white base so the overbulk hatch shows stripes-on-white */
-    svg {
-      background-color: white;
+  /* --- EquipmentBulk bar ------------------------------- */
+  [data-component='EquipmentBulk'] {
+    /* dark base; hatch stripes show against it for the over-encumbered zone */
+    background-color: oklch(12% 0.018 258);
+    border-radius: 3px;
+    overflow: hidden;
+
+    /* hatch stripe: muted red-orange to signal danger zone */
+    [data-part='hatch-line'] {
+      stroke: oklch(55% 0.12 25);
+      stroke-width: 1;
+    }
+
+    /* safe-zone fill (0 → encumberedAfter): dark inset so bulk fill sits on top of it */
+    [data-part='bulk-safe'] {
+      fill: oklch(20% 0.02 258);
+    }
+
+    /* bulk fill: three states */
+    [data-part='bulk-fill'][data-state='safe'] {
+      fill: oklch(58% 0.16 145);
+    }
+    [data-part='bulk-fill'][data-state='encumbered'] {
+      fill: oklch(72% 0.16 80);
+    }
+    [data-part='bulk-fill'][data-state='over-max'] {
+      fill: oklch(60% 0.15 25);
+    }
+
+    /* hairline border */
+    [data-part='bulk-border'] {
+      stroke: oklch(40% 0.025 258);
+      stroke-width: 1;
+    }
+
+    /* labels */
+    [data-part='bulk-label'] {
+      fill: var(--color-text);
+      stroke: none;
+      font-size: 9pt;
     }
   }
 
   /* --- SpellList (two-level hierarchy: source card > rank groups) --- */
   [data-component='SpellList'] {
-    /* outer card per spell source */
+    /* outer card per spell source — glass treatment comes from the shared
+       rule above; only layout-specific declarations belong here. */
     section[data-section] {
-      background-color: var(--color-card);
-      border-radius: 0.5rem;
       margin-bottom: 0.75rem;
       overflow: hidden;
     }

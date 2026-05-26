@@ -51,10 +51,10 @@
     "cha": "Charisma"
   },
   "saves": {
-    "fortitude": "Zäh",
-    "reflex": "Ref",
-    "will": "Wil",
-    "perception": "Wahr.",
+    "fortitude": "Zähigkeit",
+    "reflex": "Reflex",
+    "will": "Willen",
+    "perception": "Wahrnehmung",
     "perceptionFull": "Wahrnehmung"
   },
   "proficiencyLevels": {
