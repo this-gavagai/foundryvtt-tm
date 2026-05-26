@@ -13,14 +13,14 @@ import MovementSpeed from '@/components/MovementSpeed.vue'
 import LanguagesKnown from '@/components/LanguagesKnown.vue'
 </script>
 <template>
-  <div class="*:border-divider border-collapse *:border-b *:px-6 *:py-4">
-    <div class="flex justify-between gap-2 align-bottom">
+  <div data-component="FrontPage" class="*:border-divider border-collapse *:border-b *:px-6 *:py-4">
+    <div data-section="identity" class="flex justify-between gap-2 align-bottom">
       <AncestryBackgroundClass />
       <ExperiencePoints />
     </div>
     <EffectsAndConditions />
-    <AttributeScores />
-    <div class="flex gap-4">
+    <AttributeScores data-section="attributes" />
+    <div data-section="defenses" class="flex gap-4">
       <ArmorClass />
       <div class="border-divider border-[0.5px]"></div>
       <SavingThrows />

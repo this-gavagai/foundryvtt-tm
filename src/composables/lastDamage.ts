@@ -5,7 +5,7 @@ import { useWorldStore } from '@/stores/world'
 export function useLastDamage() {
   const { world } = storeToRefs(useWorldStore())
   const lastDamageAmount = computed(() => {
-    const lastMessage = world.value?.messages?.contents.slice(-1)[0] as
+    const lastMessage = world.value?.messages?.contents?.slice(-1)[0] as
       | { rolls?: string[] }
       | undefined
 

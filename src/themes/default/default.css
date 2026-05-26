@@ -230,6 +230,19 @@ body.theme-default {
     --section-color: var(--color-proficiency-trained);
   }
 
+  /* --- FrontPage section cards ----------------------------------------
+     Every direct child of FrontPage becomes a card matching the FeatsList
+     look. The parent applies `*:border-b` so override the border with
+     transparent and trim its blanket padding to the same dimensions as the
+     other list cards.                                                       */
+  [data-component='FrontPage'] > * {
+    background-color: var(--color-card);
+    border-radius: 0.5rem;
+    border-bottom-color: transparent;
+    margin: 0.75rem 1.5rem;
+    padding: 0.75rem 1rem;
+  }
+
   /* --- Shared list cards + dividers -------------------- */
   [data-component='SkillList'],
   [data-component='FeatsList'],

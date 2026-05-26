@@ -12,7 +12,7 @@ const emit = defineEmits(['sidebarActivated'])
 </script>
 
 <template>
-  <div class="border-divider flex cursor-pointer items-center gap-2 border-y p-4">
+  <div class="border-divider flex cursor-pointer items-center gap-2 border-t p-4">
     <CharacterPortrait @click="reloadPage" />
     <div class="min-w-36 flex-1">
       <CharacterSelector />
