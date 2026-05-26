@@ -7,7 +7,7 @@ import type {
 } from '@7h3laughingman/pf2e-types'
 import { type Modifier, makeModifiers } from './modifier'
 import { type Weapon, makeWeapon } from './weapon'
-import type { RequestResolutionArgs } from '@/types/api-types'
+import type { DiceResults, RequestResolutionArgs } from '@/types/api-types'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 
 interface BlastOptions {
@@ -46,7 +46,8 @@ export interface Strike {
   doDamage?: (
     variant: number,
     altUsage: number | undefined,
-    blastOptions?: BlastOptions
+    blastOptions?: BlastOptions,
+    result?: DiceResults
   ) => Promise<RequestResolutionArgs | null>
   setDamageType?: (newType: string) => Promise<DocumentSocketResponse | null>
   changeAmmo?: (newId: string | null) => Promise<unknown>

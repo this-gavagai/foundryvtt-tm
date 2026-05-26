@@ -208,11 +208,26 @@ export async function getCharacterDetails(
   const proficiencyLabels = localizeProficiencyLabels(actor.system)
   const rollOptionLabels = localizeRollOptionLabels(actor)
   const spellcastingModifiers = buildSpellcastingModifiers(actor)
+  // Some PF2e conditions grant child conditions in-memory only (e.g. Grabbed
+  // grants Off-Guard and Immobilized via `GrantItem` rule elements with
+  // `inMemoryOnly: true`). These grants live on `actor.conditions` rather
+  // than `actor.items`; the default JSON serialization (which boils down to
+  // `actor._source`) drops them entirely. Merge the two sources here so the
+  // wire payload reflects what the Foundry runtime actually sees.
+  const baseItems = [...actor.items].map((i) => i.toObject() as { _id?: string })
+  const seenIds = new Set(baseItems.map((i) => i._id))
+  const inMemoryConditions = [...actor.conditions]
+    .filter((c) => !seenIds.has(c.id))
+    .map((c) => c.toObject())
+  const actorPayload = {
+    ...actor.toObject(),
+    items: [...baseItems, ...inMemoryConditions]
+  }
   logger.debug('TABLEMATE: now sending ' + actor.name)
   return {
     action: TM.UPDATE_CHARACTER,
     actorId: actor._id ?? '',
-    actor,
+    actor: actorPayload,
     system: actor.system,
     languages,
     proficiencyLabels,

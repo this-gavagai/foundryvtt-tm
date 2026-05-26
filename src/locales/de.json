@@ -211,13 +211,15 @@
     "targetingProxy": "Ziel-Stellvertreter",
     "pairPixelDice": "Pixel Dice koppeln",
     "language": "Sprache",
-    "theme": "Thema"
+    "theme": "Thema",
+    "manualDicePicker": "Würfel manuell auswählen"
   },
   "widgets": {
     "toggleSwitch": "Umschalter"
   },
   "infoModal": {
     "systemIcon": "PF2e-Systemsymbol",
-    "dieImage": "d{faces}-Bild"
+    "dieImage": "d{faces}-Bild",
+    "clearDicePending": "Klicken, um ausstehende Würfelwürfe zu löschen"
   }
 }

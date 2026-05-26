@@ -211,13 +211,15 @@
     "targetingProxy": "Targeting Proxy",
     "pairPixelDice": "Pair Pixel Dice",
     "language": "Language",
-    "theme": "Theme"
+    "theme": "Theme",
+    "manualDicePicker": "Manual dice picker"
   },
   "widgets": {
     "toggleSwitch": "Toggle Switch"
   },
   "infoModal": {
     "systemIcon": "PF2e system icon",
-    "dieImage": "d{faces} image"
+    "dieImage": "d{faces} image",
+    "clearDicePending": "Click to clear pending physical-die rolls"
   }
 }

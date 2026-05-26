@@ -9,8 +9,9 @@ import InfoModal from './InfoModal.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import StrikeActionSet from './StrikeListActionSet.vue'
 import type { Strike, ElementalBlast, Weapon } from '@/composables/character'
-import type { RequestResolutionArgs } from '@/types/api-types'
+import type { DiceResults, RequestResolutionArgs } from '@/types/api-types'
 import type { Roll } from '@/types/roll-types'
+import { parseDamageFormulaDice, makeDiceResults } from '@/utils/diceFormula'
 
 import ChoiceWidget from '@/components/widgets/ChoiceWidget.vue'
 import DropdownWidget from './widgets/DropdownWidget.vue'
@@ -179,24 +180,46 @@ function doViewedAttack(diceResult?: number): Promise<RequestResolutionArgs | nu
   )
 }
 
-function doViewedDamage(): Promise<RequestResolutionArgs | null> {
+function doViewedDamage(result?: DiceResults): Promise<RequestResolutionArgs | null> {
   const v = viewed.value
   if (!v) return Promise.resolve(null)
   if (v.target.kind === 'blast') {
     const blast = v.target.data
     return (
-      (blast.doDamage?.(v.subtype, undefined, {
-        element: blast.blastElement,
-        damageType: blastDamageType(blast),
-        isMelee: v.target.isMelee
-      }) as Promise<RequestResolutionArgs>) ?? Promise.resolve(null)
+      (blast.doDamage?.(
+        v.subtype,
+        undefined,
+        {
+          element: blast.blastElement,
+          damageType: blastDamageType(blast),
+          isMelee: v.target.isMelee
+        },
+        result
+      ) as Promise<RequestResolutionArgs>) ?? Promise.resolve(null)
     )
   }
   return (
-    (v.target.data.doDamage?.(v.subtype, v.target.altUsage) as Promise<RequestResolutionArgs>) ??
-    Promise.resolve(null)
+    (v.target.data.doDamage?.(
+      v.subtype,
+      v.target.altUsage,
+      undefined,
+      result
+    ) as Promise<RequestResolutionArgs>) ?? Promise.resolve(null)
   )
 }
+
+// The damage formula is fetched into strikeModalDamage when the modal opens
+// in damage phase. Parse it into an ordered dice list so the Roll can declare
+// what physical faces to expect — empty until the formula resolves, which
+// keeps the d20 / single-die path unaffected.
+const damageDice = computed<string[]>(() => {
+  const v = viewed.value
+  if (!v || v.phase !== 'damage') return []
+  const formula = v.subtype
+    ? strikeModalDamage.value?.response?.critical
+    : strikeModalDamage.value?.response?.damage
+  return parseDamageFormulaDice(formula)
+})
 
 function variantLabelForViewed(): string {
   const v = viewed.value
@@ -229,13 +252,18 @@ const strikeRolls = computed<Roll[]>(() => {
       }
     ]
   }
+  const dice = damageDice.value
   return [
     {
       key: 'strike-damage',
       label: v.subtype ? t('strikes.critical') : t('strikes.damage'),
       color: 'red',
       disabled: viewedNeedsReload.value,
-      execute: () => doViewedDamage()
+      dice: dice.length ? dice : undefined,
+      // When physical faces are supplied (Pixel path), forward them as a
+      // DiceResults payload; without faces the server rolls live.
+      execute: (faces) =>
+        doViewedDamage(faces && dice.length ? makeDiceResults(dice, faces) : undefined)
     }
   ]
 })

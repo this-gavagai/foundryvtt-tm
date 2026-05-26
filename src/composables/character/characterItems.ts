@@ -66,16 +66,24 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
       ?.filter((i): i is AbstractEffectPF2e<CharacterPF2e> =>
         ['effect', 'condition'].includes(i?.type ?? '')
       )
-      .map((i) => ({
-        ...(i.type === 'condition'
-          ? makeCondition(i as ConditionPF2e<CharacterPF2e>)
-          : makeEffect(i)),
-        delete: () => deleteActorItem(actor as Ref<CharacterPF2e>, i._id!),
-        changeQty: (newValue: number) => {
-          const update = { system: { value: { value: newValue } } }
-          return updateActorItem(actor as Ref<CharacterPF2e>, i._id!, update)
+      .map((i) => {
+        // Items granted by a parent rule element (PF2e GrantItem with
+        // inMemoryOnly: true — e.g. Off-Guard / Immobilized under Grabbed)
+        // have no persisted ID Foundry can act on. The right action is to
+        // remove the parent, not the child, so leave delete/changeQty unset.
+        const isGranted = !!i.flags?.pf2e?.grantedBy
+        const base =
+          i.type === 'condition' ? makeCondition(i as ConditionPF2e<CharacterPF2e>) : makeEffect(i)
+        if (isGranted) return base
+        return {
+          ...base,
+          delete: () => deleteActorItem(actor as Ref<CharacterPF2e>, i._id!),
+          changeQty: (newValue: number) => {
+            const update = { system: { value: { value: newValue } } }
+            return updateActorItem(actor as Ref<CharacterPF2e>, i._id!, update)
+          }
         }
-      }))
+      })
   )
   const inventory = computed(() =>
     actor.value?.items

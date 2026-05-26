@@ -75,11 +75,12 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
               d20: [result ?? 0]
             }
           ),
-        doDamage: (variant, altUsage) =>
+        doDamage: (variant, altUsage, _blastOptions, result) =>
           rollCheck(
             actor as Ref<CharacterPF2e>,
             'damage',
-            `${action.slug},${variant ? 'critical' : 'damage'},${altUsage ?? ''}`
+            `${action.slug},${variant ? 'critical' : 'damage'},${altUsage ?? ''}`,
+            result ?? {}
           ),
         setDamageType: (newType) => {
           const item = actor.value?.items.find<WeaponPF2e<CharacterPF2e>>(
@@ -146,11 +147,12 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
               `${blastOptions?.element},${blastOptions?.damageType},${variant},${blastOptions?.isMelee}`,
               { d20: [result ?? 0] }
             ),
-          doDamage: (variant, altUsage, blastOptions) =>
+          doDamage: (variant, altUsage, blastOptions, result) =>
             rollCheck(
               actor as Ref<CharacterPF2e>,
               'blastDamage',
-              `${blastOptions?.element},${blastOptions?.damageType},${variant ? 'criticalSuccess' : 'success'},${blastOptions?.isMelee}`
+              `${blastOptions?.element},${blastOptions?.damageType},${variant ? 'criticalSuccess' : 'success'},${blastOptions?.isMelee}`,
+              result ?? {}
             ),
           setDamageType: (newType) => {
             const dmgs: Record<string, string> = {}

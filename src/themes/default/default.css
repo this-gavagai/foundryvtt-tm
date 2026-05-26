@@ -159,6 +159,25 @@ body.theme-default {
     [data-part='modifier'][data-disabled] {
       color: oklch(45% 0.01 258);
     }
+
+    /* face picker: per-die buttons for manually selecting a roll result */
+    [data-part='face-picker'] button {
+      background-color: oklch(22% 0.022 258);
+      border-color: oklch(32% 0.022 258);
+      color: var(--color-text);
+      transition: background-color 120ms;
+    }
+    [data-part='face-picker'] button:hover {
+      background-color: oklch(28% 0.025 258);
+    }
+    [data-part='face-picker'] button[data-selected] {
+      background-color: oklch(45% 0.13 255);
+      border-color: oklch(50% 0.13 255);
+      color: oklch(96% 0.01 255);
+    }
+    [data-part='face-picker'] button[data-selected]:hover {
+      background-color: oklch(50% 0.13 255);
+    }
   }
 
   /* --- Section accent colors ---------------------------

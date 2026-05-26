@@ -7,10 +7,12 @@ import { storeToRefs } from 'pinia'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useWorldStore } from '@/stores/world'
 import { usePixelDiceStore } from '@/stores/pixelDice'
+import { useSettingsStore } from '@/stores/settings'
 import { availableLocales, setLocale } from '@/plugins/i18n'
 import { useTheme, THEMES } from '@/composables/useTheme'
 
 import Dropdown from '@/components/widgets/DropdownWidget.vue'
+import Toggle from '@/components/widgets/ToggleWidget.vue'
 import RollOptions from '@/components/RollOptions.vue'
 import Spinner from './widgets/SpinnerWidget.vue'
 
@@ -31,6 +33,8 @@ const themeList = [
   { id: '', name: t('common.none') },
   ...THEMES.map((id) => ({ id, name: id.charAt(0).toUpperCase() + id.slice(1) }))
 ]
+
+const { manualDicePicker } = storeToRefs(useSettingsStore())
 
 defineExpose({ sidebarOpen })
 </script>
@@ -103,6 +107,14 @@ defineExpose({ sidebarOpen })
                       :selectedId="activeTheme ?? ''"
                       :changed="(newId: string) => setTheme(newId || null)"
                     />
+                  </li>
+                  <li>
+                    <Toggle
+                      :active="manualDicePicker"
+                      @changed="(v: boolean) => (manualDicePicker = v)"
+                    >
+                      <span class="text-lg italic">{{ $t('sideMenu.manualDicePicker') }}</span>
+                    </Toggle>
                   </li>
                   <li>
                     <div class="text-lg italic">{{ $t('sideMenu.targetingProxy') }}</div>
