@@ -92,12 +92,13 @@ defineExpose({ actor, character, actorOrWorldActor })
 <template>
   <div class="flex h-dvh select-none" v-if="userHasActorPermission">
     <!-- show this column only if on a tablet or laptop -->
-    <div class="border-divider hidden border-r md:block md:h-dvh md:w-80 md:overflow-auto">
+    <div data-part="sheet-left" class="border-divider hidden border-r md:block md:h-dvh md:w-80 md:overflow-auto">
       <CharacterHeader class="sticky top-0 z-10 h-32" />
       <FrontPage />
     </div>
     <!-- show this column on all devices -->
     <div
+      data-part="sheet-right"
       v-drag="handleDrag"
       :dragOptions="dragOptions"
       class="border-divider no-scrollbar flex w-0 flex-1 flex-col justify-between md:h-dvh md:justify-start md:border-l"
@@ -130,7 +131,7 @@ defineExpose({ actor, character, actorOrWorldActor })
             <SpellList />
           </CharacterPanel>
         </TabPanels>
-        <TabList class="border-divider bottom-0 flex h-24 justify-around border-t border-b">
+        <TabList data-part="tab-bar" class="border-divider bottom-0 flex h-24 justify-around border-t border-b">
           <CharacterTab :src="cowled" :label="$t('tabs.character')" class="w-1/6 md:hidden" />
           <CharacterTab :src="biceps" :label="$t('tabs.feats')" class="w-1/6" />
           <CharacterTab :src="skills" :label="$t('tabs.proficiencies')" class="w-1/6" />
