@@ -85,7 +85,7 @@ defineExpose({ sidebarOpen })
                 </button>
               </div>
             </TransitionChild>
-            <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4">
+            <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4" data-part="panel">
               <nav class="flex flex-1 flex-col">
                 <ul role="list" class="flex flex-1 flex-col gap-y-7 pt-4">
                   <li>
