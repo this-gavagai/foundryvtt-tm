@@ -356,7 +356,11 @@ watch([strikes, blasts], () => {
         <ul>
           <li
             v-for="(strike, i) in strikes?.filter(
-              (s) => s?.item?.system?.equipped?.carryType === 'held' || s?.item === undefined
+              (s) =>
+                s?.visible !== false &&
+                (s?.ready ||
+                  s?.item?.system?.equipped?.carryType === 'held' ||
+                  s?.item === undefined)
             )"
             class="cursor-pointer pb-2"
             :key="strike.slug"

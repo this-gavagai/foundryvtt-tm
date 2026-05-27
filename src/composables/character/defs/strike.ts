@@ -31,6 +31,8 @@ export interface Strike {
   reloadable?: Maybe<boolean>
   loaded?: Maybe<boolean>
   reloadActions?: Maybe<string>
+  ready?: Maybe<boolean>
+  visible?: Maybe<boolean>
   _modifiers: Maybe<Modifier[]>
 
   getDamage?: (
@@ -63,6 +65,8 @@ export function makeStrike(
     label: root?.label,
     slug: root?.slug,
     item: item ? makeWeapon(item) : undefined,
+    ready: (root as { ready?: boolean })?.ready,
+    visible: (root as { visible?: boolean })?.visible,
     variants: root?.variants.map((v, i) => ({ label: v?.label, map: i, type: undefined })),
     altUsages: root?.altUsages?.map((a) => makeStrike(a as CharacterStrike, a.item)),
     traits: root?.traits?.map((t) => ({
