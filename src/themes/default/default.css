@@ -126,9 +126,27 @@ body.theme-default {
   }
 
   /* --- Rollable StatBox value -------------------------- */
+  [data-component='MovementSpeed'] [data-rollable] > div > div:nth-child(2)::after {
+    display: none;
+  }
+
   [data-rollable] > div > div:nth-child(2) {
-    text-decoration: underline dotted;
-    text-underline-offset: 3px;
+    position: relative;
+  }
+  [data-rollable] > div > div:nth-child(2)::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 1.75rem;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      var(--proficiency-color, oklch(95% 0.005 250)),
+      transparent
+    );
   }
 
   /* --- Inputs ------------------------------------------ */
@@ -306,6 +324,10 @@ body.theme-default {
   /* --- FrontPage section cards: layout only ---------------------------
      Glass styling comes from the shared rule above; here we just neutralise
      the parent's `*:border-b` rule and apply gutter margin + padding.       */
+  [data-component='FrontPage'] {
+    border-top: 0;
+  }
+
   [data-component='FrontPage'] > * {
     margin: 0.75rem 0.75rem;
     padding: 0.75rem 1rem;
@@ -662,7 +684,7 @@ body.theme-default {
     &::after {
       content: '';
       position: absolute;
-      bottom: 0;
+      top: 0;
       left: 0;
       right: 0;
       height: 2px;
@@ -682,6 +704,13 @@ body.theme-default {
     &[data-headlessui-state~='selected']::after {
       transform: scaleX(1);
       opacity: 1;
+    }
+  }
+
+  @media (min-width: 768px) {
+    [data-part='tab']::after {
+      top: auto;
+      bottom: 0;
     }
   }
 

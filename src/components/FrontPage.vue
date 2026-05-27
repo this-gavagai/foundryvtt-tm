@@ -13,7 +13,10 @@ import MovementSpeed from '@/components/MovementSpeed.vue'
 import LanguagesKnown from '@/components/LanguagesKnown.vue'
 </script>
 <template>
-  <div data-component="FrontPage" class="*:border-divider border-collapse *:border-b *:px-6 *:py-4">
+  <div
+    data-component="FrontPage"
+    class="*:border-divider border-divider border-collapse border-t *:border-b *:px-6 *:py-4"
+  >
     <div data-section="identity" class="flex justify-between gap-2 align-bottom">
       <AncestryBackgroundClass />
       <ExperiencePoints />
