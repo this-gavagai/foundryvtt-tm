@@ -10,6 +10,7 @@ import type {
   SendItemToChatArgs,
   CallMacroArgs,
   SetWeaponLoadedArgs,
+  SetWeaponDamageTypeArgs,
   ToggleKineticAuraArgs,
   DiceResults,
   CheckModifier
@@ -171,6 +172,21 @@ export function setWeaponLoaded(
     weaponId,
     loaded,
     ammoId
+  })
+}
+
+export function setWeaponDamageType(
+  actor: Ref<CharacterPF2e>,
+  weaponId: string,
+  trait: 'versatile' | 'modular',
+  selected: string | null
+): Promise<RequestResolutionArgs> {
+  return sendModuleRequest<SetWeaponDamageTypeArgs>({
+    action: TM.SET_WEAPON_DAMAGE_TYPE,
+    characterId: actor.value._id!,
+    weaponId,
+    trait,
+    selected
   })
 }
 

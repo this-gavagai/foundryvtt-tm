@@ -9,6 +9,7 @@ import type {
   SendItemToChatArgs,
   CallMacroArgs,
   SetWeaponLoadedArgs,
+  SetWeaponDamageTypeArgs,
   ToggleKineticAuraArgs
 } from '@/types/api-types'
 import {
@@ -21,6 +22,7 @@ import {
   foundrySendItemToChat,
   foundryCallMacro,
   foundrySetWeaponLoaded,
+  foundrySetWeaponDamageType,
   foundryToggleKineticAura
 } from './handlers'
 import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
@@ -128,6 +130,11 @@ export function setupListener() {
         break
       case TM.SET_WEAPON_LOADED:
         foundrySetWeaponLoaded(args as SetWeaponLoadedArgs).then((result) =>
+          game.socket.emit(TM.CHANNEL, result)
+        )
+        break
+      case TM.SET_WEAPON_DAMAGE_TYPE:
+        foundrySetWeaponDamageType(args as SetWeaponDamageTypeArgs).then((result) =>
           game.socket.emit(TM.CHANNEL, result)
         )
         break

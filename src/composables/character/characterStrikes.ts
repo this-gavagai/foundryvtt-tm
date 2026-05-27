@@ -3,7 +3,7 @@ import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { TablemateCharacter } from '@/types/character-types'
 import type { Field, WritableField } from './helpers'
 import { type Strike, makeStrike, type ElementalBlast, makeElementalBlasts } from './defs/strike'
-import { rollCheck, getStrikeDamage, setWeaponLoaded, toggleKineticAura } from '@/api/actions'
+import { rollCheck, getStrikeDamage, setWeaponLoaded, setWeaponDamageType, toggleKineticAura } from '@/api/actions'
 import { updateActorItem } from '@/api/documents'
 import type { CharacterStrike, DamageType, WeaponPF2e } from '@7h3laughingman/pf2e-types'
 
@@ -40,6 +40,10 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
           : compatible.length
             ? [...compatible].sort((a, b) => qtyOf(b.id) - qtyOf(a.id))[0].id
             : undefined
+      // Track any in-flight damage-type toggle update so doDamage can wait for
+      // it before firing — prevents the roll from reaching Foundry before the
+      // actor has been re-derived with the new toggle value.
+      let pendingToggle: Promise<unknown> | null = null
       const base = makeStrike(action, weaponItem)
       return {
         ...base,
@@ -75,35 +79,49 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
               d20: [result ?? 0]
             }
           ),
-        doDamage: (variant, altUsage, _blastOptions, result) =>
-          rollCheck(
-            actor as Ref<CharacterPF2e>,
-            'damage',
-            `${action.slug},${variant ? 'critical' : 'damage'},${altUsage ?? ''}`,
-            result ?? {}
-          ),
+        doDamage: (variant, altUsage, _blastOptions, result) => {
+          const doRoll = () =>
+            rollCheck(
+              actor as Ref<CharacterPF2e>,
+              'damage',
+              `${action.slug},${variant ? 'critical' : 'damage'},${altUsage ?? ''}`,
+              result ?? {}
+            )
+          return pendingToggle ? pendingToggle.then(doRoll) : doRoll()
+        },
         setDamageType: (newType) => {
-          if (!actor.value) return Promise.resolve(null)
+          if (!actor.value || !weaponId) return Promise.resolve(null)
           const item = actor.value.items.find<WeaponPF2e<CharacterPF2e>>(
             (i) => i._id === weaponId
           )
-          if (!item) return Promise.resolve(null)
-          const adjustment = item.system?.damage?.damageType === newType ? null : newType
-          const isModular = item.system?.traits?.value?.includes('modular' as never)
-          const toggleKey = isModular ? 'modular' : 'versatile'
-          // Optimistic local update — toggles may not be present on all item shapes
-          const toggles = item.system.traits?.toggles
-          if (toggles) {
-            if (isModular) {
-              if (toggles.modular) Object.assign(toggles.modular, { selected: adjustment })
-            } else if (toggles.versatile) {
-              toggles.versatile.selected = adjustment as DamageType | null
+          const isModular = item?.system?.traits?.value?.includes('modular' as never)
+          const trait = isModular ? 'modular' : 'versatile'
+          const baseDamageType = item?.system?.damage?.damageType
+          const selected = baseDamageType === newType ? null : newType
+          // Optimistic local update so the UI flips immediately. Versatile
+          // stores the selection on the toggle as a damage type string;
+          // modular stores an index there, but the picker reads from the
+          // prepared system.damage.damageType, so mirror it there instead.
+          // For the "revert to base" path (selected === null) we let Foundry's
+          // response reset it, since we don't track the source base here.
+          const toggles = item?.system?.traits?.toggles
+          if (isModular) {
+            if (selected !== null && item?.system?.damage) {
+              item.system.damage.damageType = selected as DamageType
             }
+          } else if (toggles?.versatile) {
+            toggles.versatile.selected = selected as DamageType | null
           }
-          const update = {
-            system: { traits: { toggles: { [toggleKey]: { selected: adjustment } } } }
-          }
-          return updateActorItem(actor as Ref<CharacterPF2e>, weaponId ?? '', update)
+          pendingToggle = setWeaponDamageType(
+            actor as Ref<CharacterPF2e>,
+            weaponId,
+            trait,
+            selected
+          )
+          pendingToggle.finally(() => {
+            pendingToggle = null
+          })
+          return pendingToggle
         },
         changeAmmo: (newId) => {
           const item = actor.value?.items.find<WeaponPF2e<CharacterPF2e>>(

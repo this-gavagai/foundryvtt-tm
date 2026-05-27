@@ -26,6 +26,7 @@ import type {
   SendItemToChatArgs,
   CallMacroArgs,
   SetWeaponLoadedArgs,
+  SetWeaponDamageTypeArgs,
   ToggleKineticAuraArgs,
   UpdateCharacterDetailsArgs
 } from '@/types/api-types'
@@ -214,7 +215,28 @@ export async function getCharacterDetails(
   // than `actor.items`; the default JSON serialization (which boils down to
   // `actor._source`) drops them entirely. Merge the two sources here so the
   // wire payload reflects what the Foundry runtime actually sees.
-  const baseItems = [...actor.items].map((i) => i.toObject() as { _id?: string })
+  const baseItems = [...actor.items].map((i) => {
+    const obj = i.toObject() as { _id?: string; system?: Record<string, unknown> }
+    // toObject() returns source data, so for weapons system.damage.damageType
+    // is the BASE type and the modular toggle is just a numeric index whose
+    // options array isn't serialized. Overlay the *current* damage type so
+    // the client can highlight the right damage-type chip.
+    if (i.type === 'weapon') {
+      const w = i as unknown as WeaponPF2e
+      // Modular weapons: the active option's damageType lives on the prepared
+      // toggle config. Fall back to the prepared system.damage.damageType for
+      // everything else (e.g. versatile carries the string in `selected` and
+      // base weapons just have their innate type).
+      const modularDmg = w.system.traits?.toggles?.modular?.config?.damageType
+      const prepared = modularDmg ?? w.system.damage?.damageType
+      if (prepared) {
+        const sys = (obj.system ??= {})
+        const dmg = (sys.damage as { damageType?: string } | undefined) ?? {}
+        ;(sys.damage as { damageType?: string }) = { ...dmg, damageType: prepared }
+      }
+    }
+    return obj
+  })
   const seenIds = new Set(baseItems.map((i) => i._id))
   const inMemoryConditions = [...actor.conditions]
     .filter((c) => !seenIds.has(c.id))
@@ -482,6 +504,31 @@ export async function foundrySetWeaponLoaded(args: SetWeaponLoadedArgs) {
     }
   } else {
     for (const sub of loadedAmmo) await sub.detach({ skipConfirm: true })
+  }
+  return ack
+}
+
+export async function foundrySetWeaponDamageType(args: SetWeaponDamageTypeArgs) {
+  const source = getGame()
+  const ack = makeAck(args)
+  const actor = source.actors.get(args.characterId, { strict: true })
+  const weapon = actor.items.get(args.weaponId, { strict: true }) as WeaponPF2e<ActorPF2e<null>>
+  // Versatile takes a DamageType string; modular takes an index into
+  // its options array (each option's damageType is the candidate type).
+  if (args.trait === 'modular') {
+    const options = weapon.system.traits.toggles.modular?.options ?? []
+    const idx = args.selected === null
+      ? null
+      : options.findIndex((o) => o.damageType === args.selected)
+    await weapon.system.traits.toggles.update({
+      trait: 'modular',
+      selected: idx === -1 ? null : idx
+    })
+  } else {
+    await weapon.system.traits.toggles.update({
+      trait: 'versatile',
+      selected: args.selected as DamageType | null
+    })
   }
   return ack
 }

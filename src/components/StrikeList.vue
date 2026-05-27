@@ -126,8 +126,10 @@ const viewedDamageTypeSelected = computed<string | undefined>(() => {
   const v = viewed.value
   if (!v) return undefined
   if (v.target.kind === 'blast') return blastDamageType(v.target.data)
+  // Versatile's `selected` is a damage type string. Modular's `selected` is an
+  // index into options — useless for the picker — so fall through to the
+  // prepared damageType, which PF2e updates to mirror the current selection.
   return (
-    viewedItem.value?.system?.traits?.toggles?.modular?.selected ??
     viewedItem.value?.system?.traits?.toggles?.versatile?.selected ??
     viewedItem.value?.system?.damage?.damageType
   )
@@ -141,14 +143,17 @@ const damageTypeOptions = computed<string[]>(() => {
   }
   const item = viewedItem.value
   if (!item) return []
+  const traits = item.system?.traits?.value ?? []
+  // Modular weapons cycle through the three physical types regardless of which
+  // is currently selected — the order is intrinsic to the weapon, not derived
+  // from current state, so it stays put as the user picks.
+  if (traits.includes('modular')) return ['bludgeoning', 'piercing', 'slashing']
+  // Versatile: base type first, then the alt offered by the trait.
   const types = new Set<string>()
   if (item.system?.damage?.damageType) types.add(item.system.damage.damageType)
-  const traits = item.system?.traits?.value ?? []
   if (traits.includes('versatile-b')) types.add('bludgeoning')
   if (traits.includes('versatile-p')) types.add('piercing')
   if (traits.includes('versatile-s')) types.add('slashing')
-  if (traits.includes('modular'))
-    ['slashing', 'piercing', 'bludgeoning'].forEach((t) => types.add(t))
   return Array.from(types)
 })
 

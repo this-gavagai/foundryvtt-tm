@@ -24,5 +24,6 @@ export const TM = {
   SEND_ITEM_TO_CHAT: 'sendItemToChat',
   CALL_MACRO: 'callMacro',
   SET_WEAPON_LOADED: 'setWeaponLoaded',
+  SET_WEAPON_DAMAGE_TYPE: 'setWeaponDamageType',
   TOGGLE_KINETIC_AURA: 'toggleKineticAura'
 } as const
