@@ -146,13 +146,6 @@ function dieFaces(die: string): number[] {
   return Array.from({ length: n }, (_, i) => i + 1)
 }
 
-// d20 wraps after 10 so the picker shows two even rows of 10; every other die
-// type fits on a single row.
-function faceChunks(die: string): number[][] {
-  const faces = dieFaces(die)
-  if (die === 'd20') return [faces.slice(0, 10), faces.slice(10, 20)]
-  return [faces]
-}
 
 const isOpen = ref(false)
 function open() {
@@ -292,23 +285,17 @@ defineExpose({ open, close, rollResultModal })
                       <img :src="dieIcons[die] ?? d20Icon" class="h-5" />
                       <span class="text-xs uppercase opacity-60">{{ die }}</span>
                     </div>
-                    <div class="flex flex-col gap-1">
-                      <div
-                        v-for="(chunk, ci) in faceChunks(die)"
-                        :key="ci"
-                        class="flex flex-wrap gap-1"
+                    <div class="flex flex-wrap gap-1">
+                      <button
+                        v-for="face in dieFaces(die)"
+                        :key="face"
+                        type="button"
+                        :data-selected="buffer[slot] === face ? true : undefined"
+                        class="h-6 w-6 cursor-pointer rounded border text-xs leading-none"
+                        @click="pickFace(slot, face)"
                       >
-                        <button
-                          v-for="face in chunk"
-                          :key="face"
-                          type="button"
-                          :data-selected="buffer[slot] === face ? true : undefined"
-                          class="h-6 w-6 cursor-pointer rounded border text-xs leading-none"
-                          @click="pickFace(slot, face)"
-                        >
-                          {{ face }}
-                        </button>
-                      </div>
+                        {{ face }}
+                      </button>
                     </div>
                   </div>
                 </div>
