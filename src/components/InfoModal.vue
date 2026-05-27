@@ -146,7 +146,6 @@ function dieFaces(die: string): number[] {
   return Array.from({ length: n }, (_, i) => i + 1)
 }
 
-
 const isOpen = ref(false)
 function open() {
   isOpen.value = true
@@ -292,6 +291,7 @@ defineExpose({ open, close, rollResultModal })
                         type="button"
                         :data-selected="buffer[slot] === face ? true : undefined"
                         class="h-6 w-6 cursor-pointer rounded border text-xs leading-none"
+                        :class="buffer[slot] === face ? 'bg-gray-300 hover:bg-gray-400' : ''"
                         @click="pickFace(slot, face)"
                       >
                         {{ face }}
@@ -315,9 +315,7 @@ defineExpose({ open, close, rollResultModal })
                         :src="dieIcons[die] ?? d20Icon"
                         class="h-8 transition-opacity"
                         :class="
-                          buffer[slot] !== undefined
-                            ? 'opacity-20'
-                            : 'animate-bounce opacity-50'
+                          buffer[slot] !== undefined ? 'opacity-20' : 'animate-bounce opacity-50'
                         "
                       />
                       <span

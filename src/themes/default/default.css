@@ -54,7 +54,7 @@ body.theme-default {
 
   /* --- StatBox headings without a proficiency level use text-black; remap for dark bg --- */
   [data-component='StatBox']:not([data-proficiency-level]) > div > div:first-child {
-    color: oklch(60% 0.008 258);
+    color: var(--color-heading);
   }
 
   /* --- MovementSpeed section heading: indent + gap to match Initiative card inset --- */
@@ -67,14 +67,17 @@ body.theme-default {
   [data-component='IWR'] h3,
   [data-component='LanguagesKnown'] div.underline,
   [data-component='CombatInitiative'] [data-part='heading'],
-  [data-component='MovementSpeed'] [data-part='heading'],
-  [data-component='MovementSpeed'] [data-component='StatBox'] > div > div:first-child {
+  [data-component='MovementSpeed'] [data-part='heading'] {
     color: var(--color-heading);
     text-transform: uppercase;
     font-size: 0.8rem;
     font-weight: 400;
-    letter-spacing: normal;
     text-decoration: none;
+  }
+
+  /* bump MovementSpeed stat-box labels from the StatBox default (0.65rem) */
+  [data-component='MovementSpeed'] [data-component='StatBox'] > div > div:first-child {
+    font-size: 0.8rem;
   }
 
   /* Initiative value: no card, just align the bare number with the dropdown */
@@ -323,9 +326,8 @@ body.theme-default {
   }
   [data-section='attributes'] > * + *,
   [data-component='MovementSpeed'] [data-part='speeds'] > * + * {
-    border-left: 1px solid oklch(36% 0.022 258 / 0.6);
-    border-image-source: linear-gradient(to bottom, transparent, oklch(36% 0.022 258 / 0.6));
-    border-image-slice: 1;
+    border-left: 1px solid;
+    border-image: linear-gradient(to bottom, transparent, oklch(36% 0.022 258 / 0.6)) 1;
   }
 
   /* --- Shared list cards: layout + dividers ---------------------------- */
