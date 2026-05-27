@@ -58,6 +58,26 @@ body.theme-default {
     color: oklch(60% 0.008 258);
   }
 
+  /* --- MovementSpeed section heading: indent + gap to match Initiative card inset --- */
+  [data-component='MovementSpeed'] [data-part='heading'] {
+    padding-left: 0.7rem;
+    padding-bottom: 0.35rem;
+  }
+
+  /* --- FrontPage section headings ------------------------------------ */
+  [data-component='IWR'] h3,
+  [data-component='LanguagesKnown'] div.underline,
+  [data-component='CombatInitiative'] [data-part='heading'],
+  [data-component='MovementSpeed'] [data-part='heading'],
+  [data-component='MovementSpeed'] [data-component='StatBox'] > div > div:first-child {
+    color: var(--color-heading);
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    font-weight: 400;
+    letter-spacing: normal;
+    text-decoration: none;
+  }
+
   /* Initiative value: no card, just align the bare number with the dropdown */
   [data-component='InitiativeBox'] {
     display: flex;
@@ -283,6 +303,30 @@ body.theme-default {
   [data-component='FrontPage'] > * {
     margin: 0.75rem 0.75rem;
     padding: 0.75rem 1rem;
+  }
+  [data-component='FrontPage'] > [data-section='attributes'],
+  [data-component='FrontPage'] > [data-component='MovementSpeed'] {
+    padding: 0.75rem 0.3rem;
+  }
+
+  /* --- Attribute score / movement speed dividers --------------------- */
+  [data-section='attributes'] > *,
+  [data-component='MovementSpeed'] [data-part='speeds'] > * {
+    padding-inline: 0.35rem;
+  }
+  [data-section='attributes'] > *:first-child,
+  [data-component='MovementSpeed'] [data-part='speeds'] > *:first-child {
+    padding-left: 0;
+  }
+  [data-section='attributes'] > *:last-child,
+  [data-component='MovementSpeed'] [data-part='speeds'] > *:last-child {
+    padding-right: 0;
+  }
+  [data-section='attributes'] > * + *,
+  [data-component='MovementSpeed'] [data-part='speeds'] > * + * {
+    border-left: 1px solid oklch(36% 0.022 258 / 0.6);
+    border-image-source: linear-gradient(to bottom, transparent, oklch(36% 0.022 258 / 0.6));
+    border-image-slice: 1;
   }
 
   /* --- Shared list cards: layout + dividers ---------------------------- */

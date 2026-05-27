@@ -6,7 +6,7 @@ const character = useInjectedCharacter()
 const { languages } = character
 </script>
 <template>
-  <div class="[&:not(:has(li))]:hidden">
+  <div data-component="LanguagesKnown" class="[&:not(:has(li))]:hidden">
     <div v-if="languages?.length === 0" class="italic">{{ $t('languages.none') }}</div>
     <div v-else class="underline">{{ $t('languages.heading') }}</div>
     <ul class="min-h-6">

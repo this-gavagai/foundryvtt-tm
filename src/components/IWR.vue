@@ -6,7 +6,7 @@ const character = useInjectedCharacter()
 const { immunities, weaknesses, resistances } = character
 </script>
 <template>
-  <div class="flex grow justify-between empty:hidden">
+  <div data-component="IWR" class="flex grow justify-between empty:hidden">
     <section v-if="immunities?.length">
       <h3 class="underline">{{ $t('iwr.immunity') }}</h3>
       <ul>

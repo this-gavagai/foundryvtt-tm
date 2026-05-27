@@ -99,6 +99,7 @@
     "title": "Erfahrungspunkte"
   },
   "movement": {
+    "heading": "Bewegungsrate",
     "land": "Land",
     "swim": "Schwimmen",
     "climb": "Klettern",

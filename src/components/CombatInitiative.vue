@@ -34,8 +34,8 @@ const initiativeReady = computed(() => {
 })
 </script>
 <template>
-  <div>
-    <div class="pb-1 text-[0.8rem] text-gray-500 uppercase">{{ $t('combat.initiative') }}</div>
+  <div data-component="CombatInitiative">
+    <div data-part="heading" class="pb-1 uppercase">{{ $t('combat.initiative') }}</div>
     <div class="flex gap-4">
       <DropdownWidget
         class="grow"

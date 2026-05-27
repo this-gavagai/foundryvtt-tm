@@ -7,7 +7,7 @@ const character = useInjectedCharacter()
 const { str, dex, con, int, wis, cha } = character.attributes
 </script>
 <template>
-  <div class="flex grow justify-between">
+  <div class="flex grow justify-between px-0 *:w-1/6">
     <StatBox
       :heading="$t('attributes.str')"
       :fullHeading="$t('attributesFull.str')"

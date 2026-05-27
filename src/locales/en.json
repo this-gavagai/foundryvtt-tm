@@ -99,6 +99,7 @@
     "title": "Experience Points"
   },
   "movement": {
+    "heading": "Movement Speed",
     "land": "Land",
     "swim": "Swim",
     "climb": "Climb",

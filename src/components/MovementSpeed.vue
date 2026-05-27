@@ -20,11 +20,13 @@ function parseSpeed(speed: Stat | undefined) {
 }
 </script>
 <template>
-  <div class="flex justify-between gap-1">
-    <StatBox :heading="$t('movement.land')" :breakdown="land?.breakdown" class="w-1/5">
+  <div data-component="MovementSpeed">
+    <div data-part="heading">{{ $t('movement.heading') }}</div>
+    <div data-part="speeds" class="flex justify-between gap-1 *:w-1/5">
+    <StatBox :heading="$t('movement.land')" :breakdown="land?.breakdown">
       {{ parseSpeed(land) }}
     </StatBox>
-    <div class="w-1/5">
+    <div>
       <StatBox v-if="swim?.value" :heading="$t('movement.swim')" :breakdown="swim?.breakdown">
         {{ parseSpeed(swim) }}
       </StatBox>
@@ -35,11 +37,16 @@ function parseSpeed(speed: Stat | undefined) {
         :modifiers="athletics?.modifiers"
         :rollAction="athletics?.roll"
       >
-        <img v-if="land?.value" :src="d20" class="mx-auto mt-1 h-6 w-5" style="stroke: currentColor" />
+        <img
+          v-if="land?.value"
+          :src="d20"
+          class="mx-auto mt-1 h-6 w-5"
+          style="stroke: currentColor"
+        />
         <span v-else>--</span>
       </StatBox>
     </div>
-    <div class="w-1/5">
+    <div>
       <StatBox v-if="climb?.value" :heading="$t('movement.climb')" :breakdown="climb?.breakdown">
         {{ parseSpeed(climb) }}
       </StatBox>
@@ -54,11 +61,12 @@ function parseSpeed(speed: Stat | undefined) {
         <span v-else>--</span>
       </StatBox>
     </div>
-    <StatBox :heading="$t('movement.fly')" :breakdown="fly?.breakdown" class="w-1/5">
-      {{ parseSpeed(fly) }}
-    </StatBox>
-    <StatBox :heading="$t('movement.burrow')" :breakdown="burrow?.breakdown" class="w-1/5">
+    <StatBox :heading="$t('movement.burrow')" :breakdown="burrow?.breakdown">
       {{ parseSpeed(burrow) }}
     </StatBox>
+    <StatBox :heading="$t('movement.fly')" :breakdown="fly?.breakdown">
+      {{ parseSpeed(fly) }}
+    </StatBox>
+    </div>
   </div>
 </template>
