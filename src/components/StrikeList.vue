@@ -143,17 +143,24 @@ const damageTypeOptions = computed<string[]>(() => {
   }
   const item = viewedItem.value
   if (!item) return []
-  const traits = item.system?.traits?.value ?? []
+  // For granted items, the source traits we serialize via toObject() may not
+  // include the rune/feat-added trait — but the prepared strike's weaponTraits
+  // does. Union both so we don't miss versatile/modular set by rule elements.
+  const itemTraits = item.system?.traits?.value ?? []
+  const strikeTraits = (v.target.data.weaponTraits ?? [])
+    .map((t) => t.name)
+    .filter((n): n is string => !!n)
+  const traits = new Set<string>([...itemTraits, ...strikeTraits])
   // Modular weapons cycle through the three physical types regardless of which
   // is currently selected — the order is intrinsic to the weapon, not derived
   // from current state, so it stays put as the user picks.
-  if (traits.includes('modular')) return ['bludgeoning', 'piercing', 'slashing']
+  if (traits.has('modular')) return ['bludgeoning', 'piercing', 'slashing']
   // Versatile: base type first, then the alt offered by the trait.
   const types = new Set<string>()
   if (item.system?.damage?.damageType) types.add(item.system.damage.damageType)
-  if (traits.includes('versatile-b')) types.add('bludgeoning')
-  if (traits.includes('versatile-p')) types.add('piercing')
-  if (traits.includes('versatile-s')) types.add('slashing')
+  if (traits.has('versatile-b')) types.add('bludgeoning')
+  if (traits.has('versatile-p')) types.add('piercing')
+  if (traits.has('versatile-s')) types.add('slashing')
   return Array.from(types)
 })
 

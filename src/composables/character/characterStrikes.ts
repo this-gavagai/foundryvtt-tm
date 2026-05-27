@@ -18,9 +18,34 @@ export interface CharacterStrikes {
 export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>): CharacterStrikes {
   const strikes = computed(() => {
     return (actor.value?.system?.actions as CharacterStrike[] | undefined)?.map((action) => {
-      const weaponItem = actor.value?.items.find<WeaponPF2e<CharacterPF2e>>(
-        (i) => i.system?.slug === action?.slug
-      )
+      // Match by slug first; for granted items (e.g. clan dagger from the
+      // ancestry feat) PF2e gives the actor-item a unique slug that differs
+      // from the strike's slug, so fall back to the strike's own item _id.
+      // If that lookup lands on the granting feat itself (PF2e references the
+      // feat as the strike's item when the weapon was granted by it), chase
+      // the feat's itemGrants to the actual weapon — that's the one with the
+      // versatile/modular traits and damageType the picker needs.
+      let weaponItem: WeaponPF2e<CharacterPF2e> | undefined =
+        actor.value?.items.find<WeaponPF2e<CharacterPF2e>>(
+          (i) => i.system?.slug === action?.slug && i.type === 'weapon'
+        ) ??
+        actor.value?.items.find<WeaponPF2e<CharacterPF2e>>(
+          (i) => i._id === action?.item?._id && i.type === 'weapon'
+        )
+      if (!weaponItem) {
+        const granter = actor.value?.items.find(
+          (i) => i._id === action?.item?._id || i.system?.slug === action?.slug
+        ) as { itemGrants?: string[] } | undefined
+        for (const gid of granter?.itemGrants ?? []) {
+          const found = actor.value?.items.find(
+            (i) => i._id === gid && i.type === 'weapon'
+          )
+          if (found) {
+            weaponItem = found as WeaponPF2e<CharacterPF2e>
+            break
+          }
+        }
+      }
       const weaponId = weaponItem?._id ?? action?.item?._id ?? undefined
       // PF2e populates the strike's ammunition data from the weapon's loaded
       // subitems, so reloadable/loaded come straight from it.
