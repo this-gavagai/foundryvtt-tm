@@ -18,7 +18,6 @@ body.theme-default {
   --color-border: oklch(36% 0.025 258); /* modal / dropdown outlines */
   --color-text: oklch(86% 0.008 250);
   --color-heading: oklch(60% 0.008 258);
-  /* --color-heading: oklch(85% 0.008 258); */
 
   --color-proficiency-untrained: oklch(90% 0.005 258);
   --color-proficiency-trained: oklch(68% 0.18 250);

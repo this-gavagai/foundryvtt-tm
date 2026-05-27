@@ -83,23 +83,27 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
             result ?? {}
           ),
         setDamageType: (newType) => {
-          const item = actor.value?.items.find<WeaponPF2e<CharacterPF2e>>(
-            (i) => i._id === action?.item?._id
+          if (!actor.value) return Promise.resolve(null)
+          const item = actor.value.items.find<WeaponPF2e<CharacterPF2e>>(
+            (i) => i._id === weaponId
           )
-          if (!item || !actor.value) return Promise.resolve(null)
+          if (!item) return Promise.resolve(null)
           const adjustment = item.system?.damage?.damageType === newType ? null : newType
           const isModular = item.system?.traits?.value?.includes('modular' as never)
           const toggleKey = isModular ? 'modular' : 'versatile'
-          const toggles = item.system.traits.toggles
-          if (isModular) {
-            if (toggles.modular) Object.assign(toggles.modular, { selected: adjustment })
-          } else {
-            toggles.versatile.selected = adjustment as DamageType | null
+          // Optimistic local update — toggles may not be present on all item shapes
+          const toggles = item.system.traits?.toggles
+          if (toggles) {
+            if (isModular) {
+              if (toggles.modular) Object.assign(toggles.modular, { selected: adjustment })
+            } else if (toggles.versatile) {
+              toggles.versatile.selected = adjustment as DamageType | null
+            }
           }
           const update = {
             system: { traits: { toggles: { [toggleKey]: { selected: adjustment } } } }
           }
-          return updateActorItem(actor as Ref<CharacterPF2e>, action?.item?._id ?? '', update)
+          return updateActorItem(actor as Ref<CharacterPF2e>, weaponId ?? '', update)
         },
         changeAmmo: (newId) => {
           const item = actor.value?.items.find<WeaponPF2e<CharacterPF2e>>(
