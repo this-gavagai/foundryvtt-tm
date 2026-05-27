@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type Ref, useTemplateRef, watch, watchPostEffect } from 'vue'
+import { type Ref, ref, useTemplateRef, watch, watchPostEffect } from 'vue'
 import { useWakeLock } from '@vueuse/core'
 import type { Socket } from 'socket.io-client'
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
@@ -18,6 +18,7 @@ import { useUserStore } from '@/stores/user'
 
 import CharacterSheet from '@/components/CharacterSheet.vue'
 import LoginPage from '@/components/LoginPage.vue'
+import Spinner from '@/components/widgets/SpinnerWidget.vue'
 import { logger } from './utils/utilities'
 import { initTheme } from '@/composables/useTheme'
 
@@ -28,7 +29,7 @@ const BUILD_MODE: string = import.meta.env.MODE
 // connect to server and ping it periodically
 const location = new URL(window.location.origin)
 const serverStore = useServerStore()
-const { needsLogin } = storeToRefs(serverStore)
+const { needsLogin, socket } = storeToRefs(serverStore)
 const { connectToServer } = serverStore
 const userStore = useUserStore()
 const { userId } = storeToRefs(userStore)
@@ -47,15 +48,46 @@ connectToServer(location).then((socket: Ref<Socket | undefined>) => {
 
 // request and handle world
 const worldStore = useWorldStore()
-const { world } = storeToRefs(worldStore)
+const { world, worldActive, worldRunning } = storeToRefs(worldStore)
 const { refreshWorld } = worldStore
-setupSocketListenersForApp()
-const stopWorldWatch = watch(
+// Re-register socket listeners whenever a new socket is created (e.g. after
+// connectToServer replaces the socket on auth failure or re-login).
+// setupSocketListenersForApp/World are idempotent: they remove stale handlers
+// before re-adding, so calling them multiple times is safe.
+let worldListenersReady = false
+watch(socket, (newSocket) => {
+  if (!newSocket) return
+  setupSocketListenersForApp()
+  if (worldListenersReady) refreshWorld().then((w) => setupSocketListenersForWorld(w))
+})
+
+// When the world starts while the socket is unauthenticated, Foundry won't
+// re-send the session event on the existing socket — reconnecting causes a
+// fresh handshake so Foundry can authenticate the browser's session cookie.
+// reconnecting stays true while connectToServer is in-flight so the spinner
+// is shown instead of LoginPage, preventing loadUsers from running against
+// the old pre-world socket before the new one is ready.
+const reconnecting = ref(false)
+watch(worldRunning, async (isRunning) => {
+  if (isRunning && needsLogin.value) {
+    reconnecting.value = true
+    await connectToServer(location)
+    reconnecting.value = false
+  }
+})
+
+// Keep watching userId so refreshWorld() fires whenever a session is
+// established or re-established (e.g. world reloads after being inactive).
+watch(
   userId,
   (newId) => {
     if (!newId) return
-    refreshWorld().then((w) => setupSocketListenersForWorld(w))
-    stopWorldWatch()
+    if (!worldListenersReady) {
+      worldListenersReady = true
+      refreshWorld().then((w) => setupSocketListenersForWorld(w))
+    } else {
+      refreshWorld()
+    }
   },
   { immediate: true }
 )
@@ -67,6 +99,10 @@ const urlId =
 const characterSelectStore = useCharacterSelectStore()
 characterSelectStore.initialize(urlId)
 const { characterList, activeCharacterId } = storeToRefs(characterSelectStore)
+// After a successful login the socket reconnects and needsLogin drops to false.
+// Re-request the world immediately rather than waiting for the next heartbeat.
+watch(needsLogin, (val) => { if (!val) refreshWorld() })
+
 watch(activeCharacterId, (newValue) => {
   if (!newValue) return
   localStorage.setItem('lastCharacterId', newValue)
@@ -114,7 +150,13 @@ if (BUILD_MODE === 'development') {
 }
 </script>
 <template>
-  <LoginPage v-if="needsLogin" />
+  <div v-if="worldRunning === undefined || reconnecting || (worldRunning && !needsLogin && worldActive !== true)" class="flex h-dvh items-center justify-center">
+    <Spinner class="h-12 w-12" />
+  </div>
+  <div v-else-if="!worldRunning" data-component="NoWorldMessage" class="flex h-dvh items-center justify-center p-8 text-center text-lg">
+    {{ $t('app.noWorld') }}
+  </div>
+  <LoginPage v-else-if="needsLogin" />
   <TabGroup v-else :selectedIndex="characterList.indexOf(activeCharacterId)" as="div">
     <TabList class="border-divider hidden h-12 gap-0 border bg-white text-xl">
       <Tab

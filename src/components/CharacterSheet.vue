@@ -64,7 +64,7 @@ const actor: Ref<TablemateCharacter | undefined> = ref()
 const actorOrWorldActor = computed<TablemateCharacter | undefined>(
   () =>
     actor.value ??
-    (world.value?.actors.find<CharacterPF2e<null>>((a) => a._id == props.characterId) as
+    (world.value?.actors?.find<CharacterPF2e<null>>((a) => a._id == props.characterId) as
       | TablemateCharacter
       | undefined)
 )

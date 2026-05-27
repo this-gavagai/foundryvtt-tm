@@ -31,6 +31,20 @@ body.theme-default {
     filter: invert(0.85);
   }
 
+  /* connection status dot: four states */
+  [data-part='connection-dot'][data-state='down'] {
+    background-color: oklch(55% 0.18 25);
+  }
+  [data-part='connection-dot'][data-state='no-world'] {
+    background-color: oklch(72% 0.16 80);
+  }
+  [data-part='connection-dot'][data-state='no-gm'] {
+    background-color: oklch(72% 0.14 55);
+  }
+  [data-part='connection-dot'][data-state='ok'] {
+    background-color: oklch(58% 0.16 145);
+  }
+
   /* sidebar toggle icon matches tab icon luminance */
   [data-part='sidebar-toggle'] {
     color: var(--color-text);
@@ -93,8 +107,8 @@ body.theme-default {
 
   /* --- Inputs ------------------------------------------ */
   input {
-    background-color: oklch(8% 0.01 258);
-    border-color: var(--color-divider);
+    background-color: var(--color-card);
+    border-color: var(--color-border);
     color: inherit;
   }
 
@@ -267,7 +281,6 @@ body.theme-default {
      Glass styling comes from the shared rule above; here we just neutralise
      the parent's `*:border-b` rule and apply gutter margin + padding.       */
   [data-component='FrontPage'] > * {
-    border-bottom-color: transparent;
     margin: 0.75rem 0.75rem;
     padding: 0.75rem 1rem;
   }
@@ -626,5 +639,55 @@ body.theme-default {
   /* --- Effects & conditions label ---------------------- */
   [data-part='label'] {
     display: block;
+  }
+
+  /* --- Login page -------------------------------------- */
+  [data-component='LoginPage'] {
+    form {
+      background-color: var(--color-surface);
+      border-color: var(--color-border);
+    }
+
+    label > span {
+      color: var(--color-heading);
+    }
+
+    select {
+      background-color: var(--color-card);
+      border-color: var(--color-border);
+      color: var(--color-text);
+
+      option {
+        background-color: var(--color-surface);
+        color: var(--color-text);
+      }
+      option:disabled {
+        color: oklch(45% 0.01 258);
+      }
+    }
+
+    button[type='submit'] {
+      background-color: oklch(45% 0.13 255);
+      color: oklch(96% 0.01 255);
+      &:hover:not(:disabled) {
+        background-color: oklch(50% 0.13 255);
+      }
+    }
+
+    [data-part='error'] {
+      color: oklch(68% 0.16 25);
+
+      button {
+        color: oklch(72% 0.008 258);
+        &:hover {
+          color: var(--color-text);
+        }
+      }
+    }
+  }
+
+  /* --- No-world message -------------------------------- */
+  [data-component='NoWorldMessage'] {
+    color: var(--color-heading);
   }
 }

@@ -24,7 +24,8 @@
   },
   "app": {
     "userDoesNotOwnCharacter": "User does not own this character",
-    "characterPortrait": "Character portrait"
+    "characterPortrait": "Character portrait",
+    "noWorld": "This server does not have a game world activated. Please contact your GM."
   },
   "tabs": {
     "character": "Character",

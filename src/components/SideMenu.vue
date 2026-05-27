@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
 import { XMarkIcon } from '@heroicons/vue/24/solid'
 import { storeToRefs } from 'pinia'
+import { useServerStore } from '@/stores/server'
+import { useListenersStore } from '@/stores/listenersOnline'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useWorldStore } from '@/stores/world'
 import { usePixelDiceStore } from '@/stores/pixelDice'
@@ -17,7 +19,22 @@ import RollOptions from '@/components/RollOptions.vue'
 import Spinner from './widgets/SpinnerWidget.vue'
 
 const { locale, t } = useI18n()
-const { world } = storeToRefs(useWorldStore())
+const { isConnected } = storeToRefs(useServerStore())
+const { isListening } = storeToRefs(useListenersStore())
+const { world, worldActive } = storeToRefs(useWorldStore())
+
+const connectionState = computed(() => {
+  if (!isConnected.value) return 'down'
+  if (!worldActive.value) return 'no-world'
+  if (!isListening.value) return 'no-gm'
+  return 'ok'
+})
+const connectionTitle: Record<string, string> = {
+  down: 'Foundry server not responding',
+  'no-world': 'Server reachable — world not active',
+  'no-gm': 'World active — no GM online',
+  ok: 'Connected',
+}
 const pixelStore = usePixelDiceStore()
 const { pixel, pixelStatus } = storeToRefs(pixelStore)
 const { pixelConnect, pixelReconnect, pixelDisconnect } = pixelStore
@@ -92,6 +109,17 @@ defineExpose({ sidebarOpen })
             <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4" data-part="panel">
               <nav class="flex flex-1 flex-col">
                 <ul role="list" class="flex flex-1 flex-col gap-y-7 pt-4">
+                  <li>
+                    <div class="flex items-center gap-2">
+                      <span
+                        data-part="connection-dot"
+                        :data-state="connectionState"
+                        :class="{ 'animate-pulse': connectionState !== 'ok' }"
+                        class="h-2.5 w-2.5 flex-none rounded-full"
+                      />
+                      <span class="text-sm">{{ connectionTitle[connectionState] }}</span>
+                    </div>
+                  </li>
                   <li>
                     <div class="text-lg italic">{{ $t('sideMenu.language') }}</div>
                     <Dropdown

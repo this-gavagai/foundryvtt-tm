@@ -71,7 +71,7 @@ async function handleLogin() {
 }
 </script>
 <template>
-  <div class="flex h-dvh items-center justify-center bg-white">
+  <div data-component="LoginPage" class="flex h-dvh items-center justify-center">
     <form
       @submit.prevent="handleLogin"
       class="border-divider flex w-80 flex-col gap-4 rounded border p-6"
@@ -114,7 +114,7 @@ async function handleLogin() {
       >
         {{ submitting ? $t('login.signingIn') : $t('login.signIn') }}
       </button>
-      <div v-if="error" class="flex items-center justify-between gap-2 text-sm text-red-600">
+      <div v-if="error" data-part="error" class="flex items-center justify-between gap-2 text-sm">
         <span>{{ error }}</span>
         <button type="button" class="underline" @click="loadUsers">{{ $t('login.retry') }}</button>
       </div>

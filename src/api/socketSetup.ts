@@ -18,35 +18,48 @@ import { processChanges } from './documents'
 import { resolveAck } from './actions'
 import { TM } from './protocol'
 
+type AppChannelHandler = (args: ModuleEventArgs) => void
+type ModifyDocumentHandler = (args: DocumentSocketResponse) => void
+type UserActivityHandler = (user: string, args: { targets?: string[]; active?: boolean }) => void
+
+let appChannelHandler: AppChannelHandler | null = null
+let worldModifyHandler: ModifyDocumentHandler | null = null
+let worldUserActivityHandler: UserActivityHandler | null = null
+
 export async function setupSocketListenersForApp() {
   const socket = await getSocket()
   const { addListener } = useListenersStore()
-  socket.on(TM.CHANNEL, (args: ModuleEventArgs) => {
+
+  if (appChannelHandler) socket.off(TM.CHANNEL, appChannelHandler)
+  appChannelHandler = (args: ModuleEventArgs) => {
     switch (args.action) {
       case TM.ACK:
         resolveAck(args.uuid, args)
         break
-      case TM.SHARE_TARGETS:
+      case TM.SHARE_TARGETS: {
         const { updateTargets } = useTargetHelperStore()
         Object.entries(args.targets).forEach(([userId, targets]) =>
           updateTargets(userId, targets as string[])
         )
         break
+      }
       case TM.LISTENER_ONLINE:
         logger.info('listener online!', args)
         addListener(args.userId)
         break
     }
-  })
+  }
+  socket.on(TM.CHANNEL, appChannelHandler)
 }
 
 export async function setupSocketListenersForWorld(world: Ref<GamePF2e>) {
   const socket = await getSocket()
 
-  socket.on('modifyDocument', (args: DocumentSocketResponse) => {
+  if (worldModifyHandler) socket.off('modifyDocument', worldModifyHandler)
+  worldModifyHandler = (args: DocumentSocketResponse) => {
     switch (args.type) {
       case 'Combat':
-        processChanges(args, world.value.combats as unknown as DocumentData[])
+        processChanges(args, world.value?.combats as unknown as DocumentData[])
         break
       case 'Combatant': {
         const combatId = args.operation.parentUuid?.split('.')?.[1]
@@ -58,8 +71,11 @@ export async function setupSocketListenersForWorld(world: Ref<GamePF2e>) {
         processChanges(args, world.value?.messages as unknown as DocumentData[] | undefined)
         break
     }
-  })
-  socket.on('userActivity', (user: string, args: { targets?: string[]; active?: boolean }) => {
+  }
+  socket.on('modifyDocument', worldModifyHandler)
+
+  if (worldUserActivityHandler) socket.off('userActivity', worldUserActivityHandler)
+  worldUserActivityHandler = (user: string, args: { targets?: string[]; active?: boolean }) => {
     if (args.targets) {
       logger.info('user event', user, args)
       const { updateTargets } = useTargetHelperStore()
@@ -67,7 +83,8 @@ export async function setupSocketListenersForWorld(world: Ref<GamePF2e>) {
     } else if (args.active) {
       logger.info('user online', user, args)
     }
-  })
+  }
+  socket.on('userActivity', worldUserActivityHandler)
 }
 
 export async function setupSocketListenersForActor(

@@ -50,11 +50,15 @@ export const useCharacterSelectStore = defineStore('characterSelect', () => {
     { immediate: true }
   )
 
-  // Auto-default to the first character when the list materializes
+  // Auto-default when the list materializes: prefer the last saved character
+  // over the first in the list, so selection survives a world reload cycle.
   watch(
     characterList,
     (list) => {
-      if (!activeCharacterId.value && list.length > 0) activeCharacterId.value = list[0]
+      if (!activeCharacterId.value && list.length > 0) {
+        const saved = localStorage.getItem('lastCharacterId')
+        activeCharacterId.value = (saved && list.includes(saved)) ? saved : list[0]
+      }
     },
     { immediate: true }
   )

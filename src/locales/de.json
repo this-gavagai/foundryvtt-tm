@@ -24,7 +24,8 @@
   },
   "app": {
     "userDoesNotOwnCharacter": "Der Benutzer besitzt diesen Charakter nicht",
-    "characterPortrait": "Charakterporträt"
+    "characterPortrait": "Charakterporträt",
+    "noWorld": "Dieser Server hat keine aktive Spielwelt. Bitte kontaktiere deinen GM."
   },
   "tabs": {
     "character": "Charakter",

@@ -47,6 +47,7 @@ function establishSocket(url: URL, keepAlive = false) {
 export const useServerStore = defineStore('server', () => {
   const socket = ref<Socket>()
   const needsLogin = ref(false)
+  const isConnected = ref(false)
   let serverUrl: URL | undefined
 
   function getSocket(timeoutMs = 15_000): Promise<Socket> {
@@ -131,9 +132,16 @@ export const useServerStore = defineStore('server', () => {
         socket.value.onAnyOutgoing((name, ...args) => {
           logger.debug('TM-SEND', name, ...args)
         })
+        isConnected.value = true
+        socket.value.on('disconnect', () => { isConnected.value = false })
+        socket.value.on('connect', () => { isConnected.value = true })
         socket.value.on('session', (args: { userId: string }) => {
-          if (args?.userId) useUserStore().setUserId(args?.userId)
-          else handleAuthFailure(url, allowRelogin)
+          if (args?.userId) {
+            useUserStore().setUserId(args?.userId)
+            needsLogin.value = false
+          } else {
+            handleAuthFailure(url, allowRelogin)
+          }
         })
       })
       .catch((e) => {
@@ -146,6 +154,7 @@ export const useServerStore = defineStore('server', () => {
   return {
     socket,
     needsLogin,
+    isConnected,
     connectToServer,
     getSocket,
     login,
