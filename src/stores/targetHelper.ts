@@ -24,25 +24,17 @@ export const useTargetHelperStore = defineStore('targetHelper', () => {
 
   const targetingProxyId = computed(
     () =>
+      localProxyId.value ||
       (world.value?.users.find((u) => u._id === userId.value)?.flags?.tablemate?.targeting_proxy as
         | string
-        | undefined) ?? localProxyId.value
+        | undefined)
   )
 
   function updateProxyId(newId: string): Promise<DocumentSocketResponse | null> {
     logger.debug('TM-info: newID incoming', newId)
     if (!world.value) return Promise.resolve(null)
-
-    // update remote
-    const response = updateUserTargetingProxy(getUserId(), newId)
-    // update local
-    const tablemate = world.value.users.find((u) => u._id === getUserId())?.flags?.tablemate as
-      | { targeting_proxy?: string }
-      | undefined
-    if (tablemate) tablemate.targeting_proxy = newId
-
     localProxyId.value = newId
-    return response
+    return updateUserTargetingProxy(getUserId(), newId)
   }
 
   function updateTargets(user: string, newTargets: string[]) {
