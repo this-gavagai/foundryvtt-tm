@@ -18,6 +18,7 @@ export type ModuleEventArgs =
   | SetWeaponLoadedArgs
   | SetWeaponDamageTypeArgs
   | ToggleKineticAuraArgs
+  | CastStaffSpellArgs
 
 export interface AcknowledgementArgs {
   action: typeof TM.ACK
@@ -96,6 +97,16 @@ export interface CastSpellArgs {
   slotId: number
   uuid: string
   targets: string[]
+}
+export interface CastStaffSpellArgs {
+  action: typeof TM.CAST_STAFF_SPELL
+  userId: string
+  characterId: string
+  staffId: string
+  spellId: string
+  rank: number
+  targets: string[]
+  uuid: string
 }
 export interface ConsumeItemArgs {
   action: typeof TM.CONSUME_ITEM

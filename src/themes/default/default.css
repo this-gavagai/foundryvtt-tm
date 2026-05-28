@@ -574,7 +574,8 @@ body.theme-default {
     }
 
     /* counter widgets — shift up and brighten pips */
-    h3 > span:last-child > div {
+    h3 > span:last-child > div,
+    [data-section='staff'] h3 > div {
       bottom: 2px;
       color: oklch(82% 0.01 258);
     }

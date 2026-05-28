@@ -366,7 +366,7 @@ const spellbook = computed((): Spellbook => {
               v-for="item in rankSpells"
               class="flex cursor-pointer justify-between px-4"
               :key="item._id"
-              @click="openSpellModal(item?._id, { fromStaff: true })"
+              @click="openSpellModal(item?._id, { fromStaff: true, castingRank: Number(rank) })"
             >
               {{ item.name }}
             </div>
@@ -516,7 +516,7 @@ const spellbook = computed((): Spellbook => {
           <Button
             :label="$t('spells.cast')"
             color="blue"
-            v-if="!viewedSpellInfo?.isConsumable && !viewedSpellInfo?.fromStaff && viewedItem"
+            v-if="!viewedSpellInfo?.isConsumable && viewedItem"
             :clicked="castViewedSpell"
           />
           <Button

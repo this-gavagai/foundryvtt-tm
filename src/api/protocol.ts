@@ -25,5 +25,6 @@ export const TM = {
   CALL_MACRO: 'callMacro',
   SET_WEAPON_LOADED: 'setWeaponLoaded',
   SET_WEAPON_DAMAGE_TYPE: 'setWeaponDamageType',
-  TOGGLE_KINETIC_AURA: 'toggleKineticAura'
+  TOGGLE_KINETIC_AURA: 'toggleKineticAura',
+  CAST_STAFF_SPELL: 'castStaffSpell'
 } as const

@@ -4,7 +4,7 @@ import type { TablemateCharacter } from '@/types/character-types'
 import type { Field, Maybe } from './helpers'
 import { type Spell, type SpellcastingEntry, makeSpell, makeSpellcastingEntry } from './defs/spell'
 import { type Consumable, makeConsumable } from './defs/consumable'
-import { castSpell, consumeItem, rollCheck } from '@/api/actions'
+import { castSpell, castStaffSpell, consumeItem, rollCheck } from '@/api/actions'
 import { makeModifiers } from './defs/modifier'
 import { updateActor, updateActorItem } from '@/api/documents'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
@@ -23,7 +23,7 @@ type StaffData = {
   charges?: { value?: number; max?: number }
   expended?: boolean
 }
-type PF2eDailiesFlags = { extra?: { staffData?: StaffData } } | undefined
+type PF2eDailiesFlags = { extra?: { dailies?: { staves?: StaffData } } } | undefined
 
 export interface Staff {
   staffId: Maybe<string>
@@ -90,9 +90,11 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
       }))
 
     const dailies = actor.value?.flags?.['pf2e-dailies'] as PF2eDailiesFlags
-    const staffSpells = (dailies?.extra?.staffData?.spells ?? []).map((i) => ({
+    const staves = dailies?.extra?.dailies?.staves
+    const staffSpells = (staves?.spells ?? []).map((i) => ({
       ...makeSpell(i),
-      doSpell: undefined
+      doSpell: (rank: number | undefined) =>
+        castStaffSpell(actor as Ref<CharacterPF2e>, staves!.staffId!, i._id!, rank ?? 1)
     }))
 
     return [...(actorSpells ?? []), ...staffSpells]
@@ -116,18 +118,22 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
   )
 
   const staff = computed(() => {
-    const staffData = (actor.value?.flags?.['pf2e-dailies'] as PF2eDailiesFlags)?.extra?.staffData
+    const staffData = (actor.value?.flags?.['pf2e-dailies'] as PF2eDailiesFlags)?.extra?.dailies?.staves
     return {
       staffId: staffData?.staffId,
       charges: {
         value: staffData?.charges?.value,
         max: staffData?.charges?.max
       },
-      spells: (staffData?.spells ?? []).map((i) => makeSpell(i)),
+      spells: (staffData?.spells ?? []).map((i) => ({
+        ...makeSpell(i),
+        doSpell: (rank: number | undefined) =>
+          castStaffSpell(actor as Ref<CharacterPF2e>, staffData!.staffId!, i._id!, rank ?? 1)
+      })),
       expended: staffData?.expended,
       setStaffCharges: (newValue: number) => {
         const update = {
-          flags: { 'pf2e-dailies': { extra: { staffData: { charges: { value: newValue } } } } }
+          flags: { 'pf2e-dailies': { extra: { dailies: { staves: { charges: { value: newValue } } } } } }
         }
         return updateActor(actor as Ref<CharacterPF2e>, update)
       }

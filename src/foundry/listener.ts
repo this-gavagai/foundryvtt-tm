@@ -10,7 +10,8 @@ import type {
   CallMacroArgs,
   SetWeaponLoadedArgs,
   SetWeaponDamageTypeArgs,
-  ToggleKineticAuraArgs
+  ToggleKineticAuraArgs,
+  CastStaffSpellArgs
 } from '@/types/api-types'
 import {
   getCharacterDetails,
@@ -23,7 +24,8 @@ import {
   foundryCallMacro,
   foundrySetWeaponLoaded,
   foundrySetWeaponDamageType,
-  foundryToggleKineticAura
+  foundryToggleKineticAura,
+  foundryCastStaffSpell
 } from './handlers'
 import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
@@ -140,6 +142,11 @@ export function setupListener() {
         break
       case TM.TOGGLE_KINETIC_AURA:
         foundryToggleKineticAura(args as ToggleKineticAuraArgs).then((result) =>
+          game.socket.emit(TM.CHANNEL, result)
+        )
+        break
+      case TM.CAST_STAFF_SPELL:
+        foundryCastStaffSpell(args as CastStaffSpellArgs).then((result) =>
           game.socket.emit(TM.CHANNEL, result)
         )
         break

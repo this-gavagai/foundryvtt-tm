@@ -12,6 +12,7 @@ import type {
   SetWeaponLoadedArgs,
   SetWeaponDamageTypeArgs,
   ToggleKineticAuraArgs,
+  CastStaffSpellArgs,
   DiceResults,
   CheckModifier
 } from '@/types/api-types'
@@ -81,6 +82,22 @@ export function castSpell(
     targets: useTargetHelperStore().getTargets(),
     rank: castingLevel,
     slotId: castingSlot
+  })
+}
+
+export function castStaffSpell(
+  actor: Ref<CharacterPF2e>,
+  staffId: string,
+  spellId: string,
+  rank: number
+): Promise<RequestResolutionArgs> {
+  return sendModuleRequest<CastStaffSpellArgs>({
+    action: TM.CAST_STAFF_SPELL,
+    characterId: actor.value._id!,
+    staffId,
+    spellId,
+    rank,
+    targets: useTargetHelperStore().getTargets()
   })
 }
 
