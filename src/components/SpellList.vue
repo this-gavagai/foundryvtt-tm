@@ -441,8 +441,8 @@ const spellbook = computed((): Spellbook => {
           <template v-else>
             {{
               viewedItem?.system.traits?.value?.includes('cantrip')
-                ? `Cantrip`
-                : `Rank ${viewedItem?.system.level?.value}`
+                ? $t('spells.cantrips')
+                : $t('spells.rank', { n: viewedItem?.system.level?.value })
             }}
             <span class="text-sm capitalize">{{ viewedItem?.system.traits.rarity }}</span>
           </template>
@@ -468,18 +468,18 @@ const spellbook = computed((): Spellbook => {
           <template v-else-if="!viewedEntry || viewedItem">
             <div class="flex gap-2 empty:hidden">
               <div v-if="viewedSpell?.system?.range">
-                <span class="font-bold">Range:</span> {{ viewedSpell?.system?.range }}
+                <span class="font-bold">{{ $t('spells.range') }}:</span> {{ viewedSpell?.system?.range }}
               </div>
               <div v-if="viewedSpell?.system?.area?.value && viewedSpell?.system?.area?.type">
-                <span class="font-bold">Area:</span> {{ viewedSpell?.system?.area?.value }}-foot
+                <span class="font-bold">{{ $t('spells.area') }}:</span> {{ viewedSpell?.system?.area?.value }}-{{ $t('spells.foot') }}
                 {{ viewedSpell?.system?.area?.type }}
               </div>
               <div v-if="viewedSpell?.system?.target">
-                <span class="font-bold">Target:</span> {{ viewedSpell?.system?.target }}
+                <span class="font-bold">{{ $t('spells.target') }}:</span> {{ viewedSpell?.system?.target }}
               </div>
             </div>
             <div class="flex [&:not(:has(span))]:hidden">
-              <label class="font-bold">Defense:&nbsp;</label>
+              <label class="font-bold">{{ $t('spells.defense') }}:&nbsp;</label>
               <span v-if="viewedSpell?.system?.defense?.save?.statistic">
                 <span v-if="viewedSpell?.system?.defense?.save?.basic"
                   >{{ $t('spells.basic') }}&nbsp;</span

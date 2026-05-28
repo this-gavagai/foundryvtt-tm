@@ -183,7 +183,12 @@
     "spellAttack": "Zauberangriff",
     "rollSpellAttack": "Zauberangriff würfeln",
     "cantrips": "Zaubertricks",
-    "rank": "{n}. Grad"
+    "rank": "{n}. Grad",
+    "range": "Reichweite",
+    "area": "Bereich",
+    "foot": "Fuß",
+    "target": "Ziel",
+    "defense": "Verteidigung"
   },
   "strikes": {
     "elementalBlastsHeading": "Elementarstöße",

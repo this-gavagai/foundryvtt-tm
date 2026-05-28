@@ -183,7 +183,12 @@
     "spellAttack": "Spell Attack",
     "rollSpellAttack": "Roll Spell Attack",
     "cantrips": "Cantrips",
-    "rank": "Rank {n}"
+    "rank": "Rank {n}",
+    "range": "Range",
+    "area": "Area",
+    "foot": "foot",
+    "target": "Target",
+    "defense": "Defense"
   },
   "strikes": {
     "elementalBlastsHeading": "Elemental Blasts",
