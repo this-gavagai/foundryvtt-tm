@@ -191,7 +191,7 @@ defineExpose({ open, close, rollResultModal })
           leave-from="opacity-100"
           leave-to="opacity-0"
         >
-          <div class="fixed inset-0 bg-[#000A]" />
+          <div class="fixed inset-0 bg-[#000D]" />
         </TransitionChild>
 
         <div class="fixed inset-x-0 bottom-0 overflow-y-auto">
