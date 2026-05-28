@@ -66,6 +66,19 @@ export const useWorldStore = defineStore('world', () => {
   const debouncedWorldRequest = debounce(sendWorldRequest, 2000, { leading: true, trailing: false })
   const refreshWorld = () => debouncedWorldRequest()
 
+  // Lightweight status poll: hits /api/status every 8s (HTTP only, no socket
+  // traffic). Immediately marks the world inactive when Foundry reports
+  // active:false; triggers a full refresh when the world comes back up.
+  setInterval(async () => {
+    const running = await fetchWorldStatus()
+    if (running === false && worldRunning.value !== false) {
+      worldRunning.value = false
+      worldActive.value = false
+    } else if (running === true && worldRunning.value === false) {
+      refreshWorld()
+    }
+  }, 8000)
+
   // Catch up on missed modifyDocument events that arrived while the page
   // was backgrounded by re-fetching the world on visibility return. The
   // 2s leading-edge debounce on refreshWorld absorbs spurious repeated

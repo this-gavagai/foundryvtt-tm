@@ -2,7 +2,6 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useServerStore } from '@/stores/server'
 import { useUserStore } from '@/stores/user'
-import { useWorldStore } from '@/stores/world'
 import { logger } from '@/utils/utilities'
 import { TM } from '@/api/protocol'
 
@@ -29,14 +28,12 @@ export const useListenersStore = defineStore('listenersOnline', () => {
       action: TM.ANYBODY_HOME
     })
     listenersOnline.value.forEach((value, key, map) => {
-      if (Date.now() - value > 15000) map.delete(key)
+      if (Date.now() - value > 45000) map.delete(key)
     })
-    useWorldStore().refreshWorld()
   }
 
-  // Heartbeat: ping every 5s. Scheduled on the first useListenersStore()
-  // invocation (store setup runs once).
-  setInterval(pingHeartbeat, 5000)
+  // Socket heartbeat: ping every 30s to detect listener/GM availability.
+  setInterval(pingHeartbeat, 30000)
 
   // Mobile browsers throttle or pause setInterval when the tab is in the
   // background, so the heartbeat can lapse — leaving isListening stuck on

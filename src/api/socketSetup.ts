@@ -44,7 +44,6 @@ export async function setupSocketListenersForApp() {
         break
       }
       case TM.LISTENER_ONLINE:
-        logger.info('listener online!', args)
         addListener(args.userId)
         break
     }
