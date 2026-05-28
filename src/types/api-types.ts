@@ -19,6 +19,7 @@ export type ModuleEventArgs =
   | SetWeaponDamageTypeArgs
   | ToggleKineticAuraArgs
   | CastStaffSpellArgs
+  | FreeRollArgs
 
 export interface AcknowledgementArgs {
   action: typeof TM.ACK
@@ -97,6 +98,14 @@ export interface CastSpellArgs {
   slotId: number
   uuid: string
   targets: string[]
+}
+export interface FreeRollArgs {
+  action: typeof TM.FREE_ROLL
+  userId: string
+  characterId: string
+  secret: boolean
+  diceResults: DiceResults
+  uuid: string
 }
 export interface CastStaffSpellArgs {
   action: typeof TM.CAST_STAFF_SPELL

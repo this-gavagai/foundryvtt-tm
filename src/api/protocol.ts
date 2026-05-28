@@ -26,5 +26,6 @@ export const TM = {
   SET_WEAPON_LOADED: 'setWeaponLoaded',
   SET_WEAPON_DAMAGE_TYPE: 'setWeaponDamageType',
   TOGGLE_KINETIC_AURA: 'toggleKineticAura',
-  CAST_STAFF_SPELL: 'castStaffSpell'
+  CAST_STAFF_SPELL: 'castStaffSpell',
+  FREE_ROLL: 'freeRoll'
 } as const

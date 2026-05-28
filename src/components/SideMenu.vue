@@ -15,8 +15,13 @@ import { useTheme, THEMES } from '@/composables/useTheme'
 
 import Dropdown from '@/components/widgets/DropdownWidget.vue'
 import Toggle from '@/components/widgets/ToggleWidget.vue'
+import Button from '@/components/widgets/ButtonWidget.vue'
 import RollOptions from '@/components/RollOptions.vue'
 import Spinner from './widgets/SpinnerWidget.vue'
+import InfoModal from './InfoModal.vue'
+import { useInjectedCharacter } from '@/composables/injectKeys'
+import { freeRoll } from '@/api/actions'
+import type { Roll } from '@/types/roll-types'
 
 const { locale, t } = useI18n()
 const { isConnected } = storeToRefs(useServerStore())
@@ -52,6 +57,27 @@ const themeList = [
 ]
 
 const { manualDicePicker } = storeToRefs(useSettingsStore())
+
+const { _id: characterId } = useInjectedCharacter()
+const freeRollModal = ref()
+const isSecret = ref(false)
+
+const freeRollRolls = computed<Roll[]>(() => [
+  {
+    key: 'free-roll',
+    label: t('sideMenu.rollD20'),
+    color: 'blue',
+    dice: ['d20'],
+    armed: true,
+    execute: (faces?: number[]) =>
+      freeRoll(characterId.value ?? '', isSecret.value, faces?.[0])
+  }
+])
+
+function openFreeRoll() {
+  sidebarOpen.value = false
+  freeRollModal.value?.open()
+}
 
 defineExpose({ sidebarOpen })
 </script>
@@ -158,6 +184,13 @@ defineExpose({ sidebarOpen })
                     <RollOptions />
                   </li>
                   <li>
+                    <Button
+                      :label="$t('sideMenu.freeRoll')"
+                      color="blue"
+                      :clicked="openFreeRoll"
+                    />
+                  </li>
+                  <li>
                     <div class="cursor-pointer text-lg font-bold" @click="pixelConnect">
                       {{ $t('sideMenu.pairPixelDice') }}
                     </div>
@@ -195,4 +228,14 @@ defineExpose({ sidebarOpen })
       </div>
     </Dialog>
   </TransitionRoot>
+  <InfoModal ref="freeRollModal" :rolls="freeRollRolls">
+    <template #title>{{ $t('sideMenu.freeRollTitle') }}</template>
+    <template #beforeBody>
+      <div class="mt-4">
+        <Toggle :active="isSecret" @changed="(v: boolean) => (isSecret = v)">
+          <span class="text-lg">{{ $t('sideMenu.secret') }}</span>
+        </Toggle>
+      </div>
+    </template>
+  </InfoModal>
 </template>

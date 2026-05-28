@@ -184,6 +184,13 @@ export const setWeaponDamageType = (
 export const toggleKineticAura = (actor: Ref<CharacterPF2e>) =>
   sendAction(TM.TOGGLE_KINETIC_AURA, fromActor(actor))
 
+export const freeRoll = (characterId: string, secret: boolean, face?: number) =>
+  sendAction(TM.FREE_ROLL, {
+    characterId,
+    secret,
+    diceResults: { d20: [face ?? 0] }
+  })
+
 export function callMacro(
   characterId: string | undefined,
   compendiumName: string | null = null,

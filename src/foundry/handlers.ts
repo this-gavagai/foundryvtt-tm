@@ -29,6 +29,7 @@ import type {
   SetWeaponDamageTypeArgs,
   ToggleKineticAuraArgs,
   CastStaffSpellArgs,
+  FreeRollArgs,
   UpdateCharacterDetailsArgs
 } from '@/types/api-types'
 import { useBackgroundRoll } from './backgroundRoll'
@@ -39,6 +40,19 @@ import { inventoryTypes } from '@/utils/constants'
 declare const game: GamePF2e
 declare const Macro: typeof MacroPF2e
 declare function fromUuidSync(uuid: string): MacroPF2e
+
+type FoundryRoll = {
+  formula: string
+  total: number
+  result: string
+  dice: { faces: number; results: { result: number }[] }[]
+  evaluate: () => Promise<FoundryRoll>
+  toMessage: (
+    data?: { speaker?: { actor?: string } },
+    opts?: { rollMode?: 'publicroll' | 'gmroll' | 'blindroll' | 'selfroll' }
+  ) => Promise<unknown>
+}
+declare const Roll: new (formula: string) => FoundryRoll
 
 type StrikeRollFn = (opts: object) => Promise<unknown>
 type StrikeActionRuntime = {
@@ -447,6 +461,30 @@ export async function foundryCastSpell(args: CastSpellArgs) {
     slotId: args.slotId
   })
   return makeAck(args)
+}
+
+export async function foundryFreeRoll(args: FreeRollArgs) {
+  logger.debug('free roll', args)
+  const source = getGame()
+  const actor = source.actors.get(args.characterId, { strict: true })
+  const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll(args.diceResults)
+  registerBackgroundRoll()
+  const roll = await new Roll('1d20').evaluate()
+  await roll.toMessage(
+    { speaker: { actor: actor._id ?? undefined } },
+    { rollMode: args.secret ? 'blindroll' : 'publicroll' }
+  )
+  unregisterBackgroundRoll()
+  return {
+    ...makeAck(args),
+    roll: {
+      formula: roll.formula,
+      result: String(roll.total),
+      total: roll.total,
+      dice: roll.dice,
+      isSecret: args.secret
+    }
+  } as ReturnType<typeof makeAck> & { roll: { formula: string; result: string; total: number; dice: unknown; isSecret: boolean } }
 }
 
 export async function foundryCastStaffSpell(args: CastStaffSpellArgs) {
