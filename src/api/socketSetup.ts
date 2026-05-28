@@ -18,37 +18,64 @@ import { processChanges } from './documents'
 import { resolveAck } from './actions'
 import { TM } from './protocol'
 
+// ── TM.CHANNEL dispatcher ────────────────────────────────────────────────
+// One socket listener owns TM.CHANNEL; everyone else registers handlers via
+// onTmAction(action, handler). Multiple handlers can subscribe to the same
+// action — they all fire in registration order. Returned cleanup removes
+// the subscription without touching the socket.
+
+type TmHandler<K extends ModuleEventArgs['action']> = (
+  args: Extract<ModuleEventArgs, { action: K }>
+) => void
+
+const tmSubs: { [K in ModuleEventArgs['action']]?: Set<TmHandler<K>> } = {}
+
+export function onTmAction<K extends ModuleEventArgs['action']>(
+  action: K,
+  handler: TmHandler<K>
+): () => void {
+  const set = (tmSubs[action] ??= new Set()) as Set<TmHandler<K>>
+  set.add(handler)
+  return () => {
+    set.delete(handler)
+  }
+}
+
 type AppChannelHandler = (args: ModuleEventArgs) => void
 type ModifyDocumentHandler = (args: DocumentSocketResponse) => void
 type UserActivityHandler = (user: string, args: { targets?: string[]; active?: boolean }) => void
 
-let appChannelHandler: AppChannelHandler | null = null
+let dispatchHandler: AppChannelHandler | null = null
 let worldModifyHandler: ModifyDocumentHandler | null = null
 let worldUserActivityHandler: UserActivityHandler | null = null
+let appSubsRegistered = false
 
 export async function setupSocketListenersForApp() {
   const socket = await getSocket()
-  const { addListener } = useListenersStore()
 
-  if (appChannelHandler) socket.off(TM.CHANNEL, appChannelHandler)
-  appChannelHandler = (args: ModuleEventArgs) => {
-    switch (args.action) {
-      case TM.ACK:
-        resolveAck(args.uuid, args)
-        break
-      case TM.SHARE_TARGETS: {
-        const { updateTargets } = useTargetHelperStore()
-        Object.entries(args.targets).forEach(([userId, targets]) =>
-          updateTargets(userId, targets as string[])
-        )
-        break
-      }
-      case TM.LISTENER_ONLINE:
-        addListener(args.userId)
-        break
-    }
+  // Re-attach the dispatcher to the (potentially new) socket. The subscription
+  // registry is module-level and survives socket swaps.
+  if (dispatchHandler) socket.off(TM.CHANNEL, dispatchHandler)
+  dispatchHandler = (args: ModuleEventArgs) => {
+    const set = tmSubs[args.action]
+    if (set) (set as Set<(a: ModuleEventArgs) => void>).forEach((h) => h(args))
   }
-  socket.on(TM.CHANNEL, appChannelHandler)
+  socket.on(TM.CHANNEL, dispatchHandler)
+
+  // Register the app-level subscribers exactly once. Subsequent calls to
+  // setupSocketListenersForApp only re-attach the dispatcher.
+  if (appSubsRegistered) return
+  appSubsRegistered = true
+
+  const { addListener } = useListenersStore()
+  onTmAction(TM.ACK, (args) => resolveAck(args.uuid, args))
+  onTmAction(TM.SHARE_TARGETS, (args) => {
+    const { updateTargets } = useTargetHelperStore()
+    Object.entries(args.targets).forEach(([userId, targets]) =>
+      updateTargets(userId, targets as string[])
+    )
+  })
+  onTmAction(TM.LISTENER_ONLINE, (args) => addListener(args.userId))
 }
 
 export async function setupSocketListenersForWorld(world: Ref<GamePF2e>) {
@@ -94,17 +121,12 @@ export async function setupSocketListenersForActor(
   const socket = await getSocket()
   const removeRefresh = addRefresh(actorId, refreshMethod)
 
-  const channelHandler = (args: ModuleEventArgs) => {
-    switch (args.action) {
-      case TM.LISTENER_ONLINE:
-        if (!actor.value?.inventory) fireRefresh(actorId)
-        break
-      case TM.UPDATE_CHARACTER:
-        parseActorData(actorId, actor, args)
-        break
-    }
-  }
-  socket.on(TM.CHANNEL, channelHandler)
+  const unsubListener = onTmAction(TM.LISTENER_ONLINE, () => {
+    if (!actor.value?.inventory) fireRefresh(actorId)
+  })
+  const unsubUpdate = onTmAction(TM.UPDATE_CHARACTER, (args) => {
+    parseActorData(actorId, actor, args)
+  })
 
   const modifyHandler = (args: DocumentSocketResponse) => {
     if (!actor.value) return
@@ -128,7 +150,8 @@ export async function setupSocketListenersForActor(
   socket.on('modifyDocument', modifyHandler)
 
   return () => {
-    socket.off(TM.CHANNEL, channelHandler)
+    unsubListener()
+    unsubUpdate()
     socket.off('modifyDocument', modifyHandler)
     removeRefresh()
   }
