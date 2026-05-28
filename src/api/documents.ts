@@ -10,8 +10,47 @@ import {
 } from './internal'
 import { fireRefresh } from './characterSync'
 
+// Foundry document collections that we mutate via the modifyDocument socket.
+// Restricted to the set the app actually touches — typos for unsupported
+// document types now fail at compile time.
+export type DocumentType = 'Actor' | 'Item' | 'User' | 'Combat' | 'Combatant' | 'ChatMessage'
+
+// Discriminated by `action`. Each variant constrains `operation` to the
+// shape Foundry expects: create needs `data`, update needs `updates`,
+// delete needs `ids`. Mismatches now fail at compile time instead of
+// silently shipping a malformed payload.
+export type ModifyDocumentPayload =
+  | {
+      action: 'create'
+      type: DocumentType
+      operation: {
+        parentUuid?: string
+        data: ModifyDocumentUpdate[]
+        diff?: boolean
+        render?: boolean
+      }
+    }
+  | {
+      action: 'update'
+      type: DocumentType
+      operation: {
+        parentUuid?: string
+        updates: ModifyDocumentUpdate[]
+        diff?: boolean
+        render?: boolean
+      }
+    }
+  | {
+      action: 'delete'
+      type: DocumentType
+      operation: {
+        parentUuid?: string
+        ids: string[]
+      }
+    }
+
 export async function modifyDocument(
-  payload: { action: string; type: string; operation: object },
+  payload: ModifyDocumentPayload,
   onResponse?: (r: DocumentSocketResponse) => void
 ): Promise<DocumentSocketResponse> {
   const socket = await getSocket()
@@ -29,7 +68,7 @@ export async function modifyDocument(
 // changes from other clients).
 export function processChanges(args: DocumentSocketResponse, root: DocumentData[] | undefined) {
   if (!root) return
-  switch (args.action) {
+  switch (args.action as 'create' | 'update' | 'delete') {
     case 'create':
       ;(args.result as ModifyDocumentUpdate[]).forEach((c) => root.push(c))
       break
@@ -56,7 +95,7 @@ export function updateActor(actor: Ref<CharacterPF2e>, update: object) {
       operation: {
         diff: true,
         render: true,
-        updates: [{ _id: actor.value._id, ...update }]
+        updates: [{ _id: actor.value._id!, ...update }]
       }
     },
     (r) => {
@@ -81,7 +120,7 @@ export function updateActorItem(
       operation: {
         diff: true,
         render: true,
-        parentUuid: 'Actor.' + actor.value._id,
+        parentUuid: 'Actor.' + actor.value._id!,
         updates: itemIds.map((id, i) => ({
           _id: id,
           ...(Array.isArray(update) ? update[i] : update)
@@ -102,7 +141,7 @@ export function deleteActorItem(actor: Ref<CharacterPF2e>, itemId: string) {
       type: 'Item',
       operation: {
         ids: [itemId],
-        parentUuid: 'Actor.' + actor.value._id
+        parentUuid: 'Actor.' + actor.value._id!
       }
     },
     (r) => {
