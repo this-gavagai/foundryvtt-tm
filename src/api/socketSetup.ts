@@ -27,17 +27,27 @@ import { TM } from './protocol'
 type TmHandler<K extends ModuleEventArgs['action']> = (
   args: Extract<ModuleEventArgs, { action: K }>
 ) => void
+type AnyTmHandler = (args: ModuleEventArgs) => void
 
-const tmSubs: { [K in ModuleEventArgs['action']]?: Set<TmHandler<K>> } = {}
+// Handlers are stored under a widened type because a mapped object type can't
+// accept assignment when the key is a generic. The dispatcher always invokes
+// each handler with args matching its registered action, so the cast at the
+// insertion boundary is sound at runtime.
+const tmSubs = new Map<string, Set<AnyTmHandler>>()
 
 export function onTmAction<K extends ModuleEventArgs['action']>(
   action: K,
   handler: TmHandler<K>
 ): () => void {
-  const set = (tmSubs[action] ??= new Set()) as Set<TmHandler<K>>
-  set.add(handler)
+  let set = tmSubs.get(action)
+  if (!set) {
+    set = new Set()
+    tmSubs.set(action, set)
+  }
+  const h = handler as AnyTmHandler
+  set.add(h)
   return () => {
-    set.delete(handler)
+    set!.delete(h)
   }
 }
 
@@ -57,8 +67,7 @@ export async function setupSocketListenersForApp() {
   // registry is module-level and survives socket swaps.
   if (dispatchHandler) socket.off(TM.CHANNEL, dispatchHandler)
   dispatchHandler = (args: ModuleEventArgs) => {
-    const set = tmSubs[args.action]
-    if (set) (set as Set<(a: ModuleEventArgs) => void>).forEach((h) => h(args))
+    tmSubs.get(args.action)?.forEach((h) => h(args))
   }
   socket.on(TM.CHANNEL, dispatchHandler)
 
