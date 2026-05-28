@@ -93,7 +93,8 @@ export async function setupSocketListenersForActor(
 ): Promise<() => void> {
   const socket = await getSocket()
   const removeRefresh = addRefresh(actorId, refreshMethod)
-  socket.on(TM.CHANNEL, (args: ModuleEventArgs) => {
+
+  const channelHandler = (args: ModuleEventArgs) => {
     switch (args.action) {
       case TM.LISTENER_ONLINE:
         if (!actor.value?.inventory) fireRefresh(actorId)
@@ -102,8 +103,10 @@ export async function setupSocketListenersForActor(
         parseActorData(actorId, actor, args)
         break
     }
-  })
-  socket.on('modifyDocument', (args: DocumentSocketResponse) => {
+  }
+  socket.on(TM.CHANNEL, channelHandler)
+
+  const modifyHandler = (args: DocumentSocketResponse) => {
     if (!actor.value) return
     switch (args.type) {
       case 'Actor':
@@ -121,6 +124,12 @@ export async function setupSocketListenersForActor(
         }
         break
     }
-  })
-  return removeRefresh
+  }
+  socket.on('modifyDocument', modifyHandler)
+
+  return () => {
+    socket.off(TM.CHANNEL, channelHandler)
+    socket.off('modifyDocument', modifyHandler)
+    removeRefresh()
+  }
 }
