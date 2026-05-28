@@ -1,18 +1,8 @@
 import type { Ref } from 'vue'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type {
+  ModuleEventArgs,
   RequestResolutionArgs,
-  CastSpellArgs,
-  RollCheckArgs,
-  CharacterActionArgs,
-  ConsumeItemArgs,
-  GetStrikeDamageArgs,
-  SendItemToChatArgs,
-  CallMacroArgs,
-  SetWeaponLoadedArgs,
-  SetWeaponDamageTypeArgs,
-  ToggleKineticAuraArgs,
-  CastStaffSpellArgs,
   DiceResults,
   CheckModifier
 } from '@/types/api-types'
@@ -56,12 +46,17 @@ export function resolveAck(uuid: string, args: RequestResolutionArgs) {
   }
 }
 
-async function sendModuleRequest<T extends { action: string }>(
-  payload: Omit<T, 'userId' | 'uuid'>,
+// Strongly-typed action dispatcher. Given a TM action constant, infers the
+// matching args interface from the ModuleEventArgs union via `Extract`, so
+// the payload object is type-checked against the right shape without an
+// explicit `<XArgs>` generic at the call site.
+async function sendAction<K extends ModuleEventArgs['action']>(
+  action: K,
+  payload: Omit<Extract<ModuleEventArgs, { action: K }>, 'action' | 'userId' | 'uuid'>,
   timeoutMs?: number
 ): Promise<RequestResolutionArgs> {
   const uuid = uuidv4()
-  const args = { ...payload, userId: getUserId(), uuid }
+  const args = { ...payload, action, userId: getUserId(), uuid }
   const socket = await getSocket()
   return new Promise<RequestResolutionArgs>((resolve, reject) => {
     socket.emit(TM.CHANNEL, args)
@@ -69,39 +64,41 @@ async function sendModuleRequest<T extends { action: string }>(
   })
 }
 
-export function castSpell(
+// Common payload prefixes. Every action needs characterId; most "interactive"
+// actions also need the current target set.
+const fromActor = (a: Ref<CharacterPF2e>) => ({ characterId: a.value._id! })
+const fromActorTargeted = (a: Ref<CharacterPF2e>) => ({
+  characterId: a.value._id!,
+  targets: useTargetHelperStore().getTargets()
+})
+
+export const castSpell = (
   actor: Ref<CharacterPF2e>,
   spellId: string,
   castingLevel: number,
   castingSlot: number
-): Promise<RequestResolutionArgs> {
-  return sendModuleRequest<CastSpellArgs>({
-    action: TM.CAST_SPELL,
+) =>
+  sendAction(TM.CAST_SPELL, {
+    ...fromActorTargeted(actor),
     id: spellId,
-    characterId: actor.value._id!,
-    targets: useTargetHelperStore().getTargets(),
     rank: castingLevel,
     slotId: castingSlot
   })
-}
 
-export function castStaffSpell(
+export const castStaffSpell = (
   actor: Ref<CharacterPF2e>,
   staffId: string,
   spellId: string,
   rank: number
-): Promise<RequestResolutionArgs> {
-  return sendModuleRequest<CastStaffSpellArgs>({
-    action: TM.CAST_STAFF_SPELL,
-    characterId: actor.value._id!,
+) =>
+  sendAction(TM.CAST_STAFF_SPELL, {
+    ...fromActorTargeted(actor),
     staffId,
     spellId,
-    rank,
-    targets: useTargetHelperStore().getTargets()
+    rank
   })
-}
 
-export function rollCheck(
+export const rollCheck = (
   actor: Ref<CharacterPF2e>,
   checkType: string,
   checkSubtype = '',
@@ -109,11 +106,9 @@ export function rollCheck(
   modifiers: CheckModifier[] = [],
   options = {},
   item = null
-): Promise<RequestResolutionArgs> {
-  return sendModuleRequest<RollCheckArgs>({
-    action: TM.ROLL_CHECK,
-    characterId: actor.value._id!,
-    targets: useTargetHelperStore().getTargets(),
+) =>
+  sendAction(TM.ROLL_CHECK, {
+    ...fromActorTargeted(actor),
     item,
     checkType,
     checkSubtype,
@@ -121,98 +116,73 @@ export function rollCheck(
     diceResults,
     options
   })
-}
 
-export function characterAction(
+export const characterAction = (
   actor: Ref<CharacterPF2e>,
   characterAction: string,
   options = {},
   diceResults: DiceResults = {}
-): Promise<RequestResolutionArgs> {
-  return sendModuleRequest<CharacterActionArgs>({
-    action: TM.CHARACTER_ACTION,
-    characterId: actor.value._id!,
-    targets: useTargetHelperStore().getTargets(),
+) =>
+  sendAction(TM.CHARACTER_ACTION, {
+    ...fromActorTargeted(actor),
     characterAction,
     diceResults,
     options
   })
-}
 
-export function consumeItem(
+export const consumeItem = (
   actor: Ref<CharacterPF2e>,
   consumableId: string,
   options = {}
-): Promise<RequestResolutionArgs> {
-  return sendModuleRequest<ConsumeItemArgs>({
-    action: TM.CONSUME_ITEM,
-    characterId: actor.value._id!,
+) =>
+  sendAction(TM.CONSUME_ITEM, {
+    ...fromActor(actor),
     consumableId,
     options
   })
-}
 
-export function getStrikeDamage(
+export const getStrikeDamage = (
   actor: Ref<CharacterPF2e>,
   actionSlug: string,
   altUsage: number | undefined = undefined
-): Promise<RequestResolutionArgs> {
-  return sendModuleRequest<GetStrikeDamageArgs>({
-    action: TM.GET_STRIKE_DAMAGE,
-    characterId: actor.value._id!,
-    targets: useTargetHelperStore().getTargets(),
+) =>
+  sendAction(TM.GET_STRIKE_DAMAGE, {
+    ...fromActorTargeted(actor),
     actionSlug,
     altUsage
   })
-}
 
-export function sendItemToChat(
-  characterId: string,
-  itemId: string
-): Promise<RequestResolutionArgs> {
-  return sendModuleRequest<SendItemToChatArgs>({
-    action: TM.SEND_ITEM_TO_CHAT,
-    characterId,
-    itemId
-  })
-}
+export const sendItemToChat = (characterId: string, itemId: string) =>
+  sendAction(TM.SEND_ITEM_TO_CHAT, { characterId, itemId })
 
-export function setWeaponLoaded(
+export const setWeaponLoaded = (
   actor: Ref<CharacterPF2e>,
   weaponId: string,
   loaded: boolean,
   ammoId: string | null = null
-): Promise<RequestResolutionArgs> {
-  return sendModuleRequest<SetWeaponLoadedArgs>({
-    action: TM.SET_WEAPON_LOADED,
-    characterId: actor.value._id!,
+) =>
+  sendAction(TM.SET_WEAPON_LOADED, {
+    ...fromActor(actor),
     weaponId,
     loaded,
     ammoId
   })
-}
 
-export function setWeaponDamageType(
+export const setWeaponDamageType = (
   actor: Ref<CharacterPF2e>,
   weaponId: string,
   trait: 'versatile' | 'modular',
   selected: string | null
-): Promise<RequestResolutionArgs> {
-  return sendModuleRequest<SetWeaponDamageTypeArgs>({
-    action: TM.SET_WEAPON_DAMAGE_TYPE,
-    characterId: actor.value._id!,
+) =>
+  sendAction(TM.SET_WEAPON_DAMAGE_TYPE, {
+    ...fromActor(actor),
     weaponId,
     trait,
     selected
   })
-}
 
-export function toggleKineticAura(actor: Ref<CharacterPF2e>): Promise<RequestResolutionArgs> {
-  return sendModuleRequest<ToggleKineticAuraArgs>({
-    action: TM.TOGGLE_KINETIC_AURA,
-    characterId: actor.value._id!
-  })
-}
+export const toggleKineticAura = (actor: Ref<CharacterPF2e>) =>
+  sendAction(TM.TOGGLE_KINETIC_AURA, fromActor(actor))
 
 export function callMacro(
   characterId: string | undefined,
@@ -222,8 +192,7 @@ export function callMacro(
   options = {}
 ): Promise<RequestResolutionArgs | null> {
   if (characterId === undefined) return Promise.resolve(null)
-  return sendModuleRequest<CallMacroArgs>({
-    action: TM.CALL_MACRO,
+  return sendAction(TM.CALL_MACRO, {
     characterId,
     targets: useTargetHelperStore().getTargets(),
     compendiumName,

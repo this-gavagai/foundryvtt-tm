@@ -1,18 +1,4 @@
-import type {
-  ModuleEventArgs,
-  CastSpellArgs,
-  CharacterActionArgs,
-  ConsumeItemArgs,
-  RequestCharacterDetailsArgs,
-  RollCheckArgs,
-  GetStrikeDamageArgs,
-  SendItemToChatArgs,
-  CallMacroArgs,
-  SetWeaponLoadedArgs,
-  SetWeaponDamageTypeArgs,
-  ToggleKineticAuraArgs,
-  CastStaffSpellArgs
-} from '@/types/api-types'
+import type { ModuleEventArgs, RequestCharacterDetailsArgs } from '@/types/api-types'
 import {
   getCharacterDetails,
   foundryRollCheck,
@@ -35,6 +21,39 @@ import { TM } from '@/api/protocol'
 type GetEvent = { action: 'get' }
 
 declare const game: GamePF2e
+
+// Map of TM action → Foundry-side handler. Handler args are narrowed via
+// Extract<ModuleEventArgs, { action: K }>, so each handler is type-checked
+// against the matching args interface. Adding a new RPC is one entry here
+// plus the handler definition itself.
+type ActionHandlerMap = {
+  [K in ModuleEventArgs['action']]?: (
+    args: Extract<ModuleEventArgs, { action: K }>
+  ) => Promise<unknown>
+}
+
+const actionHandlers: ActionHandlerMap = {
+  [TM.ROLL_CHECK]: foundryRollCheck,
+  [TM.CHARACTER_ACTION]: foundryCharacterAction,
+  [TM.CAST_SPELL]: foundryCastSpell,
+  [TM.CONSUME_ITEM]: foundryConsumeItem,
+  [TM.GET_STRIKE_DAMAGE]: foundryGetStrikeDamage,
+  [TM.SEND_ITEM_TO_CHAT]: foundrySendItemToChat,
+  [TM.CALL_MACRO]: foundryCallMacro,
+  [TM.SET_WEAPON_LOADED]: foundrySetWeaponLoaded,
+  [TM.SET_WEAPON_DAMAGE_TYPE]: foundrySetWeaponDamageType,
+  [TM.TOGGLE_KINETIC_AURA]: foundryToggleKineticAura,
+  [TM.CAST_STAFF_SPELL]: foundryCastStaffSpell
+}
+
+// Actions that originate from this side (Foundry → browser) — the listener
+// observes them on the wire but doesn't need to act on them.
+const PASSIVE_ACTIONS = new Set<string>([
+  TM.ACK,
+  TM.LISTENER_ONLINE,
+  TM.UPDATE_CHARACTER,
+  TM.SHARE_TARGETS
+])
 
 const getChar: Record<string, (args: RequestCharacterDetailsArgs) => void> = {}
 
@@ -59,11 +78,14 @@ export function setupListener() {
     if (!args.userId) logger.warn('missing!', args)
     if (!iAmProxyOrFallbackGM(args.userId)) return
     logger.info('TM.RECV (listener)', args)
+
     if (args.action === TM.ANYBODY_HOME) {
       announceSelf()
       broadcastTargets()
       return
     }
+
+    if (PASSIVE_ACTIONS.has(args.action)) return
 
     if (args.hasOwnProperty('userId') && args.hasOwnProperty('actorId')) {
       const actorArgs = args as RequestCharacterDetailsArgs
@@ -73,85 +95,31 @@ export function setupListener() {
       }
     }
 
-    switch (args.action) {
-      case TM.LISTENER_ONLINE:
-      case TM.UPDATE_CHARACTER:
-      case TM.SHARE_TARGETS:
-        break
-      case TM.REQUEST_CHARACTER:
-        if (!getChar[args.actorId]) {
-          getChar[args.actorId] = debounce(
-            (args) => {
-              getCharacterDetails(args as RequestCharacterDetailsArgs).then((result) =>
-                game.socket.emit(TM.CHANNEL, result)
-              )
-            },
-            2000,
-            {
-              leading: true,
-              trailing: true
-            }
-          )
-        }
-        getChar[args.actorId](args as RequestCharacterDetailsArgs)
-        break
-      case TM.ROLL_CHECK:
-        foundryRollCheck(args as RollCheckArgs).then((result) =>
-          game.socket.emit(TM.CHANNEL, result)
+    // REQUEST_CHARACTER is special: per-actor leading+trailing debounce to
+    // collapse rapid refresh storms while still firing the first request
+    // immediately and the final settled state.
+    if (args.action === TM.REQUEST_CHARACTER) {
+      const reqArgs = args as RequestCharacterDetailsArgs
+      if (!getChar[reqArgs.actorId]) {
+        getChar[reqArgs.actorId] = debounce(
+          (a: RequestCharacterDetailsArgs) => {
+            getCharacterDetails(a).then((result) => game.socket.emit(TM.CHANNEL, result))
+          },
+          2000,
+          { leading: true, trailing: true }
         )
-        break
-      case TM.CHARACTER_ACTION:
-        foundryCharacterAction(args as CharacterActionArgs).then((result) =>
-          game.socket.emit(TM.CHANNEL, result)
-        )
-        break
-      case TM.CAST_SPELL:
-        foundryCastSpell(args as CastSpellArgs).then((result) =>
-          game.socket.emit(TM.CHANNEL, result)
-        )
-        break
-      case TM.CONSUME_ITEM:
-        foundryConsumeItem(args as ConsumeItemArgs).then((result) =>
-          game.socket.emit(TM.CHANNEL, result)
-        )
-        break
-      case TM.GET_STRIKE_DAMAGE:
-        foundryGetStrikeDamage(args as GetStrikeDamageArgs).then((result) =>
-          game.socket.emit(TM.CHANNEL, result)
-        )
-        break
-      case TM.SEND_ITEM_TO_CHAT:
-        foundrySendItemToChat(args as SendItemToChatArgs).then((result) =>
-          game.socket.emit(TM.CHANNEL, result)
-        )
-        break
-      case TM.CALL_MACRO:
-        foundryCallMacro(args as CallMacroArgs).then((result) =>
-          game.socket.emit(TM.CHANNEL, result)
-        )
-        break
-      case TM.SET_WEAPON_LOADED:
-        foundrySetWeaponLoaded(args as SetWeaponLoadedArgs).then((result) =>
-          game.socket.emit(TM.CHANNEL, result)
-        )
-        break
-      case TM.SET_WEAPON_DAMAGE_TYPE:
-        foundrySetWeaponDamageType(args as SetWeaponDamageTypeArgs).then((result) =>
-          game.socket.emit(TM.CHANNEL, result)
-        )
-        break
-      case TM.TOGGLE_KINETIC_AURA:
-        foundryToggleKineticAura(args as ToggleKineticAuraArgs).then((result) =>
-          game.socket.emit(TM.CHANNEL, result)
-        )
-        break
-      case TM.CAST_STAFF_SPELL:
-        foundryCastStaffSpell(args as CastStaffSpellArgs).then((result) =>
-          game.socket.emit(TM.CHANNEL, result)
-        )
-        break
-      default:
-        logger.warn('event not caught', args.action, args)
+      }
+      getChar[reqArgs.actorId](reqArgs)
+      return
+    }
+
+    const handler = actionHandlers[args.action] as
+      | ((a: ModuleEventArgs) => Promise<unknown>)
+      | undefined
+    if (handler) {
+      handler(args).then((result) => game.socket.emit(TM.CHANNEL, result))
+    } else {
+      logger.warn('event not caught', args.action, args)
     }
   })
 }
