@@ -181,7 +181,9 @@
     "ac": "AC",
     "cast": "Cast",
     "spellAttack": "Spell Attack",
-    "rollSpellAttack": "Roll Spell Attack"
+    "rollSpellAttack": "Roll Spell Attack",
+    "cantrips": "Cantrips",
+    "rank": "Rank {n}"
   },
   "strikes": {
     "elementalBlastsHeading": "Elemental Blasts",

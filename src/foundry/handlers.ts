@@ -162,6 +162,24 @@ function localizeRollOptionLabels(actor: CharacterPF2e): Record<string, string> 
   return labels
 }
 
+function localizeIWRLabels(actor: CharacterPF2e): Record<string, string> {
+  type IWREntry = { type?: string; label?: string }
+  const attrs = actor.system?.attributes as {
+    immunities?: IWREntry[]
+    weaknesses?: IWREntry[]
+    resistances?: IWREntry[]
+  }
+  const labels: Record<string, string> = {}
+  for (const e of [
+    ...(attrs?.immunities ?? []),
+    ...(attrs?.weaknesses ?? []),
+    ...(attrs?.resistances ?? [])
+  ]) {
+    if (e.type && e.label) labels[e.type] = e.label
+  }
+  return labels
+}
+
 function buildSpellcastingModifiers(actor: CharacterPF2e): Record<string, object> {
   type SpellcastingStatistic = { mod?: number; check?: { modifiers?: RawModifier[] } }
   const result: Record<string, object> = {}
@@ -223,6 +241,7 @@ export async function getCharacterDetails(
   )
   const proficiencyLabels = localizeProficiencyLabels(actor.system)
   const rollOptionLabels = localizeRollOptionLabels(actor)
+  const iwrLabels = localizeIWRLabels(actor)
   const spellcastingModifiers = buildSpellcastingModifiers(actor)
   // Some PF2e conditions grant child conditions in-memory only (e.g. Grabbed
   // grants Off-Guard and Immobilized via `GrantItem` rule elements with
@@ -273,6 +292,7 @@ export async function getCharacterDetails(
     elementalBlasts: cleanBlasts,
     spellcastingModifiers,
     rollOptionLabels,
+    iwrLabels,
     uuid: args.uuid,
     userId: game.user._id ?? ''
   }

@@ -20,5 +20,6 @@ export type TablemateCharacter = CharacterPF2e & {
   proficiencyLabels?: Record<string, string>
   spellcastingModifiers?: Record<string, SpellcastingModifierData>
   rollOptionLabels?: Record<string, string>
+  iwrLabels?: Record<string, string>
   inventory: CharacterPF2e['inventory'] & { labels?: Record<string, string | undefined> }
 }

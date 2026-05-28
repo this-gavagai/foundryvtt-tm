@@ -181,7 +181,9 @@
     "ac": "RK",
     "cast": "Wirken",
     "spellAttack": "Zauberangriff",
-    "rollSpellAttack": "Zauberangriff würfeln"
+    "rollSpellAttack": "Zauberangriff würfeln",
+    "cantrips": "Zaubertricks",
+    "rank": "{n}. Grad"
   },
   "strikes": {
     "elementalBlastsHeading": "Elementarstöße",

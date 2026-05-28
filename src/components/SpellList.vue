@@ -246,7 +246,7 @@ const spellbook = computed((): Spellbook => {
         >
           <h4 class="flex justify-between px-4 align-bottom text-sm italic">
             <span class="pr-1">
-              {{ rank == '0' ? 'Cantrips' : 'Rank ' + rank }}
+              {{ rank == '0' ? $t('spells.cantrips') : $t('spells.rank', { n: rank }) }}
             </span>
             <CounterWidget
               class="relative bottom-px -m-0.5 mr-2 h-4 pb-1 text-sm"
@@ -258,7 +258,7 @@ const spellbook = computed((): Spellbook => {
               :value="location.system.slots?.['slot' + rank]?.value"
               :max="location.system.slots?.['slot' + rank]?.max"
               editable
-              :title="`${location?.name}: Rank ${rank}`"
+              :title="`${location?.name}: ${$t('spells.rank', { n: rank })}`"
               @change-count="(newTotal) => location?.setSlotCount?.(Number(rank), newTotal)"
             />
           </h4>
@@ -318,7 +318,7 @@ const spellbook = computed((): Spellbook => {
                 "
                 :max="1"
                 editable
-                :title="`Rank ${rank}: ${spell?.name}`"
+                :title="`${$t('spells.rank', { n: rank })}: ${spell?.name}`"
                 @change-count="
                   (newTotal) =>
                     location?.setPrepared?.(
@@ -359,7 +359,7 @@ const spellbook = computed((): Spellbook => {
           <li v-for="(rankSpells, rank) in staffSpellsByRank" class="mb-1" :key="'rank' + rank">
             <h4 class="flex justify-between px-4 align-bottom text-sm italic">
               <span class="pr-1">
-                {{ rank == '0' ? 'Cantrips' : 'Rank ' + rank }}
+                {{ rank == '0' ? $t('spells.cantrips') : $t('spells.rank', { n: rank }) }}
               </span>
             </h4>
             <div

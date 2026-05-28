@@ -20,14 +20,19 @@ import { i18n } from '@/plugins/i18n'
 
 export interface IWR {
   type: Maybe<string>
+  label: string
   exceptions: Maybe<string[]>
   definition: Maybe<string>
   value?: Maybe<number>
 }
-export function makeIWRs(set: (Immunity | Weakness | Resistance)[] | undefined): IWR[] | undefined {
+export function makeIWRs(
+  set: (Immunity | Weakness | Resistance)[] | undefined,
+  labels?: Record<string, string>
+): IWR[] | undefined {
   if (!set) return undefined
   return set.map((e) => ({
     type: e.type,
+    label: (e.type && labels?.[e.type]) ?? e.type?.replace(/-/g, ' ') ?? '',
     exceptions: e.exceptions.map((ex) => (typeof ex === 'string' ? ex : ex.label)),
     definition: undefined,
     value: e.value as number | undefined
@@ -221,9 +226,9 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
     ]
   })
 
-  const immunities = computed(() => makeIWRs(actor.value?.system?.attributes?.immunities))
-  const weaknesses = computed(() => makeIWRs(actor.value?.system?.attributes?.weaknesses))
-  const resistances = computed(() => makeIWRs(actor.value?.system?.attributes?.resistances))
+  const immunities = computed(() => makeIWRs(actor.value?.system?.attributes?.immunities, actor.value?.iwrLabels))
+  const weaknesses = computed(() => makeIWRs(actor.value?.system?.attributes?.weaknesses, actor.value?.iwrLabels))
+  const resistances = computed(() => makeIWRs(actor.value?.system?.attributes?.resistances, actor.value?.iwrLabels))
   const spellDC = computed(() => actor.value?.system?.attributes?.spellDC?.value)
 
   const doFlatCheck = (
