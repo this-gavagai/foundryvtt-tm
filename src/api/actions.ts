@@ -59,8 +59,8 @@ async function sendAction<K extends ModuleEventArgs['action']>(
   const args = { ...payload, action, userId: getUserId(), uuid }
   const socket = await getSocket()
   return new Promise<RequestResolutionArgs>((resolve, reject) => {
-    socket.emit(TM.CHANNEL, args)
     pushToAckQueue(uuid, resolve, reject, timeoutMs)
+    socket.emit(TM.CHANNEL, args)
   })
 }
 
