@@ -70,7 +70,9 @@ export function processChanges(args: DocumentSocketResponse, root: DocumentData[
   if (!root) return
   switch (args.action as 'create' | 'update' | 'delete') {
     case 'create':
-      ;(args.result as ModifyDocumentUpdate[]).forEach((c) => root.push(c))
+      ;(args.result as ModifyDocumentUpdate[]).forEach((c) => {
+        if (!root.find((x) => x._id === c._id)) root.push(c)
+      })
       break
     case 'update':
       ;(args.result as ModifyDocumentUpdate[]).forEach((change) => {
