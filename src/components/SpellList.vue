@@ -115,6 +115,37 @@ function consumeViewedSpellItem() {
   return viewedConsumable.value?.consumeItem?.()?.then(() => infoModal.value.close())
 }
 
+const castDisabled = computed(() => {
+  const info = viewedSpellInfo.value
+  if (!info) return false
+
+  if (info.fromStaff) {
+    if ((info.castingRank ?? 0) === 0) return false
+    return !!staff.value?.expended || (staff.value?.charges?.value ?? 0) <= 0
+  }
+
+  const entry = spellcastingEntries.value?.find((e) => e._id === info.entryId)
+  if (!entry) return false
+
+  const prepType = entry.system.prepared.value
+  const rank = info.castingRank ?? 0
+
+  if (rank === 0) return false
+  if (prepType === 'innate') return false
+
+  if (prepType === 'focus') {
+    return (focusCurrent.value ?? 0) <= 0
+  }
+
+  if (prepType === 'prepared' && entry.system.prepared.flexible === false) {
+    const slot = info.castingSlot
+    if (slot == null) return false
+    return entry.system.slots['slot' + rank]?.prepared[slot]?.expended === true
+  }
+
+  return (entry.system.slots['slot' + rank]?.value ?? 0) <= 0
+})
+
 function setPreparedSpell(spell: Spell) {
   return spellcastingEntries.value
     ?.find((e) => e._id === spellSelectionModal.value?.options?.entryId)
@@ -228,7 +259,7 @@ const spellbook = computed((): Spellbook => {
           <span class="pl-1">
             <CounterWidget
               v-if="location.system?.prepared.value === 'focus'"
-              class="relative bottom-[-2px] mt-[1px] mr-2 h-4 text-sm"
+              class="relative -bottom-0.5 mt-px mr-2 h-4 text-sm"
               :value="focusCurrent"
               :max="focusMax"
               :title="$t('spells.focusPool')"
@@ -347,7 +378,7 @@ const spellbook = computed((): Spellbook => {
             <span v-if="spellDC" class="text-xs"> (DC {{ spellDC }}) </span>
           </span>
           <CounterWidget
-            class="relative bottom-[-2px] mt-[1px] mr-2 h-4 text-sm"
+            class="relative -bottom-0.5 mt-px mr-2 h-4 text-sm"
             :value="staff?.charges?.value"
             :max="staff?.charges?.max"
             :title="inventory?.find((i) => i._id === staff?.staffId)?.name + ' charges'"
@@ -426,7 +457,7 @@ const spellbook = computed((): Spellbook => {
           {{ viewedModalItem?.name }}
           <ActionIcons
             v-if="viewedSpell"
-            class="relative -mt-[.5rem] pl-1 text-2xl leading-4"
+            class="relative -mt-2 pl-1 text-2xl leading-4"
             :actions="viewedSpell?.system?.time?.value"
           />
         </template>
@@ -468,14 +499,17 @@ const spellbook = computed((): Spellbook => {
           <template v-else-if="!viewedEntry || viewedItem">
             <div class="flex gap-2 empty:hidden">
               <div v-if="viewedSpell?.system?.range">
-                <span class="font-bold">{{ $t('spells.range') }}:</span> {{ viewedSpell?.system?.range }}
+                <span class="font-bold">{{ $t('spells.range') }}:</span>
+                {{ viewedSpell?.system?.range }}
               </div>
               <div v-if="viewedSpell?.system?.area?.value && viewedSpell?.system?.area?.type">
-                <span class="font-bold">{{ $t('spells.area') }}:</span> {{ viewedSpell?.system?.area?.value }}-{{ $t('spells.foot') }}
+                <span class="font-bold">{{ $t('spells.area') }}:</span>
+                {{ viewedSpell?.system?.area?.value }}-{{ $t('spells.foot') }}
                 {{ viewedSpell?.system?.area?.type }}
               </div>
               <div v-if="viewedSpell?.system?.target">
-                <span class="font-bold">{{ $t('spells.target') }}:</span> {{ viewedSpell?.system?.target }}
+                <span class="font-bold">{{ $t('spells.target') }}:</span>
+                {{ viewedSpell?.system?.target }}
               </div>
             </div>
             <div class="flex [&:not(:has(span))]:hidden">
@@ -517,6 +551,7 @@ const spellbook = computed((): Spellbook => {
             :label="$t('spells.cast')"
             color="blue"
             v-if="!viewedSpellInfo?.isConsumable && viewedItem"
+            :disabled="castDisabled"
             :clicked="castViewedSpell"
           />
           <Button
