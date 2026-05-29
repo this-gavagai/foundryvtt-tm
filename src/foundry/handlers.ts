@@ -22,6 +22,7 @@ import type {
   CastSpellArgs,
   ConsumeItemArgs,
   GetStrikeDamageArgs,
+  GetSpellDamageArgs,
   RequestCharacterDetailsArgs,
   SendItemToChatArgs,
   CallMacroArgs,
@@ -79,6 +80,29 @@ function makeAck(args: { uuid: string }) {
 
 function makeFakeEvent(source: GamePF2e) {
   return { ctrlKey: false, metaKey: false, shiftKey: source.user.settings['showDamageDialogs'] }
+}
+
+// Locate a SpellPF2e by id across both regular actor items and synthetic
+// spellcasting collections — pf2e-dailies staves expose their spells via
+// actor.spellcasting.collections.<entryId>.get(spellId), not via actor.items,
+// so a direct items.get() lookup misses them. Iterate the spell collections
+// directly so we don't depend on the staff entry being registered on the
+// top-level actor.spellcasting collection.
+function findSpell(
+  actor: ActorPF2e,
+  spellId: string
+): SpellPF2e<ActorPF2e> | undefined {
+  const direct = actor.items.get(spellId) as SpellPF2e<ActorPF2e> | undefined
+  if (direct) return direct
+  type SpellCol = { get: (id: string) => SpellPF2e<ActorPF2e> | undefined }
+  type CollectionsMap = { values(): Iterable<SpellCol> }
+  const collections = (actor.spellcasting as unknown as { collections: CollectionsMap })
+    .collections
+  for (const col of collections.values()) {
+    const found = col.get(spellId)
+    if (found) return found
+  }
+  return undefined
 }
 
 function blastReplacer(key: string, element: ActorPF2e | ItemPF2e) {
@@ -407,11 +431,30 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       break
     }
     case 'spellAttack': {
-      roll = actor.spellcasting.get(args.checkSubtype)?.statistic?.check.roll({
+      // Subtype is either "entryId" (legacy entry-level attack from the entry
+      // modal) or "entryId,spellId,attackNumber" for the per-spell attack
+      // buttons in the spell info modal (attackNumber 1/2/3 = MAP 0/-5/-10).
+      const [entryId, spellId, attackNumberStr] = args.checkSubtype.split(',')
+      const rollParams = {
         ...args.options,
         ...params,
         ...(targetActorProxy ? { target: targetActorProxy } : {})
-      } as StatisticRollParameters)
+      } as StatisticRollParameters
+      if (spellId) {
+        const spell = findSpell(actor, spellId)
+        roll = spell?.rollAttack(params.event as PointerEvent, Number(attackNumberStr || '1'), rollParams)
+      } else {
+        roll = actor.spellcasting.get(entryId)?.statistic?.check.roll(rollParams)
+      }
+      break
+    }
+    case 'spellDamage': {
+      // Subtype: "spellId,mapIncreases" (mapIncreases 0/1/2 — the damage
+      // counterpart to attackNumber, used for runes/effects that key off MAP).
+      const [spellId, mapIncreasesStr] = args.checkSubtype.split(',')
+      const spell = findSpell(actor, spellId)
+      const mapIncreases = Number(mapIncreasesStr || '0') as 0 | 1 | 2
+      roll = spell?.rollDamage(params.event as PointerEvent, mapIncreases)
       break
     }
     case 'flat': {
@@ -735,6 +778,49 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
       damage: results[0],
       critical: results[1],
       modifiers: (results[2] as DamageModifiers | null)?.options?.damage?.modifiers
+    }
+  }
+}
+
+export async function foundryGetSpellDamage(args: GetSpellDamageArgs) {
+  const source = getGame()
+  const actor = getCharacter(source, args.characterId)
+  const targetTokenDoc =
+    args.targets?.map((t) => source.scenes.active?.tokens.get(t))[0] ?? null
+  const baseSpell = findSpell(actor, args.spellId)
+  // Damage formulas change with cast rank (heightening), so load the
+  // variant at the requested rank when one is supplied.
+  const spell =
+    baseSpell && args.castingRank
+      ? (baseSpell.loadVariant({ castRank: args.castingRank }) ?? baseSpell)
+      : baseSpell
+  type SpellGetDamageOpts = {
+    target?: typeof targetTokenDoc
+    skipDialog?: boolean
+    rollMode?: 'roll' | 'publicroll' | 'gmroll' | 'blindroll' | 'selfroll'
+  }
+  type SpellGetDamage = (opts: SpellGetDamageOpts) => Promise<{
+    template?: {
+      damage?: { roll?: { formula?: string }; breakdown?: string[] }
+      modifiers?: unknown[]
+    }
+  } | null>
+  const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll()
+  registerBackgroundRoll()
+  const sd = spell
+    ? await (spell.getDamage as unknown as SpellGetDamage)({
+        target: targetTokenDoc,
+        skipDialog: true,
+        rollMode: 'blindroll'
+      })
+    : null
+  unregisterBackgroundRoll()
+  return {
+    ...makeAck(args),
+    response: {
+      formula: sd?.template?.damage?.roll?.formula ?? null,
+      breakdown: sd?.template?.damage?.breakdown ?? [],
+      modifiers: sd?.template?.modifiers ?? []
     }
   }
 }

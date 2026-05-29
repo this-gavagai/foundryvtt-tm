@@ -188,7 +188,9 @@
     "area": "Bereich",
     "foot": "Fuß",
     "target": "Ziel",
-    "defense": "Verteidigung"
+    "defense": "Verteidigung",
+    "attack": "Angriff",
+    "damage": "Schaden"
   },
   "strikes": {
     "elementalBlastsHeading": "Elementarstöße",

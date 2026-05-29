@@ -4,7 +4,8 @@ import type { TablemateCharacter } from '@/types/character-types'
 import type { Field, Maybe } from './helpers'
 import { type Spell, type SpellcastingEntry, makeSpell, makeSpellcastingEntry } from './defs/spell'
 import { type Consumable, makeConsumable } from './defs/consumable'
-import { castSpell, castStaffSpell, consumeItem, rollCheck } from '@/api/actions'
+import { castSpell, castStaffSpell, consumeItem, getSpellDamage, rollCheck } from '@/api/actions'
+import type { DiceResults } from '@/types/api-types'
 import { makeModifiers } from './defs/modifier'
 import { updateActor, updateActorItem } from '@/api/documents'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
@@ -86,7 +87,23 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
         doSpell: (rank: number | undefined, slot: number | undefined) => {
           if (rank === undefined || slot === undefined) return Promise.resolve(null)
           return castSpell(actor as Ref<CharacterPF2e>, item._id!, rank, slot)
-        }
+        },
+        doSpellAttack: (attackNumber: 1 | 2 | 3, result?: number) =>
+          rollCheck(
+            actor as Ref<CharacterPF2e>,
+            'spellAttack',
+            `${item.system.location.value ?? ''},${item._id},${attackNumber}`,
+            { d20: [result ?? 0] }
+          ),
+        doSpellDamage: (mapIncreases: 0 | 1 | 2 = 0, result?: DiceResults) =>
+          rollCheck(
+            actor as Ref<CharacterPF2e>,
+            'spellDamage',
+            `${item._id},${mapIncreases}`,
+            result ?? {}
+          ),
+        getDamage: (castingRank?: number) =>
+          getSpellDamage(actor as Ref<CharacterPF2e>, item._id!, castingRank)
       }))
 
     const dailies = actor.value?.flags?.['pf2e-dailies'] as PF2eDailiesFlags
@@ -128,7 +145,23 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
       spells: (staffData?.spells ?? []).map((i) => ({
         ...makeSpell(i),
         doSpell: (rank: number | undefined) =>
-          castStaffSpell(actor as Ref<CharacterPF2e>, staffData!.staffId!, i._id!, rank ?? 1)
+          castStaffSpell(actor as Ref<CharacterPF2e>, staffData!.staffId!, i._id!, rank ?? 1),
+        doSpellAttack: (attackNumber: 1 | 2 | 3, result?: number) =>
+          rollCheck(
+            actor as Ref<CharacterPF2e>,
+            'spellAttack',
+            `,${i._id},${attackNumber}`,
+            { d20: [result ?? 0] }
+          ),
+        doSpellDamage: (mapIncreases: 0 | 1 | 2 = 0, result?: DiceResults) =>
+          rollCheck(
+            actor as Ref<CharacterPF2e>,
+            'spellDamage',
+            `${i._id},${mapIncreases}`,
+            result ?? {}
+          ),
+        getDamage: (castingRank?: number) =>
+          getSpellDamage(actor as Ref<CharacterPF2e>, i._id!, castingRank)
       })),
       expended: staffData?.expended,
       setStaffCharges: (newValue: number) => {

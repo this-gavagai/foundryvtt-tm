@@ -463,8 +463,11 @@ body.theme-default {
       line-height: 1;
       row-gap: 0.2rem;
     }
+  }
 
-    /* all attack + damage buttons share the same chrome */
+  /* Shared attack / damage button chrome — StrikeList strike row + SpellList
+     inline spell-roll row both use the [data-part='attack'|'damage'] hook. */
+  :is([data-component='StrikeList'], [data-component='SpellList']) {
     [data-part='attack'] > span,
     [data-part='damage'] > span {
       background-color: oklch(19% 0.022 258);

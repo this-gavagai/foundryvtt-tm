@@ -152,6 +152,17 @@ export const getStrikeDamage = (
     altUsage
   })
 
+export const getSpellDamage = (
+  actor: Ref<CharacterPF2e>,
+  spellId: string,
+  castingRank: number | undefined = undefined
+) =>
+  sendAction(TM.GET_SPELL_DAMAGE, {
+    ...fromActorTargeted(actor),
+    spellId,
+    castingRank
+  })
+
 export const sendItemToChat = (characterId: string, itemId: string) =>
   sendAction(TM.SEND_ITEM_TO_CHAT, { characterId, itemId })
 

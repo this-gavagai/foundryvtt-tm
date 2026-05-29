@@ -20,6 +20,7 @@ export type ModuleEventArgs =
   | ToggleKineticAuraArgs
   | CastStaffSpellArgs
   | FreeRollArgs
+  | GetSpellDamageArgs
 
 export interface AcknowledgementArgs {
   action: typeof TM.ACK
@@ -133,6 +134,15 @@ export interface GetStrikeDamageArgs {
   actionSlug: string
   targets: string[]
   altUsage: number | undefined
+  uuid: string
+}
+export interface GetSpellDamageArgs {
+  action: typeof TM.GET_SPELL_DAMAGE
+  userId: string
+  characterId: string
+  spellId: string
+  castingRank: number | undefined
+  targets: string[]
   uuid: string
 }
 export interface ShareTargetsArgs {

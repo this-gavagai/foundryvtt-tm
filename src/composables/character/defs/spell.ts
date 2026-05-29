@@ -12,6 +12,14 @@ export interface Spell extends Item {
     rank: number | undefined,
     slot: number | undefined
   ) => Promise<RequestResolutionArgs | null>
+  doSpellAttack?: (attackNumber: 1 | 2 | 3, result?: number) => Promise<RequestResolutionArgs | null>
+  doSpellDamage?: (
+    mapIncreases?: 0 | 1 | 2,
+    result?: import('@/types/api-types').DiceResults
+  ) => Promise<RequestResolutionArgs | null>
+  getDamage?: (
+    castingRank?: number
+  ) => Promise<RequestResolutionArgs | null>
 }
 export interface SpellSystem extends ItemSystem {
   location: { value: Maybe<string>; heightenedLevel: Maybe<number>; signature: Maybe<boolean> }
@@ -20,6 +28,7 @@ export interface SpellSystem extends ItemSystem {
   area: { type: Maybe<string>; value: Maybe<number> }
   defense: { save: { basic: Maybe<boolean>; statistic: Maybe<string> } }
   time: { value: Maybe<string> }
+  hasDamage: boolean
 }
 
 export interface SpellcastingEntry extends Item {
@@ -72,7 +81,8 @@ export function makeSpell(root: SpellPF2e): Spell {
           statistic: root.system.defense?.save?.statistic ?? undefined
         }
       },
-      time: { value: root.system.time?.value }
+      time: { value: root.system.time?.value },
+      hasDamage: Object.keys(root.system.damage ?? {}).length > 0
     }
   } as Spell
 }

@@ -12,7 +12,8 @@ import {
   foundrySetWeaponDamageType,
   foundryToggleKineticAura,
   foundryCastStaffSpell,
-  foundryFreeRoll
+  foundryFreeRoll,
+  foundryGetSpellDamage
 } from './handlers'
 import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
@@ -45,7 +46,8 @@ const actionHandlers: ActionHandlerMap = {
   [TM.SET_WEAPON_DAMAGE_TYPE]: foundrySetWeaponDamageType,
   [TM.TOGGLE_KINETIC_AURA]: foundryToggleKineticAura,
   [TM.CAST_STAFF_SPELL]: foundryCastStaffSpell,
-  [TM.FREE_ROLL]: foundryFreeRoll
+  [TM.FREE_ROLL]: foundryFreeRoll,
+  [TM.GET_SPELL_DAMAGE]: foundryGetSpellDamage
 }
 
 // Actions that originate from this side (Foundry → browser) — the listener
