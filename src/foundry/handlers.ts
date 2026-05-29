@@ -307,11 +307,28 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   })
   const targetTokenDoc =
     args.targets?.map((t: string) => source.scenes.active?.tokens.get(t))[0] ?? null
+  const targetForStrike = targetTokenDoc?.object ?? null
+  // PF2e uses two independent paths for a spell attack roll:
+  //   DC resolution  → reads game.user.targets (UserTargets.add fires the hook PF2e needs)
+  //   Target display → calls args.target.getActiveTokens(); proxy returns the right type
+  //                    depending on whether PF2e asks for canvas tokens or documents.
+  const targetActorProxy = (() => {
+    const actor = targetTokenDoc?.actor ?? null
+    const token = targetTokenDoc?.object ?? null
+    if (!actor || !token) return null
+    return new Proxy(actor, {
+      get(obj: ActorPF2e, prop: string | symbol) {
+        if (prop === 'getActiveTokens') {
+          return (_linked?: boolean, document?: boolean) => (document ? [targetTokenDoc] : [token])
+        }
+        const val = (obj as unknown as Record<string | symbol, unknown>)[prop]
+        return typeof val === 'function' ? (val as (...a: unknown[]) => unknown).bind(obj) : val
+      }
+    }) as ActorPF2e
+  })()
   const params = {
     modifiers: modifiers,
-    target: ['strike', 'damage', 'blast', 'blastDamage', 'spellAttack'].includes(args.checkType)
-      ? targetTokenDoc?.object
-      : null,
+    target: targetForStrike,
     skipDialog: true,
     event: makeFakeEvent(source) as PointerEvent,
     identifier: 'tm_background'
@@ -390,9 +407,11 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       break
     }
     case 'spellAttack': {
-      roll = actor.spellcasting
-        .get(args.checkSubtype)
-        ?.statistic?.check.roll({ ...args.options, ...params } as StatisticRollParameters)
+      roll = actor.spellcasting.get(args.checkSubtype)?.statistic?.check.roll({
+        ...args.options,
+        ...params,
+        ...(targetActorProxy ? { target: targetActorProxy } : {})
+      } as StatisticRollParameters)
       break
     }
     case 'flat': {
@@ -504,7 +523,9 @@ export async function foundryFreeRoll(args: FreeRollArgs) {
       dice: roll.dice,
       isSecret: args.secret
     }
-  } as ReturnType<typeof makeAck> & { roll: { formula: string; result: string; total: number; dice: unknown; isSecret: boolean } }
+  } as ReturnType<typeof makeAck> & {
+    roll: { formula: string; result: string; total: number; dice: unknown; isSecret: boolean }
+  }
 }
 
 export async function foundryCastStaffSpell(args: CastStaffSpellArgs) {
@@ -513,7 +534,10 @@ export async function foundryCastStaffSpell(args: CastStaffSpellArgs) {
   const actor = source.actors.get(args.characterId, { strict: true })
   const entryId = `${args.staffId}-casting`
   type SpellCol = { get: (id: string) => SpellPF2e<ActorPF2e<null>> | undefined }
-  type Spellcasting = { get: (id: string) => SpellcastingEntryPF2e<ActorPF2e<null>> | undefined; collections: { get: (id: string) => SpellCol | undefined } }
+  type Spellcasting = {
+    get: (id: string) => SpellcastingEntryPF2e<ActorPF2e<null>> | undefined
+    collections: { get: (id: string) => SpellCol | undefined }
+  }
   const spellcasting = actor.spellcasting as unknown as Spellcasting
   const entry = spellcasting.get(entryId)
   const spell = spellcasting.collections.get(entryId)?.get(args.spellId)
@@ -521,7 +545,11 @@ export async function foundryCastStaffSpell(args: CastStaffSpellArgs) {
     // Pass spontaneous: { entryId: '' } — pf2e-dailies filters spontaneous entries by
     // entryId, so a blank ID matches nothing, entries.length === 0, and the dialog is
     // skipped. The cast proceeds straight to the normal charge-deduction path.
-    await (entry as unknown as { cast: (spell: SpellPF2e<ActorPF2e<null>>, options: object) => Promise<void> }).cast(spell, {
+    await (
+      entry as unknown as {
+        cast: (spell: SpellPF2e<ActorPF2e<null>>, options: object) => Promise<void>
+      }
+    ).cast(spell, {
       rank: args.rank as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10,
       spontaneous: { entryId: '' }
     })
@@ -598,9 +626,8 @@ export async function foundrySetWeaponDamageType(args: SetWeaponDamageTypeArgs) 
   // its options array (each option's damageType is the candidate type).
   if (args.trait === 'modular') {
     const options = weapon.system.traits.toggles.modular?.options ?? []
-    const idx = args.selected === null
-      ? null
-      : options.findIndex((o) => o.damageType === args.selected)
+    const idx =
+      args.selected === null ? null : options.findIndex((o) => o.damageType === args.selected)
     await weapon.system.traits.toggles.update({
       trait: 'modular',
       selected: idx === -1 ? null : idx
