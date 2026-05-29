@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n'
 import type { ActiveRoll, RequestResolutionArgs } from '@/types/api-types'
 import type { Roll } from '@/types/roll-types'
 import { useInjectedCharacter } from '@/composables/injectKeys'
+import { parseDamageFormulaDice, makeDiceResults } from '@/utils/diceFormula'
 
 type SaveSlug = 'fortitude' | 'will' | 'reflex'
 const SAVE_SLUGS: readonly SaveSlug[] = ['fortitude', 'will', 'reflex']
@@ -11,7 +12,7 @@ export function useRollsFromActiveRoll(
   activeRoll: Ref<ActiveRoll | undefined> | ComputedRef<ActiveRoll | undefined>
 ): ComputedRef<Roll[]> {
   const { t } = useI18n()
-  const { doCharacterAction, doFlatCheck, saves, skills } = useInjectedCharacter()
+  const { doCharacterAction, doFreeDamage, doFlatCheck, saves, skills } = useInjectedCharacter()
 
   return computed<Roll[]>(() => {
     const ar = activeRoll.value
@@ -30,6 +31,21 @@ export function useRollsFromActiveRoll(
           dice: ['d20'],
           armed: true,
           execute: (faces) => doCharacterAction(slug, ar.params, faces?.[0])
+        }
+      ]
+    }
+
+    if (ar.action === 'damage' && ar.formula) {
+      const formula = ar.formula
+      const dice = parseDamageFormulaDice(formula)
+      return [
+        {
+          key: `inline:damage:${formula}`,
+          label: buttonLabel,
+          color: 'red',
+          dice: dice.length ? dice : undefined,
+          execute: (faces) =>
+            doFreeDamage(formula, faces && dice.length ? makeDiceResults(dice, faces) : undefined)
         }
       ]
     }

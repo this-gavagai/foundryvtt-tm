@@ -48,12 +48,24 @@ const parsedText = computed(() => {
     /@(?:UUID|Compendium)\[([^\]]+)\]\{([^}]*)\}/gm,
     '<span data-type="compendiumLink" class="text-red-600">$2</span>'
   )
-  // @Damage[XdY[type]]{label} — formula may have one level of nested [type]; label is optional
+
+  // @Damage[formula]{label} — formula may contain multiple bracketed type tags
+  // (e.g. 2d6[fire]+1d4[bleed], 2d6[fire,persistent]); label is optional. The
+  // outer-content match accepts any sequence of non-bracket chars or balanced
+  // [...] type tags, so multi-instance damage formulas parse cleanly.
   text = text?.replace(
-    /@Damage\[([^\[\]]*(?:\[[^\]]*\])?[^\[\]]*)\](?:\{([^}]*)\})?/gm,
-    (_, formula, label) =>
-      `<span data-type="compendiumLink" class="text-red-600">${label ?? formula}</span>`
+    /@Damage\[((?:[^\[\]]|\[[^\]]*\])*)\](?:\{([^}]*)\})?/gm,
+    (_, formula, label) => {
+      const obj = { action: 'damage', formula, label: label ?? formula }
+      return `<label class="has-checked:bg-red-600 has-checked:text-white bg-gray-300 border-divider border -my-0.5 pb-px px-1 cursor-pointer whitespace-nowrap">
+        <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value="${JSON.stringify(
+          obj
+        ).replace(/"/g, '&quot;')}">
+        <span class="pl-4">${label ?? formula}</span>
+      </label> `
+    }
   )
+
   // [[/r formula]] inline rolls — [^\]]* prevents overshooting past ]]
   text = text?.replace(/\[\[\/r ([^\]]*)\]\]/gm, '<span class="text-green-900">$1</span>')
   return text

@@ -328,7 +328,6 @@ defineExpose({ open, close, rollResultModal })
                       </span>
                     </div>
                   </div>
-                  <slot name="actionButtons"></slot>
                   <Button
                     v-for="roll in props.rolls ?? []"
                     :key="roll.key"
@@ -338,6 +337,7 @@ defineExpose({ open, close, rollResultModal })
                     :clicked="() => executeRollFromButton(roll)"
                     >{{ roll.label }}</Button
                   >
+                  <slot name="actionButtons"></slot>
                 </div>
               </DialogPanel>
             </TransitionChild>

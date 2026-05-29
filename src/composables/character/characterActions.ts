@@ -1,10 +1,10 @@
 import { computed, type Ref } from 'vue'
 import type { CharacterPF2e, AbilityItemPF2e, FeatPF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField } from './helpers'
-import type { RequestResolutionArgs } from '@/types/api-types'
+import type { DiceResults, RequestResolutionArgs } from '@/types/api-types'
 import { type Modifier, makeModifiers } from './defs/modifier'
 import { type Action, makeAction } from './defs/action'
-import { characterAction, rollCheck, callMacro } from '@/api/actions'
+import { characterAction, rollCheck, callMacro, rollFreeDamage } from '@/api/actions'
 import { updateActor } from '@/api/documents'
 import { actionTypes } from '@/utils/constants'
 
@@ -13,6 +13,10 @@ export interface CharacterActions {
     slug: string,
     options?: object | undefined,
     rollResult?: number | undefined
+  ) => Promise<RequestResolutionArgs | null>
+  doFreeDamage: (
+    formula: string,
+    result?: DiceResults
   ) => Promise<RequestResolutionArgs | null>
   actions: Field<Action[]>
   initiative: {
@@ -79,8 +83,12 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
     }
   }
 
+  const doFreeDamage = (formula: string, result?: DiceResults) =>
+    rollFreeDamage(actor as Ref<CharacterPF2e>, formula, result ?? {})
+
   return {
     doCharacterAction,
+    doFreeDamage,
     actions,
     initiative
   }

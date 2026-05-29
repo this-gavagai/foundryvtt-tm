@@ -54,6 +54,24 @@ type FoundryRoll = {
   ) => Promise<unknown>
 }
 declare const Roll: new (formula: string) => FoundryRoll
+// PF2e registers DamageRoll into CONFIG.Dice.rolls at system init. It isn't a
+// global, so we look it up from the registry at call time.
+type DamageRollCtor = new (
+  formula: string,
+  data?: object,
+  options?: object
+) => FoundryRoll & {
+  toMessage: (
+    data?: { speaker?: { actor?: string } },
+    opts?: { rollMode?: 'publicroll' | 'gmroll' | 'blindroll' | 'selfroll' }
+  ) => Promise<unknown>
+}
+declare const CONFIG: {
+  Dice: { rolls: Array<DamageRollCtor & { name: string }> }
+}
+function getDamageRollClass(): DamageRollCtor | undefined {
+  return CONFIG.Dice.rolls.find((r) => r.name === 'DamageRoll')
+}
 
 type StrikeRollFn = (opts: object) => Promise<unknown>
 type StrikeActionRuntime = {
@@ -457,6 +475,22 @@ export async function foundryRollCheck(args: RollCheckArgs) {
         roll = spell?.rollAttack(params.event as PointerEvent, Number(attackNumberStr || '1'), rollParams)
       } else {
         roll = actor.spellcasting.get(entryId)?.statistic?.check.roll(rollParams)
+      }
+      break
+    }
+    case 'freeDamage': {
+      // Arbitrary inline damage roll (e.g. @Damage[2d6[fire]+1d4[bleed]] in a
+      // description). The formula carries its own damage-type tags; PF2e's
+      // DamageRoll parses them and renders the typed chat card automatically.
+      const formula = args.checkSubtype
+      const DamageRoll = getDamageRollClass()
+      if (DamageRoll) {
+        roll = (async () => {
+          const damageRoll = new DamageRoll(formula)
+          await damageRoll.evaluate()
+          await damageRoll.toMessage({ speaker: { actor: actor._id ?? undefined } })
+          return damageRoll
+        })()
       }
       break
     }

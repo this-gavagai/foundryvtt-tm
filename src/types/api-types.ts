@@ -213,12 +213,13 @@ export interface RequestResolutionArgs {
 }
 
 export interface ActiveRoll {
-  action: 'action' | 'check'
+  action: 'action' | 'check' | 'damage'
   slug?: string
   label?: string
   paramsString?: string
   params?: Record<string, string>
   dc?: number
+  formula?: string
 }
 
 export interface DiceResults {

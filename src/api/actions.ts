@@ -163,6 +163,24 @@ export const getSpellDamage = (
     castingRank
   })
 
+// Free-form damage roll from an inline @Damage[...] link in a description.
+// The full formula (including type tags like [fire, persistent]) is shipped
+// as the checkSubtype; the Foundry handler constructs a PF2e DamageRoll from it.
+export const rollFreeDamage = (
+  actor: Ref<CharacterPF2e>,
+  formula: string,
+  result: DiceResults = {}
+) =>
+  sendAction(TM.ROLL_CHECK, {
+    ...fromActorTargeted(actor),
+    item: null,
+    checkType: 'freeDamage',
+    checkSubtype: formula,
+    modifiers: [],
+    diceResults: result,
+    options: {}
+  })
+
 export const sendItemToChat = (characterId: string, itemId: string) =>
   sendAction(TM.SEND_ITEM_TO_CHAT, { characterId, itemId })
 
