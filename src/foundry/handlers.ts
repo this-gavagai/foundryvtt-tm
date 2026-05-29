@@ -408,26 +408,38 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       })
       break
     }
+    // PF2e's Statistic API (save/skill/perception/initiative/spellAttack) expects
+    // params.target to be an ActorPF2e — it calls target.getActiveTokens() on it
+    // to drive DC/display. params.target is a TokenPF2e (right for strike/blast),
+    // so override here with the actor proxy that exposes getActiveTokens().
     case 'skill': {
       roll = actor.skills[args.checkSubtype].check.roll({
         ...args.options,
-        ...params
+        ...params,
+        ...(targetActorProxy ? { target: targetActorProxy } : {})
       } as StatisticRollParameters)
       break
     }
     case 'save': {
       roll = actor.saves[args.checkSubtype as SaveKey].check.roll({
         ...args.options,
-        ...params
+        ...params,
+        ...(targetActorProxy ? { target: targetActorProxy } : {})
       } as StatisticRollParameters)
       break
     }
     case 'perception': {
-      roll = actor.perception.check.roll(params as StatisticRollParameters)
+      roll = actor.perception.check.roll({
+        ...params,
+        ...(targetActorProxy ? { target: targetActorProxy } : {})
+      } as StatisticRollParameters)
       break
     }
     case 'initiative': {
-      roll = actor.initiative.roll(params as StatisticRollParameters)
+      roll = actor.initiative.roll({
+        ...params,
+        ...(targetActorProxy ? { target: targetActorProxy } : {})
+      } as StatisticRollParameters)
       break
     }
     case 'spellAttack': {
