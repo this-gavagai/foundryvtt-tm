@@ -20,6 +20,7 @@ const { value: bulkValue, normal: bulkNormal } = character.bulk.value
            M0,4 l4,-4
            M3,5 l2,-2"
         data-part="hatch-line"
+        class="stroke-1 stroke-red-400"
       />
     </pattern>
     <rect
@@ -27,13 +28,13 @@ const { value: bulkValue, normal: bulkNormal } = character.bulk.value
       width="100%"
       height="100%"
       fill="url(#diagonalHatch)"
-      class="trasition-all duration-500 ease-in-out"
+      class="transition-all duration-500 ease-in-out"
     />
     <rect
       data-part="bulk-safe"
       :width="((bulkEncumberedAfter ?? 0) / (bulkMax ?? 100)) * 100 + '%'"
       height="100%"
-      class="trasition-all duration-500 ease-in-out"
+      class="fill-gray-200 transition-all duration-500 ease-in-out"
     />
     <rect
       data-part="bulk-fill"
@@ -46,10 +47,23 @@ const { value: bulkValue, normal: bulkNormal } = character.bulk.value
       "
       :width="((bulkNormal ?? 0) / (bulkMax ?? 100)) * 100 + '%'"
       height="100%"
-      class="trasition-all duration-500 ease-in-out"
+      class="transition-all duration-500 ease-in-out data-[state=safe]:fill-green-500 data-[state=encumbered]:fill-amber-500 data-[state=over-max]:fill-red-600"
     />
-    <rect data-part="bulk-border" width="100%" height="100%" fill="transparent" />
-    <text data-part="bulk-label" y="20" x="6" font-size="10pt" font-weight="lighter">
+    <rect
+      data-part="bulk-border"
+      width="100%"
+      height="100%"
+      fill="transparent"
+      class="stroke-1 stroke-gray-400"
+    />
+    <text
+      data-part="bulk-label"
+      y="20"
+      x="6"
+      font-size="10pt"
+      font-weight="lighter"
+      class="fill-gray-900 font-medium"
+    >
       Current Bulk: {{ bulkValue }} / {{ bulkEncumberedAfter }}
     </text>
     <text
@@ -59,6 +73,7 @@ const { value: bulkValue, normal: bulkNormal } = character.bulk.value
       text-anchor="end"
       font-size="10pt"
       font-weight="lighter"
+      class="fill-gray-900 font-medium"
     >
       Max: {{ bulkMax }}&nbsp;&nbsp;
     </text>

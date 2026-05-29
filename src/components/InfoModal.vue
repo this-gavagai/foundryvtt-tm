@@ -262,7 +262,9 @@ defineExpose({ open, close, rollResultModal })
                     <slot name="beforeBody"></slot>
                   </div>
                   <div class="mt-2 text-sm [&_p]:my-2">
-                    <div class="item-text">
+                    <div
+                      class="[&_table]:mb-2.5 [&_table]:border [&_table]:border-[gray] [&_table_:is(td,th)]:min-w-20 [&_table_:is(td,th)]:border [&_table_:is(td,th)]:border-[gray] [&_table_:is(td,th)]:p-1.25"
+                    >
                       <slot name="body"></slot>
                     </div>
                   </div>
@@ -416,15 +418,3 @@ defineExpose({ open, close, rollResultModal })
     </Teleport>
   </div>
 </template>
-<style>
-.item-text table {
-  border: 1px solid gray;
-  margin-bottom: 10px;
-}
-.item-text table td,
-.item-text table th {
-  padding: 5px;
-  border: 1px solid gray;
-  min-width: 80px;
-}
-</style>
