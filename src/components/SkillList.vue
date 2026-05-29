@@ -10,7 +10,10 @@ const character = useInjectedCharacter()
 const { skills, proficiencies } = character
 </script>
 <template>
-  <div data-component="SkillList" class="py-4 empty:hidden lg:flex lg:justify-between">
+  <div
+    data-component="SkillList"
+    class="py-4 empty:hidden lg:flex lg:justify-between [&_[data-component=StatBox]>div>div]:text-left"
+  >
     <div class="flex-1 px-6 lg:pr-2">
       <section
         class="border-divider break-inside-avoid-column border-t first:border-t-0 first:p-0 empty:hidden 2xl:border-t-0 2xl:pl-2 2xl:first:border-r 2xl:first:pr-6 [&:not(:has(li))]:hidden"
