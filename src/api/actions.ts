@@ -164,8 +164,9 @@ export const getSpellDamage = (
   })
 
 // Free-form damage roll from an inline @Damage[...] link in a description.
-// The full formula (including type tags like [fire, persistent]) is shipped
-// as the checkSubtype; the Foundry handler constructs a PF2e DamageRoll from it.
+// Formula is already client-resolved (@item.level etc. substituted by
+// ParsedDescription), so the Foundry handler just builds a DamageRoll and
+// posts it — no item lookup needed.
 export const rollFreeDamage = (
   actor: Ref<CharacterPF2e>,
   formula: string,

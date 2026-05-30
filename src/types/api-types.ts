@@ -219,6 +219,8 @@ export interface ActiveRoll {
   paramsString?: string
   params?: Record<string, string>
   dc?: number
+  // Free-form damage formula. Already client-resolved (@item.level / @actor.x
+  // substitutions performed in ParsedDescription) so it can be rolled directly.
   formula?: string
 }
 

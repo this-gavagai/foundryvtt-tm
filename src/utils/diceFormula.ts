@@ -23,6 +23,31 @@ export function parseDamageFormulaDice(formula: string | undefined): string[] {
   return out
 }
 
+// Substitute Foundry-style @path.to.value references in a roll formula against
+// a flat rollData object — e.g. @item.level / @actor.level / @actor.abilities.str.mod.
+//
+// Only simple dotted-path lookups are handled (no expressions, no `floor()`,
+// no `lookup()`). Refs that don't resolve to a primitive are left intact so
+// the eventual DamageRoll evaluation surfaces a clear error rather than a
+// silently-wrong roll.
+//
+//   "(@item.level)d6[fire]", { item: { level: 3 } } → "(3)d6[fire]"
+export function resolveFormula(
+  formula: string,
+  rollData?: Record<string, unknown> | null
+): string {
+  if (!rollData) return formula
+  return formula.replace(/@([a-zA-Z_$][\w.$]*)/g, (match, path: string) => {
+    const value = path.split('.').reduce<unknown>(
+      (acc, key) =>
+        acc && typeof acc === 'object' ? (acc as Record<string, unknown>)[key] : undefined,
+      rollData as unknown
+    )
+    if (value == null || typeof value === 'object') return match
+    return String(value)
+  })
+}
+
 // Convert an ordered face array, aligned to a dice declaration list, into a
 // DiceResults payload grouped by face count.
 //

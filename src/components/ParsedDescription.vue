@@ -1,8 +1,18 @@
 <script setup lang="ts">
 import type { ActiveRoll } from '@/types/api-types'
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { resolveFormula } from '@/utils/diceFormula'
 
-const props = defineProps<{ text: string | undefined; labels?: Record<string, string> }>()
+const props = defineProps<{
+  text: string | undefined
+  labels?: Record<string, string>
+  // Roll-data context (mirrors PF2e's getRollData() shape — e.g.
+  // { item: { level }, actor: { level, abilities } }). Inline @Damage formulas
+  // resolve @path.to.value references against this before being encoded into
+  // the click handler, so the eventual roll already knows the dice count and
+  // works with armed-dice / pixel-dice flows.
+  rollData?: Record<string, unknown>
+}>()
 
 interface DescriptionForm extends HTMLFormElement {
   roll: RadioNodeList | HTMLInputElement
@@ -56,12 +66,13 @@ const parsedText = computed(() => {
   text = text?.replace(
     /@Damage\[((?:[^\[\]]|\[[^\]]*\])*)\](?:\{([^}]*)\})?/gm,
     (_, formula, label) => {
-      const obj = { action: 'damage', formula, label: label ?? formula }
-      return `<label class="has-checked:bg-red-600 has-checked:text-white bg-gray-300 border-divider border -my-0.5 pb-px px-1 cursor-pointer whitespace-nowrap">
+      const resolved = resolveFormula(formula, props.rollData)
+      const obj = { action: 'damage', formula: resolved, label: label ?? resolved }
+      return `<label class="has-checked:bg-blue-600 has-checked:text-white bg-gray-300 border-divider border -my-0.5 pb-px px-1 cursor-pointer whitespace-nowrap">
         <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value="${JSON.stringify(
           obj
         ).replace(/"/g, '&quot;')}">
-        <span class="pl-4">${label ?? formula}</span>
+        <span class="pl-4">${label ?? resolved}</span>
       </label> `
     }
   )

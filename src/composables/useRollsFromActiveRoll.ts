@@ -42,7 +42,7 @@ export function useRollsFromActiveRoll(
         {
           key: `inline:damage:${formula}`,
           label: buttonLabel,
-          color: 'red',
+          color: 'blue',
           dice: dice.length ? dice : undefined,
           execute: (faces) =>
             doFreeDamage(formula, faces && dice.length ? makeDiceResults(dice, faces) : undefined)

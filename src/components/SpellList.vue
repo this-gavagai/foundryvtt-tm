@@ -41,7 +41,8 @@ const {
   spellDC,
   staff,
   inventory,
-  rollOptionLabels
+  rollOptionLabels,
+  level: characterLevel
 } = character
 const { max: focusMax, current: focusCurrent } = character.focusPoints
 
@@ -187,6 +188,20 @@ function clearPreparedSpell() {
     ?.setPrepared?.(viewedSpellInfo.value?.castingRank, viewedSpellInfo.value?.castingSlot, null)
     ?.then(() => infoModal.value?.close())
 }
+
+// Roll-data context for the currently viewed spell, used by ParsedDescription
+// to resolve inline @item.level / @actor.level refs in @Damage formulas
+// client-side before the click handler ships them to Foundry.
+const viewedSpellRollData = computed<Record<string, unknown>>(() => ({
+  item: {
+    level: viewedSpellInfo.value?.castingRank ?? viewedSpell.value?.system?.level?.value ?? 1
+  },
+  actor: { level: characterLevel.value }
+}))
+const viewedConsumableSpellRollData = computed<Record<string, unknown>>(() => ({
+  item: { level: viewedConsumable.value?.system?.spell?.system?.level?.value ?? 1 },
+  actor: { level: characterLevel.value }
+}))
 
 function castViewedSpell() {
   return viewedSpell.value
@@ -698,6 +713,7 @@ const spellbook = computed((): Spellbook => {
               <ParsedDescription
                 :text="viewedConsumable?.system.spell.system.description?.value"
                 :labels="rollOptionLabels"
+                :rollData="viewedConsumableSpellRollData"
               />
               <hr />
               <h4 class="pt-1 text-xl">{{ $t('spells.wandDetails') }}</h4>
@@ -706,6 +722,7 @@ const spellbook = computed((): Spellbook => {
               ref="description"
               :text="viewedItem?.system.description?.value"
               :labels="rollOptionLabels"
+              :rollData="viewedSpellRollData"
             />
           </template>
         </template>

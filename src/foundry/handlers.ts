@@ -479,9 +479,10 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       break
     }
     case 'freeDamage': {
-      // Arbitrary inline damage roll (e.g. @Damage[2d6[fire]+1d4[bleed]] in a
-      // description). The formula carries its own damage-type tags; PF2e's
-      // DamageRoll parses them and renders the typed chat card automatically.
+      // Arbitrary inline damage roll from an @Damage[...] in a description.
+      // The formula is already client-resolved (@item.level / @actor.x etc.
+      // substituted in ParsedDescription against the item context the app
+      // already has), so we don't need any item lookup or roll-data here.
       const formula = args.checkSubtype
       const DamageRoll = getDamageRollClass()
       if (DamageRoll) {
