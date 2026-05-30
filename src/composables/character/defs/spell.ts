@@ -15,6 +15,7 @@ export interface Spell extends Item {
   doSpellAttack?: (attackNumber: 1 | 2 | 3, result?: number) => Promise<RequestResolutionArgs | null>
   doSpellDamage?: (
     mapIncreases?: 0 | 1 | 2,
+    castingRank?: number,
     result?: import('@/types/api-types').DiceResults
   ) => Promise<RequestResolutionArgs | null>
   getDamage?: (

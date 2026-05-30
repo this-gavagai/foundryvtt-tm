@@ -95,11 +95,15 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
             `${item.system.location.value ?? ''},${item._id},${attackNumber}`,
             { d20: [result ?? 0] }
           ),
-        doSpellDamage: (mapIncreases: 0 | 1 | 2 = 0, result?: DiceResults) =>
+        doSpellDamage: (
+          mapIncreases: 0 | 1 | 2 = 0,
+          castingRank?: number,
+          result?: DiceResults
+        ) =>
           rollCheck(
             actor as Ref<CharacterPF2e>,
             'spellDamage',
-            `${item._id},${mapIncreases}`,
+            `${item._id},${mapIncreases},${castingRank ?? ''}`,
             result ?? {}
           ),
         getDamage: (castingRank?: number) =>
@@ -153,11 +157,15 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
             `,${i._id},${attackNumber}`,
             { d20: [result ?? 0] }
           ),
-        doSpellDamage: (mapIncreases: 0 | 1 | 2 = 0, result?: DiceResults) =>
+        doSpellDamage: (
+          mapIncreases: 0 | 1 | 2 = 0,
+          castingRank?: number,
+          result?: DiceResults
+        ) =>
           rollCheck(
             actor as Ref<CharacterPF2e>,
             'spellDamage',
-            `${i._id},${mapIncreases}`,
+            `${i._id},${mapIncreases},${castingRank ?? ''}`,
             result ?? {}
           ),
         getDamage: (castingRank?: number) =>

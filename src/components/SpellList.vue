@@ -134,6 +134,7 @@ const spellRollRolls = computed<Roll[]>(() => {
       execute: (faces) =>
         v.spell.doSpellDamage!(
           v.map,
+          v.castingRank,
           faces && dice.length ? makeDiceResults(dice, faces) : undefined
         )
     }

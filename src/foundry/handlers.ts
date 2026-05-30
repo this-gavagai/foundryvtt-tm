@@ -100,18 +100,42 @@ function makeFakeEvent(source: GamePF2e) {
   return { ctrlKey: false, metaKey: false, shiftKey: source.user.settings['showDamageDialogs'] }
 }
 
-// Locate a SpellPF2e by id across both regular actor items and synthetic
-// spellcasting collections — pf2e-dailies staves expose their spells via
-// actor.spellcasting.collections.<entryId>.get(spellId), not via actor.items,
-// so a direct items.get() lookup misses them. Iterate the spell collections
-// directly so we don't depend on the staff entry being registered on the
-// top-level actor.spellcasting collection.
+// Locate a SpellPF2e by id. Prefer the entry-bound spell from
+// actor.spellcasting.collections — it carries the spellcasting context PF2e
+// needs for loadVariant / getDamage to apply heightening correctly. The bare
+// actor.items.get() entry doesn't have that context, so loadVariant returns
+// null on it and damage silently rolls at the base rank. Fall back to
+// actor.items.get() for spells that aren't registered in any entry's
+// collection (rare — typically rule-element-granted spells).
+// Return the spell heightened to the given cast rank. PF2e exposes two
+// independent mechanisms here:
+//   1. loadVariant({ castRank }) — applies overlay variants (e.g. Heal vs Harm).
+//      Returns null when there's no overlay to apply, which includes the
+//      common case of "pure-numeric" heightening (+Nd6 per rank above base).
+//   2. system.location.heightenedLevel — what entry.cast() sets to drive the
+//      rank getter; getDamage reads from it for the heightening formula.
+// We try the proper API first, fall back to a clone with heightenedLevel set
+// so pure-numeric heightening still works.
+function heightenedSpell(
+  baseSpell: SpellPF2e<ActorPF2e>,
+  castRank: number | undefined
+): SpellPF2e<ActorPF2e> {
+  if (!castRank || castRank <= (baseSpell.system.level.value ?? 1)) return baseSpell
+  const variant = baseSpell.loadVariant({ castRank })
+  if (variant) return variant as SpellPF2e<ActorPF2e>
+  type Cloneable = {
+    clone: (data?: object, ctx?: object) => SpellPF2e<ActorPF2e>
+  }
+  return (baseSpell as unknown as Cloneable).clone(
+    { system: { location: { heightenedLevel: castRank } } },
+    { keepId: true }
+  )
+}
+
 function findSpell(
   actor: ActorPF2e,
   spellId: string
 ): SpellPF2e<ActorPF2e> | undefined {
-  const direct = actor.items.get(spellId) as SpellPF2e<ActorPF2e> | undefined
-  if (direct) return direct
   type SpellCol = { get: (id: string) => SpellPF2e<ActorPF2e> | undefined }
   type CollectionsMap = { values(): Iterable<SpellCol> }
   const collections = (actor.spellcasting as unknown as { collections: CollectionsMap })
@@ -120,7 +144,7 @@ function findSpell(
     const found = col.get(spellId)
     if (found) return found
   }
-  return undefined
+  return actor.items.get(spellId) as SpellPF2e<ActorPF2e> | undefined
 }
 
 function blastReplacer(key: string, element: ActorPF2e | ItemPF2e) {
@@ -496,10 +520,13 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       break
     }
     case 'spellDamage': {
-      // Subtype: "spellId,mapIncreases" (mapIncreases 0/1/2 — the damage
-      // counterpart to attackNumber, used for runes/effects that key off MAP).
-      const [spellId, mapIncreasesStr] = args.checkSubtype.split(',')
-      const spell = findSpell(actor, spellId)
+      // Subtype: "spellId,mapIncreases,castingRank". castingRank is optional;
+      // when present and greater than the spell's base level, heighten the
+      // spell first so rollDamage applies the heightening rules.
+      const [spellId, mapIncreasesStr, castingRankStr] = args.checkSubtype.split(',')
+      const baseSpell = findSpell(actor, spellId)
+      const castingRank = castingRankStr ? Number(castingRankStr) : undefined
+      const spell = baseSpell ? heightenedSpell(baseSpell, castingRank) : undefined
       const mapIncreases = Number(mapIncreasesStr || '0') as 0 | 1 | 2
       roll = spell?.rollDamage(params.event as PointerEvent, mapIncreases)
       break
@@ -835,12 +862,10 @@ export async function foundryGetSpellDamage(args: GetSpellDamageArgs) {
   const targetTokenDoc =
     args.targets?.map((t) => source.scenes.active?.tokens.get(t))[0] ?? null
   const baseSpell = findSpell(actor, args.spellId)
-  // Damage formulas change with cast rank (heightening), so load the
-  // variant at the requested rank when one is supplied.
-  const spell =
-    baseSpell && args.castingRank
-      ? (baseSpell.loadVariant({ castRank: args.castingRank }) ?? baseSpell)
-      : baseSpell
+  // Damage formulas change with cast rank (heightening). heightenedSpell
+  // tries loadVariant for overlay-style variants and falls back to a clone
+  // with heightenedLevel set for the pure-numeric heightening case.
+  const spell = baseSpell ? heightenedSpell(baseSpell, args.castingRank) : undefined
   type SpellGetDamageOpts = {
     target?: typeof targetTokenDoc
     skipDialog?: boolean
