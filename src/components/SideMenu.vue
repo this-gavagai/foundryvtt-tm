@@ -16,12 +16,9 @@ import Toggle from '@/components/widgets/ToggleWidget.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import RollOptions from '@/components/RollOptions.vue'
 import Spinner from './widgets/SpinnerWidget.vue'
-import InfoModal from './InfoModal.vue'
 import DamageRollModal from './DamageRollModal.vue'
+import RollCheckModal from './RollCheckModal.vue'
 import SettingsModal from './SettingsModal.vue'
-import { useInjectedCharacter } from '@/composables/injectKeys'
-import { freeRoll } from '@/api/actions'
-import type { Roll } from '@/types/roll-types'
 
 const { t } = useI18n()
 const { isConnected } = storeToRefs(useServerStore())
@@ -52,22 +49,7 @@ const sidebarOpen = ref(false)
 
 const { manualDicePicker } = storeToRefs(useSettingsStore())
 
-const { _id: characterId } = useInjectedCharacter()
-const freeRollModal = ref()
-const isSecret = ref(false)
-
-const freeRollRolls = computed<Roll[]>(() => [
-  {
-    key: 'free-roll',
-    label: t('sideMenu.rollD20'),
-    color: 'blue',
-    dice: ['d20'],
-    armed: true,
-    execute: (faces?: number[]) =>
-      freeRoll(characterId.value ?? '', isSecret.value, faces?.[0])
-  }
-])
-
+const freeRollModal = ref<InstanceType<typeof RollCheckModal>>()
 function openFreeRoll() {
   sidebarOpen.value = false
   freeRollModal.value?.open()
@@ -229,16 +211,7 @@ defineExpose({ sidebarOpen })
       </div>
     </Dialog>
   </TransitionRoot>
-  <InfoModal ref="freeRollModal" :rolls="freeRollRolls">
-    <template #title>{{ $t('sideMenu.freeRollTitle') }}</template>
-    <template #beforeBody>
-      <div class="mt-4">
-        <Toggle :active="isSecret" @changed="(v: boolean) => (isSecret = v)">
-          <span class="text-lg">{{ $t('sideMenu.secret') }}</span>
-        </Toggle>
-      </div>
-    </template>
-  </InfoModal>
+  <RollCheckModal ref="freeRollModal" />
   <DamageRollModal ref="damageRollModal" />
   <SettingsModal ref="settingsModal" />
 </template>

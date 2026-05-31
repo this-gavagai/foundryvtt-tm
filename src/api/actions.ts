@@ -219,13 +219,15 @@ export const freeRoll = (
   secret: boolean,
   face?: number,
   damageFormula?: string,
-  damageResult?: DiceResults
+  damageResult?: DiceResults,
+  traits?: string[]
 ) =>
   sendAction(TM.FREE_ROLL, {
     characterId,
     secret,
     diceResults: damageFormula ? (damageResult ?? {}) : { d20: [face ?? 0] },
-    ...(damageFormula ? { damageFormula } : {})
+    ...(damageFormula ? { damageFormula } : {}),
+    ...(traits && traits.length ? { traits } : {})
   })
 
 export function callMacro(

@@ -110,6 +110,10 @@ export interface FreeRollArgs {
   // When present, the handler rolls a PF2e DamageRoll built from this formula
   // (e.g. "2d6[fire]+1d4[bleed,persistent]") instead of the default 1d20.
   damageFormula?: string
+  // Optional display labels attached to the d20 chat message as flavor
+  // (e.g. ["Athletics", "Stealth"]). No mechanical effect — purely a tag for
+  // the GM/player to identify what the roll was about.
+  traits?: string[]
   uuid: string
 }
 export interface CastStaffSpellArgs {

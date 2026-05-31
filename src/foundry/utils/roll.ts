@@ -17,7 +17,7 @@ export type FoundryRoll = {
   dice: { faces: number; results: { result: number }[] }[]
   evaluate: () => Promise<FoundryRoll>
   toMessage: (
-    data?: { speaker?: { actor?: string } },
+    data?: { speaker?: { actor?: string }; flavor?: string },
     opts?: { rollMode?: 'publicroll' | 'gmroll' | 'blindroll' | 'selfroll' }
   ) => Promise<unknown>
 }
@@ -29,7 +29,7 @@ export type DamageRollCtor = new (
   options?: object
 ) => FoundryRoll & {
   toMessage: (
-    data?: { speaker?: { actor?: string } },
+    data?: { speaker?: { actor?: string }; flavor?: string },
     opts?: { rollMode?: 'publicroll' | 'gmroll' | 'blindroll' | 'selfroll' }
   ) => Promise<unknown>
 }

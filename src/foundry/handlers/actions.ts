@@ -57,6 +57,9 @@ export async function foundryFreeRoll(args: FreeRollArgs) {
   const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll(args.diceResults)
   registerBackgroundRoll()
   const rollMode = args.secret ? 'blindroll' : 'publicroll'
+  // Display labels — purely a tag on the chat message so a glance at the chat
+  // log identifies what the roll was for. No mechanical effect.
+  const flavor = args.traits?.length ? args.traits.join(', ') : undefined
   // Damage path: any formula carrying type tags (e.g. "2d6[fire]+1d4[bleed]")
   // builds a typed PF2e DamageRoll chat card. Otherwise: plain 1d20.
   let roll: FoundryRoll
@@ -64,7 +67,10 @@ export async function foundryFreeRoll(args: FreeRollArgs) {
     roll = await rollDamageFormulaToMessage(args.damageFormula, actor, { rollMode })
   } else {
     roll = await new Roll('1d20').evaluate()
-    await roll.toMessage({ speaker: { actor: actor._id ?? undefined } }, { rollMode })
+    await roll.toMessage(
+      { speaker: { actor: actor._id ?? undefined }, flavor },
+      { rollMode }
+    )
   }
   unregisterBackgroundRoll()
   return {

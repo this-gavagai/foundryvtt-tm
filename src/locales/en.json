@@ -232,6 +232,8 @@
     "secret": "Secret",
     "rollD20": "Roll d20",
     "damageRoll": "Roll Damage",
+    "traits": "Traits",
+    "checkStat": "Roll as",
     "damageRollTitle": "Damage Roll",
     "rollDamage": "Roll Damage",
     "damageType": "Damage Type",

@@ -144,8 +144,15 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
   }
   const perception = computed(() => ({
     ...(makeStat(actor.value?.system?.perception) as Stat),
-    roll: (result: number | undefined) =>
-      rollCheck(actor as Ref<CharacterPF2e>, 'perception', '', { d20: [result ?? 0] })
+    roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
+      rollCheck(
+        actor as Ref<CharacterPF2e>,
+        'perception',
+        '',
+        { d20: [result ?? 0] },
+        [],
+        options ?? {}
+      )
   }))
 
   const skills = computed(() => {
@@ -167,12 +174,27 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
     const skillSlugs = new Set(skills.map((s) => s.slug))
     const lores: Stat[] = (actor.value?.items
       .filter((i) => i.type === 'lore' && !skillSlugs.has(kebabCase(i.name)))
-      .map((lore) => ({
-        slug: kebabCase(lore.name),
-        label: lore.name,
-        lore: true,
-        rank: (lore.system as { proficient?: { value?: number } })?.proficient?.value
-      })) ?? []) as Stat[]
+      .map((lore) => {
+        const slug = kebabCase(lore.name)
+        return {
+          slug,
+          label: lore.name,
+          lore: true,
+          rank: (lore.system as { proficient?: { value?: number } })?.proficient?.value,
+          // PF2e exposes lore stats at actor.skills[slug] just like core skills,
+          // so the foundry-side 'skill' check handler dispatches them via the
+          // same path.
+          roll: (result?: number, options: object = {}) =>
+            rollCheck(
+              actor as Ref<CharacterPF2e>,
+              'skill',
+              slug,
+              { d20: [result ?? 0] },
+              [],
+              options
+            )
+        }
+      }) ?? []) as Stat[]
     return lores.length ? [...skills, ...lores] : skills
   })
 
