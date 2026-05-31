@@ -224,10 +224,20 @@
     "language": "Language",
     "theme": "Theme",
     "manualDicePicker": "Manual dice results",
-    "freeRoll": "Free Roll",
+    "freeRoll": "Roll Check",
     "freeRollTitle": "Free d20 Roll",
     "secret": "Secret",
-    "rollD20": "Roll d20"
+    "rollD20": "Roll d20",
+    "damageRoll": "Roll Damage",
+    "damageRollTitle": "Damage Roll",
+    "rollDamage": "Roll Damage",
+    "damageType": "Damage Type",
+    "addDie": "Add Die",
+    "persistent": "Persistent",
+    "precision": "Precision",
+    "splash": "Splash",
+    "clear": "Clear",
+    "damageEmpty": "Tap a die size to add it"
   },
   "widgets": {
     "toggleSwitch": "Toggle Switch"

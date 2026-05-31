@@ -223,7 +223,18 @@
     "pairPixelDice": "Pixel Dice koppeln",
     "language": "Sprache",
     "theme": "Thema",
-    "manualDicePicker": "Manuelle Würfelergebnisse"
+    "manualDicePicker": "Manuelle Würfelergebnisse",
+    "freeRoll": "Probe würfeln",
+    "damageRoll": "Schaden würfeln",
+    "damageRollTitle": "Schadenswurf",
+    "rollDamage": "Schaden würfeln",
+    "damageType": "Schadensart",
+    "addDie": "Würfel hinzufügen",
+    "persistent": "Anhaltend",
+    "precision": "Präzision",
+    "splash": "Spritzer",
+    "clear": "Zurücksetzen",
+    "damageEmpty": "Tippe auf eine Würfelgröße"
   },
   "widgets": {
     "toggleSwitch": "Umschalter"

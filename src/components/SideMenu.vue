@@ -19,6 +19,7 @@ import Button from '@/components/widgets/ButtonWidget.vue'
 import RollOptions from '@/components/RollOptions.vue'
 import Spinner from './widgets/SpinnerWidget.vue'
 import InfoModal from './InfoModal.vue'
+import DamageRollModal from './DamageRollModal.vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { freeRoll } from '@/api/actions'
 import type { Roll } from '@/types/roll-types'
@@ -77,6 +78,12 @@ const freeRollRolls = computed<Roll[]>(() => [
 function openFreeRoll() {
   sidebarOpen.value = false
   freeRollModal.value?.open()
+}
+
+const damageRollModal = ref<InstanceType<typeof DamageRollModal>>()
+function openDamageRoll() {
+  sidebarOpen.value = false
+  damageRollModal.value?.open()
 }
 
 defineExpose({ sidebarOpen })
@@ -183,11 +190,16 @@ defineExpose({ sidebarOpen })
                   <li class="grow">
                     <RollOptions />
                   </li>
-                  <li>
+                  <li class="flex flex-wrap gap-2">
                     <Button
                       :label="$t('sideMenu.freeRoll')"
                       color="blue"
                       :clicked="openFreeRoll"
+                    />
+                    <Button
+                      :label="$t('sideMenu.damageRoll')"
+                      color="red"
+                      :clicked="openDamageRoll"
                     />
                   </li>
                   <li>
@@ -238,4 +250,5 @@ defineExpose({ sidebarOpen })
       </div>
     </template>
   </InfoModal>
+  <DamageRollModal ref="damageRollModal" />
 </template>

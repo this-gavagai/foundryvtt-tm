@@ -248,6 +248,44 @@ body.theme-default {
     [data-part='face-picker'] button[data-selected]:hover {
       background-color: oklch(50% 0.13 255);
     }
+
+    /* DamageRollBuilder chits — dice + damage-type tokens + chip box. The
+       base utility classes (bg-gray-100, border-gray-400, text-gray-900)
+       sit too bright on the dark panel; tone them down to the same chrome
+       used by the face-picker and the strike/spell action buttons. */
+    [data-component='DamageRollBuilder'] {
+      [data-part='damage-chips'] {
+        background-color: oklch(15% 0.018 258);
+        border-color: oklch(32% 0.022 258);
+      }
+      [data-part='damage-chips'] > span,
+      [data-part='damage-types'] > span,
+      [data-part='damage-dice'] > span {
+        background-color: oklch(22% 0.022 258);
+        border-color: oklch(32% 0.022 258);
+        color: oklch(82% 0.01 258);
+        transition: background-color 120ms;
+      }
+      [data-part='damage-chips'] > span:hover,
+      [data-part='damage-types'] > span:hover,
+      [data-part='damage-dice'] > span:hover {
+        background-color: oklch(28% 0.025 258);
+      }
+      [data-part='damage-chips'] > span:active,
+      [data-part='damage-types'] > span:active,
+      [data-part='damage-dice'] > span:active {
+        background-color: oklch(34% 0.028 258);
+      }
+      /* Selected damage type */
+      [data-part='damage-types'] > span[data-active] {
+        background-color: oklch(45% 0.13 255);
+        border-color: oklch(50% 0.13 255);
+        color: oklch(96% 0.01 255);
+      }
+      [data-part='damage-types'] > span[data-active]:hover {
+        background-color: oklch(50% 0.13 255);
+      }
+    }
   }
 
   /* --- Section accent colors ---------------------------
