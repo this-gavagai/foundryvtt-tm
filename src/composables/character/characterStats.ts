@@ -5,7 +5,8 @@ import type {
   Weakness,
   Resistance,
   MartialProficiency,
-  ClassDCData
+  ClassDCData,
+  SaveType
 } from '@7h3laughingman/pf2e-types'
 import type { TablemateCharacter } from '@/types/character-types'
 import type { Field, WritableField, Maybe } from './helpers'
@@ -123,7 +124,7 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
     destroyed: computed(() => actor.value?.system?.attributes?.shield?.destroyed),
     itemId: computed(() => actor.value?.system?.attributes?.shield?.itemId ?? undefined)
   }
-  const makeSave = (subtype: 'fortitude' | 'reflex' | 'will') =>
+  const makeSave = (subtype: SaveType) =>
     computed(() => ({
       ...(makeStat(actor.value?.system?.saves?.[subtype]) as Stat),
       roll: (result: number | undefined = undefined, options: object | undefined = {}) =>

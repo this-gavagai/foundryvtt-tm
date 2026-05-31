@@ -107,6 +107,9 @@ export interface FreeRollArgs {
   characterId: string
   secret: boolean
   diceResults: DiceResults
+  // When present, the handler rolls a PF2e DamageRoll built from this formula
+  // (e.g. "2d6[fire]+1d4[bleed,persistent]") instead of the default 1d20.
+  damageFormula?: string
   uuid: string
 }
 export interface CastStaffSpellArgs {

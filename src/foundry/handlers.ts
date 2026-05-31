@@ -3,13 +3,16 @@ import type {
   CharacterPF2e,
   ItemPF2e,
   PhysicalItemPF2e,
+  TokenPF2e,
   WeaponPF2e,
+  Modifier,
   RawModifier,
   RollOptionRuleElement,
   GamePF2e,
   MacroPF2e,
   EffectTrait,
   DamageType,
+  SaveType,
   StatisticRollParameters,
   SpellPF2e,
   ConsumablePF2e,
@@ -68,9 +71,33 @@ type DamageRollCtor = new (
 }
 declare const CONFIG: {
   Dice: { rolls: Array<DamageRollCtor & { name: string }> }
+  PF2E: Record<string, unknown>
 }
+
 function getDamageRollClass(): DamageRollCtor | undefined {
   return CONFIG.Dice.rolls.find((r) => r.name === 'DamageRoll')
+}
+// Build a PF2e DamageRoll from a formula string, evaluate it, and post it to
+// chat as the given actor. Used wherever we have a raw formula and want a
+// typed damage chat card (inline @Damage in descriptions, the side-menu free
+// damage builder, etc.). Falls back to plain Roll if DamageRoll isn't yet
+// registered — preserves a usable (if untyped) output during system-load races.
+async function rollDamageFormulaToMessage(
+  formula: string,
+  actor: ActorPF2e,
+  opts: {
+    rollMode?: 'publicroll' | 'gmroll' | 'blindroll' | 'selfroll'
+    rollData?: object
+  } = {}
+): Promise<FoundryRoll> {
+  const DamageRoll = getDamageRollClass()
+  const damageRoll = DamageRoll ? new DamageRoll(formula, opts.rollData ?? {}) : new Roll(formula)
+  await damageRoll.evaluate()
+  await damageRoll.toMessage(
+    { speaker: { actor: actor._id ?? undefined } },
+    opts.rollMode ? { rollMode: opts.rollMode } : undefined
+  )
+  return damageRoll
 }
 
 type StrikeRollFn = (opts: object) => Promise<unknown>
@@ -82,8 +109,6 @@ type StrikeActionRuntime = {
   damage: StrikeRollFn
   critical: StrikeRollFn
 }
-type SaveKey = 'fortitude' | 'reflex' | 'will'
-
 function getGame(): GamePF2e {
   return (typeof window.game === 'undefined' ? parent.game : window.game) as GamePF2e
 }
@@ -100,6 +125,21 @@ function makeFakeEvent(source: GamePF2e) {
   return { ctrlKey: false, metaKey: false, shiftKey: source.user.settings['showDamageDialogs'] }
 }
 
+// Build a synthetic PointerEvent whose target carries [data-cast-rank], so
+// SpellPF2e.rollDamage (which calls htmlClosest(event.target, "[data-cast-rank]")
+// — see ~/pf2e/src/module/item/spell/document.ts) can read the cast rank and
+// run its own loadVariant + heightening dispatch. Lets us delete our hand-
+// rolled heightening helper and stay in sync with PF2e's logic for free.
+// htmlClosest does an `instanceof Element` check, so target must be a real
+// DOM element, not a plain object.
+function makeCastRankEvent(source: GamePF2e, castRank: number | undefined): PointerEvent {
+  const base = makeFakeEvent(source)
+  if (!castRank) return base as unknown as PointerEvent
+  const target = document.createElement('span')
+  target.dataset.castRank = String(castRank)
+  return { ...base, target } as unknown as PointerEvent
+}
+
 // Locate a SpellPF2e by id. Prefer the entry-bound spell from
 // actor.spellcasting.collections — it carries the spellcasting context PF2e
 // needs for loadVariant / getDamage to apply heightening correctly. The bare
@@ -107,39 +147,10 @@ function makeFakeEvent(source: GamePF2e) {
 // null on it and damage silently rolls at the base rank. Fall back to
 // actor.items.get() for spells that aren't registered in any entry's
 // collection (rare — typically rule-element-granted spells).
-// Return the spell heightened to the given cast rank. PF2e exposes two
-// independent mechanisms here:
-//   1. loadVariant({ castRank }) — applies overlay variants (e.g. Heal vs Harm).
-//      Returns null when there's no overlay to apply, which includes the
-//      common case of "pure-numeric" heightening (+Nd6 per rank above base).
-//   2. system.location.heightenedLevel — what entry.cast() sets to drive the
-//      rank getter; getDamage reads from it for the heightening formula.
-// We try the proper API first, fall back to a clone with heightenedLevel set
-// so pure-numeric heightening still works.
-function heightenedSpell(
-  baseSpell: SpellPF2e<ActorPF2e>,
-  castRank: number | undefined
-): SpellPF2e<ActorPF2e> {
-  if (!castRank || castRank <= (baseSpell.system.level.value ?? 1)) return baseSpell
-  const variant = baseSpell.loadVariant({ castRank })
-  if (variant) return variant as SpellPF2e<ActorPF2e>
-  type Cloneable = {
-    clone: (data?: object, ctx?: object) => SpellPF2e<ActorPF2e>
-  }
-  return (baseSpell as unknown as Cloneable).clone(
-    { system: { location: { heightenedLevel: castRank } } },
-    { keepId: true }
-  )
-}
-
-function findSpell(
-  actor: ActorPF2e,
-  spellId: string
-): SpellPF2e<ActorPF2e> | undefined {
+function findSpell(actor: ActorPF2e, spellId: string): SpellPF2e<ActorPF2e> | undefined {
   type SpellCol = { get: (id: string) => SpellPF2e<ActorPF2e> | undefined }
   type CollectionsMap = { values(): Iterable<SpellCol> }
-  const collections = (actor.spellcasting as unknown as { collections: CollectionsMap })
-    .collections
+  const collections = (actor.spellcasting as unknown as { collections: CollectionsMap }).collections
   for (const col of collections.values()) {
     const found = col.get(spellId)
     if (found) return found
@@ -364,20 +375,175 @@ export async function getCharacterDetails(
   }
 }
 
+// Context every roll-check handler receives. The orchestrator (foundryRollCheck)
+// builds this once per request; each handler reads what it needs.
+type CheckRollContext = {
+  source: GamePF2e
+  actor: CharacterPF2e
+  args: RollCheckArgs
+  // Shared param blob that strike / blast handlers spread into PF2e roll calls.
+  // Statistic handlers (save/skill/…) override `target` with targetActorProxy
+  // via statisticParams() — see CheckRollContext.targetActorProxy below.
+  params: {
+    modifiers: Modifier[]
+    target: TokenPF2e | null
+    skipDialog: boolean
+    event: PointerEvent
+    identifier: string
+  }
+  // Used by handlers that go through PF2e's Statistic API. The proxy
+  // intercepts getActiveTokens on the player's chosen target actor and
+  // returns the right token — without touching game.user.targets, which on
+  // the GM machine is the GM's own UI state, not the calling player's.
+  targetActorProxy: ActorPF2e | null
+}
+type CheckRollHandler = (ctx: CheckRollContext) => unknown
+
+const handleStrike: CheckRollHandler = ({ actor, args, params }) => {
+  const [actionSlug, variant, altUsage] = args.checkSubtype.split(',')
+  logger.debug("here's some stuff", args.checkSubtype, altUsage, altUsage?.length)
+  const baseStrike = actor.system.actions.find((a) => a.slug === actionSlug) as
+    | StrikeActionRuntime
+    | undefined
+  const strikeTarget = altUsage?.length ? baseStrike?.altUsages?.[Number(altUsage)] : baseStrike
+  return strikeTarget?.variants[Number(variant)]?.roll(params)
+}
+
+const handleStrikeDamage: CheckRollHandler = ({ actor, args, params }) => {
+  logger.debug('TM-params', params)
+  const [damageSlug, damageDegree, damageAltUsage] = args.checkSubtype.split(',')
+  const baseDmgStrike = actor.system.actions.find((a) => a.slug === damageSlug) as
+    | StrikeActionRuntime
+    | undefined
+  const dmgTarget = damageAltUsage?.length
+    ? baseDmgStrike?.altUsages?.[Number(damageAltUsage)]
+    : baseDmgStrike
+  return damageDegree === 'critical' ? dmgTarget?.critical(params) : dmgTarget?.damage(params)
+}
+
+const handleBlast: CheckRollHandler = ({ actor, args, params }) => {
+  const [element, damageType, mapIncreases, isMelee] = args.checkSubtype.split(',')
+  const blasts = new game.pf2e.ElementalBlast(actor)
+  return blasts.attack({
+    ...params,
+    element: element as EffectTrait,
+    damageType: damageType as DamageType,
+    mapIncreases: Number(mapIncreases),
+    melee: isMelee === 'true'
+  })
+}
+
+const handleBlastDamage: CheckRollHandler = ({ actor, args, params }) => {
+  const [element, damageType, outcome, isMelee] = args.checkSubtype.split(',')
+  const damageBlasts = new game.pf2e.ElementalBlast(actor)
+  return damageBlasts.damage({
+    ...params,
+    element: element as EffectTrait,
+    damageType: damageType as DamageType,
+    outcome: outcome as 'success' | 'criticalSuccess',
+    melee: isMelee === 'true'
+  })
+}
+
+// Build the parameter blob the PF2e Statistic API expects. Overrides
+// params.target with the actor proxy so getActiveTokens returns the player's
+// chosen token. See CheckRollContext.targetActorProxy for the cross-user
+// rationale (game.user.targets is the GM's UI on the handler side).
+function statisticParams(ctx: CheckRollContext): StatisticRollParameters {
+  return {
+    ...ctx.args.options,
+    ...ctx.params,
+    ...(ctx.targetActorProxy ? { target: ctx.targetActorProxy } : {})
+  } as StatisticRollParameters
+}
+
+const handleSkill: CheckRollHandler = (ctx) =>
+  ctx.actor.skills[ctx.args.checkSubtype].check.roll(statisticParams(ctx))
+
+const handleSave: CheckRollHandler = (ctx) =>
+  ctx.actor.saves[ctx.args.checkSubtype as SaveType].check.roll(statisticParams(ctx))
+
+const handlePerception: CheckRollHandler = (ctx) =>
+  ctx.actor.perception.check.roll(statisticParams(ctx))
+
+const handleInitiative: CheckRollHandler = (ctx) => ctx.actor.initiative.roll(statisticParams(ctx))
+
+// Subtype is either "entryId" (legacy entry-level attack from the entry modal)
+// or "entryId,spellId,attackNumber" for the per-spell attack buttons in the
+// spell info modal (attackNumber 1/2/3 = MAP 0/-5/-10).
+const handleSpellAttack: CheckRollHandler = (ctx) => {
+  const [entryId, spellId, attackNumberStr] = ctx.args.checkSubtype.split(',')
+  const rollParams = statisticParams(ctx)
+  if (spellId) {
+    const spell = findSpell(ctx.actor, spellId)
+    return spell?.rollAttack(ctx.params.event, Number(attackNumberStr || '1'), rollParams)
+  }
+  return ctx.actor.spellcasting.get(entryId)?.statistic?.check.roll(rollParams)
+}
+
+// Arbitrary inline damage roll from an @Damage[...] in a description. The
+// formula is already client-resolved (@item.level / @actor.x etc. substituted
+// in ParsedDescription against the item context the app already has), so we
+// don't need any item lookup or roll-data here.
+const handleFreeDamage: CheckRollHandler = ({ actor, args }) =>
+  rollDamageFormulaToMessage(args.checkSubtype, actor)
+
+// Subtype: "spellId,mapIncreases,castingRank". Synthesize an event whose
+// target carries [data-cast-rank=<rank>]; SpellPF2e.rollDamage reads it via
+// htmlClosest and runs its own loadVariant + heightening dispatch — no hand-
+// rolled heightening required on our side.
+const handleSpellDamage: CheckRollHandler = ({ source, actor, args }) => {
+  const [spellId, mapIncreasesStr, castingRankStr] = args.checkSubtype.split(',')
+  const spell = findSpell(actor, spellId)
+  const castingRank = castingRankStr ? Number(castingRankStr) : undefined
+  const mapIncreases = Number(mapIncreasesStr || '0') as 0 | 1 | 2
+  return spell?.rollDamage(makeCastRankEvent(source, castingRank), mapIncreases)
+}
+
+const handleFlat: CheckRollHandler = ({ args }) => {
+  const label = 'Generic Flat Check'
+  const dc = (args.options as { dc?: number }).dc ?? 11
+  return game.pf2e.Check.roll(new game.pf2e.StatisticModifier(label, []), {
+    actor: {} as ActorPF2e,
+    type: 'flat-check',
+    dc: { value: dc, visible: true },
+    options: new Set(['flat-check']),
+    createMessage: true,
+    skipDialog: true
+  })
+}
+
+// checkType (wire) → handler. Adding a new check kind is one entry here plus
+// the handler definition; no edits to the orchestrator.
+const CHECK_ROLL_HANDLERS: Record<string, CheckRollHandler> = {
+  strike: handleStrike,
+  damage: handleStrikeDamage,
+  blast: handleBlast,
+  blastDamage: handleBlastDamage,
+  skill: handleSkill,
+  save: handleSave,
+  perception: handlePerception,
+  initiative: handleInitiative,
+  spellAttack: handleSpellAttack,
+  freeDamage: handleFreeDamage,
+  spellDamage: handleSpellDamage,
+  flat: handleFlat
+}
+
 export async function foundryRollCheck(args: RollCheckArgs) {
   const source = getGame()
   //https://github.com/foundryvtt/pf2e/blob/68988e12fbec7ea8359b9bee9b0c43eb6964ca3f/src/module/system/statistic/statistic.ts#L617
   const actor = getCharacter(source, args.characterId)
-  const modifiers = args.modifiers.map((m) => {
-    return new source.pf2e.Modifier(m)
-  })
+  const modifiers = args.modifiers.map((m) => new source.pf2e.Modifier(m))
   const targetTokenDoc =
     args.targets?.map((t: string) => source.scenes.active?.tokens.get(t))[0] ?? null
   const targetForStrike = targetTokenDoc?.object ?? null
-  // PF2e uses two independent paths for a spell attack roll:
-  //   DC resolution  → reads game.user.targets (UserTargets.add fires the hook PF2e needs)
-  //   Target display → calls args.target.getActiveTokens(); proxy returns the right type
-  //                    depending on whether PF2e asks for canvas tokens or documents.
+  // Cross-user target proxy. The handler runs on the GM's machine, so
+  // game.user.targets is the GM's UI state — not the calling player's. The
+  // player's chosen target arrives via args.targets; this proxy intercepts
+  // getActiveTokens on that actor and returns the right token (or token
+  // document, depending on PF2e's call shape) for the duration of the roll,
+  // without mutating any user's targeting state.
   const targetActorProxy = (() => {
     const actor = targetTokenDoc?.actor ?? null
     const token = targetTokenDoc?.object ?? null
@@ -393,158 +559,17 @@ export async function foundryRollCheck(args: RollCheckArgs) {
     }) as ActorPF2e
   })()
   const params = {
-    modifiers: modifiers,
+    modifiers,
     target: targetForStrike,
     skipDialog: true,
     event: makeFakeEvent(source) as PointerEvent,
     identifier: 'tm_background'
   }
+  const ctx: CheckRollContext = { source, actor, args, params, targetActorProxy }
 
   const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll(args.diceResults)
   registerBackgroundRoll()
-  let roll
-  switch (args.checkType) {
-    case 'strike': {
-      const [actionSlug, variant, altUsage] = args.checkSubtype.split(',')
-      logger.debug("here's some stuff", args.checkSubtype, altUsage, altUsage?.length)
-      const baseStrike = actor.system.actions.find((a) => a.slug === actionSlug) as
-        | StrikeActionRuntime
-        | undefined
-      const strikeTarget = altUsage?.length ? baseStrike?.altUsages?.[Number(altUsage)] : baseStrike
-      roll = strikeTarget?.variants[Number(variant)]?.roll(params)
-      break
-    }
-    case 'damage': {
-      logger.debug('TM-params', params)
-      const [damageSlug, damageDegree, damageAltUsage] = args.checkSubtype.split(',')
-      const baseDmgStrike = actor.system.actions.find((a) => a.slug === damageSlug) as
-        | StrikeActionRuntime
-        | undefined
-      const dmgTarget = damageAltUsage?.length
-        ? baseDmgStrike?.altUsages?.[Number(damageAltUsage)]
-        : baseDmgStrike
-      roll = damageDegree === 'critical' ? dmgTarget?.critical(params) : dmgTarget?.damage(params)
-      break
-    }
-    case 'blast': {
-      const [element, damageType, mapIncreases, isMelee] = args.checkSubtype.split(',')
-      const blasts = new game.pf2e.ElementalBlast(actor)
-      roll = blasts.attack({
-        ...params,
-        element: element as EffectTrait,
-        damageType: damageType as DamageType,
-        mapIncreases: Number(mapIncreases),
-        melee: isMelee === 'true'
-      })
-      break
-    }
-    case 'blastDamage': {
-      const [element, damageType, outcome, isMelee] = args.checkSubtype.split(',')
-      const damageBlasts = new game.pf2e.ElementalBlast(actor)
-      roll = damageBlasts.damage({
-        ...params,
-        element: element as EffectTrait,
-        damageType: damageType as DamageType,
-        outcome: outcome as 'success' | 'criticalSuccess',
-        melee: isMelee === 'true'
-      })
-      break
-    }
-    // PF2e's Statistic API (save/skill/perception/initiative/spellAttack) expects
-    // params.target to be an ActorPF2e — it calls target.getActiveTokens() on it
-    // to drive DC/display. params.target is a TokenPF2e (right for strike/blast),
-    // so override here with the actor proxy that exposes getActiveTokens().
-    case 'skill': {
-      roll = actor.skills[args.checkSubtype].check.roll({
-        ...args.options,
-        ...params,
-        ...(targetActorProxy ? { target: targetActorProxy } : {})
-      } as StatisticRollParameters)
-      break
-    }
-    case 'save': {
-      roll = actor.saves[args.checkSubtype as SaveKey].check.roll({
-        ...args.options,
-        ...params,
-        ...(targetActorProxy ? { target: targetActorProxy } : {})
-      } as StatisticRollParameters)
-      break
-    }
-    case 'perception': {
-      roll = actor.perception.check.roll({
-        ...params,
-        ...(targetActorProxy ? { target: targetActorProxy } : {})
-      } as StatisticRollParameters)
-      break
-    }
-    case 'initiative': {
-      roll = actor.initiative.roll({
-        ...params,
-        ...(targetActorProxy ? { target: targetActorProxy } : {})
-      } as StatisticRollParameters)
-      break
-    }
-    case 'spellAttack': {
-      // Subtype is either "entryId" (legacy entry-level attack from the entry
-      // modal) or "entryId,spellId,attackNumber" for the per-spell attack
-      // buttons in the spell info modal (attackNumber 1/2/3 = MAP 0/-5/-10).
-      const [entryId, spellId, attackNumberStr] = args.checkSubtype.split(',')
-      const rollParams = {
-        ...args.options,
-        ...params,
-        ...(targetActorProxy ? { target: targetActorProxy } : {})
-      } as StatisticRollParameters
-      if (spellId) {
-        const spell = findSpell(actor, spellId)
-        roll = spell?.rollAttack(params.event as PointerEvent, Number(attackNumberStr || '1'), rollParams)
-      } else {
-        roll = actor.spellcasting.get(entryId)?.statistic?.check.roll(rollParams)
-      }
-      break
-    }
-    case 'freeDamage': {
-      // Arbitrary inline damage roll from an @Damage[...] in a description.
-      // The formula is already client-resolved (@item.level / @actor.x etc.
-      // substituted in ParsedDescription against the item context the app
-      // already has), so we don't need any item lookup or roll-data here.
-      const formula = args.checkSubtype
-      const DamageRoll = getDamageRollClass()
-      if (DamageRoll) {
-        roll = (async () => {
-          const damageRoll = new DamageRoll(formula)
-          await damageRoll.evaluate()
-          await damageRoll.toMessage({ speaker: { actor: actor._id ?? undefined } })
-          return damageRoll
-        })()
-      }
-      break
-    }
-    case 'spellDamage': {
-      // Subtype: "spellId,mapIncreases,castingRank". castingRank is optional;
-      // when present and greater than the spell's base level, heighten the
-      // spell first so rollDamage applies the heightening rules.
-      const [spellId, mapIncreasesStr, castingRankStr] = args.checkSubtype.split(',')
-      const baseSpell = findSpell(actor, spellId)
-      const castingRank = castingRankStr ? Number(castingRankStr) : undefined
-      const spell = baseSpell ? heightenedSpell(baseSpell, castingRank) : undefined
-      const mapIncreases = Number(mapIncreasesStr || '0') as 0 | 1 | 2
-      roll = spell?.rollDamage(params.event as PointerEvent, mapIncreases)
-      break
-    }
-    case 'flat': {
-      const label = 'Generic Flat Check'
-      const dc = (args.options as { dc?: number }).dc ?? 11
-      roll = game.pf2e.Check.roll(new game.pf2e.StatisticModifier(label, []), {
-        actor: {} as ActorPF2e,
-        type: 'flat-check',
-        dc: { value: dc, visible: true },
-        options: new Set(['flat-check']),
-        createMessage: true,
-        skipDialog: true
-      })
-      break
-    }
-  }
+  const roll = CHECK_ROLL_HANDLERS[args.checkType]?.(ctx)
   type RollResult = {
     formula?: unknown
     result?: unknown
@@ -625,11 +650,16 @@ export async function foundryFreeRoll(args: FreeRollArgs) {
   const actor = source.actors.get(args.characterId, { strict: true })
   const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll(args.diceResults)
   registerBackgroundRoll()
-  const roll = await new Roll('1d20').evaluate()
-  await roll.toMessage(
-    { speaker: { actor: actor._id ?? undefined } },
-    { rollMode: args.secret ? 'blindroll' : 'publicroll' }
-  )
+  const rollMode = args.secret ? 'blindroll' : 'publicroll'
+  // Damage path: any formula carrying type tags (e.g. "2d6[fire]+1d4[bleed]")
+  // builds a typed PF2e DamageRoll chat card. Otherwise: plain 1d20.
+  let roll: FoundryRoll
+  if (args.damageFormula) {
+    roll = await rollDamageFormulaToMessage(args.damageFormula, actor, { rollMode })
+  } else {
+    roll = await new Roll('1d20').evaluate()
+    await roll.toMessage({ speaker: { actor: actor._id ?? undefined } }, { rollMode })
+  }
   unregisterBackgroundRoll()
   return {
     ...makeAck(args),
@@ -859,13 +889,19 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
 export async function foundryGetSpellDamage(args: GetSpellDamageArgs) {
   const source = getGame()
   const actor = getCharacter(source, args.characterId)
-  const targetTokenDoc =
-    args.targets?.map((t) => source.scenes.active?.tokens.get(t))[0] ?? null
+  const targetTokenDoc = args.targets?.map((t) => source.scenes.active?.tokens.get(t))[0] ?? null
   const baseSpell = findSpell(actor, args.spellId)
-  // Damage formulas change with cast rank (heightening). heightenedSpell
-  // tries loadVariant for overlay-style variants and falls back to a clone
-  // with heightenedLevel set for the pure-numeric heightening case.
-  const spell = baseSpell ? heightenedSpell(baseSpell, args.castingRank) : undefined
+  // getDamage reads `this.rank` (which honours system.location.heightenedLevel),
+  // so we ask PF2e for a heightened variant via loadVariant. Per the PF2e source
+  // (item/spell/document.ts), loadVariant returns null only when castRank
+  // equals the spell's current rank — that's exactly the no-op case where the
+  // base spell already has the right rank, so falling back to baseSpell is
+  // correct.
+  const spell = args.castingRank
+    ? ((baseSpell?.loadVariant({ castRank: args.castingRank }) as
+        | SpellPF2e<ActorPF2e>
+        | undefined) ?? baseSpell)
+    : baseSpell
   type SpellGetDamageOpts = {
     target?: typeof targetTokenDoc
     skipDialog?: boolean

@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
       outDir: 'tablemate',
       sourcemap: true,
       assetsInlineLimit: 8192, // bump to 8 KiB
+      chunkSizeWarningLimit: 1000, // kB
       minify: true,
       rollupOptions: {
         input: ['index.html', 'src/foundry/tablemate.ts'],
