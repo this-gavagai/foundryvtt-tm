@@ -649,29 +649,53 @@ body.theme-default {
   }
 
   /* --- Dropdown (Listbox) ------------------------------ */
-  [data-part='dropdown'] {
-    /* collapsed-list button */
-    [aria-haspopup='listbox'] {
-      background-color: var(--color-card);
-      border-color: var(--color-border);
-      color: inherit;
+  /* Collapsed-list button — still rendered inline inside the dropdown
+     wrapper. */
+  [data-part='dropdown'] [aria-haspopup='listbox'] {
+    background-color: var(--color-card);
+    border-color: var(--color-border);
+    color: inherit;
 
-      &:disabled,
-      &[data-waiting] {
-        background-color: oklch(22% 0.02 258);
-      }
-
-      /* chevron is the only svg here */
-      svg {
-        color: oklch(50% 0.01 258);
-      }
+    &:disabled,
+    &[data-waiting] {
+      background-color: oklch(22% 0.02 258);
     }
 
-    /* dropdown popover */
-    [role='listbox'] {
-      background-color: var(--color-surface);
-      border: 1px solid var(--color-border);
-      box-shadow: 0 4px 16px oklch(5% 0.01 258 / 0.8);
+    /* chevron is the only svg here */
+    svg {
+      color: oklch(50% 0.01 258);
+    }
+  }
+
+  /* Popover — teleported to <body>, so it's a sibling of the app root and
+     can't be reached via a descendant selector from [data-part='dropdown'].
+     Target by the marker `data-part='dropdown-options'` instead. */
+  [data-part='dropdown-options'] {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 4px 16px oklch(5% 0.01 258 / 0.8);
+
+    /* Subtle dark scrollbar — the default UA scrollbar is a bright bar that
+       clashes with the popover surface. Firefox uses scrollbar-* props;
+       WebKit/Blink uses ::-webkit-scrollbar pseudo-elements. */
+    scrollbar-width: thin;
+    scrollbar-color: oklch(32% 0.022 258) transparent;
+
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+      background-color: oklch(32% 0.022 258);
+      border-radius: 4px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+    &::-webkit-scrollbar-thumb:hover {
+      background-color: oklch(42% 0.025 258);
+      background-clip: padding-box;
     }
 
     /* default option contents */
