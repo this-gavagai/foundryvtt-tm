@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
-import { XMarkIcon } from '@heroicons/vue/24/solid'
+import { Cog6ToothIcon, XMarkIcon } from '@heroicons/vue/24/solid'
 import { storeToRefs } from 'pinia'
 import { useServerStore } from '@/stores/server'
 import { useListenersStore } from '@/stores/listenersOnline'
@@ -10,8 +10,6 @@ import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useWorldStore } from '@/stores/world'
 import { usePixelDiceStore } from '@/stores/pixelDice'
 import { useSettingsStore } from '@/stores/settings'
-import { availableLocales, setLocale } from '@/plugins/i18n'
-import { useTheme, THEMES } from '@/composables/useTheme'
 
 import Dropdown from '@/components/widgets/DropdownWidget.vue'
 import Toggle from '@/components/widgets/ToggleWidget.vue'
@@ -20,11 +18,12 @@ import RollOptions from '@/components/RollOptions.vue'
 import Spinner from './widgets/SpinnerWidget.vue'
 import InfoModal from './InfoModal.vue'
 import DamageRollModal from './DamageRollModal.vue'
+import SettingsModal from './SettingsModal.vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { freeRoll } from '@/api/actions'
 import type { Roll } from '@/types/roll-types'
 
-const { locale, t } = useI18n()
+const { t } = useI18n()
 const { isConnected } = storeToRefs(useServerStore())
 const { isListening } = storeToRefs(useListenersStore())
 const { world, worldActive } = storeToRefs(useWorldStore())
@@ -50,12 +49,6 @@ const { updateProxyId } = targetHelperStore
 
 const targetProxySelector = ref()
 const sidebarOpen = ref(false)
-
-const { activeTheme, setTheme } = useTheme()
-const themeList = [
-  { id: '', name: t('common.none') },
-  ...THEMES.map((id) => ({ id, name: id.charAt(0).toUpperCase() + id.slice(1) }))
-]
 
 const { manualDicePicker } = storeToRefs(useSettingsStore())
 
@@ -84,6 +77,12 @@ const damageRollModal = ref<InstanceType<typeof DamageRollModal>>()
 function openDamageRoll() {
   sidebarOpen.value = false
   damageRollModal.value?.open()
+}
+
+const settingsModal = ref<InstanceType<typeof SettingsModal>>()
+function openSettings() {
+  sidebarOpen.value = false
+  settingsModal.value?.open()
 }
 
 defineExpose({ sidebarOpen })
@@ -151,31 +150,13 @@ defineExpose({ sidebarOpen })
                         class="h-2.5 w-2.5 flex-none rounded-full"
                       />
                       <span class="text-sm">{{ connectionTitle[connectionState] }}</span>
+                      <Cog6ToothIcon
+                        data-part="settings-toggle"
+                        class="ml-auto h-7 w-7 cursor-pointer text-gray-500 hover:text-gray-800 active:text-gray-400"
+                        :aria-label="$t('settings.title')"
+                        @click="openSettings"
+                      />
                     </div>
-                  </li>
-                  <li>
-                    <div class="text-lg italic">{{ $t('sideMenu.language') }}</div>
-                    <Dropdown
-                      :list="availableLocales"
-                      :selectedId="locale"
-                      :changed="(newId: string) => setLocale(newId)"
-                    />
-                  </li>
-                  <li>
-                    <div class="text-lg italic">{{ $t('sideMenu.theme') }}</div>
-                    <Dropdown
-                      :list="themeList"
-                      :selectedId="activeTheme ?? ''"
-                      :changed="(newId: string) => setTheme(newId || null)"
-                    />
-                  </li>
-                  <li>
-                    <Toggle
-                      :active="manualDicePicker"
-                      @changed="(v: boolean) => (manualDicePicker = v)"
-                    >
-                      <span class="text-lg italic">{{ $t('sideMenu.manualDicePicker') }}</span>
-                    </Toggle>
                   </li>
                   <li>
                     <div class="text-lg italic">{{ $t('sideMenu.targetingProxy') }}</div>
@@ -189,6 +170,14 @@ defineExpose({ sidebarOpen })
                   </li>
                   <li class="grow">
                     <RollOptions />
+                  </li>
+                  <li>
+                    <Toggle
+                      :active="manualDicePicker"
+                      @changed="(v: boolean) => (manualDicePicker = v)"
+                    >
+                      <span class="text-lg italic">{{ $t('sideMenu.manualDicePicker') }}</span>
+                    </Toggle>
                   </li>
                   <li class="flex flex-wrap gap-2">
                     <Button
@@ -251,4 +240,5 @@ defineExpose({ sidebarOpen })
     </template>
   </InfoModal>
   <DamageRollModal ref="damageRollModal" />
+  <SettingsModal ref="settingsModal" />
 </template>

@@ -1,4 +1,7 @@
 {
+  "settings": {
+    "title": "Settings"
+  },
   "common": {
     "loading": "Loading...",
     "none": "None",
