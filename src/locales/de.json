@@ -2,6 +2,13 @@
   "settings": {
     "title": "Einstellungen"
   },
+  "rollCheck": {
+    "saves": "Rettungswürfe",
+    "spotlight": "Wahrnehmung & Initiative",
+    "flat": "Flach",
+    "skills": "Fertigkeiten",
+    "lores": "Kenntnisse"
+  },
   "common": {
     "loading": "Wird geladen...",
     "none": "Keine",

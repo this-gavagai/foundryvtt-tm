@@ -23,7 +23,10 @@ export interface CharacterActions {
     stat: WritableField<string>
     modifiers: Field<Modifier[]>
     totalModifier: Field<number>
-    roll: (result?: number | undefined) => Promise<RequestResolutionArgs | null>
+    roll: (
+      result?: number | undefined,
+      options?: object | undefined
+    ) => Promise<RequestResolutionArgs | null>
   }
 }
 
@@ -78,8 +81,15 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
     }),
     modifiers: computed(() => makeModifiers(actor.value?.system?.initiative?.modifiers)),
     totalModifier: computed(() => actor.value?.system?.initiative?.totalModifier),
-    roll: (result: number | undefined) => {
-      return rollCheck(actor as Ref<CharacterPF2e>, 'initiative', '', { d20: [result ?? 0] })
+    roll: (result: number | undefined, options: object | undefined = {}) => {
+      return rollCheck(
+        actor as Ref<CharacterPF2e>,
+        'initiative',
+        '',
+        { d20: [result ?? 0] },
+        [],
+        options ?? {}
+      )
     }
   }
 

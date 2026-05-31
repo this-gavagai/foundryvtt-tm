@@ -6,31 +6,120 @@ import { freeRoll } from '@/api/actions'
 import InfoModal from '@/components/InfoModal.vue'
 import Toggle from '@/components/widgets/ToggleWidget.vue'
 import type { Roll } from '@/types/roll-types'
+import type { RequestResolutionArgs } from '@/types/api-types'
 
 const { t } = useI18n()
-const { _id: characterId, skills, perception } = useInjectedCharacter()
+const {
+  _id: characterId,
+  skills,
+  perception,
+  saves,
+  initiative,
+  doFlatCheck
+} = useInjectedCharacter()
 
 const modalRef = ref()
 const isSecret = ref(false)
 
-// Single-select. When set, the d20 routes through that stat's check.roll so the
-// character's modifier (and any rule-element bonuses keyed on the stat's
-// domains) actually apply. When undefined: raw d20 via freeRoll.
-const activeStat = ref<string | undefined>(undefined)
+// A roller groups a label with the dispatch function for one chit. Lets the
+// template render uniformly: a single `<span>` per chit driven by `Roller[]`.
+type Roller = {
+  slug: string
+  label: string
+  italic?: boolean
+  execute: (face?: number, options?: object) => Promise<RequestResolutionArgs | null>
+}
+
+// Single-select. When set, the d20 routes through that roller's execute. When
+// undefined: raw d20 via freeRoll.
+const activeSlug = ref<string | undefined>(undefined)
 function toggleStat(slug: string) {
-  activeStat.value = activeStat.value === slug ? undefined : slug
+  activeSlug.value = activeSlug.value === slug ? undefined : slug
 }
 
-const baseSkills = computed(() => (skills.value ?? []).filter((s) => !s.lore))
-const loreSkills = computed(() => (skills.value ?? []).filter((s) => s.lore))
+// Roller groups, rendered as labeled sub-rows in the template. Order matters
+// — saves and the spotlight rolls (perception/initiative) sit above the long
+// skill list since they're rolled more often.
+const saveRollers = computed<Roller[]>(() => [
+  {
+    slug: 'fortitude',
+    label: saves.fortitude.value?.label ?? t('saves.fortitude'),
+    execute: (face, opts) => saves.fortitude.value?.roll?.(face, opts) ?? Promise.resolve(null)
+  },
+  {
+    slug: 'reflex',
+    label: saves.reflex.value?.label ?? t('saves.reflex'),
+    execute: (face, opts) => saves.reflex.value?.roll?.(face, opts) ?? Promise.resolve(null)
+  },
+  {
+    slug: 'will',
+    label: saves.will.value?.label ?? t('saves.will'),
+    execute: (face, opts) => saves.will.value?.roll?.(face, opts) ?? Promise.resolve(null)
+  }
+])
 
-function findStat(slug: string | undefined) {
-  if (!slug) return undefined
-  if (slug === perception.value?.slug) return perception.value
-  return skills.value?.find((s) => s.slug === slug)
-}
+const spotlightRollers = computed<Roller[]>(() => {
+  const list: Roller[] = []
+  if (perception.value) {
+    list.push({
+      slug: perception.value.slug ?? 'perception',
+      label: perception.value.label ?? t('saves.perception'),
+      execute: (face, opts) => perception.value!.roll?.(face, opts) ?? Promise.resolve(null)
+    })
+  }
+  list.push({
+    slug: 'initiative',
+    label: t('combat.initiative'),
+    execute: (face, opts) => initiative.roll(face, opts)
+  })
+  return list
+})
 
-const activeLabel = computed(() => findStat(activeStat.value)?.label ?? '')
+const flatRollers: Roller[] = [
+  {
+    slug: 'flat-5',
+    label: 'Flat DC 5',
+    execute: (face, opts) => doFlatCheck(face, { ...(opts ?? {}), dc: 5 })
+  },
+  {
+    slug: 'flat-11',
+    label: 'Flat DC 11',
+    execute: (face, opts) => doFlatCheck(face, { ...(opts ?? {}), dc: 11 })
+  }
+]
+
+const skillRollers = computed<Roller[]>(() =>
+  (skills.value ?? [])
+    .filter((s) => !s.lore)
+    .map((s) => ({
+      slug: s.slug ?? '',
+      label: s.label ?? s.slug ?? '',
+      execute: (face, opts) => s.roll?.(face, opts) ?? Promise.resolve(null)
+    }))
+)
+
+const loreRollers = computed<Roller[]>(() =>
+  (skills.value ?? [])
+    .filter((s) => s.lore)
+    .map((s) => ({
+      slug: s.slug ?? '',
+      label: s.label ?? s.slug ?? '',
+      italic: true,
+      execute: (face, opts) => s.roll?.(face, opts) ?? Promise.resolve(null)
+    }))
+)
+
+const allRollers = computed<Roller[]>(() => [
+  ...saveRollers.value,
+  ...spotlightRollers.value,
+  ...flatRollers,
+  ...skillRollers.value,
+  ...loreRollers.value
+])
+
+const activeLabel = computed(
+  () => allRollers.value.find((r) => r.slug === activeSlug.value)?.label ?? ''
+)
 
 const checkRolls = computed<Roll[]>(() => [
   {
@@ -42,13 +131,13 @@ const checkRolls = computed<Roll[]>(() => [
     dice: ['d20'],
     armed: true,
     execute: async (faces?: number[]) => {
-      const stat = findStat(activeStat.value)
+      const roller = allRollers.value.find((r) => r.slug === activeSlug.value)
       const options = isSecret.value ? { rollMode: 'blindroll' } : {}
-      const result = stat?.roll
-        ? await stat.roll(faces?.[0], options)
+      const result = roller
+        ? await roller.execute(faces?.[0], options)
         : await freeRoll(characterId.value ?? '', isSecret.value, faces?.[0])
       // Reset selection after the roll fires so the next open starts fresh.
-      activeStat.value = undefined
+      activeSlug.value = undefined
       return result
     }
   }
@@ -64,7 +153,9 @@ function close() {
 // Drop the active selection if the character switches under us and that slug
 // no longer exists.
 watch(skills, () => {
-  if (activeStat.value && !findStat(activeStat.value)) activeStat.value = undefined
+  if (activeSlug.value && !allRollers.value.find((r) => r.slug === activeSlug.value)) {
+    activeSlug.value = undefined
+  }
 })
 
 defineExpose({ open, close })
@@ -80,39 +171,34 @@ defineExpose({ open, close })
           </Toggle>
         </div>
 
-        <div class="mt-4">
-          <h4 class="text-xs tracking-wide text-gray-600 uppercase">
-            {{ $t('sideMenu.checkStat') }}
-          </h4>
-          <div data-part="check-traits" class="mt-1 flex flex-wrap gap-1">
-            <span
-              v-if="perception"
-              :data-active="activeStat === perception.slug ? '' : undefined"
-              class="inline-block cursor-pointer rounded border border-gray-400 bg-gray-100 px-2 py-1 text-xs whitespace-nowrap text-gray-900 select-none active:bg-gray-300 data-active:border-blue-700 data-active:bg-blue-600 data-active:text-white"
-              @click="toggleStat(perception.slug ?? '')"
-            >
-              {{ perception.label }}
-            </span>
-            <span
-              v-for="s in baseSkills"
-              :key="s.slug"
-              :data-active="activeStat === s.slug ? '' : undefined"
-              class="inline-block cursor-pointer rounded border border-gray-400 bg-gray-100 px-2 py-1 text-xs whitespace-nowrap text-gray-900 select-none active:bg-gray-300 data-active:border-blue-700 data-active:bg-blue-600 data-active:text-white"
-              @click="toggleStat(s.slug ?? '')"
-            >
-              {{ s.label }}
-            </span>
-            <span
-              v-for="s in loreSkills"
-              :key="s.slug"
-              :data-active="activeStat === s.slug ? '' : undefined"
-              class="inline-block cursor-pointer rounded border border-gray-400 bg-gray-100 px-2 py-1 text-xs whitespace-nowrap text-gray-900 italic select-none active:bg-gray-300 data-active:border-blue-700 data-active:bg-blue-600 data-active:text-white"
-              @click="toggleStat(s.slug ?? '')"
-            >
-              {{ s.label }}
-            </span>
+        <!-- Each sub-row groups thematically related rollers. The chip styling
+             is shared across all rows via the `check-traits` data-part. -->
+        <template
+          v-for="(group, gi) in [
+            { label: $t('rollCheck.saves'), rollers: saveRollers },
+            { label: $t('rollCheck.spotlight'), rollers: spotlightRollers },
+            { label: $t('rollCheck.flat'), rollers: flatRollers },
+            { label: $t('rollCheck.skills'), rollers: skillRollers },
+            { label: $t('rollCheck.lores'), rollers: loreRollers }
+          ]"
+          :key="gi"
+        >
+          <div v-if="group.rollers.length" class="mt-3">
+            <h4 class="text-xs tracking-wide text-gray-600 uppercase">{{ group.label }}</h4>
+            <div data-part="check-traits" class="mt-1 flex flex-wrap gap-1">
+              <span
+                v-for="r in group.rollers"
+                :key="r.slug"
+                :data-active="activeSlug === r.slug ? '' : undefined"
+                class="inline-block cursor-pointer rounded border border-gray-400 bg-gray-100 px-2 py-1 text-xs whitespace-nowrap text-gray-900 select-none active:bg-gray-300 data-active:border-blue-700 data-active:bg-blue-600 data-active:text-white"
+                :class="{ italic: r.italic }"
+                @click="toggleStat(r.slug)"
+              >
+                {{ r.label }}
+              </span>
+            </div>
           </div>
-        </div>
+        </template>
       </div>
     </template>
   </InfoModal>
