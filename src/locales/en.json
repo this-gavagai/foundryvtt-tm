@@ -7,7 +7,14 @@
     "spotlight": "Perception & Initiative",
     "flat": "Flat",
     "skills": "Skills",
-    "lores": "Lores"
+    "lores": "Lores",
+    "traits": "Traits",
+    "trait": {
+      "concentrate": "Concentrate",
+      "manipulate": "Manipulate",
+      "fortune": "Fortune",
+      "misfortune": "Misfortune"
+    }
   },
   "common": {
     "loading": "Loading...",

@@ -37,6 +37,21 @@ function toggleStat(slug: string) {
   activeSlug.value = activeSlug.value === slug ? undefined : slug
 }
 
+// Multi-select roll-option traits. Attached to the roll as both display labels
+// (traits[]) and rule-element predicate options (extraRollOptions[]). For
+// fortune/misfortune, we additionally drive PF2e's rollTwice mechanic so the
+// roll actually becomes 2d20kh / 2d20kl. If both are selected, PF2e cancels
+// them and rolls 1d20 (still emits both labels).
+const TRAIT_OPTIONS = ['concentrate', 'manipulate', 'fortune', 'misfortune'] as const
+type TraitOption = (typeof TRAIT_OPTIONS)[number]
+const selectedTraits = ref<Set<TraitOption>>(new Set())
+function toggleTrait(slug: TraitOption) {
+  const next = new Set(selectedTraits.value)
+  if (next.has(slug)) next.delete(slug)
+  else next.add(slug)
+  selectedTraits.value = next
+}
+
 // Roller groups, rendered as labeled sub-rows in the template. Order matters
 // — saves and the spotlight rolls (perception/initiative) sit above the long
 // skill list since they're rolled more often.
@@ -132,12 +147,37 @@ const checkRolls = computed<Roll[]>(() => [
     armed: true,
     execute: async (faces?: number[]) => {
       const roller = allRollers.value.find((r) => r.slug === activeSlug.value)
-      const options = isSecret.value ? { rollMode: 'blindroll' } : {}
+      // PF2e's Statistic.roll uses `messageMode` for chat-card visibility (with
+      // Foundry's ChatMessageMode vocabulary: "public" | "gm" | "blind" | …),
+      // distinct from `rollMode` (the Roll.toMessage vocabulary: "publicroll" |
+      // "blindroll" | …). The two are not aliases — passing 'blindroll' here
+      // silently falls through to the user's default. The freeRoll fallback
+      // below uses Foundry's native path and keeps `rollMode`.
+      const traitList = [...selectedTraits.value]
+      // Fortune / misfortune drive rollTwice — see check.ts:124. PF2e cancels
+      // both when both are flagged on the same roll, so only set rollTwice
+      // when exactly one of the two is selected.
+      const hasFortune = selectedTraits.value.has('fortune')
+      const hasMisfortune = selectedTraits.value.has('misfortune')
+      const rollTwice =
+        hasFortune && !hasMisfortune
+          ? 'keep-higher'
+          : hasMisfortune && !hasFortune
+            ? 'keep-lower'
+            : undefined
+      const options: Record<string, unknown> = {}
+      if (isSecret.value) options.messageMode = 'blind'
+      if (traitList.length) {
+        options.traits = traitList
+        options.extraRollOptions = traitList
+      }
+      if (rollTwice) options.rollTwice = rollTwice
       const result = roller
         ? await roller.execute(faces?.[0], options)
         : await freeRoll(characterId.value ?? '', isSecret.value, faces?.[0])
-      // Reset selection after the roll fires so the next open starts fresh.
+      // Reset selections after the roll fires so the next open starts fresh.
       activeSlug.value = undefined
+      selectedTraits.value = new Set()
       return result
     }
   }
@@ -199,6 +239,27 @@ defineExpose({ open, close })
             </div>
           </div>
         </template>
+
+        <!-- Multi-select roll-option traits. Attach to the roll as labels and
+             rule-element predicate options; fortune/misfortune also drive PF2e's
+             rollTwice mechanic. Only meaningful when a stat is selected (no
+             statistic, no rule elements). -->
+        <div class="mt-3">
+          <h4 class="text-xs tracking-wide text-gray-600 uppercase">
+            {{ $t('rollCheck.traits') }}
+          </h4>
+          <div data-part="check-traits" class="mt-1 flex flex-wrap gap-1">
+            <span
+              v-for="trait in TRAIT_OPTIONS"
+              :key="trait"
+              :data-active="selectedTraits.has(trait) ? '' : undefined"
+              class="inline-block cursor-pointer rounded border border-gray-400 bg-gray-100 px-2 py-1 text-xs whitespace-nowrap text-gray-900 capitalize select-none active:bg-gray-300 data-active:border-blue-700 data-active:bg-blue-600 data-active:text-white"
+              @click="toggleTrait(trait)"
+            >
+              {{ $t('rollCheck.trait.' + trait) }}
+            </span>
+          </div>
+        </div>
       </div>
     </template>
   </InfoModal>

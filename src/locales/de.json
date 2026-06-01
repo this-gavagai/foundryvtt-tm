@@ -7,7 +7,14 @@
     "spotlight": "Wahrnehmung & Initiative",
     "flat": "Flach",
     "skills": "Fertigkeiten",
-    "lores": "Kenntnisse"
+    "lores": "Kenntnisse",
+    "traits": "Merkmale",
+    "trait": {
+      "concentrate": "Konzentration",
+      "manipulate": "Manipulieren",
+      "fortune": "Glück",
+      "misfortune": "Unglück"
+    }
   },
   "common": {
     "loading": "Wird geladen...",

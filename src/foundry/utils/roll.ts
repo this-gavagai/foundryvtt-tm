@@ -103,7 +103,10 @@ type RollResultShape = {
   [n: number]: { message?: { whisper?: string[] } } | undefined
 }
 
-export function extractRollPayload(rRaw: unknown, args: { userId: string }) {
+export function extractRollPayload(
+  rRaw: unknown,
+  args: { userId: string; options?: object }
+) {
   if (!rRaw) return {}
   const r = rRaw as RollResultShape
   // r[0] handles array-form results (e.g. strike variants); hasOwnProperty
@@ -115,8 +118,22 @@ export function extractRollPayload(rRaw: unknown, args: { userId: string }) {
       ? (rollEl as RollResultShape).roll
       : rollEl
   ) as RollResultShape | undefined
-  const isSecret =
+  // Secret detection has two paths:
+  //   1. Strike/action results carry message.whisper — non-empty recipients
+  //      that exclude the calling user mean it's hidden from them.
+  //   2. PF2e's Statistic.roll returns a bare CheckRoll with no message data;
+  //      for those we rely on the requested visibility in args.options
+  //      (messageMode: "blind" | "gm" for PF2e, rollMode: "blindroll" |
+  //      "gmroll" for raw Foundry rolls).
+  const opts = (args.options ?? {}) as { messageMode?: string; rollMode?: string }
+  const requestedHidden =
+    opts.messageMode === 'blind' ||
+    opts.messageMode === 'gm' ||
+    opts.rollMode === 'blindroll' ||
+    opts.rollMode === 'gmroll'
+  const whisperHidden =
     (r?.[0]?.message?.whisper?.length ?? 0) > 0 && !r?.[0]?.message?.whisper?.includes(args.userId)
+  const isSecret = whisperHidden || requestedHidden
   const { formula, result, total, dice } = actualRoll ?? {}
   return { roll: { formula, result, total, dice, isSecret } }
 }

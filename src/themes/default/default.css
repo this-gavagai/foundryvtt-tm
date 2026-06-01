@@ -76,7 +76,7 @@ body.theme-default {
   }
 
   [data-component='FrontPage'] [data-component='StatBox'] [data-part='modifier'] {
-    font-size: 130%;
+    font-size: 13 0%;
   }
 
   /* bump MovementSpeed stat-box labels from the StatBox default (0.65rem) */

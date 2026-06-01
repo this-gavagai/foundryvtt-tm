@@ -22,15 +22,15 @@ const { setActiveCharacterId } = characterSelectStore
         </div>
       </ListboxButton>
       <ListboxOptions
-        class="ring-opacity-5 absolute z-50 mt-1 max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-gray-200 empty:hidden focus:outline-hidden sm:text-sm"
+        data-part="dropdown-options"
+        class="absolute z-50 mt-1 max-h-60 overflow-auto rounded-md py-1 text-base empty:hidden focus:outline-hidden sm:text-sm"
       >
         <ListboxOption v-if="!characterList">
-          <div class="relative py-2 pr-4 pl-6 text-gray-400 select-none">
+          <div class="relative py-2 pr-4 pl-6 select-none opacity-60">
             {{ $t('common.loading') }}
           </div>
         </ListboxOption>
         <ListboxOption
-          v-slot="{ active }"
           v-for="chr in characterList
             .filter((c) => c !== _id)
             .map((c: string) => world?.actors.find((a: ActorPF2e) => a._id === c))"
@@ -40,10 +40,7 @@ const { setActiveCharacterId } = characterSelectStore
         >
           <div
             v-if="chr?.name"
-            :class="[
-              active ? 'bg-blue-100 text-blue-900' : 'text-gray-900',
-              'relative cursor-pointer py-2 pr-4 pl-6 select-none'
-            ]"
+            class="relative cursor-pointer py-2 pr-4 pl-6 select-none"
           >
             <div class="flex w-full gap-2">
               <div class="pr-4">{{ chr?.name }}</div>
