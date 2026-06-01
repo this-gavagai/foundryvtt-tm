@@ -28,6 +28,14 @@ export function fireRefresh(actorId: string | null | undefined) {
   refreshCallbacks[actorId]?.forEach((fn) => fn())
 }
 
+// Fan out a refresh to every registered actor — used on socket reconnect to
+// catch up on changes missed while the connection was gapped. Without this,
+// soft reconnects (socket.io's internal retry) leave actor data stale until
+// the user manually does something that triggers a re-fetch.
+export function fireAllRefresh() {
+  Object.keys(refreshCallbacks).forEach(fireRefresh)
+}
+
 export const setCharUnsynced = (actorId: string, value: boolean) =>
   characterUnsynced.set(actorId, value)
 export const isCharUnsynced = (actorId: string) => characterUnsynced.get(actorId) ?? false

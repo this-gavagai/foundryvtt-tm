@@ -18,7 +18,14 @@ export const useWorldStore = defineStore('world', () => {
 
   async function fetchWorldStatus(): Promise<boolean | undefined> {
     try {
-      const resp = await fetch(`${window.location.origin}/api/status`)
+      // 3s cap so a flaky cellular network doesn't strand refreshes on the
+      // HTTP step. /api/status is normally a sub-100ms call.
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 3000)
+      const resp = await fetch(`${window.location.origin}/api/status`, {
+        signal: controller.signal
+      })
+      clearTimeout(timeoutId)
       if (!resp.ok) return undefined
       const data = await resp.json()
       return typeof data?.active === 'boolean' ? data.active : undefined
@@ -43,14 +50,19 @@ export const useWorldStore = defineStore('world', () => {
     try {
       socket = await getSocket()
     } catch {
-      worldActive.value = false
+      // Don't downgrade worldActive on transient socket failures — the last-
+      // known state stays visible until a healthy round-trip arrives.
       return world as Ref<GamePF2e>
     }
     return new Promise<Ref<GamePF2e>>((resolve) => {
-      const timer = setTimeout(() => {
-        worldActive.value = false
-        resolve(world as Ref<GamePF2e>)
-      }, WORLD_REQUEST_TIMEOUT_MS)
+      // Timeout only resolves the promise — it does NOT flip worldActive.
+      // The previous behavior set worldActive=false on timeout, which forced
+      // the spinner up whenever a stale-socket call timed out, even if a
+      // parallel refresh against a healthy socket had already succeeded. The
+      // healthy round-trip will overwrite the world ref when it eventually
+      // lands (via socket.io's ack buffering on auto-reconnect, or via the
+      // next refresh fired off the session event).
+      const timer = setTimeout(() => resolve(world as Ref<GamePF2e>), WORLD_REQUEST_TIMEOUT_MS)
 
       socket.emit('world', (r: GamePF2e) => {
         clearTimeout(timer)
@@ -79,13 +91,10 @@ export const useWorldStore = defineStore('world', () => {
     }
   }, 8000)
 
-  // Catch up on missed modifyDocument events that arrived while the page
-  // was backgrounded by re-fetching the world on visibility return. The
-  // 2s leading-edge debounce on refreshWorld absorbs spurious repeated
-  // visibility events.
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && world.value) refreshWorld()
-  })
+  // (Visibility-return refresh is owned by App.vue, which probes the socket
+  // first and force-reconnects if dead. Routing visibility through there
+  // avoids a race where this store's listener would fire refreshWorld on a
+  // stale socket before App.vue's probe got a chance to replace it.)
 
   // Foundry broadcasts 'progress' events while loading a world. Listen for
   // them to detect an in-progress world load (independent of auth state):

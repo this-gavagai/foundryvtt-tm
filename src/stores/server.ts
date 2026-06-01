@@ -4,6 +4,7 @@ import { io, Socket } from 'socket.io-client'
 import { useUserStore } from '@/stores/user'
 import { logger } from '@/utils/utilities'
 import { TM } from '@/api/protocol'
+import { fireAllRefresh } from '@/api/characterSync'
 
 export interface JoinUser {
   _id: string
@@ -141,12 +142,13 @@ export const useServerStore = defineStore('server', () => {
   }
 
   // Tear down the current socket and start fresh against the last-known
-  // server URL. `allowRelogin: false` keeps the auto-login path quiet — we're
-  // recovering from a transport issue, not a credential issue.
+  // server URL. `allowRelogin: true` lets handleAuthFailure retry stored
+  // creds — important when reconnecting after Foundry restarted and the
+  // session cookie is no longer valid.
   async function forceReconnect(): Promise<void> {
     if (!serverUrl) return
     socket.value?.disconnect()
-    await connectToServer(serverUrl, false)
+    await connectToServer(serverUrl, true)
   }
 
   async function connectToServer(url: URL, allowRelogin = true) {
@@ -167,10 +169,19 @@ export const useServerStore = defineStore('server', () => {
         isConnected.value = true
         socket.value.on('disconnect', () => { isConnected.value = false })
         socket.value.on('connect', () => { isConnected.value = true })
-        socket.value.on('session', (args: { userId: string }) => {
+        socket.value.on('session', async (args: { userId: string }) => {
           if (args?.userId) {
             useUserStore().setUserId(args?.userId)
             needsLogin.value = false
+            // Re-fire downstream refreshes on every session handshake. This
+            // covers both initial auth and post-reconnect re-auth — including
+            // socket.io's internal soft reconnects, which don't replace
+            // socket.value and therefore don't trip App.vue's socket-watch.
+            // Dynamic import dodges the circular dep between server and
+            // world stores (world imports useServerStore at module load).
+            const { useWorldStore } = await import('@/stores/world')
+            useWorldStore().refreshWorld()
+            fireAllRefresh()
           } else {
             handleAuthFailure(url, allowRelogin)
           }
