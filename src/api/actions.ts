@@ -172,7 +172,8 @@ export const rollFreeDamage = (
   actor: Ref<CharacterPF2e>,
   formula: string,
   result: DiceResults = {},
-  itemId?: string
+  itemId?: string,
+  damageInline?: Record<string, string | true>
 ) =>
   sendAction(TM.ROLL_CHECK, {
     ...fromActorTargeted(actor),
@@ -181,7 +182,7 @@ export const rollFreeDamage = (
     checkSubtype: formula,
     modifiers: [],
     diceResults: result,
-    options: { itemId }
+    options: { itemId, damageInline }
   })
 
 export const sendItemToChat = (characterId: string, itemId: string) =>

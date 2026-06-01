@@ -39,6 +39,7 @@ export function useRollsFromActiveRoll(
       const formula = ar.formula
       const dice = parseDamageFormulaDice(formula)
       const itemId = ar.itemId
+      const damageInline = ar.damageInline
       return [
         {
           key: `inline:damage:${formula}`,
@@ -49,7 +50,8 @@ export function useRollsFromActiveRoll(
             doFreeDamage(
               formula,
               faces && dice.length ? makeDiceResults(dice, faces) : undefined,
-              itemId
+              itemId,
+              damageInline
             )
         }
       ]

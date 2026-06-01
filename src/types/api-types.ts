@@ -234,6 +234,12 @@ export interface ActiveRoll {
   // which renders the chat card identically to a native click — item-name
   // header, action glyph, trait pills, item-context modifiers.
   itemId?: string
+  // Pipe annotations parsed off an inline @Damage[...|key:val|flag] call —
+  // forwarded verbatim so the handler can stamp each onto the synthetic
+  // anchor's dataset (data-traits, data-roll-options, data-domains, data-name,
+  // data-immutable, data-override-traits). Values are raw strings; flag-form
+  // params arrive as `true`.
+  damageInline?: Record<string, string | true>
 }
 
 export interface DiceResults {

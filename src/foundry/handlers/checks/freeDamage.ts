@@ -35,10 +35,21 @@ declare const Hooks: {
 //   skipDefault = !user.settings.showDamageDialogs
 //   skipDialog  = shiftKey ? !skipDefault : skipDefault
 // Setting shiftKey to skipDefault's inverse makes both branches yield true.
+// Mirrors PF2e's @Damage enricher (text-editor.ts:776-805): combine explicit
+// traits with the item's own traits (unless overrideTraits), and stamp the
+// rest of the pipe annotations onto the corresponding dataset attributes that
+// _onClickInlineRoll reads (text-editor.ts:142-160). Param→dataset mapping:
+//   traits         → data-traits          (merged with item.traits unless overridden)
+//   options        → data-roll-options    (PF2e renames `options:` to rollOptions)
+//   domains        → data-domains
+//   name           → data-name
+//   immutable      → data-immutable       (flag presence)
+//   overrideTraits → data-override-traits (flag presence; also drives merge above)
 function makeInlineAnchorEvent(
   formula: string,
   itemUuid: string,
-  traits: string[]
+  itemTraits: string[],
+  damageInline: Record<string, string | true> | undefined
 ): PointerEvent {
   const wrapper = document.createElement('div')
   wrapper.dataset.itemUuid = itemUuid
@@ -46,15 +57,32 @@ function makeInlineAnchorEvent(
   anchor.dataset.formula = formula
   anchor.dataset.baseFormula = formula
   anchor.dataset.damageRoll = ''
-  // PF2e's native @Damage enricher (text-editor.ts:742-746) combines any
-  // explicit `traits:` params with the source item's own traits and writes
-  // them to `data-traits`. _onClickInlineRoll then surfaces those as
-  // context.traits in augmentInlineDamageRoll → rendered as the "action trait"
-  // pill row in the chat card. The item-trait pill row is rendered separately
-  // by DamagePF2e.roll from context.self.item, so without data-traits set we
-  // get the item row only (and the chat card looks subtly different from a
-  // native click on the same anchor).
-  if (traits.length) anchor.dataset.traits = traits.join(',')
+
+  const overrideTraits = damageInline?.overrideTraits === true
+  const paramTraits =
+    typeof damageInline?.traits === 'string'
+      ? damageInline.traits.split(',').map((t) => t.trim()).filter(Boolean)
+      : []
+  const mergedTraits = overrideTraits
+    ? paramTraits
+    : Array.from(new Set([...itemTraits, ...paramTraits]))
+  if (mergedTraits.length) anchor.dataset.traits = mergedTraits.join(',')
+
+  if (typeof damageInline?.options === 'string' && damageInline.options) {
+    anchor.dataset.rollOptions = damageInline.options
+  }
+  if (typeof damageInline?.domains === 'string' && damageInline.domains) {
+    anchor.dataset.domains = damageInline.domains
+  }
+  if (typeof damageInline?.name === 'string' && damageInline.name) {
+    anchor.dataset.name = damageInline.name
+  }
+  // Flag-form params are emitted as empty strings on a native enriched anchor
+  // (text-editor.ts:796-797: `immutable ? "" : null`). PF2e checks them via
+  // `"immutable" in anchor.dataset`, so any present-but-empty value qualifies.
+  if (damageInline?.immutable === true) anchor.dataset.immutable = ''
+  if (overrideTraits) anchor.dataset.overrideTraits = ''
+
   wrapper.appendChild(anchor)
   const event = new PointerEvent('click', { shiftKey: !!game.user.settings.showDamageDialogs })
   Object.defineProperty(event, 'target', { value: anchor, configurable: true })
@@ -75,8 +103,10 @@ function makeInlineAnchorEvent(
 // via a one-shot createChatMessage hook installed around the call.
 export const handleFreeDamage: CheckRollHandler = async ({ actor, args }) => {
   const formula = args.checkSubtype
-  const itemId = (args.options as { itemId?: string } | undefined)?.itemId
-  const item = itemId ? actor.items.get(itemId) : null
+  const opts = args.options as
+    | { itemId?: string; damageInline?: Record<string, string | true> }
+    | undefined
+  const item = opts?.itemId ? actor.items.get(opts.itemId) : null
   if (!item) return rollDamageFormulaToMessage(formula, actor)
 
   let resolveMessage: ((msg: { rolls?: unknown[] } | undefined) => void) | undefined
@@ -91,8 +121,8 @@ export const handleFreeDamage: CheckRollHandler = async ({ actor, args }) => {
     resolveMessage?.(undefined)
   }, 5000)
 
-  const traits = (item.system as { traits?: { value?: string[] } } | undefined)?.traits?.value ?? []
-  const event = makeInlineAnchorEvent(formula, item.uuid, traits)
+  const itemTraits = (item.system as { traits?: { value?: string[] } } | undefined)?.traits?.value ?? []
+  const event = makeInlineAnchorEvent(formula, item.uuid, itemTraits, opts?.damageInline)
   await game.pf2e.TextEditor._onClickInlineRoll(event)
   const message = await messagePromise
   clearTimeout(timeoutId)

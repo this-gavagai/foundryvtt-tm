@@ -74,6 +74,24 @@ function splitOnTopLevelPipe(s: string): string[] {
   return parts
 }
 
+// Parse the post-formula pipe segments of an inline @Damage call into a
+// structured payload. Mirrors PF2e's TextEditorPF2e.#parseInlineParams: a
+// segment with a colon is a key:value pair; bare segments are flags set to
+// `true`. We keep raw strings on the wire (no comma-splitting yet) — the
+// handler maps each known key onto the synthetic anchor's dataset attribute,
+// and PF2e's _onClickInlineRoll does the splitting itself.
+function parseDamageInlineParams(segments: string[]): Record<string, string | true> {
+  const out: Record<string, string | true> = {}
+  for (const seg of segments) {
+    const trimmed = seg.trim()
+    if (!trimmed) continue
+    const colonIdx = trimmed.indexOf(':')
+    if (colonIdx === -1) out[trimmed] = true
+    else out[trimmed.slice(0, colonIdx).trim()] = trimmed.slice(colonIdx + 1)
+  }
+  return out
+}
+
 const formRef = ref<HTMLFormElement>()
 const activeRoll = ref<ActiveRoll>()
 
@@ -117,22 +135,27 @@ const parsedText = computed(() => {
 
   // @Damage[formula|opt:val|opt:val...]{label} — PF2e's inline @Damage accepts
   // pipe-separated annotations after the formula (e.g. `options:area-damage`,
-  // `traits:fire,cold`, `name:Fireball`). The formula itself can contain
-  // bracketed type tags whose pipes shouldn't count as separators. We capture
-  // the whole outer content (any non-bracket chars or balanced [...] tags) and
-  // then split on pipes at bracket-depth zero, using the first segment as the
-  // formula. Annotations are currently ignored — the inline roll posts a typed
-  // DamageRoll and doesn't apply rule-element predicates like `area-damage`.
+  // `traits:cold,manipulate`, `name:Fireball`, plus the flag forms `immutable`
+  // and `overrideTraits`). The formula itself can contain bracketed type tags
+  // whose pipes shouldn't count as separators. We capture the whole outer
+  // content (any non-bracket chars or balanced [...] tags), split on pipes at
+  // bracket-depth zero, take the first segment as the formula, and parse the
+  // rest into the structured `damageInline` payload — the Foundry handler then
+  // writes them onto the synthetic anchor's dataset so PF2e's _onClickInlineRoll
+  // receives the same context as a native enriched anchor.
   text = text?.replace(
     /@Damage\[((?:[^\[\]]|\[[^\]]*\])*)\](?:\{([^}]*)\})?/gm,
     (_, content, label) => {
-      const formula = splitOnTopLevelPipe(content)[0] ?? ''
+      const segments = splitOnTopLevelPipe(content)
+      const formula = segments[0] ?? ''
       const resolved = resolveFormula(formula, fullRollData.value)
+      const damageInline = parseDamageInlineParams(segments.slice(1))
       const obj = {
         action: 'damage',
         formula: resolved,
         label: label ?? resolved,
-        itemId: props.itemId
+        itemId: props.itemId,
+        damageInline: Object.keys(damageInline).length ? damageInline : undefined
       }
       return `<label class="has-checked:bg-blue-600 has-checked:text-white bg-gray-300 border-divider border -my-0.5 pb-px px-1 cursor-pointer whitespace-nowrap">
         <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value="${JSON.stringify(
