@@ -208,14 +208,13 @@ defineExpose({ open, close })
 <template>
   <InfoModal ref="modalRef" :rolls="damageRolls">
     <template #title>{{ $t('sideMenu.damageRollTitle') }}</template>
+    <template #bottomLeft>
+      <Toggle :active="isSecret" @changed="(v: boolean) => (isSecret = v)">
+        <span class="text-sm">{{ $t('sideMenu.secret') }}</span>
+      </Toggle>
+    </template>
     <template #beforeBody>
       <div data-component="DamageRollBuilder">
-      <div class="mt-2">
-        <Toggle :active="isSecret" @changed="(v: boolean) => (isSecret = v)">
-          <span class="text-lg">{{ $t('sideMenu.secret') }}</span>
-        </Toggle>
-      </div>
-
       <!-- Formula chips: dice tap-to-remove. Groups (one per DamageInstance)
            are formed automatically by matching (type, category) — a new group
            appears when the active type/category combo doesn't match any

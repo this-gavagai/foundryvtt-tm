@@ -302,6 +302,12 @@ defineExpose({ open, close, rollResultModal })
                   </div>
                 </div>
                 <div class="mt-4 flex flex-wrap items-center justify-end gap-2">
+                  <!-- Left-aligned slot, paired with `justify-end` on the row
+                       via `mr-auto`. Used by modals that need a per-action
+                       control inline with the roll button (e.g. secret toggle). -->
+                  <div class="mr-auto empty:hidden">
+                    <slot name="bottomLeft"></slot>
+                  </div>
                   <div
                     v-if="pixel && pixel.status === 'ready' && armedRoll?.dice?.length"
                     class="flex grow cursor-pointer items-center gap-1"

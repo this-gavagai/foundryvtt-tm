@@ -14,7 +14,6 @@ const {
   skills,
   perception,
   saves,
-  initiative,
   doFlatCheck
 } = useInjectedCharacter()
 
@@ -73,23 +72,6 @@ const saveRollers = computed<Roller[]>(() => [
   }
 ])
 
-const spotlightRollers = computed<Roller[]>(() => {
-  const list: Roller[] = []
-  if (perception.value) {
-    list.push({
-      slug: perception.value.slug ?? 'perception',
-      label: perception.value.label ?? t('saves.perception'),
-      execute: (face, opts) => perception.value!.roll?.(face, opts) ?? Promise.resolve(null)
-    })
-  }
-  list.push({
-    slug: 'initiative',
-    label: t('combat.initiative'),
-    execute: (face, opts) => initiative.roll(face, opts)
-  })
-  return list
-})
-
 const flatRollers: Roller[] = [
   {
     slug: 'flat-5',
@@ -103,33 +85,42 @@ const flatRollers: Roller[] = [
   }
 ]
 
-const skillRollers = computed<Roller[]>(() =>
-  (skills.value ?? [])
-    .filter((s) => !s.lore)
-    .map((s) => ({
+// Perception leads the skill list, followed by trained skills, with lore
+// skills appended at the end in italics. Initiative is intentionally omitted —
+// it's rolled from the combat tracker, not the side-menu check builder.
+const skillRollers = computed<Roller[]>(() => {
+  const list: Roller[] = []
+  if (perception.value) {
+    list.push({
+      slug: perception.value.slug ?? 'perception',
+      label: perception.value.label ?? t('saves.perception'),
+      execute: (face, opts) => perception.value!.roll?.(face, opts) ?? Promise.resolve(null)
+    })
+  }
+  for (const s of skills.value ?? []) {
+    if (s.lore) continue
+    list.push({
       slug: s.slug ?? '',
       label: s.label ?? s.slug ?? '',
       execute: (face, opts) => s.roll?.(face, opts) ?? Promise.resolve(null)
-    }))
-)
-
-const loreRollers = computed<Roller[]>(() =>
-  (skills.value ?? [])
-    .filter((s) => s.lore)
-    .map((s) => ({
+    })
+  }
+  for (const s of skills.value ?? []) {
+    if (!s.lore) continue
+    list.push({
       slug: s.slug ?? '',
       label: s.label ?? s.slug ?? '',
       italic: true,
       execute: (face, opts) => s.roll?.(face, opts) ?? Promise.resolve(null)
-    }))
-)
+    })
+  }
+  return list
+})
 
 const allRollers = computed<Roller[]>(() => [
   ...saveRollers.value,
-  ...spotlightRollers.value,
   ...flatRollers,
-  ...skillRollers.value,
-  ...loreRollers.value
+  ...skillRollers.value
 ])
 
 const activeLabel = computed(
@@ -203,23 +194,20 @@ defineExpose({ open, close })
 <template>
   <InfoModal ref="modalRef" :rolls="checkRolls">
     <template #title>{{ $t('sideMenu.freeRollTitle') }}</template>
+    <template #bottomLeft>
+      <Toggle :active="isSecret" @changed="(v: boolean) => (isSecret = v)">
+        <span class="text-sm">{{ $t('sideMenu.secret') }}</span>
+      </Toggle>
+    </template>
     <template #beforeBody>
       <div data-component="RollCheckBuilder">
-        <div class="mt-2">
-          <Toggle :active="isSecret" @changed="(v: boolean) => (isSecret = v)">
-            <span class="text-lg">{{ $t('sideMenu.secret') }}</span>
-          </Toggle>
-        </div>
-
         <!-- Each sub-row groups thematically related rollers. The chip styling
              is shared across all rows via the `check-traits` data-part. -->
         <template
           v-for="(group, gi) in [
             { label: $t('rollCheck.saves'), rollers: saveRollers },
-            { label: $t('rollCheck.spotlight'), rollers: spotlightRollers },
             { label: $t('rollCheck.flat'), rollers: flatRollers },
-            { label: $t('rollCheck.skills'), rollers: skillRollers },
-            { label: $t('rollCheck.lores'), rollers: loreRollers }
+            { label: $t('rollCheck.skills'), rollers: skillRollers }
           ]"
           :key="gi"
         >
