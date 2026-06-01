@@ -265,6 +265,9 @@
     "message": "A new version is available.",
     "reload": "Reload"
   },
+  "connection": {
+    "reconnecting": "Reconnecting…"
+  },
   "infoModal": {
     "systemIcon": "PF2e system icon",
     "dieImage": "d{faces} image",

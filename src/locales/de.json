@@ -262,6 +262,9 @@
     "message": "Eine neue Version ist verfügbar.",
     "reload": "Neu laden"
   },
+  "connection": {
+    "reconnecting": "Verbindung wird wiederhergestellt…"
+  },
   "infoModal": {
     "systemIcon": "PF2e-Systemsymbol",
     "dieImage": "d{faces}-Bild",

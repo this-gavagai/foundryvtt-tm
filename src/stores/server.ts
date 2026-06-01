@@ -31,10 +31,15 @@ function establishSocket(url: URL, keepAlive = false) {
     const socket = io(socketIoUrl.origin, {
       upgrade: false,
       path: socketIoUrl.pathname,
+      // Mobile networks (cellular ↔ wifi handoffs, NAT-binding expirations,
+      // PWA backgrounding) need an effectively unbounded retry budget — a few
+      // failed attempts is normal and giving up strands the user with a dead
+      // socket. delayMax: 15s caps the backoff so reconnection doesn't drift
+      // into minutes on prolonged outages.
       reconnection: keepAlive,
       reconnectionDelay: 1000,
-      reconnectionAttempts: 3,
-      reconnectionDelayMax: 5000,
+      reconnectionAttempts: Infinity,
+      reconnectionDelayMax: 15000,
       transports: ['websocket'],
       withCredentials: true,
       ...(sid ? { query: { session: sid } } : {})
@@ -117,6 +122,33 @@ export const useServerStore = defineStore('server', () => {
     return true
   }
 
+  // Round-trip a cheap ack-bearing emit with a short timeout. The socket.io
+  // client's `connected` flag can lag behind reality (the underlying TCP/
+  // websocket may be dead after a long PWA backgrounding without the client
+  // having noticed yet), so an explicit probe is the only reliable check.
+  // `getJoinData` already supports an ack callback server-side and has no
+  // side effects, so it's a safe heartbeat.
+  async function probeConnection(timeoutMs = 3000): Promise<boolean> {
+    const s = socket.value
+    if (!s || !s.connected) return false
+    return new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => resolve(false), timeoutMs)
+      s.emit('getJoinData', () => {
+        clearTimeout(timer)
+        resolve(true)
+      })
+    })
+  }
+
+  // Tear down the current socket and start fresh against the last-known
+  // server URL. `allowRelogin: false` keeps the auto-login path quiet — we're
+  // recovering from a transport issue, not a credential issue.
+  async function forceReconnect(): Promise<void> {
+    if (!serverUrl) return
+    socket.value?.disconnect()
+    await connectToServer(serverUrl, false)
+  }
+
   async function connectToServer(url: URL, allowRelogin = true) {
     serverUrl = url
     await establishSocket(url, true)
@@ -156,6 +188,8 @@ export const useServerStore = defineStore('server', () => {
     needsLogin,
     isConnected,
     connectToServer,
+    forceReconnect,
+    probeConnection,
     getSocket,
     login,
     getJoinData
