@@ -8,7 +8,7 @@ import type {
 import { logger } from '@/utils/utilities'
 import { useBackgroundRoll } from '../backgroundRoll'
 import { getGame, makeAck, makeFakeEvent } from '../utils/foundry'
-import { type FoundryRoll, rollDamageFormulaToMessage } from '../utils/roll'
+import type { FoundryRoll } from '../utils/roll'
 
 // Narrowed shadows over the ambient declarations from foundry-types /
 // pf2e-types. Macro globally is foundry.documents.Macro; we want the PF2e
@@ -50,6 +50,9 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
   return { ...makeAck(args), roll: { formula, result, total, dice, isSecret } }
 }
 
+// Raw 1d20 roll from the side-menu Check Roll modal's "Roll d20" fallback —
+// only fires when the user hasn't selected a specific stat chit. Damage
+// formulas are no longer routed here; see foundryRollDamage.
 export async function foundryFreeRoll(args: FreeRollArgs) {
   logger.debug('free roll', args)
   const source = getGame()
@@ -60,18 +63,8 @@ export async function foundryFreeRoll(args: FreeRollArgs) {
   // Display labels — purely a tag on the chat message so a glance at the chat
   // log identifies what the roll was for. No mechanical effect.
   const flavor = args.traits?.length ? args.traits.join(', ') : undefined
-  // Damage path: any formula carrying type tags (e.g. "2d6[fire]+1d4[bleed]")
-  // builds a typed PF2e DamageRoll chat card. Otherwise: plain 1d20.
-  let roll: FoundryRoll
-  if (args.damageFormula) {
-    roll = await rollDamageFormulaToMessage(args.damageFormula, actor, { rollMode })
-  } else {
-    roll = await new Roll('1d20').evaluate()
-    await roll.toMessage(
-      { speaker: { actor: actor._id ?? undefined }, flavor },
-      { rollMode }
-    )
-  }
+  const roll: FoundryRoll = await new Roll('1d20').evaluate()
+  await roll.toMessage({ speaker: { actor: actor._id ?? undefined }, flavor }, { rollMode })
   unregisterBackgroundRoll()
   return {
     ...makeAck(args),

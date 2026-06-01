@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useInjectedCharacter } from '@/composables/injectKeys'
-import { freeRoll } from '@/api/actions'
 import { makeDiceResults, parseDamageFormulaDice } from '@/utils/diceFormula'
 import InfoModal from '@/components/InfoModal.vue'
 import Toggle from '@/components/widgets/ToggleWidget.vue'
@@ -23,7 +22,7 @@ const dieIcons: Record<string, string> = {
 }
 
 const { t } = useI18n()
-const { _id: characterId } = useInjectedCharacter()
+const { doDamage } = useInjectedCharacter()
 
 const modalRef = ref()
 const isSecret = ref(false)
@@ -181,13 +180,10 @@ const damageRolls = computed<Roll[]>(() => {
       dice: dice.length ? dice : undefined,
       execute: async (faces?: number[]) => {
         if (!f) return null
-        const result = await freeRoll(
-          characterId.value ?? '',
-          isSecret.value,
-          undefined,
-          f,
-          faces && dice.length ? makeDiceResults(dice, faces) : undefined
-        )
+        const result = await doDamage(f, {
+          secret: isSecret.value,
+          diceResults: faces && dice.length ? makeDiceResults(dice, faces) : undefined
+        })
         // Reset the builder so the next open starts fresh.
         clearAll()
         return result

@@ -32,3 +32,4 @@ export {
 export { foundryGetSpellDamage } from './handlers/getSpellDamage'
 export { foundryGetStrikeDamage } from './handlers/getStrikeDamage'
 export { foundryRollCheck } from './handlers/rollCheck'
+export { foundryRollDamage } from './handlers/rollDamage'

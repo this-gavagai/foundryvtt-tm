@@ -163,26 +163,27 @@ export const getSpellDamage = (
     castingRank
   })
 
-// Free-form damage roll from an inline @Damage[...] link in a description.
-// Formula is already client-resolved (@item.level etc. substituted by
-// ParsedDescription). The optional itemId lets the Foundry handler look up
-// the source item and delegate chat-card rendering to PF2e's inline-roll
-// pipeline so the post matches a native click on the same @Damage anchor.
-export const rollFreeDamage = (
+// Unified entry point for any ad-hoc damage roll — both the side-menu
+// formula builder and inline @Damage[...] clicks. When `itemId` is set the
+// handler routes through PF2e's _onClickInlineRoll pipeline (item header,
+// trait pills, item-context modifiers); without it, posts a bare DamageRoll.
+export const rollDamage = (
   actor: Ref<CharacterPF2e>,
   formula: string,
-  result: DiceResults = {},
-  itemId?: string,
-  damageInline?: Record<string, string | true>
+  opts: {
+    secret?: boolean
+    diceResults?: DiceResults
+    itemId?: string
+    damageInline?: Record<string, string | true>
+  } = {}
 ) =>
-  sendAction(TM.ROLL_CHECK, {
+  sendAction(TM.ROLL_DAMAGE, {
     ...fromActorTargeted(actor),
-    item: null,
-    checkType: 'freeDamage',
-    checkSubtype: formula,
-    modifiers: [],
-    diceResults: result,
-    options: { itemId, damageInline }
+    formula,
+    secret: opts.secret ?? false,
+    diceResults: opts.diceResults ?? {},
+    itemId: opts.itemId,
+    damageInline: opts.damageInline
   })
 
 export const sendItemToChat = (characterId: string, itemId: string) =>
@@ -217,19 +218,19 @@ export const setWeaponDamageType = (
 export const toggleKineticAura = (actor: Ref<CharacterPF2e>) =>
   sendAction(TM.TOGGLE_KINETIC_AURA, fromActor(actor))
 
+// Raw 1d20 roll — the Check Roll modal's "Roll d20" fallback when no stat
+// chit is selected. Damage formulas no longer flow through here; use
+// rollDamage() instead.
 export const freeRoll = (
   characterId: string,
   secret: boolean,
   face?: number,
-  damageFormula?: string,
-  damageResult?: DiceResults,
   traits?: string[]
 ) =>
   sendAction(TM.FREE_ROLL, {
     characterId,
     secret,
-    diceResults: damageFormula ? (damageResult ?? {}) : { d20: [face ?? 0] },
-    ...(damageFormula ? { damageFormula } : {}),
+    diceResults: { d20: [face ?? 0] },
     ...(traits && traits.length ? { traits } : {})
   })
 

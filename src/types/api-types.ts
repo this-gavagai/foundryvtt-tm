@@ -20,6 +20,7 @@ export type ModuleEventArgs =
   | ToggleKineticAuraArgs
   | CastStaffSpellArgs
   | FreeRollArgs
+  | RollDamageArgs
   | GetSpellDamageArgs
 
 export interface AcknowledgementArgs {
@@ -107,13 +108,27 @@ export interface FreeRollArgs {
   characterId: string
   secret: boolean
   diceResults: DiceResults
-  // When present, the handler rolls a PF2e DamageRoll built from this formula
-  // (e.g. "2d6[fire]+1d4[bleed,persistent]") instead of the default 1d20.
-  damageFormula?: string
   // Optional display labels attached to the d20 chat message as flavor
   // (e.g. ["Athletics", "Stealth"]). No mechanical effect — purely a tag for
   // the GM/player to identify what the roll was about.
   traits?: string[]
+  uuid: string
+}
+export interface RollDamageArgs {
+  action: typeof TM.ROLL_DAMAGE
+  userId: string
+  characterId: string
+  formula: string
+  secret: boolean
+  diceResults: DiceResults
+  // Source-item ID for inline @Damage clicks. When set, the handler routes
+  // through PF2e's _onClickInlineRoll pipeline for native chat-card fidelity
+  // (item header, trait pills, item-context modifiers, rune/material tags).
+  // Without it, falls back to a bare DamageRoll → toMessage.
+  itemId?: string
+  // Pipe annotations parsed off the inline @Damage[...|key:val|flag] call,
+  // stamped onto the synthetic anchor's dataset by the handler.
+  damageInline?: Record<string, string | true>
   uuid: string
 }
 export interface CastStaffSpellArgs {

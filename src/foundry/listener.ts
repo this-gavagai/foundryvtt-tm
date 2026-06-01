@@ -13,6 +13,7 @@ import {
   foundryToggleKineticAura,
   foundryCastStaffSpell,
   foundryFreeRoll,
+  foundryRollDamage,
   foundryGetSpellDamage
 } from './handlers'
 import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
@@ -47,6 +48,7 @@ const actionHandlers: ActionHandlerMap = {
   [TM.TOGGLE_KINETIC_AURA]: foundryToggleKineticAura,
   [TM.CAST_STAFF_SPELL]: foundryCastStaffSpell,
   [TM.FREE_ROLL]: foundryFreeRoll,
+  [TM.ROLL_DAMAGE]: foundryRollDamage,
   [TM.GET_SPELL_DAMAGE]: foundryGetSpellDamage
 }
 

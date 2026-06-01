@@ -28,5 +28,6 @@ export const TM = {
   TOGGLE_KINETIC_AURA: 'toggleKineticAura',
   CAST_STAFF_SPELL: 'castStaffSpell',
   FREE_ROLL: 'freeRoll',
+  ROLL_DAMAGE: 'rollDamage',
   GET_SPELL_DAMAGE: 'getSpellDamage'
 } as const

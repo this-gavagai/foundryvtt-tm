@@ -4,7 +4,7 @@ import type { Field, WritableField } from './helpers'
 import type { DiceResults, RequestResolutionArgs } from '@/types/api-types'
 import { type Modifier, makeModifiers } from './defs/modifier'
 import { type Action, makeAction } from './defs/action'
-import { characterAction, rollCheck, callMacro, rollFreeDamage } from '@/api/actions'
+import { characterAction, rollCheck, callMacro, rollDamage } from '@/api/actions'
 import { updateActor } from '@/api/documents'
 import { actionTypes } from '@/utils/constants'
 
@@ -14,11 +14,14 @@ export interface CharacterActions {
     options?: object | undefined,
     rollResult?: number | undefined
   ) => Promise<RequestResolutionArgs | null>
-  doFreeDamage: (
+  doDamage: (
     formula: string,
-    result?: DiceResults,
-    itemId?: string,
-    damageInline?: Record<string, string | true>
+    opts?: {
+      secret?: boolean
+      diceResults?: DiceResults
+      itemId?: string
+      damageInline?: Record<string, string | true>
+    }
   ) => Promise<RequestResolutionArgs | null>
   actions: Field<Action[]>
   initiative: {
@@ -95,16 +98,19 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
     }
   }
 
-  const doFreeDamage = (
+  const doDamage = (
     formula: string,
-    result?: DiceResults,
-    itemId?: string,
-    damageInline?: Record<string, string | true>
-  ) => rollFreeDamage(actor as Ref<CharacterPF2e>, formula, result ?? {}, itemId, damageInline)
+    opts: {
+      secret?: boolean
+      diceResults?: DiceResults
+      itemId?: string
+      damageInline?: Record<string, string | true>
+    } = {}
+  ) => rollDamage(actor as Ref<CharacterPF2e>, formula, opts)
 
   return {
     doCharacterAction,
-    doFreeDamage,
+    doDamage,
     actions,
     initiative
   }

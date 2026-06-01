@@ -5,7 +5,6 @@ import { getCharacter, getGame, makeAck, makeFakeEvent } from '../utils/foundry'
 import { resolveTarget } from '../utils/target'
 import { handleBlast, handleBlastDamage } from './checks/blast'
 import { handleFlat } from './checks/flat'
-import { handleFreeDamage } from './checks/freeDamage'
 import { handleSpellAttack, handleSpellDamage } from './checks/spell'
 import {
   handleInitiative,
@@ -28,7 +27,6 @@ const CHECK_ROLL_HANDLERS: Record<string, CheckRollHandler> = {
   perception: handlePerception,
   initiative: handleInitiative,
   spellAttack: handleSpellAttack,
-  freeDamage: handleFreeDamage,
   spellDamage: handleSpellDamage,
   flat: handleFlat
 }

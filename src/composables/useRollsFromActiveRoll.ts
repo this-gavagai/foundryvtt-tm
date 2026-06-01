@@ -12,7 +12,7 @@ export function useRollsFromActiveRoll(
   activeRoll: Ref<ActiveRoll | undefined> | ComputedRef<ActiveRoll | undefined>
 ): ComputedRef<Roll[]> {
   const { t } = useI18n()
-  const { doCharacterAction, doFreeDamage, doFlatCheck, saves, skills } = useInjectedCharacter()
+  const { doCharacterAction, doDamage, doFlatCheck, saves, skills } = useInjectedCharacter()
 
   return computed<Roll[]>(() => {
     const ar = activeRoll.value
@@ -47,12 +47,11 @@ export function useRollsFromActiveRoll(
           color: 'blue',
           dice: dice.length ? dice : undefined,
           execute: (faces) =>
-            doFreeDamage(
-              formula,
-              faces && dice.length ? makeDiceResults(dice, faces) : undefined,
+            doDamage(formula, {
+              diceResults: faces && dice.length ? makeDiceResults(dice, faces) : undefined,
               itemId,
               damageInline
-            )
+            })
         }
       ]
     }
