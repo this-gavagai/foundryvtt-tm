@@ -1,15 +1,16 @@
 
-<img width="1022" alt="Screenshot 2024-12-22 at 1 33 10 PM" src="https://github.com/user-attachments/assets/26c7becb-90fe-43e4-a9ea-7da6ca7f37d9" />
+<img width="1483" height="1020" alt="Screenshot 2026-06-01 at 8 57 21 PM" src="https://github.com/user-attachments/assets/5e03f368-f5d2-43f2-bfa1-920a1a36af29" />
+
 
 # What is this?
 
 This is a Character Sheet for the Pathfinder 2e system on FoundryVTT. It was designed to be run on a phone or tablet during in-person games, replacing the need for a laptop. 
-At this point, it's still probably more a proof of concept than something you'd want to depend on.
 
 Unlike most of the mobile sheets out there, this applicaiton does not load Foundry in the background. Instead, it's a relatively light-weight webpage. 
 All data exchange happens using Foundry's built-in websockets. This should make it run better on low-performace devices, and it should allow for a more customized, streamlined experience.
 
 There are some limitations to this approach. Mainly, the character sheet doesn't work very well unless a GM is logged in. I'm looking to improve on this in the future, though there will always be limitations to what's possible.
+
 
 ## Things you can do now:
 - View most character details, including stats, conditions, modifiers, inventory, and spell lists
@@ -18,6 +19,7 @@ There are some limitations to this approach. Mainly, the character sheet doesn't
 - Change roll options and other sheet toggles
 - Roll skill checks, cast spells, and make attacks, using a targeting proxy if desired (i.e., a horizontally mounted TV)
 - Roll Pixel bluetooth dice and pass the results to the server
+- Theming support
   
 ## Things on the top of my to-do list:
 - Provide a way to change modifiers before making rolls
@@ -25,7 +27,6 @@ There are some limitations to this approach. Mainly, the character sheet doesn't
 - Some backend work, especially some data abstraction and better use of typing
 
 ## Things further down the list:
-- A more intersting look, including support for theming
 - Some way to browse items and add them to the character sheet
 - More functionality when a GM is not available, and more graceful degredation for the things that aren't possible without a GM logged in
 
@@ -42,3 +43,7 @@ Manifest is here: https://github.com/this-gavagai/foundryvtt-tm/releases/latest/
 
 # A note of caution
 I'm sharing this module in good faith. I use it in my own games, and I'm not aware of anything that would seriously mess up your game data. That said, I'm not particularly knowledgable as a programmer, and it's very possible I've done something stupid. Use at your own risk. Backups are good.
+
+# WARNING ABOUT FOUNDRY v14
+
+Over the last few releases, the developers of Foundry have been trying to shut down modules that operate outside the standard interface. I don't know why they're trying to do this. It's very frustrating. It's pretty simple to override these blocks with a free cloudflare tunnel, and I am planning to post documentation about this soon. In the meantime, be aware that upgrading to v14 without setting up a tunnel is likely to break this module in ways I can't fix.
