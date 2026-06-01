@@ -17,6 +17,10 @@ import { type Stat, makeStat } from './defs/stat'
 import { updateActor } from '@/api/documents'
 
 export interface CharacterCore {
+  // Live underlying PF2e actor — escape hatch for code that needs prototype
+  // getters (abilities, attributes, …) the curated Fields above flatten away.
+  // Used by ParsedDescription to resolve `@actor.foo` paths in inline rolls.
+  _actor: Ref<TablemateCharacter | undefined>
   _id: Field<string>
   name: Field<string>
   portraitUrl: Field<string>
@@ -87,6 +91,7 @@ export function useCharacterCore(actor: Ref<TablemateCharacter | undefined>): Ch
   const rollOptionLabels = computed(() => actor.value?.rollOptionLabels)
 
   return {
+    _actor: actor,
     _id,
     name,
     portraitUrl,
