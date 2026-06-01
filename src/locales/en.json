@@ -261,6 +261,10 @@
   "widgets": {
     "toggleSwitch": "Toggle Switch"
   },
+  "updatePrompt": {
+    "message": "A new version is available.",
+    "reload": "Reload"
+  },
   "infoModal": {
     "systemIcon": "PF2e system icon",
     "dieImage": "d{faces} image",

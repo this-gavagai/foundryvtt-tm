@@ -258,6 +258,10 @@
   "widgets": {
     "toggleSwitch": "Umschalter"
   },
+  "updatePrompt": {
+    "message": "Eine neue Version ist verfügbar.",
+    "reload": "Neu laden"
+  },
   "infoModal": {
     "systemIcon": "PF2e-Systemsymbol",
     "dieImage": "d{faces}-Bild",

@@ -19,6 +19,7 @@ import { useUserStore } from '@/stores/user'
 import CharacterSheet from '@/components/CharacterSheet.vue'
 import LoginPage from '@/components/LoginPage.vue'
 import Spinner from '@/components/widgets/SpinnerWidget.vue'
+import UpdatePrompt from '@/components/UpdatePrompt.vue'
 import { logger } from './utils/utilities'
 import { initTheme } from '@/composables/useTheme'
 
@@ -187,4 +188,5 @@ if (BUILD_MODE === 'development') {
       </TabPanel>
     </TabPanels>
   </TabGroup>
+  <UpdatePrompt />
 </template>
