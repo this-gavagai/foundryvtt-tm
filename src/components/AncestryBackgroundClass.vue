@@ -58,6 +58,7 @@ function viewItem(item: Item | undefined) {
             ref="description"
             :text="identityViewed?.system?.description?.value"
             :labels="rollOptionLabels"
+            :itemId="identityViewed?._id ?? undefined"
           />
           <div v-if="identityViewed?.type === 'ancestry'">
             <hr />
@@ -66,6 +67,7 @@ function viewItem(item: Item | undefined) {
               <ParsedDescription
                 :text="heritage?.system?.description?.value"
                 :labels="rollOptionLabels"
+                :itemId="heritage?._id ?? undefined"
               />
             </div>
           </div>

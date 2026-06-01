@@ -715,6 +715,7 @@ const spellbook = computed((): Spellbook => {
                 :text="viewedConsumable?.system.spell.system.description?.value"
                 :labels="rollOptionLabels"
                 :rollData="viewedConsumableSpellRollData"
+                :itemId="viewedConsumable?._id ?? undefined"
               />
               <hr />
               <h4 class="pt-1 text-xl">{{ $t('spells.wandDetails') }}</h4>
@@ -724,6 +725,7 @@ const spellbook = computed((): Spellbook => {
               :text="viewedItem?.system.description?.value"
               :labels="rollOptionLabels"
               :rollData="viewedSpellRollData"
+              :itemId="viewedItem?._id ?? undefined"
             />
           </template>
         </template>

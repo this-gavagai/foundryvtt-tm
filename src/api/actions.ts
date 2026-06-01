@@ -165,12 +165,14 @@ export const getSpellDamage = (
 
 // Free-form damage roll from an inline @Damage[...] link in a description.
 // Formula is already client-resolved (@item.level etc. substituted by
-// ParsedDescription), so the Foundry handler just builds a DamageRoll and
-// posts it — no item lookup needed.
+// ParsedDescription). The optional itemId lets the Foundry handler look up
+// the source item and delegate chat-card rendering to PF2e's inline-roll
+// pipeline so the post matches a native click on the same @Damage anchor.
 export const rollFreeDamage = (
   actor: Ref<CharacterPF2e>,
   formula: string,
-  result: DiceResults = {}
+  result: DiceResults = {},
+  itemId?: string
 ) =>
   sendAction(TM.ROLL_CHECK, {
     ...fromActorTargeted(actor),
@@ -179,7 +181,7 @@ export const rollFreeDamage = (
     checkSubtype: formula,
     modifiers: [],
     diceResults: result,
-    options: {}
+    options: { itemId }
   })
 
 export const sendItemToChat = (characterId: string, itemId: string) =>

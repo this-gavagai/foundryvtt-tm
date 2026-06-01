@@ -16,7 +16,8 @@ export interface CharacterActions {
   ) => Promise<RequestResolutionArgs | null>
   doFreeDamage: (
     formula: string,
-    result?: DiceResults
+    result?: DiceResults,
+    itemId?: string
   ) => Promise<RequestResolutionArgs | null>
   actions: Field<Action[]>
   initiative: {
@@ -93,8 +94,8 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
     }
   }
 
-  const doFreeDamage = (formula: string, result?: DiceResults) =>
-    rollFreeDamage(actor as Ref<CharacterPF2e>, formula, result ?? {})
+  const doFreeDamage = (formula: string, result?: DiceResults, itemId?: string) =>
+    rollFreeDamage(actor as Ref<CharacterPF2e>, formula, result ?? {}, itemId)
 
   return {
     doCharacterAction,

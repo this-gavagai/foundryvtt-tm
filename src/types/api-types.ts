@@ -229,6 +229,11 @@ export interface ActiveRoll {
   // Free-form damage formula. Already client-resolved (@item.level / @actor.x
   // substitutions performed in ParsedDescription) so it can be rolled directly.
   formula?: string
+  // Source-item ID for inline @Damage clicks. The Foundry handler resolves
+  // this to a full item UUID and hands it to PF2e's inline-roll click handler,
+  // which renders the chat card identically to a native click — item-name
+  // header, action glyph, trait pills, item-context modifiers.
+  itemId?: string
 }
 
 export interface DiceResults {

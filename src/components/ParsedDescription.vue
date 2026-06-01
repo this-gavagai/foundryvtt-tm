@@ -14,6 +14,10 @@ const props = defineProps<{
   // The `actor` slot is filled automatically from the injected character —
   // callers shouldn't need to thread actor data through.
   rollData?: Record<string, unknown>
+  // Source item ID, forwarded with any inline @Damage click so the Foundry-
+  // side handler can build a synthetic anchor and let PF2e's own click handler
+  // render the chat card (item header, traits, modifiers).
+  itemId?: string
 }>()
 
 // PF2e formulas reference `@actor.abilities.str.mod`, `@actor.level`, etc. —
@@ -124,7 +128,12 @@ const parsedText = computed(() => {
     (_, content, label) => {
       const formula = splitOnTopLevelPipe(content)[0] ?? ''
       const resolved = resolveFormula(formula, fullRollData.value)
-      const obj = { action: 'damage', formula: resolved, label: label ?? resolved }
+      const obj = {
+        action: 'damage',
+        formula: resolved,
+        label: label ?? resolved,
+        itemId: props.itemId
+      }
       return `<label class="has-checked:bg-blue-600 has-checked:text-white bg-gray-300 border-divider border -my-0.5 pb-px px-1 cursor-pointer whitespace-nowrap">
         <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value="${JSON.stringify(
           obj

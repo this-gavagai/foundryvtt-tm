@@ -122,6 +122,7 @@ const featCategories = computed(() => {
             ref="description"
             :text="viewedFeat?.system?.description.value"
             :labels="rollOptionLabels"
+            :itemId="viewedFeat?._id ?? undefined"
           />
         </template>
       </InfoModal>

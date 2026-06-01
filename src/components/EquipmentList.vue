@@ -269,7 +269,12 @@ const toggleSet = [
           </div>
         </template>
         <template #body>
-          <ParsedDescription ref="description" :text="itemViewed?.system?.description.value" :labels="rollOptionLabels" />
+          <ParsedDescription
+            ref="description"
+            :text="itemViewed?.system?.description.value"
+            :labels="rollOptionLabels"
+            :itemId="itemViewed?._id ?? undefined"
+          />
           <div class="flex">
             <div class="flex-1 text-xl">Qty: {{ itemViewed?.system?.quantity }}</div>
             <div

@@ -82,7 +82,12 @@ function runViewedActionMacro() {
           >
         </template>
         <template #body>
-          <ParsedDescription ref="description" :text="actionViewed?.system?.description.value" :labels="rollOptionLabels" />
+          <ParsedDescription
+            ref="description"
+            :text="actionViewed?.system?.description.value"
+            :labels="rollOptionLabels"
+            :itemId="actionViewed?._id ?? undefined"
+          />
         </template>
         <template #actionButtons v-if="isListening">
           <div class="align-items-center flex gap-2">
