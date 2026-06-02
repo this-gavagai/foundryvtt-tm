@@ -499,8 +499,8 @@ body.theme-default {
   [data-component='FeatsList'] {
     [data-part='sub-feat']:has(*) {
       font-style: italic;
-      padding-top: 0.35rem;
-      padding-bottom: 0.35rem;
+      padding-top: 0.15rem;
+      padding-bottom: 0.15rem;
       border-top: 1px solid var(--color-divider);
     }
 
