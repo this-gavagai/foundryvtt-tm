@@ -49,6 +49,8 @@ export default defineConfig(({ mode }) => {
           short_name: 'Tabula Mensa',
           description: 'A PF2e Character Sheet for FoundryVTT',
           theme_color: '#ffffff',
+          start_url: '/modules/tablemate/index.html',
+          scope: '/modules/tablemate/',
           icons: [
             {
               src: 'pwa-64x64.png',
@@ -92,12 +94,12 @@ export default defineConfig(({ mode }) => {
           ]
         },
         workbox: {
-          // The precache (auto-generated from the build manifest) already
-          // covers every JS/CSS/HTML asset we ship — runtime rules only matter
-          // for resources fetched from outside the build. The single remaining
-          // rule caches Foundry-served images (actor portraits, item icons
-          // under /icons/, /worlds/...) since those are the real cold-load
-          // bottleneck on tablets.
+          // Serve index.html for any navigation request within the app scope.
+          // Without this, a hard refresh or PWA cold-launch to /modules/tablemate
+          // (no trailing slash, no filename) falls through to the Foundry server
+          // which returns 404 for that bare path.
+          navigateFallback: '/modules/tablemate/index.html',
+          navigateFallbackAllowlist: [/^\/modules\/tablemate/],
           runtimeCaching: [
             {
               urlPattern: ({ request }) => request.destination === 'image',
