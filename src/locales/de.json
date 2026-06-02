@@ -183,7 +183,7 @@
   "equipment": {
     "noInventory": "Dieser Charakter hat kein Inventar.",
     "investedTitle": "Resonanzgegenstände",
-    "investedCount": "(Resonanzgegenstände: {count} / 10)",
+    "investedCount": "Resonanz: {count} / 10",
     "usesLabel": "Benutzungen:",
     "useItem": "Gegenstand benutzen"
   },

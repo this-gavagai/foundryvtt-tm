@@ -495,10 +495,17 @@ body.theme-default {
     }
   }
 
-  /* --- FeatsList: sub-feats are italic and the first one gets extra top space --- */
+  /* --- FeatsList: sub-feats match regular feat row spacing --- */
   [data-component='FeatsList'] {
-    [data-part='sub-feat'] {
+    [data-part='sub-feat']:has(*) {
       font-style: italic;
+      padding-top: 0.35rem;
+      padding-bottom: 0.35rem;
+      border-top: 1px solid var(--color-divider);
+    }
+
+    dd:has([data-part='sub-feat']:has(*)) {
+      padding-bottom: 0;
     }
   }
 
@@ -554,10 +561,67 @@ body.theme-default {
 
   /* --- EquipmentList ----------------------------------- */
   [data-component='EquipmentList'] {
+    /* Invested-count pill sits inline with the EquipmentBulk bar — match the
+       bar's height (38px) and corner radius (5px) so they read as a single
+       row of equally-weighted controls. `min-width` is sized for the widest
+       label ("Invested: 10 / 10") so the count toggling between single- and
+       double-digit values doesn't shift the bulk-bar width next to it.
+       `tabular-nums` keeps the digit columns themselves stable. */
     [data-part='invested-count'] {
-      color: oklch(82% 0.01 258);
-      margin-bottom: 0.75rem;
+      height: 38px;
+      min-width: 9.5rem;
+      padding-inline: 0.75rem;
+      border-radius: 5px;
+      background-color: oklch(20% 0.02 258);
+      border: 1px solid oklch(36% 0.022 258);
+      color: var(--color-text);
+      font-size: 0.8rem;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+      transition: background-color 120ms;
     }
+    [data-part='invested-count']:hover {
+      background-color: oklch(25% 0.025 258);
+    }
+    [data-part='invested-count']:active {
+      background-color: oklch(30% 0.028 258);
+    }
+  }
+
+  /* --- Invested Items modal --------------------------------------------
+     Promote the modal's DialogTitle to the same fading-accent treatment used
+     by section headers in the list cards, with the "trained" blue. Scoped via
+     :has() so only this specific modal picks it up; other modals keep their
+     plain-h3 chrome. The component's wrapper carries data-component, so the
+     :has() lookup is unambiguous. */
+  [role='dialog']:has([data-component='EquipmentInvested']) h3 {
+    font-size: 1.1rem;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    color: var(--color-heading);
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid;
+    border-image: linear-gradient(to right, var(--color-proficiency-trained), transparent) 1;
+    margin-bottom: 0.6rem;
+  }
+
+  /* Invested rows read at full text color; uninvested rows fade back so the
+     active set scans first. Replaces the component's previous Tailwind
+     `text-black` / `text-gray-300` which both clashed with the dark surface. */
+  [data-component='EquipmentInvested'] > li[data-invested='true'] {
+    color: var(--color-text);
+  }
+  [data-component='EquipmentInvested'] > li[data-invested='false'] {
+    color: oklch(55% 0.01 258);
+  }
+  /* Lock the marker glyph (✓ / ｘ) into a fixed-width centered slot so the
+     item name doesn't shift horizontally when toggling invested state — the
+     two characters render at different intrinsic widths otherwise. */
+  [data-component='EquipmentInvested'] > li > a > span:first-child {
+    display: inline-block;
+    width: 1.25rem;
+    text-align: center;
+    margin-right: 0.25rem;
   }
 
   /* --- EquipmentBulk bar ------------------------------- */
@@ -571,7 +635,7 @@ body.theme-default {
       stroke: transparent;
     }
     [data-part='bulk-hatch'] {
-      fill: oklch(24% 0.06 25);
+      fill: oklch(32% 0.1 35);
     }
 
     /* safe zone: barely elevated from danger zone — just enough to read */
@@ -581,13 +645,13 @@ body.theme-default {
 
     /* bulk fill states */
     [data-part='bulk-fill'][data-state='safe'] {
-      fill: oklch(62% 0.19 145);
+      fill: oklch(62% 0.19 135);
     }
     [data-part='bulk-fill'][data-state='encumbered'] {
       fill: oklch(74% 0.18 80);
     }
     [data-part='bulk-fill'][data-state='over-max'] {
-      fill: oklch(62% 0.19 25);
+      fill: oklch(62% 0.19 35);
     }
 
     /* border */
@@ -740,6 +804,35 @@ body.theme-default {
       transparent
     );
     border-left-color: transparent;
+  }
+
+  /* Tablet-view scroll containers: FrontPage lives in [data-part='sheet-left']
+     and overflows when the column doesn't fit the viewport. The default WebKit
+     scrollbar is a bright light bar that clashes with the dark panel, so we
+     tone it down to match the dropdown-options popover treatment above.
+     Firefox uses the `scrollbar-*` shorthand; WebKit/Blink uses the
+     ::-webkit-scrollbar pseudo-elements. */
+  [data-part='sheet-left'],
+  [data-part='sheet-right'] {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(32% 0.022 258) transparent;
+
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+      background-color: oklch(32% 0.022 258);
+      border-radius: 4px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+    &::-webkit-scrollbar-thumb:hover {
+      background-color: oklch(42% 0.025 258);
+      background-clip: padding-box;
+    }
   }
 
   /* --- Tab bar ----------------------------------------- */

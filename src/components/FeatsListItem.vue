@@ -14,7 +14,7 @@ function sendOff(this_featId: string) {
 const emit = defineEmits(['clicked'])
 </script>
 <template>
-  <div>
+  <div v-if="feat">
     <div data-part="feat-row" class="relative">
       <a
         class="flex cursor-pointer truncate whitespace-nowrap"

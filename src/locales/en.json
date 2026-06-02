@@ -183,7 +183,7 @@
   "equipment": {
     "noInventory": "This character has no inventory.",
     "investedTitle": "Invested Items",
-    "investedCount": "(Items Invested: {count} / 10)",
+    "investedCount": "Invested: {count} / 10",
     "usesLabel": "Uses:",
     "useItem": "Use Item"
   },

@@ -96,15 +96,20 @@ const toggleSet = [
     <div v-else class="px-6 py-4">
       <!-- Held Items list -->
       <EquipmentHeld @item-clicked="viewItem" />
-      <EquipmentBulk v-if="inventory?.length" />
-      <div v-if="inventory?.length" data-part="invested-count">
-        <span class="cursor-pointer text-sm text-gray-500" @click="investedModal.open()">
+      <div v-if="inventory?.length" class="mb-4 flex items-center gap-2">
+        <EquipmentBulk class="flex-1" />
+        <button
+          type="button"
+          data-part="invested-count"
+          class="cursor-pointer whitespace-nowrap"
+          @click="investedModal.open()"
+        >
           {{
             $t('equipment.investedCount', {
               count: inventory?.filter((i: InventoryItem) => i.system?.equipped?.invested).length
             })
           }}
-        </span>
+        </button>
       </div>
       <!-- Comprehensive equipment list -->
       <div class="lg:columns-2">
