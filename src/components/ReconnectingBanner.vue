@@ -23,16 +23,16 @@ const visible = computed(() => hasEverConnected.value && !isConnected.value)
 <template>
   <Transition
     enter-active-class="duration-150 ease-out"
-    enter-from-class="opacity-0 -translate-y-2"
+    enter-from-class="opacity-0 translate-y-2"
     enter-to-class="opacity-100 translate-y-0"
     leave-active-class="duration-150 ease-in"
     leave-from-class="opacity-100 translate-y-0"
-    leave-to-class="opacity-0 -translate-y-2"
+    leave-to-class="opacity-0 translate-y-2"
   >
     <div
       v-if="visible"
       data-component="ReconnectingBanner"
-      class="pointer-events-none fixed top-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border border-gray-700 bg-gray-900/95 px-4 py-2 text-sm text-white shadow-lg"
+      class="pointer-events-none fixed bottom-28 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border border-gray-700 bg-gray-900/95 px-4 py-2 text-sm text-white shadow-lg"
       role="status"
       aria-live="polite"
     >
