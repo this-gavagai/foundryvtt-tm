@@ -112,19 +112,36 @@ const parsedText = computed(() => {
       </label> `
   )
 
-  // @Check[type|showDC:all|dc:number]
+  // @Check[type|key:val|flag] — the first segment is the check slug; the rest
+  // are key:value annotations (against, traits, options, dc, showDC, name,
+  // roller, rollerRole) or bare flags (overrideTraits, targetOwner). The full
+  // annotation set is forwarded as `checkInline` so the foundry handler can
+  // stamp them onto a synthetic inline-check anchor for PF2e's listener to
+  // resolve — same way we handle inline @Damage.
   text = text?.replace(/@Check\[([^\]]+)\]/gm, (_, content) => {
-    const parts = content.split('|')
-    const obj: { [key: string]: string | undefined } = { action: 'check', slug: parts[0] }
+    const parts: string[] = content.split('|')
+    const slug = parts[0]
+    const inline: Record<string, string | true> = {}
     for (const part of parts.slice(1)) {
-      const i = part.indexOf(':')
-      obj[part.slice(0, i)] = part.slice(i + 1)
+      const trimmed = part.trim()
+      if (!trimmed) continue
+      const i = trimmed.indexOf(':')
+      if (i === -1) inline[trimmed] = true
+      else inline[trimmed.slice(0, i).trim()] = trimmed.slice(i + 1)
     }
+    const obj: Record<string, unknown> = {
+      action: 'check',
+      slug,
+      checkInline: Object.keys(inline).length ? inline : undefined
+    }
+    if (typeof inline.dc === 'string' && /^\d+$/.test(inline.dc)) obj.dc = Number(inline.dc)
+    if (typeof inline.against === 'string') obj.against = inline.against
     if (props.itemId) obj.itemId = props.itemId
-    const dcPart = obj.dc ? ` DC ${obj.dc}` : ''
+    const display = props.labels?.[slug] ?? inline.name ?? slug
+    const dcSuffix = obj.dc ? ` DC ${obj.dc}` : obj.against ? ` vs ${inline.against}` : ''
     return `<label class="has-checked:bg-blue-600 has-checked:text-white bg-gray-300 border-divider border -my-0.5 pb-px px-1 cursor-pointer whitespace-nowrap">
         <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value="${JSON.stringify(obj).replace(/"/g, '&quot;')}">
-        <span class="capitalize pl-4">${props.labels?.[obj.slug ?? ''] ?? obj.name ?? obj.slug} Check (${obj.name ? obj.slug + ' ' : ''}${dcPart.trim() || ''})</span>
+        <span class="capitalize pl-4">${display} Check${dcSuffix}</span>
       </label> `
   })
 

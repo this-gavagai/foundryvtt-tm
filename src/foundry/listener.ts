@@ -14,6 +14,7 @@ import {
   foundryCastStaffSpell,
   foundryFreeRoll,
   foundryRollDamage,
+  foundryRollInlineCheck,
   foundryGetSpellDamage
 } from './handlers'
 import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
@@ -49,6 +50,7 @@ const actionHandlers: ActionHandlerMap = {
   [TM.CAST_STAFF_SPELL]: foundryCastStaffSpell,
   [TM.FREE_ROLL]: foundryFreeRoll,
   [TM.ROLL_DAMAGE]: foundryRollDamage,
+  [TM.ROLL_INLINE_CHECK]: foundryRollInlineCheck,
   [TM.GET_SPELL_DAMAGE]: foundryGetSpellDamage
 }
 

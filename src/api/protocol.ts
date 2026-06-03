@@ -29,5 +29,6 @@ export const TM = {
   CAST_STAFF_SPELL: 'castStaffSpell',
   FREE_ROLL: 'freeRoll',
   ROLL_DAMAGE: 'rollDamage',
+  ROLL_INLINE_CHECK: 'rollInlineCheck',
   GET_SPELL_DAMAGE: 'getSpellDamage'
 } as const

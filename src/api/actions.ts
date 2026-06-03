@@ -186,6 +186,32 @@ export const rollDamage = (
     damageInline: opts.damageInline
   })
 
+// Inline @Check[slug|against:def|...] route. Builds a synthetic PF2e inline-
+// check anchor server-side and dispatches a click so PF2e's own listener
+// resolves the check exactly as it would for a native enriched anchor —
+// statistic lookup, target DC from `against`, traits/options/role propagation,
+// chat-card flavor block.
+export const rollInlineCheck = (
+  actor: Ref<CharacterPF2e>,
+  slug: string,
+  opts: {
+    against?: string
+    itemId?: string
+    inline?: Record<string, string | true>
+    secret?: boolean
+    diceResults?: DiceResults
+  } = {}
+) =>
+  sendAction(TM.ROLL_INLINE_CHECK, {
+    ...fromActorTargeted(actor),
+    slug,
+    against: opts.against,
+    itemId: opts.itemId,
+    inline: opts.inline,
+    secret: opts.secret ?? false,
+    diceResults: opts.diceResults ?? {}
+  })
+
 export const sendItemToChat = (characterId: string, itemId: string) =>
   sendAction(TM.SEND_ITEM_TO_CHAT, { characterId, itemId })
 

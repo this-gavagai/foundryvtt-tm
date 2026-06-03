@@ -21,6 +21,7 @@ export type ModuleEventArgs =
   | CastStaffSpellArgs
   | FreeRollArgs
   | RollDamageArgs
+  | RollInlineCheckArgs
   | GetSpellDamageArgs
 
 export interface AcknowledgementArgs {
@@ -215,6 +216,32 @@ export interface ToggleKineticAuraArgs {
   uuid: string
 }
 
+export interface RollInlineCheckArgs {
+  action: typeof TM.ROLL_INLINE_CHECK
+  userId: string
+  characterId: string
+  // The check slug (e.g. 'spell-attack', 'fortitude', 'reflex', 'will',
+  // 'perception', or any custom slug PF2e's getStatistic resolves). Mirrors
+  // the inline anchor's data-pf2-check.
+  slug: string
+  // Defense slug for the target (e.g. 'ac', 'fortitude'). PF2e resolves this
+  // against the targeted token's getStatistic(against). Mirrors data-against.
+  against?: string
+  // Source-item ID — resolved server-side to a UUID and stamped onto
+  // data-item-uuid so the inline-check pipeline picks up the right item
+  // context (statistic.roll's `item` parameter, action header rendering).
+  itemId?: string
+  // Pipe annotations parsed off the inline @Check[...|key:val|flag] call
+  // (traits, options, name, etc.) — stamped onto the synthetic anchor's
+  // dataset by the handler so PF2e's listener reads the same context as it
+  // would for a native enriched anchor.
+  inline?: Record<string, string | true>
+  secret: boolean
+  diceResults: DiceResults
+  targets: string[]
+  uuid: string
+}
+
 export interface RollResult {
   formula: string
   result: string
@@ -255,6 +282,16 @@ export interface ActiveRoll {
   // data-immutable, data-override-traits). Values are raw strings; flag-form
   // params arrive as `true`.
   damageInline?: Record<string, string | true>
+  // Pipe annotations parsed off an inline @Check[...|key:val|flag] call.
+  // Routed through the inline-check pipeline (rollInlineCheck) so the
+  // defense (`against`), traits, roll options, and role propagate exactly
+  // as they would for a native enriched @Check anchor.
+  checkInline?: Record<string, string | true>
+  // Defense slug peeled out of the @Check inline params for client-side
+  // routing decisions (e.g. only inline-check slugs with `against` need the
+  // PF2e listener path; save/skill slugs without `against` can stay on the
+  // direct save/skill API).
+  against?: string
 }
 
 export interface DiceResults {

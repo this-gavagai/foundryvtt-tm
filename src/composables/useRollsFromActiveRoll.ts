@@ -4,6 +4,8 @@ import type { ActiveRoll, RequestResolutionArgs } from '@/types/api-types'
 import type { Roll } from '@/types/roll-types'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { parseDamageFormulaDice, makeDiceResults } from '@/utils/diceFormula'
+import { rollInlineCheck } from '@/api/actions'
+import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 
 type SaveSlug = 'fortitude' | 'will' | 'reflex'
 const SAVE_SLUGS: readonly SaveSlug[] = ['fortitude', 'will', 'reflex']
@@ -12,7 +14,7 @@ export function useRollsFromActiveRoll(
   activeRoll: Ref<ActiveRoll | undefined> | ComputedRef<ActiveRoll | undefined>
 ): ComputedRef<Roll[]> {
   const { t } = useI18n()
-  const { doCharacterAction, doDamage, doFlatCheck, saves, skills, spells } = useInjectedCharacter()
+  const { _actor, doCharacterAction, doDamage, doFlatCheck, saves, skills } = useInjectedCharacter()
 
   return computed<Roll[]>(() => {
     const ar = activeRoll.value
@@ -59,19 +61,31 @@ export function useRollsFromActiveRoll(
     if (ar.action === 'check') {
       const rollOptions = { dc: ar.dc !== undefined ? Number(ar.dc) : undefined }
       let execute: (faces?: number[]) => Promise<RequestResolutionArgs | null>
-      if (slug && (SAVE_SLUGS as readonly string[]).includes(slug)) {
+      // Inline-check pipeline kicks in when target-defense routing matters:
+      // either an explicit `against` is set, or the slug is `spell-attack`
+      // (which targets AC implicitly). PF2e's enricher then handles statistic
+      // resolution, target DC lookup, trait/option propagation, and the
+      // action-header chat card just like a native @Check anchor click.
+      // Plain @Check[<skill>] / @Check[<save>] / @Check[flat] keep using the
+      // fast direct-API paths below.
+      const needsInline = !!ar.against || slug === 'spell-attack'
+      if (needsInline && slug) {
+        execute = (faces) => {
+          if (!_actor.value) return Promise.resolve(null)
+          const diceResults = faces?.[0] != null ? { d20: [faces[0]] } : undefined
+          return rollInlineCheck(_actor as Ref<CharacterPF2e>, slug, {
+            against: ar.against,
+            itemId: ar.itemId,
+            inline: ar.checkInline,
+            diceResults
+          }) as Promise<RequestResolutionArgs | null>
+        }
+      } else if (slug && (SAVE_SLUGS as readonly string[]).includes(slug)) {
         const saveSlug = slug as SaveSlug
         execute = (faces) =>
           saves[saveSlug].value?.roll?.(faces?.[0], rollOptions) ?? Promise.resolve(null)
       } else if (slug === 'flat') {
         execute = (faces) => doFlatCheck(faces?.[0], rollOptions)
-      } else if (slug === 'spell-attack') {
-        // Inline @Check[spell-attack] resolves against the spell the description
-        // belongs to (passed as itemId by ParsedDescription). Falls back to the
-        // owning spellcasting entry's attack if no source spell is in context.
-        const spell = spells.value?.find((s) => s._id === ar.itemId)
-        execute = (faces) =>
-          spell?.doSpellAttack?.(1, faces?.[0]) ?? Promise.resolve(null)
       } else {
         execute = (faces) =>
           skills.value?.find((s) => s.slug === slug)?.roll?.(faces?.[0], rollOptions) ??
