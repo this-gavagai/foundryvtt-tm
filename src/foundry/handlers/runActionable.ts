@@ -18,6 +18,15 @@ import { getGame, makeAck } from '../utils/foundry'
 //   item    — the action/feat item the macro is attached to
 //   token   — the first targeted Token, if any
 //   targets — full array of targeted Tokens
+//   event   — synthetic PointerEvent whose modifier keys are wired to skip
+//             every PF2e roll/damage dialog regardless of the GM's settings.
+//             PF2e's eventToRollParams computes
+//               skipDialog = event.shiftKey ? !skipDefault : skipDefault
+//             where skipDefault = !user.settings.show{Check,Damage}Dialogs,
+//             so setting shiftKey = (showCheckDialogs || showDamageDialogs)
+//             yields skipDialog: true in either branch. Authored macros that
+//             forward this event into game.pf2e.actions.X({ event, ... }) or
+//             statistic.roll({ event, ... }) suppress dialogs on the GM side.
 //   use()   — default-use callback (PF2e's rollItemMacro for non-frequency
 //             actions). The macro can call this to fire normal behavior, or
 //             ignore it to do something custom.
@@ -67,15 +76,29 @@ export async function foundryRunActionable(args: RunActionableArgs) {
     .map((t) => t.object as TokenPF2e | null)
     .filter((t): t is TokenPF2e => !!t)
 
+  // Skip-dialog event — see the scope-docs above for the eventToRollParams
+  // math. Either dialog setting being truthy is enough to flip shiftKey on,
+  // which yields skipDialog: true for both check and damage dialogs.
+  const settings = source.user.settings as {
+    showCheckDialogs?: boolean
+    showDamageDialogs?: boolean
+  }
+  const skipDialogEvent = new PointerEvent('click', {
+    shiftKey: !!(settings.showCheckDialogs || settings.showDamageDialogs)
+  })
+
   // Default-use callback: PF2e's rollItemMacro posts the item to chat and
   // runs whatever the action's built-in behavior is (frequency tick, chat
   // card, etc). This is what toolbelt's `r` callback resolves to for
   // non-frequency-based actions; matching the contract keeps macros that
-  // call `use()` working without rewriting.
+  // call `use()` working without rewriting. The event arg suppresses the
+  // roll-config dialog on the GM side — the tablet user can't dismiss it.
+  type Pf2eApi = {
+    rollItemMacro?: (uuid: string, event?: PointerEvent) => Promise<unknown>
+  }
   const use = async () => {
-    type Pf2eApi = { rollItemMacro?: (uuid: string) => Promise<unknown> }
     const api = source.pf2e as unknown as Pf2eApi
-    return api.rollItemMacro?.(item.uuid)
+    return api.rollItemMacro?.(item.uuid, skipDialogEvent)
   }
 
   // Cancel callback: post a chat message indicating the macro stopped the
@@ -87,17 +110,46 @@ export async function foundryRunActionable(args: RunActionableArgs) {
     })
   }
 
+  // Stock PF2e action macros (e.g. compendium "Create a Diversion") call
+  // `game.pf2e.actions.X()` with no actors, so ActionMacroHelpers falls
+  // back to getSelectedActors() → game.user.character. On the GM machine
+  // that's the GM's assigned character (or nothing), not the tablet user's
+  // character, so the call throws "Select at least one token before
+  // rolling, or assign a default character."
+  //
+  // Override game.user.character on the User instance for the duration of
+  // macro execution so the fallback resolves to the tablet's actor. The
+  // actor lookup happens synchronously at the top of simpleRollActionCheck
+  // (before any await), so the override only needs to live across the
+  // execute() call's synchronous prefix; restoring on finally is safe.
+  const user = source.user as unknown as { character?: unknown }
+  const ownCharDescriptor = Object.getOwnPropertyDescriptor(user, 'character')
+  Object.defineProperty(user, 'character', {
+    value: actor,
+    configurable: true,
+    writable: true,
+    enumerable: true
+  })
   try {
     await macro.execute({
       actor,
       item,
       token: tokens[0],
       targets: tokens,
+      event: skipDialogEvent,
       use,
       cancel
     } as Parameters<MacroPF2e['execute']>[0])
   } catch (e) {
     logger.warn('TM-RUN-ACTIONABLE: macro threw', macroUuid, e)
+  } finally {
+    if (ownCharDescriptor) {
+      Object.defineProperty(user, 'character', ownCharDescriptor)
+    } else {
+      // No own property existed — remove ours so the prototype getter
+      // (User.prototype.character) takes over again.
+      delete user.character
+    }
   }
   return makeAck(args)
 }
