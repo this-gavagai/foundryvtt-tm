@@ -78,15 +78,24 @@ export const useWorldStore = defineStore('world', () => {
   const debouncedWorldRequest = debounce(sendWorldRequest, 2000, { leading: true, trailing: false })
   const refreshWorld = () => debouncedWorldRequest()
 
+  // Fire an immediate world refresh so worldRunning gets a definite value
+  // (via /api/status, which doesn't need auth) before the spinner has a
+  // chance to camp on `undefined`. Without this, a PWA cold-launch where
+  // the socket connects but the `session` event is slow leaves the app
+  // stuck on the spinner — App.vue's userId watch is the only other path
+  // that calls refreshWorld, and it short-circuits while userId is empty.
+  refreshWorld()
+
   // Lightweight status poll: hits /api/status every 8s (HTTP only, no socket
   // traffic). Immediately marks the world inactive when Foundry reports
-  // active:false; triggers a full refresh when the world comes back up.
+  // active:false; triggers a full refresh whenever the status flips up
+  // (both `false → true` and `undefined → true`).
   setInterval(async () => {
     const running = await fetchWorldStatus()
     if (running === false && worldRunning.value !== false) {
       worldRunning.value = false
       worldActive.value = false
-    } else if (running === true && worldRunning.value === false) {
+    } else if (running === true && worldRunning.value !== true) {
       refreshWorld()
     }
   }, 8000)

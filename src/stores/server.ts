@@ -169,7 +169,22 @@ export const useServerStore = defineStore('server', () => {
         isConnected.value = true
         socket.value.on('disconnect', () => { isConnected.value = false })
         socket.value.on('connect', () => { isConnected.value = true })
+
+        // Watchdog: if Foundry's session event doesn't arrive shortly after
+        // the socket comes up, treat it as an auth failure so the user lands
+        // on LoginPage instead of a perpetual spinner. Cleared by the
+        // session handler below on the first valid handshake.
+        let sessionSeen = false
+        const sessionWatchdog = setTimeout(() => {
+          if (!sessionSeen) {
+            logger.debug('TM-INIT: session event did not arrive — falling back to auth recovery')
+            handleAuthFailure(url, allowRelogin)
+          }
+        }, 8000)
+
         socket.value.on('session', async (args: { userId: string }) => {
+          sessionSeen = true
+          clearTimeout(sessionWatchdog)
           if (args?.userId) {
             useUserStore().setUserId(args?.userId)
             needsLogin.value = false
