@@ -43,7 +43,6 @@ const damageVariants = computed(() => [
         <span
           v-for="(variant, index) in mapLabelSet"
           class="mr-1 mb-1 inline-block border border-gray-400 bg-gray-100 p-2 text-xs whitespace-nowrap text-blue-600 transition-colors select-none active:bg-gray-300"
-          :class="index ? 'w-17' : 'w-22.5'"
           @click="emit('clicked', id, { type, subtype: index })"
           :key="'variant_' + index"
         >
@@ -54,7 +53,9 @@ const damageVariants = computed(() => [
             />
             <span class="pl-1">{{ typeLabel }}&nbsp;</span>
           </span>
-          <span>{{ index ? (variant.label?.match(/\((.*)\)/)?.pop() || variant.label || '—') : variant.label }}</span>
+          <span>{{
+            index ? variant.label?.match(/\((.*)\)/)?.pop() || variant.label || '—' : variant.label
+          }}</span>
         </span>
       </span>
       <span data-part="damage">
