@@ -12,7 +12,7 @@ export function useRollsFromActiveRoll(
   activeRoll: Ref<ActiveRoll | undefined> | ComputedRef<ActiveRoll | undefined>
 ): ComputedRef<Roll[]> {
   const { t } = useI18n()
-  const { doCharacterAction, doDamage, doFlatCheck, saves, skills } = useInjectedCharacter()
+  const { doCharacterAction, doDamage, doFlatCheck, saves, skills, spells } = useInjectedCharacter()
 
   return computed<Roll[]>(() => {
     const ar = activeRoll.value
@@ -65,6 +65,13 @@ export function useRollsFromActiveRoll(
           saves[saveSlug].value?.roll?.(faces?.[0], rollOptions) ?? Promise.resolve(null)
       } else if (slug === 'flat') {
         execute = (faces) => doFlatCheck(faces?.[0], rollOptions)
+      } else if (slug === 'spell-attack') {
+        // Inline @Check[spell-attack] resolves against the spell the description
+        // belongs to (passed as itemId by ParsedDescription). Falls back to the
+        // owning spellcasting entry's attack if no source spell is in context.
+        const spell = spells.value?.find((s) => s._id === ar.itemId)
+        execute = (faces) =>
+          spell?.doSpellAttack?.(1, faces?.[0]) ?? Promise.resolve(null)
       } else {
         execute = (faces) =>
           skills.value?.find((s) => s.slug === slug)?.roll?.(faces?.[0], rollOptions) ??

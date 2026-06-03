@@ -115,14 +115,16 @@ const parsedText = computed(() => {
   // @Check[type|showDC:all|dc:number]
   text = text?.replace(/@Check\[([^\]]+)\]/gm, (_, content) => {
     const parts = content.split('|')
-    const obj: { [key: string]: string } = { action: 'check', slug: parts[0] }
+    const obj: { [key: string]: string | undefined } = { action: 'check', slug: parts[0] }
     for (const part of parts.slice(1)) {
       const i = part.indexOf(':')
       obj[part.slice(0, i)] = part.slice(i + 1)
     }
+    if (props.itemId) obj.itemId = props.itemId
+    const dcPart = obj.dc ? ` DC ${obj.dc}` : ''
     return `<label class="has-checked:bg-blue-600 has-checked:text-white bg-gray-300 border-divider border -my-0.5 pb-px px-1 cursor-pointer whitespace-nowrap">
         <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value="${JSON.stringify(obj).replace(/"/g, '&quot;')}">
-        <span class="capitalize pl-4">${props.labels?.[obj.slug] ?? obj.name ?? obj.slug} Check (${obj.name ? obj.slug + ' ' : ''}DC ${obj.dc})</span>
+        <span class="capitalize pl-4">${props.labels?.[obj.slug ?? ''] ?? obj.name ?? obj.slug} Check (${obj.name ? obj.slug + ' ' : ''}${dcPart.trim() || ''})</span>
       </label> `
   })
 
