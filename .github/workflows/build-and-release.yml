@@ -51,5 +51,6 @@ jobs:
           allowUpdates: false
           draft: false
           prerelease: true
+          generateReleaseNotes: true
           token: ${{ secrets.WORKFLOW_KEY }}
           artifacts: './tablemate/module.json,./tablemate/tablemate.zip'
