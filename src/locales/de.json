@@ -163,7 +163,7 @@
     "effectIcon": "Effekt-Symbol"
   },
   "actions": {
-    "runMacro": "Makro ausführen"
+    "use": "Verwenden"
   },
   "actionTypes": {
     "action": "Aktionen",

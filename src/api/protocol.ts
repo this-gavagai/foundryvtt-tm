@@ -22,7 +22,6 @@ export const TM = {
   CONSUME_ITEM: 'consumeItem',
   GET_STRIKE_DAMAGE: 'getStrikeDamage',
   SEND_ITEM_TO_CHAT: 'sendItemToChat',
-  CALL_MACRO: 'callMacro',
   SET_WEAPON_LOADED: 'setWeaponLoaded',
   SET_WEAPON_DAMAGE_TYPE: 'setWeaponDamageType',
   TOGGLE_KINETIC_AURA: 'toggleKineticAura',
@@ -30,5 +29,7 @@ export const TM = {
   FREE_ROLL: 'freeRoll',
   ROLL_DAMAGE: 'rollDamage',
   ROLL_INLINE_CHECK: 'rollInlineCheck',
+  RUN_MACRO: 'runMacro',
+  RUN_ACTIONABLE: 'runActionable',
   GET_SPELL_DAMAGE: 'getSpellDamage'
 } as const

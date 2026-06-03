@@ -1,6 +1,5 @@
-import type { ActionUseOptions, MacroPF2e } from '@7h3laughingman/pf2e-types'
+import type { ActionUseOptions } from '@7h3laughingman/pf2e-types'
 import type {
-  CallMacroArgs,
   CharacterActionArgs,
   FreeRollArgs,
   SendItemToChatArgs
@@ -10,12 +9,9 @@ import { useBackgroundRoll } from '../backgroundRoll'
 import { getGame, makeAck, makeFakeEvent } from '../utils/foundry'
 import type { FoundryRoll } from '../utils/roll'
 
-// Narrowed shadows over the ambient declarations from foundry-types /
-// pf2e-types. Macro globally is foundry.documents.Macro; we want the PF2e
-// subclass. Roll globally is the generic Foundry Roll; we want the narrower
-// FoundryRoll shape so `total` is non-optional after .evaluate().
-declare const Macro: typeof MacroPF2e
-declare function fromUuidSync(uuid: string): MacroPF2e
+// Narrowed shadow over the ambient Roll global from foundry-types. The
+// generic Foundry Roll has total as optional; FoundryRoll narrows it to
+// non-optional after .evaluate().
 declare const Roll: new (formula: string) => FoundryRoll
 
 export async function foundryCharacterAction(args: CharacterActionArgs) {
@@ -84,30 +80,5 @@ export async function foundrySendItemToChat(args: SendItemToChatArgs) {
   const actor = game.actors.get(args.characterId)
   const item = actor?.items?.get(args.itemId)
   if (item) item.toChat()
-  return makeAck(args)
-}
-
-export async function foundryCallMacro(args: CallMacroArgs) {
-  logger.debug('running macro', args)
-  if (!args.compendiumName) return
-  const actor = game.actors.get(args.characterId)
-  const pack = game.packs.get(args.compendiumName)
-
-  if (args.macroUuid) {
-    const macro = fromUuidSync(args.macroUuid)
-    // TODO: test args.targets stuff
-    logger.debug(args.targets)
-    macro.execute({ scope: { actor, targets: args.targets } })
-  } else {
-    if (!pack) return Promise.resolve(null)
-    const macro_data = (await pack.getDocuments())
-      .find((i: { name: string }) => i.name === args.macroName)
-      ?.toObject()
-    if (!macro_data) return Promise.resolve(null)
-    const temp_macro = new Macro(macro_data)
-    temp_macro.type = 'script'
-    temp_macro.execute({ actor })
-  }
-
   return makeAck(args)
 }

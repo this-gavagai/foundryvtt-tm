@@ -30,7 +30,12 @@ function viewAction(action: Action) {
   infoModal.value.open()
 }
 
-function runViewedActionMacro() {
+// "Use" the currently-viewed action. If it has a PF2e-toolbelt actionable
+// macro attached, that macro runs server-side with full toolbelt scope
+// (actor, item, token, targets, use, cancel) — same contract as toolbelt's
+// own useAction(). For actions without an actionable macro, this is a no-op
+// for now; future work will route through PF2e's native action.use().
+function useViewedAction() {
   actionViewed.value?.doMacro?.()
 }
 </script>
@@ -95,9 +100,9 @@ function runViewedActionMacro() {
               color="blue"
               class="capitalize"
               v-if="actionViewed?.macroId"
-              :clicked="runViewedActionMacro"
+              :clicked="useViewedAction"
             >
-              {{ $t('actions.runMacro') }}
+              {{ $t('actions.use') }}
             </Button>
           </div>
         </template>

@@ -14,7 +14,6 @@ export type ModuleEventArgs =
   | GetStrikeDamageArgs
   | ShareTargetsArgs
   | SendItemToChatArgs
-  | CallMacroArgs
   | SetWeaponLoadedArgs
   | SetWeaponDamageTypeArgs
   | ToggleKineticAuraArgs
@@ -22,6 +21,8 @@ export type ModuleEventArgs =
   | FreeRollArgs
   | RollDamageArgs
   | RollInlineCheckArgs
+  | RunMacroArgs
+  | RunActionableArgs
   | GetSpellDamageArgs
 
 export interface AcknowledgementArgs {
@@ -180,17 +181,6 @@ export interface SendItemToChatArgs {
   itemId: string
   uuid: string
 }
-export interface CallMacroArgs {
-  action: typeof TM.CALL_MACRO
-  userId: string
-  characterId: string
-  targets: string[]
-  compendiumName: string | null
-  macroName: string | null
-  macroUuid: string | null
-  options: object
-  uuid: string
-}
 export interface SetWeaponLoadedArgs {
   action: typeof TM.SET_WEAPON_LOADED
   userId: string
@@ -213,6 +203,37 @@ export interface ToggleKineticAuraArgs {
   action: typeof TM.TOGGLE_KINETIC_AURA
   userId: string
   characterId: string
+  uuid: string
+}
+
+export interface RunActionableArgs {
+  action: typeof TM.RUN_ACTIONABLE
+  userId: string
+  characterId: string
+  // The action/feat item that carries the toolbelt actionable flag. The
+  // handler reads `flags['pf2e-toolbelt'].actionable.linked` (newer toolbelt
+  // schema) or `.macro` (legacy) off this item to find the macro UUID, then
+  // executes the macro with full toolbelt-style scope:
+  // { actor, item, token, targets, use, cancel } — matching what toolbelt's
+  // own useAction(actor, action) helper provides.
+  itemId: string
+  targets: string[]
+  uuid: string
+}
+
+export interface RunMacroArgs {
+  action: typeof TM.RUN_MACRO
+  userId: string
+  characterId: string
+  // Foundry UUID of the macro to execute (e.g.
+  // 'Macro.abc123' or 'Compendium.pf2e.action-macros.Macro.xyz').
+  // Resolved server-side via fromUuidSync.
+  macroUuid: string
+  // Target token IDs on the active scene — resolved to Token objects and
+  // passed in the macro's execution scope as `token` (first) and `targets`
+  // (all). Macros that reference game.user.targets directly will see the
+  // GM's UI state instead and won't pick these up.
+  targets: string[]
   uuid: string
 }
 

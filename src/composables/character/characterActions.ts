@@ -4,7 +4,7 @@ import type { Field, WritableField } from './helpers'
 import type { DiceResults, RequestResolutionArgs } from '@/types/api-types'
 import { type Modifier, makeModifiers } from './defs/modifier'
 import { type Action, makeAction } from './defs/action'
-import { characterAction, rollCheck, callMacro, rollDamage } from '@/api/actions'
+import { characterAction, rollCheck, runActionable, rollDamage } from '@/api/actions'
 import { updateActor } from '@/api/documents'
 import { actionTypes } from '@/utils/constants'
 
@@ -56,10 +56,22 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
       )
       .filter((i) => actionTypes.map((a) => a.type).includes(i.system?.actionType?.value))
       .map((i) => {
-        const macroId = (
-          i?.flags as Record<string, { actionable?: { macro?: string } } | undefined>
-        )?.['pf2e-toolbelt']?.actionable?.macro
+        // PF2e-toolbelt's "actionable" feature attaches a macro UUID to an
+        // action item. Newer toolbelt stores it under `actionable.linked`;
+        // older versions used `actionable.macro`. We check both so the same
+        // build works regardless of which version the GM is running. The
+        // actual macro execution is server-side (see runActionable handler)
+        // because the macro needs a Foundry context — we just expose the
+        // presence of the link so the UI can show a Use button.
+        const tbFlag = (
+          i?.flags as Record<
+            string,
+            { actionable?: { linked?: string; macro?: string } } | undefined
+          >
+        )?.['pf2e-toolbelt']?.actionable
+        const macroId = tbFlag?.linked ?? tbFlag?.macro
         const typeValue = i.system?.actionType?.value
+        const itemId = i._id
         return {
           ...(makeAction(i as AbilityItemPF2e<CharacterPF2e>) as Action),
           actionType:
@@ -69,8 +81,8 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
                 ? 'skill'
                 : 'action',
           macroId,
-          doMacro: (options = {}) => {
-            if (macroId) callMacro(actor.value?._id ?? undefined, null, null, macroId, options)
+          doMacro: () => {
+            if (macroId && itemId) runActionable(actor as Ref<CharacterPF2e>, itemId)
           }
         }
       })

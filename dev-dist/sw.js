@@ -67,10 +67,13 @@ if (!self.define) {
     });
   };
 }
-define(['./workbox-d47a0fae'], (function (workbox) { 'use strict';
+define(['./workbox-50fc7337'], (function (workbox) { 'use strict';
 
-  self.skipWaiting();
-  workbox.clientsClaim();
+  self.addEventListener('message', event => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+      self.skipWaiting();
+    }
+  });
 
   /**
    * The precacheAndRoute() method efficiently caches and responds to
@@ -81,22 +84,13 @@ define(['./workbox-d47a0fae'], (function (workbox) { 'use strict';
     "url": "registerSW.js",
     "revision": "449f3bbd6ffd9815400bb0aa8ee13ad7"
   }, {
-    "url": "index.html",
-    "revision": "0.rt3qm954rfg"
+    "url": "/modules/tablemate/index.html",
+    "revision": "0.7nnvs24rbqo"
   }], {});
   workbox.cleanupOutdatedCaches();
-  workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
+  workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("/modules/tablemate/index.html"), {
     allowlist: [/^\/$/]
   }));
-  workbox.registerRoute(({
-    request
-  }) => request.destination === "style" || request.destination === "script" || request.destination === "worker", new workbox.StaleWhileRevalidate({
-    "cacheName": "static-resources",
-    plugins: [new workbox.ExpirationPlugin({
-      maxEntries: 50,
-      maxAgeSeconds: 2592000
-    })]
-  }), 'GET');
   workbox.registerRoute(({
     request
   }) => request.destination === "image", new workbox.CacheFirst({

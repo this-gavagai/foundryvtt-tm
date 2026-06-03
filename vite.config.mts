@@ -41,8 +41,13 @@ export default defineConfig(({ mode }) => {
         // of silently swapping on next navigation. See UpdatePrompt.vue.
         registerType: 'prompt',
         includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'maskable-icon-512x512.png'],
+        // PWA stays off in dev: the dev server emits Vite-mangled paths
+        // (/node_modules/.vite/deps/...?v=hash, /src/*.ts, /@id/__x00__...)
+        // that don't exist in the precache manifest, so workbox spams
+        // "no route found" warnings on every reload. The PWA is only
+        // useful against a production build anyway.
         devOptions: {
-          enabled: true
+          enabled: false
         },
         manifest: {
           name: 'Tabula Mensa',

@@ -7,7 +7,6 @@ import {
   foundryConsumeItem,
   foundryGetStrikeDamage,
   foundrySendItemToChat,
-  foundryCallMacro,
   foundrySetWeaponLoaded,
   foundrySetWeaponDamageType,
   foundryToggleKineticAura,
@@ -15,6 +14,8 @@ import {
   foundryFreeRoll,
   foundryRollDamage,
   foundryRollInlineCheck,
+  foundryRunMacro,
+  foundryRunActionable,
   foundryGetSpellDamage
 } from './handlers'
 import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
@@ -43,7 +44,6 @@ const actionHandlers: ActionHandlerMap = {
   [TM.CONSUME_ITEM]: foundryConsumeItem,
   [TM.GET_STRIKE_DAMAGE]: foundryGetStrikeDamage,
   [TM.SEND_ITEM_TO_CHAT]: foundrySendItemToChat,
-  [TM.CALL_MACRO]: foundryCallMacro,
   [TM.SET_WEAPON_LOADED]: foundrySetWeaponLoaded,
   [TM.SET_WEAPON_DAMAGE_TYPE]: foundrySetWeaponDamageType,
   [TM.TOGGLE_KINETIC_AURA]: foundryToggleKineticAura,
@@ -51,6 +51,8 @@ const actionHandlers: ActionHandlerMap = {
   [TM.FREE_ROLL]: foundryFreeRoll,
   [TM.ROLL_DAMAGE]: foundryRollDamage,
   [TM.ROLL_INLINE_CHECK]: foundryRollInlineCheck,
+  [TM.RUN_MACRO]: foundryRunMacro,
+  [TM.RUN_ACTIONABLE]: foundryRunActionable,
   [TM.GET_SPELL_DAMAGE]: foundryGetSpellDamage
 }
 

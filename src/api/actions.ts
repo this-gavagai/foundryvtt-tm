@@ -260,20 +260,25 @@ export const freeRoll = (
     ...(traits && traits.length ? { traits } : {})
   })
 
-export function callMacro(
-  characterId: string | undefined,
-  compendiumName: string | null = null,
-  macroName: string | null = null,
-  macroUuid: string | null = null,
-  options = {}
-): Promise<RequestResolutionArgs | null> {
-  if (characterId === undefined) return Promise.resolve(null)
-  return sendAction(TM.CALL_MACRO, {
-    characterId,
-    targets: useTargetHelperStore().getTargets(),
-    compendiumName,
-    macroName,
-    macroUuid,
-    options
+// Run an arbitrary macro by UUID against the app character + the proxy's
+// current targets. The macro receives `actor`, `token` (first target), and
+// `targets` (all targets, as Token objects) in its execution scope. Macros
+// that reference game.user.targets won't see the tablet's targets — they
+// need to read from the scope instead.
+export const runMacro = (actor: Ref<CharacterPF2e>, macroUuid: string) =>
+  sendAction(TM.RUN_MACRO, {
+    ...fromActorTargeted(actor),
+    macroUuid
   })
-}
+
+// Run the PF2e-toolbelt "actionable" macro attached to an action/feat. The
+// server looks up the macro UUID from the item's toolbelt flag and runs it
+// with the full toolbelt scope (actor, item, token, targets, use, cancel),
+// matching toolbelt's own useAction() entry point. Use this for any item
+// that exposes a non-empty `macroId` from characterActions.
+export const runActionable = (actor: Ref<CharacterPF2e>, itemId: string) =>
+  sendAction(TM.RUN_ACTIONABLE, {
+    ...fromActorTargeted(actor),
+    itemId
+  })
+
