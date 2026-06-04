@@ -95,6 +95,34 @@ function applyOverridesToModifiers(
   // of their enables is the actual contributor.
 }
 
+// Shared clone-interception logic used by both withModifierOverrides and
+// withRawModifierOverrides.
+function wrapContextualClone(
+  actor: ActorPF2e,
+  getModifiers: (a: ActorPF2e) => Modifier[],
+  overrides: ModifierOverrideMap,
+  restores: (() => void)[]
+): void {
+  type ActorWithClone = ActorPF2e & {
+    getContextualClone: (...args: unknown[]) => ActorPF2e
+  }
+  const a = actor as ActorWithClone
+  const hadOwnClone = Object.prototype.hasOwnProperty.call(actor, 'getContextualClone')
+  const origClone = a.getContextualClone
+  a.getContextualClone = function (...args: unknown[]) {
+    const clone = origClone.apply(this, args) as ActorPF2e
+    const mods = getModifiers(clone)
+    if (mods.length) applyOverridesToModifiers(mods, overrides, restores)
+    return clone
+  }
+  restores.push(() => {
+    if (hadOwnClone) a.getContextualClone = origClone
+    else delete (a as { getContextualClone?: unknown }).getContextualClone
+  })
+}
+
+// Override variant for Statistic-based checks (saves, skills, perception,
+// initiative). Gets modifiers from statistic.check.modifiers.
 export async function withModifierOverrides<T>(
   actor: ActorPF2e,
   getStatistic: (a: ActorPF2e) => Statistic | null | undefined,
@@ -104,33 +132,33 @@ export async function withModifierOverrides<T>(
   if (!overrides || Object.keys(overrides).length === 0) return doRoll()
 
   const restores: (() => void)[] = []
+  const getModifiers = (a: ActorPF2e): Modifier[] => getStatistic(a)?.check.modifiers ?? []
 
-  // 1) Mutate the source statistic's modifiers — covers the no-clone path.
-  const sourceStat = getStatistic(actor)
-  if (sourceStat) applyOverridesToModifiers(sourceStat.check.modifiers, overrides, restores)
+  applyOverridesToModifiers(getModifiers(actor), overrides, restores)
+  wrapContextualClone(actor, getModifiers, overrides, restores)
 
-  // 2) Intercept getContextualClone so the cloned actor's modifiers get the
-  //    same treatment. PF2e captures the cloned Statistic reference inside
-  //    rollContext.resolve() right after getContextualClone returns, so
-  //    applying our mutation on the clone's modifiers before we hand it
-  //    back is sufficient — statistic.roll() will then read the mutated
-  //    modifier objects when it builds the final CheckModifier.
-  type ActorWithClone = ActorPF2e & {
-    getContextualClone: (...args: unknown[]) => ActorPF2e
+  try {
+    return await doRoll()
+  } finally {
+    for (const r of restores) r()
   }
-  const a = actor as ActorWithClone
-  const hadOwnClone = Object.prototype.hasOwnProperty.call(actor, 'getContextualClone')
-  const origClone = a.getContextualClone
-  a.getContextualClone = function (...args: unknown[]) {
-    const clone = origClone.apply(this, args) as ActorPF2e
-    const cloneStat = getStatistic(clone)
-    if (cloneStat) applyOverridesToModifiers(cloneStat.check.modifiers, overrides, restores)
-    return clone
-  }
-  restores.push(() => {
-    if (hadOwnClone) a.getContextualClone = origClone
-    else delete (a as { getContextualClone?: unknown }).getContextualClone
-  })
+}
+
+// Override variant for strikes. Strikes are StatisticModifier instances
+// (not wrapped in a Statistic), so we access their modifiers directly via a
+// raw getter rather than through statistic.check.modifiers.
+export async function withRawModifierOverrides<T>(
+  actor: ActorPF2e,
+  getModifiers: (a: ActorPF2e) => Modifier[],
+  overrides: ModifierOverrideMap | undefined,
+  doRoll: () => Promise<T>
+): Promise<T> {
+  if (!overrides || Object.keys(overrides).length === 0) return doRoll()
+
+  const restores: (() => void)[] = []
+
+  applyOverridesToModifiers(getModifiers(actor), overrides, restores)
+  wrapContextualClone(actor, getModifiers, overrides, restores)
 
   try {
     return await doRoll()

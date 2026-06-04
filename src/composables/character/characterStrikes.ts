@@ -95,14 +95,14 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
         },
         getDamage: (altUsage = undefined) =>
           getStrikeDamage(actor as Ref<CharacterPF2e>, action.slug, altUsage),
-        doStrike: (variant, altUsage, blastOptions, result) =>
+        doStrike: (variant, altUsage, blastOptions, result, modifierOverrides) =>
           rollCheck(
             actor as Ref<CharacterPF2e>,
             'strike',
             `${action.slug},${variant},${altUsage ?? ''}`,
-            {
-              d20: [result ?? 0]
-            }
+            { d20: [result ?? 0] },
+            [],
+            modifierOverrides ? { modifierOverrides } : {}
           ),
         doDamage: (variant, altUsage, _blastOptions, result) => {
           const doRoll = () =>
@@ -187,12 +187,14 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
               actor as Ref<CharacterPF2e>,
               `blast:${blastOptions?.element},${blastOptions?.damageType},${blastOptions?.isMelee}`
             ),
-          doStrike: (variant, altUsage, blastOptions, result: number | undefined) =>
+          doStrike: (variant, altUsage, blastOptions, result, modifierOverrides) =>
             rollCheck(
               actor as Ref<CharacterPF2e>,
               'blast',
               `${blastOptions?.element},${blastOptions?.damageType},${variant},${blastOptions?.isMelee}`,
-              { d20: [result ?? 0] }
+              { d20: [result ?? 0] },
+              [],
+              modifierOverrides ? { modifierOverrides } : {}
             ),
           doDamage: (variant, altUsage, blastOptions, result) =>
             rollCheck(

@@ -43,7 +43,8 @@ export interface Strike {
     variant: number,
     altUsage: number | undefined,
     blastOptions?: BlastOptions | undefined,
-    result?: number | undefined
+    result?: number | undefined,
+    modifierOverrides?: Record<string, boolean>
   ) => Promise<RequestResolutionArgs | null>
   doDamage?: (
     variant: number,
@@ -90,7 +91,14 @@ export function makeStrike(
       // physically-loaded subitem (not what the dropdown sets).
       selected: { id: (root as { selectedAmmoId?: string | null })?.selectedAmmoId ?? '' }
     },
-    _modifiers: makeModifiers(root?.modifiers)
+    // PF2e's StatisticModifier exposes `modifiers` as a prototype getter,
+    // not an own property. JSON serialization only captures own enumerable
+    // properties, so after the socket round-trip `root.modifiers` is
+    // undefined — the underlying array lives on the own property `_modifiers`.
+    _modifiers: makeModifiers(
+      root?.modifiers ??
+      (root as unknown as { _modifiers?: RawModifier[] })?._modifiers
+    )
   }
 }
 
@@ -134,6 +142,9 @@ export function makeElementalBlasts(root: PF2eElementalBlast | undefined): Eleme
     altUsages: [],
     traits: [],
     weaponTraits: [],
-    _modifiers: makeModifiers(config?.statistic?.modifiers)
+    _modifiers: makeModifiers(
+      config?.statistic?.modifiers ??
+      (config?.statistic as unknown as { _modifiers?: RawModifier[] })?._modifiers
+    )
   }))
 }

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { formatModifier } from '@/utils/utilities'
+import { formatModifier, SignedNumber } from '@/utils/utilities'
+import type { Modifier } from '@/composables/character'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
@@ -52,6 +53,64 @@ const { strikes, blasts, inventory, actions, blastActions, kineticAuraActive, to
 const strikeModal = ref()
 const strikeModalDamage = ref()
 const viewed = ref<Viewed | undefined>()
+
+// Modifier overrides for the current attack roll — same 3-state toggle
+// pattern as StatBox. Reset when the modal closes.
+const modifierOverrides = ref<Record<string, boolean>>({})
+
+function toggleModifier(mod: Modifier) {
+  const slug = mod.slug
+  if (!slug) return
+  const next = { ...modifierOverrides.value }
+  if (slug in next) delete next[slug]
+  else next[slug] = !mod.enabled
+  modifierOverrides.value = next
+}
+function effectiveEnabled(mod: Modifier): boolean {
+  const slug = mod.slug
+  if (slug && slug in modifierOverrides.value) return modifierOverrides.value[slug]
+  return !!mod.enabled
+}
+function isManuallyActivated(mod: Modifier): boolean {
+  const slug = mod.slug
+  return !!slug && slug in modifierOverrides.value && modifierOverrides.value[slug] === true && !mod.enabled
+}
+function isManuallyDeactivated(mod: Modifier): boolean {
+  const slug = mod.slug
+  return !!slug && slug in modifierOverrides.value && modifierOverrides.value[slug] === false && !!mod.enabled
+}
+// Simulate same-type stacking on the effective-enabled set.
+const attackModifiers = computed(() =>
+  viewed.value?.phase === 'attack' ? viewed.value?.target.data._modifiers ?? [] : []
+)
+const stackingLosers = computed<Set<string>>(() => {
+  const losers = new Set<string>()
+  const byType: Record<string, Modifier[]> = {}
+  for (const m of attackModifiers.value) {
+    if (!effectiveEnabled(m)) continue
+    const type = m.type ?? 'untyped'
+    if (type === 'untyped') continue
+    ;(byType[type] ??= []).push(m)
+  }
+  for (const bucket of Object.values(byType)) {
+    const pos = bucket.filter((m) => (m.modifier ?? 0) >= 0)
+    const neg = bucket.filter((m) => (m.modifier ?? 0) < 0)
+    const pick = (winners: Modifier[], better: (a: number, b: number) => boolean) => {
+      if (winners.length <= 1) return
+      let best = winners[0]
+      for (let i = 1; i < winners.length; i++) {
+        if (better(winners[i].modifier ?? 0, best.modifier ?? 0)) best = winners[i]
+      }
+      for (const m of winners) { if (m !== best && m.slug) losers.add(m.slug) }
+    }
+    pick(pos, (a, b) => a > b)
+    pick(neg, (a, b) => a < b)
+  }
+  return losers
+})
+function isStackingLoser(mod: Modifier): boolean {
+  return !!mod.slug && stackingLosers.value.has(mod.slug)
+}
 
 const { isListening } = storeToRefs(useListenersStore())
 
@@ -167,6 +226,7 @@ const damageTypeOptions = computed<string[]>(() => {
 function doViewedAttack(diceResult?: number): Promise<RequestResolutionArgs | null> {
   const v = viewed.value
   if (!v) return Promise.resolve(null)
+  const overrides = Object.keys(modifierOverrides.value).length ? { ...modifierOverrides.value } : undefined
   if (v.target.kind === 'blast') {
     const blast = v.target.data
     return (
@@ -178,7 +238,8 @@ function doViewedAttack(diceResult?: number): Promise<RequestResolutionArgs | nu
           damageType: blastDamageType(blast),
           isMelee: v.target.isMelee
         },
-        diceResult
+        diceResult,
+        overrides
       ) as Promise<RequestResolutionArgs>) ?? Promise.resolve(null)
     )
   }
@@ -187,7 +248,8 @@ function doViewedAttack(diceResult?: number): Promise<RequestResolutionArgs | nu
       v.subtype,
       v.target.altUsage,
       undefined,
-      diceResult
+      diceResult,
+      overrides
     ) as Promise<RequestResolutionArgs>) ?? Promise.resolve(null)
   )
 }
@@ -402,6 +464,7 @@ watch([strikes, blasts], () => {
         :itemId="viewedItem?._id"
         :traits="viewedTraits"
         :rolls="strikeRolls"
+        @closing="modifierOverrides = {}"
         :imageUrl="
           (viewed?.target.kind === 'blast' ? viewed.target.data.blastImg : undefined) ??
           viewedItem?.img ??
@@ -490,23 +553,52 @@ watch([strikes, blasts], () => {
             :clicked="(newChoice) => (blastActions = newChoice)"
           />
         </div>
-        <ul>
+        <!-- Strike attack/damage modifier breakdown. Same grid shape as the
+             StatBox info modal (value | type tag | label). Attack-phase
+             modifiers are toggleable (same 3-state system as StatBox);
+             damage-phase modifiers are read-only. -->
+        <ul class="mt-2">
           <li
             v-for="mod in viewed?.phase === 'damage'
               ? strikeModalDamage?.response?.modifiers
               : viewed?.target.data._modifiers"
             data-part="modifier"
-            :data-disabled="!mod.enabled || undefined"
-            class="flex gap-2"
-            :class="{ 'text-gray-300': !mod.enabled }"
+            :data-disabled="
+              viewed?.phase === 'attack'
+                ? (!effectiveEnabled(mod) && !isManuallyActivated(mod) && !isManuallyDeactivated(mod)) || undefined
+                : !mod.enabled || undefined
+            "
+            :data-manual-on="viewed?.phase === 'attack' && isManuallyActivated(mod) || undefined"
+            :data-manual-off="viewed?.phase === 'attack' && isManuallyDeactivated(mod) || undefined"
+            :data-stacking-loser="viewed?.phase === 'attack' && isStackingLoser(mod) || undefined"
+            class="grid grid-cols-[2.5rem_6rem_1fr_auto] items-center gap-2 rounded-sm border border-transparent px-1 py-0.5"
+            :class="{
+              'cursor-pointer': viewed?.phase === 'attack',
+              'text-gray-300':
+                viewed?.phase === 'attack'
+                  ? !effectiveEnabled(mod) && !isManuallyDeactivated(mod)
+                  : !mod.enabled,
+              'border-green-500 bg-green-100/40 dark:bg-green-900/30':
+                viewed?.phase === 'attack' && isManuallyActivated(mod),
+              'border-red-500 bg-red-100/40 text-red-700 line-through dark:bg-red-900/30 dark:text-red-300':
+                viewed?.phase === 'attack' && isManuallyDeactivated(mod),
+              'opacity-50 line-through': viewed?.phase === 'attack' && isStackingLoser(mod)
+            }"
             :key="mod.slug"
+            @click="viewed?.phase === 'attack' && toggleModifier(mod)"
           >
-            <div class="w-8 text-right">
-              <span v-if="mod.modifier !== undefined">{{ formatModifier(mod.modifier) }}</span>
+            <div class="text-right">
+              <span v-if="mod.modifier !== undefined">{{ SignedNumber.format(mod.modifier) }}</span>
               <span v-if="mod.diceNumber">{{ `${mod.diceNumber}${mod.dieSize}` }}</span>
             </div>
+            <div
+              data-part="modifier-type"
+              class="text-[0.65rem] tracking-wide uppercase opacity-60"
+            >
+              <template v-if="mod.type && mod.type !== 'untyped'">[{{ mod.type }}]</template>
+            </div>
             <div class="overflow-hidden text-ellipsis whitespace-nowrap">{{ mod.label }}</div>
-            <div v-if="mod.damageType">({{ mod.damageType }})</div>
+            <div v-if="mod.damageType" class="text-sm opacity-70">({{ mod.damageType }})</div>
           </li>
         </ul>
       </InfoModal>
