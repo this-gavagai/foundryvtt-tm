@@ -254,7 +254,8 @@
     "precision": "Präzision",
     "splash": "Spritzer",
     "clear": "Zurücksetzen",
-    "damageEmpty": "Tippe auf eine Würfelgröße"
+    "damageEmpty": "Tippe auf eine Würfelgröße",
+    "modifier": "Modifikator"
   },
   "widgets": {
     "toggleSwitch": "Umschalter"

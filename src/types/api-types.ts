@@ -116,6 +116,8 @@ export interface FreeRollArgs {
   characterId: string
   secret: boolean
   diceResults: DiceResults
+  // Optional flat modifier added to the d20 formula (e.g. `1d20+3`).
+  modifier?: number
   // Optional display labels attached to the d20 chat message as flavor
   // (e.g. ["Athletics", "Stealth"]). No mechanical effect — purely a tag for
   // the GM/player to identify what the roll was about.

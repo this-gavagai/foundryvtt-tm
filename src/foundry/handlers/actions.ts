@@ -59,7 +59,12 @@ export async function foundryFreeRoll(args: FreeRollArgs) {
   // Display labels — purely a tag on the chat message so a glance at the chat
   // log identifies what the roll was for. No mechanical effect.
   const flavor = args.traits?.length ? args.traits.join(', ') : undefined
-  const roll: FoundryRoll = await new Roll('1d20').evaluate()
+  const modSuffix = args.modifier
+    ? args.modifier > 0
+      ? `+${args.modifier}`
+      : `${args.modifier}`
+    : ''
+  const roll: FoundryRoll = await new Roll(`1d20${modSuffix}`).evaluate()
   await roll.toMessage({ speaker: { actor: actor._id ?? undefined }, flavor }, { rollMode })
   unregisterBackgroundRoll()
   return {

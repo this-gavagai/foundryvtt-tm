@@ -35,7 +35,17 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   const source = getGame()
   // https://github.com/foundryvtt/pf2e/blob/68988e12fbec7ea8359b9bee9b0c43eb6964ca3f/src/module/system/statistic/statistic.ts#L617
   const actor = getCharacter(source, args.characterId)
-  const modifiers = args.modifiers.map((m) => new source.pf2e.Modifier(m))
+  // _flatModifier is an app-internal option key: a flat untyped bonus/penalty
+  // the user set in the Check Roll modal. Convert it to an extra Modifier so
+  // PF2e includes it in the statistic's stacking / chat-card breakdown.
+  const flatMod = (args.options as { _flatModifier?: number })?._flatModifier ?? 0
+  const rawModifiers = flatMod
+    ? [
+        ...args.modifiers,
+        { label: 'Situational', modifier: flatMod, enabled: true, ignored: false }
+      ]
+    : args.modifiers
+  const modifiers = rawModifiers.map((m) => new source.pf2e.Modifier(m))
   const { token, actorProxy: targetActorProxy } = resolveTarget(source, args.targets)
   const params = {
     modifiers,

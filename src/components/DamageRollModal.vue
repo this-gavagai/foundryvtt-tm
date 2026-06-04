@@ -31,14 +31,10 @@ const precision = ref(false)
 const splash = ref(false)
 const activeType = ref<string>('untyped')
 
-// A damage group is one PF2e DamageInstance. Per the Remaster damage rules and
-// pf2e/src/module/system/damage/formula.ts, an instance is keyed by
-// (damageType, persistent) — multiple same-type dice (including precision and
-// splash) are merged into one instance so IWR applies once. Precision and
-// splash live *inside* an instance as per-die flavor tags ([precision], [splash])
-// that PF2e isolates at IWR time via componentTotal("precision"). Only
-// persistent damage gets its own instance — it has separate timing (end of turn)
-// and a `persistent` flavor at the instance level.
+// A damage group is one PF2e DamageInstance, keyed by (damageType, persistent).
+// `flat` is a typed flat bonus/penalty that lives inside the same tagged group,
+// producing e.g. `(1d10+2d6+4)[electricity]` rather than a separate untyped pool
+// member. Die chips and the flat modifier share the same IWR pass.
 type DieSize = 'd4' | 'd6' | 'd8' | 'd10' | 'd12'
 type DieCategory = null | 'precision' | 'splash'
 interface DieChip {
@@ -50,6 +46,7 @@ interface DamageGroup {
   type: string
   persistent: boolean
   chips: DieChip[]
+  flat: number
 }
 const groups = ref<DamageGroup[]>([])
 
@@ -67,9 +64,6 @@ function chipMatches(c: DieChip, size: DieSize) {
 function groupHasTag(g: DamageGroup) {
   return g.type !== 'untyped' || g.persistent
 }
-// Precision and splash are PF2e's DAMAGE_CATEGORIES_UNIQUE — a die can carry at
-// most one. Enforce mutual exclusion on the toggles so the active state always
-// maps to a single DieCategory.
 function setPrecision(v: boolean) {
   precision.value = v
   if (v) splash.value = false
@@ -81,34 +75,28 @@ function setSplash(v: boolean) {
 
 const DICE: DieChip['size'][] = ['d4', 'd6', 'd8', 'd10', 'd12']
 const DAMAGE_TYPES = [
-  'untyped',
-  'bludgeoning',
-  'piercing',
-  'slashing',
-  'acid',
-  'cold',
-  'electricity',
-  'fire',
-  'sonic',
-  'force',
-  'mental',
-  'poison',
-  'bleed',
-  'vitality',
-  'void',
-  'spirit'
+  'untyped', 'bludgeoning', 'piercing', 'slashing',
+  'acid', 'cold', 'electricity', 'fire', 'sonic',
+  'force', 'mental', 'poison', 'bleed', 'vitality', 'void', 'spirit'
 ]
 
-function addDie(size: DieSize) {
+function getOrCreateGroup(): DamageGroup {
   let group = groups.value.find(groupMatches)
   if (!group) {
-    group = {
-      type: activeType.value,
-      persistent: persistent.value,
-      chips: []
-    }
+    group = { type: activeType.value, persistent: persistent.value, chips: [], flat: 0 }
     groups.value.push(group)
   }
+  return group
+}
+function pruneGroup(group: DamageGroup) {
+  if (group.chips.length === 0 && group.flat === 0) {
+    const idx = groups.value.indexOf(group)
+    if (idx !== -1) groups.value.splice(idx, 1)
+  }
+}
+
+function addDie(size: DieSize) {
+  const group = getOrCreateGroup()
   const chip = group.chips.find((c) => chipMatches(c, size))
   if (chip) chip.count++
   else group.chips.push({ size, count: 1, category: activeCategory() })
@@ -117,48 +105,55 @@ function removeChip(groupIdx: number, chipIdx: number) {
   const group = groups.value[groupIdx]
   if (!group) return
   group.chips.splice(chipIdx, 1)
-  if (!group.chips.length) groups.value.splice(groupIdx, 1)
+  pruneGroup(group)
+}
+function addFlatModifier(step: number) {
+  const group = getOrCreateGroup()
+  group.flat += step
+  pruneGroup(group)
+}
+function clearGroupFlat(group: DamageGroup) {
+  group.flat = 0
+  pruneGroup(group)
 }
 function clearAll() {
   groups.value = []
 }
 
-// Mirror PF2e's formula.createPartialFormulas: within an instance, dice are
-// partitioned by per-die category. Base dice (null) sum plain; precision/splash
-// partitions get parenthesized and tagged with their category flavor. The whole
-// instance then gets the [type,persistent?] flavor at the outer bracket. Groups
-// (= instances) are joined with `,`; DamageRoll auto-wraps the result in `{...}`.
-//   base 1d8 slashing + precision 2d6 → (1d8+(2d6)[precision])[slashing]
-//   fire 1d6 + persistent fire 1d4    → 1d6[fire],(1d4)[persistent,fire]
+// The flat modifier for whichever group the current activeType/persistent
+// settings point at — used to drive the step-button value display.
+const currentGroupFlat = computed(() => groups.value.find(groupMatches)?.flat ?? 0)
+
+// Mirror PF2e's formula.createPartialFormulas. The flat modifier is folded
+// into the base (untagged) partition of each group so it shares the group's
+// type tag: (1d10+2d6+4)[electricity], not (1d10+2d6)[electricity],4.
 function buildPartition(chips: DieChip[], category: DieCategory): string {
   const members = chips.filter((c) => c.category === category)
   if (!members.length) return ''
   const terms = members.map((c) => `${c.count}${c.size}`)
   const sum = terms.join('+')
   if (!category) return sum
-  // Precision / splash flavor binds to the whole partition; PF2e wraps in
-  // parens when the inner sum has operators (formula.ts:275-283).
   const wrapped = terms.length > 1 ? `(${sum})` : sum
   return `${wrapped}[${category}]`
 }
+
 const formula = computed(() =>
   groups.value
-    .filter((g) => g.chips.length)
+    .filter((g) => g.chips.length > 0 || g.flat !== 0)
     .map((g) => {
-      const parts = [
-        buildPartition(g.chips, null),
-        buildPartition(g.chips, 'precision'),
-        buildPartition(g.chips, 'splash')
-      ].filter(Boolean)
+      const dicePart = buildPartition(g.chips, null)
+      // Combine base dice with the flat modifier (e.g. '1d8+4', '1d8-2', '4')
+      const base = (() => {
+        if (g.flat === 0) return dicePart
+        const flatStr = g.flat > 0 ? `+${g.flat}` : `${g.flat}`
+        return dicePart ? `${dicePart}${flatStr}` : `${g.flat}`
+      })()
+      const parts = [base, buildPartition(g.chips, 'precision'), buildPartition(g.chips, 'splash')].filter(Boolean)
       const inner = parts.join('+')
       const tags: string[] = []
       if (g.type !== 'untyped') tags.push(g.type)
       if (g.persistent) tags.push('persistent')
       if (!tags.length) return inner
-      // The instance flavor binds to the whole inner expression. Wrap in parens
-      // whenever inner contains an operator (a sum) or already carries a flavor
-      // bracket — you can't stack `X[a][b]` directly, PF2e wraps the same way
-      // (formula.ts:270-272: `term.endsWith("]") ? `(${term})[${category}]` …`).
       const needsParens = /[+\-[]/.test(inner)
       return `${needsParens ? `(${inner})` : inner}[${tags.join(',')}]`
     })
@@ -168,9 +163,6 @@ const formula = computed(() =>
 const damageRolls = computed<Roll[]>(() => {
   const f = formula.value
   const dice = f ? parseDamageFormulaDice(f) : []
-  // Always emit one Roll so the button is rendered with stable height;
-  // disable it when there's no formula yet (no dice added) so the contents
-  // don't reflow on the first chip add.
   return [
     {
       key: 'damage-roll',
@@ -184,7 +176,6 @@ const damageRolls = computed<Roll[]>(() => {
           secret: isSecret.value,
           diceResults: faces && dice.length ? makeDiceResults(dice, faces) : undefined
         })
-        // Reset the builder so the next open starts fresh.
         clearAll()
         return result
       }
@@ -211,10 +202,8 @@ defineExpose({ open, close })
     </template>
     <template #beforeBody>
       <div data-component="DamageRollBuilder">
-      <!-- Formula chips: dice tap-to-remove. Groups (one per DamageInstance)
-           are formed automatically by matching (type, category) — a new group
-           appears when the active type/category combo doesn't match any
-           existing group. The right-hand × clears everything. -->
+      <!-- Formula chips: dice and flat modifier per group, tap any chip to remove.
+           The flat modifier chip lives inside its group so it shares the type tag. -->
       <div
         data-part="damage-chips"
         class="mt-4 flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1 rounded border border-gray-400 p-2"
@@ -243,6 +232,12 @@ defineExpose({ open, close })
             <span v-if="chip.category === 'precision'" :title="$t('sideMenu.precision')">◆</span>
             <span v-if="chip.category === 'splash'" :title="$t('sideMenu.splash')">✦</span>
           </span>
+          <!-- Flat modifier chip, same row as dice chips -->
+          <span
+            v-if="group.flat !== 0"
+            class="inline-flex cursor-pointer items-center rounded border border-gray-400 bg-gray-100 px-2 py-1 text-sm font-medium whitespace-nowrap text-gray-900 tabular-nums select-none active:bg-gray-300"
+            @click="clearGroupFlat(group)"
+          >{{ group.flat > 0 ? '+' + group.flat : group.flat }}</span>
         </div>
         <span v-if="!groups.length" class="text-sm text-gray-500 italic">
           {{ $t('sideMenu.damageEmpty') }}
@@ -257,11 +252,10 @@ defineExpose({ open, close })
         </span>
       </div>
 
-      <!-- Resolved formula preview. Always rendered (even when empty) so the
-           layout below doesn't shift when the first chip lands. -->
-      <div class="mt-1 min-h-4 font-mono text-xs text-gray-600">{{ formula || ' ' }}</div>
+      <!-- Formula preview -->
+      <div class="mt-1 min-h-4 font-mono text-xs text-gray-600">{{ formula || '&nbsp;' }}</div>
 
-      <!-- Damage type tokens: tap to select active type -->
+      <!-- Damage type tokens -->
       <div class="mt-4">
         <h4 class="text-xs tracking-wide text-gray-600 uppercase">
           {{ $t('sideMenu.damageType') }}
@@ -279,11 +273,7 @@ defineExpose({ open, close })
         </div>
       </div>
 
-      <!-- Damage category toggles: apply to subsequently added dice. Persistent
-           is an instance-level flag (separates into its own DamageInstance) so
-           it can combine with precision or splash. Precision and splash are
-           per-die categories and mutually exclusive (DAMAGE_CATEGORIES_UNIQUE
-           in pf2e/src/module/system/damage/values.ts). -->
+      <!-- Damage category toggles -->
       <div class="mt-3 flex flex-wrap items-center gap-4">
         <Toggle :active="persistent" @changed="(v: boolean) => (persistent = v)">
           <span class="text-sm">{{ $t('sideMenu.persistent') }}</span>
@@ -296,7 +286,7 @@ defineExpose({ open, close })
         </Toggle>
       </div>
 
-      <!-- Die buttons: tap to add a chip with the current type/persistent -->
+      <!-- Die buttons -->
       <div class="mt-4">
         <h4 class="text-xs tracking-wide text-gray-600 uppercase">
           {{ $t('sideMenu.addDie') }}
@@ -311,6 +301,33 @@ defineExpose({ open, close })
             <img :src="dieIcons[d]" :alt="d" class="h-6 w-6" />
             <span>+{{ d }}</span>
           </span>
+        </div>
+      </div>
+
+      <!-- Flat modifier buttons — always apply to the current active group -->
+      <div class="mt-4">
+        <h4 class="text-xs tracking-wide text-gray-600 uppercase">
+          {{ $t('sideMenu.modifier') }}
+        </h4>
+        <div data-part="modifier-buttons" class="mt-1 flex flex-wrap items-center gap-1">
+          <span
+            v-for="step in [-5, -1, 1, 5]"
+            :key="step"
+            data-part="modifier-step"
+            class="inline-block cursor-pointer rounded border border-gray-400 bg-gray-100 px-2 py-1 text-xs font-medium whitespace-nowrap text-gray-900 select-none active:bg-gray-300"
+            @click="addFlatModifier(step)"
+          >{{ step > 0 ? '+' + step : step }}</span>
+          <span
+            v-if="currentGroupFlat !== 0"
+            data-part="modifier-value"
+            class="ml-1 min-w-6 text-center text-sm font-medium tabular-nums"
+          >{{ currentGroupFlat > 0 ? '+' + currentGroupFlat : currentGroupFlat }}</span>
+          <span
+            v-if="currentGroupFlat !== 0"
+            data-part="modifier-clear"
+            class="cursor-pointer text-xs select-none"
+            @click="addFlatModifier(-currentGroupFlat)"
+          >✕</span>
         </div>
       </div>
       </div>

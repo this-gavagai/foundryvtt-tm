@@ -19,6 +19,7 @@ const {
 
 const modalRef = ref()
 const isSecret = ref(false)
+const flatModifier = ref(0)
 
 // A roller groups a label with the dispatch function for one chit. Lets the
 // template render uniformly: a single `<span>` per chit driven by `Roller[]`.
@@ -127,12 +128,16 @@ const activeLabel = computed(
   () => allRollers.value.find((r) => r.slug === activeSlug.value)?.label ?? ''
 )
 
+const flatSuffix = computed(() =>
+  flatModifier.value ? ' ' + (flatModifier.value > 0 ? `+${flatModifier.value}` : `${flatModifier.value}`) : ''
+)
+
 const checkRolls = computed<Roll[]>(() => [
   {
     key: 'roll-check',
     label: activeLabel.value
-      ? `${t('common.roll')} ${activeLabel.value}`
-      : t('sideMenu.rollD20'),
+      ? `${t('common.roll')} ${activeLabel.value}${flatSuffix.value}`
+      : t('sideMenu.rollD20') + flatSuffix.value,
     color: 'blue',
     dice: ['d20'],
     armed: true,
@@ -163,12 +168,14 @@ const checkRolls = computed<Roll[]>(() => [
         options.extraRollOptions = traitList
       }
       if (rollTwice) options.rollTwice = rollTwice
+      if (flatModifier.value) options._flatModifier = flatModifier.value
       const result = roller
         ? await roller.execute(faces?.[0], options)
-        : await freeRoll(characterId.value ?? '', isSecret.value, faces?.[0])
+        : await freeRoll(characterId.value ?? '', isSecret.value, faces?.[0], traitList.length ? traitList : undefined, flatModifier.value || undefined)
       // Reset selections after the roll fires so the next open starts fresh.
       activeSlug.value = undefined
       selectedTraits.value = new Set()
+      flatModifier.value = 0
       return result
     }
   }
@@ -246,6 +253,34 @@ defineExpose({ open, close })
             >
               {{ $t('rollCheck.trait.' + trait) }}
             </span>
+          </div>
+        </div>
+
+        <!-- Flat modifier accumulator. Below Traits so the stat/trait selection
+             UI isn't disrupted. Resets to 0 after each roll. -->
+        <div class="mt-3">
+          <h4 class="text-xs tracking-wide text-gray-600 uppercase">
+            {{ $t('sideMenu.modifier') }}
+          </h4>
+          <div data-part="modifier-buttons" class="mt-1 flex flex-wrap items-center gap-1">
+            <span
+              v-for="step in [-5, -1, 1, 5]"
+              :key="step"
+              data-part="modifier-step"
+              class="inline-block cursor-pointer rounded border border-gray-400 bg-gray-100 px-2 py-1 text-xs font-medium whitespace-nowrap text-gray-900 select-none active:bg-gray-300"
+              @click="flatModifier += step"
+            >{{ step > 0 ? '+' + step : step }}</span>
+            <span
+              v-if="flatModifier !== 0"
+              data-part="modifier-value"
+              class="ml-1 min-w-6 text-center text-sm font-medium tabular-nums"
+            >{{ flatModifier > 0 ? '+' + flatModifier : flatModifier }}</span>
+            <span
+              v-if="flatModifier !== 0"
+              data-part="modifier-clear"
+              class="cursor-pointer text-xs select-none"
+              @click="flatModifier = 0"
+            >✕</span>
           </div>
         </div>
       </div>

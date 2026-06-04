@@ -251,13 +251,15 @@ export const freeRoll = (
   characterId: string,
   secret: boolean,
   face?: number,
-  traits?: string[]
+  traits?: string[],
+  modifier?: number
 ) =>
   sendAction(TM.FREE_ROLL, {
     characterId,
     secret,
     diceResults: { d20: [face ?? 0] },
-    ...(traits && traits.length ? { traits } : {})
+    ...(traits && traits.length ? { traits } : {}),
+    ...(modifier ? { modifier } : {})
   })
 
 // Run an arbitrary macro by UUID against the app character + the proxy's

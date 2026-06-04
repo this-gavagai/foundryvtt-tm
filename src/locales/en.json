@@ -257,7 +257,8 @@
     "precision": "Precision",
     "splash": "Splash",
     "clear": "Clear",
-    "damageEmpty": "Tap a die size to add it"
+    "damageEmpty": "Tap a die size to add it",
+    "modifier": "Modifier"
   },
   "widgets": {
     "toggleSwitch": "Toggle Switch"
