@@ -112,6 +112,25 @@ function isStackingLoser(mod: Modifier): boolean {
   return !!mod.slug && stackingLosers.value.has(mod.slug)
 }
 
+// Effective base total (MAP 0, no extra modifiers) with overrides applied.
+const effectiveAttackBase = computed(() =>
+  attackModifiers.value
+    .filter((m) => effectiveEnabled(m) && !isStackingLoser(m))
+    .reduce((sum, m) => sum + (m.modifier ?? 0), 0)
+)
+
+// Delta vs. the default MAP-0 total (parsed from the first variant's label).
+// We compare to the parsed label rather than re-simulating default stacking,
+// keeping the logic simple and consistent with what PF2e already computed.
+const attackDelta = computed(() => {
+  const v = viewed.value
+  if (!v || v.phase !== 'attack' || !Object.keys(modifierOverrides.value).length) return 0
+  const baseLabel = v.target.data.variants?.find((vrt) => vrt.map === 0)?.label ?? ''
+  const m = baseLabel.match(/^([+-]?\d+)/)
+  if (!m) return 0
+  return effectiveAttackBase.value - parseInt(m[1], 10)
+})
+
 const { isListening } = storeToRefs(useListenersStore())
 
 // A reloadable weapon that isn't loaded can't strike until it's reloaded.
@@ -313,7 +332,17 @@ const strikeRolls = computed<Roll[]>(() => {
   if (!v || !isListening.value) return []
   if (v.phase === 'attack') {
     const variantLabel = variantLabelForViewed()
-    const label = v.subtype === 0 ? `${t('strikes.strike')} ${variantLabel}` : variantLabel
+    // When modifier overrides are active, adjust the numeric total in the
+    // variant label by the computed delta so the roll button reflects the
+    // actual value that will be sent.
+    const delta = attackDelta.value
+    const adjustedLabel = (() => {
+      if (delta === 0) return variantLabel
+      const match = variantLabel.match(/^([+-]?\d+)/)
+      if (!match) return variantLabel
+      return SignedNumber.format(parseInt(match[1], 10) + delta)
+    })()
+    const label = v.subtype === 0 ? `${t('strikes.strike')} ${adjustedLabel}` : adjustedLabel
     return [
       {
         key: 'strike-attack',

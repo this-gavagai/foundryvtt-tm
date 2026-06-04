@@ -127,12 +127,24 @@ function isStackingLoser(mod: Modifier): boolean {
   return !!mod.slug && stackingLosers.value.has(mod.slug)
 }
 
+// Sum of all effectively-enabled, non-stacking-loser modifiers — drives the
+// roll button label so the user can see the combined modifier before rolling.
+const effectiveTotal = computed<number | undefined>(() => {
+  const mods = props.modifiers
+  if (!mods?.length) return undefined
+  return mods
+    .filter((m) => effectiveEnabled(m) && !isStackingLoser(m))
+    .reduce((sum, m) => sum + (m.modifier ?? 0), 0)
+})
+
 const rolls = computed<Roll[]>(() => {
   if (!props.rollAction || !isListening.value) return []
+  const totalLabel =
+    effectiveTotal.value !== undefined ? ' ' + SignedNumber.format(effectiveTotal.value) : ''
   return [
     {
       key: 'statbox-roll',
-      label: t('common.roll'),
+      label: t('common.roll') + totalLabel,
       color: 'blue',
       dice: ['d20'],
       armed: true,
