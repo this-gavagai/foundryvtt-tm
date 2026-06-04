@@ -202,22 +202,24 @@ defineExpose({ open, close })
     </template>
     <template #beforeBody>
       <div data-component="DamageRollBuilder">
-      <!-- Formula chips: dice and flat modifier per group, tap any chip to remove.
-           The flat modifier chip lives inside its group so it shares the type tag. -->
+      <!-- Formula chips. Each typed group is wrapped in a capsule so it reads
+           as a single unit. Untyped groups show bare chips without a capsule. -->
       <div
         data-part="damage-chips"
-        class="mt-4 flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1 rounded border border-gray-400 p-2"
+        class="mt-4 flex min-h-15 flex-wrap items-center gap-x-2 gap-y-1.5 rounded border border-gray-400 p-2"
       >
         <div
           v-for="(group, gi) in groups"
           :key="gi"
           data-part="damage-group"
           class="flex flex-wrap items-center gap-1"
+          :class="groupHasTag(group) ? 'rounded-md border border-gray-300 bg-gray-50 px-2 py-0.5' : ''"
         >
+          <!-- Type label: plain text inside the capsule, not a separate chip -->
           <span
             v-if="groupHasTag(group)"
             data-part="damage-group-tag"
-            class="inline-flex items-center gap-1 rounded border border-gray-500 bg-gray-200 px-2 py-1 text-xs whitespace-nowrap text-gray-900 capitalize select-none"
+            class="text-xs font-semibold capitalize select-none pr-0.5"
           >
             <span v-if="group.type !== 'untyped'">{{ group.type }}</span>
             <span v-if="group.persistent" :title="$t('sideMenu.persistent')">●</span>
@@ -232,7 +234,7 @@ defineExpose({ open, close })
             <span v-if="chip.category === 'precision'" :title="$t('sideMenu.precision')">◆</span>
             <span v-if="chip.category === 'splash'" :title="$t('sideMenu.splash')">✦</span>
           </span>
-          <!-- Flat modifier chip, same row as dice chips -->
+          <!-- Flat modifier chip -->
           <span
             v-if="group.flat !== 0"
             class="inline-flex cursor-pointer items-center rounded border border-gray-400 bg-gray-100 px-2 py-1 text-sm font-medium whitespace-nowrap text-gray-900 tabular-nums select-none active:bg-gray-300"
@@ -245,7 +247,7 @@ defineExpose({ open, close })
         <span
           v-if="groups.length"
           :title="$t('sideMenu.clear')"
-          class="ml-auto cursor-pointer px-1 text-lg leading-none text-gray-500 select-none hover:text-gray-800 active:text-gray-900"
+          class="ml-auto cursor-pointer px-1 text-xl leading-none text-gray-500 select-none hover:text-gray-800 active:text-gray-900"
           @click="clearAll"
         >
           ×
