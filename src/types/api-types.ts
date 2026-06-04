@@ -339,7 +339,7 @@ declare global {
     Hooks: any
     character: any
     getBlastData: any
-    pixel: any
+    pixels: any
     __TM_ENV__: any
   }
 }

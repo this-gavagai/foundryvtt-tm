@@ -237,7 +237,8 @@
   "sideMenu": {
     "closeSidebar": "Seitenleiste schließen",
     "targetingProxy": "Ziel-Stellvertreter",
-    "pairPixelDice": "Pixel Dice koppeln",
+    "pairPixelDice": "Pixel-Würfel koppeln",
+    "pixelDice": "Pixel-Würfel",
     "language": "Sprache",
     "theme": "Thema",
     "manualDicePicker": "Manuelle Würfelergebnisse",

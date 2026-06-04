@@ -237,7 +237,8 @@
   "sideMenu": {
     "closeSidebar": "Close sidebar",
     "targetingProxy": "Targeting Proxy",
-    "pairPixelDice": "Pair Pixel Dice",
+    "pairPixelDice": "Pair Pixel Die",
+    "pixelDice": "Pixel Dice",
     "language": "Language",
     "theme": "Theme",
     "manualDicePicker": "Manual dice results",

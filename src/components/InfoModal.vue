@@ -42,7 +42,11 @@ const dieIcons: Record<string, string> = {
 
 const { _id: characterId } = useInjectedCharacter()
 
-const { pixel, lastRoll } = storeToRefs(usePixelDiceStore())
+const { pixels, lastRoll } = storeToRefs(usePixelDiceStore())
+// "Any die ready" gates the dice-pending visualization in the bottom row.
+// Per-slot matching against an actual paired die is enforced in the
+// lastRoll watcher below.
+const hasReadyPixel = computed(() => pixels.value.some((p) => p.status === 'ready'))
 const { isListening } = storeToRefs(useListenersStore())
 const { manualDicePicker } = storeToRefs(useSettingsStore())
 
@@ -120,13 +124,19 @@ function executeRollFromButton(roll: Roll) {
 
 watch(lastRoll, () => {
   const roll = armedRoll.value
-  if (!isOpen.value || !roll?.dice?.length || lastRoll.value == null) return
-  // Fill the first empty slot in order; if every slot is already filled the
-  // physical roll is ignored (use the Roll button or clear first).
-  const idx = buffer.value.findIndex((v) => v === undefined)
+  const event = lastRoll.value
+  if (!isOpen.value || !roll?.dice?.length || !event) return
+  // Match physical dice to roll slots by face count: a d20 can't fill a d6
+  // slot, etc. Within matching slots we fill the first empty one in order,
+  // so multi-d8 damage rolls etc. still accumulate naturally. Non-matching
+  // rolls are silently ignored (the slot's bouncy icon stays armed and the
+  // user can try the right die or use the manual face picker).
+  const idx = buffer.value.findIndex(
+    (v, i) => v === undefined && Number(roll.dice![i].slice(1)) === event.dieFaceCount
+  )
   if (idx === -1) return
   const next = [...buffer.value]
-  next[idx] = lastRoll.value
+  next[idx] = event.face
   if (next.every((v) => v !== undefined)) executeRoll(roll, next as number[])
   else buffer.value = next
 })
@@ -309,7 +319,7 @@ defineExpose({ open, close, rollResultModal })
                     <slot name="bottomLeft"></slot>
                   </div>
                   <div
-                    v-if="pixel && pixel.status === 'ready' && armedRoll?.dice?.length"
+                    v-if="hasReadyPixel && armedRoll?.dice?.length"
                     class="flex grow cursor-pointer items-center gap-1"
                     :title="$t('infoModal.clearDicePending')"
                     @click="clearBuffer"

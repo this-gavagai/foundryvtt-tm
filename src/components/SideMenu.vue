@@ -19,6 +19,7 @@ import Spinner from './widgets/SpinnerWidget.vue'
 import DamageRollModal from './DamageRollModal.vue'
 import RollCheckModal from './RollCheckModal.vue'
 import SettingsModal from './SettingsModal.vue'
+import Modal from './ModalBox.vue'
 
 const { t } = useI18n()
 const { isConnected } = storeToRefs(useServerStore())
@@ -38,8 +39,37 @@ const connectionTitle: Record<string, string> = {
   ok: 'Connected',
 }
 const pixelStore = usePixelDiceStore()
-const { pixel, pixelStatus } = storeToRefs(pixelStore)
-const { pixelConnect, pixelReconnect, pixelDisconnect } = pixelStore
+const { pixels } = storeToRefs(pixelStore)
+const { pairDie, reconnectDie, forgetDie } = pixelStore
+
+// Per-die icon — match the paired Pixel's actual die type to the in-app SVG.
+// Variants of d6 (pipped/fudge) share the d6 icon; d00 (percentile) reuses
+// d10 since we don't have a d100 asset. Unknown falls back to d20.
+import d4Icon from '@/assets/icons/d4.svg'
+import d6Icon from '@/assets/icons/d6.svg'
+import d8Icon from '@/assets/icons/d8.svg'
+import d10Icon from '@/assets/icons/d10.svg'
+import d12Icon from '@/assets/icons/d12.svg'
+import d20Icon from '@/assets/icons/d20.svg'
+const dieTypeIcons: Record<string, string> = {
+  d4: d4Icon,
+  d6: d6Icon,
+  d6pipped: d6Icon,
+  d6fudge: d6Icon,
+  d8: d8Icon,
+  d10: d10Icon,
+  d00: d10Icon,
+  d12: d12Icon,
+  d20: d20Icon
+}
+function iconForDieType(dieType: string): string {
+  return dieTypeIcons[dieType] ?? d20Icon
+}
+
+// Detail modal — only opened when 2+ dice are paired; with a single die the
+// inline row already shows everything. Ref-typed loosely because the Modal
+// component is plain JS.
+const pixelDiceModal = ref()
 const targetHelperStore = useTargetHelperStore()
 const { userList, targetingProxyId } = storeToRefs(targetHelperStore)
 const { updateProxyId } = targetHelperStore
@@ -174,34 +204,60 @@ defineExpose({ sidebarOpen })
                     />
                   </li>
                   <li>
-                    <div class="cursor-pointer text-lg font-bold" @click="pixelConnect">
+                    <div class="cursor-pointer text-lg font-bold" @click="pairDie">
                       {{ $t('sideMenu.pairPixelDice') }}
                     </div>
-                    <ul v-if="pixel">
-                      <li class="flex gap-1">
-                        <img src="@/assets/icons/d20.svg" class="h-6 w-6" />
+                    <!-- Single die: full inline row (icon, name, battery, X).
+                         The X stays mounted while the die reconnects so you
+                         can always forget it — the spinner just sits next to
+                         the X rather than replacing it. -->
+                    <ul v-if="pixels.length === 1">
+                      <li class="flex items-center gap-1">
+                        <img :src="iconForDieType(pixels[0].dieType)" class="h-6 w-6" />
                         <div
-                          class="grow"
+                          class="grow cursor-pointer"
                           :class="[
-                            pixelStatus === 'disconnected' ? 'line-through' : '',
-                            pixelStatus === 'connecting' ? 'opacity-50' : ''
+                            pixels[0].status === 'disconnected' ? 'line-through' : '',
+                            pixels[0].status === 'connecting' ? 'opacity-50' : ''
                           ]"
-                          @click="pixelReconnect"
+                          @click="reconnectDie(pixels[0].systemId)"
                         >
-                          <span>{{ pixel.name }} </span>
+                          <span>{{ pixels[0].name }} </span>
                           (<span
-                            :class="[pixel.batteryLevel < 30 ? 'text-red-700' : 'text-green-700']"
-                            >{{ pixel.batteryLevel }}%</span
+                            :class="[pixels[0].batteryLevel < 30 ? 'text-red-700' : 'text-green-700']"
+                            >{{ pixels[0].batteryLevel }}%</span
                           >)
                         </div>
-                        <Spinner v-if="pixelStatus === 'connecting'" class="h-6 w-6" />
+                        <Spinner v-if="pixels[0].status === 'connecting'" class="h-6 w-6" />
                         <XMarkIcon
-                          v-else-if="pixelStatus === 'disconnected'"
                           class="w-4 cursor-pointer"
-                          @click="pixelDisconnect"
+                          @click="forgetDie(pixels[0].systemId)"
                         />
                       </li>
                     </ul>
+                    <!-- 2+ dice: just icons in a compact strip; clicking any
+                         opens the detail modal where each die has the same
+                         full row + always-visible X. -->
+                    <div
+                      v-else-if="pixels.length > 1"
+                      class="flex flex-wrap items-center gap-2 pt-1"
+                    >
+                      <div
+                        v-for="p in pixels"
+                        :key="p.systemId"
+                        class="relative cursor-pointer"
+                        @click="pixelDiceModal.open()"
+                      >
+                        <img
+                          :src="iconForDieType(p.dieType)"
+                          class="h-6 w-6"
+                          :class="[
+                            p.status === 'disconnected' ? 'opacity-40' : '',
+                            p.status === 'connecting' ? 'animate-pulse opacity-60' : ''
+                          ]"
+                        />
+                      </div>
+                    </div>
                   </li>
                 </ul>
               </nav>
@@ -214,4 +270,34 @@ defineExpose({ sidebarOpen })
   <RollCheckModal ref="freeRollModal" />
   <DamageRollModal ref="damageRollModal" />
   <SettingsModal ref="settingsModal" />
+  <!-- Detail view for paired Pixel dice. Mounted regardless of pixel count
+       so toggling between 1- and 2-die states doesn't tear it down. The
+       sidebar's own Dialog is z-50, so this modal opts into z-60 to sit on
+       top of the sidebar overlay (otherwise it's hidden behind it). -->
+  <Modal ref="pixelDiceModal" :title="$t('sideMenu.pixelDice')" zIndexClass="z-[60]">
+    <ul class="flex flex-col gap-2 py-2">
+      <li
+        v-for="p in pixels"
+        :key="p.systemId"
+        class="flex items-center gap-2"
+      >
+        <img :src="iconForDieType(p.dieType)" class="h-6 w-6" />
+        <div
+          class="grow cursor-pointer"
+          :class="[
+            p.status === 'disconnected' ? 'line-through' : '',
+            p.status === 'connecting' ? 'opacity-50' : ''
+          ]"
+          @click="reconnectDie(p.systemId)"
+        >
+          <span>{{ p.name }} </span>
+          (<span :class="[p.batteryLevel < 30 ? 'text-red-700' : 'text-green-700']"
+            >{{ p.batteryLevel }}%</span
+          >)
+        </div>
+        <Spinner v-if="p.status === 'connecting'" class="h-6 w-6" />
+        <XMarkIcon class="w-4 cursor-pointer" @click="forgetDie(p.systemId)" />
+      </li>
+    </ul>
+  </Modal>
 </template>

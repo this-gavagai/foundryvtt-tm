@@ -5,7 +5,17 @@ import { TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle } fro
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 import { InformationCircleIcon } from '@heroicons/vue/24/solid'
 
-const props = defineProps(['title', 'focusTarget', 'infoButton', 'noX'])
+// `zIndexClass` overrides the outer Dialog's stacking class so a Modal
+// opened on top of another Headless UI Dialog (e.g. SideMenu, which uses
+// z-50) can sit above it. Default of `z-10` keeps existing callers
+// unchanged.
+const props = defineProps({
+  title: { type: String, default: undefined },
+  focusTarget: { type: [Object, Function], default: undefined },
+  infoButton: { type: Function, default: undefined },
+  noX: { type: Boolean, default: false },
+  zIndexClass: { type: String, default: 'z-10' }
+})
 const isOpen = ref(false)
 const content = ref()
 const options = ref()
@@ -27,7 +37,8 @@ defineExpose({ open, close, options, isOpen })
     <Dialog
       as="div"
       @close="close"
-      class="relative z-10 touch-manipulation"
+      class="relative touch-manipulation"
+      :class="props.zIndexClass"
       :initial-focus="props.focusTarget ?? xButton"
     >
       <TransitionChild
