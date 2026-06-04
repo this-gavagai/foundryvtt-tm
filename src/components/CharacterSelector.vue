@@ -23,7 +23,7 @@ const { setActiveCharacterId } = characterSelectStore
       </ListboxButton>
       <ListboxOptions
         data-part="dropdown-options"
-        class="absolute z-50 mt-1 max-h-60 overflow-auto rounded-md py-1 text-base empty:hidden focus:outline-hidden sm:text-sm"
+        class="absolute z-50 mt-1 max-h-60 overflow-auto rounded-md border border-gray-200 bg-white py-1 text-base text-gray-900 shadow-lg empty:hidden focus:outline-hidden sm:text-sm"
       >
         <ListboxOption v-if="!characterList">
           <div class="relative py-2 pr-4 pl-6 select-none opacity-60">

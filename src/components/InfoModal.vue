@@ -186,7 +186,7 @@ function sendCurrentItemToChat() {
 }
 
 const emit = defineEmits(['opening', 'closing', 'imgClick'])
-defineExpose({ open, close, rollResultModal })
+defineExpose({ open, close, rollResultModal, isOpen })
 </script>
 <template>
   <div class="touch-manipulation transition-all">

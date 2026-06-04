@@ -78,6 +78,12 @@ export interface RollCheckArgs {
   checkType: string
   checkSubtype: string
   modifiers: CheckModifier[]
+  // Free-form options bag spread into PF2e's StatisticRollParameters by the
+  // foundry-side handler. Server-side handlers may also pull out the
+  // following well-known keys for app-side use:
+  //   modifierOverrides: { [slug]: enabled } — per-roll toggles applied to
+  //     existing modifiers on the statistic. See foundry/handlers/checks/
+  //     modifierOverrides.ts for the mutation semantics.
   options: object
   uuid: string
   targets?: string[]
