@@ -5,6 +5,7 @@ import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import {
   getSocket,
   mergeWithArrayReset,
+  asDocumentArray,
   type ModifyDocumentUpdate,
   type DocumentData
 } from './internal'
@@ -138,7 +139,7 @@ export function updateActorItem(
       }
     },
     (r) => {
-      processChanges(r, actor.value.items as unknown as DocumentData[])
+      processChanges(r, asDocumentArray(actor.value.items))
       fireRefresh(actor.value._id)
     }
   )
@@ -155,7 +156,7 @@ export function deleteActorItem(actor: Ref<CharacterPF2e>, itemId: string) {
       }
     },
     (r) => {
-      processChanges(r, actor.value.items as unknown as DocumentData[])
+      processChanges(r, asDocumentArray(actor.value.items))
       fireRefresh(actor.value._id)
     }
   )

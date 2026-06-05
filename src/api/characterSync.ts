@@ -3,7 +3,7 @@ import { mergeWith } from 'lodash-es'
 import type { TablemateCharacter } from '@/types/character-types'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import { uuidv4 } from '@/utils/utilities'
-import { getSocket, getUserId, mergeWithArrayReset } from './internal'
+import { getSocket, getUserId, mergeWithArrayReset, asDocumentArray } from './internal'
 import { TM } from './protocol'
 
 // Per-actor dirty flag and last-sent request UUID — used by parseActorData
@@ -91,7 +91,7 @@ export function parseActorData(
   // ID-based merge for items: deep-merge matching items, remove missing ones,
   // append genuinely new ones. Avoids position-based array merging entirely.
   if (incomingItems) {
-    const existing = actor.value.items as unknown as { _id?: string }[] | undefined
+    const existing = asDocumentArray(actor.value.items) as { _id?: string }[]
     if (!existing) {
       ;(actor.value as { items: unknown }).items = incomingItems
     } else {

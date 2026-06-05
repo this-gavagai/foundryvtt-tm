@@ -34,7 +34,7 @@ export function resolveTarget(
               return (_linked?: boolean, document?: boolean) =>
                 document ? [tokenDoc] : [token]
             }
-            const val = (obj as unknown as Record<string | symbol, unknown>)[prop]
+            const val = (obj as ActorPF2e & Record<string | symbol, unknown>)[prop]
             return typeof val === 'function'
               ? (val as (...a: unknown[]) => unknown).bind(obj)
               : val

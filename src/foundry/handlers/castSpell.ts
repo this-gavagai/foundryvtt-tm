@@ -34,7 +34,7 @@ export async function foundryCastStaffSpell(args: CastStaffSpellArgs) {
     get: (id: string) => SpellcastingEntryPF2e<ActorPF2e<null>> | undefined
     collections: { get: (id: string) => SpellCol | undefined }
   }
-  const spellcasting = actor.spellcasting as unknown as Spellcasting
+  const spellcasting = actor.spellcasting as typeof actor.spellcasting & Spellcasting
   const entry = spellcasting.get(entryId)
   const spell = spellcasting.collections.get(entryId)?.get(args.spellId)
   if (entry && spell) {
@@ -42,7 +42,7 @@ export async function foundryCastStaffSpell(args: CastStaffSpellArgs) {
     // entryId, so a blank ID matches nothing, entries.length === 0, and the dialog is
     // skipped. The cast proceeds straight to the normal charge-deduction path.
     await (
-      entry as unknown as {
+      entry as SpellcastingEntryPF2e<ActorPF2e<null>> & {
         cast: (spell: SpellPF2e<ActorPF2e<null>>, options: object) => Promise<void>
       }
     ).cast(spell, {

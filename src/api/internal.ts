@@ -1,6 +1,5 @@
 import { useServerStore } from '@/stores/server'
 import { useUserStore } from '@/stores/user'
-import { logger } from '@/utils/utilities'
 
 // Shared types used by document mutations and socket listeners.
 export type ModifyDocumentUpdate = { _id: string; [key: string]: unknown }
@@ -17,4 +16,11 @@ export const getUserId = () => useUserStore().getUserId()
 // rules, traits, etc.) where full replacement is always the right behavior.
 export function mergeWithArrayReset(_objValue: unknown, srcValue: unknown) {
   if (Array.isArray(srcValue)) return srcValue
+}
+
+// EmbeddedCollection (Map-based) is not structurally compatible with a plain
+// mutable array, but Foundry hands us plain arrays at runtime. This helper
+// centralises the unavoidable double cast in one place.
+export function asDocumentArray(col: unknown): DocumentData[] {
+  return col as unknown as DocumentData[]
 }

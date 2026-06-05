@@ -13,7 +13,7 @@ function getBlastModifiers(actor: ActorPF2e, element: string): Modifier[] {
     element?: string
     statistic?: { check?: { modifiers?: Modifier[] }; modifiers?: Modifier[]; _modifiers?: Modifier[] }
   }
-  const configs: BlastLike[] = (actor as unknown as { elementalBlasts?: { configs?: BlastLike[] } })
+  const configs: BlastLike[] = (actor as ActorPF2e & { elementalBlasts?: { configs?: BlastLike[] } })
     ?.elementalBlasts?.configs ?? []
   const config = configs.find((c) => c.element === element)
   return (

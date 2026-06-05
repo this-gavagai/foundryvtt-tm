@@ -13,7 +13,7 @@ export function findSpell(
 ): SpellPF2e<ActorPF2e> | undefined {
   type SpellCol = { get: (id: string) => SpellPF2e<ActorPF2e> | undefined }
   type CollectionsMap = { values(): Iterable<SpellCol> }
-  const collections = (actor.spellcasting as unknown as { collections: CollectionsMap })
+  const collections = (actor.spellcasting as typeof actor.spellcasting & { collections: CollectionsMap })
     .collections
   for (const col of collections.values()) {
     const found = col.get(spellId)

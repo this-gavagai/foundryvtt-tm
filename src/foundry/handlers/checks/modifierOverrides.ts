@@ -58,12 +58,12 @@ function applyOverridesToModifiers(
     // the Predicate instance wholesale (PF2e holds it through inheritance
     // from Array<PredicateStatement>), but emptying the array reduces its
     // length to 0, which is what `Modifier.test()` short-circuits on.
-    const origPredicateContents = (m.predicate as unknown as unknown[]).slice()
+    const origPredicateContents = (m.predicate as unknown[]).slice()
     restores.push(() => {
       m.enabled = origEnabled
       m.ignored = origIgnored
       m.adjustments = origAdjustments
-      ;(m.predicate as unknown as unknown[]).push(...origPredicateContents)
+      ;(m.predicate as unknown[]).push(...origPredicateContents)
       if (hadOwnTest) m.test = origTest
       else delete (m as { test?: unknown }).test
     })

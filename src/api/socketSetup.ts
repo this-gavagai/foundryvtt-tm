@@ -10,6 +10,7 @@ import { logger } from '@/utils/utilities'
 import {
   getSocket,
   mergeWithArrayReset,
+  asDocumentArray,
   type ModifyDocumentUpdate,
   type DocumentData
 } from './internal'
@@ -94,16 +95,16 @@ export async function setupSocketListenersForWorld(world: Ref<GamePF2e>) {
   worldModifyHandler = (args: DocumentSocketResponse) => {
     switch (args.type) {
       case 'Combat':
-        processChanges(args, world.value?.combats as unknown as DocumentData[])
+        processChanges(args, asDocumentArray(world.value?.combats))
         break
       case 'Combatant': {
         const combatId = args.operation.parentUuid?.split('.')?.[1]
         const combat = world.value?.combats.find((c) => c._id === combatId)
-        processChanges(args, combat?.combatants as unknown as DocumentData[] | undefined)
+        processChanges(args, asDocumentArray(combat?.combatants))
         break
       }
       case 'ChatMessage':
-        processChanges(args, world.value?.messages as unknown as DocumentData[] | undefined)
+        processChanges(args, asDocumentArray(world.value?.messages))
         break
     }
   }
@@ -150,7 +151,7 @@ export async function setupSocketListenersForActor(
         break
       case 'Item':
         if (args.operation.parentUuid === 'Actor.' + actorId) {
-          processChanges(args, actor.value.items as unknown as DocumentData[])
+          processChanges(args, asDocumentArray(actor.value.items))
           fireRefresh(actorId)
         }
         break

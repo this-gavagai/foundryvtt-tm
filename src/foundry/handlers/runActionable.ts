@@ -93,12 +93,8 @@ export async function foundryRunActionable(args: RunActionableArgs) {
   // non-frequency-based actions; matching the contract keeps macros that
   // call `use()` working without rewriting. The event arg suppresses the
   // roll-config dialog on the GM side — the tablet user can't dismiss it.
-  type Pf2eApi = {
-    rollItemMacro?: (uuid: string, event?: PointerEvent) => Promise<unknown>
-  }
   const use = async () => {
-    const api = source.pf2e as unknown as Pf2eApi
-    return api.rollItemMacro?.(item.uuid, skipDialogEvent)
+    return source.pf2e.rollItemMacro?.(item.uuid, skipDialogEvent)
   }
 
   // Cancel callback: post a chat message indicating the macro stopped the

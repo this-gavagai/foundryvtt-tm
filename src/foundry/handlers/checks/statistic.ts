@@ -51,7 +51,7 @@ export const handleInitiative: CheckRollHandler = (ctx) => {
   // Initiative wraps an underlying Statistic on `initiative.statistic`;
   // its check modifiers live there, not on `initiative` itself.
   const initStatGetter = (a: ActorPF2e): Statistic | null => {
-    const init = (a as unknown as { initiative?: { statistic?: Statistic } }).initiative
+    const init = (a as ActorPF2e & { initiative?: { statistic?: Statistic } }).initiative
     return init?.statistic ?? null
   }
   return withModifierOverrides(ctx.actor, initStatGetter, takeOverrides(ctx), () =>

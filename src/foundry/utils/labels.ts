@@ -12,7 +12,7 @@ export function localizeProficiencyLabels(
   system: CharacterPF2e['system']
 ): Record<string, string> {
   const WEAPON_CATEGORIES = ['unarmed', 'simple', 'martial', 'advanced']
-  const cfg = CONFIG.PF2E as unknown as {
+  const cfg = CONFIG.PF2E as {
     weaponCategories: Record<string, string>
     weaponGroups: Record<string, string>
     baseWeaponTypes: Record<string, string>

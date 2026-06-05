@@ -4,6 +4,7 @@ import type {
   ElementalBlast as PF2eElementalBlast,
   ElementalBlastConfig,
   RawModifier,
+  Statistic,
   WeaponPF2e
 } from '@7h3laughingman/pf2e-types'
 import { type Modifier, makeModifiers } from './modifier'
@@ -98,7 +99,7 @@ export function makeStrike(
     // undefined — the underlying array lives on the own property `_modifiers`.
     _modifiers: makeModifiers(
       root?.modifiers ??
-      (root as unknown as { _modifiers?: RawModifier[] })?._modifiers
+      (root as CharacterStrike & { _modifiers?: RawModifier[] })?._modifiers
     )
   }
 }
@@ -145,7 +146,7 @@ export function makeElementalBlasts(root: PF2eElementalBlast | undefined): Eleme
     weaponTraits: [],
     _modifiers: makeModifiers(
       config?.statistic?.modifiers ??
-      (config?.statistic as unknown as { _modifiers?: RawModifier[] })?._modifiers
+      (config.statistic as Statistic & { _modifiers?: RawModifier[] })?._modifiers
     )
   }))
 }

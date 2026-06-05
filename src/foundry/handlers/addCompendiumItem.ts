@@ -12,7 +12,6 @@ export async function foundryAddCompendiumItem(args: AddCompendiumItemArgs) {
     logger.warn('TM-ADD-COMPENDIUM-ITEM: could not resolve', args.itemUuid)
     return makeAck(args)
   }
-  await (actor as unknown as { createEmbeddedDocuments(type: string, data: unknown[]): Promise<unknown> })
-    .createEmbeddedDocuments('Item', [doc.toObject()])
+  await actor.createEmbeddedDocuments('Item', [doc.toObject()])
   return makeAck(args)
 }

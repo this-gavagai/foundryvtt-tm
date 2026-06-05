@@ -15,7 +15,7 @@ function getStrikeModifiers(
   const target = altUsage?.length ? base?.altUsages?.[Number(altUsage)] : base
   // StatisticModifier exposes modifiers via a prototype getter; after JSON
   // serialization only the own property `_modifiers` survives. Accept both.
-  const raw = target as unknown as { modifiers?: Modifier[]; _modifiers?: Modifier[] } | undefined
+  const raw = target as (StrikeActionRuntime & { modifiers?: Modifier[]; _modifiers?: Modifier[] }) | undefined
   return raw?.modifiers ?? raw?._modifiers ?? []
 }
 
