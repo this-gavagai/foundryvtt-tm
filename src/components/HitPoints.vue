@@ -32,8 +32,8 @@ function updateHitPoints(hp_input: string, temp_input: string) {
   let newTemp = parseIncrement(temp_input, hpTemp.value)
   newTemp = Math.max(newTemp, 0)
 
-  hpCurrent.value = newHP
-  hpTemp.value = newTemp
+  if (newHP !== hpCurrent.value) hpCurrent.value = newHP
+  if (newTemp !== hpTemp.value) hpTemp.value = newTemp
 }
 
 function handleHpFormSubmit(e: Event) {
