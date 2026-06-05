@@ -61,16 +61,17 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
       )
       .map((i) => makeFeat(i))
   )
-  const effects = computed(() =>
-    actor.value?.items
-      ?.filter((i): i is AbstractEffectPF2e<CharacterPF2e> =>
+  const effects = computed(() => {
+    const items = actor.value?.items ?? []
+
+    const stored = items
+      .filter((i): i is AbstractEffectPF2e<CharacterPF2e> =>
         ['effect', 'condition'].includes(i?.type ?? '')
       )
       .map((i) => {
-        // Items granted by a parent rule element (PF2e GrantItem with
-        // inMemoryOnly: true — e.g. Off-Guard / Immobilized under Grabbed)
-        // have no persisted ID Foundry can act on. The right action is to
-        // remove the parent, not the child, so leave delete/changeQty unset.
+        // Conditions granted by a parent rule element (GrantItem with
+        // inMemoryOnly: true) have no persisted ID Foundry can act on.
+        // The right action is to remove the parent, not the child.
         const isGranted = !!i.flags?.pf2e?.grantedBy
         const base =
           i.type === 'condition' ? makeCondition(i as ConditionPF2e<CharacterPF2e>) : makeEffect(i)
@@ -84,7 +85,54 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
           }
         }
       })
-  )
+
+    // Derive in-memory conditions from the granting item's slug. All in-memory
+    // grants in the PF2e condition pack are unconditional (empty predicates), so
+    // a static slug → slugs map is sufficient and works immediately when items
+    // arrive via the fast Item.create socket path (before a full refresh).
+    const IN_MEMORY_GRANTS: Record<string, readonly string[]> = {
+      confused:    ['off-guard'],
+      encumbered:  ['clumsy'],
+      grabbed:     ['off-guard', 'immobilized'],
+      paralyzed:   ['off-guard'],
+      prone:       ['off-guard'],
+      restrained:  ['off-guard', 'immobilized'],
+      unconscious: ['off-guard'],
+    }
+    const storedSlugs = new Set(
+      items.filter((i) => i.type === 'condition').map((i) => i.system?.slug).filter(Boolean)
+    )
+    const seenDerivedSlugs = new Set<string>()
+    const derived: EffectItem[] = []
+    for (const item of items) {
+      const granterSlug = item.system?.slug
+      if (!granterSlug) continue
+      const grants = IN_MEMORY_GRANTS[granterSlug]
+      if (!grants) continue
+      for (const slug of grants) {
+        if (storedSlugs.has(slug) || seenDerivedSlugs.has(slug)) continue
+        seenDerivedSlugs.add(slug)
+        const name = slug.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join('-')
+        derived.push({
+          _id: `inmem-${item._id}-${slug}`,
+          name,
+          type: 'condition',
+          img: `systems/pf2e/icons/conditions/${slug}.webp`,
+          grantedBy: item._id ?? undefined,
+          itemGrants: undefined,
+          system: {
+            slug,
+            description: { value: '' },
+            traits: { rarity: undefined, value: [] },
+            level: { value: undefined },
+            value: { value: undefined, isValued: false }
+          }
+        })
+      }
+    }
+
+    return [...stored, ...derived]
+  })
   const inventory = computed(() =>
     actor.value?.items
       ?.filter((i): i is PhysicalItemPF2e<CharacterPF2e> =>

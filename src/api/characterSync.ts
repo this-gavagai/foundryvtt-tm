@@ -65,8 +65,16 @@ export function parseActorData(
 
   if (!actor.value) actor.value = {} as TablemateCharacter
 
+  // Pull `items` out before the generic merge. Items are an ID-keyed collection;
+  // merging them by array position triggers false length-mismatch warnings whenever
+  // items are deleted. We handle them below with an explicit ID-based merge instead.
+  const { items: incomingItems, ...actorWithoutItems } = (args.actor ?? {}) as {
+    items?: { _id?: string }[]
+    [key: string]: unknown
+  }
+
   const incoming: Partial<TablemateCharacter> = {
-    ...(args.actor as Partial<TablemateCharacter>),
+    ...(actorWithoutItems as Partial<TablemateCharacter>),
     system: args.system as TablemateCharacter['system'],
     languages: args.languages,
     proficiencyLabels: args.proficiencyLabels,
@@ -79,4 +87,24 @@ export function parseActorData(
   }
 
   mergeWith(actor.value, incoming, mergeWithArrayReset)
+
+  // ID-based merge for items: deep-merge matching items, remove missing ones,
+  // append genuinely new ones. Avoids position-based array merging entirely.
+  if (incomingItems) {
+    const existing = actor.value.items as unknown as { _id?: string }[] | undefined
+    if (!existing) {
+      ;(actor.value as { items: unknown }).items = incomingItems
+    } else {
+      const incomingById = new Map(incomingItems.map((i) => [i._id, i]))
+      for (let i = existing.length - 1; i >= 0; i--) {
+        const match = incomingById.get(existing[i]._id)
+        if (!match) existing.splice(i, 1)
+        else mergeWith(existing[i], match, mergeWithArrayReset)
+      }
+      const existingIds = new Set(existing.map((i) => i._id))
+      for (const item of incomingItems) {
+        if (!existingIds.has(item._id)) existing.push(item as never)
+      }
+    }
+  }
 }

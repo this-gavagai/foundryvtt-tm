@@ -111,13 +111,12 @@ export async function getCharacterDetails(
     }
     return obj
   })
-  const seenIds = new Set(baseItems.map((i) => i._id))
-  const inMemoryConditions = [...actor.conditions]
-    .filter((c) => !seenIds.has(c.id))
-    .map((c) => c.toObject())
+  // In-memory-only conditions (e.g. Off-Guard granted by Grabbed) are now derived
+  // on the client from item rule elements, so they appear/disappear the moment
+  // their granting item does rather than waiting for a full server refresh.
   const actorPayload = {
     ...actor.toObject(),
-    items: [...baseItems, ...inMemoryConditions]
+    items: baseItems
   }
   logger.debug('TABLEMATE: now sending ' + actor.name)
   return {
