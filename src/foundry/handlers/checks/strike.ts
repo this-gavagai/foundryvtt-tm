@@ -9,7 +9,7 @@ function getStrikeModifiers(
   actionSlug: string,
   altUsage: string
 ): Modifier[] {
-  const base = actor.system.actions.find((a) => a.slug === actionSlug) as
+  const base = actor.system.actions?.find((a) => a.slug === actionSlug) as
     | StrikeActionRuntime
     | undefined
   const target = altUsage?.length ? base?.altUsages?.[Number(altUsage)] : base

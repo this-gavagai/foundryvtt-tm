@@ -3,6 +3,7 @@ import type {
   CharacterStrike,
   ElementalBlast as PF2eElementalBlast,
   ElementalBlastConfig,
+  RawModifier,
   WeaponPF2e
 } from '@7h3laughingman/pf2e-types'
 import { type Modifier, makeModifiers } from './modifier'

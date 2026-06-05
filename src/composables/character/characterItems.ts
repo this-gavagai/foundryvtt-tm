@@ -62,7 +62,7 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
       .map((i) => makeFeat(i))
   )
   const effects = computed(() => {
-    const items = actor.value?.items ?? []
+    const items = actor.value ? [...actor.value.items] : []
 
     const stored = items
       .filter((i): i is AbstractEffectPF2e<CharacterPF2e> =>

@@ -95,6 +95,7 @@ export function updateActor(actor: Ref<CharacterPF2e>, update: object) {
   if (useListenersStore().isListening) {
     return updateActorRemote(actor.value._id!, update).then(() => {
       fireRefresh(actor.value._id)
+      return null
     })
   }
   return modifyDocument(

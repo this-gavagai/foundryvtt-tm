@@ -103,11 +103,9 @@ function wrapContextualClone(
   overrides: ModifierOverrideMap,
   restores: (() => void)[]
 ): void {
-  type ActorWithClone = ActorPF2e & {
-    getContextualClone: (...args: unknown[]) => ActorPF2e
-  }
-  const a = actor as ActorWithClone
+  type CloneWrapper = { getContextualClone: (...args: unknown[]) => ActorPF2e }
   const hadOwnClone = Object.prototype.hasOwnProperty.call(actor, 'getContextualClone')
+  const a = actor as unknown as CloneWrapper
   const origClone = a.getContextualClone
   a.getContextualClone = function (...args: unknown[]) {
     const clone = origClone.apply(this, args) as ActorPF2e

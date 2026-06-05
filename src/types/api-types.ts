@@ -257,12 +257,14 @@ export interface RunMacroArgs {
 
 export interface GetCompendiumItemArgs {
   action: typeof TM.GET_COMPENDIUM_ITEM
+  uuid: string
   userId: string
   itemUuid: string
 }
 
 export interface AddCompendiumItemArgs {
   action: typeof TM.ADD_COMPENDIUM_ITEM
+  uuid: string
   userId: string
   characterId: string
   itemUuid: string
