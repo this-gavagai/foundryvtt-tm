@@ -9,6 +9,8 @@ import {
   type DocumentData
 } from './internal'
 import { fireRefresh } from './characterSync'
+import { updateActorRemote } from './actions'
+import { useListenersStore } from '@/stores/listenersOnline'
 
 // Foundry document collections that we mutate via the modifyDocument socket.
 // Restricted to the set the app actually touches — typos for unsupported
@@ -90,6 +92,11 @@ export function processChanges(args: DocumentSocketResponse, root: DocumentData[
 }
 
 export function updateActor(actor: Ref<CharacterPF2e>, update: object) {
+  if (useListenersStore().isListening) {
+    return updateActorRemote(actor.value._id!, update).then(() => {
+      fireRefresh(actor.value._id)
+    })
+  }
   return modifyDocument(
     {
       action: 'update',

@@ -16,7 +16,8 @@ import {
   foundryRollInlineCheck,
   foundryRunMacro,
   foundryRunActionable,
-  foundryGetSpellDamage
+  foundryGetSpellDamage,
+  foundryUpdateActor
 } from './handlers'
 import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
@@ -53,7 +54,8 @@ const actionHandlers: ActionHandlerMap = {
   [TM.ROLL_INLINE_CHECK]: foundryRollInlineCheck,
   [TM.RUN_MACRO]: foundryRunMacro,
   [TM.RUN_ACTIONABLE]: foundryRunActionable,
-  [TM.GET_SPELL_DAMAGE]: foundryGetSpellDamage
+  [TM.GET_SPELL_DAMAGE]: foundryGetSpellDamage,
+  [TM.UPDATE_ACTOR]: foundryUpdateActor
 }
 
 // Actions that originate from this side (Foundry → browser) — the listener

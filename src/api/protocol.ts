@@ -14,6 +14,7 @@ export const TM = {
   SHARE_TARGETS: 'shareTargets',
 
   // Client-initiated (browser → Foundry)
+  UPDATE_ACTOR: 'updateActor',
   REQUEST_CHARACTER: 'requestCharacterDetails',
   ANYBODY_HOME: 'anybodyHome',
   ROLL_CHECK: 'rollCheck',

@@ -7,6 +7,7 @@ export type ModuleEventArgs =
   | UpdateCharacterDetailsArgs
   | RequestCharacterDetailsArgs
   | AnybodyHomeArgs
+  | UpdateActorArgs
   | RollCheckArgs
   | CharacterActionArgs
   | CastSpellArgs
@@ -63,6 +64,13 @@ export interface RequestCharacterDetailsArgs {
 export interface AnybodyHomeArgs {
   action: typeof TM.ANYBODY_HOME
   userId: string
+}
+export interface UpdateActorArgs {
+  action: typeof TM.UPDATE_ACTOR
+  userId: string
+  actorId: string
+  update: object
+  uuid: string
 }
 export interface CheckModifier {
   label: string
