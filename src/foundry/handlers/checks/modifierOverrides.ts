@@ -79,12 +79,12 @@ function applyOverridesToModifiers(
     // our `ignored = false` gets clobbered inside calculateTotal.
     m.adjustments = []
     // CRITICAL for "enable": CheckModifier rebuilds every base modifier
-    // via `m.clone()` (modifiers.ts:658), and the clone's constructor
-    // builds a fresh Predicate from the source — so the clones run their
-    // unshadowed prototype `test()` against the original predicate during
-    // calculateTotal and re-derive `enabled` from it (line 326-331). The
-    // override survives only if the cloned modifier sees an empty
-    // predicate, so `test()` short-circuits on `predicate.length === 0`.
+    // via `m.clone()`, and the clone's constructor builds a fresh Predicate
+    // from the source — so the clones run their unshadowed prototype
+    // `test()` against the original predicate during calculateTotal and
+    // re-derive `enabled` from it. The override survives only if the cloned
+    // modifier sees an empty predicate, so `test()` short-circuits on
+    // `predicate.length === 0`.
     m.predicate.splice(0, m.predicate.length)
   }
   // NOTE: PF2e's natural same-type stacking still runs here. If the user
@@ -95,8 +95,8 @@ function applyOverridesToModifiers(
   // of their enables is the actual contributor.
 }
 
-// Shared clone-interception logic used by both withModifierOverrides and
-// withRawModifierOverrides.
+// Shared clone-interception logic used by withRawModifierOverrides (and thus
+// by withModifierOverrides, which delegates to it).
 function wrapContextualClone(
   actor: ActorPF2e,
   getModifiers: (a: ActorPF2e) => Modifier[],
@@ -119,32 +119,13 @@ function wrapContextualClone(
   })
 }
 
-// Override variant for Statistic-based checks (saves, skills, perception,
-// initiative). Gets modifiers from statistic.check.modifiers.
-export async function withModifierOverrides<T>(
-  actor: ActorPF2e,
-  getStatistic: (a: ActorPF2e) => Statistic | null | undefined,
-  overrides: ModifierOverrideMap | undefined,
-  doRoll: () => Promise<T>
-): Promise<T> {
-  if (!overrides || Object.keys(overrides).length === 0) return doRoll()
-
-  const restores: (() => void)[] = []
-  const getModifiers = (a: ActorPF2e): Modifier[] => getStatistic(a)?.check.modifiers ?? []
-
-  applyOverridesToModifiers(getModifiers(actor), overrides, restores)
-  wrapContextualClone(actor, getModifiers, overrides, restores)
-
-  try {
-    return await doRoll()
-  } finally {
-    for (const r of restores) r()
-  }
-}
-
-// Override variant for strikes. Strikes are StatisticModifier instances
-// (not wrapped in a Statistic), so we access their modifiers directly via a
-// raw getter rather than through statistic.check.modifiers.
+// Core override flow: apply the slug→enabled overrides to the modifiers
+// reachable via getModifiers (on both the source actor and any contextual
+// clone produced during the roll), run doRoll, then restore everything.
+//
+// Used directly for strikes, which are StatisticModifier instances (not
+// wrapped in a Statistic) and so expose their modifiers via a raw getter
+// rather than through statistic.check.modifiers.
 export async function withRawModifierOverrides<T>(
   actor: ActorPF2e,
   getModifiers: (a: ActorPF2e) => Modifier[],
@@ -157,6 +138,75 @@ export async function withRawModifierOverrides<T>(
 
   applyOverridesToModifiers(getModifiers(actor), overrides, restores)
   wrapContextualClone(actor, getModifiers, overrides, restores)
+
+  try {
+    return await doRoll()
+  } finally {
+    for (const r of restores) r()
+  }
+}
+
+// Override variant for Statistic-based checks (saves, skills, perception,
+// initiative). Resolves modifiers through statistic.check.modifiers, then
+// defers to withRawModifierOverrides for the actual apply/restore flow.
+export function withModifierOverrides<T>(
+  actor: ActorPF2e,
+  getStatistic: (a: ActorPF2e) => Statistic | null | undefined,
+  overrides: ModifierOverrideMap | undefined,
+  doRoll: () => Promise<T>
+): Promise<T> {
+  return withRawModifierOverrides(
+    actor,
+    (a) => getStatistic(a)?.check.modifiers ?? [],
+    overrides,
+    doRoll
+  )
+}
+
+// Override variant for elemental blasts. Blasts can't use either of the flows
+// above, because the statistic they actually roll never exists as a stable
+// instance we can pre-mutate:
+//
+//   ElementalBlast.attack() takes the actor's cached "impulse" Statistic and
+//   calls `statistic.extend({ check: { … } })` to build an *ephemeral* attack
+//   statistic, re-extracting all synthetic modifiers for the blast domains.
+//   The roll then reads that extended statistic's own `check.modifiers`
+//   (statistic.ts roll(): `clonedStatistic?.check.modifiers ?? this.modifiers`).
+//   The contextual-clone branch is unreachable for blasts — `extend` adds a
+//   level to the statistic hierarchy, so RollContext#getClonedStatistic sees a
+//   deviation and discards the clone — so neither the source-actor mutation nor
+//   the getContextualClone wrapper used elsewhere can reach the rolled set.
+//
+// Instead we shadow `extend` on the live impulse statistic for the duration of
+// the roll and apply the overrides to each extended statistic's check.modifiers
+// as it's produced. CheckModifier later clones those when rolling, but the same
+// empty-predicate trick documented in applyOverridesToModifiers keeps the
+// override from being re-derived by the clones.
+export async function withBlastModifierOverrides<T>(
+  statistic: Statistic | null | undefined,
+  overrides: ModifierOverrideMap | undefined,
+  doRoll: () => Promise<T>
+): Promise<T> {
+  if (!statistic || !overrides || Object.keys(overrides).length === 0) return doRoll()
+
+  type Extendable = { extend: (...args: unknown[]) => { check: { modifiers: Modifier[] } } }
+  const s = statistic as unknown as Extendable
+  const hadOwnExtend = Object.prototype.hasOwnProperty.call(statistic, 'extend')
+  const origExtend = s.extend
+  const restores: (() => void)[] = []
+
+  s.extend = function (this: unknown, ...args: unknown[]) {
+    const extended = origExtend.apply(this, args)
+    // Accessing `.check` forces the (lazily built, then cached) StatisticCheck
+    // to materialize now, so the instances we mutate are the very ones the
+    // subsequent roll reads back off this statistic.
+    applyOverridesToModifiers(extended.check.modifiers, overrides, restores)
+    return extended
+  }
+  restores.push(() => {
+    if (hadOwnExtend) s.extend = origExtend
+    else delete (s as { extend?: unknown }).extend
+  })
 
   try {
     return await doRoll()
