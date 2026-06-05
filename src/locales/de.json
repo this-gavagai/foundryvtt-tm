@@ -25,7 +25,11 @@
     "remove": "Entfernen",
     "use": "Benutzen",
     "roll": "Würfeln",
-    "level": "Stufe"
+    "level": "Stufe",
+    "added": "Hinzugefügt"
+  },
+  "compendium": {
+    "addToCharacter": "Zum Charakter hinzufügen"
   },
   "login": {
     "signIn": "Anmelden",

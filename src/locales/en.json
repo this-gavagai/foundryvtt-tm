@@ -25,7 +25,11 @@
     "remove": "Remove",
     "use": "Use",
     "roll": "Roll",
-    "level": "Level"
+    "level": "Level",
+    "added": "Added"
+  },
+  "compendium": {
+    "addToCharacter": "Add to Character"
   },
   "login": {
     "signIn": "Sign in",

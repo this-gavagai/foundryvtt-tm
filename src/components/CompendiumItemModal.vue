@@ -2,20 +2,32 @@
 import { ref, computed } from 'vue'
 import InfoModal from './InfoModal.vue'
 import ParsedDescription from './ParsedDescription.vue'
+import Button from './widgets/ButtonWidget.vue'
 import { BookOpenIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
-import { getCompendiumItem } from '@/api/actions'
+import { getCompendiumItem, addCompendiumItem } from '@/api/actions'
 import { logger } from '@/utils/utilities'
+import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useListenersStore } from '@/stores/listenersOnline'
+import { storeToRefs } from 'pinia'
 import type { CompendiumItemData } from '@/types/api-types'
+
+const { _id: characterId } = useInjectedCharacter()
+const { isListening } = storeToRefs(useListenersStore())
 
 const modal = ref()
 const item = ref<CompendiumItemData | null>(null)
 const loading = ref(false)
+const adding = ref(false)
+const added = ref(false)
+const currentUuid = ref('')
 const description = ref()
 const rolls = useRollsFromActiveRoll(computed(() => description.value?.activeRoll))
 
 async function open(uuid: string) {
+  currentUuid.value = uuid
   item.value = null
+  added.value = false
   loading.value = true
   modal.value.open()
   try {
@@ -24,6 +36,17 @@ async function open(uuid: string) {
     item.value = result.compendiumItem ?? null
   } finally {
     loading.value = false
+  }
+}
+
+async function addToCharacter() {
+  if (!characterId.value || !currentUuid.value || adding.value) return
+  adding.value = true
+  try {
+    await addCompendiumItem(characterId.value, currentUuid.value)
+    added.value = true
+  } finally {
+    adding.value = false
   }
 }
 
@@ -55,6 +78,16 @@ defineExpose({ open })
       <div v-if="loading" class="py-4 text-center text-gray-400">Loading…</div>
       <ParsedDescription v-else-if="item" ref="description" :text="item.system?.description?.value" />
       <div v-else class="py-4 text-center text-gray-400">Item not found.</div>
+    </template>
+    <template #actionButtons>
+      <Button
+        v-if="item && characterId && isListening"
+        :color="added ? 'green' : 'blue'"
+        :disabled="adding || added"
+        :clicked="addToCharacter"
+      >
+        {{ added ? $t('common.added') : $t('compendium.addToCharacter') }}
+      </Button>
     </template>
   </InfoModal>
 </template>

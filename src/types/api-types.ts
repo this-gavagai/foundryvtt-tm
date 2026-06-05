@@ -26,6 +26,7 @@ export type ModuleEventArgs =
   | RunActionableArgs
   | GetSpellDamageArgs
   | GetCompendiumItemArgs
+  | AddCompendiumItemArgs
 
 export interface AcknowledgementArgs {
   action: typeof TM.ACK
@@ -257,6 +258,13 @@ export interface RunMacroArgs {
 export interface GetCompendiumItemArgs {
   action: typeof TM.GET_COMPENDIUM_ITEM
   userId: string
+  itemUuid: string
+}
+
+export interface AddCompendiumItemArgs {
+  action: typeof TM.ADD_COMPENDIUM_ITEM
+  userId: string
+  characterId: string
   itemUuid: string
 }
 

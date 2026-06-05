@@ -290,3 +290,6 @@ export const updateActorRemote = (actorId: string, update: object) =>
 export const getCompendiumItem = (itemUuid: string) =>
   sendAction(TM.GET_COMPENDIUM_ITEM, { itemUuid })
 
+export const addCompendiumItem = (characterId: string, itemUuid: string) =>
+  sendAction(TM.ADD_COMPENDIUM_ITEM, { characterId, itemUuid })
+
