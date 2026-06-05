@@ -1,5 +1,4 @@
 import type {
-  ActorPF2e,
   ItemPF2e,
   PhysicalItemPF2e,
   RollOptionRuleElement,
@@ -23,11 +22,21 @@ import {
   localizeRollOptionLabels
 } from '../utils/labels'
 
-// JSON-replacer for ElementalBlast: drops the circular `actor` back-reference
-// and shrinks nested item references to bare `{ _id }`.
-function blastReplacer(key: string, element: ActorPF2e | ItemPF2e) {
+// JSON-replacer for ElementalBlast: drops the circular `actor` back-reference,
+// shrinks nested item references to bare `{ _id }`, and flattens `statistic` to
+// only its check modifiers. `Statistic.check` is a prototype getter — it does
+// not survive JSON serialization — so we must capture it here while we still
+// have the live object. `BaseStatistic.modifiers` only carries the base
+// (ability + proficiency) modifiers; `check.modifiers` includes all synthetics
+// (feats, status bonuses, etc.) that are resolved at check-build time.
+function blastReplacer(key: string, element: unknown) {
   if (key === 'actor') return undefined
   else if (key === 'item') return { _id: (element as ItemPF2e)?._id }
+  else if (key === 'statistic') {
+    type StatLike = { check?: { modifiers?: unknown[] }; modifiers?: unknown[] }
+    const stat = element as StatLike | null
+    return { modifiers: stat?.check?.modifiers ?? stat?.modifiers ?? [] }
+  }
   else return element
 }
 

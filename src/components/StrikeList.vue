@@ -547,17 +547,15 @@ watch([strikes, blasts], () => {
           class="pb-2"
           v-if="
             viewed?.target.kind === 'blast'
-              ? viewed.target.data.blastRange?.max
+              ? !viewed.target.isMelee && viewed.target.data.blastRange?.max
               : viewed?.target.data.item?.system?.range
           "
         >
           {{ $t('strikes.rangeLabel') }}
           {{
-            viewed?.target.kind === 'blast' && viewed.target.isMelee
-              ? undefined
-              : viewed?.target.kind === 'blast'
-                ? viewed.target.data.blastRange?.max
-                : viewed?.target.data.item?.system?.range
+            viewed?.target.kind === 'blast'
+              ? viewed.target.data.blastRange?.max
+              : viewed?.target.data.item?.system?.range
           }}
           {{ $t('strikes.rangeUnit') }}
         </div>

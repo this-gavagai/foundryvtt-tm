@@ -4,13 +4,24 @@ import { withRawModifierOverrides, type ModifierOverrideMap } from './modifierOv
 
 function getBlastModifiers(actor: ActorPF2e, element: string): Modifier[] {
   // ElementalBlast configs live on the actor's elementalBlasts flags. Each
-  // config's statistic is a StatisticModifier — modifiers may be on the
-  // prototype getter or the own `_modifiers` property after serialization.
-  type BlastLike = { element?: string; statistic?: { modifiers?: Modifier[]; _modifiers?: Modifier[] } }
+  // config's statistic is a Statistic whose own `modifiers` property carries
+  // only base (ability + proficiency) modifiers. The full set — including
+  // synthetics like feats and status bonuses — lives on `statistic.check.modifiers`,
+  // which is a prototype getter and therefore not serialized. Use it while we
+  // still have the live actor object; fall back to the own property for safety.
+  type BlastLike = {
+    element?: string
+    statistic?: { check?: { modifiers?: Modifier[] }; modifiers?: Modifier[]; _modifiers?: Modifier[] }
+  }
   const configs: BlastLike[] = (actor as unknown as { elementalBlasts?: { configs?: BlastLike[] } })
     ?.elementalBlasts?.configs ?? []
   const config = configs.find((c) => c.element === element)
-  return config?.statistic?.modifiers ?? config?.statistic?._modifiers ?? []
+  return (
+    config?.statistic?.check?.modifiers ??
+    config?.statistic?.modifiers ??
+    config?.statistic?._modifiers ??
+    []
+  )
 }
 
 export const handleBlast: CheckRollHandler = (ctx) => {
