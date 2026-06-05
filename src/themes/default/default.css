@@ -540,6 +540,19 @@ body.theme-default {
       line-height: 1;
       row-gap: 0.2rem;
     }
+
+    li {
+      padding-top: 0.6rem;
+      padding-bottom: 0.6rem;
+    }
+
+    [data-section='blasts'] li + li {
+      margin-top: 0.75rem;
+    }
+
+    [data-section='blasts'] li > div + div {
+      margin-top: 0.4rem;
+    }
   }
 
   /* Shared attack / damage button chrome — StrikeList strike row + SpellList
