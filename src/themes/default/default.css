@@ -908,6 +908,15 @@ body.theme-default {
     display: block;
   }
 
+  /* Numeric level badge overlaid on the effect icon */
+  [data-part='effect-level'] {
+    background-color: oklch(19% 0.024 258 / 0.9);
+    border: 1px solid oklch(44% 0.028 258);
+    color: var(--color-text);
+    border-radius: 2px;
+    line-height: 1.2;
+  }
+
   /* --- Login page -------------------------------------- */
   [data-component='LoginPage'] {
     form {

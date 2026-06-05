@@ -64,7 +64,8 @@ function adjustViewedEffectQty(delta: number) {
             <div class="relative">
               <div
                 v-if="effect.system?.value?.isValued"
-                class="absolute right-0 bottom-0 border border-black bg-[#FFFFFFCC] px-1 text-xs"
+                class="absolute right-0 bottom-0 px-1 text-xs"
+                data-part="effect-level"
               >
                 {{ effect.system?.value?.value }}
               </div>
