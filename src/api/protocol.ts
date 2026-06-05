@@ -32,5 +32,6 @@ export const TM = {
   ROLL_INLINE_CHECK: 'rollInlineCheck',
   RUN_MACRO: 'runMacro',
   RUN_ACTIONABLE: 'runActionable',
-  GET_SPELL_DAMAGE: 'getSpellDamage'
+  GET_SPELL_DAMAGE: 'getSpellDamage',
+  GET_COMPENDIUM_ITEM: 'getCompendiumItem'
 } as const

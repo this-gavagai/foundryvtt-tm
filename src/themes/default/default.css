@@ -225,6 +225,12 @@ body.theme-default {
       color: oklch(70% 0.01 258);
     }
 
+    [data-part='compendium-banner'] {
+      background-color: oklch(25% 0.044 258);
+      border-bottom: 1px solid oklch(34% 0.038 258);
+      color: var(--color-heading);
+    }
+
     /* disabled modifier rows in stat / strike / spell breakdowns */
     [data-part='modifier'][data-disabled] {
       color: oklch(45% 0.01 258);

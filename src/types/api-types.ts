@@ -25,6 +25,7 @@ export type ModuleEventArgs =
   | RunMacroArgs
   | RunActionableArgs
   | GetSpellDamageArgs
+  | GetCompendiumItemArgs
 
 export interface AcknowledgementArgs {
   action: typeof TM.ACK
@@ -253,6 +254,12 @@ export interface RunMacroArgs {
   uuid: string
 }
 
+export interface GetCompendiumItemArgs {
+  action: typeof TM.GET_COMPENDIUM_ITEM
+  userId: string
+  itemUuid: string
+}
+
 export interface RollInlineCheckArgs {
   action: typeof TM.ROLL_INLINE_CHECK
   userId: string
@@ -287,6 +294,19 @@ export interface RollResult {
   isSecret: boolean
 }
 
+export interface CompendiumItemData {
+  _id?: string
+  name: string
+  img?: string
+  type?: string
+  source: string
+  system: {
+    description?: { value?: string }
+    traits?: { value?: string[]; rarity?: string }
+    level?: { value?: number }
+  } & Record<string, unknown>
+}
+
 export interface RequestResolutionArgs {
   action: typeof TM.ACK
   uuid: string
@@ -296,6 +316,7 @@ export interface RequestResolutionArgs {
     critical?: string
     modifiers?: RawModifier[]
   }
+  compendiumItem?: CompendiumItemData | null
 }
 
 export interface ActiveRoll {

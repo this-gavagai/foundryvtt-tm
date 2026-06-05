@@ -3,6 +3,7 @@ import type { ActiveRoll } from '@/types/api-types'
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { resolveFormula } from '@/utils/diceFormula'
 import { useInjectedCharacter } from '@/composables/injectKeys'
+import CompendiumItemModal from '@/components/CompendiumItemModal.vue'
 
 const props = defineProps<{
   text: string | undefined
@@ -145,11 +146,12 @@ const parsedText = computed(() => {
       </label> `
   })
 
-  // other, unparseable markup
-  // @UUID/@Compendium[...]{label} — content never contains brackets
+  // @UUID/@Compendium[uuid]{label} — rendered as a clickable link; clicking
+  // fetches the document from the Foundry server and opens an InfoModal.
   text = text?.replace(
     /@(?:UUID|Compendium)\[([^\]]+)\]\{([^}]*)\}/gm,
-    '<span data-type="compendiumLink" class="text-red-600">$2</span>'
+    (_, uuid, label) =>
+      `<span data-type="compendiumLink" data-uuid="${uuid.replace(/"/g, '&quot;')}" class="cursor-pointer underline decoration-dotted">${label}</span>`
   )
 
   // @Damage[formula|opt:val|opt:val...]{label} — PF2e's inline @Damage accepts
@@ -225,11 +227,26 @@ watch(
   () => props.text,
   () => nextTick(initRolls)
 )
+
+const compendiumModal = ref()
+
+function handleDescriptionClick(event: MouseEvent) {
+  const link = (event.target as HTMLElement).closest<HTMLElement>('[data-type="compendiumLink"]')
+  if (!link) return
+  event.stopPropagation()
+  const uuid = link.dataset.uuid
+  if (!uuid) return
+  compendiumModal.value.open(uuid)
+}
+
 defineExpose({ activeRoll })
 </script>
 <template>
   <form data-component="ParsedDescription" ref="formRef" @change="formChange" @submit="formClick">
-    <div v-html="parsedText"></div>
+    <div v-html="parsedText" @click="handleDescriptionClick"></div>
+    <Teleport to="#modals">
+      <CompendiumItemModal ref="compendiumModal" />
+    </Teleport>
   </form>
 </template>
 <style>

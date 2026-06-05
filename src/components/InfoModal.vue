@@ -219,6 +219,7 @@ defineExpose({ open, close, rollResultModal, isOpen })
                 data-part="panel"
                 class="relative w-full max-w-4xl transform overflow-hidden bg-white p-6 text-left shadow-xl transition-all"
               >
+                <slot name="banner" :close="() => close(true)" />
                 <div
                   class="max-h-[70vh] overflow-auto"
                   v-drag="handleDrag"
@@ -243,11 +244,17 @@ defineExpose({ open, close, rollResultModal, isOpen })
                         :class="[waiting ? 'opacity-100' : 'opacity-0']"
                       />
                     </div>
+                    <img
+                      v-else-if="props.imageUrl"
+                      class="h-12 w-12 border"
+                      :src="getPath(props.imageUrl)"
+                      :alt="$t('infoModal.systemIcon')"
+                    />
                     <div>
                       <DialogTitle as="h3" class="text-lg leading-6 font-medium text-gray-900">
                         <slot name="title"></slot>
                       </DialogTitle>
-                      <div class="absolute top-0 right-0 pt-4 pr-4 sm:block">
+                      <div v-if="!$slots.banner" class="absolute top-0 right-0 pt-4 pr-4 sm:block">
                         <button
                           type="button"
                           data-part="close"

@@ -287,3 +287,6 @@ export const runActionable = (actor: Ref<CharacterPF2e>, itemId: string) =>
 export const updateActorRemote = (actorId: string, update: object) =>
   sendAction(TM.UPDATE_ACTOR, { actorId, update })
 
+export const getCompendiumItem = (itemUuid: string) =>
+  sendAction(TM.GET_COMPENDIUM_ITEM, { itemUuid })
+
