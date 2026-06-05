@@ -51,7 +51,7 @@ export function useCharacterCore(actor: Ref<TablemateCharacter | undefined>): Ch
   const name = computed(() => actor.value?.name)
   const portraitUrl = computed(() => actor.value?.prototypeToken?.texture?.src ?? undefined)
   const portraitScaleX = computed(() => actor.value?.prototypeToken?.texture?.scaleX ?? undefined)
-  const portraitScaleY = computed(() => actor.value?.prototypeToken?.texture?.scaleX ?? undefined)
+  const portraitScaleY = computed(() => actor.value?.prototypeToken?.texture?.scaleY ?? undefined)
 
   const ancestry = computed(() =>
     makeAncestry(actor.value?.items?.find((x) => x.type === 'ancestry') as AncestryPF2e | undefined)
