@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// TODO: refactor this to handle actions structure more cleanly
 const props = defineProps<{ actions: string | undefined }>()
 </script>
 <template>

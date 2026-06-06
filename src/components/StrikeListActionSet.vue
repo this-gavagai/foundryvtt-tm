@@ -51,7 +51,7 @@ const damageVariants = computed(() => [
               actions="1"
               class="relative float-left mt-[-1px] h-0 text-lg leading-none"
             />
-            <span class="pl-1">{{ typeLabel }}&nbsp;</span>
+            <span class="pl-4">{{ typeLabel }}&nbsp;</span>
           </span>
           <span>{{
             index ? variant.label?.match(/\((.*)\)/)?.pop() || variant.label || '—' : variant.label

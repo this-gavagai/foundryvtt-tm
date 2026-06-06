@@ -1,18 +1,31 @@
 import { findSpell } from '@/foundry/utils/spell'
 import { makeCastRankEvent } from '@/foundry/utils/roll'
 import { type CheckRollHandler, statisticParams } from './types'
+import { withModifierOverrides, type ModifierOverrideMap } from './modifierOverrides'
 
 // Subtype is either "entryId" (legacy entry-level attack from the entry modal)
 // or "entryId,spellId,attackNumber" for the per-spell attack buttons in the
 // spell info modal (attackNumber 1/2/3 = MAP 0/-5/-10).
 export const handleSpellAttack: CheckRollHandler = (ctx) => {
   const [entryId, spellId, attackNumberStr] = ctx.args.checkSubtype.split(',')
+  const overrides = (ctx.args.options as { modifierOverrides?: ModifierOverrideMap })
+    ?.modifierOverrides
   const rollParams = statisticParams(ctx)
-  if (spellId) {
-    const spell = findSpell(ctx.actor, spellId)
-    return spell?.rollAttack(ctx.params.event, Number(attackNumberStr || '1'), rollParams)
-  }
-  return ctx.actor.spellcasting.get(entryId)?.statistic?.check.roll(rollParams)
+  return withModifierOverrides(
+    ctx.actor,
+    (actor) => (entryId ? actor.spellcasting?.get(entryId)?.statistic : null),
+    overrides,
+    async () => {
+      if (spellId) {
+        const spell = findSpell(ctx.actor, spellId)
+        return (
+          (await spell?.rollAttack(ctx.params.event, Number(attackNumberStr || '1'), rollParams)) ??
+          null
+        )
+      }
+      return (await ctx.actor.spellcasting?.get(entryId)?.statistic?.check.roll(rollParams)) ?? null
+    }
+  )
 }
 
 // Subtype: "spellId,mapIncreases,castingRank". Synthesize an event whose

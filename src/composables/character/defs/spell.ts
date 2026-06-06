@@ -12,15 +12,17 @@ export interface Spell extends Item {
     rank: number | undefined,
     slot: number | undefined
   ) => Promise<RequestResolutionArgs | null>
-  doSpellAttack?: (attackNumber: 1 | 2 | 3, result?: number) => Promise<RequestResolutionArgs | null>
+  doSpellAttack?: (
+    attackNumber: 1 | 2 | 3,
+    result?: number,
+    modifierOverrides?: Record<string, boolean>
+  ) => Promise<RequestResolutionArgs | null>
   doSpellDamage?: (
     mapIncreases?: 0 | 1 | 2,
     castingRank?: number,
     result?: import('@/types/api-types').DiceResults
   ) => Promise<RequestResolutionArgs | null>
-  getDamage?: (
-    castingRank?: number
-  ) => Promise<RequestResolutionArgs | null>
+  getDamage?: (castingRank?: number) => Promise<RequestResolutionArgs | null>
 }
 export interface SpellSystem extends ItemSystem {
   location: { value: Maybe<string>; heightenedLevel: Maybe<number>; signature: Maybe<boolean> }
@@ -36,7 +38,10 @@ export interface SpellcastingEntry extends Item {
   system: SpellcastingEntrySystem
   spellAttackModifier?: Maybe<number>
   spellAttackModifiers?: Modifier[]
-  doSpellAttack?: (result?: number) => Promise<RequestResolutionArgs>
+  doSpellAttack?: (
+    result?: number,
+    modifierOverrides?: Record<string, boolean>
+  ) => Promise<RequestResolutionArgs>
   setPrepared?: (
     rank: number | undefined,
     slot: number | undefined,
@@ -111,6 +116,6 @@ export function makeSpellcastingEntry(root: SpellcastingEntryPF2e): Spellcasting
         flexible: root.system.prepared?.flexible
       },
       slots
-    },
+    }
   } as SpellcastingEntry
 }

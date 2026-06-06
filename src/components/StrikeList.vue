@@ -2,7 +2,6 @@
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SignedNumber } from '@/utils/utilities'
-import type { Modifier } from '@/composables/character'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
@@ -13,6 +12,7 @@ import type { Strike, ElementalBlast, Weapon } from '@/composables/character'
 import type { DiceResults, RequestResolutionArgs } from '@/types/api-types'
 import type { Roll } from '@/types/roll-types'
 import { parseDamageFormulaDice, makeDiceResults } from '@/utils/diceFormula'
+import { useModifierOverrides } from '@/composables/useModifierOverrides'
 
 import ChoiceWidget from '@/components/widgets/ChoiceWidget.vue'
 import DropdownWidget from './widgets/DropdownWidget.vue'
@@ -54,75 +54,17 @@ const strikeModal = ref()
 const strikeModalDamage = ref()
 const viewed = ref<Viewed | undefined>()
 
-// Modifier overrides for the current attack roll — same 3-state toggle
-// pattern as StatBox. Reset when the modal closes.
-const modifierOverrides = ref<Record<string, boolean>>({})
-
-function toggleModifier(mod: Modifier) {
-  const slug = mod.slug
-  if (!slug) return
-  const next = { ...modifierOverrides.value }
-  if (slug in next) delete next[slug]
-  else next[slug] = !mod.enabled
-  modifierOverrides.value = next
-}
-function effectiveEnabled(mod: Modifier): boolean {
-  const slug = mod.slug
-  if (slug && slug in modifierOverrides.value) return modifierOverrides.value[slug]
-  return !!mod.enabled
-}
-function isManuallyActivated(mod: Modifier): boolean {
-  const slug = mod.slug
-  return (
-    !!slug &&
-    slug in modifierOverrides.value &&
-    modifierOverrides.value[slug] === true &&
-    !mod.enabled
-  )
-}
-function isManuallyDeactivated(mod: Modifier): boolean {
-  const slug = mod.slug
-  return (
-    !!slug &&
-    slug in modifierOverrides.value &&
-    modifierOverrides.value[slug] === false &&
-    !!mod.enabled
-  )
-}
-// Simulate same-type stacking on the effective-enabled set.
 const attackModifiers = computed(() =>
   viewed.value?.phase === 'attack' ? (viewed.value?.target.data._modifiers ?? []) : []
 )
-const stackingLosers = computed<Set<string>>(() => {
-  const losers = new Set<string>()
-  const byType: Record<string, Modifier[]> = {}
-  for (const m of attackModifiers.value) {
-    if (!effectiveEnabled(m)) continue
-    const type = m.type ?? 'untyped'
-    if (type === 'untyped') continue
-    ;(byType[type] ??= []).push(m)
-  }
-  for (const bucket of Object.values(byType)) {
-    const pos = bucket.filter((m) => (m.modifier ?? 0) >= 0)
-    const neg = bucket.filter((m) => (m.modifier ?? 0) < 0)
-    const pick = (winners: Modifier[], better: (a: number, b: number) => boolean) => {
-      if (winners.length <= 1) return
-      let best = winners[0]
-      for (let i = 1; i < winners.length; i++) {
-        if (better(winners[i].modifier ?? 0, best.modifier ?? 0)) best = winners[i]
-      }
-      for (const m of winners) {
-        if (m !== best && m.slug) losers.add(m.slug)
-      }
-    }
-    pick(pos, (a, b) => a > b)
-    pick(neg, (a, b) => a < b)
-  }
-  return losers
-})
-function isStackingLoser(mod: Modifier): boolean {
-  return !!mod.slug && stackingLosers.value.has(mod.slug)
-}
+const {
+  modifierOverrides,
+  toggleModifier,
+  effectiveEnabled,
+  isManuallyActivated,
+  isManuallyDeactivated,
+  isStackingLoser
+} = useModifierOverrides(attackModifiers)
 
 // Effective base total (MAP 0, no extra modifiers) with overrides applied.
 const effectiveAttackBase = computed(() =>

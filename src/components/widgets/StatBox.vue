@@ -9,6 +9,7 @@ import type { Roll } from '@/types/roll-types'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
 import type { Modifier } from '@/composables/character'
+import { useModifierOverrides } from '@/composables/useModifierOverrides'
 
 const { t } = useI18n()
 const props = defineProps<{
@@ -34,97 +35,22 @@ function openIfDetailed() {
   if (canOpen.value) infoModal.value.open()
 }
 
-// Per-modifier enabled overrides for this roll. Keys are modifier slugs;
-// presence in the map means the user has manually toggled away from the
-// modifier's default state. Cleared whenever the info modal closes so each
-// session of the modal starts fresh — long-lived overrides would be too
-// easy to forget. The InfoModal emits `closing` whenever it actually hides
-// (including via the roll-result chain), which we hook onto below.
-const modifierOverrides = ref<Record<string, boolean>>({})
-
 // Modifier toggling only makes sense for rollable stats — flipping a
 // modifier on a display-only StatBox (AC, HP, etc.) would have no effect
 // since there's no roll to feed the overrides into. canToggleModifiers
 // gates both the click handler and the cursor/visual affordances below.
 const canToggleModifiers = computed(() => !!props.rollAction)
+const {
+  modifierOverrides,
+  toggleModifier: toggleModifierOverride,
+  effectiveEnabled,
+  isManuallyActivated,
+  isManuallyDeactivated,
+  isStackingLoser
+} = useModifierOverrides(computed(() => props.modifiers))
 
 function toggleModifier(mod: Modifier) {
-  if (!canToggleModifiers.value) return
-  const slug = mod.slug
-  if (!slug) return
-  // 3-state cycle: default → opposite-of-default → default. Clicking a
-  // modifier that's already in its default state queues the opposite as an
-  // override; clicking one that's already overridden returns it to default.
-  const current = modifierOverrides.value[slug]
-  const next = { ...modifierOverrides.value }
-  if (current === undefined) next[slug] = !mod.enabled
-  else delete next[slug]
-  modifierOverrides.value = next
-}
-
-// What the roll will actually use for each modifier — override if present,
-// otherwise the modifier's default `enabled`.
-function effectiveEnabled(mod: Modifier): boolean {
-  const slug = mod.slug
-  if (slug && slug in modifierOverrides.value) return modifierOverrides.value[slug]
-  return !!mod.enabled
-}
-
-// "Manually activated" — was off by default, user turned it on.
-function isManuallyActivated(mod: Modifier): boolean {
-  const slug = mod.slug
-  if (!slug || !(slug in modifierOverrides.value)) return false
-  return modifierOverrides.value[slug] === true && !mod.enabled
-}
-
-// "Manually deactivated" — was on by default, user turned it off.
-function isManuallyDeactivated(mod: Modifier): boolean {
-  const slug = mod.slug
-  if (!slug || !(slug in modifierOverrides.value)) return false
-  return modifierOverrides.value[slug] === false && !!mod.enabled
-}
-
-// Simulate PF2e's same-type stacking pass (applyStackingRules in
-// pf2e/modifiers.ts:471) on the *effectively enabled* set. Returns the
-// slugs that lose the stack to a higher-magnitude same-type sibling.
-// Untyped modifiers always stack. Ties keep the first one encountered.
-const stackingLosers = computed<Set<string>>(() => {
-  const losers = new Set<string>()
-  const list = props.modifiers ?? []
-  // First pass: bucket effectively-enabled non-untyped modifiers by type.
-  const byType: Record<string, Modifier[]> = {}
-  for (const m of list) {
-    if (!effectiveEnabled(m)) continue
-    const type = m.type ?? 'untyped'
-    if (type === 'untyped') continue
-    ;(byType[type] ??= []).push(m)
-  }
-  // Within each bucket, only the highest-magnitude bonus / lowest penalty
-  // survives. PF2e treats positive and negative independently; mirror that.
-  for (const bucket of Object.values(byType)) {
-    const positives = bucket.filter((m) => (m.modifier ?? 0) >= 0)
-    const negatives = bucket.filter((m) => (m.modifier ?? 0) < 0)
-    const claim = (winners: Modifier[], pick: (a: number, b: number) => boolean) => {
-      if (winners.length <= 1) return
-      let best = winners[0]
-      for (let i = 1; i < winners.length; i++) {
-        if (pick(winners[i].modifier ?? 0, best.modifier ?? 0)) best = winners[i]
-      }
-      for (const m of winners) {
-        if (m !== best && m.slug) losers.add(m.slug)
-      }
-    }
-    // For bonuses: bigger wins. For penalties: more-negative wins.
-    claim(positives, (a, b) => a > b)
-    claim(negatives, (a, b) => a < b)
-  }
-  return losers
-})
-
-// True iff this modifier is effectively enabled but will lose stacking on
-// the server (PF2e's applyStackingRules will set enabled=false for it).
-function isStackingLoser(mod: Modifier): boolean {
-  return !!mod.slug && stackingLosers.value.has(mod.slug)
+  if (canToggleModifiers.value) toggleModifierOverride(mod)
 }
 
 // Sum of all effectively-enabled, non-stacking-loser modifiers — drives the

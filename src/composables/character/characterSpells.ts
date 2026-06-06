@@ -45,37 +45,43 @@ export interface CharacterSpells {
 }
 
 export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): CharacterSpells {
-
   const spellcastingEntries = computed(() =>
     actor.value?.items
       ?.filter((i): i is SpellcastingEntryPF2e<CharacterPF2e> => i?.type === 'spellcastingEntry')
       ?.map((item) => {
         const spellModData = item._id ? actor.value?.spellcastingModifiers?.[item._id] : undefined
         return {
-        ...makeSpellcastingEntry(item),
-        spellAttackModifier: spellModData?.mod,
-        spellAttackModifiers: makeModifiers(spellModData?.modifiers),
-        doSpellAttack: (result?: number) =>
-          rollCheck(actor as Ref<CharacterPF2e>, 'spellAttack', item._id ?? '', { d20: [result ?? 0] }),
-        setPrepared: (
-          rank: number | undefined,
-          slot: number | undefined,
-          newSpellId: string | null,
-          expended: boolean = false
-        ) => {
-          const prepared = item.system.slots[('slot' + rank) as SlotKey]?.prepared
-          if (!prepared || !rank || slot == null) return Promise.resolve(null)
-          if (!prepared[slot]) prepared[slot] = { id: null, expended: true }
-          prepared[slot].id = newSpellId
-          prepared[slot].expended = expended
-          const update = { system: { slots: { ['slot' + rank]: { prepared: prepared } } } }
-          return updateActorItem(actor as Ref<CharacterPF2e>, item._id!, update)
-        },
-        setSlotCount: (rank: number, newValue: number) => {
-          const update = { system: { slots: { ['slot' + rank]: { value: newValue } } } }
-          return updateActorItem(actor as Ref<CharacterPF2e>, item._id!, update)
+          ...makeSpellcastingEntry(item),
+          spellAttackModifier: spellModData?.mod,
+          spellAttackModifiers: makeModifiers(spellModData?.modifiers),
+          doSpellAttack: (result?: number, modifierOverrides?: Record<string, boolean>) =>
+            rollCheck(
+              actor as Ref<CharacterPF2e>,
+              'spellAttack',
+              item._id ?? '',
+              { d20: [result ?? 0] },
+              [],
+              modifierOverrides ? { modifierOverrides } : {}
+            ),
+          setPrepared: (
+            rank: number | undefined,
+            slot: number | undefined,
+            newSpellId: string | null,
+            expended: boolean = false
+          ) => {
+            const prepared = item.system.slots[('slot' + rank) as SlotKey]?.prepared
+            if (!prepared || !rank || slot == null) return Promise.resolve(null)
+            if (!prepared[slot]) prepared[slot] = { id: null, expended: true }
+            prepared[slot].id = newSpellId
+            prepared[slot].expended = expended
+            const update = { system: { slots: { ['slot' + rank]: { prepared: prepared } } } }
+            return updateActorItem(actor as Ref<CharacterPF2e>, item._id!, update)
+          },
+          setSlotCount: (rank: number, newValue: number) => {
+            const update = { system: { slots: { ['slot' + rank]: { value: newValue } } } }
+            return updateActorItem(actor as Ref<CharacterPF2e>, item._id!, update)
+          }
         }
-      }
       })
   )
 
@@ -88,12 +94,18 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
           if (rank === undefined || slot === undefined) return Promise.resolve(null)
           return castSpell(actor as Ref<CharacterPF2e>, item._id!, rank, slot)
         },
-        doSpellAttack: (attackNumber: 1 | 2 | 3, result?: number) =>
+        doSpellAttack: (
+          attackNumber: 1 | 2 | 3,
+          result?: number,
+          modifierOverrides?: Record<string, boolean>
+        ) =>
           rollCheck(
             actor as Ref<CharacterPF2e>,
             'spellAttack',
             `${item.system.location.value ?? ''},${item._id},${attackNumber}`,
-            { d20: [result ?? 0] }
+            { d20: [result ?? 0] },
+            [],
+            modifierOverrides ? { modifierOverrides } : {}
           ),
         doSpellDamage: (
           mapIncreases: 0 | 1 | 2 = 0,
@@ -139,7 +151,8 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
   )
 
   const staff = computed(() => {
-    const staffData = (actor.value?.flags?.['pf2e-dailies'] as PF2eDailiesFlags)?.extra?.dailies?.staves
+    const staffData = (actor.value?.flags?.['pf2e-dailies'] as PF2eDailiesFlags)?.extra?.dailies
+      ?.staves
     return {
       staffId: staffData?.staffId,
       charges: {
@@ -150,12 +163,18 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
         ...makeSpell(i),
         doSpell: (rank: number | undefined) =>
           castStaffSpell(actor as Ref<CharacterPF2e>, staffData!.staffId!, i._id!, rank ?? 1),
-        doSpellAttack: (attackNumber: 1 | 2 | 3, result?: number) =>
+        doSpellAttack: (
+          attackNumber: 1 | 2 | 3,
+          result?: number,
+          modifierOverrides?: Record<string, boolean>
+        ) =>
           rollCheck(
             actor as Ref<CharacterPF2e>,
             'spellAttack',
             `,${i._id},${attackNumber}`,
-            { d20: [result ?? 0] }
+            { d20: [result ?? 0] },
+            [],
+            modifierOverrides ? { modifierOverrides } : {}
           ),
         doSpellDamage: (
           mapIncreases: 0 | 1 | 2 = 0,
@@ -174,7 +193,9 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
       expended: staffData?.expended,
       setStaffCharges: (newValue: number) => {
         const update = {
-          flags: { 'pf2e-dailies': { extra: { dailies: { staves: { charges: { value: newValue } } } } } }
+          flags: {
+            'pf2e-dailies': { extra: { dailies: { staves: { charges: { value: newValue } } } } }
+          }
         }
         return updateActor(actor as Ref<CharacterPF2e>, update)
       }

@@ -6,6 +6,7 @@ import StatBox from '@/components/widgets/StatBox.vue'
 import { storeToRefs } from 'pinia'
 import { useCombatStore } from '@/stores/combat'
 import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useListenersStore } from '@/stores/listenersOnline'
 
 import DropdownWidget from './widgets/DropdownWidget.vue'
 
@@ -23,6 +24,7 @@ const skillsPlusPerception = computed(() =>
 )
 
 const { activeCombat } = storeToRefs(useCombatStore())
+const { isListening } = storeToRefs(useListenersStore())
 const initiativeReady = computed(() => {
   const inActiveCombat = activeCombat.value?.combatants.some(
     (a: CombatantPF2e) => a.actorId === currentActorId.value
@@ -45,6 +47,7 @@ const initiativeReady = computed(() => {
           ]
         "
         :selectedId="initiativeStat ?? ''"
+        :disabled="!isListening"
         :changed="(newValue) => (initiativeStat = newValue)"
       />
       <div data-component="InitiativeBox">
