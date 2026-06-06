@@ -179,6 +179,7 @@ body.theme-default {
     button {
       border-color: oklch(40% 0.025 258);
       color: var(--color-text);
+      background-color: transparent;
     }
 
     /* selected segment */
@@ -187,7 +188,7 @@ body.theme-default {
       color: oklch(96% 0.01 255);
     }
 
-    button:hover {
+    button:not([data-selected]):hover {
       background-color: oklch(26% 0.025 258);
     }
 
@@ -223,6 +224,35 @@ body.theme-default {
     }
     [data-part='close']:hover {
       color: oklch(70% 0.01 258);
+    }
+
+    [data-part='container-label'] {
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--color-heading);
+    }
+
+    [data-part='inventory-mode-toggle'] {
+      display: flex;
+      align-items: center;
+      align-self: stretch;
+      gap: 0.2rem;
+      padding-inline: 0.5rem;
+      margin-top: 5px;
+      border-radius: 0.375rem;
+      font-size: 0.8rem;
+      background-color: oklch(30% 0.022 258);
+      color: var(--color-text);
+      border: 1px solid oklch(40% 0.025 258);
+      transition: background-color 120ms;
+    }
+    [data-part='inventory-mode-toggle']:hover {
+      background-color: oklch(36% 0.025 258);
+    }
+    [data-part='inventory-mode-toggle']:active {
+      background-color: oklch(42% 0.028 258);
     }
 
     [data-part='compendium-banner'] {

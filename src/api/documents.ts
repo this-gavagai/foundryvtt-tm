@@ -28,7 +28,7 @@ export type ModifyDocumentPayload =
       type: DocumentType
       operation: {
         parentUuid?: string
-        data: ModifyDocumentUpdate[]
+        data: Record<string, unknown>[]
         diff?: boolean
         render?: boolean
       }

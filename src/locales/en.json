@@ -189,7 +189,8 @@
     "investedTitle": "Invested Items",
     "investedCount": "Invested: {count} / 10",
     "usesLabel": "Uses:",
-    "useItem": "Use Item"
+    "useItem": "Use Item",
+    "containerLabel": "Container"
   },
   "spells": {
     "noSpells": "This character does not cast spells.",

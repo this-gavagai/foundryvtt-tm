@@ -8,13 +8,15 @@ const {
   iconSet = {},
   labelSet = {},
   selected = '',
-  clicked
+  clicked,
+  size = 'md'
 } = defineProps<{
   choiceSet: string[]
   iconSet?: Record<string, string>
   labelSet?: Record<string, string>
   selected?: string
   clicked?: (newChoice: string) => void
+  size?: 'sm' | 'md'
 }>()
 const emit = defineEmits(['changed'])
 defineExpose({ waiting })
@@ -31,7 +33,7 @@ function handleChanged(newChoice: string) {
 <template>
   <div
     data-component="ChoiceWidget"
-    class="isolate mb-2 flex rounded-lg border border-gray-400 shadow-inner transition-opacity"
+    class="isolate mb-2 flex overflow-hidden rounded-lg border border-gray-400 shadow-inner transition-opacity"
     :class="[waiting ? 'opacity-50' : '']"
     v-if="choiceSet.length > 1"
     :waiting
@@ -44,6 +46,7 @@ function handleChanged(newChoice: string) {
       :choice="choice"
       :selected="selected"
       :disabled="waiting"
+      :size="size"
       @click="() => handleChanged(choice)"
     />
     <!-- </span> -->

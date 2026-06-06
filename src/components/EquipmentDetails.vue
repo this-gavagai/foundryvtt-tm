@@ -8,12 +8,17 @@ import CounterWidget from '@/components/widgets/CounterWidget.vue'
 import DropdownWidget from '@/components/widgets/DropdownWidget.vue'
 import ToggleWidget from '@/components/widgets/ToggleWidget.vue'
 import ParsedDescription from '@/components/ParsedDescription.vue'
+import meepleIcon from '@/assets/icons/meeple.svg'
+import meepleGroupIcon from '@/assets/icons/meeple-group.svg'
 
 const props = defineProps<{
   item?: InventoryItem
   inventory?: InventoryItem[]
   labels?: Record<string, string>
+  hideCarryType?: boolean
+  inventoryMode?: 'individual' | 'party'
 }>()
+const emit = defineEmits<{ moveToInventory: [target: 'individual' | 'party'] }>()
 
 const description = ref<InstanceType<typeof ParsedDescription>>()
 const activeRoll = computed(() => description.value?.activeRoll)
@@ -26,6 +31,19 @@ const itemWornType = computed(() => {
 })
 
 const backpacks = computed(() => props.inventory?.filter((item) => item.type === 'backpack') ?? [])
+
+const containerList = computed(() => [
+  { id: '', name: 'None' },
+  ...backpacks.value.map((b) => ({ id: b._id ?? '', name: b.name ?? '' }))
+])
+
+function changeContainer(newValue: string) {
+  if (newValue) {
+    props.item?.changeCarry?.('stowed', 0, newValue)
+  } else {
+    props.item?.changeCarry?.('worn', 0, null)
+  }
+}
 
 const carryChoices = computed(() => [
   {
@@ -85,8 +103,48 @@ defineExpose({ activeRoll })
 <template>
   <div data-component="EquipmentDetails">
     <div class="my-2">
+      <Transition
+        enter-active-class="transform transition-all duration-100 overflow-hidden"
+        enter-from-class="opacity-0 max-h-0"
+        enter-to-class="opacity-100 max-h-24"
+        leave-active-class="transform transition-all duration-100 ease-in overflow-hidden"
+        leave-from-class="opacity-100 max-h-24"
+        leave-to-class="opacity-0 max-h-0"
+      >
+        <div v-if="item?.type !== 'backpack' && backpacks.length > 0" class="mb-2">
+          <span data-part="container-label" class="mb-1 block">{{
+            $t('equipment.containerLabel')
+          }}</span>
+          <div class="flex items-center gap-2">
+            <DropdownWidget
+              class="flex-1"
+              :list="containerList"
+              :selectedId="item?.system?.containerId ?? ''"
+              :changed="changeContainer"
+              growContainer
+            />
+            <button
+              v-if="inventoryMode !== undefined"
+              type="button"
+              data-part="inventory-mode-toggle"
+              @click="
+                emit('moveToInventory', inventoryMode === 'individual' ? 'party' : 'individual')
+              "
+            >
+              <template v-if="inventoryMode === 'individual'">
+                <img :src="meepleGroupIcon" class="h-6.25" alt="" />
+                <span>›</span>
+              </template>
+              <template v-else>
+                <span>‹</span>
+                <img :src="meepleIcon" class="h-6.25" alt="" />
+              </template>
+            </button>
+          </div>
+        </div>
+      </Transition>
       <ChoiceWidget
-        v-if="item?.type !== 'backpack'"
+        v-if="item?.type !== 'backpack' && !hideCarryType"
         class="w-full"
         :selected="carryChoices.find((choice) => choice.toggleIsActive())?.id"
         :choiceSet="carryChoices.map((choice) => choice.id)"
@@ -144,38 +202,6 @@ defineExpose({ activeRoll })
           {{ item?.system.equipped.invested ? `Item invested` : 'Item not invested' }}
         </span>
       </div>
-      <Transition
-        enter-active-class="transform transition-all duration-100 overflow-hidden"
-        enter-from-class="opacity-0 max-h-0"
-        enter-to-class="opacity-100 max-h-6"
-        leave-active-class="transform transition-all duration-100 ease-in overflow-hidden"
-        leave-from-class="opacity-100 max-h-6"
-        leave-to-class="opacity-0 max-h-0"
-      >
-        <div
-          v-if="
-            item?.system?.equipped?.carryType === 'stowed' &&
-            backpacks.length > 1 &&
-            item?.type !== 'backpack'
-          "
-        >
-          <DropdownWidget
-            :list="
-              backpacks.map((backpack) => ({ id: backpack._id ?? '', name: backpack.name ?? '' }))
-            "
-            :selectedId="item?.system?.containerId ?? ''"
-            :changed="
-              (newValue) =>
-                item?.changeCarry?.(
-                  item?.system?.equipped?.carryType,
-                  item?.system?.equipped?.handsHeld,
-                  newValue
-                )
-            "
-            growContainer
-          />
-        </div>
-      </Transition>
     </div>
     <ParsedDescription
       ref="description"

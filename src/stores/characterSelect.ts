@@ -14,7 +14,7 @@ export const useCharacterSelectStore = defineStore('characterSelect', () => {
   const ownedActorIds = computed<string[]>(
     () =>
       world.value?.actors
-        ?.filter((a: ActorPF2e) => a.ownership?.[world.value!.userId] === 3)
+        ?.filter((a: ActorPF2e) => a.ownership?.[world.value!.userId] === 3 && a.type !== 'party')
         .map((a: ActorPF2e) => a?._id ?? '') ?? []
   )
 
