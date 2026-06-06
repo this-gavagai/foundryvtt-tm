@@ -7,6 +7,7 @@ import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
 import InfoModal from './InfoModal.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
+import ModifierOverrideList from '@/components/ModifierOverrideList.vue'
 import StrikeActionSet from './StrikeListActionSet.vue'
 import type { Strike, ElementalBlast, Weapon } from '@/composables/character'
 import type { DiceResults, RequestResolutionArgs } from '@/types/api-types'
@@ -536,59 +537,22 @@ watch([strikes, blasts], () => {
             :clicked="(newChoice) => (blastActions = newChoice)"
           />
         </div>
-        <!-- Strike attack/damage modifier breakdown. Same grid shape as the
-             StatBox info modal (value | type tag | label). Attack-phase
-             modifiers are toggleable (same 3-state system as StatBox);
-             damage-phase modifiers are read-only. -->
-        <ul class="mt-2">
-          <li
-            v-for="mod in viewed?.phase === 'damage'
+        <ModifierOverrideList
+          class="mt-2"
+          :modifiers="
+            viewed?.phase === 'damage'
               ? strikeModalDamage?.response?.modifiers
-              : viewed?.target.data._modifiers"
-            data-part="modifier"
-            :data-disabled="
-              viewed?.phase === 'attack'
-                ? (!effectiveEnabled(mod) &&
-                    !isManuallyActivated(mod) &&
-                    !isManuallyDeactivated(mod)) ||
-                  undefined
-                : !mod.enabled || undefined
-            "
-            :data-manual-on="(viewed?.phase === 'attack' && isManuallyActivated(mod)) || undefined"
-            :data-manual-off="
-              (viewed?.phase === 'attack' && isManuallyDeactivated(mod)) || undefined
-            "
-            :data-stacking-loser="(viewed?.phase === 'attack' && isStackingLoser(mod)) || undefined"
-            class="grid grid-cols-[2.5rem_6rem_1fr_auto] items-center gap-2 rounded-sm border border-transparent px-1 py-0.5"
-            :class="{
-              'cursor-pointer': viewed?.phase === 'attack',
-              'text-gray-300':
-                viewed?.phase === 'attack'
-                  ? !effectiveEnabled(mod) && !isManuallyDeactivated(mod)
-                  : !mod.enabled,
-              'border-green-500 bg-green-100/40 dark:bg-green-900/30':
-                viewed?.phase === 'attack' && isManuallyActivated(mod),
-              'border-red-500 bg-red-100/40 text-red-700 line-through dark:bg-red-900/30 dark:text-red-300':
-                viewed?.phase === 'attack' && isManuallyDeactivated(mod),
-              'line-through opacity-50': viewed?.phase === 'attack' && isStackingLoser(mod)
-            }"
-            :key="mod.slug"
-            @click="viewed?.phase === 'attack' && toggleModifier(mod)"
-          >
-            <div class="text-right">
-              <span v-if="mod.modifier !== undefined">{{ SignedNumber.format(mod.modifier) }}</span>
-              <span v-if="mod.diceNumber">{{ `${mod.diceNumber}${mod.dieSize}` }}</span>
-            </div>
-            <div
-              data-part="modifier-type"
-              class="text-[0.65rem] tracking-wide uppercase opacity-60"
-            >
-              <template v-if="mod.type && mod.type !== 'untyped'">[{{ mod.type }}]</template>
-            </div>
-            <div class="overflow-hidden text-ellipsis whitespace-nowrap">{{ mod.label }}</div>
-            <div v-if="mod.damageType" class="text-sm opacity-70">({{ mod.damageType }})</div>
-          </li>
-        </ul>
+              : viewed?.target.data._modifiers
+          "
+          :toggleable="viewed?.phase === 'attack'"
+          showAll
+          showDamageType
+          :effectiveEnabled="effectiveEnabled"
+          :isManuallyActivated="isManuallyActivated"
+          :isManuallyDeactivated="isManuallyDeactivated"
+          :isStackingLoser="isStackingLoser"
+          :onToggle="toggleModifier"
+        />
       </InfoModal>
     </Teleport>
   </div>

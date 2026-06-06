@@ -5,7 +5,6 @@ import { useI18n } from 'vue-i18n'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
-import { SignedNumber } from '@/utils/utilities'
 import type { Modifier } from '@/composables/character'
 import type { Roll } from '@/types/roll-types'
 import type { RequestResolutionArgs } from '@/types/api-types'
@@ -19,6 +18,7 @@ import CounterWidget from '@/components/widgets/CounterWidget.vue'
 import Modal from '@/components/ModalBox.vue'
 import InfoModal from '@/components/InfoModal.vue'
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
+import ModifierOverrideList from '@/components/ModifierOverrideList.vue'
 import SpellSourceSection from '@/components/SpellSourceSection.vue'
 import SpellDetails from '@/components/SpellDetails.vue'
 
@@ -83,7 +83,7 @@ const spellRollDamageData = ref<
 const spellRollModifiers = computed(() =>
   viewedSpellRoll.value?.phase === 'attack'
     ? viewedSpellRoll.value.entry?.spellAttackModifiers
-    : undefined
+    : spellRollDamageData.value?.modifiers
 )
 const {
   modifierOverrides: spellRollModifierOverrides,
@@ -93,12 +93,6 @@ const {
   isManuallyDeactivated: isSpellRollManuallyDeactivated,
   isStackingLoser: isSpellRollStackingLoser
 } = useModifierOverrides(spellRollModifiers)
-
-const visibleSpellRollModifiers = computed(() =>
-  (spellRollModifiers.value ?? []).filter(
-    (m) => m.enabled || !m.hideIfDisabled || (m.slug && m.slug in spellRollModifierOverrides.value)
-  )
-)
 
 function spellRollModifierOverridePayload() {
   const overrides = spellRollModifierOverrides.value
@@ -520,49 +514,17 @@ const spellbook = computed(() => buildSpellbook(spellcastingEntries.value, spell
           </span>
         </template>
         <template #body>
-          <ul v-if="visibleSpellRollModifiers.length">
-            <li
-              v-for="mod in visibleSpellRollModifiers"
-              data-part="modifier"
-              :data-disabled="
-                (!spellRollEffectiveEnabled(mod) &&
-                  !isSpellRollManuallyActivated(mod) &&
-                  !isSpellRollManuallyDeactivated(mod)) ||
-                undefined
-              "
-              :data-manual-on="isSpellRollManuallyActivated(mod) || undefined"
-              :data-manual-off="isSpellRollManuallyDeactivated(mod) || undefined"
-              :data-stacking-loser="isSpellRollStackingLoser(mod) || undefined"
-              class="grid grid-cols-[2.5rem_6rem_1fr_auto] items-center gap-2 rounded-sm border border-transparent px-1 py-0.5"
-              :class="{
-                'cursor-pointer': true,
-                'text-gray-300':
-                  !spellRollEffectiveEnabled(mod) && !isSpellRollManuallyDeactivated(mod),
-                'border-green-500 bg-green-100/40 dark:bg-green-900/30':
-                  isSpellRollManuallyActivated(mod),
-                'border-red-500 bg-red-100/40 text-red-700 line-through dark:bg-red-900/30 dark:text-red-300':
-                  isSpellRollManuallyDeactivated(mod),
-                'line-through opacity-50': isSpellRollStackingLoser(mod)
-              }"
-              :key="mod.slug"
-              @click="toggleSpellRollModifier(mod)"
-            >
-              <div class="text-right">
-                <span v-if="mod.modifier !== undefined">{{
-                  SignedNumber.format(mod.modifier)
-                }}</span>
-                <span v-if="mod.diceNumber">{{ `${mod.diceNumber}${mod.dieSize}` }}</span>
-              </div>
-              <div
-                data-part="modifier-type"
-                class="text-[0.65rem] tracking-wide uppercase opacity-60"
-              >
-                <template v-if="mod.type && mod.type !== 'untyped'">[{{ mod.type }}]</template>
-              </div>
-              <div class="overflow-hidden text-ellipsis whitespace-nowrap">{{ mod.label }}</div>
-              <div v-if="mod.damageType" class="text-sm opacity-70">({{ mod.damageType }})</div>
-            </li>
-          </ul>
+          <ModifierOverrideList
+            :modifiers="spellRollModifiers"
+            :toggleable="viewedSpellRoll?.phase === 'attack'"
+            showDamageType
+            :showAll="viewedSpellRoll?.phase === 'damage'"
+            :effectiveEnabled="spellRollEffectiveEnabled"
+            :isManuallyActivated="isSpellRollManuallyActivated"
+            :isManuallyDeactivated="isSpellRollManuallyDeactivated"
+            :isStackingLoser="isSpellRollStackingLoser"
+            :onToggle="toggleSpellRollModifier"
+          />
           <template v-if="viewedSpellRoll?.phase === 'damage'">
             <div v-if="spellRollDamageData?.formula" class="font-mono text-sm">
               {{ spellRollDamageData.formula }}
