@@ -28,13 +28,26 @@ import CharacterTab from '@/components/CharacterTab.vue'
 import CharacterPanel from './CharacterPanel.vue'
 import FrontPage from '@/components/FrontPage.vue'
 import Skills from '@/components/SkillList.vue'
-import ActionsList from '@/components/ActionsList.vue'
 import SpellList from '@/components/SpellList.vue'
 import FeatsList from '@/components/FeatsList.vue'
 import EquipmentList from '@/components/EquipmentList.vue'
-import StrikeList from '@/components/StrikeList.vue'
+import ActionsPanel from '@/components/ActionsPanel.vue'
 
 const props = defineProps(['characterId'])
+
+// Single source of truth for the tab bar + swipeable panels. Order defines
+// both the tab index and the panel order. `mobileOnly` tabs are hidden at
+// md+ (their content lives in the always-visible left sidebar instead).
+const tabs = [
+  { icon: cowled, label: 'tabs.character', content: FrontPage, mobileOnly: true },
+  { icon: biceps, label: 'tabs.feats', content: FeatsList },
+  { icon: skills, label: 'tabs.proficiencies', content: Skills },
+  { icon: backpack, label: 'tabs.equipment', content: EquipmentList },
+  { icon: leapfrog, label: 'tabs.actions', content: ActionsPanel },
+  { icon: spellBook, label: 'tabs.spells', content: SpellList }
+]
+// First tab the user can actually land on at md+ (mobileOnly tabs are hidden).
+const firstDesktopTab = tabs.findIndex((t) => !t.mobileOnly)
 
 // sheet layout and tab management
 const { width } = useWindowSize()
@@ -54,7 +67,8 @@ const dragOptions = {
   axis: 'x'
 }
 const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
-  if (swipe[0]) changeTab(Math.max(0, Math.min((currentTab.value ?? 0) - swipe[0], 5)))
+  if (swipe[0])
+    changeTab(Math.max(0, Math.min((currentTab.value ?? 0) - swipe[0], tabs.length - 1)))
 }
 
 // base data
@@ -84,7 +98,7 @@ useActorSync(props.characterId, actor)
 
 // set initial tab based on viewport
 onMounted(() => {
-  currentTab.value = width.value >= 768 ? 1 : 0
+  currentTab.value = width.value >= 768 ? firstDesktopTab : 0
 })
 
 defineExpose({ actor, character, actorOrWorldActor })
@@ -109,35 +123,24 @@ defineExpose({ actor, character, actorOrWorldActor })
             class="sticky top-0 z-10 h-32 md:hidden"
             @sidebar-activated="sideMenu.sidebarOpen = true"
           />
-          <CharacterPanel :goLeft="goLeft" class="md:hidden">
-            <FrontPage />
-          </CharacterPanel>
-          <CharacterPanel :goLeft="goLeft">
-            <FeatsList />
-          </CharacterPanel>
-          <CharacterPanel :goLeft="goLeft">
-            <Skills />
-          </CharacterPanel>
-          <CharacterPanel :goLeft="goLeft">
-            <EquipmentList />
-          </CharacterPanel>
-          <CharacterPanel :goLeft="goLeft">
-            <div class="px-6 lg:columns-2">
-              <StrikeList />
-              <ActionsList />
-            </div>
-          </CharacterPanel>
-          <CharacterPanel :goLeft="goLeft">
-            <SpellList />
+          <CharacterPanel
+            v-for="tab in tabs"
+            :key="tab.label"
+            :goLeft="goLeft"
+            :class="{ 'md:hidden': tab.mobileOnly }"
+          >
+            <component :is="tab.content" />
           </CharacterPanel>
         </TabPanels>
         <TabList data-part="tab-bar" class="border-divider bottom-0 flex h-24 justify-around border-t border-b">
-          <CharacterTab :src="cowled" :label="$t('tabs.character')" class="w-1/6 md:hidden" />
-          <CharacterTab :src="biceps" :label="$t('tabs.feats')" class="w-1/6" />
-          <CharacterTab :src="skills" :label="$t('tabs.proficiencies')" class="w-1/6" />
-          <CharacterTab :src="backpack" :label="$t('tabs.equipment')" class="w-1/6" />
-          <CharacterTab :src="leapfrog" :label="$t('tabs.actions')" class="w-1/6" />
-          <CharacterTab :src="spellBook" :label="$t('tabs.spells')" class="w-1/6" />
+          <CharacterTab
+            v-for="tab in tabs"
+            :key="tab.label"
+            :src="tab.icon"
+            :label="$t(tab.label)"
+            class="w-1/6"
+            :class="{ 'md:hidden': tab.mobileOnly }"
+          />
           <Bars3Icon
             class="mx-4 my-auto hidden h-10 w-10 cursor-pointer rounded-md border-gray-900 p-1 text-gray-600 active:text-gray-300 md:block"
             @click="sideMenu.sidebarOpen = true"
