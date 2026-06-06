@@ -16,6 +16,6 @@ const props = defineProps<{ actions: string | undefined }>()
 }
 .pf2-icon {
   font-family: 'Pathfinder2eActions', sans-serif;
-  padding-bottom: 12px;
+  /* padding-bottom: 12px; */
 }
 </style>

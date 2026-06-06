@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { formatModifier, SignedNumber } from '@/utils/utilities'
+import { SignedNumber } from '@/utils/utilities'
 import type { Modifier } from '@/composables/character'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { storeToRefs } from 'pinia'
@@ -73,15 +73,25 @@ function effectiveEnabled(mod: Modifier): boolean {
 }
 function isManuallyActivated(mod: Modifier): boolean {
   const slug = mod.slug
-  return !!slug && slug in modifierOverrides.value && modifierOverrides.value[slug] === true && !mod.enabled
+  return (
+    !!slug &&
+    slug in modifierOverrides.value &&
+    modifierOverrides.value[slug] === true &&
+    !mod.enabled
+  )
 }
 function isManuallyDeactivated(mod: Modifier): boolean {
   const slug = mod.slug
-  return !!slug && slug in modifierOverrides.value && modifierOverrides.value[slug] === false && !!mod.enabled
+  return (
+    !!slug &&
+    slug in modifierOverrides.value &&
+    modifierOverrides.value[slug] === false &&
+    !!mod.enabled
+  )
 }
 // Simulate same-type stacking on the effective-enabled set.
 const attackModifiers = computed(() =>
-  viewed.value?.phase === 'attack' ? viewed.value?.target.data._modifiers ?? [] : []
+  viewed.value?.phase === 'attack' ? (viewed.value?.target.data._modifiers ?? []) : []
 )
 const stackingLosers = computed<Set<string>>(() => {
   const losers = new Set<string>()
@@ -101,7 +111,9 @@ const stackingLosers = computed<Set<string>>(() => {
       for (let i = 1; i < winners.length; i++) {
         if (better(winners[i].modifier ?? 0, best.modifier ?? 0)) best = winners[i]
       }
-      for (const m of winners) { if (m !== best && m.slug) losers.add(m.slug) }
+      for (const m of winners) {
+        if (m !== best && m.slug) losers.add(m.slug)
+      }
     }
     pick(pos, (a, b) => a > b)
     pick(neg, (a, b) => a < b)
@@ -245,7 +257,9 @@ const damageTypeOptions = computed<string[]>(() => {
 function doViewedAttack(diceResult?: number): Promise<RequestResolutionArgs | null> {
   const v = viewed.value
   if (!v) return Promise.resolve(null)
-  const overrides = Object.keys(modifierOverrides.value).length ? { ...modifierOverrides.value } : undefined
+  const overrides = Object.keys(modifierOverrides.value).length
+    ? { ...modifierOverrides.value }
+    : undefined
   if (v.target.kind === 'blast') {
     const blast = v.target.data
     return (
@@ -592,12 +606,17 @@ watch([strikes, blasts], () => {
             data-part="modifier"
             :data-disabled="
               viewed?.phase === 'attack'
-                ? (!effectiveEnabled(mod) && !isManuallyActivated(mod) && !isManuallyDeactivated(mod)) || undefined
+                ? (!effectiveEnabled(mod) &&
+                    !isManuallyActivated(mod) &&
+                    !isManuallyDeactivated(mod)) ||
+                  undefined
                 : !mod.enabled || undefined
             "
-            :data-manual-on="viewed?.phase === 'attack' && isManuallyActivated(mod) || undefined"
-            :data-manual-off="viewed?.phase === 'attack' && isManuallyDeactivated(mod) || undefined"
-            :data-stacking-loser="viewed?.phase === 'attack' && isStackingLoser(mod) || undefined"
+            :data-manual-on="(viewed?.phase === 'attack' && isManuallyActivated(mod)) || undefined"
+            :data-manual-off="
+              (viewed?.phase === 'attack' && isManuallyDeactivated(mod)) || undefined
+            "
+            :data-stacking-loser="(viewed?.phase === 'attack' && isStackingLoser(mod)) || undefined"
             class="grid grid-cols-[2.5rem_6rem_1fr_auto] items-center gap-2 rounded-sm border border-transparent px-1 py-0.5"
             :class="{
               'cursor-pointer': viewed?.phase === 'attack',
@@ -609,7 +628,7 @@ watch([strikes, blasts], () => {
                 viewed?.phase === 'attack' && isManuallyActivated(mod),
               'border-red-500 bg-red-100/40 text-red-700 line-through dark:bg-red-900/30 dark:text-red-300':
                 viewed?.phase === 'attack' && isManuallyDeactivated(mod),
-              'opacity-50 line-through': viewed?.phase === 'attack' && isStackingLoser(mod)
+              'line-through opacity-50': viewed?.phase === 'attack' && isStackingLoser(mod)
             }"
             :key="mod.slug"
             @click="viewed?.phase === 'attack' && toggleModifier(mod)"

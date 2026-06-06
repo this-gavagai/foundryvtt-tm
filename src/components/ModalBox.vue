@@ -21,7 +21,7 @@ const content = ref()
 const options = ref()
 const xButton = ref()
 
-function open(newOptions = null) {
+function open(newOptions: unknown = null) {
   isOpen.value = true
   options.value = newOptions
 }

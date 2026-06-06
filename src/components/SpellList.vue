@@ -1,36 +1,31 @@
 <script setup lang="ts">
-// TODO: make staff spells castable
 import type { SpellcastingEntry, Spell, Consumable } from '@/composables/character'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
-import { SignedNumber } from '@/utils/utilities'
 import type { Modifier } from '@/composables/character'
 import type { Roll } from '@/types/roll-types'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 import { parseDamageFormulaDice, makeDiceResults } from '@/utils/diceFormula'
+import {
+  MAX_SPELL_RANK,
+  slotKey,
+  isStrictPrepared,
+  type Spellbook,
+  type SpellInfo
+} from '@/utils/spellcasting'
 
 import Button from '@/components/widgets/ButtonWidget.vue'
 import CounterWidget from '@/components/widgets/CounterWidget.vue'
 import Modal from '@/components/ModalBox.vue'
 import InfoModal from '@/components/InfoModal.vue'
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
+import ModifierList from '@/components/ModifierList.vue'
+import SpellSourceSection from '@/components/SpellSourceSection.vue'
 import ParsedDescription from './ParsedDescription.vue'
-
-interface Spellbook {
-  [key: string]: { [key: string]: (Spell | undefined)[] }
-}
-interface SpellInfo {
-  entry?: SpellcastingEntry
-  entryId?: string
-  castingRank?: number
-  castingSlot?: number
-  isConsumable?: boolean
-  fromStaff?: boolean
-}
 
 const { t } = useI18n()
 const character = useInjectedCharacter()
@@ -46,12 +41,14 @@ const {
 } = character
 const { max: focusMax, current: focusCurrent } = character.focusPoints
 
+const entryById = (id?: string | null) => spellcastingEntries.value?.find((e) => e._id === id)
+
 const { isListening } = storeToRefs(useListenersStore())
 
-const infoModal = ref()
-const spellRollModal = ref()
-const spellSelectionModal = ref()
-const description = ref()
+const infoModal = ref<InstanceType<typeof InfoModal>>()
+const spellRollModal = ref<InstanceType<typeof InfoModal>>()
+const spellSelectionModal = ref<InstanceType<typeof Modal>>()
+const description = ref<InstanceType<typeof ParsedDescription>>()
 
 const viewedSpell = ref<Spell | undefined>()
 const viewedConsumable = ref<Consumable | undefined>()
@@ -59,6 +56,7 @@ const viewedEntry = ref<SpellcastingEntry | undefined>()
 const viewedItem = computed(() => viewedSpell.value ?? viewedConsumable.value)
 const viewedModalItem = computed(() => viewedItem.value ?? viewedEntry.value)
 const viewedSpellInfo = ref<SpellInfo | undefined>()
+const viewedInfoEntry = computed(() => entryById(viewedSpellInfo.value?.entryId))
 
 interface SpellRollView {
   spell: Spell
@@ -96,6 +94,9 @@ watch(viewedSpellRoll, async (v) => {
         response?: { formula?: string | null; breakdown?: string[]; modifiers?: Modifier[] }
       })
     | null
+  // The fetch is async; if the viewed roll changed while it was in flight,
+  // a stale response must not overwrite the current one.
+  if (viewedSpellRoll.value !== v) return
   spellRollDamageData.value = result?.response
 })
 
@@ -172,7 +173,7 @@ function openSpellModal(id: string | undefined, info: SpellInfo) {
     viewedConsumable.value = undefined
   }
   viewedSpellInfo.value = info
-  infoModal.value.open()
+  infoModal.value?.open()
 }
 
 function openEntryModal(entry: SpellcastingEntry) {
@@ -180,12 +181,11 @@ function openEntryModal(entry: SpellcastingEntry) {
   viewedSpell.value = undefined
   viewedConsumable.value = undefined
   viewedSpellInfo.value = undefined
-  infoModal.value.open()
+  infoModal.value?.open()
 }
 
 function clearPreparedSpell() {
-  spellcastingEntries.value
-    ?.find((e) => e._id === viewedSpellInfo.value?.entryId)
+  viewedInfoEntry.value
     ?.setPrepared?.(viewedSpellInfo.value?.castingRank, viewedSpellInfo.value?.castingSlot, null)
     ?.then(() => infoModal.value?.close())
 }
@@ -207,11 +207,11 @@ const viewedConsumableSpellRollData = computed<Record<string, unknown>>(() => ({
 function castViewedSpell() {
   return viewedSpell.value
     ?.doSpell?.(viewedSpellInfo.value?.castingRank, viewedSpellInfo.value?.castingSlot)
-    ?.then(() => infoModal.value.close())
+    ?.then(() => infoModal.value?.close())
 }
 
 function consumeViewedSpellItem() {
-  return viewedConsumable.value?.consumeItem?.()?.then(() => infoModal.value.close())
+  return viewedConsumable.value?.consumeItem?.()?.then(() => infoModal.value?.close())
 }
 
 const castDisabled = computed(() => {
@@ -223,7 +223,7 @@ const castDisabled = computed(() => {
     return !!staff.value?.expended || (staff.value?.charges?.value ?? 0) <= 0
   }
 
-  const entry = spellcastingEntries.value?.find((e) => e._id === info.entryId)
+  const entry = viewedInfoEntry.value
   if (!entry) return false
 
   const prepType = entry.system.prepared.value
@@ -236,18 +236,17 @@ const castDisabled = computed(() => {
     return (focusCurrent.value ?? 0) <= 0
   }
 
-  if (prepType === 'prepared' && entry.system.prepared.flexible === false) {
+  if (isStrictPrepared(entry)) {
     const slot = info.castingSlot
     if (slot == null) return false
-    return entry.system.slots['slot' + rank]?.prepared[slot]?.expended === true
+    return entry.system.slots[slotKey(rank)]?.prepared[slot]?.expended === true
   }
 
-  return (entry.system.slots['slot' + rank]?.value ?? 0) <= 0
+  return (entry.system.slots[slotKey(rank)]?.value ?? 0) <= 0
 })
 
 function setPreparedSpell(spell: Spell) {
-  return spellcastingEntries.value
-    ?.find((e) => e._id === spellSelectionModal.value?.options?.entryId)
+  return entryById(spellSelectionModal.value?.options?.entryId)
     ?.setPrepared?.(
       spellSelectionModal.value?.options?.castingRank,
       spellSelectionModal.value?.options?.castingSlot,
@@ -255,6 +254,12 @@ function setPreparedSpell(spell: Spell) {
     )
     ?.then(() => spellSelectionModal.value?.close())
 }
+
+const sortedConsumables = computed(() =>
+  [...(spellConsumables.value ?? [])].sort(
+    (a, b) => (a.system.spell.system.level.value ?? 0) - (b.system.spell.system.level.value ?? 0)
+  )
+)
 
 const staffSpellsByRank = computed(() =>
   (staff.value?.spells ?? []).reduce<Record<string, Spell[]>>((acc, s) => {
@@ -298,30 +303,33 @@ function fillAndSortSpells(
       }
     })
   Object.entries(sb[locationId]).forEach(([rankStr, rankSpells]) => {
-    rankSpells
-      .sort((a, b) => (a?.system.level.value ?? NaN) - (b?.system.level.value ?? NaN))
-      .sort(
-        (a, b) =>
-          (a?.system.level.value == Number(rankStr) ? 0 : 1) -
-          (b?.system.level.value == Number(rankStr) ? 0 : 1)
-      )
+    const rank = Number(rankStr)
+    // Native-rank spells first, signature/heightened spells last; then by level.
+    rankSpells.sort((a, b) => {
+      const aLevel = a?.system.level.value ?? NaN
+      const bLevel = b?.system.level.value ?? NaN
+      const aSignature = aLevel === rank ? 0 : 1
+      const bSignature = bLevel === rank ? 0 : 1
+      return aSignature - bSignature || aLevel - bLevel
+    })
   })
 }
 
 const spellbook = computed((): Spellbook => {
   const sb: Spellbook = {}
   spellcastingEntries.value?.forEach((se) => {
-    // prettier-ignore
-    sb[se._id ?? ''] = { '0': [], '1': [], '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], '8': [], '9': [], '10': [] }
+    sb[se._id ?? ''] = Object.fromEntries(
+      Array.from({ length: MAX_SPELL_RANK + 1 }, (_, i): [string, (Spell | undefined)[]] => [
+        String(i),
+        []
+      ])
+    )
   })
   const allSpells = spells.value ?? []
   for (const locationId of Object.keys(sb)) {
     const location = spellcastingEntries.value?.find((i) => i._id === locationId)
-    if (
-      location?.system.prepared.value === 'prepared' &&
-      location?.system?.prepared?.flexible === false
-    ) {
-      fillPreparedSlots(sb, locationId, location, allSpells)
+    if (isStrictPrepared(location)) {
+      fillPreparedSlots(sb, locationId, location!, allSpells)
     } else {
       fillAndSortSpells(sb, locationId, location, allSpells)
     }
@@ -334,27 +342,28 @@ const spellbook = computed((): Spellbook => {
     <div v-if="spellcastingEntries?.length === 0" class="px-6 py-4 italic">
       {{ $t('spells.noSpells') }}
     </div>
-    <div v-else class="px-6 py-4 lg:columns-2">
+    <div v-else class="px-6 py-4 xl:columns-2">
       <!-- Spell Sources -->
-      <section
+      <SpellSourceSection
         v-for="location in spellcastingEntries"
+        :key="location._id"
+        class="mb-4"
         :data-section="
           location.system.prepared.value === 'focus'
             ? 'focus'
             : location.system.tradition?.value || 'arcane'
         "
-        class="mb-4 break-inside-avoid-column"
-        :key="location._id"
+        :title="location.name ?? ''"
+        :dc="location.system.spelldc.dc || spellDC"
+        :ranks="spellbook[location._id ?? '']"
+        :entry="location"
+        title-clickable
+        @open-entry="openEntryModal(location)"
+        @open-spell="openSpellModal"
+        @open-empty="(info) => spellSelectionModal?.open(info)"
+        @pick="pickSpellRoll"
       >
-        <h3 class="flex justify-between px-4 py-2 align-bottom">
-          <span>
-            <span class="cursor-pointer text-xl" @click="openEntryModal(location)">
-              {{ location.name }}
-            </span>
-            <span v-if="location.system.spelldc.dc || spellDC" class="text-xs">
-              (DC {{ location.system.spelldc.dc || spellDC }})
-            </span>
-          </span>
+        <template #headerCounter>
           <span class="pl-1">
             <CounterWidget
               v-if="location.system?.prepared.value === 'focus'"
@@ -366,154 +375,20 @@ const spellbook = computed((): Spellbook => {
               @change-count="(newTotal) => (focusCurrent = newTotal)"
             />
           </span>
-        </h3>
-        <!-- Spell Ranks -->
-        <section
-          v-for="(spells, rank) in spellbook[location._id ?? '']"
-          class="[section:not(.hidden)~&]:mt-3"
-          :class="{ hidden: !spells.length }"
-          :key="'rank' + rank"
-        >
-          <h4 class="flex justify-between px-4 align-bottom text-sm italic">
-            <span class="pr-1">
-              {{ rank == '0' ? $t('spells.cantrips') : $t('spells.rank', { n: rank }) }}
-            </span>
-            <CounterWidget
-              class="relative bottom-px -m-0.5 mr-2 h-4 pb-1 text-sm"
-              v-if="
-                location.system?.prepared.value === 'spontaneous' ||
-                (location.system?.prepared?.value === 'prepared' &&
-                  location?.system?.prepared?.flexible === true)
-              "
-              :value="location.system.slots?.['slot' + rank]?.value"
-              :max="location.system.slots?.['slot' + rank]?.max"
-              editable
-              :title="`${location?.name}: ${$t('spells.rank', { n: rank })}`"
-              @change-count="(newTotal) => location?.setSlotCount?.(Number(rank), newTotal)"
-            />
-          </h4>
-          <!-- Spells -->
-          <ul class="mb-1 empty:hidden">
-            <li
-              v-for="(spell, index) in spells"
-              class="flex flex-wrap items-center justify-between gap-x-2 px-4 py-px"
-              :key="spell?._id"
-            >
-              <div class="text-md">
-                <span
-                  v-if="spell"
-                  @click="
-                    openSpellModal(spell?._id, {
-                      entry: location,
-                      entryId: location._id,
-                      castingRank: Number(rank),
-                      castingSlot: index
-                    })
-                  "
-                  class="cursor-pointer"
-                >
-                  <span
-                    v-if="
-                      spell?.system?.location?.signature &&
-                      spell?.system?.level.value !== Number(rank)
-                    "
-                    >*</span
-                  >
-                  <span>{{ spell?.name }}</span>
-                  <ActionIcons class="text-md ml-1" :actions="spell?.system?.time?.value" />
-                </span>
-                <span
-                  v-else
-                  @click="
-                    spellSelectionModal.open({
-                      entry: location,
-                      entryId: location._id,
-                      castingRank: Number(rank),
-                      castingSlot: index
-                    } as SpellInfo)
-                  "
-                  class="cursor-pointer text-gray-500"
-                  >(empty)</span
-                >
-              </div>
-              <div
-                v-if="
-                  isListening &&
-                  spell &&
-                  (spell.system?.traits?.value?.includes('attack') || spell.system?.hasDamage)
-                "
-                data-part="spell-roll-buttons"
-                class="flex flex-1 flex-wrap items-center justify-end gap-1 text-xs"
-              >
-                <span
-                  data-part="attack"
-                  v-if="spell.system?.traits?.value?.includes('attack')"
-                  class="flex gap-1"
-                >
-                  <span
-                    class="inline-block cursor-pointer border border-gray-400 bg-gray-100 px-2 py-1 whitespace-nowrap text-blue-600 transition-colors select-none active:bg-gray-300"
-                    @click="pickSpellRoll(spell, location, Number(rank), 'attack', 0)"
-                    >{{ $t('spells.attack') }}</span
-                  >
-                  <span
-                    class="inline-block w-9 cursor-pointer border border-gray-400 bg-gray-100 px-2 py-1 text-center text-blue-600 transition-colors select-none active:bg-gray-300"
-                    @click="pickSpellRoll(spell, location, Number(rank), 'attack', 1)"
-                    >-5</span
-                  >
-                  <span
-                    class="inline-block w-9 cursor-pointer border border-gray-400 bg-gray-100 px-2 py-1 text-center text-blue-600 transition-colors select-none active:bg-gray-300"
-                    @click="pickSpellRoll(spell, location, Number(rank), 'attack', 2)"
-                    >-10</span
-                  >
-                </span>
-                <span data-part="damage" v-if="spell.system?.hasDamage" class="flex gap-1">
-                  <span
-                    class="inline-block cursor-pointer border border-gray-400 bg-gray-100 px-2 py-1 whitespace-nowrap text-red-600 transition-colors select-none active:bg-gray-300"
-                    @click="pickSpellRoll(spell, location, Number(rank), 'damage', 0)"
-                    >{{ $t('spells.damage') }}</span
-                  >
-                </span>
-              </div>
-              <CounterWidget
-                class="mr-2 h-3 self-center text-sm [&>div]:mt-0"
-                v-if="
-                  location.system?.prepared.value === 'prepared' &&
-                  location?.system?.prepared?.flexible === false &&
-                  Number(rank) > 0
-                "
-                :value="
-                  location.system.slots['slot' + rank].prepared[index]?.expended === false ? 1 : 0
-                "
-                :max="1"
-                editable
-                :title="`${$t('spells.rank', { n: rank })}: ${spell?.name}`"
-                @change-count="
-                  (newTotal) =>
-                    location?.setPrepared?.(
-                      Number(rank),
-                      index,
-                      spell?._id ?? null,
-                      newTotal ? false : true
-                    )
-                "
-              />
-            </li>
-          </ul>
-        </section>
-      </section>
+        </template>
+      </SpellSourceSection>
       <!-- Staff from PF2e-Dailies -->
-      <section
-        data-section="staff"
-        class="mt-4 break-inside-avoid-column [&:not(:has(li))]:hidden"
+      <SpellSourceSection
         v-if="staff?.staffId"
+        class="mt-4 [&:not(:has(li))]:hidden"
+        data-section="staff"
+        :title="inventory?.find((i) => i._id === staff?.staffId)?.name ?? ''"
+        :dc="spellDC"
+        :ranks="staffSpellsByRank"
+        @open-spell="openSpellModal"
+        @pick="pickSpellRoll"
       >
-        <h3 class="flex justify-between px-4 py-2 align-bottom">
-          <span>
-            <span class="text-xl">{{
-              inventory?.find((i) => i._id === staff?.staffId)?.name
-            }}</span>
-            <span v-if="spellDC" class="text-xs"> (DC {{ spellDC }}) </span>
-          </span>
+        <template #headerCounter>
           <CounterWidget
             class="relative -bottom-0.5 mt-px mr-2 h-4 text-sm"
             :value="staff?.charges?.value"
@@ -522,73 +397,8 @@ const spellbook = computed((): Spellbook => {
             editable
             @change-count="(newTotal) => staff?.setStaffCharges?.(newTotal)"
           />
-        </h3>
-        <section
-          v-for="(rankSpells, rank) in staffSpellsByRank"
-          class="[section:not(.hidden)~&]:mt-3"
-          :key="'rank' + rank"
-        >
-          <h4 class="flex justify-between px-4 align-bottom text-sm italic">
-            <span class="pr-1">
-              {{ rank == '0' ? $t('spells.cantrips') : $t('spells.rank', { n: rank }) }}
-            </span>
-          </h4>
-          <ul class="mb-1 empty:hidden">
-            <li
-              v-for="item in rankSpells"
-              class="flex flex-wrap items-center justify-between gap-x-2 px-4 py-px"
-              :key="item._id"
-            >
-              <div class="text-md">
-                <span
-                  class="cursor-pointer"
-                  @click="openSpellModal(item?._id, { fromStaff: true, castingRank: Number(rank) })"
-                >
-                  <span>{{ item.name }}</span>
-                  <ActionIcons class="text-md ml-1" :actions="item?.system?.time?.value" />
-                </span>
-              </div>
-              <div
-                v-if="
-                  isListening &&
-                  (item.system?.traits?.value?.includes('attack') || item.system?.hasDamage)
-                "
-                data-part="spell-roll-buttons"
-                class="flex flex-1 flex-wrap items-center justify-end gap-1 text-xs"
-              >
-                <span
-                  data-part="attack"
-                  v-if="item.system?.traits?.value?.includes('attack')"
-                  class="flex gap-1"
-                >
-                  <span
-                    class="inline-block cursor-pointer border border-gray-400 bg-gray-100 px-2 py-1 whitespace-nowrap text-blue-600 transition-colors select-none active:bg-gray-300"
-                    @click="pickSpellRoll(item, undefined, Number(rank), 'attack', 0)"
-                    >{{ $t('spells.attack') }}</span
-                  >
-                  <span
-                    class="inline-block w-9 cursor-pointer border border-gray-400 bg-gray-100 px-2 py-1 text-center text-blue-600 transition-colors select-none active:bg-gray-300"
-                    @click="pickSpellRoll(item, undefined, Number(rank), 'attack', 1)"
-                    >-5</span
-                  >
-                  <span
-                    class="inline-block w-9 cursor-pointer border border-gray-400 bg-gray-100 px-2 py-1 text-center text-blue-600 transition-colors select-none active:bg-gray-300"
-                    @click="pickSpellRoll(item, undefined, Number(rank), 'attack', 2)"
-                    >-10</span
-                  >
-                </span>
-                <span data-part="damage" v-if="item.system?.hasDamage" class="flex gap-1">
-                  <span
-                    class="inline-block cursor-pointer border border-gray-400 bg-gray-100 px-2 py-1 whitespace-nowrap text-red-600 transition-colors select-none active:bg-gray-300"
-                    @click="pickSpellRoll(item, undefined, Number(rank), 'damage', 0)"
-                    >{{ $t('spells.damage') }}</span
-                  >
-                </span>
-              </div>
-            </li>
-          </ul>
-        </section>
-      </section>
+        </template>
+      </SpellSourceSection>
       <!-- Wands and Scrolls -->
       <section
         data-section="consumables"
@@ -601,22 +411,16 @@ const spellbook = computed((): Spellbook => {
           </span>
         </h3>
         <ul class="pb-4 empty:hidden">
-          <li
-            v-for="item in spellConsumables?.sort(
-              (a, b) =>
-                (a.system.spell.system.level.value ?? 0) - (b.system.spell.system.level.value ?? 0)
-            )"
-            class="flex justify-between px-4"
-            :key="item._id"
-          >
+          <li v-for="item in sortedConsumables" class="flex justify-between px-4" :key="item._id">
             <div>
-              <span
+              <button
+                type="button"
                 v-if="item"
                 @click="openSpellModal(item?._id, { isConsumable: true })"
-                class="cursor-pointer"
+                class="cursor-pointer text-left"
               >
                 {{ item.name }}
-              </span>
+              </button>
             </div>
             <CounterWidget
               class="mt-1 mr-2 h-3 text-sm"
@@ -665,21 +469,7 @@ const spellbook = computed((): Spellbook => {
         </template>
         <template #body>
           <template v-if="viewedEntry && !viewedItem">
-            <ul>
-              <li
-                v-for="mod in (viewedEntry.spellAttackModifiers ?? []).filter(
-                  (m: Modifier) => m.enabled || !m.hideIfDisabled
-                )"
-                data-part="modifier"
-                :data-disabled="!mod.enabled || undefined"
-                class="flex gap-2"
-                :class="{ 'text-gray-300': !mod.enabled }"
-                :key="'mod_' + mod.slug"
-              >
-                <div class="w-8 text-right">{{ SignedNumber.format(mod.modifier ?? 0) }}</div>
-                <div class="overflow-hidden text-ellipsis whitespace-nowrap">{{ mod.label }}</div>
-              </li>
-            </ul>
+            <ModifierList :modifiers="viewedEntry.spellAttackModifiers" />
           </template>
           <template v-else-if="!viewedEntry || viewedItem">
             <div class="flex gap-2 empty:hidden">
@@ -785,21 +575,10 @@ const spellbook = computed((): Spellbook => {
           </span>
         </template>
         <template #body>
-          <ul v-if="viewedSpellRoll?.phase === 'attack' && viewedSpellRoll?.entry">
-            <li
-              v-for="mod in (viewedSpellRoll.entry.spellAttackModifiers ?? []).filter(
-                (m: Modifier) => m.enabled || !m.hideIfDisabled
-              )"
-              data-part="modifier"
-              :data-disabled="!mod.enabled || undefined"
-              class="flex gap-2"
-              :class="{ 'text-gray-300': !mod.enabled }"
-              :key="'spellrollmod_' + mod.slug"
-            >
-              <div class="w-8 text-right">{{ SignedNumber.format(mod.modifier ?? 0) }}</div>
-              <div class="overflow-hidden text-ellipsis whitespace-nowrap">{{ mod.label }}</div>
-            </li>
-          </ul>
+          <ModifierList
+            v-if="viewedSpellRoll?.phase === 'attack' && viewedSpellRoll?.entry"
+            :modifiers="viewedSpellRoll.entry.spellAttackModifiers"
+          />
           <template v-else-if="viewedSpellRoll?.phase === 'damage'">
             <div v-if="spellRollDamageData?.formula" class="font-mono text-sm">
               {{ spellRollDamageData.formula }}
@@ -822,8 +601,8 @@ const spellbook = computed((): Spellbook => {
             class="cursor-pointer"
             v-for="spell in spells?.filter(
               (i) =>
-                i.system.location.value === spellSelectionModal.options?.entryId &&
-                (i.system.level.value ?? 0) <= spellSelectionModal.options.castingRank
+                i.system.location.value === spellSelectionModal?.options?.entryId &&
+                (i.system.level.value ?? 0) <= spellSelectionModal?.options?.castingRank
             )"
             @click="setPreparedSpell(spell)"
             :key="spell._id"
