@@ -7,39 +7,23 @@ import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
 import InfoModal from './InfoModal.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
-import ModifierOverrideList from '@/components/ModifierOverrideList.vue'
 import StrikeActionSet from './StrikeListActionSet.vue'
-import type { Strike, ElementalBlast, Weapon } from '@/composables/character'
+import StrikeDetails from './StrikeDetails.vue'
+import type { Weapon } from '@/composables/character'
 import type { DiceResults, RequestResolutionArgs } from '@/types/api-types'
 import type { Roll } from '@/types/roll-types'
 import { parseDamageFormulaDice, makeDiceResults } from '@/utils/diceFormula'
+import {
+  blastDamageType,
+  damageTypeOptionsForViewed,
+  damageTypeSelectedForViewed,
+  traitsForViewed,
+  variantLabelForViewed,
+  type ViewedStrike
+} from '@/utils/strikes'
 import { useModifierOverrides } from '@/composables/useModifierOverrides'
 
-import ChoiceWidget from '@/components/widgets/ChoiceWidget.vue'
-import DropdownWidget from './widgets/DropdownWidget.vue'
 import ActionIcons from './widgets/ActionIcons.vue'
-
-import action1 from '@/assets/icons/action1.svg'
-import action2 from '@/assets/icons/action2.svg'
-import bludgeoning from '@/assets/icons/thor-hammer.svg'
-import slashing from '@/assets/icons/battle-axe.svg'
-import piercing from '@/assets/icons/arrowhead.svg'
-import electricity from '@/assets/icons/electric.svg'
-import fire from '@/assets/icons/celebration-fire.svg'
-import cold from '@/assets/icons/snowflake-2.svg'
-import vitality from '@/assets/icons/hearts.svg'
-const damageIcons = { bludgeoning, slashing, piercing, electricity, fire, cold, vitality }
-const actionIcons = { '1': action1, '2': action2 }
-
-type ViewedTarget =
-  | { kind: 'strike'; data: Strike; index: number; altUsage?: number }
-  | { kind: 'blast'; data: ElementalBlast; index: number; isMelee: boolean }
-
-interface Viewed {
-  target: ViewedTarget
-  phase: 'attack' | 'damage'
-  subtype: number
-}
 
 interface EmitOptions {
   type: 'strike' | 'strike_damage' | 'blast' | 'blast_damage'
@@ -53,7 +37,7 @@ const { strikes, blasts, inventory, actions, blastActions, kineticAuraActive, to
 
 const strikeModal = ref()
 const strikeModalDamage = ref()
-const viewed = ref<Viewed | undefined>()
+const viewed = ref<ViewedStrike | undefined>()
 
 const attackModifiers = computed(() =>
   viewed.value?.phase === 'attack' ? (viewed.value?.target.data._modifiers ?? []) : []
@@ -120,19 +104,6 @@ function pickBlast(opts: EmitOptions, index: number, isMelee: boolean) {
   strikeModal.value.open()
 }
 
-// helpers
-function blastDamageType(blast: ElementalBlast): string {
-  return (
-    blast.damageSelections?.[blast.blastElement ?? ''] ?? blast.blastDamageTypes?.[0]?.value ?? ''
-  )
-}
-
-const attackTypeMap = new Map<boolean | undefined, 'melee' | 'ranged' | undefined>([
-  [undefined, undefined],
-  [true, 'melee'],
-  [false, 'ranged']
-])
-
 // derived
 const viewedItem = computed<Weapon | undefined>(() => {
   const itemId = viewed.value?.target.data.item?._id
@@ -142,60 +113,15 @@ const viewedItem = computed<Weapon | undefined>(() => {
     | undefined
 })
 
-const viewedTraits = computed<string[]>(() => {
-  const v = viewed.value
-  if (!v) return []
-  const base = (v.target.data.traits ?? [])
-    .concat(v.target.data.weaponTraits ?? [])
-    .map((t) => t.label ?? '')
-  if (v.target.kind !== 'blast') return base
-  const damageType = blastDamageType(v.target.data)
-  const extraDamageTrait =
-    damageType && !['bludgeoning', 'piercing', 'slashing'].includes(damageType) ? [damageType] : []
-  return base.concat(viewedItem.value?.system?.traits?.value ?? []).concat(extraDamageTrait)
-})
+const viewedTraits = computed<string[]>(() => traitsForViewed(viewed.value, viewedItem.value))
 
-const viewedDamageTypeSelected = computed<string | undefined>(() => {
-  const v = viewed.value
-  if (!v) return undefined
-  if (v.target.kind === 'blast') return blastDamageType(v.target.data)
-  // Versatile's `selected` is a damage type string. Modular's `selected` is an
-  // index into options — useless for the picker — so fall through to the
-  // prepared damageType, which PF2e updates to mirror the current selection.
-  return (
-    viewedItem.value?.system?.traits?.toggles?.versatile?.selected ??
-    viewedItem.value?.system?.damage?.damageType
-  )
-})
+const viewedDamageTypeSelected = computed<string | undefined>(() =>
+  damageTypeSelectedForViewed(viewed.value, viewedItem.value)
+)
 
-const damageTypeOptions = computed<string[]>(() => {
-  const v = viewed.value
-  if (!v) return []
-  if (v.target.kind === 'blast') {
-    return v.target.data.blastDamageTypes?.map((x) => x.value).filter((x): x is string => !!x) ?? []
-  }
-  const item = viewedItem.value
-  if (!item) return []
-  // For granted items, the source traits we serialize via toObject() may not
-  // include the rune/feat-added trait — but the prepared strike's weaponTraits
-  // does. Union both so we don't miss versatile/modular set by rule elements.
-  const itemTraits = item.system?.traits?.value ?? []
-  const strikeTraits = (v.target.data.weaponTraits ?? [])
-    .map((t) => t.name)
-    .filter((n): n is string => !!n)
-  const traits = new Set<string>([...itemTraits, ...strikeTraits])
-  // Modular weapons cycle through the three physical types regardless of which
-  // is currently selected — the order is intrinsic to the weapon, not derived
-  // from current state, so it stays put as the user picks.
-  if (traits.has('modular')) return ['bludgeoning', 'piercing', 'slashing']
-  // Versatile: base type first, then the alt offered by the trait.
-  const types = new Set<string>()
-  if (item.system?.damage?.damageType) types.add(item.system.damage.damageType)
-  if (traits.has('versatile-b')) types.add('bludgeoning')
-  if (traits.has('versatile-p')) types.add('piercing')
-  if (traits.has('versatile-s')) types.add('slashing')
-  return Array.from(types)
-})
+const damageTypeOptions = computed<string[]>(() =>
+  damageTypeOptionsForViewed(viewed.value, viewedItem.value)
+)
 
 function doViewedAttack(diceResult?: number): Promise<RequestResolutionArgs | null> {
   const v = viewed.value
@@ -271,24 +197,11 @@ const damageDice = computed<string[]>(() => {
   return parseDamageFormulaDice(formula)
 })
 
-function variantLabelForViewed(): string {
-  const v = viewed.value
-  if (!v) return ''
-  return (
-    v.target.data.variants?.find(
-      (variant) =>
-        variant.map === v.subtype &&
-        variant.type ===
-          (v.target.kind === 'blast' ? attackTypeMap.get(v.target.isMelee) : undefined)
-    )?.label ?? ''
-  )
-}
-
 const strikeRolls = computed<Roll[]>(() => {
   const v = viewed.value
   if (!v || !isListening.value) return []
   if (v.phase === 'attack') {
-    const variantLabel = variantLabelForViewed()
+    const variantLabel = variantLabelForViewed(v)
     // When modifier overrides are active, adjust the numeric total in the
     // variant label by the computed delta so the roll button reflects the
     // actual value that will be sent.
@@ -332,6 +245,14 @@ function toggleLoaded() {
   const v = viewed.value
   if (!v || v.target.kind !== 'strike') return
   v.target.data.setLoaded?.(!v.target.data.loaded)
+}
+
+function updateDamageType(damageType: string) {
+  return viewed.value?.target.data.setDamageType?.(damageType)?.then(() => updateDamageFormula())
+}
+
+function setBlastActions(actions: string) {
+  blastActions.value = actions
 }
 
 async function updateDamageFormula() {
@@ -463,95 +384,21 @@ watch([strikes, blasts], () => {
             ? strikeModalDamage?.response?.critical
             : strikeModalDamage?.response?.damage
         }}</template>
-        <div
-          class="m-1 flex items-end gap-2"
-          v-if="
-            viewed?.target.kind === 'strike' &&
-            (viewed.target.data.ammunition?.compatible?.length || viewed.target.data.reloadable)
-          "
-        >
-          <DropdownWidget
-            class="relative flex-1"
-            :growContainer="true"
-            :list="
-              viewed.target.data.ammunition?.compatible?.length
-                ? viewed.target.data.ammunition.compatible
-                : [{ id: '', name: $t('strikes.noAmmo') }]
-            "
-            :selectedId="viewed.target.data.ammunition?.selected?.id ?? ''"
-            :changed="
-              (newId) => viewed?.target.kind === 'strike' && viewed.target.data.changeAmmo?.(newId)
-            "
-          />
-          <Button
-            v-if="isListening && viewed.target.data.reloadable"
-            :color="viewed.target.data.loaded ? 'lightgray' : 'blue'"
-            :disabled="!viewed.target.data.loaded && !viewed.target.data.ammunition?.selected?.id"
-            :clicked="toggleLoaded"
-            class="h-10 w-25"
-          >
-            <span v-if="viewed.target.data.loaded">{{ $t('strikes.unload') }}</span>
-            <span v-else class="inline-flex items-center gap-1">
-              <ActionIcons
-                :actions="viewed.target.data.reloadActions ?? '1'"
-                class="pf2-icon relative float-left -mt-2 h-0 text-lg leading-none"
-              />
-              {{ $t('strikes.reload') }}
-            </span>
-          </Button>
-        </div>
-        <div
-          class="pb-2"
-          v-if="
-            viewed?.target.kind === 'blast'
-              ? !viewed.target.isMelee && viewed.target.data.blastRange?.max
-              : viewed?.target.data.item?.system?.range
-          "
-        >
-          {{ $t('strikes.rangeLabel') }}
-          {{
-            viewed?.target.kind === 'blast'
-              ? viewed.target.data.blastRange?.max
-              : viewed?.target.data.item?.system?.range
-          }}
-          {{ $t('strikes.rangeUnit') }}
-        </div>
-        <div class="flex justify-end gap-2">
-          <div v-if="damageTypeOptions.length > 1">
-            <span class="mt-2">{{ $t('strikes.damageTypeLabel') }}</span>
-            <ChoiceWidget
-              :choiceSet="damageTypeOptions"
-              :iconSet="damageIcons"
-              :selected="viewedDamageTypeSelected ?? ''"
-              :clicked="
-                (damageType) =>
-                  viewed?.target.data.setDamageType?.(damageType)?.then(() => updateDamageFormula())
-              "
-            />
-          </div>
-          <ChoiceWidget
-            v-if="viewed?.target.kind === 'blast'"
-            :choiceSet="['1', '2']"
-            :iconSet="actionIcons"
-            :selected="blastActions + ''"
-            :clicked="(newChoice) => (blastActions = newChoice)"
-          />
-        </div>
-        <ModifierOverrideList
-          class="mt-2"
-          :modifiers="
-            viewed?.phase === 'damage'
-              ? strikeModalDamage?.response?.modifiers
-              : viewed?.target.data._modifiers
-          "
-          :toggleable="viewed?.phase === 'attack'"
-          showAll
-          showDamageType
+        <StrikeDetails
+          :viewed="viewed"
+          :damageData="strikeModalDamage"
+          :damageTypeOptions="damageTypeOptions"
+          :viewedDamageTypeSelected="viewedDamageTypeSelected"
+          :blastActions="blastActions + ''"
+          :isListening="isListening"
           :effectiveEnabled="effectiveEnabled"
           :isManuallyActivated="isManuallyActivated"
           :isManuallyDeactivated="isManuallyDeactivated"
           :isStackingLoser="isStackingLoser"
-          :onToggle="toggleModifier"
+          :onToggleModifier="toggleModifier"
+          :onToggleLoaded="toggleLoaded"
+          :onUpdateDamageType="updateDamageType"
+          :onSetBlastActions="setBlastActions"
         />
       </InfoModal>
     </Teleport>
