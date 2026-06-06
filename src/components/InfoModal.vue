@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import {
   Dialog,
   DialogPanel,
@@ -9,48 +9,29 @@ import {
   TransitionChild
 } from '@headlessui/vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInfoModalRolls } from '@/composables/useInfoModalRolls'
 import { sendItemToChat } from '@/api/actions'
-import { usePixelDiceStore } from '@/stores/pixelDice'
 import { getPath } from '@/utils/utilities'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { useSettingsStore } from '@/stores/settings'
-import Modal from './ModalBox.vue'
 import Spinner from './widgets/SpinnerWidget.vue'
 import TraitList from './TraitList.vue'
+import ManualDicePicker from './ManualDicePicker.vue'
+import PendingPixelDice from './PendingPixelDice.vue'
+import RollButtons from './RollButtons.vue'
+import RollResultModal from './RollResultModal.vue'
 import type { Roll } from '@/types/roll-types'
-
-import Button from './widgets/ButtonWidget.vue'
-
-import d4Icon from '@/assets/icons/d4.svg'
-import d6Icon from '@/assets/icons/d6.svg'
-import d8Icon from '@/assets/icons/d8.svg'
-import d10Icon from '@/assets/icons/d10.svg'
-import d12Icon from '@/assets/icons/d12.svg'
-import d20Icon from '@/assets/icons/d20.svg'
-
-const dieIcons: Record<string, string> = {
-  d4: d4Icon,
-  d6: d6Icon,
-  d8: d8Icon,
-  d10: d10Icon,
-  d12: d12Icon,
-  d20: d20Icon
-}
 
 const { _id: characterId } = useInjectedCharacter()
 
-const { pixels, lastRoll } = storeToRefs(usePixelDiceStore())
-// "Any die ready" gates the dice-pending visualization in the bottom row.
-// Per-slot matching against an actual paired die is enforced in the
-// lastRoll watcher below.
-const hasReadyPixel = computed(() => pixels.value.some((p) => p.status === 'ready'))
 const { isListening } = storeToRefs(useListenersStore())
 const { manualDicePicker } = storeToRefs(useSettingsStore())
 
-const rollResultModal = ref()
+const rollResultModal = ref<InstanceType<typeof RollResultModal>>()
 const waiting = ref(false)
+const isOpen = ref(false)
 
 const props = defineProps<{
   imageUrl?: string
@@ -59,104 +40,16 @@ const props = defineProps<{
   rolls?: Roll[]
 }>()
 
-// The roll that consumes the next physical-die input: prefer an explicitly
-// armed roll; otherwise the first dice-eligible roll.
-const armedRoll = computed<Roll | undefined>(() => {
-  const list = props.rolls ?? []
-  return list.find((r) => r.armed && r.dice?.length) ?? list.find((r) => r.dice?.length)
-})
+const { armedRoll, buffer, executeRollFromButton, pickFace, clearBuffer, dieFaces, hasReadyPixel } =
+  useInfoModalRolls({
+    rolls: computed(() => props.rolls),
+    isOpen,
+    onRollResolved: (result) => {
+      close(true)
+      rollResultModal.value?.open(result)
+    }
+  })
 
-// Per-die face selections for the armed roll. The buffer is always sized to
-// the armed roll's dice list so manual face-picking can address any slot
-// directly. For Pixel input we fill the next empty slot in order. A single-
-// die roll (d20 check) fills and fires in one step; multi-die rolls (e.g.
-// 2d8+1d6) accumulate across rolls or picks until every slot is filled.
-const buffer = ref<(number | undefined)[]>([])
-
-function emptyBuffer(): (number | undefined)[] {
-  return (armedRoll.value?.dice ?? []).map(() => undefined)
-}
-
-const bufferComplete = computed(
-  () => buffer.value.length > 0 && buffer.value.every((v) => v !== undefined)
-)
-
-// Reset the buffer whenever arming switches to a different roll — partially
-// collected faces for the old roll shouldn't carry over.
-watch(
-  () => armedRoll.value?.key,
-  () => {
-    buffer.value = emptyBuffer()
-  }
-)
-
-// Also re-shape the buffer if the armed roll's dice list changes (e.g. the
-// damage formula resolves asynchronously or swaps same-count dice like d6->d8).
-watch(
-  () => armedRoll.value?.dice?.join('|') ?? '',
-  () => {
-    buffer.value = emptyBuffer()
-  }
-)
-
-async function executeRoll(roll: Roll, faces?: number[]) {
-  if (roll.disabled) return
-  buffer.value = emptyBuffer()
-  try {
-    const result = await roll.execute(faces)
-    close(true)
-    rollResultModal.value.open(result)
-  } catch (error) {
-    console.error('Failed to execute roll', error)
-  }
-}
-
-// Roll buttons clicked manually: use the buffer only if the armed roll is the
-// one being fired and every face is selected.
-function executeRollFromButton(roll: Roll) {
-  const isArmed = roll.key === armedRoll.value?.key
-  if (isArmed && bufferComplete.value) {
-    executeRoll(roll, buffer.value as number[])
-  } else {
-    executeRoll(roll)
-  }
-}
-
-watch(lastRoll, () => {
-  const roll = armedRoll.value
-  const event = lastRoll.value
-  if (!isOpen.value || !roll?.dice?.length || !event) return
-  // Match physical dice to roll slots by face count: a d20 can't fill a d6
-  // slot, etc. Within matching slots we fill the first empty one in order,
-  // so multi-d8 damage rolls etc. still accumulate naturally. Non-matching
-  // rolls are silently ignored (the slot's bouncy icon stays armed and the
-  // user can try the right die or use the manual face picker).
-  const idx = buffer.value.findIndex(
-    (v, i) => v === undefined && Number(roll.dice![i].slice(1)) === event.dieFaceCount
-  )
-  if (idx === -1) return
-  const next = [...buffer.value]
-  next[idx] = event.face
-  if (next.every((v) => v !== undefined)) executeRoll(roll, next as number[])
-  else buffer.value = next
-})
-
-function pickFace(slot: number, value: number) {
-  const next = [...buffer.value]
-  next[slot] = next[slot] === value ? undefined : value
-  buffer.value = next
-}
-
-function clearBuffer() {
-  buffer.value = emptyBuffer()
-}
-
-function dieFaces(die: string): number[] {
-  const n = Number(die.slice(1))
-  return Array.from({ length: n }, (_, i) => i + 1)
-}
-
-const isOpen = ref(false)
 function open() {
   isOpen.value = true
   waiting.value = false
@@ -164,7 +57,7 @@ function open() {
   emit('opening')
 }
 function close(ignoreModal = false) {
-  if (rollResultModal.value.isOpen && !ignoreModal) {
+  if (rollResultModal.value?.isOpen && !ignoreModal) {
     rollResultModal.value.close()
     return
   }
@@ -274,7 +167,11 @@ defineExpose({ open, close, rollResultModal, isOpen })
                       </DialogDescription>
                     </div>
                   </div>
-                  <TraitList :traits="props.traits" class="mt-2 text-sm [&_p]:my-2" />
+                  <TraitList
+                    v-if="props.traits?.length"
+                    :traits="props.traits"
+                    class="mt-2 text-sm [&_p]:my-2"
+                  />
                   <div>
                     <slot name="beforeBody"></slot>
                   </div>
@@ -289,35 +186,13 @@ defineExpose({ open, close, rollResultModal, isOpen })
                     <slot></slot>
                   </div>
                 </div>
-                <div
+                <ManualDicePicker
                   v-if="manualDicePicker && armedRoll?.dice?.length"
-                  data-part="face-picker"
-                  class="mt-4 flex flex-col gap-1"
-                >
-                  <div
-                    v-for="(die, slot) in armedRoll.dice"
-                    :key="slot + '_' + die"
-                    class="flex items-start gap-2"
-                  >
-                    <div class="flex w-10 shrink-0 items-center gap-1 pt-0.5">
-                      <img :src="dieIcons[die] ?? d20Icon" class="h-5" />
-                      <span class="text-xs uppercase opacity-60">{{ die }}</span>
-                    </div>
-                    <div class="flex flex-wrap gap-1">
-                      <button
-                        v-for="face in dieFaces(die)"
-                        :key="face"
-                        type="button"
-                        :data-selected="buffer[slot] === face ? true : undefined"
-                        class="h-6 w-6 cursor-pointer rounded border text-xs leading-none"
-                        :class="buffer[slot] === face ? 'bg-gray-300 hover:bg-gray-400' : ''"
-                        @click="pickFace(slot, face)"
-                      >
-                        {{ face }}
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                  :dice="armedRoll.dice"
+                  :buffer="buffer"
+                  :dieFaces="dieFaces"
+                  @pick-face="pickFace"
+                />
                 <div class="mt-4 flex flex-wrap items-center justify-end gap-2">
                   <!-- Left-aligned slot, paired with `justify-end` on the row
                        via `mr-auto`. Used by modals that need a per-action
@@ -325,41 +200,17 @@ defineExpose({ open, close, rollResultModal, isOpen })
                   <div class="mr-auto empty:hidden">
                     <slot name="bottomLeft"></slot>
                   </div>
-                  <div
+                  <PendingPixelDice
                     v-if="hasReadyPixel && armedRoll?.dice?.length"
-                    class="flex grow cursor-pointer items-center gap-1"
-                    :title="$t('infoModal.clearDicePending')"
-                    @click="clearBuffer"
-                  >
-                    <div
-                      v-for="(die, slot) in armedRoll.dice"
-                      class="relative flex h-8 items-center"
-                      :key="slot + '_' + die"
-                    >
-                      <img
-                        :src="dieIcons[die] ?? d20Icon"
-                        class="h-8 transition-opacity"
-                        :class="
-                          buffer[slot] !== undefined ? 'opacity-20' : 'animate-bounce opacity-50'
-                        "
-                      />
-                      <span
-                        v-if="buffer[slot] !== undefined"
-                        class="absolute inset-0 flex items-center justify-center text-xs font-bold"
-                      >
-                        {{ buffer[slot] }}
-                      </span>
-                    </div>
-                  </div>
-                  <Button
-                    v-for="roll in props.rolls ?? []"
-                    :key="roll.key"
-                    :color="roll.color ?? 'blue'"
-                    :disabled="roll.disabled"
-                    :data-armed="roll.key === armedRoll?.key ? true : undefined"
-                    :clicked="() => executeRollFromButton(roll)"
-                    >{{ roll.label }}</Button
-                  >
+                    :dice="armedRoll.dice"
+                    :buffer="buffer"
+                    @clear="clearBuffer"
+                  />
+                  <RollButtons
+                    :rolls="props.rolls"
+                    :armedRoll="armedRoll"
+                    @execute-roll="executeRollFromButton"
+                  />
                   <slot name="actionButtons"></slot>
                 </div>
               </DialogPanel>
@@ -369,75 +220,7 @@ defineExpose({ open, close, rollResultModal, isOpen })
       </Dialog>
     </TransitionRoot>
     <Teleport to="#modals">
-      <Modal ref="rollResultModal">
-        <div class="flex">
-          <div class="m-auto">
-            <div class="m-auto">{{ rollResultModal?.options?.roll?.formula }}</div>
-            <div
-              class="flex items-center justify-center"
-              v-for="(die, i) in rollResultModal?.options?.roll?.dice"
-              :key="'die_' + i"
-            >
-              <div class="flex gap-1 text-2xl">
-                <div
-                  v-for="(result, j) in die.results"
-                  :key="'result_' + j"
-                  class="align-items-center mr-1 flex gap-1"
-                >
-                  <img
-                    v-if="die.faces === 4"
-                    src="@/assets/icons/d4.svg"
-                    class="mt-1 h-6 w-6"
-                    :alt="$t('infoModal.dieImage', { faces: 4 })"
-                  />
-                  <img
-                    v-if="die.faces === 6"
-                    src="@/assets/icons/d6.svg"
-                    class="mt-1 h-6 w-6"
-                    :alt="$t('infoModal.dieImage', { faces: 6 })"
-                  />
-                  <img
-                    v-if="die.faces === 8"
-                    src="@/assets/icons/d8.svg"
-                    class="mt-1 h-6 w-6"
-                    :alt="$t('infoModal.dieImage', { faces: 8 })"
-                  />
-                  <img
-                    v-if="die.faces === 10"
-                    src="@/assets/icons/d10.svg"
-                    class="mt-1 h-6 w-6"
-                    :alt="$t('infoModal.dieImage', { faces: 10 })"
-                  />
-                  <img
-                    v-if="die.faces === 12"
-                    src="@/assets/icons/d12.svg"
-                    class="mt-1 h-6 w-6"
-                    :alt="$t('infoModal.dieImage', { faces: 12 })"
-                  />
-                  <img
-                    v-if="die.faces === 20"
-                    src="@/assets/icons/d20.svg"
-                    class="mt-1 h-6 w-6"
-                    :alt="$t('infoModal.dieImage', { faces: 20 })"
-                  />
-                  <span>
-                    {{ rollResultModal.options.roll?.isSecret ? '?' : result.result }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="m-auto">
-            <div class="text-6xl">
-              {{
-                rollResultModal.options?.roll?.isSecret
-                  ? '???'
-                  : rollResultModal?.options?.roll?.total
-              }}
-            </div>
-          </div>
-        </div>
-      </Modal>
+      <RollResultModal ref="rollResultModal" />
     </Teleport>
   </div>
 </template>
