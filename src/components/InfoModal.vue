@@ -12,14 +12,13 @@ import { useInjectedCharacter } from '@/composables/injectKeys'
 import { sendItemToChat } from '@/api/actions'
 import { usePixelDiceStore } from '@/stores/pixelDice'
 import { getPath } from '@/utils/utilities'
-import { makeTraits } from '@/utils/utilities'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { useSettingsStore } from '@/stores/settings'
 import Modal from './ModalBox.vue'
 import Spinner from './widgets/SpinnerWidget.vue'
-import type { RequestResolutionArgs } from '@/types/api-types'
+import TraitList from './TraitList.vue'
 import type { Roll } from '@/types/roll-types'
 
 import Button from './widgets/ButtonWidget.vue'
@@ -92,23 +91,24 @@ watch(
 )
 
 // Also re-shape the buffer if the armed roll's dice list changes (e.g. the
-// damage formula resolves asynchronously and goes from `[]` to `['d8']`).
+// damage formula resolves asynchronously or swaps same-count dice like d6->d8).
 watch(
-  () => armedRoll.value?.dice?.length ?? 0,
-  (n) => {
-    if (buffer.value.length !== n) buffer.value = emptyBuffer()
+  () => armedRoll.value?.dice?.join('|') ?? '',
+  () => {
+    buffer.value = emptyBuffer()
   }
 )
 
-function executeRoll(roll: Roll, faces?: number[]) {
+async function executeRoll(roll: Roll, faces?: number[]) {
   if (roll.disabled) return
   buffer.value = emptyBuffer()
-  return Promise.resolve(roll.execute(faces)).then(
-    (r: RequestResolutionArgs | null | undefined) => {
-      close(true)
-      rollResultModal.value.open(r)
-    }
-  )
+  try {
+    const result = await roll.execute(faces)
+    close(true)
+    rollResultModal.value.open(result)
+  } catch (error) {
+    console.error('Failed to execute roll', error)
+  }
 }
 
 // Roll buttons clicked manually: use the buffer only if the armed roll is the
@@ -179,13 +179,17 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
   if (swipe[1]) close()
 }
 
-function sendCurrentItemToChat() {
+async function sendCurrentItemToChat() {
   if (!props.itemId || !characterId.value || !isListening.value) return
   waiting.value = true
-  sendItemToChat(characterId.value, props.itemId).then(() => (waiting.value = false))
+  try {
+    await sendItemToChat(characterId.value, props.itemId)
+  } finally {
+    waiting.value = false
+  }
 }
 
-const emit = defineEmits(['opening', 'closing', 'imgClick'])
+const emit = defineEmits(['opening', 'closing'])
 defineExpose({ open, close, rollResultModal, isOpen })
 </script>
 <template>
@@ -270,11 +274,7 @@ defineExpose({ open, close, rollResultModal, isOpen })
                       </DialogDescription>
                     </div>
                   </div>
-                  <div
-                    v-if="props.traits"
-                    class="mt-2 text-sm [&_p]:my-2"
-                    v-html="makeTraits(props.traits)"
-                  ></div>
+                  <TraitList :traits="props.traits" class="mt-2 text-sm [&_p]:my-2" />
                   <div>
                     <slot name="beforeBody"></slot>
                   </div>

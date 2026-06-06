@@ -8,13 +8,6 @@ interface ItemPartial {
   }
 }
 
-export function makeTraits(traits: string[] | undefined): string {
-  let list = traits?.reduce((list, t) => {
-    return (list += `<span class="bg-[#5E0000] text-[0.5rem] text-white px-1 uppercase">${t}${'\n'}</span>`)
-  }, '')
-  list = `<div class="flex flex-wrap gap-1 pb-1">${list}</div>`
-  return list
-}
 export function makeActionIcons(actionValue: string | undefined): string {
   return `<span class="pf2-icon">${
     actionValue?.replace('to', '-').replace('free', 'f').replace('reaction', 'r') ?? ''
