@@ -75,9 +75,22 @@ function setSplash(v: boolean) {
 
 const DICE: DieChip['size'][] = ['d4', 'd6', 'd8', 'd10', 'd12']
 const DAMAGE_TYPES = [
-  'untyped', 'bludgeoning', 'piercing', 'slashing',
-  'acid', 'cold', 'electricity', 'fire', 'sonic',
-  'force', 'mental', 'poison', 'bleed', 'vitality', 'void', 'spirit'
+  'untyped',
+  'bludgeoning',
+  'piercing',
+  'slashing',
+  'acid',
+  'cold',
+  'electricity',
+  'fire',
+  'sonic',
+  'force',
+  'mental',
+  'poison',
+  'bleed',
+  'vitality',
+  'void',
+  'spirit'
 ]
 
 function getOrCreateGroup(): DamageGroup {
@@ -148,7 +161,11 @@ const formula = computed(() =>
         const flatStr = g.flat > 0 ? `+${g.flat}` : `${g.flat}`
         return dicePart ? `${dicePart}${flatStr}` : `${g.flat}`
       })()
-      const parts = [base, buildPartition(g.chips, 'precision'), buildPartition(g.chips, 'splash')].filter(Boolean)
+      const parts = [
+        base,
+        buildPartition(g.chips, 'precision'),
+        buildPartition(g.chips, 'splash')
+      ].filter(Boolean)
       const inner = parts.join('+')
       const tags: string[] = []
       if (g.type !== 'untyped') tags.push(g.type)
@@ -202,136 +219,142 @@ defineExpose({ open, close })
     </template>
     <template #beforeBody>
       <div data-component="DamageRollBuilder">
-      <!-- Formula chips. Each typed group is wrapped in a capsule so it reads
+        <!-- Formula chips. Each typed group is wrapped in a capsule so it reads
            as a single unit. Untyped groups show bare chips without a capsule. -->
-      <div
-        data-part="damage-chips"
-        class="mt-4 flex min-h-15 flex-wrap items-center gap-x-2 gap-y-1.5 rounded border border-gray-400 p-2"
-      >
         <div
-          v-for="(group, gi) in groups"
-          :key="gi"
-          data-part="damage-group"
-          class="flex flex-wrap items-center gap-1"
-          :class="groupHasTag(group) ? 'rounded-md border border-gray-300 bg-gray-50 px-2 py-0.5' : ''"
+          data-part="damage-chips"
+          class="mt-4 flex min-h-15 flex-wrap items-center gap-x-2 gap-y-1.5 rounded border border-gray-400 p-2"
         >
-          <!-- Type label: plain text inside the capsule, not a separate chip -->
-          <span
-            v-if="groupHasTag(group)"
-            data-part="damage-group-tag"
-            class="text-xs font-semibold capitalize select-none pr-0.5"
+          <div
+            v-for="(group, gi) in groups"
+            :key="gi"
+            data-part="damage-group"
+            class="flex flex-wrap items-center gap-1"
+            :class="
+              groupHasTag(group) ? 'rounded-md border border-gray-300 bg-gray-50 px-2 py-0.5' : ''
+            "
           >
-            <span v-if="group.type !== 'untyped'">{{ group.type }}</span>
-            <span v-if="group.persistent" :title="$t('sideMenu.persistent')">●</span>
+            <!-- Type label: plain text inside the capsule, not a separate chip -->
+            <span
+              v-if="groupHasTag(group)"
+              data-part="damage-group-tag"
+              class="pr-0.5 text-xs font-semibold capitalize select-none"
+            >
+              <span v-if="group.type !== 'untyped'">{{ group.type }}</span>
+              <span v-if="group.persistent" :title="$t('sideMenu.persistent')">●</span>
+            </span>
+            <span
+              v-for="(chip, ci) in group.chips"
+              :key="ci + ':' + chip.size + ':' + chip.category"
+              class="inline-flex cursor-pointer items-center gap-1 rounded border border-gray-400 bg-gray-100 px-2 py-1 text-sm whitespace-nowrap text-gray-900 select-none active:bg-gray-300"
+              @click="removeChip(gi, ci)"
+            >
+              <span>{{ chip.count }}{{ chip.size }}</span>
+              <span v-if="chip.category === 'precision'" :title="$t('sideMenu.precision')">◆</span>
+              <span v-if="chip.category === 'splash'" :title="$t('sideMenu.splash')">✦</span>
+            </span>
+            <!-- Flat modifier chip -->
+            <span
+              v-if="group.flat !== 0"
+              class="inline-flex cursor-pointer items-center rounded border border-gray-400 bg-gray-100 px-2 py-1 text-sm font-medium whitespace-nowrap text-gray-900 tabular-nums select-none active:bg-gray-300"
+              @click="clearGroupFlat(group)"
+              >{{ group.flat > 0 ? '+' + group.flat : group.flat }}</span
+            >
+          </div>
+          <span v-if="!groups.length" class="text-sm text-gray-500 italic">
+            {{ $t('sideMenu.damageEmpty') }}
           </span>
           <span
-            v-for="(chip, ci) in group.chips"
-            :key="ci + ':' + chip.size + ':' + chip.category"
-            class="inline-flex cursor-pointer items-center gap-1 rounded border border-gray-400 bg-gray-100 px-2 py-1 text-sm whitespace-nowrap text-gray-900 select-none active:bg-gray-300"
-            @click="removeChip(gi, ci)"
+            v-if="groups.length"
+            :title="$t('sideMenu.clear')"
+            class="ml-auto cursor-pointer px-1 text-xl leading-none text-gray-500 select-none hover:text-gray-800 active:text-gray-900"
+            @click="clearAll"
           >
-            <span>{{ chip.count }}{{ chip.size }}</span>
-            <span v-if="chip.category === 'precision'" :title="$t('sideMenu.precision')">◆</span>
-            <span v-if="chip.category === 'splash'" :title="$t('sideMenu.splash')">✦</span>
-          </span>
-          <!-- Flat modifier chip -->
-          <span
-            v-if="group.flat !== 0"
-            class="inline-flex cursor-pointer items-center rounded border border-gray-400 bg-gray-100 px-2 py-1 text-sm font-medium whitespace-nowrap text-gray-900 tabular-nums select-none active:bg-gray-300"
-            @click="clearGroupFlat(group)"
-          >{{ group.flat > 0 ? '+' + group.flat : group.flat }}</span>
-        </div>
-        <span v-if="!groups.length" class="text-sm text-gray-500 italic">
-          {{ $t('sideMenu.damageEmpty') }}
-        </span>
-        <span
-          v-if="groups.length"
-          :title="$t('sideMenu.clear')"
-          class="ml-auto cursor-pointer px-1 text-xl leading-none text-gray-500 select-none hover:text-gray-800 active:text-gray-900"
-          @click="clearAll"
-        >
-          ×
-        </span>
-      </div>
-
-      <!-- Formula preview -->
-      <div class="mt-1 min-h-4 font-mono text-xs text-gray-600">{{ formula || '&nbsp;' }}</div>
-
-      <!-- Damage type tokens -->
-      <div class="mt-4">
-        <h4 class="text-xs tracking-wide text-gray-600 uppercase">
-          {{ $t('sideMenu.damageType') }}
-        </h4>
-        <div data-part="damage-types" class="mt-1 flex flex-wrap gap-1">
-          <span
-            v-for="dt in DAMAGE_TYPES"
-            :key="dt"
-            :data-active="activeType === dt ? '' : undefined"
-            class="inline-block cursor-pointer rounded border border-gray-400 bg-gray-100 px-2 py-1 text-xs whitespace-nowrap text-gray-900 capitalize select-none active:bg-gray-300 data-active:border-blue-700 data-active:bg-blue-600 data-active:text-white"
-            @click="activeType = dt"
-          >
-            {{ dt }}
+            ×
           </span>
         </div>
-      </div>
 
-      <!-- Damage category toggles -->
-      <div class="mt-3 flex flex-wrap items-center gap-4">
-        <Toggle :active="persistent" @changed="(v: boolean) => (persistent = v)">
-          <span class="text-sm">{{ $t('sideMenu.persistent') }}</span>
-        </Toggle>
-        <Toggle :active="precision" @changed="setPrecision">
-          <span class="text-sm">{{ $t('sideMenu.precision') }}</span>
-        </Toggle>
-        <Toggle :active="splash" @changed="setSplash">
-          <span class="text-sm">{{ $t('sideMenu.splash') }}</span>
-        </Toggle>
-      </div>
+        <!-- Formula preview -->
+        <div class="mt-1 min-h-4 font-mono text-xs text-gray-600">{{ formula || '&nbsp;' }}</div>
 
-      <!-- Die buttons -->
-      <div class="mt-4">
-        <h4 class="text-xs tracking-wide text-gray-600 uppercase">
-          {{ $t('sideMenu.addDie') }}
-        </h4>
-        <div data-part="damage-dice" class="mt-1 flex flex-wrap gap-1">
-          <span
-            v-for="d in DICE"
-            :key="d"
-            class="inline-flex cursor-pointer items-center gap-1 rounded border border-gray-400 bg-gray-100 px-2 py-2 text-sm font-medium text-gray-900 select-none active:bg-gray-300"
-            @click="addDie(d)"
-          >
-            <img :src="dieIcons[d]" :alt="d" class="h-6 w-6" />
-            <span>+{{ d }}</span>
-          </span>
+        <!-- Damage type tokens -->
+        <div class="mt-4">
+          <h4 class="text-xs tracking-wide text-gray-600 uppercase">
+            {{ $t('sideMenu.damageType') }}
+          </h4>
+          <div data-part="damage-types" class="mt-1 flex flex-wrap gap-1">
+            <span
+              v-for="dt in DAMAGE_TYPES"
+              :key="dt"
+              :data-active="activeType === dt ? '' : undefined"
+              class="inline-block cursor-pointer rounded border border-gray-400 bg-gray-100 px-2 py-1 text-xs whitespace-nowrap text-gray-900 capitalize select-none active:bg-gray-300 data-active:border-blue-700 data-active:bg-blue-600 data-active:text-white"
+              @click="activeType = dt"
+            >
+              {{ dt }}
+            </span>
+          </div>
         </div>
-      </div>
 
-      <!-- Flat modifier buttons — always apply to the current active group -->
-      <div class="mt-4">
-        <h4 class="text-xs tracking-wide text-gray-600 uppercase">
-          {{ $t('sideMenu.modifier') }}
-        </h4>
-        <div data-part="modifier-buttons" class="mt-1 flex flex-wrap items-center gap-1">
-          <span
-            v-for="step in [-5, -1, 1, 5]"
-            :key="step"
-            data-part="modifier-step"
-            class="inline-block cursor-pointer rounded border border-gray-400 bg-gray-100 px-2 py-1 text-xs font-medium whitespace-nowrap text-gray-900 select-none active:bg-gray-300"
-            @click="addFlatModifier(step)"
-          >{{ step > 0 ? '+' + step : step }}</span>
-          <span
-            v-if="currentGroupFlat !== 0"
-            data-part="modifier-value"
-            class="ml-1 min-w-6 text-center text-sm font-medium tabular-nums"
-          >{{ currentGroupFlat > 0 ? '+' + currentGroupFlat : currentGroupFlat }}</span>
-          <span
-            v-if="currentGroupFlat !== 0"
-            data-part="modifier-clear"
-            class="cursor-pointer text-xs select-none"
-            @click="addFlatModifier(-currentGroupFlat)"
-          >✕</span>
+        <!-- Damage category toggles -->
+        <div class="mt-3 flex flex-wrap items-center gap-4">
+          <Toggle :active="persistent" @changed="(v: boolean) => (persistent = v)">
+            <span class="text-sm">{{ $t('sideMenu.persistent') }}</span>
+          </Toggle>
+          <Toggle :active="precision" @changed="setPrecision">
+            <span class="text-sm">{{ $t('sideMenu.precision') }}</span>
+          </Toggle>
+          <Toggle :active="splash" @changed="setSplash">
+            <span class="text-sm">{{ $t('sideMenu.splash') }}</span>
+          </Toggle>
         </div>
-      </div>
+
+        <!-- Die buttons -->
+        <div class="mt-4">
+          <h4 class="text-xs tracking-wide text-gray-600 uppercase">
+            {{ $t('sideMenu.addDie') }}
+          </h4>
+          <div data-part="damage-dice" class="mt-1 flex flex-wrap gap-1">
+            <span
+              v-for="d in DICE"
+              :key="d"
+              class="inline-flex cursor-pointer items-center gap-1 rounded border border-gray-400 bg-gray-100 px-2 py-2 text-sm font-medium text-gray-900 select-none active:bg-gray-300"
+              @click="addDie(d)"
+            >
+              <img :src="dieIcons[d]" :alt="d" class="h-6 w-6" />
+              <span>+{{ d }}</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Flat modifier buttons — always apply to the current active group -->
+        <div class="mt-4">
+          <h4 class="text-xs tracking-wide text-gray-600 uppercase">
+            {{ $t('sideMenu.modifier') }}
+          </h4>
+          <div data-part="modifier-buttons" class="mt-1 flex flex-wrap items-center gap-1">
+            <span
+              v-for="step in [-5, -1, 1, 5]"
+              :key="step"
+              data-part="modifier-step"
+              class="inline-block cursor-pointer rounded border border-gray-400 bg-gray-100 px-2 py-1 text-xs font-medium whitespace-nowrap text-gray-900 select-none active:bg-gray-300"
+              @click="addFlatModifier(step)"
+              >{{ step > 0 ? '+' + step : step }}</span
+            >
+            <span
+              v-if="currentGroupFlat !== 0"
+              data-part="modifier-value"
+              class="ml-1 min-w-6 text-center text-sm font-medium tabular-nums"
+              >{{ currentGroupFlat > 0 ? '+' + currentGroupFlat : currentGroupFlat }}</span
+            >
+            <span
+              v-if="currentGroupFlat !== 0"
+              data-part="modifier-clear"
+              class="cursor-pointer text-xs select-none"
+              @click="addFlatModifier(-currentGroupFlat)"
+              >✕</span
+            >
+          </div>
+        </div>
       </div>
     </template>
   </InfoModal>

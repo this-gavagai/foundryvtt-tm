@@ -6,26 +6,21 @@ import { useInjectedCharacter } from '@/composables/injectKeys'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { inventoryTypes } from '@/utils/constants'
-import { capitalize } from 'lodash-es'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 
 import EquipmentInvested from '@/components/EquipmentInvested.vue'
 import EquipmentListItem from '@/components/EquipmentListItem.vue'
 import Modal from '@/components/ModalBox.vue'
 import InfoModal from '@/components/InfoModal.vue'
+import EquipmentDetails from '@/components/EquipmentDetails.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
-import DropdownWidget from '@/components/widgets/DropdownWidget.vue'
-import CounterWidget from '@/components/widgets/CounterWidget.vue'
-import ToggleWidget from '@/components/widgets/ToggleWidget.vue'
-import ChoiceWidget from '@/components/widgets/ChoiceWidget.vue'
-import ParsedDescription from './ParsedDescription.vue'
 import EquipmentBulk from './EquipmentBulk.vue'
 import EquipmentHeld from './EquipmentHeld.vue'
 
 const infoModal = ref()
 const investedModal = ref()
-const description = ref()
-const inlineRolls = useRollsFromActiveRoll(computed(() => description.value?.activeRoll))
+const equipmentDetails = ref<InstanceType<typeof EquipmentDetails>>()
+const inlineRolls = useRollsFromActiveRoll(computed(() => equipmentDetails.value?.activeRoll))
 
 const character = useInjectedCharacter()
 const { inventory, rollOptionLabels } = character
@@ -35,58 +30,19 @@ const itemViewedId = ref<string | undefined>()
 const itemViewed = computed(() =>
   inventory.value?.find((i: InventoryItem) => i._id === itemViewedId.value)
 )
+const itemHasContents = computed(() =>
+  inventory.value?.some((item) => item.system?.containerId === itemViewed.value?._id)
+)
 
 function viewItem(item: InventoryItem) {
   itemViewedId.value = item._id
   infoModal.value.open()
 }
-const itemWornType = computed(() => {
-  if (itemViewed.value?.type === 'armor') return 'Armor'
-  const usage = itemViewed.value?.system?.usage?.value
-  if (usage?.slice?.(0, 4) === 'worn' && usage?.slice?.(4)) {
-    return usage?.slice(4)
-  } else return null
-})
 
-const toggleSet = [
-  {
-    id: '1hand',
-    toggleText: '1-Hand',
-    toggleTrigger: () => itemViewed.value?.changeCarry?.('held', 1, null),
-    toggleIsActive: () =>
-      itemViewed.value?.system?.equipped.carryType === 'held' &&
-      itemViewed.value?.system?.equipped.handsHeld === 1
-  },
-  {
-    id: '2hands',
-    toggleText: '2-Hands',
-    toggleTrigger: () => itemViewed.value?.changeCarry?.('held', 2, null),
-    toggleIsActive: () =>
-      itemViewed.value?.system?.equipped.carryType === 'held' &&
-      itemViewed.value?.system?.equipped.handsHeld === 2
-  },
-  {
-    id: 'worn',
-    toggleText: 'Worn',
-    toggleTrigger: () => itemViewed.value?.changeCarry?.('worn', 0, null),
-    toggleIsActive: () => itemViewed.value?.system?.equipped.carryType === 'worn'
-  },
-  {
-    id: 'stowed',
-    toggleText: 'Stowed',
-    toggleTrigger: () => {
-      const backpackId = inventory.value?.find((i: InventoryItem) => i.type === 'backpack')?._id
-      itemViewed.value?.changeCarry?.('stowed', 0, backpackId)
-    },
-    toggleIsActive: () => itemViewed.value?.system?.equipped.carryType === 'stowed'
-  },
-  {
-    id: 'dropped',
-    toggleText: 'Dropped',
-    toggleTrigger: () => itemViewed.value?.changeCarry?.('dropped', 0, null),
-    toggleIsActive: () => itemViewed.value?.system?.equipped.carryType === 'dropped'
-  }
-]
+function deleteViewedItem() {
+  infoModal.value.close()
+  return itemViewed.value?.delete?.()
+}
 </script>
 <template>
   <div data-component="EquipmentList">
@@ -170,137 +126,13 @@ const toggleSet = [
             {{ printPrice(itemViewed?.system?.price?.value) }}
           </span>
         </template>
-        <template #beforeBody>
-          <div class="my-2">
-            <ChoiceWidget
-              v-if="itemViewed?.type !== 'backpack'"
-              class="w-full"
-              :selected="toggleSet.find((t) => t.toggleIsActive())?.id"
-              :choiceSet="toggleSet.map((t) => t.id)"
-              :labelSet="toggleSet.reduce((acc, cur) => ({ ...acc, [cur.id]: cur.toggleText }), {})"
-              :clicked="
-                (newChoice) => {
-                  if (itemViewed?.type === 'backpack') return null
-                  else return toggleSet.find((t) => t.id === newChoice)?.toggleTrigger()
-                }
-              "
-            />
-            <Transition
-              enter-active-class="transform transition-all duration-100 overflow-hidden"
-              enter-from-class="opacity-0 max-h-0"
-              enter-to-class="opacity-100 max-h-6"
-              leave-active-class="transform transition-all duration-100 ease-in overflow-hidden"
-              leave-from-class="opacity-100 max-h-6"
-              leave-to-class="opacity-0 max-h-0"
-            >
-              <div
-                v-if="itemViewed?.system.equipped.carryType === 'worn' && itemWornType"
-                class="flex h-6"
-              >
-                <ToggleWidget
-                  :active="itemViewed?.system?.equipped?.inSlot"
-                  :clicked="
-                    () =>
-                      itemViewed?.changeCarry?.(
-                        itemViewed?.system?.equipped?.carryType,
-                        itemViewed?.system?.equipped?.handsHeld,
-                        itemViewed?.system?.containerId,
-                        !itemViewed?.system?.equipped?.inSlot
-                      )
-                  "
-                />
-                <span
-                  class="text-md ml-2 align-middle"
-                  :class="{ 'text-gray-400': !itemViewed?.system?.equipped?.inSlot }"
-                  >{{
-                    itemViewed?.system?.equipped?.inSlot
-                      ? `Item equipped (${capitalize(itemWornType)})`
-                      : 'Item not equipped'
-                  }}</span
-                >
-              </div>
-            </Transition>
-            <div
-              class="flex py-1"
-              v-if="
-                itemViewed?.system?.equipped?.carryType === 'worn' &&
-                (itemViewed?.system?.equipped?.invested === true ||
-                  itemViewed?.system?.equipped?.invested === false)
-              "
-            >
-              <ToggleWidget
-                :active="itemViewed?.system.equipped.invested"
-                :clicked="() => itemViewed?.toggleInvested?.(!itemViewed.system.equipped.invested)"
-              />
-              <span
-                class="text-md ml-2 align-middle"
-                :class="{ 'text-gray-400': !itemViewed?.system.equipped.invested }"
-                >{{
-                  itemViewed?.system.equipped.invested ? `Item invested` : 'Item not invested'
-                }}</span
-              >
-            </div>
-            <Transition
-              enter-active-class="transform transition-all duration-100 overflow-hidden"
-              enter-from-class="opacity-0 max-h-0"
-              enter-to-class="opacity-100 max-h-6"
-              leave-active-class="transform transition-all duration-100 ease-in overflow-hidden"
-              leave-from-class="opacity-100 max-h-6"
-              leave-to-class="opacity-0 max-h-0"
-            >
-              <div
-                v-if="
-                  itemViewed?.system?.equipped?.carryType === 'stowed' &&
-                  (inventory?.filter((i: InventoryItem) => i.type === 'backpack').length ?? 0) >
-                    1 &&
-                  itemViewed?.type !== 'backpack'
-                "
-              >
-                <DropdownWidget
-                  :list="
-                    inventory
-                      ?.filter((i: InventoryItem) => i.type === 'backpack')
-                      .map((e) => ({ id: e._id ?? '', name: e.name ?? '' })) ?? []
-                  "
-                  :selectedId="itemViewed?.system?.containerId ?? ''"
-                  :changed="
-                    (newValue) =>
-                      itemViewed?.changeCarry?.(
-                        itemViewed?.system?.equipped?.carryType,
-                        itemViewed?.system?.equipped?.handsHeld,
-                        newValue
-                      )
-                  "
-                  growContainer
-                />
-              </div>
-            </Transition>
-          </div>
-        </template>
         <template #body>
-          <ParsedDescription
-            ref="description"
-            :text="itemViewed?.system?.description.value"
+          <EquipmentDetails
+            ref="equipmentDetails"
+            :item="itemViewed"
+            :inventory="inventory"
             :labels="rollOptionLabels"
-            :itemId="itemViewed?._id ?? undefined"
           />
-          <div class="flex">
-            <div class="flex-1 text-xl">Qty: {{ itemViewed?.system?.quantity }}</div>
-            <div
-              class="ml-auto flex justify-end gap-1"
-              v-if="itemViewed?.system?.uses?.value !== undefined"
-            >
-              <div class="text-xl">{{ $t('equipment.usesLabel') }}</div>
-              <CounterWidget
-                :title="itemViewed?.name + ' (uses)'"
-                class="-mt-1 h-6"
-                :value="itemViewed?.system?.uses?.value"
-                :max="itemViewed?.system?.uses?.max"
-                @changeCount="(newValue: number) => itemViewed?.changeUses?.(newValue)"
-                editable
-              />
-            </div>
-          </div>
         </template>
         <template #actionButtons v-if="itemViewed">
           <div class="flex gap-2">
@@ -318,34 +150,17 @@ const toggleSet = [
             </Button>
           </div>
           <div class="flex gap-2">
-            <Button
-              color="red"
-              v-if="
-                inventory?.filter((i) => i.system?.containerId === itemViewed?._id).length === 0
-              "
-              :clicked="
-                () => {
-                  infoModal.close()
-                  return itemViewed?.delete?.()
-                }
-              "
-            >
+            <Button color="red" v-if="!itemHasContents" :clicked="deleteViewedItem">
               {{ $t('common.delete') }}
             </Button>
-            <!-- <Button
-              v-if="isListening && itemViewed?.system?.uses?.max"
-              color="green"
-              :disabled="itemViewed?.system?.uses?.value === 0"
-              :clicked="() => itemViewed?.consumeItem?.().then(() => infoModal.close())"
-              >{{ $t('equipment.useItem') }}</Button
-            > -->
             <Button
               v-if="isListening && itemViewed?.system?.uses?.max"
               color="green"
               :disabled="itemViewed?.system?.uses?.value === 0"
               :clicked="() => itemViewed?.consumeItem?.()"
-              >{{ $t('equipment.useItem') }}</Button
             >
+              {{ $t('equipment.useItem') }}
+            </Button>
           </div>
         </template>
       </InfoModal>

@@ -9,13 +9,7 @@ import type { Roll } from '@/types/roll-types'
 import type { RequestResolutionArgs } from '@/types/api-types'
 
 const { t } = useI18n()
-const {
-  _id: characterId,
-  skills,
-  perception,
-  saves,
-  doFlatCheck
-} = useInjectedCharacter()
+const { _id: characterId, skills, perception, saves, doFlatCheck } = useInjectedCharacter()
 
 const modalRef = ref()
 const isSecret = ref(false)
@@ -129,7 +123,9 @@ const activeLabel = computed(
 )
 
 const flatSuffix = computed(() =>
-  flatModifier.value ? ' ' + (flatModifier.value > 0 ? `+${flatModifier.value}` : `${flatModifier.value}`) : ''
+  flatModifier.value
+    ? ' ' + (flatModifier.value > 0 ? `+${flatModifier.value}` : `${flatModifier.value}`)
+    : ''
 )
 
 const checkRolls = computed<Roll[]>(() => [
@@ -171,7 +167,13 @@ const checkRolls = computed<Roll[]>(() => [
       if (flatModifier.value) options._flatModifier = flatModifier.value
       const result = roller
         ? await roller.execute(faces?.[0], options)
-        : await freeRoll(characterId.value ?? '', isSecret.value, faces?.[0], traitList.length ? traitList : undefined, flatModifier.value || undefined)
+        : await freeRoll(
+            characterId.value ?? '',
+            isSecret.value,
+            faces?.[0],
+            traitList.length ? traitList : undefined,
+            flatModifier.value || undefined
+          )
       // Reset selections after the roll fires so the next open starts fresh.
       activeSlug.value = undefined
       selectedTraits.value = new Set()
@@ -269,18 +271,21 @@ defineExpose({ open, close })
               data-part="modifier-step"
               class="inline-block cursor-pointer rounded border border-gray-400 bg-gray-100 px-2 py-1 text-xs font-medium whitespace-nowrap text-gray-900 select-none active:bg-gray-300"
               @click="flatModifier += step"
-            >{{ step > 0 ? '+' + step : step }}</span>
+              >{{ step > 0 ? '+' + step : step }}</span
+            >
             <span
               v-if="flatModifier !== 0"
               data-part="modifier-value"
               class="ml-1 min-w-6 text-center text-sm font-medium tabular-nums"
-            >{{ flatModifier > 0 ? '+' + flatModifier : flatModifier }}</span>
+              >{{ flatModifier > 0 ? '+' + flatModifier : flatModifier }}</span
+            >
             <span
               v-if="flatModifier !== 0"
               data-part="modifier-clear"
               class="cursor-pointer text-xs select-none"
               @click="flatModifier = 0"
-            >✕</span>
+              >✕</span
+            >
           </div>
         </div>
       </div>

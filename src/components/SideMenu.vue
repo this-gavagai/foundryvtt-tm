@@ -16,8 +16,8 @@ import Toggle from '@/components/widgets/ToggleWidget.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import RollOptions from '@/components/RollOptions.vue'
 import Spinner from './widgets/SpinnerWidget.vue'
-import DamageRollModal from './DamageRollModal.vue'
-import RollCheckModal from './RollCheckModal.vue'
+import DamageRollBuilder from './DamageRollBuilder.vue'
+import RollCheckBuilder from './RollCheckBuilder.vue'
 import SettingsModal from './SettingsModal.vue'
 import Modal from './ModalBox.vue'
 
@@ -36,7 +36,7 @@ const connectionTitle: Record<string, string> = {
   down: 'Foundry server not responding',
   'no-world': 'Server reachable — world not active',
   'no-gm': 'World active — no GM online',
-  ok: 'Connected',
+  ok: 'Connected'
 }
 const pixelStore = usePixelDiceStore()
 const { pixels } = storeToRefs(pixelStore)
@@ -79,13 +79,13 @@ const sidebarOpen = ref(false)
 
 const { manualDicePicker } = storeToRefs(useSettingsStore())
 
-const freeRollModal = ref<InstanceType<typeof RollCheckModal>>()
+const freeRollModal = ref<InstanceType<typeof RollCheckBuilder>>()
 function openFreeRoll() {
   sidebarOpen.value = false
   freeRollModal.value?.open()
 }
 
-const damageRollModal = ref<InstanceType<typeof DamageRollModal>>()
+const damageRollModal = ref<InstanceType<typeof DamageRollBuilder>>()
 function openDamageRoll() {
   sidebarOpen.value = false
   damageRollModal.value?.open()
@@ -150,7 +150,10 @@ defineExpose({ sidebarOpen })
                 </button>
               </div>
             </TransitionChild>
-            <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4" data-part="panel">
+            <div
+              class="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4"
+              data-part="panel"
+            >
               <nav class="flex flex-1 flex-col">
                 <ul role="list" class="flex flex-1 flex-col gap-y-7 pt-4">
                   <li>
@@ -192,11 +195,7 @@ defineExpose({ sidebarOpen })
                     </Toggle>
                   </li>
                   <li class="flex flex-wrap gap-2">
-                    <Button
-                      :label="$t('sideMenu.freeRoll')"
-                      color="blue"
-                      :clicked="openFreeRoll"
-                    />
+                    <Button :label="$t('sideMenu.freeRoll')" color="blue" :clicked="openFreeRoll" />
                     <Button
                       :label="$t('sideMenu.damageRoll')"
                       color="red"
@@ -224,7 +223,9 @@ defineExpose({ sidebarOpen })
                         >
                           <span>{{ pixels[0].name }} </span>
                           (<span
-                            :class="[pixels[0].batteryLevel < 30 ? 'text-red-700' : 'text-green-700']"
+                            :class="[
+                              pixels[0].batteryLevel < 30 ? 'text-red-700' : 'text-green-700'
+                            ]"
                             >{{ pixels[0].batteryLevel }}%</span
                           >)
                         </div>
@@ -267,8 +268,8 @@ defineExpose({ sidebarOpen })
       </div>
     </Dialog>
   </TransitionRoot>
-  <RollCheckModal ref="freeRollModal" />
-  <DamageRollModal ref="damageRollModal" />
+  <RollCheckBuilder ref="freeRollModal" />
+  <DamageRollBuilder ref="damageRollModal" />
   <SettingsModal ref="settingsModal" />
   <!-- Detail view for paired Pixel dice. Mounted regardless of pixel count
        so toggling between 1- and 2-die states doesn't tear it down. The
@@ -276,11 +277,7 @@ defineExpose({ sidebarOpen })
        top of the sidebar overlay (otherwise it's hidden behind it). -->
   <Modal ref="pixelDiceModal" :title="$t('sideMenu.pixelDice')" zIndexClass="z-[60]">
     <ul class="flex flex-col gap-2 py-2">
-      <li
-        v-for="p in pixels"
-        :key="p.systemId"
-        class="flex items-center gap-2"
-      >
+      <li v-for="p in pixels" :key="p.systemId" class="flex items-center gap-2">
         <img :src="iconForDieType(p.dieType)" class="h-6 w-6" />
         <div
           class="grow cursor-pointer"
