@@ -659,29 +659,37 @@ body.theme-default {
     height: 38px;
     border-radius: 5px;
     overflow: hidden;
+    background-color: oklch(20% 0.02 258);
 
-    /* danger zone: clean dark red solid instead of noisy hatch */
+    /* hatch rect is transparent — CSS background gradient shows through */
     [data-part='hatch-line'] {
       stroke: transparent;
     }
     [data-part='bulk-hatch'] {
-      fill: oklch(32% 0.1 35);
+      fill: transparent;
     }
 
-    /* safe zone: barely elevated from danger zone — just enough to read */
+    /* safe zone is transparent — CSS background green gradient shows through */
     [data-part='bulk-safe'] {
-      fill: oklch(18% 0.018 258);
+      fill: transparent;
     }
 
     /* bulk fill states */
     [data-part='bulk-fill'][data-state='safe'] {
-      fill: oklch(62% 0.19 135);
+      fill: oklch(40% 0.14 135);
     }
     [data-part='bulk-fill'][data-state='encumbered'] {
-      fill: oklch(74% 0.18 80);
+      fill: oklch(44% 0.13 80);
     }
     [data-part='bulk-fill'][data-state='over-max'] {
-      fill: oklch(62% 0.19 35);
+      fill: oklch(38% 0.13 25);
+    }
+
+    /* safe-zone right-edge divider */
+    [data-part='bulk-safe-divider'] {
+      stroke: oklch(100% 0 0 / 0.55);
+      stroke-width: 1;
+      stroke-dasharray: 2 3;
     }
 
     /* border */

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-
 import { useInjectedCharacter } from '@/composables/injectKeys'
 const character = useInjectedCharacter()
 
@@ -13,28 +12,19 @@ const { value: bulkValue } = character.bulk.value
     height="30"
     class="transition-all duration-500"
     v-if="bulkMax != null"
+    :style="`--bulk-safe-width: ${((bulkEncumberedAfter ?? 0) / (bulkMax ?? 100)) * 100}%`"
   >
-    <pattern id="diagonalHatch" patternUnits="userSpaceOnUse" width="4" height="4">
-      <path
-        d="M-1,1 l2,-2
-           M0,4 l4,-4
-           M3,5 l2,-2"
-        data-part="hatch-line"
-        class="stroke-1 stroke-red-400"
-      />
-    </pattern>
     <rect
       data-part="bulk-hatch"
       width="100%"
       height="100%"
-      fill="url(#diagonalHatch)"
-      class="transition-all duration-500 ease-in-out"
+      class="fill-yellow-100 transition-all duration-500 ease-in-out"
     />
     <rect
       data-part="bulk-safe"
       :width="((bulkEncumberedAfter ?? 0) / (bulkMax ?? 100)) * 100 + '%'"
       height="100%"
-      class="fill-gray-200 transition-all duration-500 ease-in-out"
+      class="fill-gray-100 transition-all duration-500 ease-in-out"
     />
     <rect
       data-part="bulk-fill"
@@ -47,15 +37,16 @@ const { value: bulkValue } = character.bulk.value
       "
       :width="((bulkValue ?? 0) / (bulkMax ?? 100)) * 100 + '%'"
       height="100%"
-      class="transition-all duration-500 ease-in-out data-[state=safe]:fill-green-500 data-[state=encumbered]:fill-amber-500 data-[state=over-max]:fill-red-600"
+      class="transition-all duration-500 ease-in-out data-[state=encumbered]:fill-amber-500 data-[state=over-max]:fill-red-600 data-[state=safe]:fill-green-500"
     />
-    <rect
-      data-part="bulk-border"
-      width="100%"
-      height="100%"
-      fill="transparent"
-      class="stroke-1 stroke-gray-400"
+    <line
+      data-part="bulk-safe-divider"
+      :x1="((bulkEncumberedAfter ?? 0) / (bulkMax ?? 100)) * 100 + '%'"
+      y1="0"
+      :x2="((bulkEncumberedAfter ?? 0) / (bulkMax ?? 100)) * 100 + '%'"
+      y2="100%"
     />
+    <rect data-part="bulk-border" width="100%" height="100%" rx="5" fill="transparent" class="" />
     <text
       data-part="bulk-label"
       y="20"
