@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ActiveRoll } from '@/types/api-types'
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { resolveFormula } from '@/utils/diceFormula'
+import { simplifyFormula, simplifyFormulaHtml } from '@/utils/diceFormula'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import CompendiumItemModal from '@/components/CompendiumItemModal.vue'
 
@@ -169,20 +169,24 @@ const parsedText = computed(() => {
     (_, content, label) => {
       const segments = splitOnTopLevelPipe(content)
       const formula = segments[0] ?? ''
-      const resolved = resolveFormula(formula, fullRollData.value)
+      const resolvedPlain = simplifyFormula(formula, fullRollData.value)
       const damageInline = parseDamageInlineParams(segments.slice(1))
       const obj = {
         action: 'damage',
-        formula: resolved,
-        label: label ?? resolved,
+        formula: resolvedPlain,
+        label: label ?? resolvedPlain,
         itemId: props.itemId,
         damageInline: Object.keys(damageInline).length ? damageInline : undefined
       }
+      // When there's no explicit label, show the simplified formula with any
+      // computed sub-expressions highlighted in green (e.g. the "1" in "1d6"
+      // when derived from floor(@item.rank/2)).
+      const displayContent = label ?? simplifyFormulaHtml(formula, fullRollData.value)
       return `<label class="has-checked:bg-blue-600 has-checked:text-white bg-gray-300 border-divider border -my-0.5 pb-px px-1 cursor-pointer whitespace-nowrap">
         <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value="${JSON.stringify(
           obj
         ).replace(/"/g, '&quot;')}">
-        <span class="pl-4">${label ?? resolved}</span>
+        <span class="pl-4">${displayContent}</span>
       </label> `
     }
   )

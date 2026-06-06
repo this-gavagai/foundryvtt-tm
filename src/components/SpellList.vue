@@ -232,16 +232,14 @@ function clearPreparedSpell() {
 // Roll-data context for the currently viewed spell, used by ParsedDescription
 // to resolve inline @item.level / @actor.level refs in @Damage formulas
 // client-side before the click handler ships them to Foundry.
-const viewedSpellRollData = computed<Record<string, unknown>>(() => ({
-  item: {
-    level: viewedSpellInfo.value?.castingRank ?? viewedSpell.value?.system?.level?.value ?? 1
-  },
-  actor: { level: characterLevel.value }
-}))
-const viewedConsumableSpellRollData = computed<Record<string, unknown>>(() => ({
-  item: { level: viewedConsumable.value?.system?.spell?.system?.level?.value ?? 1 },
-  actor: { level: characterLevel.value }
-}))
+const viewedSpellRollData = computed<Record<string, unknown>>(() => {
+  const rank = viewedSpellInfo.value?.castingRank ?? viewedSpell.value?.system?.level?.value ?? 1
+  return { item: { level: rank, rank }, actor: { level: characterLevel.value } }
+})
+const viewedConsumableSpellRollData = computed<Record<string, unknown>>(() => {
+  const rank = viewedConsumable.value?.system?.spell?.system?.level?.value ?? 1
+  return { item: { level: rank, rank }, actor: { level: characterLevel.value } }
+})
 
 function castViewedSpell() {
   return viewedSpell.value
