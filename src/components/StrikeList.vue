@@ -32,8 +32,16 @@ interface EmitOptions {
 
 const { t } = useI18n()
 const character = useInjectedCharacter()
-const { strikes, blasts, inventory, actions, blastActions, kineticAuraActive, toggleKineticAura } =
-  character
+const {
+  strikes,
+  blasts,
+  inventory,
+  actions,
+  blastActions,
+  setBlastActions: characterSetBlastActions,
+  kineticAuraActive,
+  toggleKineticAura
+} = character
 
 const strikeModal = ref()
 const strikeModalDamage = ref()
@@ -42,6 +50,16 @@ const viewed = ref<ViewedStrike | undefined>()
 const attackModifiers = computed(() =>
   viewed.value?.phase === 'attack' ? (viewed.value?.target.data._modifiers ?? []) : []
 )
+const viewedModifiers = computed(() =>
+  viewed.value?.phase === 'damage'
+    ? (strikeModalDamage.value?.response?.modifiers ?? [])
+    : attackModifiers.value
+)
+// subtype 1 = critical damage — informs useModifierOverrides so that
+// critical===true modifiers show as enabled and critical===false as disabled.
+const isCriticalContext = computed(
+  () => viewed.value?.phase === 'damage' && viewed.value?.subtype === 1
+)
 const {
   modifierOverrides,
   toggleModifier,
@@ -49,7 +67,7 @@ const {
   isManuallyActivated,
   isManuallyDeactivated,
   isStackingLoser
-} = useModifierOverrides(attackModifiers)
+} = useModifierOverrides(viewedModifiers, isCriticalContext)
 
 // Effective base total (MAP 0, no extra modifiers) with overrides applied.
 const effectiveAttackBase = computed(() =>
@@ -159,6 +177,9 @@ function doViewedAttack(diceResult?: number): Promise<RequestResolutionArgs | nu
 function doViewedDamage(result?: DiceResults): Promise<RequestResolutionArgs | null> {
   const v = viewed.value
   if (!v) return Promise.resolve(null)
+  const overrides = Object.keys(modifierOverrides.value).length
+    ? { ...modifierOverrides.value }
+    : undefined
   if (v.target.kind === 'blast') {
     const blast = v.target.data
     return (
@@ -170,7 +191,8 @@ function doViewedDamage(result?: DiceResults): Promise<RequestResolutionArgs | n
           damageType: blastDamageType(blast),
           isMelee: v.target.isMelee
         },
-        result
+        result,
+        overrides
       ) as Promise<RequestResolutionArgs>) ?? Promise.resolve(null)
     )
   }
@@ -179,7 +201,8 @@ function doViewedDamage(result?: DiceResults): Promise<RequestResolutionArgs | n
       v.subtype,
       v.target.altUsage,
       undefined,
-      result
+      result,
+      overrides
     ) as Promise<RequestResolutionArgs>) ?? Promise.resolve(null)
   )
 }
@@ -252,24 +275,43 @@ function updateDamageType(damageType: string) {
 }
 
 function setBlastActions(actions: string) {
-  blastActions.value = actions
+  characterSetBlastActions(actions)?.then(() => updateDamageFormula())
 }
 
 async function updateDamageFormula() {
   const v = viewed.value
-  if (!v || !isListening.value) return
+  if (!v || v.phase !== 'damage' || !isListening.value) {
+    strikeModalDamage.value = undefined
+    return
+  }
+  const overrides = Object.keys(modifierOverrides.value).length
+    ? { ...modifierOverrides.value }
+    : undefined
+  const overrideKey = JSON.stringify(overrides ?? {})
+  let result: RequestResolutionArgs | null | undefined
   if (v.target.kind === 'blast') {
     const blast = v.target.data
-    strikeModalDamage.value = await blast.getDamage?.(undefined, {
-      element: blast.blastElement,
-      damageType: blastDamageType(blast),
-      isMelee: v.target.isMelee
-    })
+    result = await blast.getDamage?.(
+      undefined,
+      {
+        element: blast.blastElement,
+        damageType: blastDamageType(blast),
+        isMelee: v.target.isMelee
+      },
+      overrides
+    )
   } else {
-    strikeModalDamage.value = await v.target.data.getDamage?.(v.target.altUsage)
+    result = await v.target.data.getDamage?.(v.target.altUsage, undefined, overrides)
   }
+  if (
+    viewed.value !== v ||
+    JSON.stringify(Object.keys(modifierOverrides.value).length ? modifierOverrides.value : {}) !==
+      overrideKey
+  )
+    return
+  strikeModalDamage.value = result
 }
-watch(viewed, () => updateDamageFormula())
+watch([viewed, modifierOverrides], () => updateDamageFormula())
 
 // The modal captures a snapshot of the opened strike/blast. When the character
 // re-syncs (after changing ammo, reloading, etc.) the strikes/blasts arrays are

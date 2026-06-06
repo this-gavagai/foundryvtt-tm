@@ -1,7 +1,11 @@
 import { findSpell } from '@/foundry/utils/spell'
 import { makeCastRankEvent } from '@/foundry/utils/roll'
 import { type CheckRollHandler, statisticParams } from './types'
-import { withModifierOverrides, type ModifierOverrideMap } from './modifierOverrides'
+import {
+  withDamageModifierOverrides,
+  withModifierOverrides,
+  type ModifierOverrideMap
+} from './modifierOverrides'
 
 // Subtype is either "entryId" (legacy entry-level attack from the entry modal)
 // or "entryId,spellId,attackNumber" for the per-spell attack buttons in the
@@ -37,5 +41,10 @@ export const handleSpellDamage: CheckRollHandler = ({ source, actor, args }) => 
   const spell = findSpell(actor, spellId)
   const castingRank = castingRankStr ? Number(castingRankStr) : undefined
   const mapIncreases = Number(mapIncreasesStr || '0') as 0 | 1 | 2
-  return spell?.rollDamage(makeCastRankEvent(source, castingRank), mapIncreases)
+  const overrides = (args.options as { modifierOverrides?: ModifierOverrideMap })?.modifierOverrides
+  return withDamageModifierOverrides(
+    overrides,
+    async () =>
+      (await spell?.rollDamage(makeCastRankEvent(source, castingRank), mapIncreases)) ?? null
+  )
 }

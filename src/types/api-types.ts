@@ -1,4 +1,4 @@
-import type { ItemPF2e, RawModifier } from '@7h3laughingman/pf2e-types'
+import type { ItemPF2e, RawDamageDice, RawModifier } from '@7h3laughingman/pf2e-types'
 import type { TM } from '@/api/protocol'
 
 export type ModuleEventArgs =
@@ -176,6 +176,7 @@ export interface GetStrikeDamageArgs {
   actionSlug: string
   targets: string[]
   altUsage: number | undefined
+  modifierOverrides?: Record<string, boolean>
   uuid: string
 }
 export interface GetSpellDamageArgs {
@@ -185,6 +186,7 @@ export interface GetSpellDamageArgs {
   spellId: string
   castingRank: number | undefined
   targets: string[]
+  modifierOverrides?: Record<string, boolean>
   uuid: string
 }
 export interface ShareTargetsArgs {
@@ -324,7 +326,7 @@ export interface RequestResolutionArgs {
   response?: {
     damage?: string
     critical?: string
-    modifiers?: RawModifier[]
+    modifiers?: (RawModifier | RawDamageDice)[]
   }
   compendiumItem?: CompendiumItemData | null
 }

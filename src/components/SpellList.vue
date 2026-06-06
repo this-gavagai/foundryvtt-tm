@@ -114,19 +114,25 @@ function pickSpellRoll(
 
 // Fetch the damage formula whenever the modal enters damage phase. The
 // formula is rank-aware (heightening), so we re-fetch on rank changes too.
-watch(viewedSpellRoll, async (v) => {
+watch([viewedSpellRoll, spellRollModifierOverrides], async ([v]) => {
   if (!v || v.phase !== 'damage' || !isListening.value) {
     spellRollDamageData.value = undefined
     return
   }
-  const result = (await v.spell.getDamage?.(v.castingRank)) as
+  const overrides = spellRollModifierOverridePayload()
+  const overrideKey = JSON.stringify(overrides ?? {})
+  const result = (await v.spell.getDamage?.(v.castingRank, overrides)) as
     | (RequestResolutionArgs & {
         response?: { formula?: string | null; breakdown?: string[]; modifiers?: Modifier[] }
       })
     | null
   // The fetch is async; if the viewed roll changed while it was in flight,
   // a stale response must not overwrite the current one.
-  if (viewedSpellRoll.value !== v) return
+  if (
+    viewedSpellRoll.value !== v ||
+    JSON.stringify(spellRollModifierOverridePayload() ?? {}) !== overrideKey
+  )
+    return
   spellRollDamageData.value = result?.response
 })
 
@@ -171,7 +177,8 @@ const spellRollRolls = computed<Roll[]>(() => {
         v.spell.doSpellDamage!(
           v.map,
           v.castingRank,
-          faces && dice.length ? makeDiceResults(dice, faces) : undefined
+          faces && dice.length ? makeDiceResults(dice, faces) : undefined,
+          spellRollModifierOverridePayload()
         )
     }
   ]
@@ -516,7 +523,7 @@ const spellbook = computed(() => buildSpellbook(spellcastingEntries.value, spell
         <template #body>
           <ModifierOverrideList
             :modifiers="spellRollModifiers"
-            :toggleable="viewedSpellRoll?.phase === 'attack'"
+            :toggleable="viewedSpellRoll?.phase === 'attack' || viewedSpellRoll?.phase === 'damage'"
             showDamageType
             :showAll="viewedSpellRoll?.phase === 'damage'"
             :effectiveEnabled="spellRollEffectiveEnabled"

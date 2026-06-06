@@ -124,7 +124,7 @@ defineProps<{
           ? damageData?.response?.modifiers
           : viewed?.target.data._modifiers
       "
-      :toggleable="viewed?.phase === 'attack'"
+      :toggleable="viewed?.phase === 'attack' || viewed?.phase === 'damage'"
       showAll
       showDamageType
       :effectiveEnabled="effectiveEnabled"

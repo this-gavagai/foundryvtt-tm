@@ -39,7 +39,8 @@ export interface Strike {
 
   getDamage?: (
     altUsage?: number | undefined,
-    blastOptions?: BlastOptions
+    blastOptions?: BlastOptions,
+    modifierOverrides?: Record<string, boolean>
   ) => Promise<RequestResolutionArgs | null>
   doStrike?: (
     variant: number,
@@ -52,7 +53,8 @@ export interface Strike {
     variant: number,
     altUsage: number | undefined,
     blastOptions?: BlastOptions,
-    result?: DiceResults
+    result?: DiceResults,
+    modifierOverrides?: Record<string, boolean>
   ) => Promise<RequestResolutionArgs | null>
   setDamageType?: (newType: string) => Promise<DocumentSocketResponse | null>
   changeAmmo?: (newId: string | null) => Promise<unknown>
@@ -98,8 +100,7 @@ export function makeStrike(
     // properties, so after the socket round-trip `root.modifiers` is
     // undefined — the underlying array lives on the own property `_modifiers`.
     _modifiers: makeModifiers(
-      root?.modifiers ??
-      (root as CharacterStrike & { _modifiers?: RawModifier[] })?._modifiers
+      root?.modifiers ?? (root as CharacterStrike & { _modifiers?: RawModifier[] })?._modifiers
     )
   }
 }
@@ -146,7 +147,7 @@ export function makeElementalBlasts(root: PF2eElementalBlast | undefined): Eleme
     weaponTraits: [],
     _modifiers: makeModifiers(
       config?.statistic?.modifiers ??
-      (config.statistic as Statistic & { _modifiers?: RawModifier[] })?._modifiers
+        (config.statistic as Statistic & { _modifiers?: RawModifier[] })?._modifiers
     )
   }))
 }

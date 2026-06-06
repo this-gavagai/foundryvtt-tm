@@ -1,34 +1,45 @@
 import { computed, ref, type Ref } from 'vue'
 import type { Modifier } from '@/composables/character'
 
-export function useModifierOverrides(modifiers: Ref<Modifier[] | undefined>) {
+export function useModifierOverrides(
+  modifiers: Ref<Modifier[] | undefined>,
+  // When provided, modifiers with critical===true are treated as disabled in a
+  // non-critical context and enabled in a critical context (and vice versa for
+  // critical===false), independently of their server-side enabled state.
+  criticalContext?: Ref<boolean>
+) {
   const modifierOverrides = ref<Record<string, boolean>>({})
+
+  function effectiveEnabled(mod: Modifier): boolean {
+    const slug = mod.slug
+    if (slug && slug in modifierOverrides.value) return modifierOverrides.value[slug]
+    const isCritical = criticalContext?.value ?? false
+    if (mod.critical === true && !isCritical) return false
+    if (mod.critical === false && isCritical) return false
+    return !!mod.enabled
+  }
 
   function toggleModifier(mod: Modifier) {
     const slug = mod.slug
     if (!slug) return
     const next = { ...modifierOverrides.value }
     if (slug in next) delete next[slug]
-    else next[slug] = !mod.enabled
+    // Use effectiveEnabled so toggling a crit-only modifier in normal context
+    // correctly queues an "enable" override rather than a redundant "disable".
+    else next[slug] = !effectiveEnabled(mod)
     modifierOverrides.value = next
-  }
-
-  function effectiveEnabled(mod: Modifier): boolean {
-    const slug = mod.slug
-    if (slug && slug in modifierOverrides.value) return modifierOverrides.value[slug]
-    return !!mod.enabled
   }
 
   function isManuallyActivated(mod: Modifier): boolean {
     const slug = mod.slug
     if (!slug || !(slug in modifierOverrides.value)) return false
-    return modifierOverrides.value[slug] === true && !mod.enabled
+    return modifierOverrides.value[slug] === true
   }
 
   function isManuallyDeactivated(mod: Modifier): boolean {
     const slug = mod.slug
     if (!slug || !(slug in modifierOverrides.value)) return false
-    return modifierOverrides.value[slug] === false && !!mod.enabled
+    return modifierOverrides.value[slug] === false
   }
 
   const stackingLosers = computed<Set<string>>(() => {

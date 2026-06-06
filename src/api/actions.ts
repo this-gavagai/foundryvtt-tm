@@ -130,11 +130,7 @@ export const characterAction = (
     options
   })
 
-export const consumeItem = (
-  actor: Ref<CharacterPF2e>,
-  consumableId: string,
-  options = {}
-) =>
+export const consumeItem = (actor: Ref<CharacterPF2e>, consumableId: string, options = {}) =>
   sendAction(TM.CONSUME_ITEM, {
     ...fromActor(actor),
     consumableId,
@@ -144,23 +140,27 @@ export const consumeItem = (
 export const getStrikeDamage = (
   actor: Ref<CharacterPF2e>,
   actionSlug: string,
-  altUsage: number | undefined = undefined
+  altUsage: number | undefined = undefined,
+  modifierOverrides?: Record<string, boolean>
 ) =>
   sendAction(TM.GET_STRIKE_DAMAGE, {
     ...fromActorTargeted(actor),
     actionSlug,
-    altUsage
+    altUsage,
+    modifierOverrides
   })
 
 export const getSpellDamage = (
   actor: Ref<CharacterPF2e>,
   spellId: string,
-  castingRank: number | undefined = undefined
+  castingRank: number | undefined = undefined,
+  modifierOverrides?: Record<string, boolean>
 ) =>
   sendAction(TM.GET_SPELL_DAMAGE, {
     ...fromActorTargeted(actor),
     spellId,
-    castingRank
+    castingRank,
+    modifierOverrides
   })
 
 // Unified entry point for any ad-hoc damage roll — both the side-menu
@@ -292,4 +292,3 @@ export const getCompendiumItem = (itemUuid: string) =>
 
 export const addCompendiumItem = (characterId: string, itemUuid: string) =>
   sendAction(TM.ADD_COMPENDIUM_ITEM, { characterId, itemUuid })
-

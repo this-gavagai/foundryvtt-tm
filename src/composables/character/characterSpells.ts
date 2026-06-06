@@ -110,16 +110,19 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
         doSpellDamage: (
           mapIncreases: 0 | 1 | 2 = 0,
           castingRank?: number,
-          result?: DiceResults
+          result?: DiceResults,
+          modifierOverrides?: Record<string, boolean>
         ) =>
           rollCheck(
             actor as Ref<CharacterPF2e>,
             'spellDamage',
             `${item._id},${mapIncreases},${castingRank ?? ''}`,
-            result ?? {}
+            result ?? {},
+            [],
+            modifierOverrides ? { modifierOverrides } : {}
           ),
-        getDamage: (castingRank?: number) =>
-          getSpellDamage(actor as Ref<CharacterPF2e>, item._id!, castingRank)
+        getDamage: (castingRank?: number, modifierOverrides?: Record<string, boolean>) =>
+          getSpellDamage(actor as Ref<CharacterPF2e>, item._id!, castingRank, modifierOverrides)
       }))
 
     const dailies = actor.value?.flags?.['pf2e-dailies'] as PF2eDailiesFlags
@@ -179,16 +182,19 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
         doSpellDamage: (
           mapIncreases: 0 | 1 | 2 = 0,
           castingRank?: number,
-          result?: DiceResults
+          result?: DiceResults,
+          modifierOverrides?: Record<string, boolean>
         ) =>
           rollCheck(
             actor as Ref<CharacterPF2e>,
             'spellDamage',
             `${i._id},${mapIncreases},${castingRank ?? ''}`,
-            result ?? {}
+            result ?? {},
+            [],
+            modifierOverrides ? { modifierOverrides } : {}
           ),
-        getDamage: (castingRank?: number) =>
-          getSpellDamage(actor as Ref<CharacterPF2e>, i._id!, castingRank)
+        getDamage: (castingRank?: number, modifierOverrides?: Record<string, boolean>) =>
+          getSpellDamage(actor as Ref<CharacterPF2e>, i._id!, castingRank, modifierOverrides)
       })),
       expended: staffData?.expended,
       setStaffCharges: (newValue: number) => {

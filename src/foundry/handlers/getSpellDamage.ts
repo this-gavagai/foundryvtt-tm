@@ -3,6 +3,7 @@ import type { GetSpellDamageArgs } from '@/types/api-types'
 import { useBackgroundRoll } from '../backgroundRoll'
 import { getCharacter, getGame, makeAck } from '../utils/foundry'
 import { findSpell } from '../utils/spell'
+import { withDamageModifierOverrides, type ModifierOverrideMap } from './checks/modifierOverrides'
 
 export async function foundryGetSpellDamage(args: GetSpellDamageArgs) {
   const source = getGame()
@@ -33,20 +34,22 @@ export async function foundryGetSpellDamage(args: GetSpellDamageArgs) {
   } | null>
   const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll()
   registerBackgroundRoll()
-  const sd = spell
-    ? await (spell.getDamage as unknown as SpellGetDamage)({
-        target: targetTokenDoc,
-        skipDialog: true,
-        rollMode: 'blindroll'
-      })
-    : null
+  const overrides = (args as { modifierOverrides?: ModifierOverrideMap }).modifierOverrides
+  const getDamage = () =>
+    (spell!.getDamage as unknown as SpellGetDamage)({
+      target: targetTokenDoc,
+      skipDialog: true,
+      rollMode: 'blindroll'
+    })
+  const sd = spell ? await withDamageModifierOverrides(overrides, getDamage) : null
+  const baseline = spell && overrides && Object.keys(overrides).length ? await getDamage() : sd
   unregisterBackgroundRoll()
   return {
     ...makeAck(args),
     response: {
       formula: sd?.template?.damage?.roll?.formula ?? null,
       breakdown: sd?.template?.damage?.breakdown ?? [],
-      modifiers: sd?.template?.modifiers ?? []
+      modifiers: baseline?.template?.modifiers ?? []
     }
   }
 }

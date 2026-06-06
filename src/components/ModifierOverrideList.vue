@@ -31,8 +31,12 @@ const gridClass = computed(() =>
   props.showDamageType ? 'grid-cols-[2.5rem_6rem_1fr_auto]' : 'grid-cols-[2.5rem_6rem_1fr]'
 )
 
+function canToggle(mod: Modifier) {
+  return props.toggleable && mod.modifier !== undefined
+}
+
 function toggle(mod: Modifier) {
-  if (props.toggleable) props.onToggle?.(mod)
+  if (canToggle(mod)) props.onToggle?.(mod)
 }
 </script>
 
@@ -57,7 +61,7 @@ function toggle(mod: Modifier) {
       :class="[
         gridClass,
         {
-          'cursor-pointer': toggleable,
+          'cursor-pointer': canToggle(mod),
           'text-gray-300': !effectiveEnabled(mod) && !isManuallyDeactivated(mod),
           'border-green-500 bg-green-100/40 dark:bg-green-900/30': isManuallyActivated(mod),
           'border-red-500 bg-red-100/40 text-red-700 line-through dark:bg-red-900/30 dark:text-red-300':

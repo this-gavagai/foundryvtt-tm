@@ -331,7 +331,6 @@ body.theme-default {
   [data-section='ancestry'],
   [data-section='xdy_ancestryparagon'],
   [data-section='bonus'],
-  [data-section='action'],
   [data-section='strikes'],
   [data-section='weapon'],
   [data-section='divine'] {
@@ -368,6 +367,7 @@ body.theme-default {
   [data-section='equipment'],
   [data-section='backpack'],
   [data-section='focus'],
+  [data-section='action'],
   [data-section='consumables'] {
     --section-color: var(--color-proficiency-trained);
   }

@@ -3,7 +3,13 @@ import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { TablemateCharacter } from '@/types/character-types'
 import type { Field, WritableField } from './helpers'
 import { type Strike, makeStrike, type ElementalBlast, makeElementalBlasts } from './defs/strike'
-import { rollCheck, getStrikeDamage, setWeaponLoaded, setWeaponDamageType, toggleKineticAura } from '@/api/actions'
+import {
+  rollCheck,
+  getStrikeDamage,
+  setWeaponLoaded,
+  setWeaponDamageType,
+  toggleKineticAura
+} from '@/api/actions'
 import { updateActorItem } from '@/api/documents'
 import type { CharacterStrike, DamageType, WeaponPF2e } from '@7h3laughingman/pf2e-types'
 
@@ -11,6 +17,7 @@ export interface CharacterStrikes {
   strikes: Field<Strike[]>
   blasts: Field<ElementalBlast[]>
   blastActions: WritableField<string>
+  setBlastActions: (value: string) => Promise<unknown> | undefined
   kineticAuraActive: Field<boolean>
   toggleKineticAura: () => Promise<unknown>
 }
@@ -37,9 +44,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
           (i) => i._id === action?.item?._id || i.system?.slug === action?.slug
         ) as { itemGrants?: string[] } | undefined
         for (const gid of granter?.itemGrants ?? []) {
-          const found = actor.value?.items.find(
-            (i) => i._id === gid && i.type === 'weapon'
-          )
+          const found = actor.value?.items.find((i) => i._id === gid && i.type === 'weapon')
           if (found) {
             weaponItem = found as WeaponPF2e<CharacterPF2e>
             break
@@ -93,8 +98,11 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
               )
             : Promise.resolve(null)
         },
-        getDamage: (altUsage = undefined) =>
-          getStrikeDamage(actor as Ref<CharacterPF2e>, action.slug, altUsage),
+        getDamage: (
+          altUsage = undefined,
+          _blastOptions = undefined,
+          modifierOverrides = undefined
+        ) => getStrikeDamage(actor as Ref<CharacterPF2e>, action.slug, altUsage, modifierOverrides),
         doStrike: (variant, altUsage, blastOptions, result, modifierOverrides) =>
           rollCheck(
             actor as Ref<CharacterPF2e>,
@@ -104,21 +112,21 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
             [],
             modifierOverrides ? { modifierOverrides } : {}
           ),
-        doDamage: (variant, altUsage, _blastOptions, result) => {
+        doDamage: (variant, altUsage, _blastOptions, result, modifierOverrides) => {
           const doRoll = () =>
             rollCheck(
               actor as Ref<CharacterPF2e>,
               'damage',
               `${action.slug},${variant ? 'critical' : 'damage'},${altUsage ?? ''}`,
-              result ?? {}
+              result ?? {},
+              [],
+              modifierOverrides ? { modifierOverrides } : {}
             )
           return pendingToggle ? pendingToggle.then(doRoll) : doRoll()
         },
         setDamageType: (newType) => {
           if (!actor.value || !weaponId) return Promise.resolve(null)
-          const item = actor.value.items.find<WeaponPF2e<CharacterPF2e>>(
-            (i) => i._id === weaponId
-          )
+          const item = actor.value.items.find<WeaponPF2e<CharacterPF2e>>((i) => i._id === weaponId)
           const isModular = item?.system?.traits?.value?.includes('modular' as never)
           const trait = isModular ? 'modular' : 'versatile'
           const baseDamageType = item?.system?.damage?.damageType
@@ -182,10 +190,12 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
       (blast: ElementalBlast) =>
         ({
           ...blast,
-          getDamage: (altUsage, blastOptions) =>
+          getDamage: (altUsage, blastOptions, modifierOverrides) =>
             getStrikeDamage(
               actor as Ref<CharacterPF2e>,
-              `blast:${blastOptions?.element},${blastOptions?.damageType},${blastOptions?.isMelee}`
+              `blast:${blastOptions?.element},${blastOptions?.damageType},${blastOptions?.isMelee}`,
+              undefined,
+              modifierOverrides
             ),
           doStrike: (variant, altUsage, blastOptions, result, modifierOverrides) =>
             rollCheck(
@@ -196,12 +206,14 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
               [],
               modifierOverrides ? { modifierOverrides } : {}
             ),
-          doDamage: (variant, altUsage, blastOptions, result) =>
+          doDamage: (variant, altUsage, blastOptions, result, modifierOverrides) =>
             rollCheck(
               actor as Ref<CharacterPF2e>,
               'blastDamage',
               `${blastOptions?.element},${blastOptions?.damageType},${variant ? 'criticalSuccess' : 'success'},${blastOptions?.isMelee}`,
-              result ?? {}
+              result ?? {},
+              [],
+              modifierOverrides ? { modifierOverrides } : {}
             ),
           setDamageType: (newType) => {
             const dmgs: Record<string, string> = {}
@@ -214,6 +226,22 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
     )
   )
   type RuleWithOption = { option?: string; selection?: string }
+
+  // Exposed as a named function so callers that need the returned promise can
+  // chain further work (e.g. re-fetching the damage formula) after the item
+  // update has been acknowledged by the server — avoiding the race where the
+  // getDamage request arrives before the actor is re-derived with the new cost.
+  function doSetBlastActions(newValue: string): Promise<unknown> | undefined {
+    const blastItemId = actor.value?.elementalBlasts?.item?._id
+    const rules = actor.value?.items?.find((i) => i._id === blastItemId)?.system?.rules
+    const actionRule = rules?.find((r) => (r as RuleWithOption).option === 'action-cost') as
+      | RuleWithOption
+      | undefined
+    if (actionRule) actionRule.selection = newValue
+    if (!blastItemId) return undefined
+    return updateActorItem(actor as Ref<CharacterPF2e>, blastItemId, { system: { rules } })
+  }
+
   const blastActions = computed({
     get: () => {
       const blastItemId = actor.value?.elementalBlasts?.item?._id
@@ -222,16 +250,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
         ?.system?.rules?.find((r) => (r as RuleWithOption).option === 'action-cost')
       return (rule as RuleWithOption | undefined)?.selection
     },
-    set: (newValue) => {
-      const blastItemId = actor.value?.elementalBlasts?.item?._id
-      const rules = actor.value?.items?.find((i) => i._id === blastItemId)?.system?.rules
-      const actionRule = rules?.find((r) => (r as RuleWithOption).option === 'action-cost') as
-        | RuleWithOption
-        | undefined
-      if (actionRule) actionRule.selection = newValue ?? ''
-      const update = { system: { rules: rules } }
-      return updateActorItem(actor as Ref<CharacterPF2e>, blastItemId ?? '', update)
-    }
+    set: (newValue) => doSetBlastActions(newValue ?? '')
   })
 
   type ItemWithSlug = { system?: { slug?: string } }
@@ -259,6 +278,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
     strikes,
     blasts,
     blastActions,
+    setBlastActions: doSetBlastActions,
     kineticAuraActive,
     toggleKineticAura: doToggleKineticAura
   }

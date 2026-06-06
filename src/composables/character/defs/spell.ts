@@ -20,9 +20,13 @@ export interface Spell extends Item {
   doSpellDamage?: (
     mapIncreases?: 0 | 1 | 2,
     castingRank?: number,
-    result?: import('@/types/api-types').DiceResults
+    result?: import('@/types/api-types').DiceResults,
+    modifierOverrides?: Record<string, boolean>
   ) => Promise<RequestResolutionArgs | null>
-  getDamage?: (castingRank?: number) => Promise<RequestResolutionArgs | null>
+  getDamage?: (
+    castingRank?: number,
+    modifierOverrides?: Record<string, boolean>
+  ) => Promise<RequestResolutionArgs | null>
 }
 export interface SpellSystem extends ItemSystem {
   location: { value: Maybe<string>; heightenedLevel: Maybe<number>; signature: Maybe<boolean> }
