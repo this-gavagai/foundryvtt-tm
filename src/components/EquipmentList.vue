@@ -97,7 +97,11 @@ const toggleSet = [
       <!-- Held Items list -->
       <EquipmentHeld @item-clicked="viewItem" />
       <div v-if="inventory?.length" class="mb-4 flex items-center gap-2">
-        <EquipmentBulk class="flex-1" />
+        <!-- Wrap in a block flex item: an inline <svg width="100%"> collapses to
+             0 width when it is itself the flex child (WebKit/iOS), hiding the bar. -->
+        <div class="min-w-0 flex-1">
+          <EquipmentBulk />
+        </div>
         <button
           type="button"
           data-part="invested-count"

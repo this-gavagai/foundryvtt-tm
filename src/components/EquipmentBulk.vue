@@ -4,15 +4,15 @@ import { useInjectedCharacter } from '@/composables/injectKeys'
 const character = useInjectedCharacter()
 
 const { max: bulkMax, encumberedAfter: bulkEncumberedAfter } = character.bulk
-const { value: bulkValue, normal: bulkNormal } = character.bulk.value
+const { value: bulkValue } = character.bulk.value
 </script>
 <template>
   <svg
     data-component="EquipmentBulk"
     width="100%"
     height="30"
-    class="trasition-all duration-500"
-    v-if="bulkNormal && bulkMax"
+    class="transition-all duration-500"
+    v-if="bulkMax != null"
   >
     <pattern id="diagonalHatch" patternUnits="userSpaceOnUse" width="4" height="4">
       <path
@@ -39,13 +39,13 @@ const { value: bulkValue, normal: bulkNormal } = character.bulk.value
     <rect
       data-part="bulk-fill"
       :data-state="
-        (bulkNormal ?? 0) < (bulkEncumberedAfter ?? 0)
+        (bulkValue ?? 0) < (bulkEncumberedAfter ?? 0)
           ? 'safe'
-          : (bulkNormal ?? 0) < (bulkMax ?? 0)
+          : (bulkValue ?? 0) < (bulkMax ?? 0)
             ? 'encumbered'
             : 'over-max'
       "
-      :width="((bulkNormal ?? 0) / (bulkMax ?? 100)) * 100 + '%'"
+      :width="((bulkValue ?? 0) / (bulkMax ?? 100)) * 100 + '%'"
       height="100%"
       class="transition-all duration-500 ease-in-out data-[state=safe]:fill-green-500 data-[state=encumbered]:fill-amber-500 data-[state=over-max]:fill-red-600"
     />

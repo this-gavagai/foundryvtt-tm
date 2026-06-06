@@ -315,7 +315,9 @@ body.theme-default {
       }
       [data-part='modifier-clear'] {
         color: oklch(50% 0.01 258);
-        &:hover { color: oklch(72% 0.01 258); }
+        &:hover {
+          color: oklch(72% 0.01 258);
+        }
       }
     }
   }
@@ -598,8 +600,7 @@ body.theme-default {
        `tabular-nums` keeps the digit columns themselves stable. */
     [data-part='invested-count'] {
       height: 38px;
-      min-width: 9.5rem;
-      padding-inline: 0.75rem;
+      padding-inline: 1rem;
       border-radius: 5px;
       background-color: oklch(20% 0.02 258);
       border: 1px solid oklch(36% 0.022 258);
