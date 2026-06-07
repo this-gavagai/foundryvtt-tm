@@ -10,6 +10,12 @@ import { useInjectedCharacter } from '@/composables/injectKeys'
 import { useOverlayStack } from '@/composables/useOverlayStack'
 import ChatInlineRollModal from '@/components/ChatInlineRollModal.vue'
 import CompendiumItemModal from '@/components/CompendiumItemModal.vue'
+import d4Icon from '@/assets/icons/d4.svg'
+import d6Icon from '@/assets/icons/d6.svg'
+import d8Icon from '@/assets/icons/d8.svg'
+import d10Icon from '@/assets/icons/d10.svg'
+import d12Icon from '@/assets/icons/d12.svg'
+import d20Icon from '@/assets/icons/d20.svg'
 import { getPath } from '@/utils/utilities'
 import {
   activeRollFromFoundryClickTarget,
@@ -72,6 +78,7 @@ interface RollJson extends RollTermJson {
 interface ChatRollDie {
   formula: string
   flavor?: string
+  faces?: number
   results: number[]
 }
 
@@ -116,6 +123,16 @@ const sendError = ref(false)
 const inlineRollModal = ref<InstanceType<typeof ChatInlineRollModal>>()
 const compendiumModal = ref<InstanceType<typeof CompendiumItemModal>>()
 let scrollAnimationFrame: number | undefined
+
+const dieIcons: Record<number, string> = {
+  4: d4Icon,
+  6: d6Icon,
+  8: d8Icon,
+  10: d10Icon,
+  12: d12Icon,
+  20: d20Icon,
+  100: d10Icon
+}
 
 function collectionToArray<T>(source: CollectionLike<T>): T[] {
   if (!source) return []
@@ -264,6 +281,7 @@ function rollSummary(roll: string | RollJson | undefined): ChatRollSummary | und
     .map((term) => ({
       formula: dieFormula(term) ?? 'die',
       flavor: term.options?.flavor ?? formulaFlavors(term.formula)[0],
+      faces: term.faces,
       results: dieResults(term)
     }))
 
@@ -295,9 +313,25 @@ function rollKindLabel(roll: ChatRollSummary): string {
   return roll.className?.replace(/Roll$/, '') || 'Roll'
 }
 
+function rollDisplayText(value: string): string {
+  return value.replace(/[{}]/g, '')
+}
+
+function rollFormulaLabel(roll: ChatRollSummary): string {
+  return roll.formula ? rollDisplayText(roll.formula) : ''
+}
+
 function rollDieLabel(die: ChatRollDie): string {
   const results = die.results.length ? `: ${die.results.join(', ')}` : ''
-  return `${die.formula}${results}`
+  return `${rollDisplayText(die.formula)}${results}`
+}
+
+function rollDieIcon(die: ChatRollDie): string {
+  return dieIcons[die.faces ?? 0] ?? d20Icon
+}
+
+function rollFlavorLabel(roll: ChatRollSummary): string {
+  return roll.flavors.length ? ` [${roll.flavors.map(rollDisplayText).join(', ')}]` : ''
 }
 
 function plainChatText(content: string): string {
@@ -573,41 +607,70 @@ defineExpose({ open, close, isOpen })
                         data-part="chat-roll"
                         class="rounded border border-gray-200 bg-white px-3 py-2 text-sm"
                       >
-                        <div class="flex flex-wrap items-center gap-2">
+                        <div
+                          v-if="roll.formula || roll.dice.length"
+                          data-part="chat-roll-details"
+                          class="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs text-gray-500"
+                        >
+                          <span
+                            v-if="roll.formula"
+                            data-part="chat-roll-formula"
+                            class="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 break-words text-gray-600"
+                          >
+                            {{ rollFormulaLabel(roll) }}
+                          </span>
+                          <span
+                            v-if="roll.dice.length"
+                            data-part="chat-roll-dice"
+                            class="flex flex-wrap items-center gap-x-1.5 gap-y-1"
+                          >
+                            <template v-for="(die, dieIndex) in roll.dice" :key="dieIndex">
+                              <template v-if="die.results.length">
+                                <span
+                                  v-for="(result, resultIndex) in die.results"
+                                  :key="resultIndex"
+                                  data-part="chat-roll-die"
+                                  class="inline-flex items-center gap-1 leading-none text-gray-500"
+                                  :title="rollDieLabel(die)"
+                                >
+                                  <img
+                                    :src="rollDieIcon(die)"
+                                    class="h-4 w-4 opacity-45"
+                                    alt=""
+                                    aria-hidden="true"
+                                  />
+                                  <span>{{ result }}</span>
+                                </span>
+                              </template>
+                              <span
+                                v-else
+                                data-part="chat-roll-die"
+                                class="inline-flex items-center leading-none text-gray-500"
+                                :title="rollDieLabel(die)"
+                              >
+                                <img
+                                  :src="rollDieIcon(die)"
+                                  class="h-4 w-4 opacity-45"
+                                  alt=""
+                                  aria-hidden="true"
+                                />
+                              </span>
+                            </template>
+                          </span>
+                        </div>
+                        <div class="mt-2 flex flex-wrap items-baseline gap-1.5">
                           <span class="text-xs font-semibold tracking-wide text-gray-500 uppercase">
                             {{ rollKindLabel(roll) }}
                           </span>
-                          <span v-if="roll.total !== undefined" class="text-lg font-semibold">
+                          <span v-if="roll.total !== undefined" class="text-base font-semibold">
                             {{ roll.total }}
                           </span>
                           <span
-                            v-for="flavor in roll.flavors"
-                            :key="flavor"
+                            v-if="roll.flavors.length"
                             data-part="chat-roll-flavor"
-                            class="rounded-sm border border-gray-300 px-1.5 py-0.5 text-xs capitalize"
+                            class="text-xs text-gray-500"
                           >
-                            {{ flavor }}
-                          </span>
-                        </div>
-                        <div
-                          v-if="roll.formula"
-                          data-part="chat-roll-formula"
-                          class="mt-1 font-mono text-xs break-words text-gray-500"
-                        >
-                          {{ roll.formula }}
-                        </div>
-                        <div
-                          v-if="roll.dice.length"
-                          data-part="chat-roll-dice"
-                          class="mt-2 flex flex-wrap gap-1.5"
-                        >
-                          <span
-                            v-for="(die, dieIndex) in roll.dice"
-                            :key="dieIndex"
-                            class="rounded-sm bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-gray-700"
-                            :title="die.flavor"
-                          >
-                            {{ rollDieLabel(die) }}
+                            {{ rollFlavorLabel(roll) }}
                           </span>
                         </div>
                       </div>

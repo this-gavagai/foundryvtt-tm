@@ -642,19 +642,18 @@ body.theme-default {
         color: var(--color-text);
       }
 
-      [data-part='chat-roll-flavor'] {
-        border-color: oklch(46% 0.055 255);
-        background-color: oklch(25% 0.036 255);
-        color: oklch(88% 0.012 255);
-      }
-
+      [data-part='chat-roll-flavor'],
       [data-part='chat-roll-formula'] {
         color: oklch(68% 0.012 258);
       }
 
-      [data-part='chat-roll-dice'] > span {
-        background-color: oklch(24% 0.024 258);
-        color: oklch(86% 0.01 258);
+      [data-part='chat-roll-formula'] {
+        border-color: oklch(38% 0.024 258);
+        background-color: oklch(22% 0.026 258);
+      }
+
+      [data-part='chat-roll-die'] {
+        color: oklch(68% 0.012 258);
       }
 
       /* Chat composer */
