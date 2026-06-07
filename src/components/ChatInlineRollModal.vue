@@ -24,7 +24,7 @@ const {
   effectiveEnabled,
   isManuallyActivated,
   isManuallyDeactivated,
-  isStackingLoser,
+  isStackingLoser
 } = useModifierOverrides(actionModifiers)
 
 const rolls = useRollsFromActiveRoll(activeRoll, modifierOverrides)
@@ -46,7 +46,7 @@ defineExpose({ open, close, isOpen })
 
 <template>
   <div data-component="ChatInlineRollModalRoot">
-    <InfoModal ref="modal" :rolls="rolls" zIndexClass="z-[70]" rollResultZIndexClass="z-[100]" @closing="modifierOverrides = {}">
+    <InfoModal ref="modal" :rolls="rolls" @closing="modifierOverrides = {}">
       <template #title>
         {{ rollTitle || $t('common.roll') }}
       </template>

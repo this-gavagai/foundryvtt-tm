@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import {
   Dialog,
   DialogPanel,
@@ -16,6 +16,7 @@ import { XMarkIcon } from '@heroicons/vue/24/outline'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { useSettingsStore } from '@/stores/settings'
+import { useOverlayStack } from '@/composables/useOverlayStack'
 import Spinner from './widgets/SpinnerWidget.vue'
 import TraitList from './TraitList.vue'
 import ManualDicePicker from './ManualDicePicker.vue'
@@ -32,14 +33,13 @@ const { manualDicePicker } = storeToRefs(useSettingsStore())
 const rollResultModal = ref<InstanceType<typeof RollResultModal>>()
 const waiting = ref(false)
 const isOpen = ref(false)
+const { zIndex, openLayer, closeLayer } = useOverlayStack()
 
 const props = defineProps<{
   imageUrl?: string
   traits?: string[]
   itemId?: string
   rolls?: Roll[]
-  zIndexClass?: string
-  rollResultZIndexClass?: string
 }>()
 
 const { armedRoll, buffer, executeRollFromButton, pickFace, clearBuffer, dieFaces, hasReadyPixel } =
@@ -53,6 +53,7 @@ const { armedRoll, buffer, executeRollFromButton, pickFace, clearBuffer, dieFace
   })
 
 function open() {
+  openLayer()
   isOpen.value = true
   waiting.value = false
   buffer.value = []
@@ -64,8 +65,10 @@ function close(ignoreModal = false) {
     return
   }
   isOpen.value = false
+  closeLayer()
   emit('closing')
 }
+onBeforeUnmount(closeLayer)
 
 const dragOptions = {
   swipeDistance: 50
@@ -90,7 +93,7 @@ defineExpose({ open, close, rollResultModal, isOpen })
 <template>
   <div class="touch-manipulation transition-all">
     <TransitionRoot appear :show="isOpen" as="template">
-      <Dialog as="div" @close="close" class="relative" :class="props.zIndexClass ?? 'z-10'">
+      <Dialog as="div" @close="close" class="relative" :style="{ zIndex }">
         <TransitionChild
           as="template"
           enter="duration-300 ease-out"
@@ -222,7 +225,7 @@ defineExpose({ open, close, rollResultModal, isOpen })
       </Dialog>
     </TransitionRoot>
     <Teleport to="#modals">
-      <RollResultModal ref="rollResultModal" :zIndexClass="props.rollResultZIndexClass" />
+      <RollResultModal ref="rollResultModal" />
     </Teleport>
   </div>
 </template>

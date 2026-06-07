@@ -1,34 +1,34 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
+import { useOverlayStack } from '@/composables/useOverlayStack'
 
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 import { InformationCircleIcon } from '@heroicons/vue/24/solid'
 
-// `zIndexClass` overrides the outer Dialog's stacking class so a Modal
-// opened on top of another Headless UI Dialog (e.g. SideMenu, which uses
-// z-50) can sit above it. Default of `z-10` keeps existing callers
-// unchanged.
 const props = defineProps({
   title: { type: String, default: undefined },
   focusTarget: { type: [Object, Function], default: undefined },
   infoButton: { type: Function, default: undefined },
-  noX: { type: Boolean, default: false },
-  zIndexClass: { type: String, default: 'z-10' }
+  noX: { type: Boolean, default: false }
 })
 const isOpen = ref(false)
 const content = ref()
 const options = ref()
 const xButton = ref()
+const { zIndex, openLayer, closeLayer } = useOverlayStack()
 
 function open(newOptions: unknown = null) {
+  openLayer()
   isOpen.value = true
   options.value = newOptions
 }
 function close() {
   isOpen.value = false
+  closeLayer()
   // options.value = null
 }
+onBeforeUnmount(closeLayer)
 defineExpose({ open, close, options, isOpen })
 </script>
 
@@ -38,7 +38,7 @@ defineExpose({ open, close, options, isOpen })
       as="div"
       @close="close"
       class="relative touch-manipulation"
-      :class="props.zIndexClass"
+      :style="{ zIndex }"
       :initial-focus="props.focusTarget ?? xButton"
     >
       <TransitionChild

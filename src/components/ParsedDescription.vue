@@ -26,7 +26,6 @@ const props = withDefaults(
     // render the chat card (item header, traits, modifiers).
     itemId?: string
     autoSelect?: boolean
-    compendiumZIndexClass?: string
   }>(),
   { autoSelect: true }
 )
@@ -246,7 +245,7 @@ defineExpose({ activeRoll, initRolls: scheduleInitRolls })
   <form data-component="ParsedDescription" ref="formRef" @change="formChange" @submit="formClick">
     <div v-html="parsedText" @click="handleDescriptionClick"></div>
     <Teleport to="#modals">
-      <CompendiumItemModal ref="compendiumModal" :zIndexClass="props.compendiumZIndexClass" />
+      <CompendiumItemModal ref="compendiumModal" />
     </Teleport>
   </form>
 </template>

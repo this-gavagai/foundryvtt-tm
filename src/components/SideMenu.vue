@@ -298,10 +298,8 @@ defineExpose({ sidebarOpen, openChat })
     <SettingsModal ref="settingsModal" />
     <ChatOverlay ref="chatOverlay" />
     <!-- Detail view for paired Pixel dice. Mounted regardless of pixel count
-       so toggling between 1- and 2-die states doesn't tear it down. The
-       sidebar's own Dialog is z-50, so this modal opts into z-60 to sit on
-       top of the sidebar overlay (otherwise it's hidden behind it). -->
-    <Modal ref="pixelDiceModal" :title="$t('sideMenu.pixelDice')" zIndexClass="z-[60]">
+       so toggling between 1- and 2-die states doesn't tear it down. -->
+    <Modal ref="pixelDiceModal" :title="$t('sideMenu.pixelDice')">
       <ul class="flex flex-col gap-2 py-2">
         <li v-for="p in pixels" :key="p.systemId" class="flex items-center gap-2">
           <img :src="iconForDieType(p.dieType)" class="h-6 w-6" />

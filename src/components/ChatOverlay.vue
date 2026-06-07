@@ -7,6 +7,7 @@ import { useWorldStore } from '@/stores/world'
 import { sendChatMessage, consumeItem } from '@/api/actions'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useOverlayStack } from '@/composables/useOverlayStack'
 import ChatInlineRollModal from '@/components/ChatInlineRollModal.vue'
 import CompendiumItemModal from '@/components/CompendiumItemModal.vue'
 import { getPath } from '@/utils/utilities'
@@ -75,6 +76,7 @@ interface ChatSceneData {
 
 const isOpen = ref(false)
 const scrollContainer = ref<HTMLElement>()
+const { zIndex, openLayer, closeLayer } = useOverlayStack()
 const { world } = storeToRefs(useWorldStore())
 const { _id, _actor } = useInjectedCharacter()
 const draft = ref('')
@@ -211,12 +213,14 @@ function handleCardButtonClick(event: MouseEvent) {
 }
 
 function open() {
+  openLayer()
   isOpen.value = true
   scrollToBottom()
 }
 
 function close() {
   isOpen.value = false
+  closeLayer()
 }
 
 async function submitMessage() {
@@ -272,6 +276,7 @@ function scrollToBottom(smooth = false) {
 
 onBeforeUnmount(() => {
   if (scrollAnimationFrame !== undefined) window.cancelAnimationFrame(scrollAnimationFrame)
+  closeLayer()
 })
 
 watch(
@@ -293,7 +298,7 @@ defineExpose({ open, close, isOpen })
 
 <template>
   <TransitionRoot appear :show="isOpen" as="template">
-    <Dialog as="div" class="relative z-[60] touch-manipulation" @close="close">
+    <Dialog as="div" class="relative touch-manipulation" :style="{ zIndex }" @close="close">
       <TransitionChild
         as="template"
         enter="duration-200 ease-out"
@@ -458,11 +463,7 @@ defineExpose({ open, close, isOpen })
         </div>
       </div>
       <ChatInlineRollModal ref="inlineRollModal" />
-      <CompendiumItemModal
-        ref="compendiumModal"
-        zIndexClass="z-[80]"
-        nestedCompendiumZIndexClass="z-[90]"
-      />
+      <CompendiumItemModal ref="compendiumModal" />
     </Dialog>
   </TransitionRoot>
 </template>

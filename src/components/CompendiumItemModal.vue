@@ -12,11 +12,6 @@ import { useListenersStore } from '@/stores/listenersOnline'
 import { storeToRefs } from 'pinia'
 import type { CompendiumItemData } from '@/types/api-types'
 
-const props = defineProps<{
-  zIndexClass?: string
-  nestedCompendiumZIndexClass?: string
-}>()
-
 const { _id: characterId } = useInjectedCharacter()
 const { isListening } = storeToRefs(useListenersStore())
 
@@ -58,13 +53,7 @@ async function addToCharacter() {
 defineExpose({ open })
 </script>
 <template>
-  <InfoModal
-    ref="modal"
-    :imageUrl="item?.img"
-    :traits="item?.system?.traits?.value"
-    :rolls="rolls"
-    :zIndexClass="props.zIndexClass"
-  >
+  <InfoModal ref="modal" :imageUrl="item?.img" :traits="item?.system?.traits?.value" :rolls="rolls">
     <template #banner="{ close }">
       <div
         data-part="compendium-banner"
@@ -98,7 +87,6 @@ defineExpose({ open })
         v-else-if="item"
         ref="description"
         :text="item.system?.description?.value"
-        :compendiumZIndexClass="props.nestedCompendiumZIndexClass ?? props.zIndexClass"
       />
       <div v-else class="py-4 text-center text-gray-400">Item not found.</div>
     </template>
