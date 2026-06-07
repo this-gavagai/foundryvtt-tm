@@ -499,7 +499,7 @@ defineExpose({ open, close, isOpen })
             <DialogPanel
               data-component="ChatOverlay"
               data-part="panel"
-              class="flex h-full w-full max-w-3xl flex-col overflow-hidden bg-white shadow-xl transition-all sm:h-[min(760px,calc(100dvh-2rem))] sm:rounded-lg"
+              class="flex h-full w-full max-w-3xl flex-col overflow-hidden bg-white shadow-xl transition-all sm:h-[calc(100dvh-2rem)] sm:rounded-lg"
             >
               <header class="border-divider flex h-14 flex-none items-center gap-3 border-b px-4">
                 <DialogTitle as="h3" class="text-lg leading-6 font-medium text-gray-900">
