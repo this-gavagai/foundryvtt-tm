@@ -2,7 +2,7 @@ import type { ActorPF2e, SpellPF2e } from '@7h3laughingman/pf2e-types'
 import type { GetSpellDamageArgs } from '@/types/api-types'
 import { useBackgroundRoll } from '../backgroundRoll'
 import { getCharacter, getGame, makeAck } from '../utils/foundry'
-import { findSpell } from '../utils/spell'
+import { findSpell } from '../utils/spellLookup'
 import { withDamageModifierOverrides, type ModifierOverrideMap } from './checks/modifierOverrides'
 
 export async function foundryGetSpellDamage(args: GetSpellDamageArgs) {

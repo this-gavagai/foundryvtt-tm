@@ -2,7 +2,7 @@ import type { DamageType, EffectTrait } from '@7h3laughingman/pf2e-types'
 import type { GetStrikeDamageArgs } from '@/types/api-types'
 import { useBackgroundRoll } from '../backgroundRoll'
 import { getCharacter, getGame, makeAck, makeFakeEvent } from '../utils/foundry'
-import type { StrikeActionRuntime } from '../utils/strike'
+import type { StrikeActionRuntime } from '../utils/strikeRuntime'
 import {
   withDamageModifierOverrides,
   discoverDamageDicePrototype,

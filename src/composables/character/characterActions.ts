@@ -4,7 +4,7 @@ import type { Field, WritableField } from './helpers'
 import type { DiceResults, RequestResolutionArgs } from '@/types/api-types'
 import { type Modifier, makeModifiers } from './defs/modifier'
 import { type Action, makeAction } from './defs/action'
-import { characterAction, rollCheck, runActionable, rollDamage } from '@/api/actions'
+import { characterAction, rollCheck, runActionable, rollDamage } from '@/api/actionRpc'
 import { updateActor } from '@/api/documents'
 import { actionTypes } from '@/utils/constants'
 

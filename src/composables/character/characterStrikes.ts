@@ -2,14 +2,14 @@ import { computed, type Ref } from 'vue'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { TablemateCharacter } from '@/types/character-types'
 import type { Field, WritableField } from './helpers'
-import { type Strike, makeStrike, type ElementalBlast, makeElementalBlasts } from './defs/strike'
+import { type Strike, makeStrike, type ElementalBlast, makeElementalBlasts } from './defs/strikeDef'
 import {
   rollCheck,
   getStrikeDamage,
   setWeaponLoaded,
   setWeaponDamageType,
   toggleKineticAura
-} from '@/api/actions'
+} from '@/api/actionRpc'
 import { updateActorItem } from '@/api/documents'
 import type { CharacterStrike, DamageType, WeaponPF2e } from '@7h3laughingman/pf2e-types'
 

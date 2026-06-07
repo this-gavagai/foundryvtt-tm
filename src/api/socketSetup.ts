@@ -16,7 +16,7 @@ import {
 } from './internal'
 import { addRefresh, fireRefresh, parseActorData } from './characterSync'
 import { processChanges } from './documents'
-import { resolveAck } from './actions'
+import { resolveAck } from './actionRpc'
 import { TM } from './protocol'
 
 // ── TM.CHANNEL dispatcher ────────────────────────────────────────────────

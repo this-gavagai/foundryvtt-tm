@@ -1,6 +1,6 @@
 import { logger } from '@/utils/utilities'
 import type { ActorPF2e, Modifier } from '@7h3laughingman/pf2e-types'
-import type { StrikeActionRuntime } from '@/foundry/utils/strike'
+import type { StrikeActionRuntime } from '@/foundry/utils/strikeRuntime'
 import type { CheckRollHandler } from './types'
 import {
   withDamageModifierOverrides,

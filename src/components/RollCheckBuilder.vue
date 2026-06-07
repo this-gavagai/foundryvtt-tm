@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useInjectedCharacter } from '@/composables/injectKeys'
-import { freeRoll } from '@/api/actions'
+import { freeRoll } from '@/api/actionRpc'
 import InfoModal from '@/components/InfoModal.vue'
 import Toggle from '@/components/widgets/ToggleWidget.vue'
 import type { Roll } from '@/types/roll-types'

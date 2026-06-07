@@ -4,7 +4,7 @@ import type { ActiveRoll, RequestResolutionArgs } from '@/types/api-types'
 import type { Roll } from '@/types/roll-types'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { parseDamageFormulaDice, makeDiceResults } from '@/utils/diceFormula'
-import { rollInlineCheck } from '@/api/actions'
+import { rollInlineCheck } from '@/api/actionRpc'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 
 type SaveSlug = 'fortitude' | 'will' | 'reflex'

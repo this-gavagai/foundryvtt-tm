@@ -5,14 +5,14 @@ import { getCharacter, getGame, makeAck, makeFakeEvent } from '../utils/foundry'
 import { resolveTarget } from '../utils/target'
 import { handleBlast, handleBlastDamage } from './checks/blast'
 import { handleFlat } from './checks/flat'
-import { handleSpellAttack, handleSpellDamage } from './checks/spell'
+import { handleSpellAttack, handleSpellDamage } from './checks/spellCheckHandlers'
 import {
   handleInitiative,
   handlePerception,
   handleSave,
   handleSkill
 } from './checks/statistic'
-import { handleStrike, handleStrikeDamage } from './checks/strike'
+import { handleStrike, handleStrikeDamage } from './checks/strikeCheckHandlers'
 import type { CheckRollContext, CheckRollHandler } from './checks/types'
 
 // checkType (wire) → handler. Adding a new check kind is one entry here plus

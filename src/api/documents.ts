@@ -10,7 +10,7 @@ import {
   type DocumentData
 } from './internal'
 import { fireRefresh } from './characterSync'
-import { updateActorRemote } from './actions'
+import { updateActorRemote } from './actionRpc'
 import { useListenersStore } from '@/stores/listenersOnline'
 
 // Foundry document collections that we mutate via the modifyDocument socket.

@@ -16,7 +16,7 @@
 //     runMacro.ts           generic macro execution by UUID
 //     checks/               one file per check kind (strike, blast, …)
 
-export { foundryCharacterAction, foundryFreeRoll, foundrySendItemToChat } from './handlers/actions'
+export { foundryCharacterAction, foundryFreeRoll, foundrySendItemToChat } from './handlers/actionHandlers'
 export { foundrySendChatMessage } from './handlers/chat'
 export { foundryCastSpell, foundryCastStaffSpell, foundryConsumeItem } from './handlers/castSpell'
 export { getCharacterDetails } from './handlers/characterDetails'
@@ -24,7 +24,7 @@ export {
   foundrySetWeaponDamageType,
   foundrySetWeaponLoaded,
   foundryToggleKineticAura
-} from './handlers/equipment'
+} from './handlers/equipmentHandlers'
 export { foundryGetSpellDamage } from './handlers/getSpellDamage'
 export { foundryGetStrikeDamage } from './handlers/getStrikeDamage'
 export { foundryRollCheck } from './handlers/rollCheck'

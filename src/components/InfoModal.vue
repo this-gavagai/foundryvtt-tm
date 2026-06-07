@@ -10,7 +10,7 @@ import {
 } from '@headlessui/vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { useInfoModalRolls } from '@/composables/useInfoModalRolls'
-import { sendItemToChat } from '@/api/actions'
+import { sendItemToChat } from '@/api/actionRpc'
 import { getPath } from '@/utils/utilities'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 import { storeToRefs } from 'pinia'

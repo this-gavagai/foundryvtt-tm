@@ -1,4 +1,4 @@
-import { findSpell } from '@/foundry/utils/spell'
+import { findSpell } from '@/foundry/utils/spellLookup'
 import { makeCastRankEvent } from '@/foundry/utils/roll'
 import { type CheckRollHandler, statisticParams } from './types'
 import {
