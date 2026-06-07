@@ -64,6 +64,6 @@ export async function foundryConsumeItem(args: ConsumeItemArgs) {
   const item = actor.items.get(args.consumableId, { strict: true }) as ConsumablePF2e<
     ActorPF2e<null>
   >
-  item.consume()
+  await item.consume()
   return makeAck(args)
 }

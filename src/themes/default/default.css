@@ -357,6 +357,28 @@ body.theme-default {
         border-color: var(--color-border);
       }
 
+      [data-part='chat-scroll'] {
+        scrollbar-width: thin;
+        scrollbar-color: oklch(32% 0.022 258) transparent;
+
+        &::-webkit-scrollbar {
+          width: 8px;
+        }
+        &::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        &::-webkit-scrollbar-thumb {
+          background-color: oklch(32% 0.022 258);
+          border-radius: 4px;
+          border: 2px solid transparent;
+          background-clip: padding-box;
+        }
+        &::-webkit-scrollbar-thumb:hover {
+          background-color: oklch(42% 0.025 258);
+          background-clip: padding-box;
+        }
+      }
+
       /* Chat message containers */
       [data-part='chat-message'] {
         background-color: oklch(15% 0.018 258);
@@ -612,6 +634,27 @@ body.theme-default {
           border-color: oklch(42% 0.026 258);
           color: oklch(94% 0.008 258);
         }
+      }
+
+      [data-part='chat-roll'] {
+        background-color: oklch(18% 0.02 258);
+        border-color: oklch(36% 0.024 258);
+        color: var(--color-text);
+      }
+
+      [data-part='chat-roll-flavor'] {
+        border-color: oklch(46% 0.055 255);
+        background-color: oklch(25% 0.036 255);
+        color: oklch(88% 0.012 255);
+      }
+
+      [data-part='chat-roll-formula'] {
+        color: oklch(68% 0.012 258);
+      }
+
+      [data-part='chat-roll-dice'] > span {
+        background-color: oklch(24% 0.024 258);
+        color: oklch(86% 0.01 258);
       }
 
       /* Chat composer */

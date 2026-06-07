@@ -109,6 +109,6 @@ export async function foundryFreeRoll(args: FreeRollArgs) {
 export async function foundrySendItemToChat(args: SendItemToChatArgs) {
   const actor = game.actors.get(args.characterId)
   const item = actor?.items?.get(args.itemId)
-  if (item) item.toChat()
+  if (item) await item.toChat()
   return makeAck(args)
 }

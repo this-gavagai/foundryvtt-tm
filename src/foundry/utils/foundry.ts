@@ -3,6 +3,7 @@
 
 import type { CharacterPF2e, GamePF2e } from '@7h3laughingman/pf2e-types'
 import { TM } from '@/api/protocol'
+import { logger } from '@/utils/utilities'
 
 export function getGame(): GamePF2e {
   return (typeof window.game === 'undefined' ? parent.game : window.game) as GamePF2e
@@ -14,6 +15,38 @@ export function getCharacter(source: GamePF2e, id: string): CharacterPF2e {
 
 export function makeAck(args: { uuid: string }) {
   return { action: TM.ACK, uuid: args.uuid, userId: game.user._id }
+}
+
+export function tablemateChatOriginUserId(message: unknown): string | undefined {
+  const document = message as {
+    getFlag?: (scope: string, key: string) => unknown
+    flags?: { tablemate?: { originUserId?: string | null } }
+    'flags.tablemate.originUserId'?: string | null
+  }
+  const flagged = document.getFlag?.('tablemate', 'originUserId')
+  return typeof flagged === 'string'
+    ? flagged
+    : (document.flags?.tablemate?.originUserId ??
+        document['flags.tablemate.originUserId'] ??
+        undefined)
+}
+
+export async function stampTablemateChatOrigin(message: unknown, originUserId: string) {
+  if (!message || tablemateChatOriginUserId(message)) return
+  const document = message as {
+    setFlag?: (scope: string, key: string, value: string) => Promise<unknown>
+    updateSource?: (changes: { flags: { tablemate: { originUserId: string } } }) => unknown
+  }
+  if (typeof document.updateSource === 'function') {
+    document.updateSource({ flags: { tablemate: { originUserId } } })
+  }
+  if (typeof document.setFlag === 'function') {
+    try {
+      await document.setFlag('tablemate', 'originUserId', originUserId)
+    } catch (error) {
+      logger.warn('failed to stamp Tablemate chat origin', error)
+    }
+  }
 }
 
 // Synthesizes the minimal event shape PF2e roll methods inspect. shiftKey is

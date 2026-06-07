@@ -43,13 +43,44 @@ interface ChatMessageData {
   speaker?: ChatSpeaker | null
   whisper?: string[]
   blind?: boolean
-  rolls?: string[]
+  rolls?: Array<string | RollJson>
   type?: string
   flags?: {
     pf2e?: {
       origin?: { uuid?: string | null }
     }
   }
+}
+
+interface RollTermJson {
+  class?: string
+  options?: { flavor?: string | null }
+  formula?: string
+  terms?: RollTermJson[]
+  rolls?: RollJson[]
+  results?: Array<{ result?: number; active?: boolean }>
+  number?: number
+  faces?: number
+  total?: number
+}
+
+interface RollJson extends RollTermJson {
+  dice?: RollTermJson[]
+  evaluated?: boolean
+}
+
+interface ChatRollDie {
+  formula: string
+  flavor?: string
+  results: number[]
+}
+
+interface ChatRollSummary {
+  className?: string
+  formula?: string
+  total?: number
+  flavors: string[]
+  dice: ChatRollDie[]
 }
 
 interface UserData {
@@ -173,6 +204,115 @@ function speakerTokenScale(message: ChatMessageData): { '--sx': number; '--sy': 
     '--sx': texture?.scaleX ?? 1,
     '--sy': texture?.scaleY ?? 1
   }
+}
+
+function parseRollJson(roll: string | RollJson | undefined): RollJson | undefined {
+  if (!roll) return undefined
+  if (typeof roll !== 'string') return roll
+  try {
+    const parsed = JSON.parse(roll)
+    return parsed && typeof parsed === 'object' ? parsed : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function formulaFlavors(formula: string | undefined): string[] {
+  if (!formula) return []
+  return Array.from(formula.matchAll(/\[([^\]]+)\]/g))
+    .flatMap((match) => match[1].split(','))
+    .map((flavor) => flavor.trim())
+    .filter(Boolean)
+}
+
+function collectRollTerms(
+  term: RollTermJson | undefined,
+  out: RollTermJson[] = []
+): RollTermJson[] {
+  if (!term) return out
+  out.push(term)
+  term.terms?.forEach((child) => collectRollTerms(child, out))
+  term.rolls?.forEach((child) => collectRollTerms(child, out))
+  return out
+}
+
+function uniqueStrings(values: Array<string | undefined | null>): string[] {
+  return Array.from(new Set(values.filter((value): value is string => !!value)))
+}
+
+function dieResults(term: RollTermJson): number[] {
+  return (
+    term.results
+      ?.filter((result) => result.active !== false && typeof result.result === 'number')
+      .map((result) => result.result as number) ?? []
+  )
+}
+
+function dieFormula(term: RollTermJson): string | undefined {
+  if (term.formula) return term.formula
+  if (term.number && term.faces) return `${term.number}d${term.faces}`
+  return undefined
+}
+
+function rollSummary(roll: string | RollJson | undefined): ChatRollSummary | undefined {
+  const parsed = parseRollJson(roll)
+  if (!parsed) return undefined
+
+  const terms = collectRollTerms(parsed)
+  const dice = terms
+    .filter((term) => term.class === 'Die' || (term.faces && term.number))
+    .map((term) => ({
+      formula: dieFormula(term) ?? 'die',
+      flavor: term.options?.flavor ?? formulaFlavors(term.formula)[0],
+      results: dieResults(term)
+    }))
+
+  const flavors = uniqueStrings([
+    ...terms.map((term) => term.options?.flavor),
+    ...terms.flatMap((term) => formulaFlavors(term.formula))
+  ])
+
+  if (!dice.length && !flavors.length && !parsed.formula && typeof parsed.total !== 'number') {
+    return undefined
+  }
+
+  return {
+    className: parsed.class,
+    formula: parsed.formula,
+    total: typeof parsed.total === 'number' ? parsed.total : undefined,
+    flavors,
+    dice
+  }
+}
+
+function rollSummaries(message: ChatMessageData): ChatRollSummary[] {
+  return message.rolls?.map(rollSummary).filter((roll): roll is ChatRollSummary => !!roll) ?? []
+}
+
+function rollKindLabel(roll: ChatRollSummary): string {
+  if (roll.className === 'DamageRoll') return 'Damage'
+  if (roll.className === 'CheckRoll') return 'Check'
+  return roll.className?.replace(/Roll$/, '') || 'Roll'
+}
+
+function rollDieLabel(die: ChatRollDie): string {
+  const results = die.results.length ? `: ${die.results.join(', ')}` : ''
+  return `${die.formula}${results}`
+}
+
+function plainChatText(content: string): string {
+  return content
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .trim()
+}
+
+function shouldShowMessageContent(message: ChatMessageData): boolean {
+  if (!message.content) return false
+  const summaries = rollSummaries(message)
+  if (!summaries.length) return true
+  const contentText = plainChatText(message.content)
+  return !summaries.some((roll) => roll.total !== undefined && contentText === String(roll.total))
 }
 
 function openInlineRoll(roll: ActiveRoll | undefined) {
@@ -345,7 +485,11 @@ defineExpose({ open, close, isOpen })
                 </button>
               </header>
 
-              <div ref="scrollContainer" class="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
+              <div
+                ref="scrollContainer"
+                data-part="chat-scroll"
+                class="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4"
+              >
                 <div
                   v-if="messages.length === 0"
                   class="px-3 py-8 text-center text-gray-500 italic"
@@ -412,13 +556,66 @@ defineExpose({ open, close, isOpen })
                       @click="handleChatContentClick($event)"
                     />
                     <div
-                      v-if="message.content"
+                      v-if="shouldShowMessageContent(message)"
                       data-part="chat-content"
                       class="mt-2 text-sm text-gray-900"
                       v-html="prepareChatHtml(message.content)"
                       @click="(handleChatContentClick($event), handleCardButtonClick($event))"
                     />
-                    <div v-else class="mt-2 text-sm text-gray-500 italic">
+                    <div
+                      v-if="rollSummaries(message).length"
+                      data-part="chat-rolls"
+                      class="mt-2 space-y-2"
+                    >
+                      <div
+                        v-for="(roll, rollIndex) in rollSummaries(message)"
+                        :key="`${messageKey(message, index)}-roll-${rollIndex}`"
+                        data-part="chat-roll"
+                        class="rounded border border-gray-200 bg-white px-3 py-2 text-sm"
+                      >
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                            {{ rollKindLabel(roll) }}
+                          </span>
+                          <span v-if="roll.total !== undefined" class="text-lg font-semibold">
+                            {{ roll.total }}
+                          </span>
+                          <span
+                            v-for="flavor in roll.flavors"
+                            :key="flavor"
+                            data-part="chat-roll-flavor"
+                            class="rounded-sm border border-gray-300 px-1.5 py-0.5 text-xs capitalize"
+                          >
+                            {{ flavor }}
+                          </span>
+                        </div>
+                        <div
+                          v-if="roll.formula"
+                          data-part="chat-roll-formula"
+                          class="mt-1 font-mono text-xs break-words text-gray-500"
+                        >
+                          {{ roll.formula }}
+                        </div>
+                        <div
+                          v-if="roll.dice.length"
+                          data-part="chat-roll-dice"
+                          class="mt-2 flex flex-wrap gap-1.5"
+                        >
+                          <span
+                            v-for="(die, dieIndex) in roll.dice"
+                            :key="dieIndex"
+                            class="rounded-sm bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-gray-700"
+                            :title="die.flavor"
+                          >
+                            {{ rollDieLabel(die) }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      v-if="!shouldShowMessageContent(message) && !rollSummaries(message).length"
+                      class="mt-2 text-sm text-gray-500 italic"
+                    >
                       {{ $t('chat.emptyMessage') }}
                     </div>
                   </li>

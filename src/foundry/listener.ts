@@ -26,10 +26,15 @@ import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
 import { logger } from '@/utils/utilities'
 import { TM } from '@/api/protocol'
+import { stampTablemateChatOrigin } from './utils/foundry'
 
 type GetEvent = { action: 'get' }
 
 declare const game: GamePF2e
+declare const Hooks: {
+  on: (event: string, cb: (...args: unknown[]) => void) => number
+  off: (event: string, id: number) => void
+}
 
 // Map of TM action → Foundry-side handler. Handler args are narrowed via
 // Extract<ModuleEventArgs, { action: K }>, so each handler is type-checked
@@ -74,6 +79,40 @@ const PASSIVE_ACTIONS = new Set<string>([
 ])
 
 const getChar: Record<string, (args: RequestCharacterDetailsArgs) => void> = {}
+
+function stampChatOrigin(message: unknown, data: unknown, originUserId: string) {
+  const sourceUpdate = { flags: { tablemate: { originUserId } } }
+  const document = message as { updateSource?: (changes: typeof sourceUpdate) => unknown }
+  if (typeof document.updateSource === 'function') {
+    document.updateSource(sourceUpdate)
+    return
+  }
+
+  if (!data || typeof data !== 'object') return
+  const source = data as {
+    flags?: { tablemate?: Record<string, unknown>; [key: string]: unknown }
+  }
+  source.flags ??= {}
+  source.flags.tablemate = {
+    ...source.flags.tablemate,
+    originUserId
+  }
+}
+
+async function withChatOrigin<T>(originUserId: string, run: () => Promise<T>): Promise<T> {
+  const preHookId = Hooks.on('preCreateChatMessage', (message, data) => {
+    stampChatOrigin(message, data, originUserId)
+  })
+  const createHookId = Hooks.on('createChatMessage', (message) => {
+    stampTablemateChatOrigin(message, originUserId)
+  })
+  try {
+    return await run()
+  } finally {
+    Hooks.off('preCreateChatMessage', preHookId)
+    Hooks.off('createChatMessage', createHookId)
+  }
+}
 
 export function setupListener() {
   logger.info('TABLEMATE: Setting up listener')
@@ -135,7 +174,9 @@ export function setupListener() {
       | ((a: ModuleEventArgs) => Promise<unknown>)
       | undefined
     if (handler) {
-      handler(args).then((result) => game.socket.emit(TM.CHANNEL, result))
+      withChatOrigin(args.userId, () => handler(args)).then((result) =>
+        game.socket.emit(TM.CHANNEL, result)
+      )
     } else {
       logger.warn('event not caught', args.action, args)
     }

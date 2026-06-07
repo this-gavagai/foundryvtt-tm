@@ -32,7 +32,7 @@ export function useBackgroundRoll(diceResults = {}) {
   }
 
   function registerBackgroundRoll() {
-    libWrapper.unregister_all(appName)
+    if (registrationId) libWrapper.unregister(appName, registrationId)
     registrationId = libWrapper.register(appName, 'Roll.prototype.evaluate', customRollEvaluate)
   }
   function unregisterBackgroundRoll() {
