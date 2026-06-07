@@ -656,6 +656,37 @@ body.theme-default {
         color: oklch(68% 0.012 258);
       }
 
+      [data-part='chat-damage-actions'] {
+        button {
+          background-color: oklch(24% 0.024 258);
+          border-color: oklch(42% 0.026 258);
+          color: var(--color-text);
+        }
+
+        button:hover:not(:disabled) {
+          background-color: oklch(29% 0.026 258);
+        }
+
+        button:active:not(:disabled) {
+          background-color: oklch(34% 0.026 258);
+        }
+
+        button[data-action='damage'] {
+          border-color: oklch(48% 0.12 28);
+          color: oklch(88% 0.055 28);
+        }
+
+        button[data-action='heal'] {
+          border-color: oklch(52% 0.1 155);
+          color: oklch(88% 0.05 155);
+        }
+
+        button[data-action='block'] {
+          border-color: oklch(52% 0.09 245);
+          color: oklch(88% 0.045 245);
+        }
+      }
+
       /* Chat composer */
       [data-part='chat-composer'] {
         border-color: var(--color-border);

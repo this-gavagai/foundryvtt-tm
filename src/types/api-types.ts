@@ -28,6 +28,7 @@ export type ModuleEventArgs =
   | GetSpellDamageArgs
   | GetCompendiumItemArgs
   | AddCompendiumItemArgs
+  | ApplyDamageArgs
 
 export interface AcknowledgementArgs {
   action: typeof TM.ACK
@@ -280,6 +281,17 @@ export interface AddCompendiumItemArgs {
   userId: string
   characterId: string
   itemUuid: string
+}
+
+export interface ApplyDamageArgs {
+  action: typeof TM.APPLY_DAMAGE
+  uuid: string
+  userId: string
+  characterId: string
+  messageId: string
+  // 1 = full damage, 0.5 = half, 2 = double, -1 = heal (healing-typed roll)
+  multiplier: number
+  rollIndex?: number
 }
 
 export interface RollInlineCheckArgs {

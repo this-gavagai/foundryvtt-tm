@@ -248,7 +248,12 @@
     "sending": "Wird gesendet...",
     "sendFailed": "Nachricht konnte nicht gesendet werden.",
     "blind": "Verdeckt",
-    "whisper": "Flüstern"
+    "whisper": "Flüstern",
+    "damage": "Schaden",
+    "half": "Halb",
+    "double": "Doppelt",
+    "block": "Blocken",
+    "heal": "Heilen"
   },
   "sideMenu": {
     "closeSidebar": "Seitenleiste schließen",

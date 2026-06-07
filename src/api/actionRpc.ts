@@ -299,3 +299,16 @@ export const getCompendiumItem = (itemUuid: string) =>
 
 export const addCompendiumItem = (characterId: string, itemUuid: string) =>
   sendAction(TM.ADD_COMPENDIUM_ITEM, { characterId, itemUuid })
+
+export const applyDamage = (
+  actor: Ref<CharacterPF2e>,
+  messageId: string,
+  multiplier: number,
+  rollIndex?: number
+) =>
+  sendAction(TM.APPLY_DAMAGE, {
+    ...fromActor(actor),
+    messageId,
+    multiplier,
+    rollIndex
+  })

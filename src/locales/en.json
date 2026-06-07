@@ -249,7 +249,12 @@
     "sending": "Sending...",
     "sendFailed": "Could not send message.",
     "blind": "Blind",
-    "whisper": "Whisper"
+    "whisper": "Whisper",
+    "damage": "Damage",
+    "half": "Half",
+    "double": "Double",
+    "block": "Block",
+    "heal": "Heal"
   },
   "sideMenu": {
     "closeSidebar": "Close sidebar",

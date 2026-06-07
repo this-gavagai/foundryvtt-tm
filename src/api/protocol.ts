@@ -35,5 +35,6 @@ export const TM = {
   RUN_ACTIONABLE: 'runActionable',
   GET_SPELL_DAMAGE: 'getSpellDamage',
   GET_COMPENDIUM_ITEM: 'getCompendiumItem',
-  ADD_COMPENDIUM_ITEM: 'addCompendiumItem'
+  ADD_COMPENDIUM_ITEM: 'addCompendiumItem',
+  APPLY_DAMAGE: 'applyDamage'
 } as const

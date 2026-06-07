@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
 import { PaperAirplaneIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useWorldStore } from '@/stores/world'
-import { sendChatMessage, consumeItem } from '@/api/actionRpc'
+import { sendChatMessage, consumeItem, applyDamage } from '@/api/actionRpc'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { useOverlayStack } from '@/composables/useOverlayStack'
@@ -60,7 +60,7 @@ interface ChatMessageData {
 
 interface RollTermJson {
   class?: string
-  options?: { flavor?: string | null }
+  options?: { flavor?: string | null; [key: string]: unknown }
   formula?: string
   terms?: RollTermJson[]
   rolls?: RollJson[]
@@ -68,6 +68,7 @@ interface RollTermJson {
   number?: number
   faces?: number
   total?: number
+  [key: string]: unknown
 }
 
 interface RollJson extends RollTermJson {
@@ -88,6 +89,7 @@ interface ChatRollSummary {
   total?: number
   flavors: string[]
   dice: ChatRollDie[]
+  isHealing: boolean
 }
 
 interface UserData {
@@ -116,7 +118,8 @@ const isOpen = ref(false)
 const scrollContainer = ref<HTMLElement>()
 const { zIndex, openLayer, closeLayer } = useOverlayStack()
 const { world } = storeToRefs(useWorldStore())
-const { _id, _actor } = useInjectedCharacter()
+const character = useInjectedCharacter()
+const { _id, _actor, hp, shield } = character
 const draft = ref('')
 const isSending = ref(false)
 const sendError = ref(false)
@@ -242,6 +245,22 @@ function formulaFlavors(formula: string | undefined): string[] {
     .filter(Boolean)
 }
 
+function stringValue(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined
+}
+
+function termDamageType(term: RollTermJson): string | undefined {
+  const options = term.options ?? {}
+  return (
+    stringValue(term.damageType) ??
+    stringValue(term.type) ??
+    stringValue(options.damageType) ??
+    stringValue(options.type) ??
+    stringValue(options.flavor) ??
+    formulaFlavors(term.formula)[0]
+  )
+}
+
 function collectRollTerms(
   term: RollTermJson | undefined,
   out: RollTermJson[] = []
@@ -289,6 +308,7 @@ function rollSummary(roll: string | RollJson | undefined): ChatRollSummary | und
     ...terms.map((term) => term.options?.flavor),
     ...terms.flatMap((term) => formulaFlavors(term.formula))
   ])
+  const damageTypes = uniqueStrings(terms.map(termDamageType))
 
   if (!dice.length && !flavors.length && !parsed.formula && typeof parsed.total !== 'number') {
     return undefined
@@ -299,7 +319,8 @@ function rollSummary(roll: string | RollJson | undefined): ChatRollSummary | und
     formula: parsed.formula,
     total: typeof parsed.total === 'number' ? parsed.total : undefined,
     flavors,
-    dice
+    dice,
+    isHealing: damageTypes.some((type) => type.toLowerCase() === 'healing')
   }
 }
 
@@ -332,6 +353,54 @@ function rollDieIcon(die: ChatRollDie): string {
 
 function rollFlavorLabel(roll: ChatRollSummary): string {
   return roll.flavors.length ? ` [${roll.flavors.map(rollDisplayText).join(', ')}]` : ''
+}
+
+function canApplyDamage(roll: ChatRollSummary): boolean {
+  return roll.className === 'DamageRoll' && roll.total !== undefined && !!_actor.value
+}
+
+function canShieldBlock(): boolean {
+  return (
+    !!shield.itemId.value && (shield.hp.current.value ?? 0) > 0 && (shield.hardness.value ?? 0) > 0
+  )
+}
+
+function damageAmount(roll: ChatRollSummary, multiplier = 1): number {
+  return Math.max(0, Math.floor((roll.total ?? 0) * multiplier))
+}
+
+function applyCharacterDamage(amount: number) {
+  if (hp.current.value === undefined || hp.temp.value === undefined) return
+  const tempAbsorbed = Math.min(hp.temp.value, amount)
+  const remaining = amount - tempAbsorbed
+  const nextTemp = hp.temp.value - tempAbsorbed
+  const nextHp = Math.max(hp.current.value - remaining, 0)
+  if (nextTemp !== hp.temp.value) hp.temp.value = nextTemp
+  if (nextHp !== hp.current.value) hp.current.value = nextHp
+}
+
+function applyShieldBlock(amount: number) {
+  if (!canShieldBlock() || shield.hp.current.value === undefined) return
+  const blockedAmount = Math.max(0, amount - (shield.hardness.value ?? 0))
+  applyCharacterDamage(blockedAmount)
+  const nextShieldHp = Math.max(shield.hp.current.value - blockedAmount, 0)
+  if (nextShieldHp !== shield.hp.current.value) shield.hp.current.value = nextShieldHp
+}
+
+function applyDamageRoll(
+  message: ChatMessageData,
+  roll: ChatRollSummary,
+  rollIndex: number,
+  mode: 'damage' | 'half' | 'double' | 'block' | 'heal'
+) {
+  if (!canApplyDamage(roll)) return
+  if (mode === 'block') {
+    applyShieldBlock(damageAmount(roll))
+    return
+  }
+  if (!message._id) return
+  const multiplier = mode === 'half' ? 0.5 : mode === 'double' ? 2 : mode === 'heal' ? -1 : 1
+  applyDamage(_actor as Ref<CharacterPF2e>, message._id, multiplier, rollIndex)
 }
 
 function plainChatText(content: string): string {
@@ -672,6 +741,56 @@ defineExpose({ open, close, isOpen })
                           >
                             {{ rollFlavorLabel(roll) }}
                           </span>
+                        </div>
+                        <div
+                          v-if="canApplyDamage(roll)"
+                          data-part="chat-damage-actions"
+                          class="mt-2 flex flex-wrap gap-1.5"
+                        >
+                          <button
+                            v-if="roll.isHealing"
+                            type="button"
+                            data-action="heal"
+                            class="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 active:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+                            @click="applyDamageRoll(message, roll, rollIndex, 'heal')"
+                          >
+                            {{ $t('chat.heal') }}
+                          </button>
+                          <template v-else>
+                            <button
+                              type="button"
+                              data-action="damage"
+                              class="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-800 transition-colors hover:bg-red-100 active:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+                              @click="applyDamageRoll(message, roll, rollIndex, 'damage')"
+                            >
+                              {{ $t('chat.damage') }}
+                            </button>
+                            <button
+                              type="button"
+                              data-action="half"
+                              class="rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                              @click="applyDamageRoll(message, roll, rollIndex, 'half')"
+                            >
+                              {{ $t('chat.half') }}
+                            </button>
+                            <button
+                              type="button"
+                              data-action="double"
+                              class="rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                              @click="applyDamageRoll(message, roll, rollIndex, 'double')"
+                            >
+                              {{ $t('chat.double') }}
+                            </button>
+                            <button
+                              type="button"
+                              data-action="block"
+                              class="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-100 active:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
+                              :disabled="!canShieldBlock()"
+                              @click="applyDamageRoll(message, roll, rollIndex, 'block')"
+                            >
+                              {{ $t('chat.block') }}
+                            </button>
+                          </template>
                         </div>
                       </div>
                     </div>
