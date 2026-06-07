@@ -22,6 +22,7 @@ export const TM = {
   CAST_SPELL: 'castSpell',
   CONSUME_ITEM: 'consumeItem',
   GET_STRIKE_DAMAGE: 'getStrikeDamage',
+  SEND_CHAT_MESSAGE: 'sendChatMessage',
   SEND_ITEM_TO_CHAT: 'sendItemToChat',
   SET_WEAPON_LOADED: 'setWeaponLoaded',
   SET_WEAPON_DAMAGE_TYPE: 'setWeaponDamageType',

@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { capitalize } from 'lodash-es'
 import type { InventoryItem } from '@/composables/character'
+import type { ActiveRoll } from '@/types/api-types'
 
 import ChoiceWidget from '@/components/widgets/ChoiceWidget.vue'
 import CounterWidget from '@/components/widgets/CounterWidget.vue'
@@ -18,10 +19,18 @@ const props = defineProps<{
   hideCarryType?: boolean
   inventoryMode?: 'individual' | 'party'
 }>()
-const emit = defineEmits<{ moveToInventory: [target: 'individual' | 'party'] }>()
+const emit = defineEmits<{
+  moveToInventory: [target: 'individual' | 'party']
+  'update:activeRoll': [roll: ActiveRoll | undefined]
+}>()
 
 const description = ref<InstanceType<typeof ParsedDescription>>()
-const activeRoll = computed(() => description.value?.activeRoll)
+const activeRoll = ref<ActiveRoll>()
+
+function updateActiveRoll(roll: ActiveRoll | undefined) {
+  activeRoll.value = roll
+  emit('update:activeRoll', roll)
+}
 
 const itemWornType = computed(() => {
   if (props.item?.type === 'armor') return 'Armor'
@@ -97,7 +106,7 @@ function selectCarry(newChoice: string) {
   return carryChoices.value.find((choice) => choice.id === newChoice)?.toggleTrigger()
 }
 
-defineExpose({ activeRoll })
+defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
 </script>
 
 <template>
@@ -208,6 +217,7 @@ defineExpose({ activeRoll })
       :text="item?.system?.description.value"
       :labels="labels"
       :itemId="item?._id ?? undefined"
+      @update:activeRoll="updateActiveRoll"
     />
     <div class="flex">
       <div class="flex-1 text-xl">Qty: {{ item?.system?.quantity }}</div>

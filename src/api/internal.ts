@@ -18,9 +18,18 @@ export function mergeWithArrayReset(_objValue: unknown, srcValue: unknown) {
   if (Array.isArray(srcValue)) return srcValue
 }
 
-// EmbeddedCollection (Map-based) is not structurally compatible with a plain
-// mutable array, but Foundry hands us plain arrays at runtime. This helper
-// centralises the unavoidable double cast in one place.
-export function asDocumentArray(col: unknown): DocumentData[] {
-  return col as unknown as DocumentData[]
+// Foundry may hand us plain arrays or collection-like objects with a
+// `contents` array. Socket update handlers need the mutable backing array,
+// not the collection wrapper itself.
+export function asDocumentArray(col: unknown): DocumentData[] | undefined {
+  if (!col) return undefined
+  if (Array.isArray(col)) return col as DocumentData[]
+  if (
+    typeof col === 'object' &&
+    'contents' in col &&
+    Array.isArray((col as { contents?: unknown }).contents)
+  ) {
+    return (col as { contents: DocumentData[] }).contents
+  }
+  return col as DocumentData[]
 }

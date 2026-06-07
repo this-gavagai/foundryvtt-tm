@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { Action } from '@/composables/character'
+import type { ActiveRoll } from '@/types/api-types'
 import { actionTypes } from '@/utils/constants'
-import { ref, computed } from 'vue'
+import { nextTick, ref, computed } from 'vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
@@ -14,8 +15,9 @@ import InfoModal from '@/components/InfoModal.vue'
 import ParsedDescription from './ParsedDescription.vue'
 
 const infoModal = ref()
-const description = ref()
-const inlineRolls = useRollsFromActiveRoll(computed(() => description.value?.activeRoll))
+const description = ref<InstanceType<typeof ParsedDescription>>()
+const activeRoll = ref<ActiveRoll>()
+const inlineRolls = useRollsFromActiveRoll(activeRoll)
 
 const character = useInjectedCharacter()
 const { actions, rollOptionLabels } = character
@@ -26,8 +28,10 @@ const actionViewedId = ref<string | undefined>()
 const actionViewed = computed(() => actions.value?.find((a) => a._id === actionViewedId.value))
 
 function viewAction(action: Action) {
+  activeRoll.value = undefined
   actionViewedId.value = action._id
   infoModal.value.open()
+  nextTick(() => description.value?.initRolls())
 }
 
 // "Use" the currently-viewed action. If it has a PF2e-toolbelt actionable
@@ -43,7 +47,12 @@ function useViewedAction() {
 <template>
   <div data-component="ActionsList">
     <div class="break-inside-avoid-column py-4">
-      <div :data-section="group.type" class="pb-4 [&:not(:has(li))]:hidden" v-for="group in actionTypes" :key="group.type">
+      <div
+        :data-section="group.type"
+        class="pb-4 [&:not(:has(li))]:hidden"
+        v-for="group in actionTypes"
+        :key="group.type"
+      >
         <h3 class="text-lg underline">{{ $t(group.titleKey) }}</h3>
         <ul>
           <li
@@ -92,6 +101,7 @@ function useViewedAction() {
             :text="actionViewed?.system?.description.value"
             :labels="rollOptionLabels"
             :itemId="actionViewed?._id ?? undefined"
+            @update:activeRoll="activeRoll = $event"
           />
         </template>
         <template #actionButtons v-if="isListening">

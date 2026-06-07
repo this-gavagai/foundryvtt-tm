@@ -1,4 +1,5 @@
 import type { Ref } from 'vue'
+import { triggerRef } from 'vue'
 import { mergeWith } from 'lodash-es'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type { GamePF2e } from '@7h3laughingman/pf2e-types'
@@ -11,8 +12,7 @@ import {
   getSocket,
   mergeWithArrayReset,
   asDocumentArray,
-  type ModifyDocumentUpdate,
-  type DocumentData
+  type ModifyDocumentUpdate
 } from './internal'
 import { addRefresh, fireRefresh, parseActorData } from './characterSync'
 import { processChanges } from './documents'
@@ -96,15 +96,18 @@ export async function setupSocketListenersForWorld(world: Ref<GamePF2e>) {
     switch (args.type) {
       case 'Combat':
         processChanges(args, asDocumentArray(world.value?.combats))
+        triggerRef(world)
         break
       case 'Combatant': {
         const combatId = args.operation.parentUuid?.split('.')?.[1]
         const combat = world.value?.combats.find((c) => c._id === combatId)
         processChanges(args, asDocumentArray(combat?.combatants))
+        triggerRef(world)
         break
       }
       case 'ChatMessage':
         processChanges(args, asDocumentArray(world.value?.messages))
+        triggerRef(world)
         break
     }
   }

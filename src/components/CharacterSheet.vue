@@ -106,8 +106,11 @@ defineExpose({ actor, character, actorOrWorldActor })
 <template>
   <div class="flex h-dvh select-none" v-if="userHasActorPermission">
     <!-- show this column only if on a tablet or laptop -->
-    <div data-part="sheet-left" class="border-divider hidden border-r md:block md:h-dvh md:w-80 md:overflow-auto">
-      <CharacterHeader class="sticky top-0 z-10 h-32" />
+    <div
+      data-part="sheet-left"
+      class="border-divider hidden border-r md:block md:h-dvh md:w-80 md:overflow-auto"
+    >
+      <CharacterHeader class="sticky top-0 z-10 h-32" @chat-activated="sideMenu.openChat()" />
       <FrontPage />
     </div>
     <!-- show this column on all devices -->
@@ -122,6 +125,7 @@ defineExpose({ actor, character, actorOrWorldActor })
           <CharacterHeader
             class="sticky top-0 z-10 h-32 md:hidden"
             @sidebar-activated="sideMenu.sidebarOpen = true"
+            @chat-activated="sideMenu.openChat()"
           />
           <CharacterPanel
             v-for="tab in tabs"
@@ -132,7 +136,10 @@ defineExpose({ actor, character, actorOrWorldActor })
             <component :is="tab.content" />
           </CharacterPanel>
         </TabPanels>
-        <TabList data-part="tab-bar" class="border-divider bottom-0 flex h-24 justify-around border-t border-b">
+        <TabList
+          data-part="tab-bar"
+          class="border-divider bottom-0 flex h-24 justify-around border-t border-b"
+        >
           <CharacterTab
             v-for="tab in tabs"
             :key="tab.label"

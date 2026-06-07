@@ -1,4 +1,4 @@
-import type { ActionUseOptions } from '@7h3laughingman/pf2e-types'
+import type { ActionUseOptions, ActorPF2e, Statistic } from '@7h3laughingman/pf2e-types'
 import type {
   CharacterActionArgs,
   FreeRollArgs,
@@ -8,6 +8,8 @@ import { logger } from '@/utils/utilities'
 import { useBackgroundRoll } from '../backgroundRoll'
 import { getGame, makeAck, makeFakeEvent } from '../utils/foundry'
 import type { FoundryRoll } from '../utils/roll'
+import { resolveTarget } from '../utils/target'
+import { withModifierOverrides } from './checks/modifierOverrides'
 
 // Narrowed shadow over the ambient Roll global from foundry-types. The
 // generic Foundry Roll has total as optional; FoundryRoll narrows it to
@@ -17,32 +19,55 @@ declare const Roll: new (formula: string) => FoundryRoll
 export async function foundryCharacterAction(args: CharacterActionArgs) {
   const source = getGame()
   const actor = source.actors.get(args.characterId, { strict: true })
-  const targetTokenDoc =
-    args.targets.map((t: string) => source.scenes.active?.tokens.get(t))[0] ?? null
+
+  // Use the actor-proxy pattern so PF2e's statistic API resolves the target's
+  // token via getActiveTokens() rather than reading game.user.targets, which
+  // on the handler machine reflects the GM's (or proxy's) own UI state.
   // tricky code: https://github.com/foundryvtt/pf2e/blob/2eaef272f3e17f340eba1b7f2dc82e857d8d296e/src/module/actor/actions/single-check.ts#L160
+  const { token, actorProxy } = resolveTarget(source, args.targets)
   const params = {
     ...args.options,
     actors: actor,
-    target: targetTokenDoc?.object,
+    target: actorProxy ?? token,
     event: makeFakeEvent(source)
   }
 
   const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll(args.diceResults)
   registerBackgroundRoll()
 
-  const promise = source.pf2e.actions
-    .get(args.characterAction)
-    ?.use(params as unknown as Partial<ActionUseOptions>)
+  const getStatistic = args.statisticSlug
+    ? (a: ActorPF2e): Statistic | null =>
+        (a as ActorPF2e & { skills?: Record<string, Statistic> }).skills?.[args.statisticSlug!] ??
+        (a as ActorPF2e & { saves?: Record<string, Statistic> }).saves?.[args.statisticSlug!] ??
+        (args.statisticSlug === 'perception'
+          ? (a as ActorPF2e & { perception?: Statistic }).perception ?? null
+          : null)
+    : undefined
+
   type ActionResult = {
     message?: { whisper?: string[] }
     roll?: { formula: unknown; result: unknown; total: unknown; dice: unknown }
   }
-  const r = (await promise) as ActionResult[] | undefined
-  logger.debug(r, promise, args.characterAction)
+
+  let r: ActionResult[] | undefined
+  try {
+    r = (await withModifierOverrides(
+      actor,
+      getStatistic ?? (() => null),
+      args.modifierOverrides,
+      () =>
+        source.pf2e.actions
+          .get(args.characterAction)
+          ?.use(params as unknown as Partial<ActionUseOptions>) as Promise<ActionResult[]>
+    )) as ActionResult[] | undefined
+  } finally {
+    unregisterBackgroundRoll()
+  }
+
+  logger.debug(r, args.characterAction)
   const isSecret =
     (r?.[0]?.message?.whisper?.length ?? 0) > 0 && !r?.[0]?.message?.whisper?.includes(args.userId)
   const { formula, result, total, dice } = r?.[0]?.roll ?? {}
-  unregisterBackgroundRoll()
   return { ...makeAck(args), roll: { formula, result, total, dice, isSecret } }
 }
 

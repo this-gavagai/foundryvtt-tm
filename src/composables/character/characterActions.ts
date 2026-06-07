@@ -12,7 +12,9 @@ export interface CharacterActions {
   doCharacterAction: (
     slug: string,
     options?: object | undefined,
-    rollResult?: number | undefined
+    rollResult?: number | undefined,
+    modifierOverrides?: Record<string, boolean>,
+    statisticSlug?: string
   ) => Promise<RequestResolutionArgs | null>
   doDamage: (
     formula: string,
@@ -39,11 +41,13 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
   const doCharacterAction = (
     slug: string,
     options: object | undefined = {},
-    rollResult: number | undefined = undefined
+    rollResult: number | undefined = undefined,
+    modifierOverrides?: Record<string, boolean>,
+    statisticSlug?: string
   ) => {
     return characterAction(actor as Ref<CharacterPF2e>, slug, options ?? {}, {
       d20: [rollResult ?? 0]
-    })
+    }, modifierOverrides, statisticSlug)
   }
   const actions = computed(() =>
     actor.value?.items

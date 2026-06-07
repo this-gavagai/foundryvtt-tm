@@ -5,6 +5,7 @@
 //   handlers/
 //     actions.ts            characterAction, sendItemToChat, freeRoll
 //     castSpell.ts          castSpell, castStaffSpell, consumeItem
+//     chat.ts               sendChatMessage
 //     characterDetails.ts   getCharacterDetails (+ serialization helpers)
 //     equipment.ts          setWeaponLoaded, setWeaponDamageType, toggleKineticAura
 //     getSpellDamage.ts     getSpellDamage formula preview
@@ -15,16 +16,9 @@
 //     runMacro.ts           generic macro execution by UUID
 //     checks/               one file per check kind (strike, blast, …)
 
-export {
-  foundryCharacterAction,
-  foundryFreeRoll,
-  foundrySendItemToChat
-} from './handlers/actions'
-export {
-  foundryCastSpell,
-  foundryCastStaffSpell,
-  foundryConsumeItem
-} from './handlers/castSpell'
+export { foundryCharacterAction, foundryFreeRoll, foundrySendItemToChat } from './handlers/actions'
+export { foundrySendChatMessage } from './handlers/chat'
+export { foundryCastSpell, foundryCastStaffSpell, foundryConsumeItem } from './handlers/castSpell'
 export { getCharacterDetails } from './handlers/characterDetails'
 export {
   foundrySetWeaponDamageType,

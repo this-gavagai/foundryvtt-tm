@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
-import { Cog6ToothIcon, XMarkIcon } from '@heroicons/vue/24/solid'
+import { ChatBubbleLeftRightIcon, Cog6ToothIcon, XMarkIcon } from '@heroicons/vue/24/solid'
 import { storeToRefs } from 'pinia'
 import { useServerStore } from '@/stores/server'
 import { useListenersStore } from '@/stores/listenersOnline'
@@ -20,8 +19,8 @@ import DamageRollBuilder from './DamageRollBuilder.vue'
 import RollCheckBuilder from './RollCheckBuilder.vue'
 import SettingsModal from './SettingsModal.vue'
 import Modal from './ModalBox.vue'
+import ChatOverlay from './ChatOverlay.vue'
 
-const { t } = useI18n()
 const { isConnected } = storeToRefs(useServerStore())
 const { isListening } = storeToRefs(useListenersStore())
 const { world, worldActive } = storeToRefs(useWorldStore())
@@ -97,25 +96,32 @@ function openSettings() {
   settingsModal.value?.open()
 }
 
-defineExpose({ sidebarOpen })
+const chatOverlay = ref<InstanceType<typeof ChatOverlay>>()
+function openChat() {
+  sidebarOpen.value = false
+  chatOverlay.value?.open()
+}
+
+defineExpose({ sidebarOpen, openChat })
 </script>
 <template>
-  <TransitionRoot as="template" :show="sidebarOpen">
-    <Dialog as="div" class="relative z-50" @close="sidebarOpen = false">
-      <TransitionChild
-        as="template"
-        enter="transition-opacity ease-linear duration-300"
-        enter-from="opacity-0"
-        enter-to="opacity-100"
-        leave="transition-opacity ease-linear duration-300"
-        leave-from="opacity-100"
-        leave-to="opacity-0"
-      >
-        <div class="fixed inset-0 bg-gray-900/80" />
-      </TransitionChild>
+  <div data-component="SideMenu">
+    <TransitionRoot as="template" :show="sidebarOpen">
+      <Dialog as="div" class="relative z-50" @close="sidebarOpen = false">
+        <TransitionChild
+          as="template"
+          enter="transition-opacity ease-linear duration-300"
+          enter-from="opacity-0"
+          enter-to="opacity-100"
+          leave="transition-opacity ease-linear duration-300"
+          leave-from="opacity-100"
+          leave-to="opacity-0"
+        >
+          <div class="fixed inset-0 bg-gray-900/80" />
+        </TransitionChild>
 
-      <div class="fixed inset-0 flex justify-end">
-        <!-- <TransitionChild
+        <div class="fixed inset-0 flex justify-end">
+          <!-- <TransitionChild
         as="template"
         enter="transition ease-in-out duration-300 transform"
         enter-from="-translate-x-full"
@@ -124,177 +130,198 @@ defineExpose({ sidebarOpen })
         leave-from="translate-x-0"
         leave-to="-translate-x-full"
       > -->
-        <TransitionChild
-          as="template"
-          enter="transition ease-in-out duration-300 transform"
-          enter-from="translate-x-full"
-          enter-to="translate-x-0"
-          leave="transition ease-in-out duration-300 transform"
-          leave-from="translate-x-0"
-          leave-to="translate-x-full"
-        >
-          <DialogPanel class="relative ml-16 flex w-full max-w-xs flex-1">
-            <TransitionChild
-              as="template"
-              enter="ease-in-out duration-300"
-              enter-from="opacity-0"
-              enter-to="opacity-100"
-              leave="ease-in-out duration-300"
-              leave-from="opacity-100"
-              leave-to="opacity-0"
-            >
-              <div class="absolute top-0 -left-16 flex w-16 justify-center pt-5">
-                <button type="button" class="-m-2.5 p-2.5" @click="sidebarOpen = false">
-                  <span class="sr-only">{{ $t('sideMenu.closeSidebar') }}</span>
-                  <XMarkIcon class="h-6 w-6 text-white" aria-hidden="true" />
-                </button>
-              </div>
-            </TransitionChild>
-            <div
-              class="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4"
-              data-part="panel"
-            >
-              <nav class="flex flex-1 flex-col">
-                <ul role="list" class="flex flex-1 flex-col gap-y-7 pt-4">
-                  <li>
-                    <div class="flex items-center gap-2">
-                      <span
-                        data-part="connection-dot"
-                        :data-state="connectionState"
-                        :class="{ 'animate-pulse': connectionState !== 'ok' }"
-                        class="h-2.5 w-2.5 flex-none rounded-full"
+          <TransitionChild
+            as="template"
+            enter="transition ease-in-out duration-300 transform"
+            enter-from="translate-x-full"
+            enter-to="translate-x-0"
+            leave="transition ease-in-out duration-300 transform"
+            leave-from="translate-x-0"
+            leave-to="translate-x-full"
+          >
+            <DialogPanel class="relative ml-16 flex w-full max-w-xs flex-1">
+              <TransitionChild
+                as="template"
+                enter="ease-in-out duration-300"
+                enter-from="opacity-0"
+                enter-to="opacity-100"
+                leave="ease-in-out duration-300"
+                leave-from="opacity-100"
+                leave-to="opacity-0"
+              >
+                <div class="absolute top-0 -left-16 flex w-16 justify-center pt-5">
+                  <button type="button" class="-m-2.5 p-2.5" @click="sidebarOpen = false">
+                    <span class="sr-only">{{ $t('sideMenu.closeSidebar') }}</span>
+                    <XMarkIcon class="h-6 w-6 text-white" aria-hidden="true" />
+                  </button>
+                </div>
+              </TransitionChild>
+              <div
+                class="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4"
+                data-part="panel"
+              >
+                <nav class="flex flex-1 flex-col">
+                  <ul role="list" class="flex flex-1 flex-col gap-y-7 pt-4">
+                    <li>
+                      <div class="flex items-center gap-2">
+                        <span
+                          data-part="connection-dot"
+                          :data-state="connectionState"
+                          :class="{ 'animate-pulse': connectionState !== 'ok' }"
+                          class="h-2.5 w-2.5 flex-none rounded-full"
+                        />
+                        <span class="text-sm">{{ connectionTitle[connectionState] }}</span>
+                        <Cog6ToothIcon
+                          data-part="settings-toggle"
+                          class="ml-auto h-7 w-7 cursor-pointer text-gray-500 hover:text-gray-800 active:text-gray-400"
+                          :aria-label="$t('settings.title')"
+                          @click="openSettings"
+                        />
+                      </div>
+                    </li>
+                    <li>
+                      <div class="text-lg italic">{{ $t('sideMenu.targetingProxy') }}</div>
+                      <Dropdown
+                        ref="targetProxySelector"
+                        :list="userList ?? []"
+                        :selectedId="world === undefined ? 'loading' : (targetingProxyId ?? '0')"
+                        :changed="(newId: string) => updateProxyId(newId)"
+                        :disabled="world === undefined"
                       />
-                      <span class="text-sm">{{ connectionTitle[connectionState] }}</span>
-                      <Cog6ToothIcon
-                        data-part="settings-toggle"
-                        class="ml-auto h-7 w-7 cursor-pointer text-gray-500 hover:text-gray-800 active:text-gray-400"
-                        :aria-label="$t('settings.title')"
-                        @click="openSettings"
-                      />
-                    </div>
-                  </li>
-                  <li>
-                    <div class="text-lg italic">{{ $t('sideMenu.targetingProxy') }}</div>
-                    <Dropdown
-                      ref="targetProxySelector"
-                      :list="userList ?? []"
-                      :selectedId="world === undefined ? 'loading' : (targetingProxyId ?? '0')"
-                      :changed="(newId: string) => updateProxyId(newId)"
-                      :disabled="world === undefined"
-                    />
-                  </li>
-                  <li class="grow">
-                    <RollOptions />
-                  </li>
-                  <li>
-                    <Toggle
-                      :active="manualDicePicker"
-                      @changed="(v: boolean) => (manualDicePicker = v)"
-                    >
-                      <span class="text-lg italic">{{ $t('sideMenu.manualDicePicker') }}</span>
-                    </Toggle>
-                  </li>
-                  <li class="flex flex-wrap gap-2">
-                    <Button :label="$t('sideMenu.freeRoll')" color="blue" :clicked="openFreeRoll" />
-                    <Button
-                      :label="$t('sideMenu.damageRoll')"
-                      color="red"
-                      :clicked="openDamageRoll"
-                    />
-                  </li>
-                  <li>
-                    <div class="cursor-pointer text-lg font-bold" @click="pairDie">
-                      {{ $t('sideMenu.pairPixelDice') }}
-                    </div>
-                    <!-- Single die: full inline row (icon, name, battery, X).
+                    </li>
+                    <li class="grow">
+                      <RollOptions />
+                    </li>
+                    <li class="flex flex-col gap-3">
+                      <Toggle
+                        :active="manualDicePicker"
+                        @changed="(v: boolean) => (manualDicePicker = v)"
+                      >
+                        <span class="text-lg italic">{{ $t('sideMenu.manualDicePicker') }}</span>
+                      </Toggle>
+                      <div class="flex gap-2">
+                        <Button
+                          class="flex-1"
+                          :label="$t('sideMenu.freeRoll')"
+                          color="blue"
+                          :clicked="openFreeRoll"
+                        />
+                        <Button
+                          class="flex-1"
+                          :label="$t('sideMenu.damageRoll')"
+                          color="red"
+                          :clicked="openDamageRoll"
+                        />
+                      </div>
+                      <Button
+                        class="w-full"
+                        color="lightgray"
+                        :clicked="openChat"
+                        :aria-label="$t('sideMenu.chat')"
+                      >
+                        <template #default>
+                          <span class="inline-flex items-center justify-center gap-1">
+                            <ChatBubbleLeftRightIcon class="h-5 w-5" aria-hidden="true" />
+                            <span class="whitespace-nowrap">{{ $t('sideMenu.chat') }}</span>
+                          </span>
+                        </template>
+                      </Button>
+                    </li>
+                    <li>
+                      <div class="cursor-pointer text-lg font-bold" @click="pairDie">
+                        {{ $t('sideMenu.pairPixelDice') }}
+                      </div>
+                      <!-- Single die: full inline row (icon, name, battery, X).
                          The X stays mounted while the die reconnects so you
                          can always forget it — the spinner just sits next to
                          the X rather than replacing it. -->
-                    <ul v-if="pixels.length === 1">
-                      <li class="flex items-center gap-1">
-                        <img :src="iconForDieType(pixels[0].dieType)" class="h-6 w-6" />
-                        <div
-                          class="grow cursor-pointer"
-                          :class="[
-                            pixels[0].status === 'disconnected' ? 'line-through' : '',
-                            pixels[0].status === 'connecting' ? 'opacity-50' : ''
-                          ]"
-                          @click="reconnectDie(pixels[0].systemId)"
-                        >
-                          <span>{{ pixels[0].name }} </span>
-                          (<span
+                      <ul v-if="pixels.length === 1">
+                        <li class="flex items-center gap-1">
+                          <img :src="iconForDieType(pixels[0].dieType)" class="h-6 w-6" />
+                          <div
+                            class="grow cursor-pointer"
                             :class="[
-                              pixels[0].batteryLevel < 30 ? 'text-red-700' : 'text-green-700'
+                              pixels[0].status === 'disconnected' ? 'line-through' : '',
+                              pixels[0].status === 'connecting' ? 'opacity-50' : ''
                             ]"
-                            >{{ pixels[0].batteryLevel }}%</span
-                          >)
-                        </div>
-                        <Spinner v-if="pixels[0].status === 'connecting'" class="h-6 w-6" />
-                        <XMarkIcon
-                          class="w-4 cursor-pointer"
-                          @click="forgetDie(pixels[0].systemId)"
-                        />
-                      </li>
-                    </ul>
-                    <!-- 2+ dice: just icons in a compact strip; clicking any
+                            @click="reconnectDie(pixels[0].systemId)"
+                          >
+                            <span>{{ pixels[0].name }} </span>
+                            (<span
+                              :class="[
+                                pixels[0].batteryLevel < 30 ? 'text-red-700' : 'text-green-700'
+                              ]"
+                              >{{ pixels[0].batteryLevel }}%</span
+                            >)
+                          </div>
+                          <Spinner v-if="pixels[0].status === 'connecting'" class="h-6 w-6" />
+                          <XMarkIcon
+                            class="w-4 cursor-pointer"
+                            @click="forgetDie(pixels[0].systemId)"
+                          />
+                        </li>
+                      </ul>
+                      <!-- 2+ dice: just icons in a compact strip; clicking any
                          opens the detail modal where each die has the same
                          full row + always-visible X. -->
-                    <div
-                      v-else-if="pixels.length > 1"
-                      class="flex flex-wrap items-center gap-2 pt-1"
-                    >
                       <div
-                        v-for="p in pixels"
-                        :key="p.systemId"
-                        class="relative cursor-pointer"
-                        @click="pixelDiceModal.open()"
+                        v-else-if="pixels.length > 1"
+                        class="flex flex-wrap items-center gap-2 pt-1"
                       >
-                        <img
-                          :src="iconForDieType(p.dieType)"
-                          class="h-6 w-6"
-                          :class="[
-                            p.status === 'disconnected' ? 'opacity-40' : '',
-                            p.status === 'connecting' ? 'animate-pulse opacity-60' : ''
-                          ]"
-                        />
+                        <div
+                          v-for="p in pixels"
+                          :key="p.systemId"
+                          class="relative cursor-pointer"
+                          @click="pixelDiceModal.open()"
+                        >
+                          <img
+                            :src="iconForDieType(p.dieType)"
+                            class="h-6 w-6"
+                            :class="[
+                              p.status === 'disconnected' ? 'opacity-40' : '',
+                              p.status === 'connecting' ? 'animate-pulse opacity-60' : ''
+                            ]"
+                          />
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                </ul>
-              </nav>
-            </div>
-          </DialogPanel>
-        </TransitionChild>
-      </div>
-    </Dialog>
-  </TransitionRoot>
-  <RollCheckBuilder ref="freeRollModal" />
-  <DamageRollBuilder ref="damageRollModal" />
-  <SettingsModal ref="settingsModal" />
-  <!-- Detail view for paired Pixel dice. Mounted regardless of pixel count
+                    </li>
+                  </ul>
+                </nav>
+              </div>
+            </DialogPanel>
+          </TransitionChild>
+        </div>
+      </Dialog>
+    </TransitionRoot>
+    <RollCheckBuilder ref="freeRollModal" />
+    <DamageRollBuilder ref="damageRollModal" />
+    <SettingsModal ref="settingsModal" />
+    <ChatOverlay ref="chatOverlay" />
+    <!-- Detail view for paired Pixel dice. Mounted regardless of pixel count
        so toggling between 1- and 2-die states doesn't tear it down. The
        sidebar's own Dialog is z-50, so this modal opts into z-60 to sit on
        top of the sidebar overlay (otherwise it's hidden behind it). -->
-  <Modal ref="pixelDiceModal" :title="$t('sideMenu.pixelDice')" zIndexClass="z-[60]">
-    <ul class="flex flex-col gap-2 py-2">
-      <li v-for="p in pixels" :key="p.systemId" class="flex items-center gap-2">
-        <img :src="iconForDieType(p.dieType)" class="h-6 w-6" />
-        <div
-          class="grow cursor-pointer"
-          :class="[
-            p.status === 'disconnected' ? 'line-through' : '',
-            p.status === 'connecting' ? 'opacity-50' : ''
-          ]"
-          @click="reconnectDie(p.systemId)"
-        >
-          <span>{{ p.name }} </span>
-          (<span :class="[p.batteryLevel < 30 ? 'text-red-700' : 'text-green-700']"
-            >{{ p.batteryLevel }}%</span
-          >)
-        </div>
-        <Spinner v-if="p.status === 'connecting'" class="h-6 w-6" />
-        <XMarkIcon class="w-4 cursor-pointer" @click="forgetDie(p.systemId)" />
-      </li>
-    </ul>
-  </Modal>
+    <Modal ref="pixelDiceModal" :title="$t('sideMenu.pixelDice')" zIndexClass="z-[60]">
+      <ul class="flex flex-col gap-2 py-2">
+        <li v-for="p in pixels" :key="p.systemId" class="flex items-center gap-2">
+          <img :src="iconForDieType(p.dieType)" class="h-6 w-6" />
+          <div
+            class="grow cursor-pointer"
+            :class="[
+              p.status === 'disconnected' ? 'line-through' : '',
+              p.status === 'connecting' ? 'opacity-50' : ''
+            ]"
+            @click="reconnectDie(p.systemId)"
+          >
+            <span>{{ p.name }} </span>
+            (<span :class="[p.batteryLevel < 30 ? 'text-red-700' : 'text-green-700']"
+              >{{ p.batteryLevel }}%</span
+            >)
+          </div>
+          <Spinner v-if="p.status === 'connecting'" class="h-6 w-6" />
+          <XMarkIcon class="w-4 cursor-pointer" @click="forgetDie(p.systemId)" />
+        </li>
+      </ul>
+    </Modal>
+  </div>
 </template>

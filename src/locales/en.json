@@ -239,8 +239,21 @@
     "heading": "Character Options",
     "experimentalWarning": "RollOption implementation is still very experimental. Backups and caution advised."
   },
+  "chat": {
+    "title": "Chat",
+    "messageCount": "{count} messages",
+    "noMessages": "No chat messages yet.",
+    "emptyMessage": "Empty message",
+    "placeholder": "Type a message...",
+    "send": "Send message",
+    "sending": "Sending...",
+    "sendFailed": "Could not send message.",
+    "blind": "Blind",
+    "whisper": "Whisper"
+  },
   "sideMenu": {
     "closeSidebar": "Close sidebar",
+    "chat": "Chat",
     "targetingProxy": "Targeting Proxy",
     "pairPixelDice": "Pair Pixel Die",
     "pixelDice": "Pixel Dice",

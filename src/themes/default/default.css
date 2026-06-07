@@ -350,6 +350,312 @@ body.theme-default {
         }
       }
     }
+
+    [data-component='ChatOverlay'] {
+      /* Chat overlay chrome */
+      header {
+        border-color: var(--color-border);
+      }
+
+      /* Chat message containers */
+      [data-part='chat-message'] {
+        background-color: oklch(15% 0.018 258);
+        border-color: oklch(34% 0.024 258);
+
+        .text-gray-900 {
+          color: var(--color-text);
+        }
+
+        .text-gray-500 {
+          color: oklch(62% 0.01 258);
+        }
+      }
+
+      [data-part='chat-message'][data-private='true'] {
+        border-color: oklch(52% 0.12 70);
+      }
+
+      [data-part='visibility'] {
+        border-radius: 2px;
+        padding: 0.05rem 0.35rem;
+        background-color: oklch(30% 0.08 70);
+        color: oklch(88% 0.04 70);
+      }
+
+      /* Foundry-enriched chat card HTML */
+      [data-part='chat-flavor'] {
+        color: oklch(76% 0.01 258);
+      }
+
+      :is([data-part='chat-flavor'], [data-part='chat-content']) {
+        img {
+          max-width: 100%;
+        }
+
+        hr {
+          margin-block: 0.375rem;
+          border-color: oklch(30% 0.018 258);
+        }
+
+        .tags,
+        .tags[data-tooltip-class='pf2e'] {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.25rem;
+          padding-bottom: 0.25rem;
+        }
+
+        .tags > .tag,
+        .tags[data-tooltip-class='pf2e'] > .tag {
+          display: inline-flex;
+          align-items: center;
+          border: 0;
+          background-color: #5e0000;
+          padding-inline: 0.25rem;
+          font-size: 0.5rem;
+          font-weight: 400;
+          line-height: 1rem;
+          text-transform: uppercase;
+          color: white;
+        }
+
+        .tags > .tag.tag_transparent,
+        .tags[data-tooltip-class='pf2e'] > .tag.tag_transparent {
+          border: 1px solid currentColor;
+          border-radius: 9999px;
+          background-color: transparent;
+          padding-inline: 0.375rem;
+          color: oklch(82% 0.01 258);
+        }
+
+        .tags > .tag.tag_untyped,
+        .tags[data-tooltip-class='pf2e'] > .tag.tag_untyped {
+          color: oklch(82% 0.01 258);
+        }
+
+        .modifiers {
+          padding-block: 0.25rem;
+        }
+
+        h4.action {
+          padding-block: 0.125rem;
+        }
+
+        .card-header {
+          display: grid;
+          grid-template-columns: 40px 1fr;
+          column-gap: 0.5rem;
+          row-gap: 0.25rem;
+          align-items: start;
+
+          > img {
+            grid-column: 1;
+            grid-row: span 2;
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+            align-self: center;
+          }
+
+          > h3,
+          > h4 {
+            grid-column: 2;
+            grid-row: 1;
+            margin: 0;
+          }
+
+          > .tags {
+            grid-column: 2;
+            grid-row: 2;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+
+            > .tag,
+            > span {
+              display: inline-flex;
+              width: auto;
+              flex: 0 0 auto;
+            }
+          }
+        }
+
+        footer {
+          display: flex;
+          justify-content: flex-end;
+          gap: 0.5rem;
+          color: oklch(55% 0.01 258);
+          font-size: 0.8em;
+
+          > span + span {
+            border-left: 1px solid oklch(36% 0.018 258);
+            padding-left: 0.5rem;
+          }
+        }
+
+        .card-buttons {
+          display: flex;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+          margin-top: 0.5rem;
+
+          button {
+            padding: 0.4rem 1.1rem;
+            border-radius: 0.375rem;
+            border: 1px solid oklch(55% 0.13 255);
+            background-color: oklch(45% 0.13 255);
+            color: oklch(96% 0.01 255);
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 120ms;
+
+            &:hover {
+              background-color: oklch(50% 0.13 255);
+            }
+            &:active {
+              background-color: oklch(55% 0.13 255);
+            }
+          }
+        }
+
+        [data-pf2-action] {
+          display: inline-block;
+          background-color: oklch(30% 0.02 258);
+          color: var(--color-text);
+          text-decoration: none;
+          padding: 0 0.3rem;
+          border-radius: 0.2rem;
+          cursor: pointer;
+
+          &:hover {
+            background-color: oklch(36% 0.025 258);
+          }
+
+          [data-pf2-repost] {
+            display: none;
+          }
+        }
+
+        .action-glyph {
+          font-family: 'Pathfinder2eActions', sans-serif;
+          font-size: 1.2em;
+        }
+      }
+
+      [data-part='chat-message'][data-own-message='false'] .card-buttons {
+        display: none;
+      }
+
+      :is([data-part='chat-flavor'], [data-part='chat-content']) {
+        a.content-link {
+          color: var(--color-text);
+          text-decoration: underline;
+          text-decoration-style: dotted;
+          text-underline-offset: 2px;
+          cursor: pointer;
+        }
+
+        a.inline-roll {
+          display: inline-block;
+          background-color: oklch(30% 0.02 258);
+          color: var(--color-text);
+          text-decoration: none;
+          padding: 0 0.3rem;
+          border-radius: 0.2rem;
+          cursor: pointer;
+
+          &:hover {
+            background-color: oklch(36% 0.025 258);
+          }
+        }
+      }
+
+      [data-part='chat-content'] {
+        color: var(--color-text);
+
+        :is(
+          .message-sender,
+          .speaker,
+          .actor-name,
+          .character-name,
+          .card-header,
+          .card-header h1,
+          .card-header h2,
+          .card-header h3,
+          .card-header h4,
+          .card-header .name,
+          .chat-card h1,
+          .chat-card h2,
+          .chat-card h3,
+          .chat-card h4,
+          .title,
+          strong
+        ) {
+          color: var(--color-text);
+        }
+
+        button,
+        .trait,
+        .pf2-tag {
+          background-color: oklch(24% 0.024 258);
+          border-color: oklch(38% 0.024 258);
+          color: var(--color-text);
+        }
+
+        .dice-formula,
+        .dice-total,
+        .roll-total,
+        .damage-total {
+          background-color: oklch(22% 0.026 258);
+          border-color: oklch(42% 0.026 258);
+          color: oklch(94% 0.008 258);
+        }
+      }
+
+      /* Chat composer */
+      [data-part='chat-composer'] {
+        border-color: var(--color-border);
+        align-items: stretch;
+
+        button[type='submit'] {
+          height: auto;
+        }
+
+        textarea {
+          background-color: var(--color-card);
+          border-color: var(--color-border);
+          color: var(--color-text);
+        }
+
+        textarea::placeholder {
+          color: oklch(54% 0.01 258);
+        }
+
+        textarea:focus {
+          border-color: oklch(58% 0.14 250);
+          --tw-ring-color: oklch(58% 0.14 250);
+        }
+
+        button[type='submit'] {
+          background-color: oklch(45% 0.13 255);
+          color: oklch(96% 0.01 255);
+        }
+
+        button[type='submit']:hover:not(:disabled) {
+          background-color: oklch(50% 0.13 255);
+        }
+
+        button[type='submit']:active:not(:disabled) {
+          background-color: oklch(55% 0.13 255);
+        }
+
+        [data-part='chat-error'] {
+          color: oklch(68% 0.16 25);
+        }
+      }
+    }
   }
 
   /* --- Section accent colors ---------------------------

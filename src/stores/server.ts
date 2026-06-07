@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { io, Socket } from 'socket.io-client'
 import { useUserStore } from '@/stores/user'
+import { useWorldStore } from '@/stores/world'
 import { logger } from '@/utils/utilities'
 import { TM } from '@/api/protocol'
 import { fireAllRefresh } from '@/api/characterSync'
@@ -192,9 +193,6 @@ export const useServerStore = defineStore('server', () => {
             // covers both initial auth and post-reconnect re-auth — including
             // socket.io's internal soft reconnects, which don't replace
             // socket.value and therefore don't trip App.vue's socket-watch.
-            // Dynamic import dodges the circular dep between server and
-            // world stores (world imports useServerStore at module load).
-            const { useWorldStore } = await import('@/stores/world')
             useWorldStore().refreshWorld()
             fireAllRefresh()
           } else {

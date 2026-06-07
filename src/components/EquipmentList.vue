@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { InventoryItem } from '@/composables/character'
+import type { ActiveRoll } from '@/types/api-types'
 import { useCharacterItems } from '@/composables/character/characterItems'
 import type { TablemateCharacter } from '@/types/character-types'
 import type { ActorPF2e } from '@7h3laughingman/pf2e-types'
-import { ref, computed, watch } from 'vue'
+import { nextTick, ref, computed, watch } from 'vue'
 import { printPrice } from '@/utils/utilities'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { storeToRefs } from 'pinia'
@@ -30,21 +31,23 @@ import meepleGroupIcon from '@/assets/icons/meeple-group.svg'
 const infoModal = ref()
 const investedModal = ref()
 const equipmentDetails = ref<InstanceType<typeof EquipmentDetails>>()
-const inlineRolls = useRollsFromActiveRoll(computed(() => equipmentDetails.value?.activeRoll))
+const equipmentActiveRoll = ref<ActiveRoll>()
+const inlineRolls = useRollsFromActiveRoll(equipmentActiveRoll)
 
 const character = useInjectedCharacter()
 const { inventory, rollOptionLabels, _id } = character
 const { isListening } = storeToRefs(useListenersStore())
 const { world } = storeToRefs(useWorldStore())
 
-const partyActorId = computed<string | null>(() =>
-  world.value?.actors?.find(
-    (a: ActorPF2e) =>
-      a.type === 'party' &&
-      !!(a.system as { details?: { members?: { uuid: string }[] } })?.details?.members?.some(
-        (m) => m.uuid === `Actor.${_id.value}`
-      )
-  )?._id ?? null
+const partyActorId = computed<string | null>(
+  () =>
+    world.value?.actors?.find(
+      (a: ActorPF2e) =>
+        a.type === 'party' &&
+        !!(a.system as { details?: { members?: { uuid: string }[] } })?.details?.members?.some(
+          (m) => m.uuid === `Actor.${_id.value}`
+        )
+    )?._id ?? null
 )
 
 const partyActorRef = ref<TablemateCharacter | undefined>()
@@ -57,10 +60,8 @@ watch(
       inventoryMode.value = 'individual'
       return
     }
-    const stopListeners = await setupSocketListenersForActor(
-      id,
-      partyActorRef,
-      () => Promise.resolve(sendCharacterRequest(id))
+    const stopListeners = await setupSocketListenersForActor(id, partyActorRef, () =>
+      Promise.resolve(sendCharacterRequest(id))
     )
     sendCharacterRequest(id)
     onCleanup(stopListeners)
@@ -72,7 +73,9 @@ const partyActorForItems = computed<TablemateCharacter | undefined>(() => {
   if (!partyActorId.value) return undefined
   return (
     partyActorRef.value ??
-    (world.value?.actors?.find((a: ActorPF2e) => a._id === partyActorId.value) as unknown as TablemateCharacter)
+    (world.value?.actors?.find(
+      (a: ActorPF2e) => a._id === partyActorId.value
+    ) as unknown as TablemateCharacter)
   )
 })
 
@@ -101,8 +104,10 @@ function setInventoryMode(val: string) {
 }
 
 function viewItem(item: InventoryItem) {
+  equipmentActiveRoll.value = undefined
   itemViewedId.value = item._id
   infoModal.value.open()
+  nextTick(() => equipmentDetails.value?.initRolls())
 }
 
 function deleteViewedItem() {
@@ -166,7 +171,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
     <div v-else class="px-6 py-4">
       <!-- Held items + inventory mode selector -->
       <div class="flex items-start">
-        <div class="flex-1 min-w-0">
+        <div class="min-w-0 flex-1">
           <EquipmentHeld v-if="!showPartyInventory" @item-clicked="viewItem" />
         </div>
         <ChoiceWidget
@@ -178,7 +183,10 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
           @changed="setInventoryMode"
         />
       </div>
-      <div v-if="displayInventory?.length && !showPartyInventory" class="mb-4 flex items-center gap-2">
+      <div
+        v-if="displayInventory?.length && !showPartyInventory"
+        class="mb-4 flex items-center gap-2"
+      >
         <!-- Wrap in a block flex item: an inline <svg width="100%"> collapses to
              0 width when it is itself the flex child (WebKit/iOS), hiding the bar. -->
         <div class="min-w-0 flex-1">
@@ -261,10 +269,11 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
             :hideCarryType="showPartyInventory"
             :inventoryMode="partyActorId ? inventoryMode : undefined"
             @moveToInventory="moveItemToInventory"
+            @update:activeRoll="equipmentActiveRoll = $event"
           />
         </template>
         <template #actionButtons v-if="itemViewed">
-          <div class="flex gap-2">
+          <div class="flex flex-wrap justify-end gap-2">
             <Button
               color="lightgray"
               :clicked="() => itemViewed?.changeQty?.((itemViewed?.system?.quantity ?? NaN) + 1)"
@@ -277,8 +286,6 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
             >
               -
             </Button>
-          </div>
-          <div class="flex gap-2">
             <Button color="red" v-if="!itemHasContents" :clicked="deleteViewedItem">
               {{ $t('common.delete') }}
             </Button>

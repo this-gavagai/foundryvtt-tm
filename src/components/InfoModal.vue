@@ -38,6 +38,8 @@ const props = defineProps<{
   traits?: string[]
   itemId?: string
   rolls?: Roll[]
+  zIndexClass?: string
+  rollResultZIndexClass?: string
 }>()
 
 const { armedRoll, buffer, executeRollFromButton, pickFace, clearBuffer, dieFaces, hasReadyPixel } =
@@ -88,7 +90,7 @@ defineExpose({ open, close, rollResultModal, isOpen })
 <template>
   <div class="touch-manipulation transition-all">
     <TransitionRoot appear :show="isOpen" as="template">
-      <Dialog as="div" @close="close" class="relative z-10">
+      <Dialog as="div" @close="close" class="relative" :class="props.zIndexClass ?? 'z-10'">
         <TransitionChild
           as="template"
           enter="duration-300 ease-out"
@@ -220,7 +222,7 @@ defineExpose({ open, close, rollResultModal, isOpen })
       </Dialog>
     </TransitionRoot>
     <Teleport to="#modals">
-      <RollResultModal ref="rollResultModal" />
+      <RollResultModal ref="rollResultModal" :zIndexClass="props.rollResultZIndexClass" />
     </Teleport>
   </div>
 </template>

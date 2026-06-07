@@ -14,6 +14,7 @@ export type ModuleEventArgs =
   | ConsumeItemArgs
   | GetStrikeDamageArgs
   | ShareTargetsArgs
+  | SendChatMessageArgs
   | SendItemToChatArgs
   | SetWeaponLoadedArgs
   | SetWeaponDamageTypeArgs
@@ -108,6 +109,8 @@ export interface CharacterActionArgs {
   characterAction: string
   diceResults: DiceResults
   options: object
+  modifierOverrides?: Record<string, boolean>
+  statisticSlug?: string
   uuid: string
 }
 export interface CastSpellArgs {
@@ -193,6 +196,13 @@ export interface ShareTargetsArgs {
   action: typeof TM.SHARE_TARGETS
   targets: Record<string, string[]>
   userId: string
+}
+export interface SendChatMessageArgs {
+  action: typeof TM.SEND_CHAT_MESSAGE
+  userId: string
+  characterId: string
+  content: string
+  uuid: string
 }
 export interface SendItemToChatArgs {
   action: typeof TM.SEND_ITEM_TO_CHAT
@@ -335,6 +345,7 @@ export interface ActiveRoll {
   action: 'action' | 'check' | 'damage'
   slug?: string
   label?: string
+  statisticSlug?: string
   paramsString?: string
   params?: Record<string, string>
   dc?: number

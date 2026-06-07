@@ -3,6 +3,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Dosis:wght@200..800&display=swap');
 @plugin '@headlessui/tailwindcss';
 
+@font-face {
+  font-family: Pathfinder2eActions;
+  src: url('@/assets/Pathfinder2eActions.ttf');
+  font-display: block;
+}
+
 @custom-variant pwa {
   @media (display-mode: standalone) {
     @slot;

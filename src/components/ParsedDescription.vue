@@ -1,25 +1,37 @@
 <script setup lang="ts">
 import type { ActiveRoll } from '@/types/api-types'
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted, watch, nextTick } from 'vue'
 import { simplifyFormula, simplifyFormulaHtml } from '@/utils/diceFormula'
+import { applyPf2eNotation } from '@/utils/pf2eEnrich'
+import {
+  activeRollFromFoundryClickTarget,
+  compendiumUuidFromClickTarget
+} from '@/utils/foundryHtml'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import CompendiumItemModal from '@/components/CompendiumItemModal.vue'
 
-const props = defineProps<{
-  text: string | undefined
-  labels?: Record<string, string>
-  // Roll-data context for item-scoped refs (mirrors PF2e's getRollData() shape:
-  // { item: { level, ... } }). Inline @Damage formulas resolve `@path.to.value`
-  // refs against this before being encoded into the click handler so the
-  // eventual roll already knows the dice count and works with armed-dice flows.
-  // The `actor` slot is filled automatically from the injected character —
-  // callers shouldn't need to thread actor data through.
-  rollData?: Record<string, unknown>
-  // Source item ID, forwarded with any inline @Damage click so the Foundry-
-  // side handler can build a synthetic anchor and let PF2e's own click handler
-  // render the chat card (item header, traits, modifiers).
-  itemId?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    text: string | undefined
+    labels?: Record<string, string>
+    // Roll-data context for item-scoped refs (mirrors PF2e's getRollData() shape:
+    // { item: { level, ... } }). Inline @Damage formulas resolve `@path.to.value`
+    // refs against this before being encoded into the click handler so the
+    // eventual roll already knows the dice count and works with armed-dice flows.
+    // The `actor` slot is filled automatically from the injected character —
+    // callers shouldn't need to thread actor data through.
+    rollData?: Record<string, unknown>
+    // Source item ID, forwarded with any inline @Damage click so the Foundry-
+    // side handler can build a synthetic anchor and let PF2e's own click handler
+    // render the chat card (item header, traits, modifiers).
+    itemId?: string
+    autoSelect?: boolean
+    compendiumZIndexClass?: string
+  }>(),
+  { autoSelect: true }
+)
+
+const shouldAutoSelect = computed(() => props.autoSelect !== false)
 
 // PF2e formulas reference `@actor.abilities.str.mod`, `@actor.level`, etc. —
 // paths that on the server resolve through class getters on ActorPF2e (per
@@ -51,167 +63,139 @@ const fullRollData = computed<Record<string, unknown>>(() => ({
   actor: makeActorRollData(_actor.value) ?? (props.rollData?.actor as object | undefined)
 }))
 
-interface DescriptionForm extends HTMLFormElement {
-  roll: RadioNodeList | HTMLInputElement
-}
-
-// Split a string on `|` only at bracket-depth zero — used to peel pipe-separated
-// annotations off inline-roll payloads (e.g. @Damage[2d6[fire]|options:area-damage])
-// without splitting inside bracketed type tags whose own contents may contain `|`.
-function splitOnTopLevelPipe(s: string): string[] {
-  const parts: string[] = []
-  let depth = 0
-  let start = 0
-  for (let i = 0; i < s.length; i++) {
-    const c = s[i]
-    if (c === '[') depth++
-    else if (c === ']') depth--
-    else if (c === '|' && depth === 0) {
-      parts.push(s.slice(start, i))
-      start = i + 1
-    }
-  }
-  parts.push(s.slice(start))
-  return parts
-}
-
-// Parse the post-formula pipe segments of an inline @Damage call into a
-// structured payload. Mirrors PF2e's TextEditorPF2e.#parseInlineParams: a
-// segment with a colon is a key:value pair; bare segments are flags set to
-// `true`. We keep raw strings on the wire (no comma-splitting yet) — the
-// handler maps each known key onto the synthetic anchor's dataset attribute,
-// and PF2e's _onClickInlineRoll does the splitting itself.
-function parseDamageInlineParams(segments: string[]): Record<string, string | true> {
-  const out: Record<string, string | true> = {}
-  for (const seg of segments) {
-    const trimmed = seg.trim()
-    if (!trimmed) continue
-    const colonIdx = trimmed.indexOf(':')
-    if (colonIdx === -1) out[trimmed] = true
-    else out[trimmed.slice(0, colonIdx).trim()] = trimmed.slice(colonIdx + 1)
-  }
-  return out
-}
-
 const formRef = ref<HTMLFormElement>()
 const activeRoll = ref<ActiveRoll>()
+let observer: MutationObserver | undefined
+let initTimer: number | undefined
 
 const emit = defineEmits(['checkInitiated', 'update:activeRoll'])
 
+function rollInputHtml(roll: ActiveRoll): string {
+  return `<input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value="${JSON.stringify(roll).replace(/"/g, '&quot;')}">`
+}
+
+function selectableRollLabel(content: string, roll: ActiveRoll, contentClass = 'pl-4'): string {
+  return `<label class="bg-gray-300 border-divider border -my-0.5 pb-px px-1 cursor-pointer whitespace-nowrap">
+        ${rollInputHtml(roll)}
+        <span class="${contentClass}">${content}</span>
+      </label> `
+}
+
+function selectableRollsFromEnrichedHtml(html: string | undefined): string | undefined {
+  if (!html) return html
+  const template = document.createElement('template')
+  template.innerHTML = html
+  template.content
+    .querySelectorAll<HTMLElement>('[data-pf2-action], a.inline-roll')
+    .forEach((element) => {
+      const roll = activeRollFromFoundryClickTarget(element)
+      if (!roll) return
+      if (roll.action === 'damage' && props.itemId && !roll.itemId) roll.itemId = props.itemId
+      const wrapper = document.createElement('span')
+      wrapper.innerHTML = selectableRollLabel(element.innerHTML, roll)
+      element.replaceWith(
+        wrapper.firstElementChild ?? document.createTextNode(element.textContent ?? '')
+      )
+    })
+  return template.innerHTML
+}
+
 const parsedText = computed(() => {
-  let text = props.text
+  const text = applyPf2eNotation(props.text, {
+    action: (slug, params, label) =>
+      selectableRollLabel(
+        `<span class="pf2-icon-inline">1</span>${label ?? props.labels?.[slug] ?? slug}`,
+        { action: 'action', slug, label, paramsString: params }
+      ),
 
-  // [[/act slug variation=type proficiency=skill]]{Description}
-  text = text?.replace(
-    /\[\[\/act (?<slug>[^\s\]]+)[\s]*(?<params>.*?)\]\](\{(?<label>.+?)\})?/gm,
-    (match, p1, p2, p3, p4, offset, string, groups) =>
-      `<label class="has-checked:bg-blue-600 has-checked:text-white bg-gray-300 border-divider border -my-0.5 pb-px px-1 cursor-pointer whitespace-nowrap">
-        <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value="${JSON.stringify(
-          { action: 'action', slug: groups.slug, label: groups.label, paramsString: groups.params }
-        ).replace(/"/g, '&quot;')}">
-        <span class="pl-4"><span class="pf2-icon-inline">1</span>${groups.label ?? props.labels?.[groups.slug] ?? groups.slug}</span>
-      </label> `
-  )
+    check: (slug, inline, dc, against) => {
+      const obj: ActiveRoll = {
+        action: 'check',
+        slug,
+        checkInline: Object.keys(inline).length ? inline : undefined
+      }
+      if (dc !== undefined) obj.dc = dc
+      if (against !== undefined) obj.against = against
+      if (props.itemId) obj.itemId = props.itemId
+      const display =
+        props.labels?.[slug] ?? (typeof inline.name === 'string' ? inline.name : undefined) ?? slug
+      const dcSuffix = dc ? ` DC ${dc}` : against ? ` vs ${against}` : ''
+      return selectableRollLabel(`${display} Check${dcSuffix}`, obj, 'capitalize pl-4')
+    },
 
-  // @Check[type|key:val|flag] — the first segment is the check slug; the rest
-  // are key:value annotations (against, traits, options, dc, showDC, name,
-  // roller, rollerRole) or bare flags (overrideTraits, targetOwner). The full
-  // annotation set is forwarded as `checkInline` so the foundry handler can
-  // stamp them onto a synthetic inline-check anchor for PF2e's listener to
-  // resolve — same way we handle inline @Damage.
-  text = text?.replace(/@Check\[([^\]]+)\]/gm, (_, content) => {
-    const parts: string[] = content.split('|')
-    const slug = parts[0]
-    const inline: Record<string, string | true> = {}
-    for (const part of parts.slice(1)) {
-      const trimmed = part.trim()
-      if (!trimmed) continue
-      const i = trimmed.indexOf(':')
-      if (i === -1) inline[trimmed] = true
-      else inline[trimmed.slice(0, i).trim()] = trimmed.slice(i + 1)
-    }
-    const obj: Record<string, unknown> = {
-      action: 'check',
-      slug,
-      checkInline: Object.keys(inline).length ? inline : undefined
-    }
-    if (typeof inline.dc === 'string' && /^\d+$/.test(inline.dc)) obj.dc = Number(inline.dc)
-    if (typeof inline.against === 'string') obj.against = inline.against
-    if (props.itemId) obj.itemId = props.itemId
-    const display = props.labels?.[slug] ?? inline.name ?? slug
-    const dcSuffix = obj.dc ? ` DC ${obj.dc}` : obj.against ? ` vs ${inline.against}` : ''
-    return `<label class="has-checked:bg-blue-600 has-checked:text-white bg-gray-300 border-divider border -my-0.5 pb-px px-1 cursor-pointer whitespace-nowrap">
-        <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value="${JSON.stringify(obj).replace(/"/g, '&quot;')}">
-        <span class="capitalize pl-4">${display} Check${dcSuffix}</span>
-      </label> `
-  })
+    uuid: (uuid, label) =>
+      `<span data-type="compendiumLink" data-uuid="${uuid.replace(/"/g, '&quot;')}" class="cursor-pointer underline decoration-dotted">${label}</span>`,
 
-  // @UUID/@Compendium[uuid]{label} — rendered as a clickable link; clicking
-  // fetches the document from the Foundry server and opens an InfoModal.
-  text = text?.replace(
-    /@(?:UUID|Compendium)\[([^\]]+)\]\{([^}]*)\}/gm,
-    (_, uuid, label) =>
-      `<span data-type="compendiumLink" data-uuid="${uuid.replace(/"/g, '&quot;')}" class="cursor-pointer underline decoration-dotted">${label}</span>`
-  )
-
-  // @Damage[formula|opt:val|opt:val...]{label} — PF2e's inline @Damage accepts
-  // pipe-separated annotations after the formula (e.g. `options:area-damage`,
-  // `traits:cold,manipulate`, `name:Fireball`, plus the flag forms `immutable`
-  // and `overrideTraits`). The formula itself can contain bracketed type tags
-  // whose pipes shouldn't count as separators. We capture the whole outer
-  // content (any non-bracket chars or balanced [...] tags), split on pipes at
-  // bracket-depth zero, take the first segment as the formula, and parse the
-  // rest into the structured `damageInline` payload — the Foundry handler then
-  // writes them onto the synthetic anchor's dataset so PF2e's _onClickInlineRoll
-  // receives the same context as a native enriched anchor.
-  text = text?.replace(
-    /@Damage\[((?:[^\[\]]|\[[^\]]*\])*)\](?:\{([^}]*)\})?/gm,
-    (_, content, label) => {
-      const segments = splitOnTopLevelPipe(content)
-      const formula = segments[0] ?? ''
+    // @Damage[formula|opt:val...]{label} — pipe-separated annotations forwarded
+    // as `damageInline` so the Foundry handler can reconstruct a native enriched
+    // anchor and let PF2e's _onClickInlineRoll receive the full context.
+    damage: (formula, damageInline, label) => {
       const resolvedPlain = simplifyFormula(formula, fullRollData.value)
-      const damageInline = parseDamageInlineParams(segments.slice(1))
-      const obj = {
+      const obj: ActiveRoll = {
         action: 'damage',
         formula: resolvedPlain,
         label: label ?? resolvedPlain,
         itemId: props.itemId,
         damageInline: Object.keys(damageInline).length ? damageInline : undefined
       }
-      // When there's no explicit label, show the simplified formula with any
-      // computed sub-expressions highlighted in green (e.g. the "1" in "1d6"
-      // when derived from floor(@item.rank/2)).
+      // Without an explicit label, highlight computed sub-expressions in green.
       const displayContent = label ?? simplifyFormulaHtml(formula, fullRollData.value)
-      return `<label class="has-checked:bg-blue-600 has-checked:text-white bg-gray-300 border-divider border -my-0.5 pb-px px-1 cursor-pointer whitespace-nowrap">
-        <input class="bg-black mr-1 mt-1 absolute accent-black" type="radio" name="roll" value="${JSON.stringify(
-          obj
-        ).replace(/"/g, '&quot;')}">
-        <span class="pl-4">${displayContent}</span>
-      </label> `
-    }
-  )
+      return selectableRollLabel(displayContent, obj)
+    },
 
-  // [[/r formula]] inline rolls — [^\]]* prevents overshooting past ]]
-  text = text?.replace(/\[\[\/r ([^\]]*)\]\]/gm, '<span class="text-green-900">$1</span>')
-  return text
+    inlineRoll: (formula) => `<span class="text-green-900">${formula}</span>`
+  })
+
+  const selectableText = selectableRollsFromEnrichedHtml(text)
+  if (!shouldAutoSelect.value) return selectableText
+  return selectableText?.replace(
+    /(<input\b(?=[^>]*\btype="radio")(?=[^>]*\bname="roll")[^>]*)(>)/,
+    '$1 checked$2'
+  )
 })
 
+function syncSelectedLabel() {
+  const form = formRef.value
+  form?.querySelectorAll('label[data-selected]').forEach((label) => {
+    label.removeAttribute('data-selected')
+  })
+  form
+    ?.querySelector<HTMLInputElement>('input[name="roll"]:checked')
+    ?.closest('label')
+    ?.setAttribute('data-selected', '')
+}
+
 function initRolls() {
-  const form = formRef.value as DescriptionForm | undefined
-  const rolls = form?.roll
-  if (!rolls) {
+  const form = formRef.value
+  const rolls = form?.querySelectorAll<HTMLInputElement>('input[name="roll"]')
+  if (!form || !rolls?.length) {
     activeRoll.value = undefined
     emit('update:activeRoll', undefined)
     return
   }
-  if (rolls instanceof RadioNodeList) (rolls[0] as HTMLInputElement).checked = true
-  else if (rolls instanceof HTMLInputElement) rolls.checked = true
+  if (!shouldAutoSelect.value) {
+    activeRoll.value = undefined
+    emit('update:activeRoll', undefined)
+    return
+  }
+  const checkedRoll = form.querySelector<HTMLInputElement>('input[name="roll"]:checked') ?? rolls[0]
+  checkedRoll.defaultChecked = true
+  checkedRoll.checked = true
   formChange()
 }
 
+function scheduleInitRolls() {
+  if (initTimer !== undefined) window.clearTimeout(initTimer)
+  initTimer = window.setTimeout(() => {
+    initTimer = undefined
+    initRolls()
+  }, 0)
+}
+
 function formChange() {
-  const form = formRef.value as DescriptionForm | undefined
-  activeRoll.value = form?.roll ? JSON.parse(form.roll.value) : undefined
+  const checkedRoll = formRef.value?.querySelector<HTMLInputElement>('input[name="roll"]:checked')
+  syncSelectedLabel()
+  activeRoll.value = checkedRoll ? JSON.parse(checkedRoll.value) : undefined
   if (activeRoll.value?.paramsString)
     activeRoll.value.params = activeRoll.value.paramsString
       .split(' ')
@@ -226,30 +210,43 @@ function formClick(event: Event) {
   emit('checkInitiated', 'test')
   return false
 }
-onMounted(initRolls)
-watch(
-  () => props.text,
-  () => nextTick(initRolls)
-)
+onMounted(() => {
+  if (formRef.value) {
+    observer = new MutationObserver(scheduleInitRolls)
+    observer.observe(formRef.value, { childList: true, subtree: true })
+  }
+  nextTick(scheduleInitRolls)
+})
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  if (initTimer !== undefined) window.clearTimeout(initTimer)
+})
+watch(parsedText, () => nextTick(scheduleInitRolls), { flush: 'post' })
 
 const compendiumModal = ref()
 
 function handleDescriptionClick(event: MouseEvent) {
-  const link = (event.target as HTMLElement).closest<HTMLElement>('[data-type="compendiumLink"]')
-  if (!link) return
-  event.stopPropagation()
-  const uuid = link.dataset.uuid
-  if (!uuid) return
-  compendiumModal.value.open(uuid)
+  const uuid = compendiumUuidFromClickTarget(event.target as HTMLElement)
+  if (uuid) {
+    event.preventDefault()
+    event.stopPropagation()
+    compendiumModal.value.open(uuid)
+    return
+  }
+
+  const rollInput = (event.target as HTMLElement)
+    .closest('label')
+    ?.querySelector<HTMLInputElement>('input[name="roll"]')
+  if (rollInput?.checked) window.setTimeout(formChange, 0)
 }
 
-defineExpose({ activeRoll })
+defineExpose({ activeRoll, initRolls: scheduleInitRolls })
 </script>
 <template>
   <form data-component="ParsedDescription" ref="formRef" @change="formChange" @submit="formClick">
     <div v-html="parsedText" @click="handleDescriptionClick"></div>
     <Teleport to="#modals">
-      <CompendiumItemModal ref="compendiumModal" />
+      <CompendiumItemModal ref="compendiumModal" :zIndexClass="props.compendiumZIndexClass" />
     </Teleport>
   </form>
 </template>
@@ -263,5 +260,10 @@ defineExpose({ activeRoll })
   padding-right: 5px;
   position: relative;
   top: -1px;
+}
+
+[data-component='ParsedDescription'] label[data-selected] {
+  background-color: rgb(37 99 235);
+  color: white;
 }
 </style>

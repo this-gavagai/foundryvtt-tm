@@ -10,6 +10,7 @@ import d10Icon from '@/assets/icons/d10.svg'
 import d12Icon from '@/assets/icons/d12.svg'
 import d20Icon from '@/assets/icons/d20.svg'
 
+const props = defineProps<{ zIndexClass?: string }>()
 const modal = ref<InstanceType<typeof Modal>>()
 const result = ref<RequestResolutionArgs | null | undefined>()
 const roll = computed(() => result.value?.roll)
@@ -53,7 +54,7 @@ defineExpose({ open, close, isOpen })
 </script>
 
 <template>
-  <Modal ref="modal">
+  <Modal ref="modal" :zIndexClass="props.zIndexClass">
     <div class="flex">
       <div class="m-auto">
         <div class="m-auto">{{ roll?.formula }}</div>

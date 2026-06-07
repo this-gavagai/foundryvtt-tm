@@ -121,13 +121,17 @@ export const characterAction = (
   actor: Ref<CharacterPF2e>,
   characterAction: string,
   options = {},
-  diceResults: DiceResults = {}
+  diceResults: DiceResults = {},
+  modifierOverrides?: Record<string, boolean>,
+  statisticSlug?: string
 ) =>
   sendAction(TM.CHARACTER_ACTION, {
     ...fromActorTargeted(actor),
     characterAction,
     diceResults,
-    options
+    options,
+    modifierOverrides,
+    statisticSlug
   })
 
 export const consumeItem = (actor: Ref<CharacterPF2e>, consumableId: string, options = {}) =>
@@ -214,6 +218,9 @@ export const rollInlineCheck = (
 
 export const sendItemToChat = (characterId: string, itemId: string) =>
   sendAction(TM.SEND_ITEM_TO_CHAT, { characterId, itemId })
+
+export const sendChatMessage = (characterId: string, content: string) =>
+  sendAction(TM.SEND_CHAT_MESSAGE, { characterId, content })
 
 export const setWeaponLoaded = (
   actor: Ref<CharacterPF2e>,

@@ -11,7 +11,8 @@ type SaveSlug = 'fortitude' | 'will' | 'reflex'
 const SAVE_SLUGS: readonly SaveSlug[] = ['fortitude', 'will', 'reflex']
 
 export function useRollsFromActiveRoll(
-  activeRoll: Ref<ActiveRoll | undefined> | ComputedRef<ActiveRoll | undefined>
+  activeRoll: Ref<ActiveRoll | undefined> | ComputedRef<ActiveRoll | undefined>,
+  modifierOverrides?: Ref<Record<string, boolean>>
 ): ComputedRef<Roll[]> {
   const { t } = useI18n()
   const { _actor, doCharacterAction, doDamage, doFlatCheck, saves, skills } = useInjectedCharacter()
@@ -32,7 +33,17 @@ export function useRollsFromActiveRoll(
           color: 'blue',
           dice: ['d20'],
           armed: true,
-          execute: (faces) => doCharacterAction(slug, ar.params, faces?.[0])
+          execute: (faces) => {
+            const overrides = modifierOverrides?.value
+            const hasOverrides = !!overrides && Object.keys(overrides).length > 0
+            return doCharacterAction(
+              slug,
+              ar.params,
+              faces?.[0],
+              hasOverrides ? overrides : undefined,
+              ar.statisticSlug
+            )
+          }
         }
       ]
     }

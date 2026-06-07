@@ -12,6 +12,11 @@ import { useListenersStore } from '@/stores/listenersOnline'
 import { storeToRefs } from 'pinia'
 import type { CompendiumItemData } from '@/types/api-types'
 
+const props = defineProps<{
+  zIndexClass?: string
+  nestedCompendiumZIndexClass?: string
+}>()
+
 const { _id: characterId } = useInjectedCharacter()
 const { isListening } = storeToRefs(useListenersStore())
 
@@ -53,9 +58,18 @@ async function addToCharacter() {
 defineExpose({ open })
 </script>
 <template>
-  <InfoModal ref="modal" :imageUrl="item?.img" :traits="item?.system?.traits?.value" :rolls="rolls">
+  <InfoModal
+    ref="modal"
+    :imageUrl="item?.img"
+    :traits="item?.system?.traits?.value"
+    :rolls="rolls"
+    :zIndexClass="props.zIndexClass"
+  >
     <template #banner="{ close }">
-      <div data-part="compendium-banner" class="-mx-6 -mt-6 mb-4 flex items-center gap-2 px-4 py-2 text-sm">
+      <div
+        data-part="compendium-banner"
+        class="-mx-6 -mt-6 mb-4 flex items-center gap-2 px-4 py-2 text-sm"
+      >
         <BookOpenIcon class="h-4 w-4 shrink-0" />
         <span class="font-medium">Compendium</span>
         <span v-if="item?.source" class="opacity-60">· {{ item.source }}</span>
@@ -70,13 +84,22 @@ defineExpose({ open })
     </template>
     <template #description>
       <div class="flex flex-wrap gap-x-2 gap-y-0.5">
-        <span v-if="item?.system?.level?.value">{{ $t('common.level') }} {{ item.system.level.value }}</span>
-        <span v-if="item?.system?.traits?.rarity" class="capitalize">({{ item.system.traits.rarity }})</span>
+        <span v-if="item?.system?.level?.value"
+          >{{ $t('common.level') }} {{ item.system.level.value }}</span
+        >
+        <span v-if="item?.system?.traits?.rarity" class="capitalize"
+          >({{ item.system.traits.rarity }})</span
+        >
       </div>
     </template>
     <template #body>
       <div v-if="loading" class="py-4 text-center text-gray-400">Loading…</div>
-      <ParsedDescription v-else-if="item" ref="description" :text="item.system?.description?.value" />
+      <ParsedDescription
+        v-else-if="item"
+        ref="description"
+        :text="item.system?.description?.value"
+        :compendiumZIndexClass="props.nestedCompendiumZIndexClass ?? props.zIndexClass"
+      />
       <div v-else class="py-4 text-center text-gray-400">Item not found.</div>
     </template>
     <template #actionButtons>

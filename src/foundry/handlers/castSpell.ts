@@ -17,6 +17,10 @@ export async function foundryCastSpell(args: CastSpellArgs) {
   const spellLocation = locationId
     ? (actor.items.get(locationId) as SpellcastingEntryPF2e<ActorPF2e<null>>)
     : undefined
+  // TODO: args.targets is not threaded through here. SpellcastingEntry.cast()
+  // has no target injection point, so PF2e reads game.user.targets on the
+  // handler machine instead of the proxy's chosen target. Needs a different
+  // approach (e.g. server-side targeting API) — do not override game.user.targets.
   await spellLocation?.cast(item, {
     rank: args.rank as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10,
     slotId: args.slotId
@@ -38,6 +42,7 @@ export async function foundryCastStaffSpell(args: CastStaffSpellArgs) {
   const entry = spellcasting.get(entryId)
   const spell = spellcasting.collections.get(entryId)?.get(args.spellId)
   if (entry && spell) {
+    // TODO: args.targets is not threaded through here — same gap as foundryCastSpell.
     // Pass spontaneous: { entryId: '' } — pf2e-dailies filters spontaneous entries by
     // entryId, so a blank ID matches nothing, entries.length === 0, and the dialog is
     // skipped. The cast proceeds straight to the normal charge-deduction path.

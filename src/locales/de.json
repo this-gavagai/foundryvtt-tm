@@ -238,8 +238,21 @@
     "heading": "Charakteroptionen",
     "experimentalWarning": "Die RollOption-Implementierung ist noch sehr experimentell. Backups und Vorsicht empfohlen."
   },
+  "chat": {
+    "title": "Chat",
+    "messageCount": "{count} Nachrichten",
+    "noMessages": "Noch keine Chatnachrichten.",
+    "emptyMessage": "Leere Nachricht",
+    "placeholder": "Nachricht eingeben...",
+    "send": "Nachricht senden",
+    "sending": "Wird gesendet...",
+    "sendFailed": "Nachricht konnte nicht gesendet werden.",
+    "blind": "Verdeckt",
+    "whisper": "Flüstern"
+  },
   "sideMenu": {
     "closeSidebar": "Seitenleiste schließen",
+    "chat": "Chat",
     "targetingProxy": "Ziel-Stellvertreter",
     "pairPixelDice": "Pixel-Würfel koppeln",
     "pixelDice": "Pixel-Würfel",

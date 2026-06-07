@@ -19,7 +19,8 @@ import {
   foundryGetSpellDamage,
   foundryUpdateActor,
   foundryGetCompendiumItem,
-  foundryAddCompendiumItem
+  foundryAddCompendiumItem,
+  foundrySendChatMessage
 } from './handlers'
 import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
@@ -46,6 +47,7 @@ const actionHandlers: ActionHandlerMap = {
   [TM.CAST_SPELL]: foundryCastSpell,
   [TM.CONSUME_ITEM]: foundryConsumeItem,
   [TM.GET_STRIKE_DAMAGE]: foundryGetStrikeDamage,
+  [TM.SEND_CHAT_MESSAGE]: foundrySendChatMessage,
   [TM.SEND_ITEM_TO_CHAT]: foundrySendItemToChat,
   [TM.SET_WEAPON_LOADED]: foundrySetWeaponLoaded,
   [TM.SET_WEAPON_DAMAGE_TYPE]: foundrySetWeaponDamageType,

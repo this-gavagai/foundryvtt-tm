@@ -5,15 +5,12 @@ import HeroPoints from '@/components/HeroPoints.vue'
 import CharacterPortrait from '@/components/CharacterPortrait.vue'
 import CharacterSelector from '@/components/CharacterSelector.vue'
 
-function reloadPage() {
-  window.location.reload()
-}
-const emit = defineEmits(['sidebarActivated'])
+const emit = defineEmits(['sidebarActivated', 'chatActivated'])
 </script>
 
 <template>
   <div class="border-divider flex cursor-pointer items-center gap-2 border-t p-4">
-    <CharacterPortrait @click="reloadPage" />
+    <CharacterPortrait @click="() => emit('chatActivated')" />
     <div class="min-w-36 flex-1">
       <CharacterSelector />
       <div class="flex justify-start gap-8 align-middle">

@@ -14,8 +14,6 @@ export const useWorldStore = defineStore('world', () => {
   // true = Foundry has a game world loaded (from /api/status, auth-independent)
   // false = no world loaded, undefined = not yet determined
   const worldRunning = ref<boolean | undefined>(undefined)
-  const { getSocket } = useServerStore()
-
   async function fetchWorldStatus(): Promise<boolean | undefined> {
     try {
       // 3s cap so a flaky cellular network doesn't strand refreshes on the
@@ -48,7 +46,7 @@ export const useWorldStore = defineStore('world', () => {
     // World is running (or status check failed) — try to get world data via socket.
     let socket
     try {
-      socket = await getSocket()
+      socket = await useServerStore().getSocket()
     } catch {
       // Don't downgrade worldActive on transient socket failures — the last-
       // known state stays visible until a healthy round-trip arrives.
@@ -110,7 +108,7 @@ export const useWorldStore = defineStore('world', () => {
   // reset worldActive to undefined so the spinner shows during loading, then
   // fire refreshWorld() on the trailing edge once events stop arriving.
   const onProgressTrailing = debounce(() => refreshWorld(), 2000, { leading: false, trailing: true })
-  getSocket().then((s: Socket) => {
+  useServerStore().getSocket().then((s: Socket) => {
     s.on('progress', () => {
       worldActive.value = undefined
       worldRunning.value = undefined
