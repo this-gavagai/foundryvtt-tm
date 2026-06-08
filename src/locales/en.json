@@ -248,6 +248,7 @@
     "send": "Send message",
     "sending": "Sending...",
     "sendFailed": "Could not send message.",
+    "actionFailed": "Could not complete chat action.",
     "blind": "Blind",
     "whisper": "Whisper",
     "damage": "Damage",

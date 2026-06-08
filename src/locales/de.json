@@ -247,6 +247,7 @@
     "send": "Nachricht senden",
     "sending": "Wird gesendet...",
     "sendFailed": "Nachricht konnte nicht gesendet werden.",
+    "actionFailed": "Chataktion konnte nicht abgeschlossen werden.",
     "blind": "Verdeckt",
     "whisper": "Flüstern",
     "damage": "Schaden",

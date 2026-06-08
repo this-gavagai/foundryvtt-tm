@@ -141,6 +141,9 @@ const { _id, _actor, shield } = character
 const draft = ref('')
 const isSending = ref(false)
 const sendError = ref(false)
+const actionError = ref(false)
+const pendingDamageActions = ref(new Set<string>())
+const pendingConsumeMessages = ref(new Set<string>())
 const inlineRollModal = ref<InstanceType<typeof ChatInlineRollModal>>()
 const compendiumModal = ref<InstanceType<typeof CompendiumItemModal>>()
 let scrollAnimationFrame: number | undefined
@@ -386,22 +389,71 @@ function canApplyDamage(roll: ChatRollSummary): boolean {
   return roll.className === 'DamageRoll' && roll.total !== undefined && !!_actor.value
 }
 
+function setHas(setRef: Ref<Set<string>>, key: string): boolean {
+  return setRef.value.has(key)
+}
+
+function setPending(setRef: Ref<Set<string>>, key: string, pending: boolean) {
+  const next = new Set(setRef.value)
+  if (pending) next.add(key)
+  else next.delete(key)
+  setRef.value = next
+}
+
+function damageActionKey(message: ChatMessageData, rollIndex: number): string | undefined {
+  if (!message._id) return undefined
+  return `${message._id}:${rollIndex}`
+}
+
+function consumeActionKey(message: ChatMessageData): string | undefined {
+  return message._id ?? undefined
+}
+
 function canShieldBlock(): boolean {
   return (
     !!shield.itemId.value && (shield.hp.current.value ?? 0) > 0 && (shield.hardness.value ?? 0) > 0
   )
 }
 
-function applyDamageRoll(
+function isDamageActionPending(
+  message: ChatMessageData,
+  rollIndex: number
+): boolean {
+  const key = damageActionKey(message, rollIndex)
+  return !!key && setHas(pendingDamageActions, key)
+}
+
+function canTriggerDamageAction(
+  message: ChatMessageData,
+  roll: ChatRollSummary,
+  rollIndex: number,
+  mode: ApplyDamageMode
+): boolean {
+  if (!canApplyDamage(roll)) return false
+  if (mode === 'block' && !canShieldBlock()) return false
+  const key = damageActionKey(message, rollIndex)
+  return !!key && !setHas(pendingDamageActions, key)
+}
+
+async function applyDamageRoll(
   message: ChatMessageData,
   roll: ChatRollSummary,
   rollIndex: number,
   mode: ApplyDamageMode
 ) {
-  if (!canApplyDamage(roll)) return
-  if (mode === 'block' && !canShieldBlock()) return
-  if (!message._id) return
-  applyDamage(_actor as Ref<CharacterPF2e>, message._id, mode, rollIndex)
+  if (!canTriggerDamageAction(message, roll, rollIndex, mode)) return
+  const key = damageActionKey(message, rollIndex)
+  if (!key || !message._id) return
+
+  actionError.value = false
+  setPending(pendingDamageActions, key, true)
+  try {
+    await applyDamage(_actor as Ref<CharacterPF2e>, message._id, mode, rollIndex)
+  } catch {
+    actionError.value = true
+  } finally {
+    setPending(pendingDamageActions, key, false)
+  }
 }
 
 function plainChatText(content: string): string {
@@ -472,7 +524,7 @@ function handleChatContentClick(event: MouseEvent) {
   openInlineRoll(roll)
 }
 
-function handleCardButtonClick(event: MouseEvent) {
+async function handleCardButtonClick(event: MouseEvent) {
   const btn = (event.target as HTMLElement).closest<HTMLButtonElement>(
     '.card-buttons button[data-action="consume"]'
   )
@@ -484,7 +536,22 @@ function handleCardButtonClick(event: MouseEvent) {
   if (!message || !messageIsOwnActor(message) || !_actor.value) return
   const itemId = originItemId(message)
   if (!itemId) return
-  consumeItem(_actor as Ref<CharacterPF2e>, itemId)
+  const key = consumeActionKey(message)
+  if (!key || setHas(pendingConsumeMessages, key)) return
+
+  actionError.value = false
+  setPending(pendingConsumeMessages, key, true)
+  btn.disabled = true
+  btn.setAttribute('aria-busy', 'true')
+  try {
+    await consumeItem(_actor as Ref<CharacterPF2e>, itemId)
+  } catch {
+    actionError.value = true
+  } finally {
+    setPending(pendingConsumeMessages, key, false)
+    btn.disabled = false
+    btn.removeAttribute('aria-busy')
+  }
 }
 
 function open() {
@@ -781,6 +848,10 @@ defineExpose({ open, close, isOpen })
                             type="button"
                             data-action="heal"
                             class="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 active:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="
+                              !canTriggerDamageAction(view.message, roll, rollIndex, 'heal')
+                            "
+                            :aria-busy="isDamageActionPending(view.message, rollIndex)"
                             @click="applyDamageRoll(view.message, roll, rollIndex, 'heal')"
                           >
                             {{ $t('chat.heal') }}
@@ -790,6 +861,10 @@ defineExpose({ open, close, isOpen })
                               type="button"
                               data-action="damage"
                               class="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-800 transition-colors hover:bg-red-100 active:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+                              :disabled="
+                                !canTriggerDamageAction(view.message, roll, rollIndex, 'damage')
+                              "
+                              :aria-busy="isDamageActionPending(view.message, rollIndex)"
                               @click="applyDamageRoll(view.message, roll, rollIndex, 'damage')"
                             >
                               {{ $t('chat.damage') }}
@@ -798,6 +873,10 @@ defineExpose({ open, close, isOpen })
                               type="button"
                               data-action="half"
                               class="rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                              :disabled="
+                                !canTriggerDamageAction(view.message, roll, rollIndex, 'half')
+                              "
+                              :aria-busy="isDamageActionPending(view.message, rollIndex)"
                               @click="applyDamageRoll(view.message, roll, rollIndex, 'half')"
                             >
                               {{ $t('chat.half') }}
@@ -806,6 +885,10 @@ defineExpose({ open, close, isOpen })
                               type="button"
                               data-action="double"
                               class="rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                              :disabled="
+                                !canTriggerDamageAction(view.message, roll, rollIndex, 'double')
+                              "
+                              :aria-busy="isDamageActionPending(view.message, rollIndex)"
                               @click="applyDamageRoll(view.message, roll, rollIndex, 'double')"
                             >
                               {{ $t('chat.double') }}
@@ -814,7 +897,10 @@ defineExpose({ open, close, isOpen })
                               type="button"
                               data-action="block"
                               class="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-100 active:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
-                              :disabled="!canShieldBlock()"
+                              :disabled="
+                                !canTriggerDamageAction(view.message, roll, rollIndex, 'block')
+                              "
+                              :aria-busy="isDamageActionPending(view.message, rollIndex)"
                               @click="applyDamageRoll(view.message, roll, rollIndex, 'block')"
                             >
                               {{ $t('chat.block') }}
@@ -831,6 +917,14 @@ defineExpose({ open, close, isOpen })
                     </div>
                   </li>
                 </ol>
+                <p
+                  v-if="actionError"
+                  data-part="chat-action-error"
+                  class="mt-3 px-1 text-xs text-red-700"
+                  role="status"
+                >
+                  {{ $t('chat.actionFailed') }}
+                </p>
               </div>
 
               <form
