@@ -7,6 +7,7 @@ import { useServerStore } from '@/stores/server'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useWorldStore } from '@/stores/world'
+import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { usePixelDiceStore } from '@/stores/pixelDice'
 import { useSettingsStore } from '@/stores/settings'
 
@@ -23,7 +24,8 @@ import ChatOverlay from './ChatOverlay.vue'
 
 const { isConnected } = storeToRefs(useServerStore())
 const { isListening } = storeToRefs(useListenersStore())
-const { world, worldAuthenticated } = storeToRefs(useWorldStore())
+const { world } = storeToRefs(useWorldStore())
+const { worldAuthenticated } = storeToRefs(useFoundryWorldStatusStore())
 
 const connectionState = computed(() => {
   if (!isConnected.value) return 'down'

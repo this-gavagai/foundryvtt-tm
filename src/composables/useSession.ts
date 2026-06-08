@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { setupSocketListenersForApp, setupSocketListenersForWorld } from '@/api/socketSetup'
 import { useServerStore } from '@/stores/server'
 import { useWorldStore } from '@/stores/world'
+import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { useUserStore } from '@/stores/user'
 import { logger } from '@/utils/utilities'
 
@@ -22,13 +23,12 @@ export function useSession(): { reconnecting: Ref<boolean> } {
   const userStore = useUserStore()
   const { userId } = storeToRefs(userStore)
   const worldStore = useWorldStore()
-  const { worldLoaded, world } = storeToRefs(worldStore)
+  const { world } = storeToRefs(worldStore)
+  const { worldLoaded } = storeToRefs(useFoundryWorldStatusStore())
 
   // Connect to the server. The socket watcher owns follow-up setup so every
   // successful connection path, including login and reconnect, behaves the same.
-  void connectToServer(location).catch(() => {
-    // The server store owns surfacing auth/connection state.
-  })
+  void connectToServer(location).catch(() => {})
 
   // Re-register socket listeners whenever a new socket is created (e.g. after
   // connectToServer replaces the socket on auth failure or re-login).

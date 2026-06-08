@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia'
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 
 import { useServerStore } from '@/stores/server'
-import { useWorldStore } from '@/stores/world'
+import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { usePixelDice } from '@/stores/pixelDice'
 
 import CharacterSheet from '@/components/CharacterSheet.vue'
@@ -23,7 +23,7 @@ import { useDevGlobals } from '@/composables/useDevGlobals'
 initTheme()
 
 const { needsLogin } = storeToRefs(useServerStore())
-const { worldAuthenticated, worldLoaded } = storeToRefs(useWorldStore())
+const { worldAuthenticated, worldLoaded } = storeToRefs(useFoundryWorldStatusStore())
 
 const { reconnecting } = useSession()
 const { urlId, characterList, activeCharacterId } = useCharacterRouting()
