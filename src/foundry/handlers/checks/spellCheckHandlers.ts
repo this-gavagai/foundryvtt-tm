@@ -1,6 +1,8 @@
 import { findSpell } from '@/foundry/utils/spellLookup'
 import { makeCastRankEvent } from '@/foundry/utils/roll'
-import { type CheckRollHandler, statisticParams } from './types'
+import { noFallbackTargetActor, resolveTarget } from '@/foundry/utils/target'
+import { rollSpellDamageWithTarget } from '@/foundry/utils/spellTargeting'
+import { type CheckRollContext, type CheckRollHandler, statisticParams } from './types'
 import {
   withDamageModifierOverrides,
   withModifierOverrides,
@@ -10,18 +12,25 @@ import {
 // Subtype is either "entryId" (legacy entry-level attack from the entry modal)
 // or "entryId,spellId,attackNumber" for the per-spell attack buttons in the
 // spell info modal (attackNumber 1/2/3 = MAP 0/-5/-10).
+function spellAttackParams(ctx: CheckRollContext) {
+  return {
+    ...statisticParams(ctx),
+    target: ctx.targetActorProxy ?? noFallbackTargetActor(ctx.actor)
+  }
+}
+
 export const handleSpellAttack: CheckRollHandler = (ctx) => {
   const [entryId, spellId, attackNumberStr] = ctx.args.checkSubtype.split(',')
   const overrides = (ctx.args.options as { modifierOverrides?: ModifierOverrideMap })
     ?.modifierOverrides
-  const rollParams = statisticParams(ctx)
+  const rollParams = spellAttackParams(ctx)
   return withModifierOverrides(
     ctx.actor,
     (actor) => (entryId ? actor.spellcasting?.get(entryId)?.statistic : null),
     overrides,
     async () => {
       if (spellId) {
-        const spell = findSpell(ctx.actor, spellId)
+        const spell = findSpell(ctx.actor, spellId, entryId)
         return (
           (await spell?.rollAttack(ctx.params.event, Number(attackNumberStr || '1'), rollParams)) ??
           null
@@ -38,13 +47,24 @@ export const handleSpellAttack: CheckRollHandler = (ctx) => {
 // rolled heightening required on our side.
 export const handleSpellDamage: CheckRollHandler = ({ source, actor, args }) => {
   const [spellId, mapIncreasesStr, castingRankStr] = args.checkSubtype.split(',')
-  const spell = findSpell(actor, spellId)
+  const baseSpell = findSpell(actor, spellId)
   const castingRank = castingRankStr ? Number(castingRankStr) : undefined
   const mapIncreases = Number(mapIncreasesStr || '0') as 0 | 1 | 2
   const overrides = (args.options as { modifierOverrides?: ModifierOverrideMap })?.modifierOverrides
+  const spell = castingRank
+    ? ((baseSpell?.loadVariant({ castRank: castingRank }) as typeof baseSpell) ?? baseSpell)
+    : baseSpell
+  const { tokenDoc } = resolveTarget(source, args.targets)
   return withDamageModifierOverrides(
     overrides,
     async () =>
-      (await spell?.rollDamage(makeCastRankEvent(source, castingRank), mapIncreases)) ?? null
+      (spell
+        ? await rollSpellDamageWithTarget(
+            spell,
+            makeCastRankEvent(source, castingRank),
+            mapIncreases,
+            tokenDoc
+          )
+        : null) ?? null
   )
 }

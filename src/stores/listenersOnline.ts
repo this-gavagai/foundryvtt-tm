@@ -1,7 +1,6 @@
 import { ref, computed, onScopeDispose } from 'vue'
 import { defineStore } from 'pinia'
-import { useServerStore } from '@/stores/server'
-import { useUserStore } from '@/stores/user'
+import { getAuthenticatedSocket } from '@/api/internal'
 import { logger } from '@/utils/utilities'
 import { TM } from '@/api/protocol'
 
@@ -19,9 +18,9 @@ export const useListenersStore = defineStore('listenersOnline', () => {
   }
 
   async function pingHeartbeat() {
-    const socket = await useServerStore().getSocket()
-    socket?.emit(TM.CHANNEL, {
-      userId: useUserStore().getUserId(),
+    const { socket, userId } = await getAuthenticatedSocket()
+    socket.emit(TM.CHANNEL, {
+      userId,
       action: TM.ANYBODY_HOME
     })
     listenersOnline.value.forEach((value, key, map) => {

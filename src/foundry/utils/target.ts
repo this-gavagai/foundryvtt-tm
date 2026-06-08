@@ -3,6 +3,7 @@ import type { ActorPF2e, GamePF2e, TokenPF2e } from '@7h3laughingman/pf2e-types'
 type TokenDocLike =
   | NonNullable<ReturnType<NonNullable<GamePF2e['scenes']['active']>['tokens']['get']>>
   | null
+type TokenDoc = NonNullable<TokenDocLike>
 
 export type ResolvedTarget = {
   // The token document on the active scene, or null if no valid target.
@@ -19,6 +20,35 @@ export type ResolvedTarget = {
   actorProxy: ActorPF2e | null
 }
 
+function explicitTokenDocumentList(tokenDoc: TokenDoc): TokenDoc[] {
+  const tokenDocs = [tokenDoc]
+  const nativeFind = tokenDocs.find.bind(tokenDocs)
+  tokenDocs.find = ((...args: Parameters<TokenDoc[]['find']>) =>
+    nativeFind(...args) ?? tokenDoc) as TokenDoc[]['find']
+  return tokenDocs
+}
+
+function noFallbackTokenDocumentList(): TokenDoc[] {
+  const tokenDocs = [] as TokenDoc[]
+  tokenDocs.find = (() => false) as unknown as TokenDoc[]['find']
+  return tokenDocs
+}
+
+export function noFallbackTargetActor(actor: ActorPF2e): ActorPF2e {
+  return new Proxy(actor, {
+    get(obj: ActorPF2e, prop: string | symbol) {
+      if (prop === 'getActiveTokens') {
+        return (_linked?: boolean, document?: boolean) =>
+          document ? noFallbackTokenDocumentList() : []
+      }
+      if (prop === 'getSelfRollOptions') return () => []
+
+      const val = (obj as ActorPF2e & Record<string | symbol, unknown>)[prop]
+      return typeof val === 'function' ? (val as (...a: unknown[]) => unknown).bind(obj) : val
+    }
+  }) as ActorPF2e
+}
+
 export function resolveTarget(
   source: GamePF2e,
   tokenIds: string[] | undefined
@@ -27,12 +57,12 @@ export function resolveTarget(
   const actor = tokenDoc?.actor ?? null
   const token = tokenDoc?.object ?? null
   const actorProxy =
-    actor && token
+    actor && tokenDoc
       ? (new Proxy(actor, {
           get(obj: ActorPF2e, prop: string | symbol) {
             if (prop === 'getActiveTokens') {
               return (_linked?: boolean, document?: boolean) =>
-                document ? [tokenDoc] : [token]
+                document ? explicitTokenDocumentList(tokenDoc) : token ? [token] : []
             }
             const val = (obj as ActorPF2e & Record<string | symbol, unknown>)[prop]
             return typeof val === 'function'

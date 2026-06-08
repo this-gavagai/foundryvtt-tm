@@ -10,7 +10,7 @@ import type {
 } from '@/types/api-types'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { logger, uuidv4 } from '@/utils/utilities'
-import { getSocket, getUserId } from './internal'
+import { getAuthenticatedSocket } from './internal'
 import { TM } from './protocol'
 
 // Pending ack queue: uuid → resolver. Populated when an action RPC is sent,
@@ -58,8 +58,8 @@ async function sendAction<K extends ModuleEventArgs['action']>(
   timeoutMs?: number
 ): Promise<RequestResolutionArgs> {
   const uuid = uuidv4()
-  const args = { ...payload, action, userId: getUserId(), uuid }
-  const socket = await getSocket()
+  const { socket, userId } = await getAuthenticatedSocket()
+  const args = { ...payload, action, userId, uuid }
   return new Promise<RequestResolutionArgs>((resolve, reject) => {
     pushToAckQueue(uuid, resolve, reject, timeoutMs)
     socket.emit(TM.CHANNEL, args)

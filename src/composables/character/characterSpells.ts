@@ -156,6 +156,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
   const staff = computed(() => {
     const staffData = (actor.value?.flags?.['pf2e-dailies'] as PF2eDailiesFlags)?.extra?.dailies
       ?.staves
+    const staffEntryId = staffData?.staffId ? `${staffData.staffId}-casting` : ''
     return {
       staffId: staffData?.staffId,
       charges: {
@@ -174,7 +175,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
           rollCheck(
             actor as Ref<CharacterPF2e>,
             'spellAttack',
-            `,${i._id},${attackNumber}`,
+            `${staffEntryId},${i._id},${attackNumber}`,
             { d20: [result ?? 0] },
             [],
             modifierOverrides ? { modifierOverrides } : {}

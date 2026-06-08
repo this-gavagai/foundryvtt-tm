@@ -88,6 +88,41 @@ const chatOriginStack: string[] = []
 let recentChatOrigin: { userId: string; expiresAt: number } | undefined
 let chatOriginStampingRegistered = false
 
+function isCharacterRequest(args: ModuleEventArgs): args is RequestCharacterDetailsArgs {
+  return args.action === TM.REQUEST_CHARACTER
+}
+
+function hasActorId(args: ModuleEventArgs): args is ModuleEventArgs & { actorId: string } {
+  return 'actorId' in args && typeof args.actorId === 'string'
+}
+
+function userOwnsRequestedActor(args: RequestCharacterDetailsArgs): boolean {
+  return game.actors.get(args.actorId)?.ownership[args.userId] === 3
+}
+
+function handleCharacterRequest(args: RequestCharacterDetailsArgs) {
+  if (!iAmFirstGM()) {
+    logger.debug('TM.SKIP requestCharacterDetails: first active GM handles actor refresh', args)
+    return
+  }
+  if (!userOwnsRequestedActor(args)) {
+    logger.warn('unowned character')
+    return
+  }
+
+  logger.debug('TM-Requested')
+  if (!getChar[args.actorId]) {
+    getChar[args.actorId] = debounce(
+      (a: RequestCharacterDetailsArgs) => {
+        getCharacterDetails(a).then((result) => game.socket.emit(TM.CHANNEL, result))
+      },
+      2000,
+      { leading: true, trailing: true }
+    )
+  }
+  getChar[args.actorId](args)
+}
+
 function stampChatOrigin(message: unknown, data: unknown, originUserId: string) {
   const sourceUpdate = { flags: { tablemate: { originUserId } } }
   const document = message as { updateSource?: (changes: typeof sourceUpdate) => unknown }
@@ -173,7 +208,16 @@ export function setupListener() {
   })
 
   game.socket.on(TM.CHANNEL, (args: ModuleEventArgs) => {
-    if (!args.userId) logger.warn('missing!', args)
+    if (!args.userId) logger.warn('TM-missing: no userid', args)
+
+    // Character refresh is not target-sensitive. Let the first active GM answer
+    // it before target-proxy routing, otherwise an active-but-unusable proxy can
+    // prevent actor data from ever refreshing.
+    if (isCharacterRequest(args)) {
+      handleCharacterRequest(args)
+      return
+    }
+
     if (!iAmProxyOrFallbackGM(args.userId)) return
     logger.info('TM.RECV (listener)', args)
 
@@ -185,30 +229,11 @@ export function setupListener() {
 
     if (PASSIVE_ACTIONS.has(args.action)) return
 
-    if (args.hasOwnProperty('userId') && args.hasOwnProperty('actorId')) {
-      const actorArgs = args as RequestCharacterDetailsArgs
-      if (game.actors.get(actorArgs.actorId)?.ownership[actorArgs.userId] !== 3) {
+    if (hasActorId(args)) {
+      if (game.actors.get(args.actorId)?.ownership[args.userId] !== 3) {
         logger.warn('unowned character')
         return
       }
-    }
-
-    // REQUEST_CHARACTER is special: per-actor leading+trailing debounce to
-    // collapse rapid refresh storms while still firing the first request
-    // immediately and the final settled state.
-    if (args.action === TM.REQUEST_CHARACTER) {
-      const reqArgs = args as RequestCharacterDetailsArgs
-      if (!getChar[reqArgs.actorId]) {
-        getChar[reqArgs.actorId] = debounce(
-          (a: RequestCharacterDetailsArgs) => {
-            getCharacterDetails(a).then((result) => game.socket.emit(TM.CHANNEL, result))
-          },
-          2000,
-          { leading: true, trailing: true }
-        )
-      }
-      getChar[reqArgs.actorId](reqArgs)
-      return
     }
 
     const handler = actionHandlers[args.action] as

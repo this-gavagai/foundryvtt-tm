@@ -1,7 +1,15 @@
 import { setupListener } from './listener'
-import type { UserPF2e, UserSourcePF2e } from '@7h3laughingman/pf2e-types'
+import type {
+  ActorPF2e,
+  GamePF2e,
+  SpellPF2e,
+  UserPF2e,
+  UserSourcePF2e
+} from '@7h3laughingman/pf2e-types'
 import type FormDataExtended from '@7h3laughingman/foundry-types/client/applications/ux/form-data-extended.mjs'
 import { logger } from '@/utils/utilities'
+import { noFallbackTargetActor, resolveTarget } from './utils/target'
+import { rollSpellDamageWithTarget } from './utils/spellTargeting'
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api
 declare interface SheetableUser extends UserPF2e {
   sheeted: boolean
@@ -15,15 +23,28 @@ type TablemateChatMessage = {
   id?: string | null
   _id?: string | null
   author?: { id?: string; _id?: string; name?: string } | null
+  item?: {
+    isOfType?: (...types: string[]) => boolean
+    embeddedSpell?: SpellPF2e<ActorPF2e> | null
+    rollAttack?: (
+      event: PointerEvent,
+      attackNumber?: number,
+      context?: { target?: ActorPF2e | null }
+    ) => Promise<unknown>
+    rollDamage?: (event: PointerEvent, mapIncreases?: 0 | 1 | 2) => Promise<unknown>
+  } | null
   flags?: {
     tablemate?: {
       originUserId?: string | null
+      targetTokenIds?: string[] | null
     }
   }
+  'flags.tablemate.targetTokenIds'?: string[] | null
   'flags.tablemate.originUserId'?: string | null
   getFlag?: (scope: string, key: string) => unknown
 }
 let chatOriginDisplayRegistered = false
+let spellCardTargetingRegistered = false
 
 console.log('TM tablemate.mjs MODE:', import.meta.env.MODE, 'PROD:', import.meta.env.PROD)
 logger.info('TM initializing...')
@@ -42,6 +63,7 @@ Hooks.on('init', function () {
 Hooks.on('ready', () => {
   setupListener()
   setupChatOriginDisplay()
+  setupSpellCardTargeting()
 
   logger.info('tablemate hello')
   game.settings.registerMenu('tablemate', 'playerSelectMenu', {
@@ -61,6 +83,24 @@ function tablemateOriginUserId(message: TablemateChatMessage): string | undefine
     message.flags?.tablemate?.originUserId ??
     message['flags.tablemate.originUserId'] ??
     undefined
+  )
+}
+
+function tablemateTargetTokenIds(message: TablemateChatMessage): string[] {
+  const flagged = message.getFlag?.('tablemate', 'targetTokenIds')
+  const value =
+    (Array.isArray(flagged) ? flagged : undefined) ??
+    message.flags?.tablemate?.targetTokenIds ??
+    message['flags.tablemate.targetTokenIds'] ??
+    []
+  return value.filter((id): id is string => typeof id === 'string' && id.length > 0)
+}
+
+function hasTablemateTargetTokenIds(message: TablemateChatMessage): boolean {
+  return (
+    Array.isArray(message.getFlag?.('tablemate', 'targetTokenIds')) ||
+    Array.isArray(message.flags?.tablemate?.targetTokenIds) ||
+    Array.isArray(message['flags.tablemate.targetTokenIds'])
   )
 }
 
@@ -159,6 +199,92 @@ function setupChatOriginDisplay() {
   })
   Hooks.on('updateChatMessage', (message: TablemateChatMessage) => {
     patchRenderedChatOrigin(message)
+  })
+}
+
+function spellFromMessage(message: TablemateChatMessage): SpellPF2e<ActorPF2e> | null {
+  const item = message.item
+  if (!item) return null
+  if (item.isOfType?.('spell')) return item as SpellPF2e<ActorPF2e>
+  if (item.isOfType?.('consumable')) return item.embeddedSpell ?? null
+  return null
+}
+
+function spellAttackNumber(action: string): 1 | 2 | 3 | null {
+  switch (action) {
+    case 'spell-attack':
+      return 1
+    case 'spell-attack-2':
+      return 2
+    case 'spell-attack-3':
+      return 3
+    default:
+      return null
+  }
+}
+
+function spellDamageMapIncreases(button: HTMLButtonElement): 0 | 1 | 2 | undefined {
+  const raw = Number(button.dataset.mapIncreases)
+  return raw === 0 || raw === 1 || raw === 2 ? raw : undefined
+}
+
+async function handleTargetedSpellCardClick(
+  message: TablemateChatMessage,
+  event: MouseEvent,
+  button: HTMLButtonElement
+) {
+  const action = button.dataset.action ?? ''
+  const attackNumber = spellAttackNumber(action)
+  const rollsDamage = action === 'spell-damage'
+  if (!attackNumber && !rollsDamage) return
+
+  const spell = spellFromMessage(message)
+  if (!spell) return
+
+  const targetTokenIds = tablemateTargetTokenIds(message)
+
+  const { actorProxy, tokenDoc } = resolveTarget(game as GamePF2e, targetTokenIds)
+
+  event.preventDefault()
+  event.stopImmediatePropagation()
+
+  const pointerEvent = event as PointerEvent
+  if (attackNumber) {
+    await spell.rollAttack(pointerEvent, attackNumber, {
+      target: actorProxy ?? noFallbackTargetActor(spell.actor)
+    })
+    return
+  }
+
+  if (rollsDamage) {
+    await rollSpellDamageWithTarget(spell, pointerEvent, spellDamageMapIncreases(button), tokenDoc)
+  }
+}
+
+function setupSpellCardTargeting() {
+  if (spellCardTargetingRegistered) return
+  spellCardTargetingRegistered = true
+
+  Hooks.on('renderChatMessageHTML', (message: TablemateChatMessage, html: unknown) => {
+    if (!hasTablemateTargetTokenIds(message)) return
+    const element = chatMessageElement(html) ?? findRenderedChatMessage(message)
+    if (!element) return
+
+    element
+      .querySelectorAll<HTMLButtonElement>(
+        '.card-buttons button[data-action^="spell-"], button[data-action^="spell-"]'
+      )
+      .forEach((button) => {
+        button.addEventListener(
+          'click',
+          (event) => {
+            handleTargetedSpellCardClick(message, event, button).catch((error) =>
+              logger.warn('failed to route Tablemate spell card target', error)
+            )
+          },
+          { capture: true }
+        )
+      })
   })
 }
 

@@ -1,3 +1,5 @@
+import { watch } from 'vue'
+import type { Socket } from 'socket.io-client'
 import { useServerStore } from '@/stores/server'
 import { useUserStore } from '@/stores/user'
 
@@ -7,6 +9,41 @@ export type DocumentData = { _id: string | null }
 
 export const getSocket = () => useServerStore().getSocket()
 export const getUserId = () => useUserStore().getUserId()
+
+const SESSION_TIMEOUT_MS = 15_000
+
+export function waitForAuthenticatedSession(timeoutMs = SESSION_TIMEOUT_MS): Promise<string> {
+  const serverStore = useServerStore()
+  const userStore = useUserStore()
+  if (serverStore.sessionReady && userStore.userId) return Promise.resolve(userStore.userId)
+
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      cleanup()
+      reject(new Error('Foundry session not available'))
+    }, timeoutMs)
+    const stop = watch(
+      () => [serverStore.sessionReady, userStore.userId] as const,
+      ([sessionReady, userId]) => {
+        if (sessionReady && userId) {
+          cleanup()
+          resolve(userId)
+        }
+      }
+    )
+
+    function cleanup() {
+      clearTimeout(timer)
+      stop()
+    }
+  })
+}
+
+export async function getAuthenticatedSocket(): Promise<{ socket: Socket; userId: string }> {
+  const userId = await waitForAuthenticatedSession()
+  const socket = await getSocket()
+  return { socket, userId }
+}
 
 // lodash mergeWith customizer: always replace arrays wholesale rather than
 // merging element-by-element. Server-sent arrays are authoritative snapshots;

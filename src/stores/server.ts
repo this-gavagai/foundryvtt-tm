@@ -83,6 +83,7 @@ export const useServerStore = defineStore('server', () => {
   const socket = ref<Socket>()
   const needsLogin = ref(false)
   const isConnected = ref(false)
+  const sessionReady = ref(false)
   let serverUrl: URL | undefined
   let connectionId = 0
   let sessionWatchdog: ReturnType<typeof setTimeout> | undefined
@@ -99,6 +100,7 @@ export const useServerStore = defineStore('server', () => {
     socket.value?.disconnect()
     socket.value = undefined
     isConnected.value = false
+    sessionReady.value = false
   }
 
   function currentSocket(): Socket | undefined {
@@ -206,6 +208,7 @@ export const useServerStore = defineStore('server', () => {
     serverUrl = url
     const thisConnectionId = ++connectionId
     disconnectCurrentSocket()
+    sessionReady.value = false
 
     try {
       const newSocket = await establishSocket(url, true)
@@ -225,9 +228,11 @@ export const useServerStore = defineStore('server', () => {
       isConnected.value = true
       socket.value.on('disconnect', () => {
         isConnected.value = false
+        sessionReady.value = false
       })
       socket.value.on('connect', () => {
         isConnected.value = true
+        sessionReady.value = false
       })
 
       // Watchdog: if Foundry's session event doesn't arrive shortly after
@@ -245,6 +250,7 @@ export const useServerStore = defineStore('server', () => {
         clearSessionWatchdog()
         if (args?.userId) {
           useUserStore().setUserId(args?.userId)
+          sessionReady.value = true
           needsLogin.value = false
           // Re-fire downstream refreshes on every session handshake. This
           // covers both initial auth and post-reconnect re-auth — including
@@ -253,6 +259,7 @@ export const useServerStore = defineStore('server', () => {
           void useWorldStore().refreshWorldNow()
           fireAllRefresh()
         } else {
+          sessionReady.value = false
           handleAuthFailure()
         }
       })
@@ -262,6 +269,7 @@ export const useServerStore = defineStore('server', () => {
       if (thisConnectionId === connectionId) {
         socket.value = undefined
         isConnected.value = false
+        sessionReady.value = false
       }
       throw e
     }
@@ -271,6 +279,7 @@ export const useServerStore = defineStore('server', () => {
     socket,
     needsLogin,
     isConnected,
+    sessionReady,
     connectToServer,
     forceReconnect,
     probeConnection,

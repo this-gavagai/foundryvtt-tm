@@ -3,7 +3,7 @@ import { mergeWith } from 'lodash-es'
 import type { TablemateCharacter } from '@/types/character-types'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import { uuidv4 } from '@/utils/utilities'
-import { getSocket, getUserId, mergeWithArrayReset, asDocumentArray } from './internal'
+import { getAuthenticatedSocket, mergeWithArrayReset, asDocumentArray } from './internal'
 import { TM } from './protocol'
 
 // Per-actor dirty flag and last-sent request UUID — used by parseActorData
@@ -41,8 +41,7 @@ export const setCharUnsynced = (actorId: string, value: boolean) =>
 export const isCharUnsynced = (actorId: string) => characterUnsynced.get(actorId) ?? false
 
 export async function sendCharacterRequest(actorId: string): Promise<void> {
-  const socket = await getSocket()
-  const userId = getUserId()
+  const { socket, userId } = await getAuthenticatedSocket()
   const uuid = uuidv4()
   socket.emit(TM.CHANNEL, {
     userId,

@@ -9,12 +9,16 @@ import type { ActorPF2e, SpellPF2e } from '@7h3laughingman/pf2e-types'
 // collection (rare — typically rule-element-granted spells).
 export function findSpell(
   actor: ActorPF2e,
-  spellId: string
+  spellId: string,
+  entryId?: string
 ): SpellPF2e<ActorPF2e> | undefined {
   type SpellCol = { get: (id: string) => SpellPF2e<ActorPF2e> | undefined }
-  type CollectionsMap = { values(): Iterable<SpellCol> }
+  type CollectionsMap = { get: (id: string) => SpellCol | undefined; values(): Iterable<SpellCol> }
   const collections = (actor.spellcasting as typeof actor.spellcasting & { collections: CollectionsMap })
     .collections
+  const entrySpell = entryId ? collections.get(entryId)?.get(spellId) : undefined
+  if (entrySpell) return entrySpell
+
   for (const col of collections.values()) {
     const found = col.get(spellId)
     if (found) return found
