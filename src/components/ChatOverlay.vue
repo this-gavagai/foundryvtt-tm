@@ -22,7 +22,7 @@ import {
   compendiumItemUuidFromClickTarget,
   prepareChatHtml
 } from '@/utils/foundryHtml'
-import type { ActiveRoll } from '@/types/api-types'
+import type { ActiveRoll, ApplyDamageMode } from '@/types/api-types'
 
 type CollectionLike<T> =
   | T[]
@@ -114,12 +114,30 @@ interface ChatSceneData {
   tokens?: CollectionLike<ChatTokenData>
 }
 
+interface ChatMessageView {
+  message: ChatMessageData
+  key: string
+  speakerName: string
+  authorName: string
+  showAuthorName: boolean
+  formattedTime: string
+  visibilityLabel: string | null
+  isOwnActor: boolean
+  portrait?: string
+  portraitScale: { '--sx': number; '--sy': number }
+  preparedFlavor?: string
+  preparedContent?: string
+  showContent: boolean
+  showEmptyMessage: boolean
+  rolls: ChatRollSummary[]
+}
+
 const isOpen = ref(false)
 const scrollContainer = ref<HTMLElement>()
 const { zIndex, openLayer, closeLayer } = useOverlayStack()
 const { world } = storeToRefs(useWorldStore())
 const character = useInjectedCharacter()
-const { _id, _actor, hp, shield } = character
+const { _id, _actor, shield } = character
 const draft = ref('')
 const isSending = ref(false)
 const sendError = ref(false)
@@ -148,6 +166,15 @@ function collectionToArray<T>(source: CollectionLike<T>): T[] {
 const users = computed(() =>
   collectionToArray<UserData>(world.value?.users as CollectionLike<UserData>)
 )
+const userNamesById = computed(() => {
+  const names = new Map<string, string>()
+  users.value.forEach((user) => {
+    if (!user.name) return
+    if (user._id) names.set(user._id, user.name)
+    if (user.id) names.set(user.id, user.name)
+  })
+  return names
+})
 const scenes = computed(() =>
   collectionToArray<ChatSceneData>(world.value?.scenes as CollectionLike<ChatSceneData>)
 )
@@ -175,14 +202,14 @@ function messageIsOwnActor(message: ChatMessageData): boolean {
   return !!_id.value && originActorId(message) === _id.value
 }
 
-function speakerName(message: ChatMessageData): string {
-  return message.speaker?.alias || authorName(message) || 'Unknown'
+function speakerName(message: ChatMessageData, resolvedAuthor = authorName(message)): string {
+  return message.speaker?.alias || resolvedAuthor || 'Unknown'
 }
 
 function authorName(message: ChatMessageData): string {
   if (typeof message.author === 'object' && message.author?.name) return message.author.name
   const authorId = typeof message.author === 'string' ? message.author : (message.user ?? '')
-  return users.value.find((u) => u._id === authorId || u.id === authorId)?.name ?? authorId
+  return userNamesById.value.get(authorId) ?? authorId
 }
 
 function formattedTime(timestamp?: number | null): string {
@@ -213,13 +240,13 @@ function speakerToken(message: ChatMessageData): ChatTokenData | undefined {
   return collectionToArray(scene?.tokens).find((token) => token._id === speaker.token)
 }
 
-function speakerTokenPortrait(message: ChatMessageData): string | undefined {
-  const src = speakerToken(message)?.texture?.src
+function tokenPortrait(token: ChatTokenData | undefined): string | undefined {
+  const src = token?.texture?.src
   return src ? getPath(src) : undefined
 }
 
-function speakerTokenScale(message: ChatMessageData): { '--sx': number; '--sy': number } {
-  const texture = speakerToken(message)?.texture
+function tokenScale(token: ChatTokenData | undefined): { '--sx': number; '--sy': number } {
+  const texture = token?.texture
   return {
     '--sx': texture?.scaleX ?? 1,
     '--sy': texture?.scaleY ?? 1
@@ -365,42 +392,16 @@ function canShieldBlock(): boolean {
   )
 }
 
-function damageAmount(roll: ChatRollSummary, multiplier = 1): number {
-  return Math.max(0, Math.floor((roll.total ?? 0) * multiplier))
-}
-
-function applyCharacterDamage(amount: number) {
-  if (hp.current.value === undefined || hp.temp.value === undefined) return
-  const tempAbsorbed = Math.min(hp.temp.value, amount)
-  const remaining = amount - tempAbsorbed
-  const nextTemp = hp.temp.value - tempAbsorbed
-  const nextHp = Math.max(hp.current.value - remaining, 0)
-  if (nextTemp !== hp.temp.value) hp.temp.value = nextTemp
-  if (nextHp !== hp.current.value) hp.current.value = nextHp
-}
-
-function applyShieldBlock(amount: number) {
-  if (!canShieldBlock() || shield.hp.current.value === undefined) return
-  const blockedAmount = Math.max(0, amount - (shield.hardness.value ?? 0))
-  applyCharacterDamage(blockedAmount)
-  const nextShieldHp = Math.max(shield.hp.current.value - blockedAmount, 0)
-  if (nextShieldHp !== shield.hp.current.value) shield.hp.current.value = nextShieldHp
-}
-
 function applyDamageRoll(
   message: ChatMessageData,
   roll: ChatRollSummary,
   rollIndex: number,
-  mode: 'damage' | 'half' | 'double' | 'block' | 'heal'
+  mode: ApplyDamageMode
 ) {
   if (!canApplyDamage(roll)) return
-  if (mode === 'block') {
-    applyShieldBlock(damageAmount(roll))
-    return
-  }
+  if (mode === 'block' && !canShieldBlock()) return
   if (!message._id) return
-  const multiplier = mode === 'half' ? 0.5 : mode === 'double' ? 2 : mode === 'heal' ? -1 : 1
-  applyDamage(_actor as Ref<CharacterPF2e>, message._id, multiplier, rollIndex)
+  applyDamage(_actor as Ref<CharacterPF2e>, message._id, mode, rollIndex)
 }
 
 function plainChatText(content: string): string {
@@ -410,13 +411,44 @@ function plainChatText(content: string): string {
     .trim()
 }
 
-function shouldShowMessageContent(message: ChatMessageData): boolean {
+function shouldShowMessageContent(
+  message: ChatMessageData,
+  summaries = rollSummaries(message)
+): boolean {
   if (!message.content) return false
-  const summaries = rollSummaries(message)
   if (!summaries.length) return true
   const contentText = plainChatText(message.content)
   return !summaries.some((roll) => roll.total !== undefined && contentText === String(roll.total))
 }
+
+function buildChatMessageView(message: ChatMessageData, index: number): ChatMessageView {
+  const rolls = rollSummaries(message)
+  const showContent = shouldShowMessageContent(message, rolls)
+  const token = speakerToken(message)
+  const author = authorName(message)
+  const speaker = speakerName(message, author)
+  const visibility = visibilityLabel(message)
+
+  return {
+    message,
+    key: messageKey(message, index),
+    speakerName: speaker,
+    authorName: author,
+    showAuthorName: !!author && author !== speaker,
+    formattedTime: formattedTime(message.timestamp),
+    visibilityLabel: visibility,
+    isOwnActor: messageIsOwnActor(message),
+    portrait: tokenPortrait(token),
+    portraitScale: tokenScale(token),
+    preparedFlavor: message.flavor ? prepareChatHtml(message.flavor) : undefined,
+    preparedContent: showContent ? prepareChatHtml(message.content) : undefined,
+    showContent,
+    showEmptyMessage: !showContent && !rolls.length,
+    rolls
+  }
+}
+
+const renderedMessages = computed(() => messages.value.map(buildChatMessageView))
 
 function openInlineRoll(roll: ActiveRoll | undefined) {
   if (!roll) return
@@ -601,78 +633,75 @@ defineExpose({ open, close, isOpen })
                 </div>
                 <ol v-else class="flex flex-col gap-3">
                   <li
-                    v-for="(message, index) in messages"
-                    :key="messageKey(message, index)"
+                    v-for="view in renderedMessages"
+                    :key="view.key"
                     data-part="chat-message"
                     class="rounded-md border border-gray-200 bg-gray-50 p-3"
-                    :data-message-id="message._id ?? undefined"
-                    :data-message-type="message.type"
-                    :data-private="!!visibilityLabel(message)"
-                    :data-own-message="messageIsOwnActor(message)"
+                    :data-message-id="view.message._id ?? undefined"
+                    :data-message-type="view.message.type"
+                    :data-private="!!view.visibilityLabel"
+                    :data-own-message="view.isOwnActor"
                   >
                     <div class="flex gap-3">
                       <div
-                        v-if="speakerTokenPortrait(message)"
+                        v-if="view.portrait"
                         data-part="chat-portrait"
                         class="h-12 w-12 flex-none rounded"
                       >
                         <img
                           class="h-full w-full scale-x-(--sx) scale-y-(--sy) object-cover"
-                          :src="speakerTokenPortrait(message)"
-                          :alt="speakerName(message)"
-                          :style="speakerTokenScale(message)"
+                          :src="view.portrait"
+                          :alt="view.speakerName"
+                          :style="view.portraitScale"
                         />
                       </div>
                       <div class="min-w-0 flex-1">
                         <div class="flex gap-2">
                           <div class="min-w-0 flex-1">
                             <div class="truncate font-semibold text-gray-900">
-                              {{ speakerName(message) }}
+                              {{ view.speakerName }}
                             </div>
                             <div
-                              v-if="
-                                authorName(message) && authorName(message) !== speakerName(message)
-                              "
+                              v-if="view.showAuthorName"
                               class="truncate text-xs text-gray-500"
                             >
-                              {{ authorName(message) }}
+                              {{ view.authorName }}
                             </div>
                           </div>
                           <span
-                            v-if="visibilityLabel(message)"
+                            v-if="view.visibilityLabel"
                             data-part="visibility"
                             class="mt-0.5 self-start text-xs"
                           >
-                            {{ $t(visibilityLabel(message)!) }}
+                            {{ $t(view.visibilityLabel) }}
                           </span>
-                          <time v-if="message.timestamp" class="ml-auto text-xs text-gray-500">
-                            {{ formattedTime(message.timestamp) }}
+                          <time
+                            v-if="view.formattedTime"
+                            class="ml-auto text-xs text-gray-500"
+                          >
+                            {{ view.formattedTime }}
                           </time>
                         </div>
                       </div>
                     </div>
                     <div
-                      v-if="message.flavor"
+                      v-if="view.preparedFlavor"
                       data-part="chat-flavor"
                       class="mt-2 mb-2 text-sm font-medium text-gray-700"
-                      v-html="prepareChatHtml(message.flavor)"
+                      v-html="view.preparedFlavor"
                       @click="handleChatContentClick($event)"
                     />
                     <div
-                      v-if="shouldShowMessageContent(message)"
+                      v-if="view.showContent"
                       data-part="chat-content"
                       class="mt-2 text-sm text-gray-900"
-                      v-html="prepareChatHtml(message.content)"
+                      v-html="view.preparedContent"
                       @click="(handleChatContentClick($event), handleCardButtonClick($event))"
                     />
-                    <div
-                      v-if="rollSummaries(message).length"
-                      data-part="chat-rolls"
-                      class="mt-2 space-y-2"
-                    >
+                    <div v-if="view.rolls.length" data-part="chat-rolls" class="mt-2 space-y-2">
                       <div
-                        v-for="(roll, rollIndex) in rollSummaries(message)"
-                        :key="`${messageKey(message, index)}-roll-${rollIndex}`"
+                        v-for="(roll, rollIndex) in view.rolls"
+                        :key="`${view.key}-roll-${rollIndex}`"
                         data-part="chat-roll"
                         class="rounded border border-gray-200 bg-white px-3 py-2 text-sm"
                       >
@@ -752,7 +781,7 @@ defineExpose({ open, close, isOpen })
                             type="button"
                             data-action="heal"
                             class="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 active:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
-                            @click="applyDamageRoll(message, roll, rollIndex, 'heal')"
+                            @click="applyDamageRoll(view.message, roll, rollIndex, 'heal')"
                           >
                             {{ $t('chat.heal') }}
                           </button>
@@ -761,7 +790,7 @@ defineExpose({ open, close, isOpen })
                               type="button"
                               data-action="damage"
                               class="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-800 transition-colors hover:bg-red-100 active:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50"
-                              @click="applyDamageRoll(message, roll, rollIndex, 'damage')"
+                              @click="applyDamageRoll(view.message, roll, rollIndex, 'damage')"
                             >
                               {{ $t('chat.damage') }}
                             </button>
@@ -769,7 +798,7 @@ defineExpose({ open, close, isOpen })
                               type="button"
                               data-action="half"
                               class="rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
-                              @click="applyDamageRoll(message, roll, rollIndex, 'half')"
+                              @click="applyDamageRoll(view.message, roll, rollIndex, 'half')"
                             >
                               {{ $t('chat.half') }}
                             </button>
@@ -777,7 +806,7 @@ defineExpose({ open, close, isOpen })
                               type="button"
                               data-action="double"
                               class="rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
-                              @click="applyDamageRoll(message, roll, rollIndex, 'double')"
+                              @click="applyDamageRoll(view.message, roll, rollIndex, 'double')"
                             >
                               {{ $t('chat.double') }}
                             </button>
@@ -786,7 +815,7 @@ defineExpose({ open, close, isOpen })
                               data-action="block"
                               class="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-100 active:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
                               :disabled="!canShieldBlock()"
-                              @click="applyDamageRoll(message, roll, rollIndex, 'block')"
+                              @click="applyDamageRoll(view.message, roll, rollIndex, 'block')"
                             >
                               {{ $t('chat.block') }}
                             </button>
@@ -795,7 +824,7 @@ defineExpose({ open, close, isOpen })
                       </div>
                     </div>
                     <div
-                      v-if="!shouldShowMessageContent(message) && !rollSummaries(message).length"
+                      v-if="view.showEmptyMessage"
                       class="mt-2 text-sm text-gray-500 italic"
                     >
                       {{ $t('chat.emptyMessage') }}

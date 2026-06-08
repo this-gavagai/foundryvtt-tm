@@ -52,11 +52,11 @@ function handleHpFormSubmit(e: Event) {
       break
     case 'lastDamageMinus':
       if (lastDamageMessageId.value)
-        applyDamage(_actor as Ref<CharacterPF2e>, lastDamageMessageId.value, 1, 0)
+        applyDamage(_actor as Ref<CharacterPF2e>, lastDamageMessageId.value, 'damage', 0)
       break
     case 'lastDamagePlus':
       if (lastDamageMessageId.value)
-        applyDamage(_actor as Ref<CharacterPF2e>, lastDamageMessageId.value, -1, 0)
+        applyDamage(_actor as Ref<CharacterPF2e>, lastDamageMessageId.value, 'heal', 0)
       break
   }
   hitpointsModal.value.close()

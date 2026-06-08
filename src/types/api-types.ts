@@ -283,14 +283,15 @@ export interface AddCompendiumItemArgs {
   itemUuid: string
 }
 
+export type ApplyDamageMode = 'damage' | 'half' | 'double' | 'heal' | 'block'
+
 export interface ApplyDamageArgs {
   action: typeof TM.APPLY_DAMAGE
   uuid: string
   userId: string
   characterId: string
   messageId: string
-  // 1 = full damage, 0.5 = half, 2 = double, -1 = heal (healing-typed roll)
-  multiplier: number
+  mode: ApplyDamageMode
   rollIndex?: number
 }
 

@@ -4,7 +4,8 @@ import type {
   ModuleEventArgs,
   RequestResolutionArgs,
   DiceResults,
-  CheckModifier
+  CheckModifier,
+  ApplyDamageMode
 } from '@/types/api-types'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { logger, uuidv4 } from '@/utils/utilities'
@@ -303,12 +304,12 @@ export const addCompendiumItem = (characterId: string, itemUuid: string) =>
 export const applyDamage = (
   actor: Ref<CharacterPF2e>,
   messageId: string,
-  multiplier: number,
+  mode: ApplyDamageMode,
   rollIndex?: number
 ) =>
   sendAction(TM.APPLY_DAMAGE, {
     ...fromActor(actor),
     messageId,
-    multiplier,
+    mode,
     rollIndex
   })
