@@ -1,7 +1,6 @@
 import { ref, watch, type Ref } from 'vue'
 import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import { storeToRefs } from 'pinia'
-import type { Socket } from 'socket.io-client'
 
 import { setupSocketListenersForApp, setupSocketListenersForWorld } from '@/api/socketSetup'
 import { TM } from '@/api/protocol'
@@ -30,17 +29,22 @@ export function useSession(): { reconnecting: Ref<boolean> } {
   const { refreshWorld } = worldStore
 
   // connect to server and ping it periodically
-  connectToServer(location).then((socket: Ref<Socket | undefined>) => {
-    setTimeout(
-      () => socket.value?.emit(TM.CHANNEL, { action: TM.ANYBODY_HOME, userId: getUserId() }),
-      100
-    )
-    if (BUILD_MODE !== 'development') {
-      setInterval(() => {
-        socket.value?.emit(TM.CHANNEL, { action: TM.ANYBODY_HOME, userId: getUserId() })
-      }, 50000)
-    }
-  })
+  connectToServer(location)
+    .then(() => {
+      setTimeout(
+        () => socket.value?.emit(TM.CHANNEL, { action: TM.ANYBODY_HOME, userId: getUserId() }),
+        100
+      )
+      if (BUILD_MODE !== 'development') {
+        setInterval(() => {
+          socket.value?.emit(TM.CHANNEL, { action: TM.ANYBODY_HOME, userId: getUserId() })
+        }, 50000)
+      }
+    })
+    .catch(() => {
+      // The server store owns surfacing auth/connection state. This prevents
+      // initial connection failures from running the heartbeat setup path.
+    })
 
   // Re-register socket listeners whenever a new socket is created (e.g. after
   // connectToServer replaces the socket on auth failure or re-login).
@@ -63,8 +67,13 @@ export function useSession(): { reconnecting: Ref<boolean> } {
   watch(worldLoaded, async (isRunning) => {
     if (isRunning && needsLogin.value) {
       reconnecting.value = true
-      await connectToServer(location)
-      reconnecting.value = false
+      try {
+        await connectToServer(location)
+      } catch {
+        // Keep needsLogin visible; the login page can retry against the live world.
+      } finally {
+        reconnecting.value = false
+      }
     }
   })
 

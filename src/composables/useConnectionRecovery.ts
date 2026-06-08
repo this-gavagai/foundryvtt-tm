@@ -13,13 +13,21 @@ import { useServerStore } from '@/stores/server'
 export function useConnectionRecovery(): void {
   const { forceReconnect, probeConnection } = useServerStore()
 
-  async function handleResumeProbe() {
-    if (document.visibilityState !== 'visible') return
-    const alive = await probeConnection()
-    if (!alive) forceReconnect()
+  function reconnectQuietly() {
+    void forceReconnect().catch(() => undefined)
   }
+
+  function handleResumeProbe() {
+    if (document.visibilityState !== 'visible') return
+    void probeConnection()
+      .then((alive) => {
+        if (!alive) reconnectQuietly()
+      })
+      .catch(reconnectQuietly)
+  }
+
   function handleOnline() {
-    forceReconnect()
+    reconnectQuietly()
   }
 
   document.addEventListener('visibilitychange', handleResumeProbe)

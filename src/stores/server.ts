@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { io, Socket } from 'socket.io-client'
 import { useUserStore } from '@/stores/user'
@@ -19,11 +19,30 @@ export interface JoinData {
   userId: string | null
 }
 
+const USERID_STORAGE_KEY = 'userid'
+const SOCKET_RECONNECTION_DELAY_MS = 1_000
+const SOCKET_RECONNECTION_DELAY_MAX_MS = 15_000
+const GET_SOCKET_TIMEOUT_MS = 15_000
+const JOIN_DATA_TIMEOUT_MS = 10_000
+const VERIFY_CREDENTIALS_TIMEOUT_MS = 10_000
+const PROBE_CONNECTION_TIMEOUT_MS = 3_000
+const SESSION_WATCHDOG_TIMEOUT_MS = 8_000
+
 function readSessionCookie(): string | undefined {
   return document.cookie
     .split(';')
     .map((c) => c.trim().split('='))
     .find(([k]) => k === 'session')?.[1]
+}
+
+function emitWithTimeout<T>(s: Socket, event: string, timeoutMs: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${event} timed out`)), timeoutMs)
+    s.emit(event, (data: T) => {
+      clearTimeout(timer)
+      resolve(data)
+    })
+  })
 }
 
 function establishSocket(url: URL, keepAlive = false) {
@@ -39,15 +58,24 @@ function establishSocket(url: URL, keepAlive = false) {
       // socket. delayMax: 15s caps the backoff so reconnection doesn't drift
       // into minutes on prolonged outages.
       reconnection: keepAlive,
-      reconnectionDelay: 1000,
+      reconnectionDelay: SOCKET_RECONNECTION_DELAY_MS,
       reconnectionAttempts: Infinity,
-      reconnectionDelayMax: 15000,
+      reconnectionDelayMax: SOCKET_RECONNECTION_DELAY_MAX_MS,
       transports: ['websocket'],
       withCredentials: true,
       ...(sid ? { query: { session: sid } } : {})
     })
-    socket.on('connect', async () => resolve(socket))
-    socket.on('connect_error', (e) => reject(e))
+    const onConnect = () => {
+      socket.off('connect_error', onError)
+      resolve(socket)
+    }
+    const onError = (e: Error) => {
+      socket.off('connect', onConnect)
+      socket.disconnect()
+      reject(e)
+    }
+    socket.once('connect', onConnect)
+    socket.once('connect_error', onError)
   })
 }
 
@@ -56,71 +84,98 @@ export const useServerStore = defineStore('server', () => {
   const needsLogin = ref(false)
   const isConnected = ref(false)
   let serverUrl: URL | undefined
+  let connectionId = 0
+  let sessionWatchdog: ReturnType<typeof setTimeout> | undefined
 
-  function getSocket(timeoutMs = 15_000): Promise<Socket> {
+  function clearSessionWatchdog() {
+    if (sessionWatchdog === undefined) return
+    clearTimeout(sessionWatchdog)
+    sessionWatchdog = undefined
+  }
+
+  function disconnectCurrentSocket() {
+    clearSessionWatchdog()
+    socket.value?.removeAllListeners()
+    socket.value?.disconnect()
+    socket.value = undefined
+    isConnected.value = false
+  }
+
+  function currentSocket(): Socket | undefined {
+    return socket.value?.connected ? socket.value : undefined
+  }
+
+  function getSocket(timeoutMs = GET_SOCKET_TIMEOUT_MS): Promise<Socket> {
+    const connected = currentSocket()
+    if (connected) return Promise.resolve(connected)
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Socket not available')), timeoutMs)
-      ;(function waitForSocket() {
-        if (socket.value) { clearTimeout(timer); return resolve(socket.value) }
-        setTimeout(waitForSocket, 100)
-      })()
+      const existingSocket = socket.value
+      const timer = setTimeout(() => {
+        cleanup()
+        reject(new Error('Socket not available'))
+      }, timeoutMs)
+      const stop = watch(socket, (s) => {
+        if (s?.connected) {
+          resolveSocket(s)
+        }
+      })
+
+      function cleanup() {
+        clearTimeout(timer)
+        stop?.()
+        existingSocket?.off('connect', onExistingSocketConnect)
+      }
+      function resolveSocket(s: Socket) {
+        cleanup()
+        resolve(s)
+      }
+      function onExistingSocketConnect() {
+        if (existingSocket?.connected) resolveSocket(existingSocket)
+      }
+
+      if (existingSocket) existingSocket.once('connect', onExistingSocketConnect)
     })
   }
 
   async function getJoinData(): Promise<JoinData> {
     const s = await getSocket()
-    return new Promise((resolve, reject) => {
-      const timeoutId = setTimeout(() => reject(new Error('getJoinData timed out')), 10000)
-      s.emit('getJoinData', (data: JoinData) => {
-        clearTimeout(timeoutId)
-        resolve(data)
-      })
-    })
+    return emitWithTimeout<JoinData>(s, 'getJoinData', JOIN_DATA_TIMEOUT_MS)
   }
 
-  async function attemptLogin(userid: string, password: string): Promise<boolean> {
+  async function verifyCredentials(userid: string, password: string): Promise<boolean> {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), VERIFY_CREDENTIALS_TIMEOUT_MS)
     try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000)
-      const response = await fetch(`${window.location.origin}/join`, {
+      const response = await fetch('/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'join', password, userid }),
         signal: controller.signal
       })
-      clearTimeout(timeoutId)
       if (!response.ok) return false
       const data = await response.json()
       return data?.status === 'success'
     } catch {
       return false
+    } finally {
+      clearTimeout(timeoutId)
     }
   }
 
-  async function handleAuthFailure(url: URL, allowRelogin: boolean) {
-    if (allowRelogin) {
-      const userid = localStorage.getItem('userid')
-      const password = localStorage.getItem('password')
-      if (userid && password !== null) {
-        if (await attemptLogin(userid, password)) {
-          socket.value?.disconnect()
-          await connectToServer(url, false)
-          return
-        }
-        localStorage.removeItem('userid')
-        localStorage.removeItem('password')
-      }
-    }
+  function handleAuthFailure() {
     needsLogin.value = true
   }
 
   async function login(userid: string, password: string): Promise<boolean> {
-    if (!(await attemptLogin(userid, password))) return false
-    localStorage.setItem('userid', userid)
-    localStorage.setItem('password', password)
-    needsLogin.value = false
-    socket.value?.disconnect()
-    if (serverUrl) await connectToServer(serverUrl, false)
+    if (!serverUrl) return false
+    if (!(await verifyCredentials(userid, password))) return false
+    localStorage.setItem(USERID_STORAGE_KEY, userid)
+    try {
+      await connectToServer(serverUrl)
+      needsLogin.value = false
+    } catch {
+      return false
+    }
     return true
   }
 
@@ -130,81 +185,86 @@ export const useServerStore = defineStore('server', () => {
   // having noticed yet), so an explicit probe is the only reliable check.
   // `getJoinData` already supports an ack callback server-side and has no
   // side effects, so it's a safe heartbeat.
-  async function probeConnection(timeoutMs = 3000): Promise<boolean> {
+  async function probeConnection(timeoutMs = PROBE_CONNECTION_TIMEOUT_MS): Promise<boolean> {
     const s = socket.value
     if (!s || !s.connected) return false
-    return new Promise<boolean>((resolve) => {
-      const timer = setTimeout(() => resolve(false), timeoutMs)
-      s.emit('getJoinData', () => {
-        clearTimeout(timer)
-        resolve(true)
-      })
-    })
+    return emitWithTimeout(s, 'getJoinData', timeoutMs).then(
+      () => true,
+      () => false
+    )
   }
 
   // Tear down the current socket and start fresh against the last-known
-  // server URL. `allowRelogin: true` lets handleAuthFailure retry stored
-  // creds — important when reconnecting after Foundry restarted and the
-  // session cookie is no longer valid.
+  // server URL. If the session cookie is no longer valid, the session
+  // watchdog/auth handler will surface the login page.
   async function forceReconnect(): Promise<void> {
     if (!serverUrl) return
-    socket.value?.disconnect()
-    await connectToServer(serverUrl, true)
+    await connectToServer(serverUrl)
   }
 
-  async function connectToServer(url: URL, allowRelogin = true) {
+  async function connectToServer(url: URL): Promise<Socket> {
     serverUrl = url
-    await establishSocket(url, true)
-      .then((newSocket) => {
-        logger.debug('TM-INIT: establishing socket connection')
-        socket.value = newSocket
-        socket.value.offAny()
-        socket.value.onAny((name, ...args) => {
-          if (name === 'userActivity' || (name.match('module.') && !name.match(TM.CHANNEL)))
-            return
-          logger.debug('TM-RECV', name, ...args)
-        })
-        socket.value.onAnyOutgoing((name, ...args) => {
-          logger.debug('TM-SEND', name, ...args)
-        })
+    const thisConnectionId = ++connectionId
+    disconnectCurrentSocket()
+
+    try {
+      const newSocket = await establishSocket(url, true)
+      if (thisConnectionId !== connectionId) {
+        newSocket.disconnect()
+        throw new Error('Stale socket connection ignored')
+      }
+      logger.debug('TM-INIT: establishing socket connection')
+      socket.value = newSocket
+      socket.value.onAny((name, ...args) => {
+        if (name === 'userActivity' || (name.match('module.') && !name.match(TM.CHANNEL))) return
+        logger.debug('TM-RECV', name, ...args)
+      })
+      socket.value.onAnyOutgoing((name, ...args) => {
+        logger.debug('TM-SEND', name, ...args)
+      })
+      isConnected.value = true
+      socket.value.on('disconnect', () => {
+        isConnected.value = false
+      })
+      socket.value.on('connect', () => {
         isConnected.value = true
-        socket.value.on('disconnect', () => { isConnected.value = false })
-        socket.value.on('connect', () => { isConnected.value = true })
-
-        // Watchdog: if Foundry's session event doesn't arrive shortly after
-        // the socket comes up, treat it as an auth failure so the user lands
-        // on LoginPage instead of a perpetual spinner. Cleared by the
-        // session handler below on the first valid handshake.
-        let sessionSeen = false
-        const sessionWatchdog = setTimeout(() => {
-          if (!sessionSeen) {
-            logger.debug('TM-INIT: session event did not arrive — falling back to auth recovery')
-            handleAuthFailure(url, allowRelogin)
-          }
-        }, 8000)
-
-        socket.value.on('session', async (args: { userId: string }) => {
-          sessionSeen = true
-          clearTimeout(sessionWatchdog)
-          if (args?.userId) {
-            useUserStore().setUserId(args?.userId)
-            needsLogin.value = false
-            // Re-fire downstream refreshes on every session handshake. This
-            // covers both initial auth and post-reconnect re-auth — including
-            // socket.io's internal soft reconnects, which don't replace
-            // socket.value and therefore don't trip App.vue's socket-watch.
-            useWorldStore().refreshWorld()
-            fireAllRefresh()
-          } else {
-            handleAuthFailure(url, allowRelogin)
-          }
-        })
-      })
-      .catch((e) => {
-        logger.debug('Error loading socket: ', e)
       })
 
-    return socket
+      // Watchdog: if Foundry's session event doesn't arrive shortly after
+      // the socket comes up, treat it as an auth failure so the user lands
+      // on LoginPage instead of a perpetual spinner. Cleared by the
+      // session handler below on the first valid handshake.
+      sessionWatchdog = setTimeout(() => {
+        if (thisConnectionId !== connectionId) return
+        logger.debug('TM-INIT: session event did not arrive — falling back to auth recovery')
+        handleAuthFailure()
+      }, SESSION_WATCHDOG_TIMEOUT_MS)
+
+      socket.value.on('session', (args: { userId: string }) => {
+        if (thisConnectionId !== connectionId) return
+        clearSessionWatchdog()
+        if (args?.userId) {
+          useUserStore().setUserId(args?.userId)
+          needsLogin.value = false
+          // Re-fire downstream refreshes on every session handshake. This
+          // covers both initial auth and post-reconnect re-auth — including
+          // socket.io's internal soft reconnects, which don't replace
+          // socket.value and therefore don't trip App.vue's socket-watch.
+          useWorldStore().refreshWorld()
+          fireAllRefresh()
+        } else {
+          handleAuthFailure()
+        }
+      })
+      return newSocket
+    } catch (e) {
+      logger.debug('Error loading socket: ', e)
+      if (thisConnectionId === connectionId) {
+        socket.value = undefined
+        isConnected.value = false
+      }
+      throw e
+    }
   }
 
   return {
