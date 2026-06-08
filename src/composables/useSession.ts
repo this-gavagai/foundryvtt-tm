@@ -1,4 +1,5 @@
 import { ref, watch, type Ref } from 'vue'
+import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import { storeToRefs } from 'pinia'
 import type { Socket } from 'socket.io-client'
 
@@ -25,7 +26,7 @@ export function useSession(): { reconnecting: Ref<boolean> } {
   const { userId } = storeToRefs(userStore)
   const { getUserId } = userStore
   const worldStore = useWorldStore()
-  const { worldRunning } = storeToRefs(worldStore)
+  const { worldLoaded, world } = storeToRefs(worldStore)
   const { refreshWorld } = worldStore
 
   // connect to server and ping it periodically
@@ -49,7 +50,7 @@ export function useSession(): { reconnecting: Ref<boolean> } {
   watch(socket, (newSocket) => {
     if (!newSocket) return
     setupSocketListenersForApp()
-    if (worldListenersReady) refreshWorld().then((w) => setupSocketListenersForWorld(w))
+    if (worldListenersReady) refreshWorld().then(() => setupSocketListenersForWorld(world as Ref<GamePF2e>))
   })
 
   // When the world starts while the socket is unauthenticated, Foundry won't
@@ -59,7 +60,7 @@ export function useSession(): { reconnecting: Ref<boolean> } {
   // is shown instead of LoginPage, preventing loadUsers from running against
   // the old pre-world socket before the new one is ready.
   const reconnecting = ref(false)
-  watch(worldRunning, async (isRunning) => {
+  watch(worldLoaded, async (isRunning) => {
     if (isRunning && needsLogin.value) {
       reconnecting.value = true
       await connectToServer(location)
@@ -75,7 +76,7 @@ export function useSession(): { reconnecting: Ref<boolean> } {
       if (!newId) return
       if (!worldListenersReady) {
         worldListenersReady = true
-        refreshWorld().then((w) => setupSocketListenersForWorld(w))
+        refreshWorld().then(() => setupSocketListenersForWorld(world as Ref<GamePF2e>))
       } else {
         refreshWorld()
       }

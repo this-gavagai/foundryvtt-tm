@@ -23,7 +23,7 @@ import { useDevGlobals } from '@/composables/useDevGlobals'
 initTheme()
 
 const { needsLogin } = storeToRefs(useServerStore())
-const { worldActive, worldRunning } = storeToRefs(useWorldStore())
+const { worldAuthenticated, worldLoaded } = storeToRefs(useWorldStore())
 
 const { reconnecting } = useSession()
 const { urlId, characterList, activeCharacterId } = useCharacterRouting()
@@ -33,9 +33,9 @@ usePixelDice()
 
 const isLoading = computed(
   () =>
-    worldRunning.value === undefined ||
+    worldLoaded.value === undefined ||
     reconnecting.value ||
-    (worldRunning.value && !needsLogin.value && worldActive.value !== true)
+    (worldLoaded.value && !needsLogin.value && worldAuthenticated.value !== true)
 )
 
 const characters = useTemplateRef('characters')
@@ -47,7 +47,7 @@ useDevGlobals(characters, urlId)
       <Spinner class="h-12 w-12" />
     </div>
     <div
-      v-else-if="!worldRunning"
+      v-else-if="!worldLoaded"
       data-component="NoWorldMessage"
       class="flex h-dvh items-center justify-center p-8 text-center text-lg"
     >

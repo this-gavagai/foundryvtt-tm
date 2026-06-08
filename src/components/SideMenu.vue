@@ -23,11 +23,11 @@ import ChatOverlay from './ChatOverlay.vue'
 
 const { isConnected } = storeToRefs(useServerStore())
 const { isListening } = storeToRefs(useListenersStore())
-const { world, worldActive } = storeToRefs(useWorldStore())
+const { world, worldAuthenticated } = storeToRefs(useWorldStore())
 
 const connectionState = computed(() => {
   if (!isConnected.value) return 'down'
-  if (!worldActive.value) return 'no-world'
+  if (!worldAuthenticated.value) return 'no-world'
   if (!isListening.value) return 'no-gm'
   return 'ok'
 })

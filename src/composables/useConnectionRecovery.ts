@@ -8,6 +8,8 @@ import { useServerStore } from '@/stores/server'
 // doesn't discover the staleness by tapping a roll that times out.
 // `online`/`offline` are belt-and-suspenders for the case where the OS reports
 // the network change before the app gets the visibility event.
+// This is also the sole owner of visibility-triggered world refreshes — probing
+// first ensures refreshWorld never fires on a stale socket.
 export function useConnectionRecovery(): void {
   const { forceReconnect, probeConnection } = useServerStore()
 
