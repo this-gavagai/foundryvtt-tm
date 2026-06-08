@@ -254,7 +254,12 @@
     "half": "Halb",
     "double": "Doppelt",
     "block": "Blocken",
-    "heal": "Heilen"
+    "heal": "Heilen",
+    "rollActions": "Wurfaktionen",
+    "reroll": "Neu würfeln, neuen behalten",
+    "heroPointReroll": "Mit Heldenpunkt neu würfeln",
+    "rerollKeepHighest": "Neu würfeln, höheren behalten",
+    "rerollKeepLowest": "Neu würfeln, niedrigeren behalten"
   },
   "sideMenu": {
     "closeSidebar": "Seitenleiste schließen",

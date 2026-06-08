@@ -1,9 +1,9 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
-import { applyDamage, consumeItem, sendChatMessage } from '@/api/actionRpc'
-import type { ApplyDamageMode } from '@/types/api-types'
+import { applyDamage, consumeItem, rerollChatRoll, sendChatMessage } from '@/api/actionRpc'
+import type { ApplyDamageMode, ChatRollRerollMode } from '@/types/api-types'
 import type { ChatRollSummary } from '@/utils/chatRollSummary'
-import { originItemId, type ChatMessageData } from '@/composables/useChatMessages'
+import { messageIsReroll, originItemId, type ChatMessageData } from '@/composables/useChatMessages'
 
 interface ShieldState {
   itemId: Ref<string | null | undefined>
@@ -25,6 +25,11 @@ function setPending(setRef: Ref<Set<string>>, key: string, pending: boolean) {
 }
 
 function damageActionKey(message: ChatMessageData, rollIndex: number): string | undefined {
+  if (!message._id) return undefined
+  return `${message._id}:${rollIndex}`
+}
+
+function rollActionKey(message: ChatMessageData, rollIndex: number): string | undefined {
   if (!message._id) return undefined
   return `${message._id}:${rollIndex}`
 }
@@ -53,6 +58,7 @@ export function useChatActions({
   const sendError = ref(false)
   const actionError = ref(false)
   const pendingDamageActions = ref(new Set<string>())
+  const pendingRollActions = ref(new Set<string>())
   const pendingConsumeMessages = ref(new Set<string>())
 
   const canSend = computed(
@@ -61,6 +67,16 @@ export function useChatActions({
 
   function canApplyDamage(roll: ChatRollSummary): boolean {
     return roll.className === 'DamageRoll' && roll.total !== undefined && !!actor.value
+  }
+
+  function canReroll(message: ChatMessageData, roll: ChatRollSummary): boolean {
+    return (
+      roll.className === 'CheckRoll' &&
+      !!actor.value &&
+      messageIsOwnActor(message) &&
+      message.isRerollable !== false &&
+      !messageIsReroll(message)
+    )
   }
 
   function canShieldBlock(): boolean {
@@ -76,6 +92,11 @@ export function useChatActions({
     return !!key && setHas(pendingDamageActions, key)
   }
 
+  function isRollActionPending(message: ChatMessageData, rollIndex: number): boolean {
+    const key = rollActionKey(message, rollIndex)
+    return !!key && setHas(pendingRollActions, key)
+  }
+
   function canTriggerDamageAction(
     message: ChatMessageData,
     roll: ChatRollSummary,
@@ -86,6 +107,20 @@ export function useChatActions({
     if (mode === 'block' && !canShieldBlock()) return false
     const key = damageActionKey(message, rollIndex)
     return !!key && !setHas(pendingDamageActions, key)
+  }
+
+  function canTriggerRollAction(
+    message: ChatMessageData,
+    roll: ChatRollSummary,
+    rollIndex: number,
+    mode: ChatRollRerollMode
+  ): boolean {
+    if (!canReroll(message, roll)) return false
+    if (mode === 'hero-point' && (actor.value?.system?.resources?.heroPoints?.value ?? 0) <= 0) {
+      return false
+    }
+    const key = rollActionKey(message, rollIndex)
+    return !!key && !setHas(pendingRollActions, key)
   }
 
   async function applyDamageRoll(
@@ -106,6 +141,35 @@ export function useChatActions({
       actionError.value = true
     } finally {
       setPending(pendingDamageActions, key, false)
+    }
+  }
+
+  async function rerollRoll(
+    message: ChatMessageData,
+    roll: ChatRollSummary,
+    rollIndex: number,
+    mode: ChatRollRerollMode,
+    faces?: number[]
+  ) {
+    if (!canTriggerRollAction(message, roll, rollIndex, mode)) return
+    const key = rollActionKey(message, rollIndex)
+    if (!key || !message._id || !actor.value) return
+
+    actionError.value = false
+    setPending(pendingRollActions, key, true)
+    try {
+      return await rerollChatRoll(
+        actor as Ref<CharacterPF2e>,
+        message._id,
+        mode,
+        rollIndex,
+        faces?.[0] != null ? { d20: [faces[0]] } : {}
+      )
+    } catch {
+      actionError.value = true
+      return null
+    } finally {
+      setPending(pendingRollActions, key, false)
     }
   }
 
@@ -163,9 +227,13 @@ export function useChatActions({
     actionError,
     canSend,
     canApplyDamage,
+    canReroll,
     isDamageActionPending,
+    isRollActionPending,
     canTriggerDamageAction,
+    canTriggerRollAction,
     applyDamageRoll,
+    rerollRoll,
     handleCardButtonClick,
     submitMessage
   }

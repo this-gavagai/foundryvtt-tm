@@ -29,6 +29,7 @@ export type ModuleEventArgs =
   | GetCompendiumItemArgs
   | AddCompendiumItemArgs
   | ApplyDamageArgs
+  | RerollChatRollArgs
 
 export interface AcknowledgementArgs {
   action: typeof TM.ACK
@@ -284,6 +285,7 @@ export interface AddCompendiumItemArgs {
 }
 
 export type ApplyDamageMode = 'damage' | 'half' | 'double' | 'heal' | 'block'
+export type ChatRollRerollMode = 'reroll' | 'hero-point' | 'keep-highest' | 'keep-lowest'
 
 export interface ApplyDamageArgs {
   action: typeof TM.APPLY_DAMAGE
@@ -292,6 +294,17 @@ export interface ApplyDamageArgs {
   characterId: string
   messageId: string
   mode: ApplyDamageMode
+  rollIndex?: number
+}
+
+export interface RerollChatRollArgs {
+  action: typeof TM.REROLL_CHAT_ROLL
+  uuid: string
+  userId: string
+  characterId: string
+  messageId: string
+  mode: ChatRollRerollMode
+  diceResults: DiceResults
   rollIndex?: number
 }
 

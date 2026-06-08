@@ -21,7 +21,8 @@ import {
   foundryGetCompendiumItem,
   foundryAddCompendiumItem,
   foundrySendChatMessage,
-  foundryApplyDamage
+  foundryApplyDamage,
+  foundryRerollChatRoll
 } from './handlers'
 import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
@@ -68,7 +69,8 @@ const actionHandlers: ActionHandlerMap = {
   [TM.UPDATE_ACTOR]: foundryUpdateActor,
   [TM.GET_COMPENDIUM_ITEM]: foundryGetCompendiumItem,
   [TM.ADD_COMPENDIUM_ITEM]: foundryAddCompendiumItem,
-  [TM.APPLY_DAMAGE]: foundryApplyDamage
+  [TM.APPLY_DAMAGE]: foundryApplyDamage,
+  [TM.REROLL_CHAT_ROLL]: foundryRerollChatRoll
 }
 
 // Actions that originate from this side (Foundry → browser) — the listener

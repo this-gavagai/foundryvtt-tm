@@ -642,6 +642,64 @@ body.theme-default {
         color: var(--color-text);
       }
 
+      [data-part='chat-rerolled-label'] {
+        color: oklch(78% 0.04 78);
+        letter-spacing: 0.04em;
+      }
+
+      [data-part='chat-roll-menu-button'] {
+        color: oklch(62% 0.012 258);
+        border: 1px solid transparent;
+
+        &:hover,
+        &[aria-expanded='true'] {
+          background-color: oklch(25% 0.026 258);
+          border-color: oklch(38% 0.026 258);
+          color: oklch(88% 0.008 258);
+        }
+
+        &:focus-visible {
+          --tw-ring-color: oklch(58% 0.14 250);
+        }
+      }
+
+      [data-part='chat-roll-menu-items'] {
+        background-color: var(--color-surface);
+        border-color: oklch(38% 0.026 258);
+        color: var(--color-text);
+        box-shadow:
+          0 12px 28px oklch(5% 0.015 258 / 0.55),
+          0 0 0 1px oklch(50% 0.018 258 / 0.12);
+      }
+
+      [data-part='chat-roll-menu-item'] {
+        color: oklch(82% 0.01 258);
+
+        &[data-active='true']:not(:disabled),
+        &:hover:not(:disabled) {
+          background-color: oklch(24% 0.026 258);
+          color: oklch(94% 0.008 258);
+        }
+
+        &:active:not(:disabled) {
+          background-color: oklch(29% 0.026 258);
+        }
+
+        &:disabled {
+          color: oklch(52% 0.01 258);
+        }
+      }
+
+      [data-part='chat-roll-menu-item'][data-action='hero-point-reroll'] {
+        color: oklch(84% 0.08 78);
+
+        &[data-active='true']:not(:disabled),
+        &:hover:not(:disabled) {
+          background-color: oklch(24% 0.045 78);
+          color: oklch(92% 0.06 78);
+        }
+      }
+
       [data-part='chat-roll-flavor'],
       [data-part='chat-roll-formula'] {
         color: oklch(68% 0.012 258);
@@ -654,6 +712,14 @@ body.theme-default {
 
       [data-part='chat-roll-die'] {
         color: oklch(68% 0.012 258);
+      }
+
+      [data-part='chat-reroll-total'] {
+        color: oklch(88% 0.008 258);
+      }
+
+      [data-part='chat-reroll-arrow'] {
+        color: oklch(56% 0.012 258);
       }
 
       [data-part='chat-damage-actions'] {

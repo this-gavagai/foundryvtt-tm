@@ -36,5 +36,6 @@ export const TM = {
   GET_SPELL_DAMAGE: 'getSpellDamage',
   GET_COMPENDIUM_ITEM: 'getCompendiumItem',
   ADD_COMPENDIUM_ITEM: 'addCompendiumItem',
-  APPLY_DAMAGE: 'applyDamage'
+  APPLY_DAMAGE: 'applyDamage',
+  REROLL_CHAT_ROLL: 'rerollChatRoll'
 } as const

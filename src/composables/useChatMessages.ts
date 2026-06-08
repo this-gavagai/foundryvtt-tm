@@ -3,11 +3,7 @@ import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'
 import { getPath } from '@/utils/utilities'
 import { prepareChatHtml } from '@/utils/chatHtml'
-import {
-  rollSummaries,
-  type ChatRollSummary,
-  type RollJson
-} from '@/utils/chatRollSummary'
+import { rollSummaries, type ChatRollSummary, type RollJson } from '@/utils/chatRollSummary'
 
 type CollectionLike<T> =
   | T[]
@@ -42,8 +38,14 @@ export interface ChatMessageData {
     }
     pf2e?: {
       origin?: { uuid?: string | null }
+      context?: {
+        isReroll?: boolean | null
+        options?: unknown
+      }
     }
   }
+  isReroll?: boolean
+  isRerollable?: boolean
   'flags.tablemate.originUserId'?: string | null
   getFlag?: (scope: string, key: string) => unknown
 }
@@ -85,7 +87,18 @@ export interface ChatMessageView {
   preparedContent?: string
   showContent: boolean
   showEmptyMessage: boolean
+  rerollSummary?: ChatRerollSummary
   rolls: ChatRollSummary[]
+}
+
+export interface ChatRerollSummary {
+  formula?: string
+  oldDie?: number
+  newDie?: number
+  oldTotal?: number
+  newTotal?: number
+  oldDiscarded: boolean
+  newDiscarded: boolean
 }
 
 function collectionToArray<T>(source: CollectionLike<T>): T[] {
@@ -106,6 +119,72 @@ export function originItemId(message: ChatMessageData): string | undefined {
   const uuid = message.flags?.pf2e?.origin?.uuid
   if (!uuid) return undefined
   return /\.Item\.([^.]+)$/.exec(uuid)?.[1]
+}
+
+export function messageIsReroll(message: ChatMessageData): boolean {
+  if (message.isReroll || message.flags?.pf2e?.context?.isReroll) return true
+  const options = message.flags?.pf2e?.context?.options
+  return Array.isArray(options) && options.includes('check:reroll')
+}
+
+function numberFromText(value: string | null | undefined): number | undefined {
+  if (!value) return undefined
+  const parsed = Number(value.trim())
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function rerollPartSummary(root: ParentNode): {
+  formula?: string
+  die?: number
+  total?: number
+} {
+  return {
+    formula:
+      root.querySelector<HTMLElement>('.dice-formula:not(.hidden)')?.textContent?.trim() ||
+      root.querySelector<HTMLElement>('.dice-formula')?.textContent?.trim() ||
+      undefined,
+    die: numberFromText(
+      root.querySelector<HTMLElement>('.part-total')?.textContent ||
+        root.querySelector<HTMLElement>('.dice-rolls .roll.die')?.textContent
+    ),
+    total: numberFromText(root.querySelector<HTMLElement>('.dice-total')?.textContent)
+  }
+}
+
+export function parseRerollSummary(
+  content: string | null | undefined
+): ChatRerollSummary | undefined {
+  if (!content || typeof document === 'undefined') return undefined
+
+  const template = document.createElement('template')
+  template.innerHTML = content
+  const parts = Array.from(template.content.children).filter((element) =>
+    element.querySelector('.dice-roll')
+  )
+  const oldPart = parts[0]
+  const newPart = parts.find((element) => element.classList.contains('reroll-second')) ?? parts[1]
+  if (!oldPart || !newPart) return undefined
+
+  const oldRoll = rerollPartSummary(oldPart)
+  const newRoll = rerollPartSummary(newPart)
+  if (
+    oldRoll.die === undefined &&
+    newRoll.die === undefined &&
+    oldRoll.total === undefined &&
+    newRoll.total === undefined
+  ) {
+    return undefined
+  }
+
+  return {
+    formula: newRoll.formula ?? oldRoll.formula,
+    oldDie: oldRoll.die,
+    newDie: newRoll.die,
+    oldTotal: oldRoll.total,
+    newTotal: newRoll.total,
+    oldDiscarded: oldPart.classList.contains('reroll-discard'),
+    newDiscarded: newPart.classList.contains('reroll-discard')
+  }
 }
 
 function tablemateOriginUserId(message: ChatMessageData): string | undefined {
@@ -147,9 +226,11 @@ function plainChatText(content: string): string {
 
 function shouldShowMessageContent(
   message: ChatMessageData,
-  summaries = rollSummaries(message.rolls)
+  summaries = rollSummaries(message.rolls),
+  rerollSummary = parseRerollSummary(message.content)
 ): boolean {
   if (!message.content) return false
+  if (rerollSummary) return false
   if (!summaries.length) return true
   const contentText = plainChatText(message.content)
   return !summaries.some((roll) => roll.total !== undefined && contentText === String(roll.total))
@@ -220,7 +301,8 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
 
   function buildChatMessageView(message: ChatMessageData, index: number): ChatMessageView {
     const rolls = rollSummaries(message.rolls)
-    const showContent = shouldShowMessageContent(message, rolls)
+    const rerollSummary = parseRerollSummary(message.content)
+    const showContent = shouldShowMessageContent(message, rolls, rerollSummary)
     const token = speakerToken(message)
     const author = authorName(message)
     const speaker = speakerName(message, author)
@@ -241,6 +323,7 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
       preparedContent: showContent ? prepareChatHtml(message.content) : undefined,
       showContent,
       showEmptyMessage: !showContent && !rolls.length,
+      rerollSummary,
       rolls
     }
   }

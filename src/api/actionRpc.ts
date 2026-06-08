@@ -5,7 +5,8 @@ import type {
   RequestResolutionArgs,
   DiceResults,
   CheckModifier,
-  ApplyDamageMode
+  ApplyDamageMode,
+  ChatRollRerollMode
 } from '@/types/api-types'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { logger, uuidv4 } from '@/utils/utilities'
@@ -311,5 +312,20 @@ export const applyDamage = (
     ...fromActor(actor),
     messageId,
     mode,
+    rollIndex
+  })
+
+export const rerollChatRoll = (
+  actor: Ref<CharacterPF2e>,
+  messageId: string,
+  mode: ChatRollRerollMode,
+  rollIndex?: number,
+  diceResults: DiceResults = {}
+) =>
+  sendAction(TM.REROLL_CHAT_ROLL, {
+    ...fromActor(actor),
+    messageId,
+    mode,
+    diceResults,
     rollIndex
   })

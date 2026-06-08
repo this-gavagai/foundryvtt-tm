@@ -255,7 +255,12 @@
     "half": "Half",
     "double": "Double",
     "block": "Block",
-    "heal": "Heal"
+    "heal": "Heal",
+    "rollActions": "Roll actions",
+    "reroll": "Reroll, Keep New",
+    "heroPointReroll": "Reroll with Hero Point",
+    "rerollKeepHighest": "Reroll, Keep Higher",
+    "rerollKeepLowest": "Reroll, Keep Lower"
   },
   "sideMenu": {
     "closeSidebar": "Close sidebar",

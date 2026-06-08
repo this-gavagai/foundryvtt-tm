@@ -16,8 +16,12 @@
 //     runMacro.ts           generic macro execution by UUID
 //     checks/               one file per check kind (strike, blast, …)
 
-export { foundryCharacterAction, foundryFreeRoll, foundrySendItemToChat } from './handlers/actionHandlers'
-export { foundrySendChatMessage } from './handlers/chat'
+export {
+  foundryCharacterAction,
+  foundryFreeRoll,
+  foundrySendItemToChat
+} from './handlers/actionHandlers'
+export { foundryRerollChatRoll, foundrySendChatMessage } from './handlers/chat'
 export { foundryCastSpell, foundryCastStaffSpell, foundryConsumeItem } from './handlers/castSpell'
 export { getCharacterDetails } from './handlers/characterDetails'
 export {
