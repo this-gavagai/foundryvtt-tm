@@ -71,6 +71,7 @@ export const useWorldStore = defineStore('world', () => {
     leading: true,
     trailing: false
   })
+  const refreshWorldNow = sendWorldRequest
   refreshWorld()
 
   // Lightweight status poll: hits /api/status every 8s (HTTP only, no socket
@@ -103,6 +104,7 @@ export const useWorldStore = defineStore('world', () => {
         progressTimer = setTimeout(() => refreshWorld(), REFRESH_DEBOUNCE_MS)
       })
     })
+    .catch(() => undefined)
 
-  return { world, worldAuthenticated, worldLoaded, refreshWorld }
+  return { world, worldAuthenticated, worldLoaded, refreshWorld, refreshWorldNow }
 })

@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, onScopeDispose } from 'vue'
 import { defineStore } from 'pinia'
 import { useServerStore } from '@/stores/server'
 import { useUserStore } from '@/stores/user'
@@ -29,15 +29,26 @@ export const useListenersStore = defineStore('listenersOnline', () => {
     })
   }
 
+  function safePingHeartbeat() {
+    void pingHeartbeat().catch(() => undefined)
+  }
+
   // Socket heartbeat: ping every 30s to detect listener/GM availability.
-  setInterval(pingHeartbeat, 30000)
+  const heartbeatInterval = setInterval(safePingHeartbeat, 30000)
+  safePingHeartbeat()
 
   // Mobile browsers throttle or pause setInterval when the tab is in the
   // background, so the heartbeat can lapse — leaving isListening stuck on
   // false (and roll buttons hidden) until the next tick. Re-ping immediately
   // when the page comes back into focus.
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') pingHeartbeat()
+  function handleVisibilityChange() {
+    if (document.visibilityState === 'visible') safePingHeartbeat()
+  }
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+
+  onScopeDispose(() => {
+    clearInterval(heartbeatInterval)
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
   })
 
   return { listenersOnline, isListening, addListener, getListeners }

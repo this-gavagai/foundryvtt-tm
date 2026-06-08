@@ -250,7 +250,7 @@ export const useServerStore = defineStore('server', () => {
           // covers both initial auth and post-reconnect re-auth — including
           // socket.io's internal soft reconnects, which don't replace
           // socket.value and therefore don't trip App.vue's socket-watch.
-          useWorldStore().refreshWorld()
+          void useWorldStore().refreshWorldNow()
           fireAllRefresh()
         } else {
           handleAuthFailure()

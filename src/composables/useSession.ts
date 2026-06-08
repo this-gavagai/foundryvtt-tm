@@ -1,21 +1,19 @@
 import { ref, watch, type Ref } from 'vue'
-import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import { storeToRefs } from 'pinia'
 
 import { setupSocketListenersForApp, setupSocketListenersForWorld } from '@/api/socketSetup'
-import { TM } from '@/api/protocol'
 import { useServerStore } from '@/stores/server'
 import { useWorldStore } from '@/stores/world'
 import { useUserStore } from '@/stores/user'
+import { logger } from '@/utils/utilities'
 
 // Owns the server-connection and world/session lifecycle: opens the socket and
-// keeps it warm, (re-)registers socket listeners whenever the socket is
-// replaced, and re-requests the world whenever a session is (re-)established.
+// (re-)registers socket listeners whenever the socket is replaced, and attaches
+// world listeners once an authenticated world is loaded.
 //
 // Returns `reconnecting`, which is true while a world-triggered reconnect is in
 // flight so the view can show a spinner instead of the login page.
 export function useSession(): { reconnecting: Ref<boolean> } {
-  const BUILD_MODE = import.meta.env.MODE
   const location = new URL(window.location.origin)
 
   const serverStore = useServerStore()
@@ -23,81 +21,84 @@ export function useSession(): { reconnecting: Ref<boolean> } {
   const { connectToServer } = serverStore
   const userStore = useUserStore()
   const { userId } = storeToRefs(userStore)
-  const { getUserId } = userStore
   const worldStore = useWorldStore()
   const { worldLoaded, world } = storeToRefs(worldStore)
-  const { refreshWorld } = worldStore
 
-  // connect to server and ping it periodically
-  connectToServer(location)
-    .then(() => {
-      setTimeout(
-        () => socket.value?.emit(TM.CHANNEL, { action: TM.ANYBODY_HOME, userId: getUserId() }),
-        100
-      )
-      if (BUILD_MODE !== 'development') {
-        setInterval(() => {
-          socket.value?.emit(TM.CHANNEL, { action: TM.ANYBODY_HOME, userId: getUserId() })
-        }, 50000)
-      }
-    })
-    .catch(() => {
-      // The server store owns surfacing auth/connection state. This prevents
-      // initial connection failures from running the heartbeat setup path.
-    })
+  // Connect to the server. The socket watcher owns follow-up setup so every
+  // successful connection path, including login and reconnect, behaves the same.
+  void connectToServer(location).catch(() => {
+    // The server store owns surfacing auth/connection state.
+  })
 
   // Re-register socket listeners whenever a new socket is created (e.g. after
   // connectToServer replaces the socket on auth failure or re-login).
   // setupSocketListenersForApp/World are idempotent: they remove stale handlers
   // before re-adding, so calling them multiple times is safe.
   let worldListenersReady = false
-  watch(socket, (newSocket) => {
-    if (!newSocket) return
-    setupSocketListenersForApp()
-    if (worldListenersReady) refreshWorld().then(() => setupSocketListenersForWorld(world as Ref<GamePF2e>))
-  })
+
+  async function setupAppSocketListeners() {
+    try {
+      await setupSocketListenersForApp()
+    } catch (e) {
+      logger.debug('Error setting up app socket listeners: ', e)
+    }
+  }
+
+  async function setupWorldSocketListeners() {
+    if (!world.value) return
+    try {
+      await setupSocketListenersForWorld(world)
+    } catch (e) {
+      logger.debug('Error setting up world socket listeners: ', e)
+    }
+  }
+
+  watch(
+    socket,
+    (newSocket) => {
+      if (!newSocket) return
+      void setupAppSocketListeners()
+      if (worldListenersReady) void setupWorldSocketListeners()
+    },
+    { immediate: true }
+  )
 
   // When the world starts while the socket is unauthenticated, Foundry won't
-  // re-send the session event on the existing socket — reconnecting causes a
+  // re-send the session event on the existing socket; reconnecting causes a
   // fresh handshake so Foundry can authenticate the browser's session cookie.
   // reconnecting stays true while connectToServer is in-flight so the spinner
   // is shown instead of LoginPage, preventing loadUsers from running against
   // the old pre-world socket before the new one is ready.
   const reconnecting = ref(false)
+  let reconnectId = 0
   watch(worldLoaded, async (isRunning) => {
     if (isRunning && needsLogin.value) {
+      const currentReconnectId = ++reconnectId
       reconnecting.value = true
       try {
         await connectToServer(location)
       } catch {
         // Keep needsLogin visible; the login page can retry against the live world.
       } finally {
-        reconnecting.value = false
+        if (currentReconnectId === reconnectId) reconnecting.value = false
       }
     }
   })
 
-  // Keep watching userId so refreshWorld() fires whenever a session is
-  // established or re-established (e.g. world reloads after being inactive).
+  // The server store refreshes world data on every session handshake. This
+  // watcher only attaches world-scoped socket listeners once that refresh has
+  // produced a world, then re-attaches them to future replacement sockets.
   watch(
-    userId,
-    (newId) => {
-      if (!newId) return
+    [userId, world],
+    ([newId, newWorld]) => {
+      if (!newId || !newWorld) return
       if (!worldListenersReady) {
         worldListenersReady = true
-        refreshWorld().then(() => setupSocketListenersForWorld(world as Ref<GamePF2e>))
-      } else {
-        refreshWorld()
       }
+      void setupWorldSocketListeners()
     },
     { immediate: true }
   )
-
-  // After a successful login the socket reconnects and needsLogin drops to false.
-  // Re-request the world immediately rather than waiting for the next heartbeat.
-  watch(needsLogin, (val) => {
-    if (!val) refreshWorld()
-  })
 
   return { reconnecting }
 }

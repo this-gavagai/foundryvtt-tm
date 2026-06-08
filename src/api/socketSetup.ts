@@ -1,6 +1,7 @@
 import type { Ref } from 'vue'
 import { triggerRef } from 'vue'
 import { mergeWith } from 'lodash-es'
+import type { Socket } from 'socket.io-client'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import type { TablemateCharacter } from '@/types/character-types'
@@ -57,8 +58,11 @@ type ModifyDocumentHandler = (args: DocumentSocketResponse) => void
 type UserActivityHandler = (user: string, args: { targets?: string[]; active?: boolean }) => void
 
 let dispatchHandler: AppChannelHandler | null = null
+let dispatchSocket: Socket | null = null
 let worldModifyHandler: ModifyDocumentHandler | null = null
+let worldModifySocket: Socket | null = null
 let worldUserActivityHandler: UserActivityHandler | null = null
+let worldUserActivitySocket: Socket | null = null
 let appSubsRegistered = false
 
 export async function setupSocketListenersForApp() {
@@ -66,11 +70,12 @@ export async function setupSocketListenersForApp() {
 
   // Re-attach the dispatcher to the (potentially new) socket. The subscription
   // registry is module-level and survives socket swaps.
-  if (dispatchHandler) socket.off(TM.CHANNEL, dispatchHandler)
+  if (dispatchHandler) dispatchSocket?.off(TM.CHANNEL, dispatchHandler)
   dispatchHandler = (args: ModuleEventArgs) => {
     tmSubs.get(args.action)?.forEach((h) => h(args))
   }
   socket.on(TM.CHANNEL, dispatchHandler)
+  dispatchSocket = socket
 
   // Register the app-level subscribers exactly once. Subsequent calls to
   // setupSocketListenersForApp only re-attach the dispatcher.
@@ -88,10 +93,10 @@ export async function setupSocketListenersForApp() {
   onTmAction(TM.LISTENER_ONLINE, (args) => addListener(args.userId))
 }
 
-export async function setupSocketListenersForWorld(world: Ref<GamePF2e>) {
+export async function setupSocketListenersForWorld(world: Ref<GamePF2e | undefined>) {
   const socket = await getSocket()
 
-  if (worldModifyHandler) socket.off('modifyDocument', worldModifyHandler)
+  if (worldModifyHandler) worldModifySocket?.off('modifyDocument', worldModifyHandler)
   worldModifyHandler = (args: DocumentSocketResponse) => {
     switch (args.type) {
       case 'Combat':
@@ -112,8 +117,10 @@ export async function setupSocketListenersForWorld(world: Ref<GamePF2e>) {
     }
   }
   socket.on('modifyDocument', worldModifyHandler)
+  worldModifySocket = socket
 
-  if (worldUserActivityHandler) socket.off('userActivity', worldUserActivityHandler)
+  if (worldUserActivityHandler)
+    worldUserActivitySocket?.off('userActivity', worldUserActivityHandler)
   worldUserActivityHandler = (user: string, args: { targets?: string[]; active?: boolean }) => {
     if (args.targets) {
       logger.info('user event', user, args)
@@ -124,6 +131,7 @@ export async function setupSocketListenersForWorld(world: Ref<GamePF2e>) {
     }
   }
   socket.on('userActivity', worldUserActivityHandler)
+  worldUserActivitySocket = socket
 }
 
 export async function setupSocketListenersForActor(
