@@ -43,6 +43,20 @@ function normalizeInlineFormula(formula: string): string {
   return trimmed
 }
 
+function paramsFromString(params: string | undefined): Record<string, string> | undefined {
+  if (!params) return undefined
+  const parsed = params
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .reduce<Record<string, string>>((out, part) => {
+      const [key, ...rest] = part.split('=')
+      if (key && rest.length) out[key] = rest.join('=')
+      return out
+    }, {})
+  return Object.keys(parsed).length ? parsed : undefined
+}
+
 function damageInlineFromAnchor(anchor: HTMLAnchorElement): Record<string, string | true> {
   const inline: Record<string, string | true> = {}
   if (anchor.dataset.traits) inline.traits = anchor.dataset.traits
@@ -52,6 +66,21 @@ function damageInlineFromAnchor(anchor: HTMLAnchorElement): Record<string, strin
   else if (anchor.dataset.flavor) inline.name = anchor.dataset.flavor
   if ('immutable' in anchor.dataset) inline.immutable = true
   if ('overrideTraits' in anchor.dataset) inline.overrideTraits = true
+  return inline
+}
+
+function checkInlineFromAnchor(anchor: HTMLAnchorElement): Record<string, string | true> {
+  const inline: Record<string, string | true> = {}
+  if (anchor.dataset.pf2Traits) inline.traits = anchor.dataset.pf2Traits
+  if (anchor.dataset.pf2RollOptions) inline.options = anchor.dataset.pf2RollOptions
+  if (anchor.dataset.pf2RepostFlavor) inline.name = anchor.dataset.pf2RepostFlavor
+  if (anchor.dataset.pf2Roller) inline.roller = anchor.dataset.pf2Roller
+  if (anchor.dataset.rollerRole) inline.rollerRole = anchor.dataset.rollerRole
+  if (anchor.dataset.pf2Dc) inline.dc = anchor.dataset.pf2Dc
+  if (anchor.dataset.pf2ShowDc) inline.showDC = anchor.dataset.pf2ShowDc
+  if (anchor.dataset.pf2Adjustment) inline.adjustment = anchor.dataset.pf2Adjustment
+  if ('overrideTraits' in anchor.dataset) inline.overrideTraits = true
+  if ('targetOwner' in anchor.dataset) inline.targetOwner = true
   return inline
 }
 
@@ -79,6 +108,7 @@ export function activeRollFromActionElement(element: HTMLElement): ActiveRoll | 
     element.textContent?.trim() ||
     slug
   const params: Record<string, string> = {}
+  Object.assign(params, paramsFromString(element.dataset.pf2ParamsString))
   if (element.dataset.pf2Variant) params.variant = element.dataset.pf2Variant
   const statisticSlug =
     element.dataset.pf2Stat || element.dataset.pf2Skill || PF2E_ACTION_STAT_MAP[slug] || undefined
@@ -91,10 +121,31 @@ export function activeRollFromActionElement(element: HTMLElement): ActiveRoll | 
   }
 }
 
+export function activeRollFromInlineCheckAnchor(anchor: HTMLAnchorElement): ActiveRoll | undefined {
+  const slug = anchor.dataset.pf2Check
+  if (!slug) return undefined
+  const inline = checkInlineFromAnchor(anchor)
+  const dc =
+    typeof inline.dc === 'string' && /^\d+$/.test(inline.dc) ? Number(inline.dc) : undefined
+  const against = anchor.dataset.against
+  return {
+    action: 'check',
+    slug,
+    label: anchor.textContent?.trim() || slug,
+    checkInline: Object.keys(inline).length ? inline : undefined,
+    dc,
+    against
+  }
+}
+
 export function activeRollFromFoundryClickTarget(target: HTMLElement): ActiveRoll | undefined {
   const actionElement = target.closest<HTMLElement>('[data-pf2-action]')
   const actionRoll = actionElement ? activeRollFromActionElement(actionElement) : undefined
   if (actionRoll) return actionRoll
+
+  const inlineCheck = target.closest<HTMLAnchorElement>('a.inline-check[data-pf2-check]')
+  const checkRoll = inlineCheck ? activeRollFromInlineCheckAnchor(inlineCheck) : undefined
+  if (checkRoll) return checkRoll
 
   const inlineRoll = target.closest<HTMLAnchorElement>('a.inline-roll')
   return inlineRoll ? activeRollFromInlineRollAnchor(inlineRoll) : undefined

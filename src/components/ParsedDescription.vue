@@ -2,7 +2,14 @@
 import type { ActiveRoll } from '@/types/api-types'
 import { ref, computed, onBeforeUnmount, onMounted, watch, nextTick } from 'vue'
 import { simplifyFormula, simplifyFormulaHtml } from '@/utils/diceFormula'
-import { applyPf2eNotation } from '@/utils/pf2eEnrich'
+import {
+  applyPf2eNotation,
+  escapeHtml,
+  pf2eActionHtml,
+  pf2eCheckHtml,
+  pf2eDamageHtml,
+  pf2eUuidHtml
+} from '@/utils/pf2eEnrich'
 import {
   activeRollFromFoundryClickTarget,
   compendiumUuidFromClickTarget
@@ -85,11 +92,13 @@ function selectableRollsFromEnrichedHtml(html: string | undefined): string | und
   const template = document.createElement('template')
   template.innerHTML = html
   template.content
-    .querySelectorAll<HTMLElement>('[data-pf2-action], a.inline-roll')
+    .querySelectorAll<HTMLElement>('[data-pf2-action], a.inline-check[data-pf2-check], a.inline-roll')
     .forEach((element) => {
       const roll = activeRollFromFoundryClickTarget(element)
       if (!roll) return
-      if (roll.action === 'damage' && props.itemId && !roll.itemId) roll.itemId = props.itemId
+      if ((roll.action === 'check' || roll.action === 'damage') && props.itemId && !roll.itemId) {
+        roll.itemId = props.itemId
+      }
       const wrapper = document.createElement('span')
       wrapper.innerHTML = selectableRollLabel(element.innerHTML, roll)
       element.replaceWith(
@@ -102,28 +111,22 @@ function selectableRollsFromEnrichedHtml(html: string | undefined): string | und
 const parsedText = computed(() => {
   const text = applyPf2eNotation(props.text, {
     action: (slug, params, label) =>
-      selectableRollLabel(
-        `<span class="pf2-icon-inline">1</span>${label ?? props.labels?.[slug] ?? slug}`,
-        { action: 'action', slug, label, paramsString: params }
-      ),
+      pf2eActionHtml({
+        slug,
+        params,
+        label,
+        content: `<span class="pf2-icon-inline">1</span>${escapeHtml(
+          label ?? props.labels?.[slug] ?? slug
+        )}`
+      }),
 
     check: (slug, inline, dc, against) => {
-      const obj: ActiveRoll = {
-        action: 'check',
-        slug,
-        checkInline: Object.keys(inline).length ? inline : undefined
-      }
-      if (dc !== undefined) obj.dc = dc
-      if (against !== undefined) obj.against = against
-      if (props.itemId) obj.itemId = props.itemId
       const display =
         props.labels?.[slug] ?? (typeof inline.name === 'string' ? inline.name : undefined) ?? slug
-      const dcSuffix = dc ? ` DC ${dc}` : against ? ` vs ${against}` : ''
-      return selectableRollLabel(`${display} Check${dcSuffix}`, obj, 'capitalize pl-4')
+      return pf2eCheckHtml({ slug, inline, dc, against, label: display })
     },
 
-    uuid: (uuid, label) =>
-      `<span data-type="compendiumLink" data-uuid="${uuid.replace(/"/g, '&quot;')}" class="cursor-pointer underline decoration-dotted">${label}</span>`,
+    uuid: pf2eUuidHtml,
 
     // @Damage[formula|opt:val...]{label} — pipe-separated annotations forwarded
     // as `damageInline` so the Foundry handler can reconstruct a native enriched
@@ -139,10 +142,10 @@ const parsedText = computed(() => {
       }
       // Without an explicit label, highlight computed sub-expressions in green.
       const displayContent = label ?? simplifyFormulaHtml(formula, fullRollData.value)
-      return selectableRollLabel(displayContent, obj)
+      return pf2eDamageHtml(resolvedPlain, damageInline, obj.label, displayContent)
     },
 
-    inlineRoll: (formula) => `<span class="text-green-900">${formula}</span>`
+    inlineRoll: (formula) => `<span class="text-green-900">${escapeHtml(formula)}</span>`
   })
 
   const selectableText = selectableRollsFromEnrichedHtml(text)

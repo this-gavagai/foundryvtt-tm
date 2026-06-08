@@ -32,6 +32,36 @@ export function parseDamageInlineParams(segments: string[]): Record<string, stri
   return out
 }
 
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function escapeAttr(value: string): string {
+  return escapeHtml(value)
+}
+
+function htmlAttr(name: string, value: string | true | undefined): string {
+  if (value === undefined) return ''
+  return value === true ? ` ${name}` : ` ${name}="${escapeAttr(value)}"`
+}
+
+function paramsRecord(params: string): Record<string, string> {
+  return params
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .reduce<Record<string, string>>((out, part) => {
+      const [key, ...rest] = part.split('=')
+      if (key && rest.length) out[key] = rest.join('=')
+      return out
+    }, {})
+}
+
 export interface Pf2eNotationReplacers {
   // [[/act slug params]]{label}
   action?: (slug: string, params: string, label: string | undefined) => string
@@ -78,8 +108,8 @@ export function applyPf2eNotation(
 
   // @Check[type|annotations]
   if (replacers.check) {
-    text = text.replace(/@Check\[([^\]]+)\]/gm, (_, content: string) => {
-      const parts = content.split('|')
+    text = text.replace(/@Check\[((?:[^\[\]]|\[[^\]]*\])*)\]/gm, (_, content: string) => {
+      const parts = splitOnTopLevelPipe(content)
       const slug = parts[0]
       const inline = parseDamageInlineParams(parts.slice(1))
       const dc =
@@ -132,29 +162,111 @@ const DAMAGE_ATTR_NAMES: Record<string, string> = {
   overrideTraits: 'override-traits'
 }
 
+const CHECK_ATTR_NAMES: Record<string, string> = {
+  traits: 'pf2-traits',
+  options: 'pf2-roll-options',
+  name: 'pf2-repost-flavor',
+  roller: 'pf2-roller',
+  rollerRole: 'roller-role',
+  dc: 'pf2-dc',
+  showDC: 'pf2-show-dc',
+  adjustment: 'pf2-adjustment',
+  overrideTraits: 'override-traits',
+  targetOwner: 'target-owner'
+}
+
+function inlineAttrs(
+  inline: Record<string, string | true>,
+  attrNames: Record<string, string>
+): string {
+  return Object.entries(inline)
+    .filter(([key]) => key in attrNames)
+    .map(([key, value]) => htmlAttr(`data-${attrNames[key]}`, value))
+    .join('')
+}
+
+export function pf2eActionHtml({
+  slug,
+  params,
+  label,
+  content
+}: {
+  slug: string
+  params?: string
+  label?: string
+  content?: string
+}): string {
+  const parsedParams = params ? paramsRecord(params) : {}
+  const body = content ?? `<span class="pf2-icon-inline">1</span>${escapeHtml(label ?? slug)}`
+  return `<a role="button" data-pf2-action="${escapeAttr(slug)}"${htmlAttr(
+    'data-pf2-params-string',
+    params || undefined
+  )}${htmlAttr('data-pf2-variant', parsedParams.variant)}${htmlAttr(
+    'data-pf2-stat',
+    parsedParams.statistic ?? parsedParams.stat
+  )}${htmlAttr('data-pf2-skill', parsedParams.skill)}>${body}</a>`
+}
+
+export function pf2eCheckHtml({
+  slug,
+  inline,
+  dc,
+  against,
+  label,
+  content
+}: {
+  slug: string
+  inline?: Record<string, string | true>
+  dc?: number
+  against?: string
+  label?: string
+  content?: string
+}): string {
+  const display = label ?? (typeof inline?.name === 'string' ? inline.name : undefined) ?? slug
+  const dcSuffix = dc ? ` DC ${dc}` : against ? ` vs ${against}` : ''
+  const body = content ?? `${escapeHtml(display)} Check${escapeHtml(dcSuffix)}`
+  return `<a class="inline-check" data-pf2-check="${escapeAttr(slug)}"${htmlAttr(
+    'data-against',
+    against
+  )}${inlineAttrs(inline ?? {}, CHECK_ATTR_NAMES)}>${body}</a>`
+}
+
+export function pf2eUuidHtml(uuid: string, label: string): string {
+  return `<a class="content-link" data-uuid="${escapeAttr(uuid)}" data-type="Item">${escapeHtml(
+    label
+  )}</a>`
+}
+
+export function pf2eDamageHtml(
+  formula: string,
+  damageInline: Record<string, string | true>,
+  label: string | undefined,
+  content?: string
+): string {
+  const display = content ?? escapeHtml(label ?? formula.replace(/\[([^\]]*)\]/g, ' $1').trim())
+  return `<a class="inline-roll" data-damage-roll="${escapeAttr(formula)}"${inlineAttrs(
+    damageInline,
+    DAMAGE_ATTR_NAMES
+  )}>${display}</a>`
+}
+
 // Convert un-enriched PF2e notation inside a raw chat HTML blob to elements
 // that ChatOverlay.vue's existing click handlers can work with:
 //   @UUID[...]/{label}  →  <a class="content-link" data-uuid="…" data-type="Item">
+//   [[/act ...]]        →  <a data-pf2-action="…">
+//   @Check[...]         →  <a class="inline-check" data-pf2-check="…">
 //   @Damage[formula]    →  <a class="inline-roll" data-damage-roll="…">
 //   [[/r formula]]      →  <span class="text-green-900">…</span>
 export function enrichChatHtml(html: string): string {
   return applyPf2eNotation(html, {
-    uuid: (uuid, label) =>
-      `<a class="content-link" data-uuid="${uuid.replace(/"/g, '&quot;')}" data-type="Item">${label}</a>`,
+    action: (slug, params, label) => pf2eActionHtml({ slug, params, label }),
 
-    damage: (formula, damageInline, label) => {
-      const escapedFormula = formula.replace(/"/g, '&quot;')
-      const display = label ?? formula.replace(/\[([^\]]*)\]/g, ' $1').trim()
-      const attrs = Object.entries(damageInline)
-        .filter(([k]) => k in DAMAGE_ATTR_NAMES)
-        .map(([k, v]) => {
-          const attr = `data-${DAMAGE_ATTR_NAMES[k]}`
-          return v === true ? attr : `${attr}="${String(v).replace(/"/g, '&quot;')}"`
-        })
-        .join(' ')
-      return `<a class="inline-roll" data-damage-roll="${escapedFormula}"${attrs ? ' ' + attrs : ''}>${display}</a>`
-    },
+    check: (slug, inline, dc, against) => pf2eCheckHtml({ slug, inline, dc, against }),
 
-    inlineRoll: (formula) => `<span class="text-green-900">${formula}</span>`
+    uuid: pf2eUuidHtml,
+
+    damage: pf2eDamageHtml,
+
+    inlineRoll: (formula) => `<span class="text-green-900">${escapeHtml(formula)}</span>`
   }) as string
 }
