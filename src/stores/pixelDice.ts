@@ -171,3 +171,5 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
     forgetDie
   }
 })
+
+export const usePixelDice = () => { usePixelDiceStore() }

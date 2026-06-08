@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { useTemplateRef } from 'vue'
+import { computed, useTemplateRef } from 'vue'
 import { storeToRefs } from 'pinia'
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 
 import { useServerStore } from '@/stores/server'
 import { useWorldStore } from '@/stores/world'
-import { usePixelDiceStore } from '@/stores/pixelDice'
+import { usePixelDice } from '@/stores/pixelDice'
 
 import CharacterSheet from '@/components/CharacterSheet.vue'
 import LoginPage from '@/components/LoginPage.vue'
@@ -22,32 +22,40 @@ import { useDevGlobals } from '@/composables/useDevGlobals'
 
 initTheme()
 
-// Reactive state the template gates on; the lifecycle behind it lives in the
-// composables below.
 const { needsLogin } = storeToRefs(useServerStore())
 const { worldActive, worldRunning } = storeToRefs(useWorldStore())
 
-// Cross-cutting lifecycle: server/world session, character routing, mobile
-// connection recovery, screen wake-lock, and pixel-dice handlers.
 const { reconnecting } = useSession()
 const { urlId, characterList, activeCharacterId } = useCharacterRouting()
 useConnectionRecovery()
 useKeepScreenAwake()
-usePixelDiceStore()
+usePixelDice()
+
+const isLoading = computed(
+  () =>
+    worldRunning.value === undefined ||
+    reconnecting.value ||
+    (worldRunning.value && !needsLogin.value && worldActive.value !== true)
+)
 
 const characters = useTemplateRef('characters')
 useDevGlobals(characters, urlId)
 </script>
 <template>
   <div>
-    <div v-if="worldRunning === undefined || reconnecting || (worldRunning && !needsLogin && worldActive !== true)" class="flex h-dvh items-center justify-center">
+    <div v-if="isLoading" class="flex h-dvh items-center justify-center">
       <Spinner class="h-12 w-12" />
     </div>
-    <div v-else-if="!worldRunning" data-component="NoWorldMessage" class="flex h-dvh items-center justify-center p-8 text-center text-lg">
+    <div
+      v-else-if="!worldRunning"
+      data-component="NoWorldMessage"
+      class="flex h-dvh items-center justify-center p-8 text-center text-lg"
+    >
       {{ $t('app.noWorld') }}
     </div>
     <LoginPage v-else-if="needsLogin" />
     <TabGroup v-else :selectedIndex="characterList.indexOf(activeCharacterId)" as="div">
+      <!-- tabs control routing only; list is visually hidden -->
       <TabList class="border-divider hidden h-12 gap-0 border bg-white text-xl">
         <Tab
           class="ui-selected:bg-blue-300 relative top-0 p-2 focus:outline-hidden"
