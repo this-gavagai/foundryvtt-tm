@@ -37,10 +37,15 @@ export interface ChatMessageData {
   rolls?: Array<string | RollJson>
   type?: string
   flags?: {
+    tablemate?: {
+      originUserId?: string | null
+    }
     pf2e?: {
       origin?: { uuid?: string | null }
     }
   }
+  'flags.tablemate.originUserId'?: string | null
+  getFlag?: (scope: string, key: string) => unknown
 }
 
 interface UserData {
@@ -101,6 +106,16 @@ export function originItemId(message: ChatMessageData): string | undefined {
   const uuid = message.flags?.pf2e?.origin?.uuid
   if (!uuid) return undefined
   return /\.Item\.([^.]+)$/.exec(uuid)?.[1]
+}
+
+function tablemateOriginUserId(message: ChatMessageData): string | undefined {
+  const flagged = message.getFlag?.('tablemate', 'originUserId')
+  return (
+    (typeof flagged === 'string' ? flagged : undefined) ??
+    message.flags?.tablemate?.originUserId ??
+    message['flags.tablemate.originUserId'] ??
+    undefined
+  )
 }
 
 function formattedTime(timestamp?: number | null): string {
@@ -166,6 +181,9 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
   )
 
   function authorName(message: ChatMessageData): string {
+    const tablemateOrigin = tablemateOriginUserId(message)
+    if (tablemateOrigin) return userNamesById.value.get(tablemateOrigin) ?? tablemateOrigin
+
     if (typeof message.author === 'object' && message.author?.name) return message.author.name
     const authorId = typeof message.author === 'string' ? message.author : (message.user ?? '')
     return userNamesById.value.get(authorId) ?? authorId

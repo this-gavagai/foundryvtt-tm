@@ -81,6 +81,10 @@ const PASSIVE_ACTIONS = new Set<string>([
 ])
 
 const getChar: Record<string, (args: RequestCharacterDetailsArgs) => void> = {}
+const CHAT_ORIGIN_GRACE_MS = 2000
+const chatOriginStack: string[] = []
+let recentChatOrigin: { userId: string; expiresAt: number } | undefined
+let chatOriginStampingRegistered = false
 
 function stampChatOrigin(message: unknown, data: unknown, originUserId: string) {
   const sourceUpdate = { flags: { tablemate: { originUserId } } }
@@ -101,23 +105,56 @@ function stampChatOrigin(message: unknown, data: unknown, originUserId: string) 
   }
 }
 
+function currentChatOriginUserId(): string | undefined {
+  const stacked = chatOriginStack[chatOriginStack.length - 1]
+  if (stacked) return stacked
+
+  if (!recentChatOrigin) return undefined
+  if (recentChatOrigin.expiresAt > Date.now()) return recentChatOrigin.userId
+  recentChatOrigin = undefined
+  return undefined
+}
+
+function retainRecentChatOrigin(originUserId: string) {
+  recentChatOrigin = {
+    userId: originUserId,
+    expiresAt: Date.now() + CHAT_ORIGIN_GRACE_MS
+  }
+  globalThis.setTimeout(() => {
+    if (recentChatOrigin?.userId === originUserId && recentChatOrigin.expiresAt <= Date.now()) {
+      recentChatOrigin = undefined
+    }
+  }, CHAT_ORIGIN_GRACE_MS)
+}
+
+function setupChatOriginStamping() {
+  if (chatOriginStampingRegistered) return
+  chatOriginStampingRegistered = true
+
+  Hooks.on('preCreateChatMessage', (message, data) => {
+    const originUserId = currentChatOriginUserId()
+    if (originUserId) stampChatOrigin(message, data, originUserId)
+  })
+  Hooks.on('createChatMessage', (message) => {
+    const originUserId = currentChatOriginUserId()
+    if (originUserId) stampTablemateChatOrigin(message, originUserId)
+  })
+}
+
 async function withChatOrigin<T>(originUserId: string, run: () => Promise<T>): Promise<T> {
-  const preHookId = Hooks.on('preCreateChatMessage', (message, data) => {
-    stampChatOrigin(message, data, originUserId)
-  })
-  const createHookId = Hooks.on('createChatMessage', (message) => {
-    stampTablemateChatOrigin(message, originUserId)
-  })
+  chatOriginStack.push(originUserId)
   try {
     return await run()
   } finally {
-    Hooks.off('preCreateChatMessage', preHookId)
-    Hooks.off('createChatMessage', createHookId)
+    const currentIndex = chatOriginStack.lastIndexOf(originUserId)
+    if (currentIndex >= 0) chatOriginStack.splice(currentIndex, 1)
+    retainRecentChatOrigin(originUserId)
   }
 }
 
 export function setupListener() {
   logger.info('TABLEMATE: Setting up listener')
+  setupChatOriginStamping()
   announceSelf()
 
   game.socket.onAnyOutgoing((event: string, ...args: ModuleEventArgs[] | GetEvent[]) => {
