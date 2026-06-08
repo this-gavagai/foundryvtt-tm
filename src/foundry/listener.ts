@@ -258,14 +258,22 @@ function iAmFirstGM() {
       .some((other: UserPF2e) => other._id! < game.user._id!)
   )
 }
+function isTablemateRootUser(user: UserPF2e | undefined) {
+  return user?.flags?.tablemate?.character_sheet === 'root'
+}
+function targetingProxyFor(userId: string) {
+  const proxyId = game.users.get(userId)?.flags?.tablemate?.targeting_proxy
+  const proxyUser = typeof proxyId === 'string' ? game.users.get(proxyId) : undefined
+  return isTablemateRootUser(proxyUser) ? undefined : proxyId
+}
 function iAmProxy(userId: string) {
-  return game.users.get(userId)?.flags?.tablemate?.targeting_proxy === game.user._id
+  return targetingProxyFor(userId) === game.user._id
 }
 function proxyIsOnline(userId: string) {
+  const proxyId = targetingProxyFor(userId)
   return (
     game.users.filter(
-      (user: UserPF2e) =>
-        game.users.get(userId)?.flags?.tablemate?.targeting_proxy === user._id && user.active
+      (user: UserPF2e) => proxyId === user._id && user.active && !isTablemateRootUser(user)
     ).length > 0
   )
 }
