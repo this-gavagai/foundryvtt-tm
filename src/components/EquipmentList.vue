@@ -51,6 +51,8 @@ const partyActorId = computed<string | null>(
 )
 
 const partyActorRef = ref<TablemateCharacter | undefined>()
+const inventoryMode = ref<'individual' | 'party'>('individual')
+const showPartyInventory = computed(() => inventoryMode.value === 'party')
 
 watch(
   partyActorId,
@@ -80,9 +82,6 @@ const partyActorForItems = computed<TablemateCharacter | undefined>(() => {
 })
 
 const { inventory: partyInventory } = useCharacterItems(partyActorForItems)
-
-const inventoryMode = ref<'individual' | 'party'>('individual')
-const showPartyInventory = computed(() => inventoryMode.value === 'party')
 
 const displayInventory = computed<InventoryItem[] | undefined>(() => {
   if (showPartyInventory.value && partyActorId.value) {

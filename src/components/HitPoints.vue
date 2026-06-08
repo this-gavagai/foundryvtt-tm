@@ -2,11 +2,14 @@
 import { ref } from 'vue'
 import { parseIncrement, selectAllOnClick } from '@/utils/utilities'
 import { useInjectedCharacter } from '@/composables/injectKeys'
+import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
+import type { Ref } from 'vue'
 
 import StatBox from '@/components/widgets/StatBox.vue'
 import Modal from '@/components/ModalBox.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import { useLastDamage } from '@/composables/lastDamage'
+import { applyDamage } from '@/api/actionRpc'
 
 interface SubmissionEvent {
   submitter: { name: string }
@@ -21,7 +24,8 @@ const hitpointsModal = ref()
 
 const character = useInjectedCharacter()
 const { current: hpCurrent, max: hpMax, temp: hpTemp, modifiers: hpModifiers } = character.hp
-const { lastDamageAmount } = useLastDamage()
+const { _actor } = character
+const { lastDamageAmount, lastDamageMessageId } = useLastDamage()
 
 function updateHitPoints(hp_input: string, temp_input: string) {
   if (hpCurrent.value === undefined || hpTemp.value === undefined || hpMax.value === undefined)
@@ -46,14 +50,13 @@ function handleHpFormSubmit(e: Event) {
     case 'reset':
       updateHitPoints(hpMax.value + '', '0')
       break
-    case 'lastDamageMinus': {
-      const newTempHP = Math.max((hpTemp.value ?? 0) - lastDamageAmount.value, 0)
-      const hpAdjustment = Math.max(lastDamageAmount.value - (hpTemp.value ?? 0), 0)
-      updateHitPoints('-' + hpAdjustment, newTempHP + '')
+    case 'lastDamageMinus':
+      if (lastDamageMessageId.value)
+        applyDamage(_actor as Ref<CharacterPF2e>, lastDamageMessageId.value, 1, 0)
       break
-    }
     case 'lastDamagePlus':
-      updateHitPoints('+' + lastDamageAmount.value, hpTemp.value + '')
+      if (lastDamageMessageId.value)
+        applyDamage(_actor as Ref<CharacterPF2e>, lastDamageMessageId.value, -1, 0)
       break
   }
   hitpointsModal.value.close()
