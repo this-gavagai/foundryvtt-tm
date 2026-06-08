@@ -5,6 +5,7 @@ import { SignedNumber } from '@/utils/formatters'
 import { proficiencyLevels } from '@/utils/constants'
 import InfoModal from '@/components/InfoModal.vue'
 import ModifierOverrideList from '@/components/ModifierOverrideList.vue'
+import Toggle from '@/components/widgets/ToggleWidget.vue'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import type { Roll } from '@/types/roll-types'
 import { storeToRefs } from 'pinia'
@@ -24,10 +25,15 @@ const props = defineProps<{
   preventInfoModal?: boolean
   rollAction?: (
     r: number | undefined,
-    options?: { modifierOverrides?: Record<string, boolean> }
+    options?: {
+      modifierOverrides?: Record<string, boolean>
+      messageMode?: 'blind'
+      rollMode?: 'blindroll'
+    }
   ) => Promise<RequestResolutionArgs | null>
 }>()
 const infoModal = ref()
+const isSecret = ref(false)
 const { isListening } = storeToRefs(useListenersStore())
 
 const canOpen = computed(() => (props?.modifiers || props?.breakdown) && !props.preventInfoModal)
@@ -78,10 +84,13 @@ const rolls = computed<Roll[]>(() => {
       execute: (faces) => {
         const overrides = modifierOverrides.value
         const hasOverrides = Object.keys(overrides).length > 0
-        return props.rollAction!(
-          faces?.[0],
-          hasOverrides ? { modifierOverrides: { ...overrides } } : undefined
-        )
+        const options = {
+          ...(hasOverrides ? { modifierOverrides: { ...overrides } } : {}),
+          ...(isSecret.value
+            ? { messageMode: 'blind' as const, rollMode: 'blindroll' as const }
+            : {})
+        }
+        return props.rollAction!(faces?.[0], Object.keys(options).length ? options : undefined)
       }
     }
   ]
@@ -116,6 +125,15 @@ defineExpose({ infoModal })
     </div>
     <Teleport to="#modals">
       <InfoModal ref="infoModal" :rolls="rolls" @closing="modifierOverrides = {}">
+        <template #bottomLeft>
+          <Toggle
+            v-if="props.rollAction && isListening"
+            :active="isSecret"
+            @changed="(v: boolean) => (isSecret = v)"
+          >
+            <span class="text-sm">{{ $t('sideMenu.secret') }}</span>
+          </Toggle>
+        </template>
         <div>
           <h3 class="mb-2 text-xl">
             {{ modalHeading ?? heading }}
