@@ -199,18 +199,18 @@ defineExpose({ open, close, rollResultModal, isOpen })
                   @pick-face="pickFace"
                 />
                 <div class="mt-4 flex flex-wrap items-center justify-end gap-2">
-                  <!-- Left-aligned slot, paired with `justify-end` on the row
-                       via `mr-auto`. Used by modals that need a per-action
-                       control inline with the roll button (e.g. secret toggle). -->
-                  <div class="mr-auto empty:hidden">
-                    <slot name="bottomLeft"></slot>
-                  </div>
                   <PendingPixelDice
                     v-if="hasReadyPixel && armedRoll?.dice?.length"
                     :dice="armedRoll.dice"
                     :buffer="buffer"
                     @clear="clearBuffer"
                   />
+                  <!-- Left-aligned slot, paired with `justify-end` on the row
+                       via `mr-auto`. Used by modals that need a per-action
+                       control inline with the roll button (e.g. secret toggle). -->
+                  <div class="mr-auto empty:hidden">
+                    <slot name="bottomLeft"></slot>
+                  </div>
                   <RollButtons
                     :rolls="props.rolls"
                     :armedRoll="armedRoll"

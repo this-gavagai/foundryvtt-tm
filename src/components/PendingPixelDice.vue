@@ -28,7 +28,7 @@ defineEmits<{
 <template>
   <div
     data-component="PendingPixelDice"
-    class="flex grow cursor-pointer items-center gap-1"
+    class="flex cursor-pointer items-center gap-1"
     :title="$t('infoModal.clearDicePending')"
     @click="$emit('clear')"
   >
