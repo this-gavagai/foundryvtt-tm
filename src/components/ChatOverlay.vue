@@ -23,6 +23,12 @@ import {
   prepareChatHtml
 } from '@/utils/foundryHtml'
 import type { ActiveRoll, ApplyDamageMode } from '@/types/api-types'
+import {
+  rollSummaries,
+  type ChatRollDie,
+  type ChatRollSummary,
+  type RollJson
+} from '@/utils/chatRollSummary'
 
 type CollectionLike<T> =
   | T[]
@@ -56,40 +62,6 @@ interface ChatMessageData {
       origin?: { uuid?: string | null }
     }
   }
-}
-
-interface RollTermJson {
-  class?: string
-  options?: { flavor?: string | null; [key: string]: unknown }
-  formula?: string
-  terms?: RollTermJson[]
-  rolls?: RollJson[]
-  results?: Array<{ result?: number; active?: boolean }>
-  number?: number
-  faces?: number
-  total?: number
-  [key: string]: unknown
-}
-
-interface RollJson extends RollTermJson {
-  dice?: RollTermJson[]
-  evaluated?: boolean
-}
-
-interface ChatRollDie {
-  formula: string
-  flavor?: string
-  faces?: number
-  results: number[]
-}
-
-interface ChatRollSummary {
-  className?: string
-  formula?: string
-  total?: number
-  flavors: string[]
-  dice: ChatRollDie[]
-  isHealing: boolean
 }
 
 interface UserData {
@@ -256,108 +228,6 @@ function tokenScale(token: ChatTokenData | undefined): { '--sx': number; '--sy':
   }
 }
 
-function parseRollJson(roll: string | RollJson | undefined): RollJson | undefined {
-  if (!roll) return undefined
-  if (typeof roll !== 'string') return roll
-  try {
-    const parsed = JSON.parse(roll)
-    return parsed && typeof parsed === 'object' ? parsed : undefined
-  } catch {
-    return undefined
-  }
-}
-
-function formulaFlavors(formula: string | undefined): string[] {
-  if (!formula) return []
-  return Array.from(formula.matchAll(/\[([^\]]+)\]/g))
-    .flatMap((match) => match[1].split(','))
-    .map((flavor) => flavor.trim())
-    .filter(Boolean)
-}
-
-function stringValue(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined
-}
-
-function termDamageType(term: RollTermJson): string | undefined {
-  const options = term.options ?? {}
-  return (
-    stringValue(term.damageType) ??
-    stringValue(term.type) ??
-    stringValue(options.damageType) ??
-    stringValue(options.type) ??
-    stringValue(options.flavor) ??
-    formulaFlavors(term.formula)[0]
-  )
-}
-
-function collectRollTerms(
-  term: RollTermJson | undefined,
-  out: RollTermJson[] = []
-): RollTermJson[] {
-  if (!term) return out
-  out.push(term)
-  term.terms?.forEach((child) => collectRollTerms(child, out))
-  term.rolls?.forEach((child) => collectRollTerms(child, out))
-  return out
-}
-
-function uniqueStrings(values: Array<string | undefined | null>): string[] {
-  return Array.from(new Set(values.filter((value): value is string => !!value)))
-}
-
-function dieResults(term: RollTermJson): number[] {
-  return (
-    term.results
-      ?.filter((result) => result.active !== false && typeof result.result === 'number')
-      .map((result) => result.result as number) ?? []
-  )
-}
-
-function dieFormula(term: RollTermJson): string | undefined {
-  if (term.formula) return term.formula
-  if (term.number && term.faces) return `${term.number}d${term.faces}`
-  return undefined
-}
-
-function rollSummary(roll: string | RollJson | undefined): ChatRollSummary | undefined {
-  const parsed = parseRollJson(roll)
-  if (!parsed) return undefined
-
-  const terms = collectRollTerms(parsed)
-  const dice = terms
-    .filter((term) => term.class === 'Die' || (term.faces && term.number))
-    .map((term) => ({
-      formula: dieFormula(term) ?? 'die',
-      flavor: term.options?.flavor ?? formulaFlavors(term.formula)[0],
-      faces: term.faces,
-      results: dieResults(term)
-    }))
-
-  const flavors = uniqueStrings([
-    ...terms.map((term) => term.options?.flavor),
-    ...terms.flatMap((term) => formulaFlavors(term.formula))
-  ])
-  const damageTypes = uniqueStrings(terms.map(termDamageType))
-
-  if (!dice.length && !flavors.length && !parsed.formula && typeof parsed.total !== 'number') {
-    return undefined
-  }
-
-  return {
-    className: parsed.class,
-    formula: parsed.formula,
-    total: typeof parsed.total === 'number' ? parsed.total : undefined,
-    flavors,
-    dice,
-    isHealing: damageTypes.some((type) => type.toLowerCase() === 'healing')
-  }
-}
-
-function rollSummaries(message: ChatMessageData): ChatRollSummary[] {
-  return message.rolls?.map(rollSummary).filter((roll): roll is ChatRollSummary => !!roll) ?? []
-}
-
 function rollKindLabel(roll: ChatRollSummary): string {
   if (roll.className === 'DamageRoll') return 'Damage'
   if (roll.className === 'CheckRoll') return 'Check'
@@ -465,7 +335,7 @@ function plainChatText(content: string): string {
 
 function shouldShowMessageContent(
   message: ChatMessageData,
-  summaries = rollSummaries(message)
+  summaries = rollSummaries(message.rolls)
 ): boolean {
   if (!message.content) return false
   if (!summaries.length) return true
@@ -474,7 +344,7 @@ function shouldShowMessageContent(
 }
 
 function buildChatMessageView(message: ChatMessageData, index: number): ChatMessageView {
-  const rolls = rollSummaries(message)
+  const rolls = rollSummaries(message.rolls)
   const showContent = shouldShowMessageContent(message, rolls)
   const token = speakerToken(message)
   const author = authorName(message)
