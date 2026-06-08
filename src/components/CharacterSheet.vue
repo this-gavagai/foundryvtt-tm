@@ -7,6 +7,7 @@ import { TabGroup, TabList, TabPanels } from '@headlessui/vue'
 
 import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'
+import { useCharacterSelectStore } from '@/stores/characterSelect'
 import { useCharacter } from '@/composables/character'
 import { useActorSync } from '@/composables/useActorSync'
 import { characterKey } from '@/composables/injectKeys'
@@ -54,11 +55,13 @@ const { width } = useWindowSize()
 const sideMenu = ref()
 const panels = ref()
 
-const currentTab = ref<number>()
+const characterSelectStore = useCharacterSelectStore()
+const { activeSheetTab } = storeToRefs(characterSelectStore)
+const { initializeActiveSheetTab, setActiveSheetTab } = characterSelectStore
 const goLeft = ref(false)
 function changeTab(index: number) {
-  goLeft.value = (currentTab.value ?? 0) - index >= 0 ? true : false
-  currentTab.value = index
+  goLeft.value = (activeSheetTab.value ?? 0) - index >= 0 ? true : false
+  setActiveSheetTab(index)
 }
 const dragOptions = {
   preventWindowScrollY: true,
@@ -68,7 +71,7 @@ const dragOptions = {
 }
 const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
   if (swipe[0])
-    changeTab(Math.max(0, Math.min((currentTab.value ?? 0) - swipe[0], tabs.length - 1)))
+    changeTab(Math.max(0, Math.min((activeSheetTab.value ?? 0) - swipe[0], tabs.length - 1)))
 }
 
 // base data
@@ -98,7 +101,7 @@ useActorSync(props.characterId, actor)
 
 // set initial tab based on viewport
 onMounted(() => {
-  currentTab.value = width.value >= 768 ? firstDesktopTab : 0
+  initializeActiveSheetTab(width.value >= 768 ? firstDesktopTab : 0)
 })
 
 defineExpose({ actor, character, actorOrWorldActor })
@@ -120,7 +123,7 @@ defineExpose({ actor, character, actorOrWorldActor })
       :dragOptions="dragOptions"
       class="border-divider no-scrollbar flex w-0 flex-1 flex-col justify-between md:h-dvh md:justify-start md:border-l"
     >
-      <TabGroup :selectedIndex="currentTab" @change="changeTab">
+      <TabGroup :selectedIndex="activeSheetTab" @change="changeTab">
         <TabPanels tabindex="-1" class="h-dvh w-full overflow-auto md:order-last" ref="panels">
           <CharacterHeader
             class="sticky top-0 z-10 h-32 md:hidden"

@@ -10,6 +10,7 @@ export const useCharacterSelectStore = defineStore('characterSelect', () => {
 
   const urlId = ref<string>()
   const activeCharacterId = ref<string>('')
+  const activeSheetTab = ref<number>()
 
   const ownedActorIds = computed<string[]>(
     () =>
@@ -74,11 +75,22 @@ export const useCharacterSelectStore = defineStore('characterSelect', () => {
     if (newId) activeCharacterId.value = newId
   }
 
+  function initializeActiveSheetTab(defaultIndex: number) {
+    activeSheetTab.value ??= defaultIndex
+  }
+
+  function setActiveSheetTab(newIndex: number) {
+    activeSheetTab.value = newIndex
+  }
+
   return {
     urlId,
     characterList,
     activeCharacterId,
+    activeSheetTab,
     initialize,
-    setActiveCharacterId
+    setActiveCharacterId,
+    initializeActiveSheetTab,
+    setActiveSheetTab
   }
 })
