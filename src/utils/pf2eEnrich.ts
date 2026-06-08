@@ -81,14 +81,7 @@ export function applyPf2eNotation(
     text = text.replace(/@Check\[([^\]]+)\]/gm, (_, content: string) => {
       const parts = content.split('|')
       const slug = parts[0]
-      const inline: Record<string, string | true> = {}
-      for (const part of parts.slice(1)) {
-        const trimmed = part.trim()
-        if (!trimmed) continue
-        const i = trimmed.indexOf(':')
-        if (i === -1) inline[trimmed] = true
-        else inline[trimmed.slice(0, i).trim()] = trimmed.slice(i + 1)
-      }
+      const inline = parseDamageInlineParams(parts.slice(1))
       const dc =
         typeof inline.dc === 'string' && /^\d+$/.test(inline.dc) ? Number(inline.dc) : undefined
       const against = typeof inline.against === 'string' ? inline.against : undefined

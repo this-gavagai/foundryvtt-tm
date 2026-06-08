@@ -1,3 +1,29 @@
+export const PF2E_ACTION_STAT_MAP: Record<string, string> = {
+  trip: 'athletics',
+  shove: 'athletics',
+  grapple: 'athletics',
+  disarm: 'athletics',
+  'high-jump': 'athletics',
+  'long-jump': 'athletics',
+  'force-open': 'athletics',
+  'tumble-through': 'acrobatics',
+  'maneuver-in-flight': 'acrobatics',
+  escape: 'athletics',
+  demoralize: 'intimidation',
+  'bon-mot': 'diplomacy',
+  'create-a-diversion': 'deception',
+  feint: 'deception',
+  request: 'diplomacy',
+  hide: 'stealth',
+  sneak: 'stealth',
+  seek: 'perception',
+  'sense-motive': 'perception',
+  'palm-an-object': 'thievery',
+  steal: 'thievery',
+  'pick-a-lock': 'thievery',
+  'disable-a-device': 'thievery'
+}
+
 // prettier-ignore
 export const skillMacros = [
 	{ skill: 'acrobatics', name: 'Balance', trained: false, compendium: 'pf2e.action-macros', macro: '55mxH0w8UkY1o3Xv' },

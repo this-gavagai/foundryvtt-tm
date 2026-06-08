@@ -1,4 +1,5 @@
 import type { ElementalBlast, Strike, Weapon } from '@/composables/character'
+import { isString } from '@/utils/utilities'
 
 export type ViewedStrikeTarget =
   | { kind: 'strike'; data: Strike; index: number; altUsage?: number }
@@ -89,8 +90,4 @@ export function variantLabelForViewed(viewed: ViewedStrike | undefined): string 
           (viewed.target.kind === 'blast' ? attackTypeMap.get(viewed.target.isMelee) : undefined)
     )?.label ?? ''
   )
-}
-
-function isString(value: string | undefined | null): value is string {
-  return !!value
 }

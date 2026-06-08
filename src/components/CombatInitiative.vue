@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CombatantPF2e } from '@7h3laughingman/pf2e-types'
 import { computed } from 'vue'
-import { formatModifier } from '@/utils/utilities'
+import { formatModifier } from '@/utils/formatters'
 import StatBox from '@/components/widgets/StatBox.vue'
 import { storeToRefs } from 'pinia'
 import { useCombatStore } from '@/stores/combat'

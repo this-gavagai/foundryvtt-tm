@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import StatBox from './widgets/StatBox.vue'
-import { formatModifier } from '@/utils/utilities'
+import { formatModifier } from '@/utils/formatters'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 
 const character = useInjectedCharacter()

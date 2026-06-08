@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatModifier } from '@/utils/utilities'
+import { formatModifier } from '@/utils/formatters'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import StatBox from './widgets/StatBox.vue'
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { SignedNumber } from '@/utils/utilities'
+import { SignedNumber } from '@/utils/formatters'
 import type { Modifier } from '@/composables/character'
 
 const props = defineProps<{

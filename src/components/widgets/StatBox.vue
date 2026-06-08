@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { SignedNumber } from '@/utils/utilities'
+import { SignedNumber } from '@/utils/formatters'
 import { proficiencyLevels } from '@/utils/constants'
 import InfoModal from '@/components/InfoModal.vue'
 import ModifierOverrideList from '@/components/ModifierOverrideList.vue'

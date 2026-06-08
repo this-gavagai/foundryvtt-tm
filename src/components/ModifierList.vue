@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { SignedNumber } from '@/utils/utilities'
+import { SignedNumber } from '@/utils/formatters'
 import type { Modifier } from '@/composables/character'
 
 defineProps<{

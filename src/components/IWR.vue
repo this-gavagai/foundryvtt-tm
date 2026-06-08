@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import {} from '@/utils/utilities'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 
 const character = useInjectedCharacter()
