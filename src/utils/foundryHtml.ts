@@ -1,24 +1,5 @@
 import type { ActiveRoll } from '@/types/api-types'
-import { getPath } from '@/utils/utilities'
-import { enrichChatHtml } from '@/utils/pf2eEnrich'
 import { PF2E_ACTION_STAT_MAP } from '@/utils/constants'
-
-export function normalizeFoundryAssetUrls(html: string | null | undefined): string | undefined {
-  if (!html) return undefined
-  const template = document.createElement('template')
-  template.innerHTML = html
-  template.content.querySelectorAll<HTMLImageElement>('img[src]').forEach((img) => {
-    const src = img.getAttribute('src')
-    if (!src || /^(?:[a-z][a-z0-9+.-]*:|\/|#)/i.test(src)) return
-    img.setAttribute('src', getPath(src))
-  })
-  return template.innerHTML
-}
-
-export function prepareChatHtml(html: string | null | undefined): string | undefined {
-  const normalized = normalizeFoundryAssetUrls(html)
-  return normalized ? enrichChatHtml(normalized) : normalized
-}
 
 export function compendiumUuidFromClickTarget(target: HTMLElement): string | undefined {
   return (

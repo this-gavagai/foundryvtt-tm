@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from 'vue'
-import { storeToRefs } from 'pinia'
+import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
 import { PaperAirplaneIcon, XMarkIcon } from '@heroicons/vue/24/outline'
-import { useWorldStore } from '@/stores/world'
-import { sendChatMessage, consumeItem, applyDamage } from '@/api/actionRpc'
-import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { useOverlayStack } from '@/composables/useOverlayStack'
+import { useChatActions } from '@/composables/useChatActions'
+import { useChatMessages } from '@/composables/useChatMessages'
 import ChatInlineRollModal from '@/components/ChatInlineRollModal.vue'
 import CompendiumItemModal from '@/components/CompendiumItemModal.vue'
 import d4Icon from '@/assets/icons/d4.svg'
@@ -16,106 +14,18 @@ import d8Icon from '@/assets/icons/d8.svg'
 import d10Icon from '@/assets/icons/d10.svg'
 import d12Icon from '@/assets/icons/d12.svg'
 import d20Icon from '@/assets/icons/d20.svg'
-import { getPath } from '@/utils/utilities'
 import {
   activeRollFromFoundryClickTarget,
-  compendiumItemUuidFromClickTarget,
-  prepareChatHtml
+  compendiumItemUuidFromClickTarget
 } from '@/utils/foundryHtml'
-import type { ActiveRoll, ApplyDamageMode } from '@/types/api-types'
-import {
-  rollSummaries,
-  type ChatRollDie,
-  type ChatRollSummary,
-  type RollJson
-} from '@/utils/chatRollSummary'
-
-type CollectionLike<T> =
-  | T[]
-  | {
-      contents?: T[]
-      values?: () => IterableIterator<T>
-    }
-  | undefined
-
-interface ChatSpeaker {
-  alias?: string
-  actor?: string
-  scene?: string
-  token?: string
-}
-
-interface ChatMessageData {
-  _id?: string | null
-  author?: string | { _id?: string | null; name?: string | null } | null
-  user?: string | null
-  timestamp?: number | null
-  flavor?: string | null
-  content?: string | null
-  speaker?: ChatSpeaker | null
-  whisper?: string[]
-  blind?: boolean
-  rolls?: Array<string | RollJson>
-  type?: string
-  flags?: {
-    pf2e?: {
-      origin?: { uuid?: string | null }
-    }
-  }
-}
-
-interface UserData {
-  _id?: string | null
-  id?: string | null
-  name?: string | null
-}
-
-interface ChatTokenData {
-  _id?: string | null
-  actorId?: string | null
-  texture?: {
-    src?: string | null
-    scaleX?: number | null
-    scaleY?: number | null
-  }
-}
-
-interface ChatSceneData {
-  _id?: string | null
-  active?: boolean
-  tokens?: CollectionLike<ChatTokenData>
-}
-
-interface ChatMessageView {
-  message: ChatMessageData
-  key: string
-  speakerName: string
-  authorName: string
-  showAuthorName: boolean
-  formattedTime: string
-  visibilityLabel: string | null
-  isOwnActor: boolean
-  portrait?: string
-  portraitScale: { '--sx': number; '--sy': number }
-  preparedFlavor?: string
-  preparedContent?: string
-  showContent: boolean
-  showEmptyMessage: boolean
-  rolls: ChatRollSummary[]
-}
+import type { ActiveRoll } from '@/types/api-types'
+import type { ChatRollDie, ChatRollSummary } from '@/utils/chatRollSummary'
 
 const isOpen = ref(false)
 const scrollContainer = ref<HTMLElement>()
 const { zIndex, openLayer, closeLayer } = useOverlayStack()
-const { world } = storeToRefs(useWorldStore())
 const character = useInjectedCharacter()
 const { _id, _actor, shield } = character
-const draft = ref('')
-const isSending = ref(false)
-const sendError = ref(false)
-const actionError = ref(false)
-const pendingDamageActions = ref(new Set<string>())
-const pendingConsumeMessages = ref(new Set<string>())
 const inlineRollModal = ref<InstanceType<typeof ChatInlineRollModal>>()
 const compendiumModal = ref<InstanceType<typeof CompendiumItemModal>>()
 let scrollAnimationFrame: number | undefined
@@ -128,104 +38,6 @@ const dieIcons: Record<number, string> = {
   12: d12Icon,
   20: d20Icon,
   100: d10Icon
-}
-
-function collectionToArray<T>(source: CollectionLike<T>): T[] {
-  if (!source) return []
-  if (Array.isArray(source)) return source
-  if (Array.isArray(source.contents)) return source.contents
-  if (typeof source.values === 'function') return Array.from(source.values())
-  return []
-}
-
-const users = computed(() =>
-  collectionToArray<UserData>(world.value?.users as CollectionLike<UserData>)
-)
-const userNamesById = computed(() => {
-  const names = new Map<string, string>()
-  users.value.forEach((user) => {
-    if (!user.name) return
-    if (user._id) names.set(user._id, user.name)
-    if (user.id) names.set(user.id, user.name)
-  })
-  return names
-})
-const scenes = computed(() =>
-  collectionToArray<ChatSceneData>(world.value?.scenes as CollectionLike<ChatSceneData>)
-)
-
-const messages = computed(() =>
-  collectionToArray<ChatMessageData>(world.value?.messages as CollectionLike<ChatMessageData>)
-    .slice()
-    .sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
-)
-const canSend = computed(() => !!_id.value && draft.value.trim().length > 0 && !isSending.value)
-
-function originActorId(message: ChatMessageData): string | undefined {
-  const uuid = message.flags?.pf2e?.origin?.uuid
-  if (uuid) return /^Actor\.([^.]+)/.exec(uuid)?.[1]
-  return message.speaker?.actor ?? undefined
-}
-
-function originItemId(message: ChatMessageData): string | undefined {
-  const uuid = message.flags?.pf2e?.origin?.uuid
-  if (!uuid) return undefined
-  return /\.Item\.([^.]+)$/.exec(uuid)?.[1]
-}
-
-function messageIsOwnActor(message: ChatMessageData): boolean {
-  return !!_id.value && originActorId(message) === _id.value
-}
-
-function speakerName(message: ChatMessageData, resolvedAuthor = authorName(message)): string {
-  return message.speaker?.alias || resolvedAuthor || 'Unknown'
-}
-
-function authorName(message: ChatMessageData): string {
-  if (typeof message.author === 'object' && message.author?.name) return message.author.name
-  const authorId = typeof message.author === 'string' ? message.author : (message.user ?? '')
-  return userNamesById.value.get(authorId) ?? authorId
-}
-
-function formattedTime(timestamp?: number | null): string {
-  if (!timestamp) return ''
-  return new Intl.DateTimeFormat(undefined, {
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-    day: 'numeric'
-  }).format(new Date(timestamp))
-}
-
-function visibilityLabel(message: ChatMessageData): string | null {
-  if (message.blind) return 'chat.blind'
-  if (message.whisper?.length) return 'chat.whisper'
-  return null
-}
-
-function messageKey(message: ChatMessageData, index: number): string {
-  return message._id ?? `${message.timestamp ?? 'message'}-${index}`
-}
-
-function speakerToken(message: ChatMessageData): ChatTokenData | undefined {
-  const speaker = message.speaker
-  if (!speaker?.token) return undefined
-  const scene =
-    scenes.value.find((s) => s._id === speaker.scene) ?? scenes.value.find((s) => s.active)
-  return collectionToArray(scene?.tokens).find((token) => token._id === speaker.token)
-}
-
-function tokenPortrait(token: ChatTokenData | undefined): string | undefined {
-  const src = token?.texture?.src
-  return src ? getPath(src) : undefined
-}
-
-function tokenScale(token: ChatTokenData | undefined): { '--sx': number; '--sy': number } {
-  const texture = token?.texture
-  return {
-    '--sx': texture?.scaleX ?? 1,
-    '--sy': texture?.scaleY ?? 1
-  }
 }
 
 function rollKindLabel(roll: ChatRollSummary): string {
@@ -255,122 +67,28 @@ function rollFlavorLabel(roll: ChatRollSummary): string {
   return roll.flavors.length ? ` [${roll.flavors.map(rollDisplayText).join(', ')}]` : ''
 }
 
-function canApplyDamage(roll: ChatRollSummary): boolean {
-  return roll.className === 'DamageRoll' && roll.total !== undefined && !!_actor.value
-}
+const { messages, renderedMessages, messageIsOwnActor } = useChatMessages(_id)
 
-function setHas(setRef: Ref<Set<string>>, key: string): boolean {
-  return setRef.value.has(key)
-}
-
-function setPending(setRef: Ref<Set<string>>, key: string, pending: boolean) {
-  const next = new Set(setRef.value)
-  if (pending) next.add(key)
-  else next.delete(key)
-  setRef.value = next
-}
-
-function damageActionKey(message: ChatMessageData, rollIndex: number): string | undefined {
-  if (!message._id) return undefined
-  return `${message._id}:${rollIndex}`
-}
-
-function consumeActionKey(message: ChatMessageData): string | undefined {
-  return message._id ?? undefined
-}
-
-function canShieldBlock(): boolean {
-  return (
-    !!shield.itemId.value && (shield.hp.current.value ?? 0) > 0 && (shield.hardness.value ?? 0) > 0
-  )
-}
-
-function isDamageActionPending(
-  message: ChatMessageData,
-  rollIndex: number
-): boolean {
-  const key = damageActionKey(message, rollIndex)
-  return !!key && setHas(pendingDamageActions, key)
-}
-
-function canTriggerDamageAction(
-  message: ChatMessageData,
-  roll: ChatRollSummary,
-  rollIndex: number,
-  mode: ApplyDamageMode
-): boolean {
-  if (!canApplyDamage(roll)) return false
-  if (mode === 'block' && !canShieldBlock()) return false
-  const key = damageActionKey(message, rollIndex)
-  return !!key && !setHas(pendingDamageActions, key)
-}
-
-async function applyDamageRoll(
-  message: ChatMessageData,
-  roll: ChatRollSummary,
-  rollIndex: number,
-  mode: ApplyDamageMode
-) {
-  if (!canTriggerDamageAction(message, roll, rollIndex, mode)) return
-  const key = damageActionKey(message, rollIndex)
-  if (!key || !message._id) return
-
-  actionError.value = false
-  setPending(pendingDamageActions, key, true)
-  try {
-    await applyDamage(_actor as Ref<CharacterPF2e>, message._id, mode, rollIndex)
-  } catch {
-    actionError.value = true
-  } finally {
-    setPending(pendingDamageActions, key, false)
-  }
-}
-
-function plainChatText(content: string): string {
-  return content
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .trim()
-}
-
-function shouldShowMessageContent(
-  message: ChatMessageData,
-  summaries = rollSummaries(message.rolls)
-): boolean {
-  if (!message.content) return false
-  if (!summaries.length) return true
-  const contentText = plainChatText(message.content)
-  return !summaries.some((roll) => roll.total !== undefined && contentText === String(roll.total))
-}
-
-function buildChatMessageView(message: ChatMessageData, index: number): ChatMessageView {
-  const rolls = rollSummaries(message.rolls)
-  const showContent = shouldShowMessageContent(message, rolls)
-  const token = speakerToken(message)
-  const author = authorName(message)
-  const speaker = speakerName(message, author)
-  const visibility = visibilityLabel(message)
-
-  return {
-    message,
-    key: messageKey(message, index),
-    speakerName: speaker,
-    authorName: author,
-    showAuthorName: !!author && author !== speaker,
-    formattedTime: formattedTime(message.timestamp),
-    visibilityLabel: visibility,
-    isOwnActor: messageIsOwnActor(message),
-    portrait: tokenPortrait(token),
-    portraitScale: tokenScale(token),
-    preparedFlavor: message.flavor ? prepareChatHtml(message.flavor) : undefined,
-    preparedContent: showContent ? prepareChatHtml(message.content) : undefined,
-    showContent,
-    showEmptyMessage: !showContent && !rolls.length,
-    rolls
-  }
-}
-
-const renderedMessages = computed(() => messages.value.map(buildChatMessageView))
+const {
+  draft,
+  isSending,
+  sendError,
+  actionError,
+  canSend,
+  canApplyDamage,
+  isDamageActionPending,
+  canTriggerDamageAction,
+  applyDamageRoll,
+  handleCardButtonClick,
+  submitMessage
+} = useChatActions({
+  actorId: _id,
+  actor: _actor,
+  shield,
+  messages,
+  messageIsOwnActor,
+  onMessageSent: () => scrollToBottom(true)
+})
 
 function openInlineRoll(roll: ActiveRoll | undefined) {
   if (!roll) return
@@ -394,36 +112,6 @@ function handleChatContentClick(event: MouseEvent) {
   openInlineRoll(roll)
 }
 
-async function handleCardButtonClick(event: MouseEvent) {
-  const btn = (event.target as HTMLElement).closest<HTMLButtonElement>(
-    '.card-buttons button[data-action="consume"]'
-  )
-  if (!btn) return
-  event.preventDefault()
-  event.stopPropagation()
-  const msgEl = btn.closest<HTMLElement>('[data-message-id]')
-  const message = messages.value.find((m) => m._id === msgEl?.dataset.messageId)
-  if (!message || !messageIsOwnActor(message) || !_actor.value) return
-  const itemId = originItemId(message)
-  if (!itemId) return
-  const key = consumeActionKey(message)
-  if (!key || setHas(pendingConsumeMessages, key)) return
-
-  actionError.value = false
-  setPending(pendingConsumeMessages, key, true)
-  btn.disabled = true
-  btn.setAttribute('aria-busy', 'true')
-  try {
-    await consumeItem(_actor as Ref<CharacterPF2e>, itemId)
-  } catch {
-    actionError.value = true
-  } finally {
-    setPending(pendingConsumeMessages, key, false)
-    btn.disabled = false
-    btn.removeAttribute('aria-busy')
-  }
-}
-
 function open() {
   openLayer()
   isOpen.value = true
@@ -433,23 +121,6 @@ function open() {
 function close() {
   isOpen.value = false
   closeLayer()
-}
-
-async function submitMessage() {
-  const content = draft.value.trim()
-  if (!content || !_id.value || isSending.value) return
-
-  isSending.value = true
-  sendError.value = false
-  try {
-    await sendChatMessage(_id.value, content)
-    draft.value = ''
-    scrollToBottom(true)
-  } catch {
-    sendError.value = true
-  } finally {
-    isSending.value = false
-  }
 }
 
 function scrollToBottom(smooth = false) {
