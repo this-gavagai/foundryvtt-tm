@@ -17,15 +17,7 @@ export function useInfoModalRolls({
   onRollResolved,
   onRollError = (error) => console.error('Failed to execute roll', error)
 }: UseInfoModalRollsOptions) {
-  const { pixels, lastRoll } = storeToRefs(usePixelDiceStore())
-
-  const readyFaceCounts = computed(
-    () => new Set(pixels.value.filter((p) => p.status === 'ready').map((p) => p.dieFaceCount))
-  )
-
-  const hasReadyPixel = computed(() =>
-    (armedRoll.value?.dice ?? []).some((die) => readyFaceCounts.value.has(Number(die.slice(1))))
-  )
+  const { lastRoll, readyFaceCounts } = storeToRefs(usePixelDiceStore())
 
   // The roll that consumes the next physical-die input: prefer an explicitly
   // armed roll; otherwise the first dice-eligible roll.
@@ -35,6 +27,12 @@ export function useInfoModalRolls({
       list.find((roll) => roll.armed && roll.dice?.length) ?? list.find((roll) => roll.dice?.length)
     )
   })
+
+  // Whether any of the armed roll's dice has a matching ready physical die —
+  // gates the whole bouncing-dice affordance.
+  const hasReadyPixel = computed(() =>
+    (armedRoll.value?.dice ?? []).some((die) => readyFaceCounts.value.has(Number(die.slice(1))))
+  )
 
   // Per-die face selections for the armed roll. The buffer is always sized to
   // the armed roll's dice list so manual face-picking can address any slot

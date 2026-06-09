@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Pixel, PixelDieType } from '@systemic-games/pixels-web-connect'
 import { useStorage } from '@vueuse/core'
@@ -41,10 +41,23 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
   const pixels = ref<PairedPixel[]>([])
   const lastRoll = ref<PixelRollEvent>()
   let rollSeq = 0
+
+  // The set of die face counts (20, 8, …) that have a currently-ready die.
+  // Computed once here and shared so the many mounted InfoModal instances
+  // don't each rebuild this Set on every periodic battery/status event.
+  const readyFaceCounts = computed(
+    () => new Set(pixels.value.filter((p) => p.status === 'ready').map((p) => p.dieFaceCount))
+  )
   // Tracks which systemIds have an active repeatConnect in flight, to prevent
   // the statusChanged('disconnected') handler from spawning a second one while
   // repeatConnect is already looping through its own retry cycle.
   const reconnectingIds = new Set<string>()
+  // Per-die teardown for the SDK event listeners. getPixel()/requestPixel()
+  // return the *same* Pixel instance for a given systemId, so re-registering
+  // (manual reconnect) would stack duplicate listeners and fire each roll
+  // twice. We key the teardown by systemId so attach is idempotent and forget
+  // can fully unsubscribe.
+  const detachers = new Map<string, () => void>()
 
   // Persisted list of paired system IDs. Reconnect on every page load.
   const systemIds = useStorage<string[]>('pixel-system-ids', [])
@@ -83,7 +96,11 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
   // off the same Pixel instance at fire time, so they always reflect the
   // current die type / face count even if the SDK updates them post-connect.
   function attachListeners(pixel: Pixel) {
-    pixel.addEventListener('roll', (face) => {
+    // Idempotent: drop any prior subscription for this systemId first, since
+    // the SDK hands back the same Pixel instance on re-registration.
+    detachers.get(pixel.systemId)?.()
+
+    const onRoll = (face: number) => {
       rollSeq += 1
       const event: PixelRollEvent = {
         systemId: pixel.systemId,
@@ -94,9 +111,9 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
       }
       logger.debug('TM-pixl: roll', event)
       lastRoll.value = event
-    })
+    }
 
-    pixel.addEventListener('statusChanged', (status) => {
+    const onStatusChanged = (status: { status: string }) => {
       logger.debug(`TM-pixl: ${pixel.name} status -> ${status.status}`)
       patchPixel(pixel.systemId, { status: status.status })
       // Hand a dropped connection back to the SDK's repeatConnect — it owns
@@ -109,10 +126,20 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
           .catch((e) => logger.warn('TM-pixl: repeatConnect failed', pixel.systemId, e))
           .finally(() => reconnectingIds.delete(pixel.systemId))
       }
-    })
+    }
 
-    pixel.addEventListener('battery', (battery) => {
+    const onBattery = (battery: { level: number }) => {
       patchPixel(pixel.systemId, { batteryLevel: battery.level })
+    }
+
+    pixel.addEventListener('roll', onRoll)
+    pixel.addEventListener('statusChanged', onStatusChanged)
+    pixel.addEventListener('battery', onBattery)
+
+    detachers.set(pixel.systemId, () => {
+      pixel.removeEventListener('roll', onRoll)
+      pixel.removeEventListener('statusChanged', onStatusChanged)
+      pixel.removeEventListener('battery', onBattery)
     })
   }
 
@@ -124,6 +151,10 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
     if (!systemIds.value.includes(pixel.systemId)) {
       systemIds.value = [...systemIds.value, pixel.systemId]
     }
+    // A connect is already looping for this die (e.g. the auto-reconnect from
+    // a statusChanged drop, or a double-click). The snapshot + listeners above
+    // are now in place; don't stack a second concurrent repeatConnect.
+    if (reconnectingIds.has(pixel.systemId)) return
     const { repeatConnect, Color } = await loadSdk()
     reconnectingIds.add(pixel.systemId)
     try {
@@ -163,8 +194,17 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
   }
 
   async function forgetDie(systemId: string) {
+    const entry = pixels.value.find((p) => p.systemId === systemId)
     pixels.value = pixels.value.filter((p) => p.systemId !== systemId)
     systemIds.value = systemIds.value.filter((id) => id !== systemId)
+    reconnectingIds.delete(systemId)
+    // Unsubscribe before disconnecting so the resulting statusChanged event
+    // can't re-arm the auto-reconnect path and resurrect a die the user just
+    // forgot. Without this the listeners (and roll → lastRoll forwarding) also
+    // leak for the life of the SDK's cached Pixel instance.
+    detachers.get(systemId)?.()
+    detachers.delete(systemId)
+    await entry?.pixel.disconnect().catch(() => undefined)
   }
 
   // Fan out the initial reconnect for every saved die. Errors per-die are
@@ -177,6 +217,7 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
   return {
     pixels,
     lastRoll,
+    readyFaceCounts,
     pairDie,
     reconnectDie,
     forgetDie
