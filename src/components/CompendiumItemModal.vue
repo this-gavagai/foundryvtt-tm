@@ -53,7 +53,7 @@ async function addToCharacter() {
 defineExpose({ open })
 </script>
 <template>
-  <InfoModal ref="modal" :imageUrl="item?.img" :traits="item?.system?.traits?.value" :rolls="rolls">
+  <InfoModal ref="modal" :imageUrl="item?.img" :itemUuid="currentUuid || undefined" :traits="item?.system?.traits?.value" :rolls="rolls">
     <template #banner="{ close }">
       <div
         data-part="compendium-banner"

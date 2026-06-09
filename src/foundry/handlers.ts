@@ -19,7 +19,8 @@
 export {
   foundryCharacterAction,
   foundryFreeRoll,
-  foundrySendItemToChat
+  foundrySendItemToChat,
+  foundrySendCompendiumItemToChat
 } from './handlers/actionHandlers'
 export { foundryRerollChatRoll, foundrySendChatMessage } from './handlers/chat'
 export { foundryCastSpell, foundryCastStaffSpell, foundryConsumeItem } from './handlers/castSpell'

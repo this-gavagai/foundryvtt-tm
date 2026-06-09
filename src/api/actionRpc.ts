@@ -302,6 +302,9 @@ export const getCompendiumItem = (itemUuid: string) =>
 export const addCompendiumItem = (characterId: string, itemUuid: string) =>
   sendAction(TM.ADD_COMPENDIUM_ITEM, { characterId, itemUuid })
 
+export const sendCompendiumItemToChat = (characterId: string, itemUuid: string) =>
+  sendAction(TM.SEND_COMPENDIUM_ITEM_TO_CHAT, { characterId, itemUuid })
+
 // Browse support: list all compendium packs the world exposes, and fetch a
 // single pack's index (lightweight entries) for the browser overlay.
 export const listCompendia = () => sendAction(TM.LIST_COMPENDIA, {})

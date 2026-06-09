@@ -38,6 +38,7 @@ export const TM = {
   ADD_COMPENDIUM_ITEM: 'addCompendiumItem',
   LIST_COMPENDIA: 'listCompendia',
   GET_COMPENDIUM_INDEX: 'getCompendiumIndex',
+  SEND_COMPENDIUM_ITEM_TO_CHAT: 'sendCompendiumItemToChat',
   APPLY_DAMAGE: 'applyDamage',
   REROLL_CHAT_ROLL: 'rerollChatRoll'
 } as const

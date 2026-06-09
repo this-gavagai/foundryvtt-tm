@@ -171,6 +171,17 @@ body.theme-default {
     color: var(--color-text);
   }
 
+  /* --- Compendium link style shared across ParsedDescription and chat cards --- */
+  :is([data-component='ParsedDescription'], [data-part='chat-flavor'], [data-part='chat-content']) {
+    a.content-link {
+      color: var(--color-text);
+      text-decoration: underline;
+      text-decoration-style: dotted;
+      text-underline-offset: 2px;
+      cursor: pointer;
+    }
+  }
+
   /* --- Choice toggle (carry type / hands selector) --- */
   [data-component='ChoiceWidget'] {
     background-color: oklch(24% 0.022 258);
@@ -576,14 +587,6 @@ body.theme-default {
       }
 
       :is([data-part='chat-flavor'], [data-part='chat-content']) {
-        a.content-link {
-          color: var(--color-text);
-          text-decoration: underline;
-          text-decoration-style: dotted;
-          text-underline-offset: 2px;
-          cursor: pointer;
-        }
-
         a.inline-roll {
           display: inline-block;
           background-color: oklch(30% 0.02 258);

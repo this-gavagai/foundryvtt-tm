@@ -30,6 +30,7 @@ export type ModuleEventArgs =
   | AddCompendiumItemArgs
   | ListCompendiaArgs
   | GetCompendiumIndexArgs
+  | SendCompendiumItemToChatArgs
   | ApplyDamageArgs
   | RerollChatRollArgs
 
@@ -298,6 +299,14 @@ export interface GetCompendiumIndexArgs {
   userId: string
   // Pack collection id, e.g. "pf2e.equipment-srd" (matches game.packs key).
   packId: string
+}
+
+export interface SendCompendiumItemToChatArgs {
+  action: typeof TM.SEND_COMPENDIUM_ITEM_TO_CHAT
+  uuid: string
+  userId: string
+  characterId: string
+  itemUuid: string
 }
 
 // One compendium pack as surfaced to the browser's pack list.

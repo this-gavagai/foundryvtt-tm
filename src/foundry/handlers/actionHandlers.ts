@@ -2,7 +2,8 @@ import type { ActionUseOptions, ActorPF2e, Statistic } from '@7h3laughingman/pf2
 import type {
   CharacterActionArgs,
   FreeRollArgs,
-  SendItemToChatArgs
+  SendItemToChatArgs,
+  SendCompendiumItemToChatArgs
 } from '@/types/api-types'
 import { logger } from '@/utils/utilities'
 import { useBackgroundRoll } from '../backgroundRoll'
@@ -110,5 +111,21 @@ export async function foundrySendItemToChat(args: SendItemToChatArgs) {
   const actor = game.actors.get(args.characterId)
   const item = actor?.items?.get(args.itemId)
   if (item) await item.toChat()
+  return makeAck(args)
+}
+
+declare function fromUuid(uuid: string): Promise<{ toObject(): object } | null>
+declare const CONFIG: {
+  Item: { documentClass: new (data: object, context: { parent: object }) => { toChat(): Promise<unknown> } }
+}
+
+export async function foundrySendCompendiumItemToChat(args: SendCompendiumItemToChatArgs) {
+  const doc = await fromUuid(args.itemUuid)
+  const actor = game.actors.get(args.characterId)
+  if (!doc || !actor) return makeAck(args)
+  // PF2e's toChat() requires an owned item. Create a temporary in-memory item
+  // with the character as parent so the ownership check passes without persisting.
+  const tempItem = new CONFIG.Item.documentClass(doc.toObject(), { parent: actor })
+  await tempItem.toChat()
   return makeAck(args)
 }

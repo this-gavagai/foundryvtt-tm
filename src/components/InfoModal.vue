@@ -10,7 +10,7 @@ import {
 } from '@headlessui/vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { useInfoModalRolls } from '@/composables/useInfoModalRolls'
-import { sendItemToChat } from '@/api/actionRpc'
+import { sendItemToChat, sendCompendiumItemToChat } from '@/api/actionRpc'
 import { getPath } from '@/utils/utilities'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 import { storeToRefs } from 'pinia'
@@ -39,6 +39,7 @@ const props = defineProps<{
   imageUrl?: string
   traits?: string[]
   itemId?: string
+  itemUuid?: string
   rolls?: Roll[]
 }>()
 
@@ -78,14 +79,25 @@ const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
 }
 
 async function sendCurrentItemToChat() {
-  if (!props.itemId || !characterId.value || !isListening.value) return
+  if (!isListening.value) return
   waiting.value = true
   try {
-    await sendItemToChat(characterId.value, props.itemId)
+    if (props.itemId && characterId.value) {
+      await sendItemToChat(characterId.value, props.itemId)
+    } else if (props.itemUuid && characterId.value) {
+      await sendCompendiumItemToChat(characterId.value, props.itemUuid)
+    }
   } finally {
     waiting.value = false
   }
 }
+
+const canSendToChat = computed(
+  () =>
+    isListening.value &&
+    !!characterId.value &&
+    (!!props.itemId || !!props.itemUuid)
+)
 
 const emit = defineEmits(['opening', 'closing'])
 defineExpose({ open, close, rollResultModal, isOpen })
@@ -129,9 +141,8 @@ defineExpose({ open, close, rollResultModal, isOpen })
                 >
                   <div class="flex space-x-2">
                     <div
-                      v-if="props.itemId && characterId && isListening"
-                      class="border"
-                      :class="[isListening ? 'active:opacity-30' : '']"
+                      v-if="canSendToChat"
+                      class="border active:opacity-30"
                       @click="sendCurrentItemToChat"
                     >
                       <img
