@@ -1,5 +1,4 @@
 <script setup lang="ts">
-
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { startCase } from 'lodash-es'
 
@@ -12,9 +11,6 @@ const { rollOptions } = character
 <template>
   <div class="[&:not(:has(li))]:hidden">
     <h3 class="pb-2 text-lg italic">{{ $t('rollOptions.heading') }}</h3>
-    <div class="pb-4 text-red-500">
-      {{ $t('rollOptions.experimentalWarning') }}
-    </div>
     <ul v-if="rollOptions" class="empty:hidden">
       <li
         v-for="[key, rollOption] in [...rollOptions].filter(
