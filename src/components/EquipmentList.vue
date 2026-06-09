@@ -96,7 +96,9 @@ const itemViewed = computed(() =>
   displayInventory.value?.find((i: InventoryItem) => i._id === itemViewedId.value)
 )
 const frozenItem = ref<InventoryItem | undefined>()
-watch(itemViewed, (val) => { if (val !== undefined) frozenItem.value = val })
+watch(itemViewed, (val) => {
+  if (val !== undefined) frozenItem.value = val
+})
 const itemHasContents = computed(() =>
   displayInventory.value?.some((item) => item.system?.containerId === frozenItem.value?._id)
 )
@@ -194,27 +196,33 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
         <!-- ChoiceWidget anchored at top-right, stays fixed while panels slide -->
         <ChoiceWidget
           v-if="partyActorId"
-          class="absolute right-0 top-0 z-10"
+          class="absolute top-0 right-0 z-10"
           :choiceSet="['individual', 'party']"
           :iconSet="{ individual: meepleIcon, party: meepleGroupIcon }"
           :selected="inventoryMode"
-          size="md"
+          size="sm"
           @changed="setInventoryMode"
         />
         <!-- Individual inventory panel -->
         <Transition
           enter-active-class="duration-200 linear transform overflow-hidden"
-          :enter-from-class="'transform opacity-0 ' + (slideDirection === 'left' ? 'translate-x-8' : '-translate-x-8')"
+          :enter-from-class="
+            'transform opacity-0 ' +
+            (slideDirection === 'left' ? 'translate-x-8' : '-translate-x-8')
+          "
           enter-to-class="opacity-100"
           leave-active-class="duration-200 linear transform overflow-hidden"
           leave-from-class="opacity-100"
-          :leave-to-class="'transform opacity-0 ' + (slideDirection === 'left' ? '-translate-x-8' : 'translate-x-8')"
+          :leave-to-class="
+            'transform opacity-0 ' +
+            (slideDirection === 'left' ? '-translate-x-8' : 'translate-x-8')
+          "
           @before-leave="onBeforeLeave"
           @after-leave="onAfterLeave"
         >
           <div v-show="!showPartyInventory">
             <!-- Right padding prevents EquipmentHeld text from running under the ChoiceWidget -->
-            <div data-part="held-items" :class="partyActorId ? 'pr-28 min-h-12' : ''">
+            <div data-part="held-items" :class="partyActorId ? 'min-h-10 pr-28' : ''">
               <EquipmentHeld @item-clicked="viewItem" />
             </div>
             <div v-if="inventory?.length" class="mb-4 flex items-center gap-2">
@@ -231,7 +239,8 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
               >
                 {{
                   $t('equipment.investedCount', {
-                    count: inventory?.filter((i: InventoryItem) => i.system?.equipped?.invested).length
+                    count: inventory?.filter((i: InventoryItem) => i.system?.equipped?.invested)
+                      .length
                   })
                 }}
               </button>
@@ -274,11 +283,17 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
         <Transition
           v-if="partyActorId"
           enter-active-class="duration-200 linear transform overflow-hidden"
-          :enter-from-class="'transform opacity-0 ' + (slideDirection === 'left' ? 'translate-x-8' : '-translate-x-8')"
+          :enter-from-class="
+            'transform opacity-0 ' +
+            (slideDirection === 'left' ? 'translate-x-8' : '-translate-x-8')
+          "
           enter-to-class="opacity-100"
           leave-active-class="duration-200 linear transform overflow-hidden"
           leave-from-class="opacity-100"
-          :leave-to-class="'transform opacity-0 ' + (slideDirection === 'left' ? '-translate-x-8' : 'translate-x-8')"
+          :leave-to-class="
+            'transform opacity-0 ' +
+            (slideDirection === 'left' ? '-translate-x-8' : 'translate-x-8')
+          "
           @before-leave="onBeforeLeave"
           @after-leave="onAfterLeave"
         >
@@ -374,7 +389,12 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
               v-if="isListening && frozenItem?.system?.uses?.max"
               color="green"
               :disabled="itemViewed?.system?.uses?.value === 0"
-              :clicked="() => { itemViewed?.consumeItem?.(); infoModal.close() }"
+              :clicked="
+                () => {
+                  itemViewed?.consumeItem?.()
+                  infoModal.close()
+                }
+              "
             >
               {{ $t('equipment.useItem') }}
             </Button>

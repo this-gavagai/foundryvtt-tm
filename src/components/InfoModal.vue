@@ -43,7 +43,7 @@ const props = defineProps<{
   rolls?: Roll[]
 }>()
 
-const { armedRoll, buffer, executeRollFromButton, pickFace, clearBuffer, dieFaces, hasReadyPixel } =
+const { armedRoll, buffer, executeRollFromButton, pickFace, clearBuffer, dieFaces, hasReadyPixel, readyFaceCounts } =
   useInfoModalRolls({
     rolls: computed(() => props.rolls),
     isOpen,
@@ -93,10 +93,7 @@ async function sendCurrentItemToChat() {
 }
 
 const canSendToChat = computed(
-  () =>
-    isListening.value &&
-    !!characterId.value &&
-    (!!props.itemId || !!props.itemUuid)
+  () => isListening.value && !!characterId.value && (!!props.itemId || !!props.itemUuid)
 )
 
 const emit = defineEmits(['opening', 'closing'])
@@ -210,18 +207,19 @@ defineExpose({ open, close, rollResultModal, isOpen })
                   @pick-face="pickFace"
                 />
                 <div class="mt-4 flex flex-wrap items-center justify-end gap-2">
-                  <PendingPixelDice
-                    v-if="hasReadyPixel && armedRoll?.dice?.length"
-                    :dice="armedRoll.dice"
-                    :buffer="buffer"
-                    @clear="clearBuffer"
-                  />
                   <!-- Left-aligned slot, paired with `justify-end` on the row
                        via `mr-auto`. Used by modals that need a per-action
                        control inline with the roll button (e.g. secret toggle). -->
                   <div class="mr-auto empty:hidden">
                     <slot name="bottomLeft"></slot>
                   </div>
+                  <PendingPixelDice
+                    v-if="hasReadyPixel && armedRoll?.dice?.length"
+                    :dice="armedRoll.dice"
+                    :buffer="buffer"
+                    :readyFaceCounts="readyFaceCounts"
+                    @clear="clearBuffer"
+                  />
                   <RollButtons
                     :rolls="props.rolls"
                     :armedRoll="armedRoll"

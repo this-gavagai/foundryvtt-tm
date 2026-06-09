@@ -19,7 +19,13 @@ export function useInfoModalRolls({
 }: UseInfoModalRollsOptions) {
   const { pixels, lastRoll } = storeToRefs(usePixelDiceStore())
 
-  const hasReadyPixel = computed(() => pixels.value.some((pixel) => pixel.status === 'ready'))
+  const readyFaceCounts = computed(
+    () => new Set(pixels.value.filter((p) => p.status === 'ready').map((p) => p.dieFaceCount))
+  )
+
+  const hasReadyPixel = computed(() =>
+    (armedRoll.value?.dice ?? []).some((die) => readyFaceCounts.value.has(Number(die.slice(1))))
+  )
 
   // The roll that consumes the next physical-die input: prefer an explicitly
   // armed roll; otherwise the first dice-eligible roll.
@@ -130,6 +136,7 @@ export function useInfoModalRolls({
     pickFace,
     clearBuffer,
     dieFaces,
-    hasReadyPixel
+    hasReadyPixel,
+    readyFaceCounts
   }
 }

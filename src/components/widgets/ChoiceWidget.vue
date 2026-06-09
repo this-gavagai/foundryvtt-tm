@@ -33,7 +33,7 @@ function handleChanged(newChoice: string) {
 <template>
   <div
     data-component="ChoiceWidget"
-    class="isolate mb-2 flex overflow-hidden rounded-lg border border-gray-400 shadow-inner transition-opacity"
+    class="isolate mb-2 flex overflow-hidden rounded-xs border border-gray-400 shadow-inner transition-opacity"
     :class="[waiting ? 'opacity-50' : '']"
     v-if="choiceSet.length > 1"
     :waiting
