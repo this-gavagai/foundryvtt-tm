@@ -57,7 +57,7 @@ function open() {
   openLayer()
   isOpen.value = true
   waiting.value = false
-  buffer.value = []
+  clearBuffer()
   emit('opening')
 }
 function close(ignoreModal = false) {
