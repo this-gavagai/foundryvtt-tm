@@ -4,6 +4,8 @@ import { useWorldStore } from '@/stores/world'
 import { getPath } from '@/utils/utilities'
 import { prepareChatHtml } from '@/utils/chatHtml'
 import { rollSummaries, type ChatRollSummary, type RollJson } from '@/utils/chatRollSummary'
+import { applyPf2eNotation } from '@/utils/pf2eEnrich'
+import type { ActiveRoll } from '@/types/api-types'
 
 type CollectionLike<T> =
   | T[]
@@ -89,6 +91,7 @@ export interface ChatMessageView {
   showEmptyMessage: boolean
   rerollSummary?: ChatRerollSummary
   rolls: ChatRollSummary[]
+  inlineChecks: ActiveRoll[]
 }
 
 export interface ChatRerollSummary {
@@ -224,6 +227,27 @@ function plainChatText(content: string): string {
     .trim()
 }
 
+function inlineChecksFromContent(content: string | null | undefined): ActiveRoll[] {
+  if (!content) return []
+  const checks: ActiveRoll[] = []
+  applyPf2eNotation(content, {
+    check: (slug, inline, dc, against) => {
+      const name = typeof inline.name === 'string' ? inline.name : slug
+      const dcSuffix = dc ? ` DC ${dc}` : against ? ` vs ${against}` : ''
+      checks.push({
+        action: 'check',
+        slug,
+        label: `${name} Check${dcSuffix}`,
+        checkInline: Object.keys(inline).length ? inline : undefined,
+        dc,
+        against
+      })
+      return ''
+    }
+  })
+  return checks
+}
+
 function shouldShowMessageContent(
   message: ChatMessageData,
   summaries = rollSummaries(message.rolls),
@@ -242,6 +266,15 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
   const users = computed(() =>
     collectionToArray<UserData>(world.value?.users as CollectionLike<UserData>)
   )
+
+  const currentUserIsGM = computed(() => {
+    const userId = (world.value as { userId?: string } | undefined)?.userId
+    if (!userId) return false
+    const user = collectionToArray<{ _id?: string | null; role?: number }>(
+      world.value?.users as CollectionLike<{ _id?: string | null; role?: number }>
+    ).find((u) => u._id === userId)
+    return (user?.role ?? 0) >= 4
+  })
   const userNamesById = computed(() => {
     const names = new Map<string, string>()
     users.value.forEach((user) => {
@@ -319,12 +352,17 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
       isOwnActor: messageIsOwnActor(message),
       portrait: tokenPortrait(token),
       portraitScale: tokenScale(token),
-      preparedFlavor: message.flavor ? prepareChatHtml(message.flavor) : undefined,
-      preparedContent: showContent ? prepareChatHtml(message.content) : undefined,
+      preparedFlavor: message.flavor
+        ? prepareChatHtml(message.flavor, { stripGmContent: !currentUserIsGM.value })
+        : undefined,
+      preparedContent: showContent
+        ? prepareChatHtml(message.content, { stripGmContent: !currentUserIsGM.value })
+        : undefined,
       showContent,
       showEmptyMessage: !showContent && !rolls.length,
       rerollSummary,
-      rolls
+      rolls,
+      inlineChecks: inlineChecksFromContent(message.content)
     }
   }
 

@@ -42,7 +42,7 @@ const isOpen = ref(false)
 const scrollContainer = ref<HTMLElement>()
 const { zIndex, openLayer, closeLayer } = useOverlayStack()
 const character = useInjectedCharacter()
-const { _id, _actor, shield } = character
+const { _id, _actor, shield, skills, saves, perception } = character
 const inlineRollModal = ref<InstanceType<typeof ChatInlineRollModal>>()
 const compendiumModal = ref<InstanceType<typeof CompendiumItemModal>>()
 const rerollModal = ref<InstanceType<typeof InfoModal>>()
@@ -164,6 +164,28 @@ function openRerollModal(
 function openInlineRoll(roll: ActiveRoll | undefined) {
   if (!roll) return
   inlineRollModal.value?.open(roll)
+}
+
+const checkSlugLabels = computed(() => {
+  const map: Record<string, string> = {}
+  for (const skill of skills.value ?? []) {
+    if (skill.slug && skill.label) map[skill.slug] = skill.label
+  }
+  if (saves.fortitude.value?.label) map.fortitude = saves.fortitude.value.label
+  if (saves.reflex.value?.label) map.reflex = saves.reflex.value.label
+  if (saves.will.value?.label) map.will = saves.will.value.label
+  if (perception.value?.label) map.perception = perception.value.label
+  return map
+})
+
+function inlineCheckLabel(check: ActiveRoll): string {
+  const localizedName = (check.slug && checkSlugLabels.value[check.slug]) || check.slug || ''
+  const dcSuffix = check.dc ? ` DC ${check.dc}` : check.against ? ` vs ${check.against}` : ''
+  return `${localizedName} Check${dcSuffix}`
+}
+
+function openLocalizedInlineRoll(check: ActiveRoll) {
+  openInlineRoll({ ...check, label: inlineCheckLabel(check) })
 }
 
 function handleChatContentClick(event: MouseEvent) {
@@ -371,6 +393,23 @@ defineExpose({ open, close, isOpen })
                       v-html="view.preparedContent"
                       @click="(handleChatContentClick($event), handleCardButtonClick($event))"
                     />
+                    <div
+                      v-if="view.inlineChecks.length && _id"
+                      data-part="chat-inline-checks"
+                      class="mt-2 flex flex-wrap gap-1.5"
+                    >
+                      <button
+                        v-for="(check, checkIndex) in view.inlineChecks"
+                        :key="checkIndex"
+                        type="button"
+                        data-part="chat-inline-check-button"
+                        class="inline-flex items-center gap-1.5 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-100 active:bg-blue-200"
+                        @click="openLocalizedInlineRoll(check)"
+                      >
+                        <img :src="d20Icon" class="h-3.5 w-3.5 flex-none" alt="" aria-hidden="true" />
+                        {{ inlineCheckLabel(check) }}
+                      </button>
+                    </div>
                     <div v-if="view.rolls.length" data-part="chat-rolls" class="mt-2 space-y-2">
                       <div
                         v-for="(roll, rollIndex) in view.rolls"

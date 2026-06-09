@@ -9,6 +9,17 @@
   font-display: block;
 }
 
+[data-component='ChatOverlay'] button:not(:disabled) {
+  cursor: pointer;
+}
+
+:is([data-part='chat-flavor'], [data-part='chat-content']) {
+  .critical-success { color: oklch(42% 0.2 145); font-weight: 600; }
+  .success          { color: oklch(42% 0.18 250); font-weight: 600; }
+  .failure          { color: oklch(45% 0.2 25);   font-weight: 600; }
+  .critical-failure { color: oklch(38% 0.22 22);  font-weight: 600; }
+}
+
 @custom-variant pwa {
   @media (display-mode: standalone) {
     @slot;

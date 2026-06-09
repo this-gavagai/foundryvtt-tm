@@ -11,11 +11,35 @@ const activeRoll = ref<ActiveRoll>()
 const rollTitle = ref('')
 const modal = ref<InstanceType<typeof InfoModal>>()
 
-const { skills } = useInjectedCharacter()
+const { skills, saves, perception } = useInjectedCharacter()
 
-const actionModifiers = computed(() => {
-  if (activeRoll.value?.action !== 'action' || !activeRoll.value.statisticSlug) return undefined
-  return skills.value?.find((s) => s.slug === activeRoll.value!.statisticSlug)?.modifiers
+type SaveSlug = 'fortitude' | 'will' | 'reflex'
+const SAVE_SLUGS: readonly string[] = ['fortitude', 'will', 'reflex']
+
+const rollModifiers = computed(() => {
+  const ar = activeRoll.value
+  if (!ar) return undefined
+
+  if (ar.action === 'action' && ar.statisticSlug) {
+    return skills.value?.find((s) => s.slug === ar.statisticSlug)?.modifiers
+  }
+
+  if (ar.action === 'check' && ar.slug) {
+    const slug = ar.slug
+    if (SAVE_SLUGS.includes(slug)) return saves[slug as SaveSlug].value?.modifiers
+    if (slug === 'perception') return perception.value?.modifiers
+    return skills.value?.find((s) => s.slug === slug)?.modifiers
+  }
+
+  return undefined
+})
+
+const modifiersToggleable = computed(() => {
+  const ar = activeRoll.value
+  if (!ar) return false
+  if (ar.action === 'action') return true
+  if (ar.action === 'check') return !ar.against && ar.slug !== 'spell-attack'
+  return false
 })
 
 const {
@@ -25,7 +49,7 @@ const {
   isManuallyActivated,
   isManuallyDeactivated,
   isStackingLoser
-} = useModifierOverrides(actionModifiers)
+} = useModifierOverrides(rollModifiers)
 
 const rolls = useRollsFromActiveRoll(activeRoll, modifierOverrides)
 const isOpen = computed(() => modal.value?.isOpen ?? false)
@@ -55,9 +79,9 @@ defineExpose({ open, close, isOpen })
           {{ activeRoll.formula }}
         </div>
         <ModifierOverrideList
-          v-if="actionModifiers?.length"
-          :modifiers="actionModifiers"
-          :toggleable="true"
+          v-if="rollModifiers?.length"
+          :modifiers="rollModifiers"
+          :toggleable="modifiersToggleable"
           :effectiveEnabled="effectiveEnabled"
           :isManuallyActivated="isManuallyActivated"
           :isManuallyDeactivated="isManuallyDeactivated"

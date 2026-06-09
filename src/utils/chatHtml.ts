@@ -98,11 +98,18 @@ function unwrapElement(element: Element) {
   parent.removeChild(element)
 }
 
-export function sanitizeChatHtml(html: string | undefined): string | undefined {
+export function sanitizeChatHtml(
+  html: string | undefined,
+  options?: { stripGmContent?: boolean }
+): string | undefined {
   if (!html || typeof document === 'undefined') return html
 
   const template = document.createElement('template')
   template.innerHTML = html
+
+  if (options?.stripGmContent) {
+    template.content.querySelectorAll('[data-visibility="gm"]').forEach((el) => el.remove())
+  }
 
   template.content.querySelectorAll('script, style, iframe, object, embed, link, meta').forEach(
     (element) => element.remove()
@@ -128,7 +135,10 @@ export function sanitizeChatHtml(html: string | undefined): string | undefined {
   return template.innerHTML
 }
 
-export function prepareChatHtml(html: string | null | undefined): string | undefined {
+export function prepareChatHtml(
+  html: string | null | undefined,
+  options?: { stripGmContent?: boolean }
+): string | undefined {
   const normalized = normalizeFoundryAssetUrls(html)
-  return sanitizeChatHtml(normalized ? enrichChatHtml(normalized) : normalized)
+  return sanitizeChatHtml(normalized ? enrichChatHtml(normalized) : normalized, options)
 }

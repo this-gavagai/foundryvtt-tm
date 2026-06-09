@@ -564,6 +564,11 @@ body.theme-default {
           font-family: 'Pathfinder2eActions', sans-serif;
           font-size: 1.2em;
         }
+
+        .critical-success { color: oklch(68% 0.2 145); font-weight: 600; }
+        .success          { color: oklch(70% 0.16 250); font-weight: 600; }
+        .failure          { color: oklch(70% 0.18 25);  font-weight: 600; }
+        .critical-failure { color: oklch(65% 0.22 22);  font-weight: 600; }
       }
 
       [data-part='chat-message'][data-own-message='false'] .card-buttons {
@@ -750,6 +755,28 @@ body.theme-default {
         button[data-action='block'] {
           border-color: oklch(52% 0.09 245);
           color: oklch(88% 0.045 245);
+        }
+      }
+
+      [data-part='chat-inline-checks'] {
+        [data-part='chat-inline-check-button'] {
+          background-color: oklch(22% 0.026 255);
+          border-color: oklch(46% 0.09 250);
+          color: oklch(80% 0.06 250);
+
+          img {
+            opacity: 0.7;
+          }
+        }
+
+        [data-part='chat-inline-check-button']:hover {
+          background-color: oklch(28% 0.032 250);
+          border-color: oklch(52% 0.11 250);
+          color: oklch(88% 0.07 250);
+        }
+
+        [data-part='chat-inline-check-button']:active {
+          background-color: oklch(33% 0.038 250);
         }
       }
 
