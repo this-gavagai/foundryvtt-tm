@@ -1039,6 +1039,12 @@ body.theme-default {
     }
   }
 
+  [data-component='EquipmentList'] [data-part='held-items'] li {
+    border-bottom: none;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
   /* --- Shared section headers (fading accent rule) --- */
   :is(
       [data-component='SkillList'],

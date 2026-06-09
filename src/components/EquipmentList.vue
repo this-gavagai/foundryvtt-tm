@@ -53,6 +53,7 @@ const partyActorId = computed<string | null>(
 const partyActorRef = ref<TablemateCharacter | undefined>()
 const inventoryMode = ref<'individual' | 'party'>('individual')
 const showPartyInventory = computed(() => inventoryMode.value === 'party')
+const slideDirection = ref<'left' | 'right'>('left')
 
 watch(
   partyActorId,
@@ -101,7 +102,24 @@ const itemHasContents = computed(() =>
 )
 
 function setInventoryMode(val: string) {
+  slideDirection.value = val === 'party' ? 'left' : 'right'
   inventoryMode.value = val as 'individual' | 'party'
+}
+
+function onBeforeLeave(el: Element) {
+  const h = el as HTMLElement
+  h.style.position = 'absolute'
+  h.style.top = '0'
+  h.style.left = '0'
+  h.style.width = h.offsetWidth + 'px'
+}
+
+function onAfterLeave(el: Element) {
+  const h = el as HTMLElement
+  h.style.position = ''
+  h.style.top = ''
+  h.style.left = ''
+  h.style.width = ''
 }
 
 function viewItem(item: InventoryItem) {
@@ -171,74 +189,135 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
       {{ $t('equipment.noInventory') }}
     </div>
     <div v-else class="px-6 py-4">
-      <!-- Held items + inventory mode selector -->
-      <div class="flex items-start">
-        <div class="min-w-0 flex-1">
-          <EquipmentHeld v-if="!showPartyInventory" @item-clicked="viewItem" />
-        </div>
+      <!-- Content: two always-rendered panels toggled with v-show to avoid DOM churn during transition -->
+      <div class="relative overflow-hidden">
+        <!-- ChoiceWidget anchored at top-right, stays fixed while panels slide -->
         <ChoiceWidget
           v-if="partyActorId"
+          class="absolute right-0 top-0 z-10"
           :choiceSet="['individual', 'party']"
           :iconSet="{ individual: meepleIcon, party: meepleGroupIcon }"
           :selected="inventoryMode"
           size="md"
           @changed="setInventoryMode"
         />
-      </div>
-      <div
-        v-if="displayInventory?.length && !showPartyInventory"
-        class="mb-4 flex items-center gap-2"
-      >
-        <!-- Wrap in a block flex item: an inline <svg width="100%"> collapses to
-             0 width when it is itself the flex child (WebKit/iOS), hiding the bar. -->
-        <div class="min-w-0 flex-1">
-          <EquipmentBulk />
-        </div>
-        <button
-          type="button"
-          data-part="invested-count"
-          class="cursor-pointer whitespace-nowrap"
-          @click="investedModal.open()"
+        <!-- Individual inventory panel -->
+        <Transition
+          enter-active-class="duration-200 linear transform overflow-hidden"
+          :enter-from-class="'transform opacity-0 ' + (slideDirection === 'left' ? 'translate-x-8' : '-translate-x-8')"
+          enter-to-class="opacity-100"
+          leave-active-class="duration-200 linear transform overflow-hidden"
+          leave-from-class="opacity-100"
+          :leave-to-class="'transform opacity-0 ' + (slideDirection === 'left' ? '-translate-x-8' : 'translate-x-8')"
+          @before-leave="onBeforeLeave"
+          @after-leave="onAfterLeave"
         >
-          {{
-            $t('equipment.investedCount', {
-              count: inventory?.filter((i: InventoryItem) => i.system?.equipped?.invested).length
-            })
-          }}
-        </button>
-      </div>
-      <!-- Comprehensive equipment list -->
-      <div class="lg:columns-2">
-        <section
-          v-for="inventoryType in inventoryTypes"
-          :data-section="inventoryType.type"
-          class="break-before-avoid break-inside-avoid-column pt-4 whitespace-nowrap [&:not(:has(li))]:hidden"
-          :class="{ 'break-before-column': inventoryType.type === 'backpack' }"
-          :key="inventoryType.type"
+          <div v-show="!showPartyInventory">
+            <!-- Right padding prevents EquipmentHeld text from running under the ChoiceWidget -->
+            <div data-part="held-items" :class="partyActorId ? 'pr-28 min-h-12' : ''">
+              <EquipmentHeld @item-clicked="viewItem" />
+            </div>
+            <div v-if="inventory?.length" class="mb-4 flex items-center gap-2">
+              <!-- Wrap in a block flex item: an inline <svg width="100%"> collapses to
+                   0 width when it is itself the flex child (WebKit/iOS), hiding the bar. -->
+              <div class="min-w-0 flex-1">
+                <EquipmentBulk />
+              </div>
+              <button
+                type="button"
+                data-part="invested-count"
+                class="cursor-pointer whitespace-nowrap"
+                @click="investedModal.open()"
+              >
+                {{
+                  $t('equipment.investedCount', {
+                    count: inventory?.filter((i: InventoryItem) => i.system?.equipped?.invested).length
+                  })
+                }}
+              </button>
+            </div>
+            <div class="lg:columns-2">
+              <section
+                v-for="inventoryType in inventoryTypes"
+                :data-section="inventoryType.type"
+                class="break-before-avoid break-inside-avoid-column pt-4 whitespace-nowrap [&:not(:has(li))]:hidden"
+                :class="{ 'break-before-column': inventoryType.type === 'backpack' }"
+                :key="inventoryType.type"
+              >
+                <h3 class="text-lg underline only:hidden">{{ $t(inventoryType.titleKey) }}</h3>
+                <ul>
+                  <li
+                    v-for="item in inventory?.filter(
+                      (i: InventoryItem) => i.type === inventoryType.type && !i.system?.containerId
+                    )"
+                    :key="item._id"
+                  >
+                    <EquipmentListItem :item="item" @item-clicked="viewItem(item)" />
+                    <ul class="pb-2" v-if="item.type === 'backpack'">
+                      <li
+                        v-for="stowed in inventory?.filter(
+                          (i: InventoryItem) => i.system?.containerId === item._id
+                        )"
+                        :key="stowed._id"
+                      >
+                        <EquipmentListItem :item="stowed" @item-clicked="viewItem(stowed)" />
+                      </li>
+                    </ul>
+                  </li>
+                </ul>
+              </section>
+            </div>
+          </div>
+        </Transition>
+
+        <!-- Party inventory panel (only mounted when a party actor exists) -->
+        <Transition
+          v-if="partyActorId"
+          enter-active-class="duration-200 linear transform overflow-hidden"
+          :enter-from-class="'transform opacity-0 ' + (slideDirection === 'left' ? 'translate-x-8' : '-translate-x-8')"
+          enter-to-class="opacity-100"
+          leave-active-class="duration-200 linear transform overflow-hidden"
+          leave-from-class="opacity-100"
+          :leave-to-class="'transform opacity-0 ' + (slideDirection === 'left' ? '-translate-x-8' : 'translate-x-8')"
+          @before-leave="onBeforeLeave"
+          @after-leave="onAfterLeave"
         >
-          <h3 class="text-lg underline only:hidden">{{ $t(inventoryType.titleKey) }}</h3>
-          <ul>
-            <li
-              v-for="item in displayInventory?.filter(
-                (i: InventoryItem) => i.type === inventoryType.type && !i.system?.containerId
-              )"
-              :key="item._id"
-            >
-              <EquipmentListItem :item="item" @item-clicked="viewItem(item)" />
-              <!-- Sub-items (in container) -->
-              <ul class="pb-2" v-if="item.type === 'backpack'">
-                <li
-                  v-for="stowed in displayInventory?.filter(
-                    (i: InventoryItem) => i.system?.containerId === item._id
-                  )"
-                  :key="stowed._id"
-                >
-                  <EquipmentListItem :item="stowed" @item-clicked="viewItem(stowed)" />
-                </li>
-              </ul>
-            </li>
-          </ul>
-        </section>
+          <div v-show="showPartyInventory">
+            <!-- Spacer matches ChoiceWidget height so list starts at the same vertical offset as individual panel content -->
+            <div class="h-12"></div>
+            <div class="lg:columns-2">
+              <section
+                v-for="inventoryType in inventoryTypes"
+                :data-section="inventoryType.type"
+                class="break-before-avoid break-inside-avoid-column pt-4 whitespace-nowrap [&:not(:has(li))]:hidden"
+                :class="{ 'break-before-column': inventoryType.type === 'backpack' }"
+                :key="inventoryType.type"
+              >
+                <h3 class="text-lg underline only:hidden">{{ $t(inventoryType.titleKey) }}</h3>
+                <ul>
+                  <li
+                    v-for="item in partyInventory?.filter(
+                      (i: InventoryItem) => i.type === inventoryType.type && !i.system?.containerId
+                    )"
+                    :key="item._id"
+                  >
+                    <EquipmentListItem :item="item" @item-clicked="viewItem(item)" />
+                    <ul class="pb-2" v-if="item.type === 'backpack'">
+                      <li
+                        v-for="stowed in partyInventory?.filter(
+                          (i: InventoryItem) => i.system?.containerId === item._id
+                        )"
+                        :key="stowed._id"
+                      >
+                        <EquipmentListItem :item="stowed" @item-clicked="viewItem(stowed)" />
+                      </li>
+                    </ul>
+                  </li>
+                </ul>
+              </section>
+            </div>
+          </div>
+        </Transition>
       </div>
     </div>
     <Teleport to="#modals">
