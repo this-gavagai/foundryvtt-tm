@@ -31,6 +31,16 @@
   "compendium": {
     "addToCharacter": "Zum Charakter hinzufügen"
   },
+  "compendiumBrowser": {
+    "title": "Kompendium-Browser",
+    "back": "Zurück zu den Kompendien",
+    "filterPacks": "Kompendien filtern…",
+    "filterEntries": "Einträge filtern…",
+    "noPacks": "Keine Kompendien verfügbar.",
+    "noEntries": "Keine Einträge gefunden.",
+    "levelShort": "Stufe {level}",
+    "truncated": "+{count} weitere – Filter eingrenzen, um die Ergebnisse zu reduzieren."
+  },
   "login": {
     "signIn": "Anmelden",
     "signingIn": "Anmelden…",
@@ -264,6 +274,7 @@
   "sideMenu": {
     "closeSidebar": "Seitenleiste schließen",
     "chat": "Chat",
+    "compendium": "Kompendium",
     "targetingProxy": "Ziel-Stellvertreter",
     "pairPixelDice": "Pixel-Würfel koppeln",
     "pixelDice": "Pixel-Würfel",

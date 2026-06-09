@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
-import { ChatBubbleLeftRightIcon, Cog6ToothIcon, XMarkIcon } from '@heroicons/vue/24/solid'
+import {
+  BookOpenIcon,
+  ChatBubbleLeftRightIcon,
+  Cog6ToothIcon,
+  XMarkIcon
+} from '@heroicons/vue/24/solid'
 import { storeToRefs } from 'pinia'
 import { useServerStore } from '@/stores/server'
 import { useListenersStore } from '@/stores/listenersOnline'
@@ -21,6 +26,7 @@ import RollCheckBuilder from './RollCheckBuilder.vue'
 import SettingsModal from './SettingsModal.vue'
 import Modal from './ModalBox.vue'
 import ChatOverlay from './ChatOverlay.vue'
+import CompendiumBrowserOverlay from './CompendiumBrowserOverlay.vue'
 
 const { isConnected } = storeToRefs(useServerStore())
 const { isListening } = storeToRefs(useListenersStore())
@@ -104,7 +110,13 @@ function openChat() {
   chatOverlay.value?.open()
 }
 
-defineExpose({ sidebarOpen, openChat })
+const compendiumBrowser = ref<InstanceType<typeof CompendiumBrowserOverlay>>()
+function openCompendium() {
+  sidebarOpen.value = false
+  compendiumBrowser.value?.open()
+}
+
+defineExpose({ sidebarOpen, openChat, openCompendium })
 </script>
 <template>
   <div data-component="SideMenu">
@@ -182,54 +194,14 @@ defineExpose({ sidebarOpen, openChat })
                       </div>
                     </li>
                     <li>
-                      <div class="text-lg italic">{{ $t('sideMenu.targetingProxy') }}</div>
-                      <Dropdown
-                        ref="targetProxySelector"
-                        :list="userList ?? []"
-                        :selectedId="world === undefined ? 'loading' : (targetingProxyId ?? '0')"
-                        :changed="(newId: string) => updateProxyId(newId)"
-                        :disabled="world === undefined"
-                      />
-                    </li>
-                    <li class="grow">
-                      <RollOptions />
-                    </li>
-                    <li class="flex flex-col gap-3">
                       <Toggle
                         :active="manualDicePicker"
                         @changed="(v: boolean) => (manualDicePicker = v)"
                       >
                         <span class="text-lg italic">{{ $t('sideMenu.manualDicePicker') }}</span>
                       </Toggle>
-                      <div class="flex gap-2">
-                        <Button
-                          class="flex-1"
-                          :label="$t('sideMenu.freeRoll')"
-                          color="blue"
-                          :clicked="openFreeRoll"
-                        />
-                        <Button
-                          class="flex-1"
-                          :label="$t('sideMenu.damageRoll')"
-                          color="red"
-                          :clicked="openDamageRoll"
-                        />
-                      </div>
-                      <Button
-                        class="w-full"
-                        color="lightgray"
-                        :clicked="openChat"
-                        :aria-label="$t('sideMenu.chat')"
-                      >
-                        <template #default>
-                          <span class="inline-flex items-center justify-center gap-1">
-                            <ChatBubbleLeftRightIcon class="h-5 w-5" aria-hidden="true" />
-                            <span class="whitespace-nowrap">{{ $t('sideMenu.chat') }}</span>
-                          </span>
-                        </template>
-                      </Button>
                     </li>
-                    <li>
+                    <li class="-mt-4">
                       <div class="cursor-pointer text-lg font-bold" @click="pairDie">
                         {{ $t('sideMenu.pairPixelDice') }}
                       </div>
@@ -287,6 +259,61 @@ defineExpose({ sidebarOpen, openChat })
                         </div>
                       </div>
                     </li>
+                    <li>
+                      <div class="text-lg italic">{{ $t('sideMenu.targetingProxy') }}</div>
+                      <Dropdown
+                        ref="targetProxySelector"
+                        :list="userList ?? []"
+                        :selectedId="world === undefined ? 'loading' : (targetingProxyId ?? '0')"
+                        :changed="(newId: string) => updateProxyId(newId)"
+                        :disabled="world === undefined"
+                      />
+                    </li>
+                    <li class="grow">
+                      <RollOptions />
+                    </li>
+                    <li class="flex flex-col gap-3">
+                      <div class="flex gap-2">
+                        <Button
+                          class="flex-1"
+                          :label="$t('sideMenu.freeRoll')"
+                          color="blue"
+                          :clicked="openFreeRoll"
+                        />
+                        <Button
+                          class="flex-1"
+                          :label="$t('sideMenu.damageRoll')"
+                          color="red"
+                          :clicked="openDamageRoll"
+                        />
+                      </div>
+                      <Button
+                        class="w-full"
+                        color="lightgray"
+                        :clicked="openChat"
+                        :aria-label="$t('sideMenu.chat')"
+                      >
+                        <template #default>
+                          <span class="inline-flex items-center justify-center gap-1">
+                            <ChatBubbleLeftRightIcon class="h-5 w-5" aria-hidden="true" />
+                            <span class="whitespace-nowrap">{{ $t('sideMenu.chat') }}</span>
+                          </span>
+                        </template>
+                      </Button>
+                      <Button
+                        class="w-full"
+                        color="lightgray"
+                        :clicked="openCompendium"
+                        :aria-label="$t('sideMenu.compendium')"
+                      >
+                        <template #default>
+                          <span class="inline-flex items-center justify-center gap-1">
+                            <BookOpenIcon class="h-5 w-5" aria-hidden="true" />
+                            <span class="whitespace-nowrap">{{ $t('sideMenu.compendium') }}</span>
+                          </span>
+                        </template>
+                      </Button>
+                    </li>
                   </ul>
                 </nav>
               </div>
@@ -299,6 +326,7 @@ defineExpose({ sidebarOpen, openChat })
     <DamageRollBuilder ref="damageRollModal" />
     <SettingsModal ref="settingsModal" />
     <ChatOverlay ref="chatOverlay" />
+    <CompendiumBrowserOverlay ref="compendiumBrowser" />
     <!-- Detail view for paired Pixel dice. Mounted regardless of pixel count
        so toggling between 1- and 2-die states doesn't tear it down. -->
     <Modal ref="pixelDiceModal" :title="$t('sideMenu.pixelDice')">

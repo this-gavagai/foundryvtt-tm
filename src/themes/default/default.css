@@ -795,6 +795,82 @@ body.theme-default {
         }
       }
     }
+
+    [data-component='CompendiumBrowserOverlay'] {
+      header {
+        border-color: var(--color-border);
+      }
+
+      /* filter bar divider */
+      > [data-part='panel'] > div {
+        border-color: var(--color-border);
+      }
+
+      [data-part='filter']::placeholder {
+        color: oklch(54% 0.01 258);
+      }
+      [data-part='filter']:focus {
+        border-color: oklch(58% 0.14 250);
+        --tw-ring-color: oklch(58% 0.14 250);
+      }
+
+      /* package-group headings */
+      h4 {
+        color: var(--color-heading);
+      }
+
+      /* scroll container — match the chat overlay's dark thin scrollbar */
+      [data-part='scroll'] {
+        scrollbar-width: thin;
+        scrollbar-color: oklch(32% 0.022 258) transparent;
+
+        &::-webkit-scrollbar {
+          width: 8px;
+        }
+        &::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        &::-webkit-scrollbar-thumb {
+          background-color: oklch(32% 0.022 258);
+          border-radius: 4px;
+          border: 2px solid transparent;
+          background-clip: padding-box;
+        }
+        &::-webkit-scrollbar-thumb:hover {
+          background-color: oklch(42% 0.025 258);
+          background-clip: padding-box;
+        }
+      }
+
+      /* pack + entry rows: dark surface chrome instead of the bright
+         bg-gray-50 / bg-white utility defaults */
+      [data-part='pack'],
+      [data-part='entry'] {
+        background-color: oklch(19% 0.022 258);
+        border-color: oklch(32% 0.022 258);
+        color: var(--color-text);
+        transition: background-color 120ms;
+      }
+      [data-part='pack']:hover,
+      [data-part='entry']:hover {
+        background-color: oklch(26% 0.025 258);
+      }
+      [data-part='pack']:active,
+      [data-part='entry']:active {
+        background-color: oklch(30% 0.028 258);
+      }
+
+      [data-part='entry'] [data-part='level'] {
+        color: oklch(68% 0.012 258);
+      }
+      [data-part='entry'] [data-part='rarity'] {
+        color: oklch(58% 0.01 258);
+      }
+
+      [data-part='truncated'] {
+        color: oklch(56% 0.01 258);
+      }
+    }
   }
 
   /* --- Section accent colors ---------------------------

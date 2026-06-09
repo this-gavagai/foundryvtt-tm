@@ -302,6 +302,13 @@ export const getCompendiumItem = (itemUuid: string) =>
 export const addCompendiumItem = (characterId: string, itemUuid: string) =>
   sendAction(TM.ADD_COMPENDIUM_ITEM, { characterId, itemUuid })
 
+// Browse support: list all compendium packs the world exposes, and fetch a
+// single pack's index (lightweight entries) for the browser overlay.
+export const listCompendia = () => sendAction(TM.LIST_COMPENDIA, {})
+
+export const getCompendiumIndex = (packId: string) =>
+  sendAction(TM.GET_COMPENDIUM_INDEX, { packId })
+
 export const applyDamage = (
   actor: Ref<CharacterPF2e>,
   messageId: string,

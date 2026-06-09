@@ -31,6 +31,16 @@
   "compendium": {
     "addToCharacter": "Add to Character"
   },
+  "compendiumBrowser": {
+    "title": "Compendium Browser",
+    "back": "Back to compendia",
+    "filterPacks": "Filter compendia…",
+    "filterEntries": "Filter entries…",
+    "noPacks": "No compendia available.",
+    "noEntries": "No entries found.",
+    "levelShort": "Lvl {level}",
+    "truncated": "+{count} more — refine the filter to narrow results."
+  },
   "login": {
     "signIn": "Sign in",
     "signingIn": "Signing in…",
@@ -265,6 +275,7 @@
   "sideMenu": {
     "closeSidebar": "Close sidebar",
     "chat": "Chat",
+    "compendium": "Compendium",
     "targetingProxy": "Targeting Proxy",
     "pairPixelDice": "Pair Pixel Die",
     "pixelDice": "Pixel Dice",

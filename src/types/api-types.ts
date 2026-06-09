@@ -28,6 +28,8 @@ export type ModuleEventArgs =
   | GetSpellDamageArgs
   | GetCompendiumItemArgs
   | AddCompendiumItemArgs
+  | ListCompendiaArgs
+  | GetCompendiumIndexArgs
   | ApplyDamageArgs
   | RerollChatRollArgs
 
@@ -284,6 +286,42 @@ export interface AddCompendiumItemArgs {
   itemUuid: string
 }
 
+export interface ListCompendiaArgs {
+  action: typeof TM.LIST_COMPENDIA
+  uuid: string
+  userId: string
+}
+
+export interface GetCompendiumIndexArgs {
+  action: typeof TM.GET_COMPENDIUM_INDEX
+  uuid: string
+  userId: string
+  // Pack collection id, e.g. "pf2e.equipment-srd" (matches game.packs key).
+  packId: string
+}
+
+// One compendium pack as surfaced to the browser's pack list.
+export interface CompendiumPackInfo {
+  // Collection id used to fetch the index later (game.packs key).
+  id: string
+  label: string
+  // Document type the pack holds: "Item", "Actor", "JournalEntry", …
+  documentType: string
+  // Owning package: "pf2e", "world", or a module id.
+  packageName: string
+}
+
+// A single index entry within a pack (enough to render a browse row and open
+// the full item via getCompendiumItem(uuid)).
+export interface CompendiumIndexEntry {
+  uuid: string
+  name: string
+  img?: string
+  type?: string
+  level?: number
+  rarity?: string
+}
+
 export type ApplyDamageMode = 'damage' | 'half' | 'double' | 'heal' | 'block'
 export type ChatRollRerollMode = 'reroll' | 'hero-point' | 'keep-highest' | 'keep-lowest'
 
@@ -365,6 +403,8 @@ export interface RequestResolutionArgs {
     modifiers?: (RawModifier | RawDamageDice)[]
   }
   compendiumItem?: CompendiumItemData | null
+  compendia?: CompendiumPackInfo[]
+  compendiumIndex?: CompendiumIndexEntry[]
 }
 
 export interface ActiveRoll {

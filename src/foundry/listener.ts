@@ -20,6 +20,8 @@ import {
   foundryUpdateActor,
   foundryGetCompendiumItem,
   foundryAddCompendiumItem,
+  foundryListCompendia,
+  foundryGetCompendiumIndex,
   foundrySendChatMessage,
   foundryApplyDamage,
   foundryRerollChatRoll
@@ -69,6 +71,8 @@ const actionHandlers: ActionHandlerMap = {
   [TM.UPDATE_ACTOR]: foundryUpdateActor,
   [TM.GET_COMPENDIUM_ITEM]: foundryGetCompendiumItem,
   [TM.ADD_COMPENDIUM_ITEM]: foundryAddCompendiumItem,
+  [TM.LIST_COMPENDIA]: foundryListCompendia,
+  [TM.GET_COMPENDIUM_INDEX]: foundryGetCompendiumIndex,
   [TM.APPLY_DAMAGE]: foundryApplyDamage,
   [TM.REROLL_CHAT_ROLL]: foundryRerollChatRoll
 }
