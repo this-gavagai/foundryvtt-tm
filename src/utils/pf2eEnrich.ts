@@ -243,7 +243,11 @@ export function pf2eDamageHtml(
   label: string | undefined,
   content?: string
 ): string {
-  const display = content ?? escapeHtml(label ?? formula.replace(/\[([^\]]*)\]/g, ' $1').trim())
+  const stripAnnotations = (s: string) =>
+    s.replace(/\[([^\]]*)\]/g, (_, inner: string) => ' ' + inner.replace(/,/g, ' ')).trim()
+  const display = content
+    ? stripAnnotations(content)
+    : escapeHtml(label ?? stripAnnotations(formula))
   return `<a class="inline-roll" data-damage-roll="${escapeAttr(formula)}"${inlineAttrs(
     damageInline,
     DAMAGE_ATTR_NAMES

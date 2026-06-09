@@ -233,7 +233,9 @@ function clearPreparedSpell() {
 // to resolve inline @item.level / @actor.level refs in @Damage formulas
 // client-side before the click handler ships them to Foundry.
 const viewedSpellRollData = computed<Record<string, unknown>>(() => {
-  const rank = viewedSpellInfo.value?.castingRank ?? viewedSpell.value?.system?.level?.value ?? 1
+  const rawRank = viewedSpellInfo.value?.castingRank ?? viewedSpell.value?.system?.level?.value ?? 1
+  // Cantrips are stored at rank 0; their effective rank scales with character level.
+  const rank = rawRank === 0 ? Math.ceil((characterLevel.value ?? 1) / 2) : rawRank
   return { item: { level: rank, rank }, actor: { level: characterLevel.value } }
 })
 const viewedConsumableSpellRollData = computed<Record<string, unknown>>(() => {

@@ -82,30 +82,35 @@ function simplifyWith(
 ): string {
   let result = resolveFormula(formula, rollData)
 
-  // Pass 1: evaluate math function calls from the inside out (do-while handles
-  // nesting — e.g. floor(ceil(N/2)) — by repeating until the string stabilises).
+  // Alternate pass 1 (math functions) and pass 2 (bare parens) until stable.
+  // They must interleave because pass 2 may expose new innermost function args
+  // for pass 1 — e.g. floor((@item.rank-1)/2): pass 2 collapses (@item.rank-1)
+  // first, then pass 1 can evaluate floor(result/2), then pass 2 collapses
+  // the outer (1+floor(...)) — none of which would resolve in a single pass.
   const fnRe = /\b(floor|ceil|round|abs|min|max)\(([^()]*)\)/g
-  let prev: string
+  let outer: string
   do {
-    prev = result
-    result = result.replace(fnRe, (match, fn: string, args: string) => {
-      // Strip any HTML tags that may have been inserted by a previous iteration
-      // before evaluating — the inner computation already wrapped its result.
-      const plainArgs = args.replace(/<[^>]*>/g, '')
-      const val = tryEvalMath(`${fn}(${plainArgs})`)
+    outer = result
+
+    // Pass 1: evaluate math function calls whose args contain no nested parens.
+    let prev: string
+    do {
+      prev = result
+      result = result.replace(fnRe, (match, fn: string, args: string) => {
+        const plainArgs = args.replace(/<[^>]*>/g, '')
+        const val = tryEvalMath(`${fn}(${plainArgs})`)
+        return val !== null ? wrap(String(val)) : match
+      })
+    } while (result !== prev)
+
+    // Pass 2: collapse innermost parenthesised groups.
+    result = result.replace(/\(([^()]*)\)/g, (match, inner: string) => {
+      const plainInner = inner.replace(/<[^>]*>/g, '')
+      if (/[a-zA-Z@]/.test(plainInner)) return match // unresolved ref — leave alone
+      const val = tryEvalMath(plainInner.trim())
       return val !== null ? wrap(String(val)) : match
     })
-  } while (result !== prev)
-
-  // Pass 2: collapse remaining (expr) parenthesised groups.
-  // Strip HTML from inner content (may contain wrapped values from pass 1),
-  // then evaluate the plain numeric expression.
-  result = result.replace(/\(([^()]*)\)/g, (match, inner: string) => {
-    const plainInner = inner.replace(/<[^>]*>/g, '')
-    if (/[a-zA-Z@]/.test(plainInner)) return match // unresolved ref or tag — leave alone
-    const val = tryEvalMath(plainInner.trim())
-    return val !== null ? wrap(String(val)) : match
-  })
+  } while (result !== outer)
 
   return result
 }
