@@ -94,8 +94,10 @@ const itemViewedId = ref<string | undefined>()
 const itemViewed = computed(() =>
   displayInventory.value?.find((i: InventoryItem) => i._id === itemViewedId.value)
 )
+const frozenItem = ref<InventoryItem | undefined>()
+watch(itemViewed, (val) => { if (val !== undefined) frozenItem.value = val })
 const itemHasContents = computed(() =>
-  displayInventory.value?.some((item) => item.system?.containerId === itemViewed.value?._id)
+  displayInventory.value?.some((item) => item.system?.containerId === frozenItem.value?._id)
 )
 
 function setInventoryMode(val: string) {
@@ -105,6 +107,7 @@ function setInventoryMode(val: string) {
 function viewItem(item: InventoryItem) {
   equipmentActiveRoll.value = undefined
   itemViewedId.value = item._id
+  frozenItem.value = item
   infoModal.value.open()
   nextTick(() => equipmentDetails.value?.initRolls())
 }
@@ -244,25 +247,25 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
       </Modal>
       <InfoModal
         ref="infoModal"
-        :itemId="itemViewed?._id"
-        :imageUrl="itemViewed?.img"
-        :traits="itemViewed?.system?.traits?.value"
+        :itemId="frozenItem?._id"
+        :imageUrl="frozenItem?.img"
+        :traits="frozenItem?.system?.traits?.value"
         :rolls="inlineRolls"
       >
         <template #title>
-          {{ itemViewed?.label ?? itemViewed?.name }}
+          {{ frozenItem?.label ?? frozenItem?.name }}
         </template>
         <template #description>
-          Level {{ itemViewed?.system?.level?.value }}
+          Level {{ frozenItem?.system?.level?.value }}
           <span class="text-sm capitalize">
-            ({{ itemViewed?.system?.traits?.rarity }}),
-            {{ printPrice(itemViewed?.system?.price?.value) }}
+            ({{ frozenItem?.system?.traits?.rarity }}),
+            {{ printPrice(frozenItem?.system?.price?.value) }}
           </span>
         </template>
         <template #body>
           <EquipmentDetails
             ref="equipmentDetails"
-            :item="itemViewed"
+            :item="frozenItem"
             :inventory="displayInventory"
             :labels="rollOptionLabels"
             :hideCarryType="showPartyInventory"
@@ -271,7 +274,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
             @update:activeRoll="equipmentActiveRoll = $event"
           />
         </template>
-        <template #actionButtons v-if="itemViewed">
+        <template #actionButtons v-if="frozenItem">
           <div class="flex flex-wrap justify-end gap-2">
             <Button
               color="lightgray"
@@ -289,7 +292,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
               {{ $t('common.delete') }}
             </Button>
             <Button
-              v-if="isListening && itemViewed?.system?.uses?.max"
+              v-if="isListening && frozenItem?.system?.uses?.max"
               color="green"
               :disabled="itemViewed?.system?.uses?.value === 0"
               :clicked="() => { itemViewed?.consumeItem?.(); infoModal.close() }"
