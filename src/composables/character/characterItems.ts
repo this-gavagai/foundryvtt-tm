@@ -58,7 +58,9 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
       ?.filter(
         (i): i is FeatPF2e<CharacterPF2e> =>
           i.type === 'feat' &&
-          !DIVINE_INTERCESSION_CATEGORIES.includes(i?.system?.category ?? '')
+          !DIVINE_INTERCESSION_CATEGORIES.includes(
+            (i as FeatPF2e<CharacterPF2e>)?.system?.category ?? ''
+          )
       )
       .sort(
         (a, b) =>
@@ -140,7 +142,10 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
     const divineIntercessions = items
       .filter(
         (i): i is FeatPF2e<CharacterPF2e> =>
-          i.type === 'feat' && DIVINE_INTERCESSION_CATEGORIES.includes(i?.system?.category ?? '')
+          i.type === 'feat' &&
+          DIVINE_INTERCESSION_CATEGORIES.includes(
+            (i as FeatPF2e<CharacterPF2e>)?.system?.category ?? ''
+          )
       )
       .map((i) => ({
         ...makeFeat(i),
