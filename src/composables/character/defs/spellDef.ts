@@ -70,33 +70,9 @@ export interface SpellcastingEntrySystem extends ItemSystem {
 type PreparedSlot = SpellcastingEntrySystem['slots'][string]['prepared'][number]
 
 function normalizePreparedSlot(prepared: unknown): PreparedSlot[] {
-  const values = Array.isArray(prepared)
-    ? prepared
-    : prepared && typeof prepared === 'object'
-      ? 'id' in prepared || 'expended' in prepared
-        ? [prepared]
-        : Object.values(prepared)
-      : []
-
-  return values.map((p) => {
-    if (p && typeof p === 'object') {
-      const entry = p as { id?: unknown; expended?: unknown }
-      return {
-        id:
-          entry.id == null
-            ? undefined
-            : typeof entry.id === 'string'
-              ? entry.id
-              : String(entry.id),
-        expended: typeof entry.expended === 'boolean' ? entry.expended : undefined
-      }
-    }
-
-    return {
-      id: typeof p === 'string' ? p : undefined,
-      expended: undefined
-    }
-  })
+  if (Array.isArray(prepared)) return prepared as PreparedSlot[]
+  if (prepared && typeof prepared === 'object') return Object.values(prepared) as PreparedSlot[]
+  return []
 }
 
 export function makeSpell(root: SpellPF2e): Spell {
@@ -105,33 +81,33 @@ export function makeSpell(root: SpellPF2e): Spell {
     ...base,
     system: {
       ...base.system,
-      actions: { value: root.system?.time?.value },
+      actions: { value: root.system.time?.value },
       location: {
-        value: root.system?.location?.value ?? undefined,
-        signature: root.system?.location?.signature,
-        heightenedLevel: root.system?.location?.heightenedLevel
+        value: root.system.location?.value ?? undefined,
+        signature: root.system.location?.signature,
+        heightenedLevel: root.system.location?.heightenedLevel
       },
-      range: root.system?.range?.value,
-      target: root.system?.target?.value,
+      range: root.system.range?.value,
+      target: root.system.target?.value,
       area: {
-        type: root.system?.area?.type ?? undefined,
-        value: root.system?.area?.value ?? undefined
+        type: root.system.area?.type ?? undefined,
+        value: root.system.area?.value ?? undefined
       },
       defense: {
         save: {
-          basic: root.system?.defense?.save?.basic ?? undefined,
-          statistic: root.system?.defense?.save?.statistic ?? undefined
+          basic: root.system.defense?.save?.basic ?? undefined,
+          statistic: root.system.defense?.save?.statistic ?? undefined
         }
       },
-      time: { value: root.system?.time?.value },
-      hasDamage: Object.keys(root.system?.damage ?? {}).length > 0
+      time: { value: root.system.time?.value },
+      hasDamage: Object.keys(root.system.damage ?? {}).length > 0
     }
   } as Spell
 }
 
 export function makeSpellcastingEntry(root: SpellcastingEntryPF2e): SpellcastingEntry {
   const base = makeItem(root)!
-  const slots = Object.entries(root.system?.slots ?? {}).reduce(
+  const slots = Object.entries(root.system.slots ?? {}).reduce(
     (acc, [key, slot]) => {
       acc[key] = {
         value: slot.value,
@@ -146,10 +122,10 @@ export function makeSpellcastingEntry(root: SpellcastingEntryPF2e): Spellcasting
     ...base,
     system: {
       ...base.system,
-      spelldc: { dc: root.system?.spelldc?.dc },
+      spelldc: { dc: root.system.spelldc?.dc },
       prepared: {
-        value: root.system?.prepared?.value,
-        flexible: root.system?.prepared?.flexible
+        value: root.system.prepared?.value,
+        flexible: root.system.prepared?.flexible
       },
       slots
     }

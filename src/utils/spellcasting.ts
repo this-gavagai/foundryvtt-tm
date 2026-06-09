@@ -7,11 +7,11 @@ export const slotKey = (rank: number | string) => 'slot' + rank
 // Spellcasting-entry preparation predicates. The prepared.value / flexible
 // combination drives slot accounting and UI throughout, so the rules live here.
 export const isStrictPrepared = (e?: SpellcastingEntry) =>
-  e?.system?.prepared?.value === 'prepared' && e.system?.prepared?.flexible === false
+  e?.system.prepared?.value === 'prepared' && e.system.prepared?.flexible === false
 export const isFlexiblePrepared = (e?: SpellcastingEntry) =>
-  e?.system?.prepared?.value === 'prepared' && e.system?.prepared?.flexible === true
+  e?.system.prepared?.value === 'prepared' && e.system.prepared?.flexible === true
 export const isSlotCaster = (e?: SpellcastingEntry) =>
-  e?.system?.prepared?.value === 'spontaneous' || isFlexiblePrepared(e)
+  e?.system.prepared?.value === 'spontaneous' || isFlexiblePrepared(e)
 
 // A spellbook maps each spellcasting entry id to its ranks ('0'..'10'), and each
 // rank to the spells shown there. Prepared entries use sparse arrays (undefined =
@@ -46,7 +46,7 @@ function fillPreparedSlots(
 ) {
   const entryId = entry._id ?? ''
   for (let rank = 0; rank <= MAX_SPELL_RANK; rank++) {
-    spellbook[entryId][rank] = preparedSlotRow(entry.system?.slots?.[slotKey(rank)], spellById)
+    spellbook[entryId][rank] = preparedSlotRow(entry.system.slots?.[slotKey(rank)], spellById)
   }
 }
 
@@ -62,16 +62,16 @@ function addSpellToRank(
 
 function fillAndSortSpells(spellbook: Spellbook, entry: SpellcastingEntry, spells: Spell[]) {
   for (const spell of spells) {
-    if (spell.type !== 'spell' || spell.system?.location?.value !== entry._id) continue
+    if (spell.type !== 'spell' || spell.system.location?.value !== entry._id) continue
 
-    const spellRank = spell.system?.traits?.value?.includes('cantrip')
+    const spellRank = spell.system.traits?.value?.includes('cantrip')
       ? 0
-      : (spell.system?.level?.value ?? 0)
+      : (spell.system.level?.value ?? 0)
     addSpellToRank(spellbook, entry, spell, spellRank)
 
-    if (spell.system?.location?.signature) {
+    if (spell.system.location?.signature) {
       for (let rank = spellRank + 1; rank <= MAX_SPELL_RANK; rank++) {
-        if (entry.system?.slots?.[slotKey(rank)]?.max) addSpellToRank(spellbook, entry, spell, rank)
+        if (entry.system.slots?.[slotKey(rank)]?.max) addSpellToRank(spellbook, entry, spell, rank)
       }
     }
   }
@@ -79,8 +79,8 @@ function fillAndSortSpells(spellbook: Spellbook, entry: SpellcastingEntry, spell
   for (const [rankStr, rankSpells] of Object.entries(spellbook[entry._id ?? ''])) {
     const rank = Number(rankStr)
     rankSpells.sort((a, b) => {
-      const aLevel = a?.system?.level?.value ?? NaN
-      const bLevel = b?.system?.level?.value ?? NaN
+      const aLevel = a?.system.level?.value ?? NaN
+      const bLevel = b?.system.level?.value ?? NaN
       const aSignature = aLevel === rank ? 0 : 1
       const bSignature = bLevel === rank ? 0 : 1
       return aSignature - bSignature || aLevel - bLevel

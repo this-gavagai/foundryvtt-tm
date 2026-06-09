@@ -75,8 +75,8 @@ function spellInfo(rank: string, index: number): SpellInfo {
         <CounterWidget
           v-if="entry && isSlotCaster(entry)"
           class="relative bottom-px -m-0.5 mr-2 h-4 pb-1 text-sm"
-          :value="entry.system?.slots?.[slotKey(rank)]?.value"
-          :max="entry.system?.slots?.[slotKey(rank)]?.max"
+          :value="entry.system.slots?.[slotKey(rank)]?.value"
+          :max="entry.system.slots?.[slotKey(rank)]?.max"
           editable
           :title="`${entry.name}: ${$t('spells.rank', { n: rank })}`"
           @change-count="(newTotal) => entry?.setSlotCount?.(Number(rank), newTotal)"
@@ -101,7 +101,7 @@ function spellInfo(rank: string, index: number): SpellInfo {
                 <span
                   v-if="
                     spell?.system?.location?.signature &&
-                    spell?.system?.level?.value !== Number(rank)
+                    spell?.system.level?.value !== Number(rank)
                   "
                   >*</span
                 >{{ spell?.name }}</span
@@ -131,7 +131,7 @@ function spellInfo(rank: string, index: number): SpellInfo {
             v-if="entry && isStrictPrepared(entry) && Number(rank) > 0"
             class="col-start-2 row-start-1 mr-2 h-3 self-center text-sm min-[430px]:col-start-3 [&>div]:mt-0"
             :value="
-              entry.system?.slots?.[slotKey(rank)]?.prepared?.[index]?.expended === false ? 1 : 0
+              entry.system.slots?.[slotKey(rank)]?.prepared?.[index]?.expended === false ? 1 : 0
             "
             :max="1"
             editable

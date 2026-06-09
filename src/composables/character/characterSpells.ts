@@ -73,7 +73,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
             newSpellId: string | null,
             expended: boolean = false
           ) => {
-            const prepared = item.system?.slots?.[('slot' + rank) as SlotKey]?.prepared
+            const prepared = item.system.slots?.[('slot' + rank) as SlotKey]?.prepared
             if (!prepared || !rank || slot == null) return Promise.resolve(null)
             if (!prepared[slot]) prepared[slot] = { id: null, expended: true }
             prepared[slot].id = newSpellId
@@ -106,7 +106,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
           rollCheck(
             actor as Ref<CharacterPF2e>,
             'spellAttack',
-            `${item.system?.location?.value ?? ''},${item._id},${attackNumber}`,
+            `${item.system.location?.value ?? ''},${item._id},${attackNumber}`,
             { d20: [result ?? 0] },
             [],
             modifierOverrides ? { modifierOverrides } : {}

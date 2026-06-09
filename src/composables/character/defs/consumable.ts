@@ -27,11 +27,11 @@ export function makeConsumable(root: ConsumablePF2e): Consumable {
     ...base,
     system: {
       ...base.system,
-      uses: { value: root.system?.uses?.value, max: root.system?.uses?.max },
+      uses: { value: root.system.uses?.value, max: root.system.uses?.max },
       spell: {
         system: {
-          level: { value: root.system?.spell?.system?.level?.value },
-          description: { value: root.system?.spell?.system?.description?.value }
+          level: { value: root.system.spell?.system?.level?.value },
+          description: { value: root.system.spell?.system?.description?.value }
         }
       }
     }
