@@ -26,6 +26,10 @@ type StaffData = {
 }
 type PF2eDailiesFlags = { extra?: { dailies?: { staves?: StaffData } } } | undefined
 
+function isSpellSource(item: SpellPF2e | null | undefined): item is SpellPF2e {
+  return item?.type === 'spell' && !!item.system
+}
+
 export interface Staff {
   staffId: Maybe<string>
   charges: {
@@ -69,7 +73,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
             newSpellId: string | null,
             expended: boolean = false
           ) => {
-            const prepared = item.system.slots[('slot' + rank) as SlotKey]?.prepared
+            const prepared = item.system?.slots?.[('slot' + rank) as SlotKey]?.prepared
             if (!prepared || !rank || slot == null) return Promise.resolve(null)
             if (!prepared[slot]) prepared[slot] = { id: null, expended: true }
             prepared[slot].id = newSpellId
@@ -102,7 +106,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
           rollCheck(
             actor as Ref<CharacterPF2e>,
             'spellAttack',
-            `${item.system.location.value ?? ''},${item._id},${attackNumber}`,
+            `${item.system?.location?.value ?? ''},${item._id},${attackNumber}`,
             { d20: [result ?? 0] },
             [],
             modifierOverrides ? { modifierOverrides } : {}
@@ -127,7 +131,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
 
     const dailies = actor.value?.flags?.['pf2e-dailies'] as PF2eDailiesFlags
     const staves = dailies?.extra?.dailies?.staves
-    const staffSpells = (staves?.spells ?? []).map((i) => ({
+    const staffSpells = (staves?.spells ?? []).filter(isSpellSource).map((i) => ({
       ...makeSpell(i),
       doSpell: (rank: number | undefined) =>
         castStaffSpell(actor as Ref<CharacterPF2e>, staves!.staffId!, i._id!, rank ?? 1)
@@ -141,7 +145,10 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
       ?.filter(
         (i): i is ConsumablePF2e<CharacterPF2e> =>
           i.type === 'consumable' &&
-          !!(i.system?.traits.value?.includes('scroll') || i.system?.traits.value?.includes('wand'))
+          !!(
+            i.system?.traits?.value?.includes('scroll') ||
+            i.system?.traits?.value?.includes('wand')
+          )
       )
       ?.map((i) => ({
         ...makeConsumable(i),
@@ -163,7 +170,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
         value: staffData?.charges?.value,
         max: staffData?.charges?.max
       },
-      spells: (staffData?.spells ?? []).map((i) => ({
+      spells: (staffData?.spells ?? []).filter(isSpellSource).map((i) => ({
         ...makeSpell(i),
         doSpell: (rank: number | undefined) =>
           castStaffSpell(actor as Ref<CharacterPF2e>, staffData!.staffId!, i._id!, rank ?? 1),

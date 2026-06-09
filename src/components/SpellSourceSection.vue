@@ -14,7 +14,7 @@ const props = defineProps<{
   dataSection: string
   title: string
   dc?: number
-  ranks: Record<string, (Spell | undefined)[]>
+  ranks?: Record<string, (Spell | undefined)[]>
   entry?: SpellcastingEntry
   titleClickable?: boolean
 }>()
@@ -63,7 +63,7 @@ function spellInfo(rank: string, index: number): SpellInfo {
     </h3>
     <!-- Spell Ranks -->
     <section
-      v-for="(spells, rank) in ranks"
+      v-for="(spells, rank) in ranks ?? {}"
       class="[section:not(.hidden)~&]:mt-3"
       :class="{ hidden: !spells.length }"
       :key="'rank' + rank"
@@ -75,8 +75,8 @@ function spellInfo(rank: string, index: number): SpellInfo {
         <CounterWidget
           v-if="entry && isSlotCaster(entry)"
           class="relative bottom-px -m-0.5 mr-2 h-4 pb-1 text-sm"
-          :value="entry.system.slots?.[slotKey(rank)]?.value"
-          :max="entry.system.slots?.[slotKey(rank)]?.max"
+          :value="entry.system?.slots?.[slotKey(rank)]?.value"
+          :max="entry.system?.slots?.[slotKey(rank)]?.max"
           editable
           :title="`${entry.name}: ${$t('spells.rank', { n: rank })}`"
           @change-count="(newTotal) => entry?.setSlotCount?.(Number(rank), newTotal)"
@@ -86,7 +86,7 @@ function spellInfo(rank: string, index: number): SpellInfo {
       <ul class="mb-1 empty:hidden">
         <li
           v-for="(spell, index) in spells"
-          class="grid grid-cols-[1fr_auto] min-[430px]:grid-cols-[1fr_auto_auto] items-center gap-x-2 px-4 py-px"
+          class="grid grid-cols-[1fr_auto] items-center gap-x-2 px-4 py-px min-[430px]:grid-cols-[1fr_auto_auto]"
           :key="spell?._id"
         >
           <!-- col 1, row 1 at all widths -->
@@ -101,7 +101,7 @@ function spellInfo(rank: string, index: number): SpellInfo {
                 <span
                   v-if="
                     spell?.system?.location?.signature &&
-                    spell?.system?.level.value !== Number(rank)
+                    spell?.system?.level?.value !== Number(rank)
                   "
                   >*</span
                 >{{ spell?.name }}</span
@@ -118,9 +118,7 @@ function spellInfo(rank: string, index: number): SpellInfo {
             </button>
           </div>
           <!-- col 1 row 2 at narrow; col 2 row 1 at wide -->
-          <div
-            class="min-[430px]:col-start-2 min-[430px]:col-span-1 min-[430px]:row-start-1"
-          >
+          <div class="min-[430px]:col-span-1 min-[430px]:col-start-2 min-[430px]:row-start-1">
             <SpellRollButtons
               :spell="spell"
               :entry="entry"
@@ -131,8 +129,10 @@ function spellInfo(rank: string, index: number): SpellInfo {
           <!-- col 2 row 1 at narrow; col 3 row 1 at wide -->
           <CounterWidget
             v-if="entry && isStrictPrepared(entry) && Number(rank) > 0"
-            class="col-start-2 row-start-1 min-[430px]:col-start-3 mr-2 h-3 self-center text-sm [&>div]:mt-0"
-            :value="entry.system.slots[slotKey(rank)].prepared[index]?.expended === false ? 1 : 0"
+            class="col-start-2 row-start-1 mr-2 h-3 self-center text-sm min-[430px]:col-start-3 [&>div]:mt-0"
+            :value="
+              entry.system?.slots?.[slotKey(rank)]?.prepared?.[index]?.expended === false ? 1 : 0
+            "
             :max="1"
             editable
             :title="`${$t('spells.rank', { n: rank })}: ${spell?.name}`"

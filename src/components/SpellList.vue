@@ -263,7 +263,7 @@ const castDisabled = computed(() => {
   const entry = viewedInfoEntry.value
   if (!entry) return false
 
-  const prepType = entry.system.prepared.value
+  const prepType = entry.system?.prepared?.value
   const rank = info.castingRank ?? 0
 
   if (rank === 0) return false
@@ -276,10 +276,10 @@ const castDisabled = computed(() => {
   if (isStrictPrepared(entry)) {
     const slot = info.castingSlot
     if (slot == null) return false
-    return entry.system.slots[slotKey(rank)]?.prepared[slot]?.expended === true
+    return entry.system?.slots?.[slotKey(rank)]?.prepared?.[slot]?.expended === true
   }
 
-  return (entry.system.slots[slotKey(rank)]?.value ?? 0) <= 0
+  return (entry.system?.slots?.[slotKey(rank)]?.value ?? 0) <= 0
 })
 
 function setPreparedSpell(spell: Spell) {
@@ -294,15 +294,16 @@ function setPreparedSpell(spell: Spell) {
 
 const sortedConsumables = computed(() =>
   [...(spellConsumables.value ?? [])].sort(
-    (a, b) => (a.system.spell.system.level.value ?? 0) - (b.system.spell.system.level.value ?? 0)
+    (a, b) =>
+      (a.system?.spell?.system?.level?.value ?? 0) - (b.system?.spell?.system?.level?.value ?? 0)
   )
 )
 
 const staffItem = computed(() => inventory.value?.find((i) => i._id === staff.value?.staffId))
 
 const staffSpellsByRank = computed(() =>
-  (staff.value?.spells ?? []).reduce<Record<string, Spell[]>>((acc, s) => {
-    const rank = s.system.traits.value?.includes('cantrip') ? 0 : (s.system.level.value ?? 0)
+  (staff.value?.spells ?? []).filter(Boolean).reduce<Record<string, Spell[]>>((acc, s) => {
+    const rank = s.system?.traits?.value?.includes('cantrip') ? 0 : (s.system?.level?.value ?? 0)
     ;(acc[rank] ??= []).push(s)
     return acc
   }, {})
@@ -310,10 +311,11 @@ const staffSpellsByRank = computed(() =>
 
 const selectablePreparedSpells = computed(() => {
   const options = spellSelectionModal.value?.options
+  if (!options?.entryId || options.castingRank == null) return []
   return spells.value?.filter(
     (i) =>
-      i.system.location.value === options?.entryId &&
-      (i.system.level.value ?? 0) <= options?.castingRank
+      i.system?.location?.value === options?.entryId &&
+      (i.system?.level?.value ?? 0) <= options.castingRank
   )
 })
 
@@ -331,12 +333,12 @@ const spellbook = computed(() => buildSpellbook(spellcastingEntries.value, spell
         :key="location._id"
         class="mb-4"
         :data-section="
-          location.system.prepared.value === 'focus'
+          location.system?.prepared?.value === 'focus'
             ? 'focus'
-            : location.system.tradition?.value || 'arcane'
+            : location.system?.tradition?.value || 'arcane'
         "
         :title="location.name ?? ''"
-        :dc="location.system.spelldc.dc || spellDC"
+        :dc="location.system?.spelldc?.dc || spellDC"
         :ranks="spellbook[location._id ?? '']"
         :entry="location"
         title-clickable
@@ -348,7 +350,7 @@ const spellbook = computed(() => buildSpellbook(spellcastingEntries.value, spell
         <template #headerCounter>
           <span class="pl-1">
             <CounterWidget
-              v-if="location.system?.prepared.value === 'focus'"
+              v-if="location.system?.prepared?.value === 'focus'"
               class="relative -bottom-0.5 mt-px mr-2 h-4 text-sm"
               :value="focusCurrent"
               :max="focusMax"
@@ -406,8 +408,8 @@ const spellbook = computed(() => buildSpellbook(spellcastingEntries.value, spell
             </div>
             <CounterWidget
               class="mt-1 mr-2 h-3 text-sm"
-              :value="item.system.uses?.value"
-              :max="item.system.uses?.max"
+              :value="item.system?.uses?.value"
+              :max="item.system?.uses?.max"
               :title="item.name"
               editable
               @change-count="(newTotal) => item?.changeUses?.(newTotal)"
@@ -442,11 +444,11 @@ const spellbook = computed(() => buildSpellbook(spellcastingEntries.value, spell
           </template>
           <template v-else>
             {{
-              viewedItem?.system.traits?.value?.includes('cantrip')
+              viewedItem?.system?.traits?.value?.includes('cantrip')
                 ? $t('spells.cantrips')
-                : $t('spells.rank', { n: viewedItem?.system.level?.value })
+                : $t('spells.rank', { n: viewedItem?.system?.level?.value })
             }}
-            <span class="text-sm capitalize">{{ viewedItem?.system.traits.rarity }}</span>
+            <span class="text-sm capitalize">{{ viewedItem?.system?.traits?.rarity }}</span>
           </template>
         </template>
         <template #body>
@@ -466,7 +468,7 @@ const spellbook = computed(() => buildSpellbook(spellcastingEntries.value, spell
           <Button
             :label="$t('common.remove')"
             color="red"
-            v-if="viewedSpellInfo?.entry?.system.prepared?.value === 'prepared'"
+            v-if="viewedSpellInfo?.entry?.system?.prepared?.value === 'prepared'"
             :clicked="clearPreparedSpell"
           />
           <Button

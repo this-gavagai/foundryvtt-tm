@@ -55,7 +55,7 @@ defineExpose({ activeRoll })
       <div v-if="spellInfo?.isConsumable">
         <h4 class="text-xl">{{ $t('spells.spellDetails') }}</h4>
         <ParsedDescription
-          :text="consumable?.system.spell.system.description?.value"
+          :text="consumable?.system?.spell?.system?.description?.value"
           :labels="labels"
           :rollData="consumableSpellRollData"
           :itemId="consumable?._id ?? undefined"
@@ -65,7 +65,7 @@ defineExpose({ activeRoll })
       </div>
       <ParsedDescription
         ref="description"
-        :text="item?.system.description?.value"
+        :text="item?.system?.description?.value"
         :labels="labels"
         :rollData="spellRollData"
         :itemId="item?._id ?? undefined"
