@@ -292,7 +292,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
               v-if="isListening && itemViewed?.system?.uses?.max"
               color="green"
               :disabled="itemViewed?.system?.uses?.value === 0"
-              :clicked="() => itemViewed?.consumeItem?.()"
+              :clicked="() => { itemViewed?.consumeItem?.(); infoModal.close() }"
             >
               {{ $t('equipment.useItem') }}
             </Button>
