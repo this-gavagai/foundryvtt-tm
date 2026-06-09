@@ -41,6 +41,10 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
   const pixels = ref<PairedPixel[]>([])
   const lastRoll = ref<PixelRollEvent>()
   let rollSeq = 0
+  // Tracks which systemIds have an active repeatConnect in flight, to prevent
+  // the statusChanged('disconnected') handler from spawning a second one while
+  // repeatConnect is already looping through its own retry cycle.
+  const reconnectingIds = new Set<string>()
 
   // Persisted list of paired system IDs. Reconnect on every page load.
   const systemIds = useStorage<string[]>('pixel-system-ids', [])
@@ -98,10 +102,12 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
       // Hand a dropped connection back to the SDK's repeatConnect — it owns
       // backoff so we don't have to. We still keep the die in `pixels` so
       // the UI shows it as "disconnected (reconnecting)" rather than gone.
-      if (status.status === 'disconnected') {
+      if (status.status === 'disconnected' && !reconnectingIds.has(pixel.systemId)) {
+        reconnectingIds.add(pixel.systemId)
         loadSdk()
           .then(({ repeatConnect }) => repeatConnect(pixel))
           .catch((e) => logger.warn('TM-pixl: repeatConnect failed', pixel.systemId, e))
+          .finally(() => reconnectingIds.delete(pixel.systemId))
       }
     })
 
@@ -119,7 +125,12 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
       systemIds.value = [...systemIds.value, pixel.systemId]
     }
     const { repeatConnect, Color } = await loadSdk()
-    await repeatConnect(pixel)
+    reconnectingIds.add(pixel.systemId)
+    try {
+      await repeatConnect(pixel)
+    } finally {
+      reconnectingIds.delete(pixel.systemId)
+    }
     patchPixel(pixel.systemId, {
       status: pixel.status,
       batteryLevel: pixel.batteryLevel,
