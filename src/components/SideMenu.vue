@@ -273,20 +273,6 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                       <RollOptions />
                     </li>
                     <li class="flex flex-col gap-3">
-                      <div class="flex gap-2">
-                        <Button
-                          class="flex-1"
-                          :label="$t('sideMenu.freeRoll')"
-                          color="blue"
-                          :clicked="openFreeRoll"
-                        />
-                        <Button
-                          class="flex-1"
-                          :label="$t('sideMenu.damageRoll')"
-                          color="red"
-                          :clicked="openDamageRoll"
-                        />
-                      </div>
                       <Button
                         class="w-full"
                         color="lightgray"
@@ -313,6 +299,20 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                           </span>
                         </template>
                       </Button>
+                      <div class="flex gap-2">
+                        <Button
+                          class="flex-1"
+                          :label="$t('sideMenu.freeRoll')"
+                          color="blue"
+                          :clicked="openFreeRoll"
+                        />
+                        <Button
+                          class="flex-1"
+                          :label="$t('sideMenu.damageRoll')"
+                          color="red"
+                          :clicked="openDamageRoll"
+                        />
+                      </div>
                     </li>
                   </ul>
                 </nav>

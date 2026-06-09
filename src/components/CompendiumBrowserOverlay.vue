@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
 import { ArrowLeftIcon, BookOpenIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { useIntersectionObserver } from '@vueuse/core'
 import { useOverlayStack } from '@/composables/useOverlayStack'
 import { listCompendia, getCompendiumIndex } from '@/api/actionRpc'
 import { getPath, logger } from '@/utils/utilities'
 import type { CompendiumPackInfo, CompendiumIndexEntry } from '@/types/api-types'
 import CompendiumItemModal from '@/components/CompendiumItemModal.vue'
 
-// Cap rows rendered at once — some packs (equipment, spells) hold thousands of
-// entries; the filter box below is the way to reach anything past the cap.
-const RENDER_LIMIT = 200
+const PAGE_SIZE = 200
+const renderCount = ref(PAGE_SIZE)
 
 const isOpen = ref(false)
 const { zIndex, openLayer, closeLayer } = useOverlayStack()
@@ -52,8 +52,15 @@ const filteredEntries = computed(() => {
   const needle = filter.value.toLowerCase()
   return entries.value.filter((entry) => entry.name.toLowerCase().includes(needle))
 })
-const visibleEntries = computed(() => filteredEntries.value.slice(0, RENDER_LIMIT))
+const visibleEntries = computed(() => filteredEntries.value.slice(0, renderCount.value))
 const truncatedCount = computed(() => filteredEntries.value.length - visibleEntries.value.length)
+
+watch([selectedPack, filter], () => { renderCount.value = PAGE_SIZE })
+
+const sentinel = ref<HTMLElement | null>(null)
+useIntersectionObserver(sentinel, ([entry]) => {
+  if (entry?.isIntersecting) renderCount.value += PAGE_SIZE
+})
 
 async function loadPacks() {
   loadingPacks.value = true
@@ -255,13 +262,14 @@ defineExpose({ open, close, isOpen })
                         </button>
                       </li>
                     </ul>
-                    <p
+                    <div
                       v-if="truncatedCount > 0"
-                      data-part="truncated"
-                      class="mt-3 px-1 text-center text-xs text-gray-400 italic"
+                      ref="sentinel"
+                      data-part="load-more-sentinel"
+                      class="mt-2 py-2 text-center text-xs text-gray-400 italic"
                     >
                       {{ $t('compendiumBrowser.truncated', { count: truncatedCount }) }}
-                    </p>
+                    </div>
                   </template>
                 </template>
               </div>

@@ -20,6 +20,7 @@
     "loading": "Wird geladen...",
     "none": "Keine",
     "close": "Schließen",
+    "cancel": "Abbrechen",
     "delete": "Löschen",
     "update": "Aktualisieren",
     "remove": "Entfernen",
@@ -29,7 +30,9 @@
     "added": "Hinzugefügt"
   },
   "compendium": {
-    "addToCharacter": "Zum Charakter hinzufügen"
+    "addToCharacter": "Zum Charakter hinzufügen",
+    "selectSpellcastingEntry": "Zu Zauberliste hinzufügen",
+    "noSpellcastingEntries": "Keine Zauberlisten gefunden. Bitte zuerst eine zum Charakter hinzufügen."
   },
   "compendiumBrowser": {
     "title": "Kompendium-Browser",
@@ -211,6 +214,7 @@
     "basic": "einfach",
     "ac": "RK",
     "cast": "Wirken",
+    "spellList": "Zauberliste",
     "spellAttack": "Zauberangriff",
     "rollSpellAttack": "Zauberangriff würfeln",
     "cantrips": "Zaubertricks",

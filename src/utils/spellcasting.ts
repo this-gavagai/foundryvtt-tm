@@ -88,6 +88,36 @@ function fillAndSortSpells(spellbook: Spellbook, entry: SpellcastingEntry, spell
   }
 }
 
+// Returns all spells belonging to prepared entries, grouped by base rank.
+// Used to display the "spell list" (what can be prepared) separately from active slots.
+export function buildPrepList(
+  entries: SpellcastingEntry[] | undefined,
+  spells: Spell[] | undefined
+): Spellbook {
+  const prepList: Spellbook = {}
+  const allSpells = spells ?? []
+
+  for (const entry of entries ?? []) {
+    if (!isStrictPrepared(entry) && !isFlexiblePrepared(entry)) continue
+    const entryId = entry._id ?? ''
+    prepList[entryId] = emptyRanks()
+    for (const spell of allSpells) {
+      if (spell.type !== 'spell' || spell.system.location?.value !== entryId) continue
+      const rank = spell.system.traits?.value?.includes('cantrip')
+        ? 0
+        : (spell.system.level?.value ?? 0)
+      if (rank >= 0 && rank <= MAX_SPELL_RANK) {
+        prepList[entryId][String(rank)].push(spell)
+      }
+    }
+    for (const rankSpells of Object.values(prepList[entryId])) {
+      rankSpells.sort((a, b) => (a?.name ?? '').localeCompare(b?.name ?? ''))
+    }
+  }
+
+  return prepList
+}
+
 export function buildSpellbook(
   entries: SpellcastingEntry[] | undefined,
   spells: Spell[] | undefined

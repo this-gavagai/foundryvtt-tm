@@ -266,6 +266,24 @@ body.theme-default {
       background-color: oklch(42% 0.028 258);
     }
 
+    [data-part='spell-option']:hover,
+    [data-part='entry-option']:hover {
+      background-color: oklch(26% 0.025 258);
+    }
+    [data-part='spell-option']:active,
+    [data-part='entry-option']:active {
+      background-color: oklch(30% 0.028 258);
+    }
+
+    [data-part='entry-option'] {
+      border-color: oklch(36% 0.025 258);
+      color: var(--color-text);
+
+      span:last-child {
+        color: var(--color-heading);
+      }
+    }
+
     [data-part='compendium-banner'] {
       background-color: oklch(25% 0.044 258);
       border-bottom: 1px solid oklch(34% 0.038 258);

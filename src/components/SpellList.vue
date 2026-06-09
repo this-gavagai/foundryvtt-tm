@@ -10,7 +10,7 @@ import type { Roll } from '@/types/roll-types'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 import { parseDamageFormulaDice, makeDiceResults } from '@/utils/diceFormula'
-import { buildSpellbook, slotKey, isStrictPrepared, type SpellInfo } from '@/utils/spellcasting'
+import { buildSpellbook, buildPrepList, slotKey, isStrictPrepared, type SpellInfo } from '@/utils/spellcasting'
 import { useModifierOverrides } from '@/composables/useModifierOverrides'
 
 import Button from '@/components/widgets/ButtonWidget.vue'
@@ -314,14 +314,27 @@ const staffSpellsByRank = computed(() =>
 const selectablePreparedSpells = computed(() => {
   const options = spellSelectionModal.value?.options
   if (!options?.entryId || options.castingRank == null) return []
+  const isCantrip = (i: Spell) => !!i.system.traits?.value?.includes('cantrip')
   return spells.value?.filter(
     (i) =>
       i.system.location?.value === options?.entryId &&
-      (i.system.level?.value ?? 0) <= options.castingRank
+      (options.castingRank === 0 ? isCantrip(i) : !isCantrip(i) && (i.system.level?.value ?? 0) <= options.castingRank)
   )
 })
 
+const selectablePreparedSpellsByRank = computed(() => {
+  const grouped = new Map<number, Spell[]>()
+  for (const spell of selectablePreparedSpells.value ?? []) {
+    const rank = spell.system.traits?.value?.includes('cantrip') ? 0 : (spell.system.level?.value ?? 0)
+    ;(grouped.get(rank) ?? grouped.set(rank, []).get(rank)!).push(spell)
+  }
+  return [...grouped.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([rank, spells]) => ({ rank, spells }))
+})
+
 const spellbook = computed(() => buildSpellbook(spellcastingEntries.value, spells.value))
+const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.value))
 </script>
 <template>
   <div data-component="SpellList">
@@ -342,6 +355,7 @@ const spellbook = computed(() => buildSpellbook(spellcastingEntries.value, spell
         :title="location.name ?? ''"
         :dc="location.system.spelldc?.dc || spellDC"
         :ranks="spellbook[location._id ?? '']"
+        :prepList="prepList[location._id ?? '']"
         :entry="location"
         title-clickable
         @open-entry="openEntryModal(location)"
@@ -551,16 +565,22 @@ const spellbook = computed(() => buildSpellbook(spellcastingEntries.value, spell
         </template>
       </InfoModal>
       <Modal ref="spellSelectionModal" :title="$t('spells.selectSpell')">
-        <ul>
-          <li
-            class="cursor-pointer"
-            v-for="spell in selectablePreparedSpells"
-            @click="setPreparedSpell(spell)"
-            :key="spell._id"
-          >
-            {{ spell.name }}
-          </li>
-        </ul>
+        <div v-for="group in selectablePreparedSpellsByRank" :key="group.rank" class="mt-3 first:mt-1">
+          <h4 class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            {{ group.rank === 0 ? $t('spells.cantrips') : $t('spells.rank', { n: group.rank }) }}
+          </h4>
+          <ul>
+            <li
+              data-part="spell-option"
+              class="cursor-pointer rounded px-2 py-1 hover:bg-gray-100"
+              v-for="spell in group.spells"
+              @click="setPreparedSpell(spell)"
+              :key="spell._id"
+            >
+              {{ spell.name }}
+            </li>
+          </ul>
+        </div>
       </Modal>
     </Teleport>
   </div>

@@ -20,6 +20,7 @@
     "loading": "Loading...",
     "none": "None",
     "close": "Close",
+    "cancel": "Cancel",
     "delete": "Delete",
     "update": "Update",
     "remove": "Remove",
@@ -29,7 +30,9 @@
     "added": "Added"
   },
   "compendium": {
-    "addToCharacter": "Add to Character"
+    "addToCharacter": "Add to Character",
+    "selectSpellcastingEntry": "Add to Spellcasting Entry",
+    "noSpellcastingEntries": "No spellcasting entries found. Add one to the character first."
   },
   "compendiumBrowser": {
     "title": "Compendium Browser",
@@ -212,6 +215,7 @@
     "basic": "basic",
     "ac": "AC",
     "cast": "Cast",
+    "spellList": "Spell List",
     "spellAttack": "Spell Attack",
     "rollSpellAttack": "Roll Spell Attack",
     "cantrips": "Cantrips",

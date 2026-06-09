@@ -15,6 +15,7 @@ const props = defineProps<{
   title: string
   dc?: number
   ranks?: Record<string, (Spell | undefined)[]>
+  prepList?: Record<string, (Spell | undefined)[]>
   entry?: SpellcastingEntry
   titleClickable?: boolean
 }>()
@@ -149,5 +150,36 @@ function spellInfo(rank: string, index: number): SpellInfo {
         </li>
       </ul>
     </section>
+    <!-- Spell List (all spells available to prepare, for prepared entries) -->
+    <template v-if="prepList && Object.values(prepList).some((s) => s.length)">
+      <h4 class="mt-3 px-4 text-sm italic">{{ $t('spells.spellList') }}</h4>
+      <section
+        v-for="(spells, rank) in prepList"
+        class="[section:not(.hidden)~&]:mt-1"
+        :class="{ hidden: !spells.length }"
+        :key="'prep' + rank"
+      >
+        <h5 class="px-4 text-xs italic text-gray-500">
+          {{ rank == '0' ? $t('spells.cantrips') : $t('spells.rank', { n: rank }) }}
+        </h5>
+        <ul class="mb-1 empty:hidden">
+          <li
+            v-for="spell in spells"
+            :key="spell?._id"
+            class="px-4 py-px"
+          >
+            <button
+              v-if="spell"
+              type="button"
+              class="flex cursor-pointer items-baseline"
+              @click="emit('openSpell', spell._id, { entry, entryId: entry?._id })"
+            >
+              <span class="text-sm">{{ spell.name }}</span>
+              <ActionIcons class="ml-1 shrink-0 text-sm" :actions="spell.system?.time?.value" />
+            </button>
+          </li>
+        </ul>
+      </section>
+    </template>
   </section>
 </template>

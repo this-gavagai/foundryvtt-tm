@@ -285,6 +285,7 @@ export interface AddCompendiumItemArgs {
   userId: string
   characterId: string
   itemUuid: string
+  spellcastingEntryId?: string
 }
 
 export interface ListCompendiaArgs {

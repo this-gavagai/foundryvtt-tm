@@ -74,7 +74,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
             expended: boolean = false
           ) => {
             const prepared = item.system.slots?.[('slot' + rank) as SlotKey]?.prepared
-            if (!prepared || !rank || slot == null) return Promise.resolve(null)
+            if (!prepared || rank == null || slot == null) return Promise.resolve(null)
             if (!prepared[slot]) prepared[slot] = { id: null, expended: true }
             prepared[slot].id = newSpellId
             prepared[slot].expended = expended

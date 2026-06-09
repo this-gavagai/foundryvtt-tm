@@ -3,19 +3,22 @@ import { ref, computed } from 'vue'
 import InfoModal from './InfoModal.vue'
 import ParsedDescription from './ParsedDescription.vue'
 import Button from './widgets/ButtonWidget.vue'
+import SpellcastingEntryPickerModal from './SpellcastingEntryPickerModal.vue'
 import { BookOpenIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 import { getCompendiumItem, addCompendiumItem } from '@/api/actionRpc'
 import { logger } from '@/utils/utilities'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { useListenersStore } from '@/stores/listenersOnline'
+import { isStrictPrepared, isFlexiblePrepared } from '@/utils/spellcasting'
 import { storeToRefs } from 'pinia'
 import type { CompendiumItemData } from '@/types/api-types'
 
-const { _id: characterId } = useInjectedCharacter()
+const { _id: characterId, spellcastingEntries } = useInjectedCharacter()
 const { isListening } = storeToRefs(useListenersStore())
 
 const modal = ref()
+const entryPicker = ref<InstanceType<typeof SpellcastingEntryPickerModal>>()
 const item = ref<CompendiumItemData | null>(null)
 const loading = ref(false)
 const adding = ref(false)
@@ -23,6 +26,18 @@ const added = ref(false)
 const currentUuid = ref('')
 const description = ref()
 const rolls = useRollsFromActiveRoll(computed(() => description.value?.activeRoll))
+
+const preparedEntries = computed(() =>
+  (spellcastingEntries.value ?? []).filter((e) => isStrictPrepared(e) || isFlexiblePrepared(e))
+)
+
+const ADDABLE_TYPES = new Set(['action', 'effect', 'condition', 'equipment', 'consumable'])
+const canAdd = computed(() => {
+  if (!item.value) return false
+  const type = item.value.type ?? ''
+  if (type === 'spell') return preparedEntries.value.length > 0
+  return ADDABLE_TYPES.has(type)
+})
 
 async function open(uuid: string) {
   currentUuid.value = uuid
@@ -41,9 +56,22 @@ async function open(uuid: string) {
 
 async function addToCharacter() {
   if (!characterId.value || !currentUuid.value || adding.value) return
+
+  let spellcastingEntryId: string | undefined
+  if (item.value?.type === 'spell') {
+    const entries = preparedEntries.value
+    if (entries.length === 1) {
+      spellcastingEntryId = entries[0]._id ?? undefined
+    } else {
+      const chosen = await entryPicker.value?.open(entries)
+      if (!chosen) return
+      spellcastingEntryId = chosen
+    }
+  }
+
   adding.value = true
   try {
-    await addCompendiumItem(characterId.value, currentUuid.value)
+    await addCompendiumItem(characterId.value, currentUuid.value, spellcastingEntryId)
     added.value = true
   } finally {
     adding.value = false
@@ -92,7 +120,7 @@ defineExpose({ open })
     </template>
     <template #actionButtons>
       <Button
-        v-if="item && characterId && isListening"
+        v-if="canAdd && characterId && isListening"
         :color="added ? 'green' : 'blue'"
         :disabled="adding || added"
         :clicked="addToCharacter"
@@ -101,4 +129,5 @@ defineExpose({ open })
       </Button>
     </template>
   </InfoModal>
+  <SpellcastingEntryPickerModal ref="entryPicker" />
 </template>

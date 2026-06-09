@@ -299,8 +299,8 @@ export const updateActorRemote = (actorId: string, update: object) =>
 export const getCompendiumItem = (itemUuid: string) =>
   sendAction(TM.GET_COMPENDIUM_ITEM, { itemUuid })
 
-export const addCompendiumItem = (characterId: string, itemUuid: string) =>
-  sendAction(TM.ADD_COMPENDIUM_ITEM, { characterId, itemUuid })
+export const addCompendiumItem = (characterId: string, itemUuid: string, spellcastingEntryId?: string) =>
+  sendAction(TM.ADD_COMPENDIUM_ITEM, { characterId, itemUuid, spellcastingEntryId })
 
 export const sendCompendiumItemToChat = (characterId: string, itemUuid: string) =>
   sendAction(TM.SEND_COMPENDIUM_ITEM_TO_CHAT, { characterId, itemUuid })
