@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'
+import { useTopOverlayZIndex } from '@/composables/useOverlayStack'
 interface ListChoice {
   id: string | undefined
   name: string | undefined
@@ -49,6 +50,10 @@ const emit = defineEmits(['change'])
 const buttonWrapper = ref<HTMLElement | null>(null)
 const optionsStyle = ref<Record<string, string>>({})
 
+// Render above the modal that contains us (overlays start at z-index 60). When
+// no overlay is open we're a page-level dropdown, so fall back to 50.
+const topOverlayZIndex = useTopOverlayZIndex()
+
 function measure() {
   const el = buttonWrapper.value
   if (!el) return
@@ -57,7 +62,8 @@ function measure() {
     position: 'fixed',
     top: `${rect.bottom + 4}px`,
     left: `${rect.left}px`,
-    width: `${rect.width}px`
+    width: `${rect.width}px`,
+    zIndex: `${topOverlayZIndex.value > 0 ? topOverlayZIndex.value + 1 : 50}`
   }
 }
 
@@ -114,7 +120,7 @@ function onButtonClick() {
         v-show="open"
         :style="optionsStyle"
         data-part="dropdown-options"
-        class="z-50 max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-hidden sm:text-sm"
+        class="max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-hidden sm:text-sm"
       >
         <ListboxOption
           v-slot="{ active, selected }"
