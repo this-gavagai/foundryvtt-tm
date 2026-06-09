@@ -51,9 +51,15 @@ export interface CharacterItems {
 }
 
 export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): CharacterItems {
+  const DIVINE_INTERCESSION_CATEGORIES = ['deityboon', 'curse']
+
   const feats = computed(() =>
     actor.value?.items
-      ?.filter((i): i is FeatPF2e<CharacterPF2e> => i.type === 'feat')
+      ?.filter(
+        (i): i is FeatPF2e<CharacterPF2e> =>
+          i.type === 'feat' &&
+          !DIVINE_INTERCESSION_CATEGORIES.includes(i?.system?.category ?? '')
+      )
       .sort(
         (a, b) =>
           (a?.system?.level?.taken ?? a?.system?.level?.value ?? 0) -
@@ -131,7 +137,17 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
       }
     }
 
-    return [...stored, ...derived]
+    const divineIntercessions = items
+      .filter(
+        (i): i is FeatPF2e<CharacterPF2e> =>
+          i.type === 'feat' && DIVINE_INTERCESSION_CATEGORIES.includes(i?.system?.category ?? '')
+      )
+      .map((i) => ({
+        ...makeFeat(i),
+        delete: () => deleteActorItem(actor as Ref<CharacterPF2e>, i._id!),
+      })) as EffectItem[]
+
+    return [...stored, ...derived, ...divineIntercessions]
   })
   const inventory = computed(() =>
     actor.value?.items
