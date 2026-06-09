@@ -244,7 +244,10 @@ export function pf2eDamageHtml(
   content?: string
 ): string {
   const stripAnnotations = (s: string) =>
-    s.replace(/\[([^\]]*)\]/g, (_, inner: string) => ' ' + inner.replace(/,/g, ' ')).trim()
+    s
+      .replace(/\(([^()]+)\)(?=\[)/g, '$1')
+      .replace(/\[([^\]]*)\]/g, (_, inner: string) => ' ' + inner.replace(/,/g, ' '))
+      .trim()
   const display = content
     ? stripAnnotations(content)
     : escapeHtml(label ?? stripAnnotations(formula))

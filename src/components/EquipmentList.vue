@@ -181,7 +181,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
           :choiceSet="['individual', 'party']"
           :iconSet="{ individual: meepleIcon, party: meepleGroupIcon }"
           :selected="inventoryMode"
-          size="sm"
+          size="md"
           @changed="setInventoryMode"
         />
       </div>
