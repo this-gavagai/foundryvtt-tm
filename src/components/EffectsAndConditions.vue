@@ -6,6 +6,7 @@ export default { name: 'EffectsAndConditions' }
 import { ref, computed } from 'vue'
 import InfoModal from '@/components/InfoModal.vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useAnimationsReady } from '@/composables/useAnimationsReady'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import ParsedDescription from './ParsedDescription.vue'
 import { getPath } from '@/utils/utilities'
@@ -15,6 +16,13 @@ import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 
 const character = useInjectedCharacter()
 const { effects, rollOptionLabels } = character
+
+// Suppress the panel's enter/scale transitions until the character's initial
+// data has painted, so a sheet that loads with effects already present (from
+// the IndexedDB cache or the first live fetch) shows them at rest instead of
+// animating each one in; effects added deliberately later still animate.
+const animationsReady = useAnimationsReady()
+
 const infoModal = ref()
 const effectViewedId = ref<string | undefined>()
 const effectViewed = computed(() => effects.value?.find((e) => e._id === effectViewedId.value))
@@ -39,17 +47,18 @@ function adjustViewedEffectQty(delta: number) {
 <template>
   <div class="px-0! py-0!" :class="{ 'border-none': effects?.length === 0 }">
     <div
-      class="relative flex flex-wrap gap-2 overflow-hidden px-6 transition-all duration-300"
+      class="relative flex flex-wrap gap-2 overflow-hidden px-6"
       :class="[
+        animationsReady ? 'transition-all duration-300' : '',
         effects?.length && effects?.length > 0
           ? 'border-opacity-100 scale-y-100 py-4'
           : 'border-opacity-0 scale-y-0 py-0'
       ]"
     >
       <TransitionGroup
-        enter-active-class="transform duration-300 ease-out"
-        enter-from-class=" opacity-0 max-h-0"
-        enter-to-class="opacity-100 max-h-[55px]"
+        :enter-active-class="animationsReady ? 'transform duration-300 ease-out' : ''"
+        :enter-from-class="animationsReady ? ' opacity-0 max-h-0' : ''"
+        :enter-to-class="animationsReady ? 'opacity-100 max-h-[55px]' : ''"
         leave-active-class="transform duration-200 ease-in"
         leave-from-class="opacity-100 max-h-[55px]"
         leave-to-class=" opacity-0 max-h-0"

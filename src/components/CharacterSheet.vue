@@ -2,7 +2,7 @@
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { TablemateCharacter } from '@/types/character-types'
 import type { Ref, ComputedRef } from 'vue'
-import { ref, provide, computed, onMounted } from 'vue'
+import { ref, provide, computed, onMounted, watch } from 'vue'
 import { TabGroup, TabList, TabPanels } from '@headlessui/vue'
 
 import { storeToRefs } from 'pinia'
@@ -99,6 +99,20 @@ provide(characterKey, character)
 // keep the local actor ref synced with Foundry via socket events
 useActorSync(props.characterId, actor)
 
+// Fade the whole sheet in once the actor's data has landed, rather than letting
+// each piece pop in as the cache snapshot (then the live fetch) hydrates. While
+// the data is still absent the root sits at opacity-0, so any incremental
+// rendering / layout settling is hidden; the moment data is present it fades in
+// as a single unit. Sticky so a later transient undefined never fades it back out.
+const contentReady = ref(false)
+watch(
+  actorOrWorldActor,
+  (a) => {
+    if (a) contentReady.value = true
+  },
+  { immediate: true }
+)
+
 // set initial tab based on viewport
 onMounted(() => {
   initializeActiveSheetTab(width.value >= 768 ? firstDesktopTab : 0)
@@ -107,7 +121,11 @@ onMounted(() => {
 defineExpose({ actor, character, actorOrWorldActor })
 </script>
 <template>
-  <div class="flex h-dvh select-none" v-if="userHasActorPermission">
+  <div
+    class="flex h-dvh select-none transition-opacity duration-500 ease-out"
+    :class="contentReady ? 'opacity-100' : 'opacity-0'"
+    v-if="userHasActorPermission"
+  >
     <!-- show this column only if on a tablet or laptop -->
     <div
       data-part="sheet-left"
