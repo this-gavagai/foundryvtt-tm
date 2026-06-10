@@ -312,7 +312,8 @@
     "reload": "Reload"
   },
   "connection": {
-    "reconnecting": "Reconnecting…"
+    "reconnecting": "Reconnecting…",
+    "syncing": "Syncing…"
   },
   "infoModal": {
     "systemIcon": "PF2e system icon",

@@ -2,13 +2,22 @@
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useServerStore } from '@/stores/server'
+import { useSyncStatusStore } from '@/stores/syncStatus'
+import { useCharacterSelectStore } from '@/stores/characterSelect'
 import Spinner from '@/components/widgets/SpinnerWidget.vue'
 
-// Visible only after the *first* successful connection — during the initial
-// cold-load the app shell shows a spinner instead, and a banner would be
-// redundant noise. The flag flips true on the first transition into
-// `isConnected` and stays there for the rest of the session.
+// One banner for two transient "data isn't live yet" states. They never overlap
+// in practice, so a single pill with a state-appropriate label covers both:
+//   • Reconnecting — the socket transport dropped after a prior successful
+//     connection. Suppressed during the very first connect of a session (the
+//     app shell shows a spinner then, so a banner would be redundant noise).
+//   • Syncing — the active character is showing a cached snapshot from a prior
+//     session while its first live payload is still in flight. The socket is
+//     typically healthy here; we're just mid-fetch.
 const { isConnected } = storeToRefs(useServerStore())
+const { activeCharacterId } = storeToRefs(useCharacterSelectStore())
+const syncStatus = useSyncStatusStore()
+
 const hasEverConnected = ref(false)
 watch(
   isConnected,
@@ -18,7 +27,9 @@ watch(
   { immediate: true }
 )
 
-const visible = computed(() => hasEverConnected.value && !isConnected.value)
+const reconnecting = computed(() => hasEverConnected.value && !isConnected.value)
+const syncing = computed(() => syncStatus.staleActors.has(activeCharacterId.value))
+const visible = computed(() => reconnecting.value || syncing.value)
 </script>
 <template>
   <Transition
@@ -37,7 +48,7 @@ const visible = computed(() => hasEverConnected.value && !isConnected.value)
       aria-live="polite"
     >
       <Spinner class="h-4 w-4" />
-      <span>{{ $t('connection.reconnecting') }}</span>
+      <span>{{ reconnecting ? $t('connection.reconnecting') : $t('connection.syncing') }}</span>
     </div>
   </Transition>
 </template>

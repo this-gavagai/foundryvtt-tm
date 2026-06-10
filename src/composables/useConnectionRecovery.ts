@@ -10,6 +10,14 @@ import { useServerStore } from '@/stores/server'
 // the network change before the app gets the visibility event.
 // This is also the sole owner of visibility-triggered world refreshes — probing
 // first ensures refreshWorld never fires on a stale socket.
+
+// Tight cap on the resume probe: a live socket acks in well under 100ms, so on
+// return-from-background a slow round-trip almost always means a dead transport.
+// Waiting the full default 3s before reconnecting just strands the user staring
+// at stale state; 1.2s leaves margin for a sluggish-but-alive cellular link
+// while getting a fresh socket underway fast when the transport is gone.
+const RESUME_PROBE_TIMEOUT_MS = 1_200
+
 export function useConnectionRecovery(): void {
   const { forceReconnect, probeConnection } = useServerStore()
 
@@ -19,7 +27,7 @@ export function useConnectionRecovery(): void {
 
   function handleResumeProbe() {
     if (document.visibilityState !== 'visible') return
-    void probeConnection()
+    void probeConnection(RESUME_PROBE_TIMEOUT_MS)
       .then((alive) => {
         if (!alive) reconnectQuietly()
       })

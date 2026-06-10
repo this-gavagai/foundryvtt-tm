@@ -308,7 +308,8 @@
     "reload": "Neu laden"
   },
   "connection": {
-    "reconnecting": "Verbindung wird wiederhergestellt…"
+    "reconnecting": "Verbindung wird wiederhergestellt…",
+    "syncing": "Wird synchronisiert…"
   },
   "infoModal": {
     "systemIcon": "PF2e-Systemsymbol",

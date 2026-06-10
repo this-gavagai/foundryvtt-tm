@@ -2,7 +2,9 @@ import type { Ref } from 'vue'
 import { mergeWith } from 'lodash-es'
 import type { TablemateCharacter } from '@/types/character-types'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
+import { debounce } from 'lodash-es'
 import { uuidv4 } from '@/utils/utilities'
+import { saveActorSnapshot } from '@/utils/actorCache'
 import { getAuthenticatedSocket, mergeWithArrayReset, asDocumentArray } from './internal'
 import { TM } from './protocol'
 
@@ -39,6 +41,35 @@ export function fireAllRefresh() {
 export const setCharUnsynced = (actorId: string, value: boolean) =>
   characterUnsynced.set(actorId, value)
 export const isCharUnsynced = (actorId: string) => characterUnsynced.get(actorId) ?? false
+
+// Fresh-data registry: fires whenever a full server payload has been merged
+// into an actor, so the UI can drop the "showing cached snapshot" hint and
+// the snapshot cache can be refreshed. Distinct from refreshCallbacks (which
+// fire to *request* a refetch); these fire once the refetch has landed.
+const freshCallbacks: { [actorId: string]: Set<() => void> } = {}
+
+export function onActorFresh(actorId: string, fn: () => void): () => void {
+  ;(freshCallbacks[actorId] ??= new Set()).add(fn)
+  return () => {
+    freshCallbacks[actorId]?.delete(fn)
+    if (freshCallbacks[actorId]?.size === 0) delete freshCallbacks[actorId]
+  }
+}
+
+// Persist the merged snapshot on a trailing-edge debounce so a burst of
+// updates (e.g. several modifyDocument deltas) collapses into one IDB write.
+// The debounce is *per actor* — a single shared debounce would coalesce
+// concurrent saves across characters and only ever persist the last one, so
+// with multiple owned actors all but one would silently fail to cache.
+const saveDebouncers = new Map<string, ReturnType<typeof debounce<typeof saveActorSnapshot>>>()
+function queueSnapshotSave(actorId: string, actor: Parameters<typeof saveActorSnapshot>[1]) {
+  let save = saveDebouncers.get(actorId)
+  if (!save) {
+    save = debounce(saveActorSnapshot, 1000, { trailing: true })
+    saveDebouncers.set(actorId, save)
+  }
+  save(actorId, actor)
+}
 
 export async function sendCharacterRequest(actorId: string): Promise<void> {
   const { socket, userId } = await getAuthenticatedSocket()
@@ -106,4 +137,9 @@ export function parseActorData(
       }
     }
   }
+
+  // Live data has landed: clear any "showing cached" hint and refresh the
+  // persisted snapshot for the next cold start.
+  freshCallbacks[actorId]?.forEach((fn) => fn())
+  queueSnapshotSave(actorId, actor.value)
 }
