@@ -11,8 +11,15 @@ import { logger } from '@/utils/utilities'
 import { noFallbackTargetActor, resolveTarget } from './utils/target'
 import { rollSpellDamageWithTarget } from './utils/spellTargeting'
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api
+declare interface BelongsToOption {
+  id: string
+  name: string
+  selected: boolean
+}
 declare interface SheetableUser extends UserPF2e {
   sheeted: boolean
+  belongsTo: string
+  belongsToOptions: BelongsToOption[]
 }
 declare interface PlayerSelectContext {
   users: SheetableUser[]
@@ -313,23 +320,58 @@ class PlayerSelectMenu extends HandlebarsApplicationMixin(ApplicationV2) {
   }
   async _prepareContext(): Promise<PlayerSelectContext> {
     const users = game.users.filter((u: UserPF2e) => !u.isGM) as SheetableUser[]
+    // "Belongs To" links a sheet user (e.g. "Bob's Sheet") to the human's
+    // primary login user (e.g. "Bob"), so whispers addressed to the human
+    // surface in that player's Tablemate sheet. Offer every other user as a
+    // candidate owner; a sheet should not belong to itself.
     users.forEach((s) => {
       s.sheeted = s.getFlag('tablemate', 'character_sheet') === 'root'
+      const belongsTo = s.getFlag('tablemate', 'belongsTo')
+      s.belongsTo = typeof belongsTo === 'string' ? belongsTo : ''
+      s.belongsToOptions = game.users
+        .filter((u: UserPF2e) => u.id !== s.id)
+        .map((u: UserPF2e) => ({
+          id: u.id,
+          name: u.name,
+          selected: u.id === s.belongsTo
+        }))
     })
     const buttons = [{ type: 'button', action: 'close', label: 'Close' }]
     return { users, buttons }
   }
 
   static async updateUserFlags(event: Event, form: HTMLFormElement, formData: FormDataExtended) {
-    // Do things with the returned FormData
-    for (const id in formData.object) {
-      const usr = game.users.get(id)
-      if (formData.object[id]) {
-        if (usr?.getFlag('tablemate', 'character_sheet') !== 'root')
-          usr?.setFlag('tablemate', 'character_sheet', 'root')
+    // FormDataExtended keeps dotted field names flat (e.g. "sheeted.<id>"); it
+    // does not nest them. Split each key into its field prefix and user id so we
+    // can group the checkbox and select values by user.
+    const sheeted: Record<string, unknown> = {}
+    const belongsTo: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(formData.object)) {
+      const dot = key.indexOf('.')
+      if (dot < 0) continue
+      const field = key.slice(0, dot)
+      const id = key.slice(dot + 1)
+      if (field === 'sheeted') sheeted[id] = value
+      else if (field === 'belongsTo') belongsTo[id] = value
+    }
+
+    for (const usr of game.users.filter((u: UserPF2e) => !u.isGM)) {
+      const id = usr.id
+
+      if (sheeted[id]) {
+        if (usr.getFlag('tablemate', 'character_sheet') !== 'root')
+          await usr.setFlag('tablemate', 'character_sheet', 'root')
       } else {
-        if (usr?.getFlag('tablemate', 'character_sheet'))
-          usr?.unsetFlag('tablemate', 'character_sheet')
+        if (usr.getFlag('tablemate', 'character_sheet'))
+          await usr.unsetFlag('tablemate', 'character_sheet')
+      }
+
+      const owner = belongsTo[id]
+      if (typeof owner === 'string' && owner) {
+        if (usr.getFlag('tablemate', 'belongsTo') !== owner)
+          await usr.setFlag('tablemate', 'belongsTo', owner)
+      } else {
+        if (usr.getFlag('tablemate', 'belongsTo')) await usr.unsetFlag('tablemate', 'belongsTo')
       }
     }
   }

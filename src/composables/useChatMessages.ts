@@ -59,6 +59,11 @@ interface UserData {
   _id?: string | null
   id?: string | null
   name?: string | null
+  flags?: {
+    tablemate?: {
+      belongsTo?: string | null
+    }
+  }
 }
 
 interface ChatTokenData {
@@ -313,13 +318,45 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
     if (cached?.length) cachedMessages.value = cached
   })
 
+  // The set of Foundry user ids this client "is" for whisper purposes: the
+  // logged-in sheet user plus, if configured, the human login user it Belongs
+  // To (set GM-side via the User Select menu). This lets a whisper addressed to
+  // "Bob" surface on "Bob's Sheet".
+  const currentUserIds = computed(() => {
+    const ids = new Set<string>()
+    const userId = userStore.userId
+    if (!userId) return ids
+    ids.add(userId)
+    const self = users.value.find((u) => u._id === userId || u.id === userId)
+    const owner = self?.flags?.tablemate?.belongsTo
+    if (typeof owner === 'string' && owner) ids.add(owner)
+    return ids
+  })
+
+  // A whispered message is only visible to its recipients, its author, and the
+  // GM. A message with no (or an empty) whisper list is public. Mirrors
+  // Foundry's own ChatMessage#visible gating so whispers meant for other
+  // players never surface in this client's overlay.
+  function messageVisibleToCurrentUser(message: ChatMessageData): boolean {
+    const recipients = message.whisper
+    if (!recipients?.length) return true
+    if (currentUserIsGM.value) return true
+    const ids = currentUserIds.value
+    if (!ids.size) return false
+    if (recipients.some((recipient) => ids.has(recipient))) return true
+    const authorId = typeof message.author === 'string' ? message.author : message.author?._id
+    return !!authorId && ids.has(authorId)
+  }
+
   const messages = computed(() => {
     // Once the world payload has arrived it is canonical — show it verbatim,
     // even when empty (e.g. messages were deleted). Falling back to the cache
     // whenever `live` is merely empty would resurrect deleted messages, so the
     // cache is only a pre-world placeholder, gated on `world.value` presence.
     const source = world.value ? liveMessages() : cachedMessages.value
-    return source.slice().sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
+    return source
+      .filter(messageVisibleToCurrentUser)
+      .sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
   })
 
   // Persist the live messages (debounced) so the next cold launch has them.

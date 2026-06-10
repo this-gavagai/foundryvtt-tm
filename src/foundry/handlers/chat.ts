@@ -1,4 +1,5 @@
 import type { ChatRollRerollMode, RerollChatRollArgs, SendChatMessageArgs } from '@/types/api-types'
+import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import { useBackgroundRoll } from '../backgroundRoll'
 import { extractRollPayload } from '../utils/roll'
 import { getCharacter, getGame, makeAck } from '../utils/foundry'
@@ -6,6 +7,12 @@ import { getCharacter, getGame, makeAck } from '../utils/foundry'
 declare const ChatMessage: {
   create: (data: object) => Promise<unknown>
   getSpeaker: (opts: { actor?: unknown }) => unknown
+}
+
+interface WhisperUser {
+  id?: string | null
+  name?: string | null
+  isGM?: boolean
 }
 declare const Hooks: {
   once: (event: string, cb: (msg: { rolls?: unknown[] }) => void) => number
@@ -48,17 +55,77 @@ function formatChatContent(content: string): string {
   return escapeHtml(content.trim()).replace(/\n/g, '<br>')
 }
 
-export async function foundrySendChatMessage(args: SendChatMessageArgs) {
-  const content = formatChatContent(args.content)
-  if (!content) return makeAck(args)
+const WHISPER_PREFIX = /^\/w(?:hisper)?\s+/i
 
+// Parse Foundry's `/w` / `/whisper` syntax. Targets may be bracketed
+// (`[Display Name]`, so names with spaces work) or a single bare token, and
+// several may be comma-separated. The first target not followed by a comma
+// ends the recipient list; everything after it is the message body. Returns
+// null when the text isn't a whisper command.
+function parseWhisperCommand(raw: string): { targets: string[]; content: string } | null {
+  if (!WHISPER_PREFIX.test(raw)) return null
+  let rest = raw.replace(WHISPER_PREFIX, '')
+  const targets: string[] = []
+  const tokenPattern = /^(\[[^\]]+\]|[^\s,]+)\s*(,)?\s*/
+  while (rest.length) {
+    const match = tokenPattern.exec(rest)
+    if (!match) break
+    targets.push(match[1])
+    rest = rest.slice(match[0].length)
+    if (!match[2]) break // no trailing comma — the rest is the message body
+  }
+  return { targets, content: rest }
+}
+
+// Resolve whisper target names to Foundry user ids, mirroring Foundry's own
+// recipient lookup: the `gm`/`dm` keyword targets all GMs, `players` targets all
+// non-GMs, and any other name is matched case-insensitively against user names.
+function resolveWhisperRecipients(source: GamePF2e, targets: string[]): string[] {
+  const users = Array.from(source.users as Iterable<WhisperUser>)
+  const ids = new Set<string>()
+  const addAll = (matches: WhisperUser[]) =>
+    matches.forEach((u) => {
+      if (u.id) ids.add(u.id)
+    })
+
+  for (const target of targets) {
+    const name = target.replace(/[[\]]/g, '').trim()
+    if (!name) continue
+    const lower = name.toLowerCase()
+    if (lower === 'gm' || lower === 'dm') {
+      addAll(users.filter((u) => u.isGM))
+    } else if (lower === 'players') {
+      addAll(users.filter((u) => !u.isGM))
+    } else {
+      addAll(users.filter((u) => u.name?.toLowerCase() === lower))
+    }
+  }
+  return [...ids]
+}
+
+export async function foundrySendChatMessage(args: SendChatMessageArgs) {
   const source = getGame()
   const actor = source.actors.get(args.characterId, { strict: true })
-  await ChatMessage.create({
+
+  const whisper = parseWhisperCommand(args.content.trimStart())
+  const content = formatChatContent(whisper ? whisper.content : args.content)
+  if (!content) return makeAck(args)
+
+  const data: Record<string, unknown> = {
     author: args.userId,
     speaker: ChatMessage.getSpeaker({ actor }),
     content
-  })
+  }
+
+  if (whisper) {
+    const recipients = resolveWhisperRecipients(source, whisper.targets)
+    // An empty `whisper` array reads as a public message in Foundry, which would
+    // leak a message the user meant to be private. When nothing resolves, scope
+    // it to the author so it stays out of other players' overlays.
+    data.whisper = recipients.length ? recipients : [args.userId]
+  }
+
+  await ChatMessage.create(data)
   return makeAck(args)
 }
 
