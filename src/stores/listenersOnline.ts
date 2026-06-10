@@ -1,6 +1,7 @@
-import { ref, computed, onScopeDispose } from 'vue'
-import { defineStore } from 'pinia'
+import { ref, computed, watch, onScopeDispose } from 'vue'
+import { defineStore, storeToRefs } from 'pinia'
 import { getAuthenticatedSocket } from '@/api/internal'
+import { useServerStore } from '@/stores/server'
 import { logger } from '@/utils/utilities'
 import { TM } from '@/api/protocol'
 
@@ -45,9 +46,23 @@ export const useListenersStore = defineStore('listenersOnline', () => {
   }
   document.addEventListener('visibilitychange', handleVisibilityChange)
 
+  // Re-ping on every fresh session handshake. The visibility ping races the
+  // connection-recovery probe (it can fire ANYBODY_HOME on the stale socket
+  // that recovery is about to replace, then prune the expired listeners), and
+  // a recovery-triggered reconnect refreshes world/character data but never
+  // re-announces GM presence — leaving the PWA "connected to the world but
+  // without a GM" until the next 30s tick. Keying off sessionReady guarantees
+  // a heartbeat on the new socket the moment auth completes, covering every
+  // reconnect path (probe, online, soft reconnect, world-load re-auth).
+  const { sessionReady } = storeToRefs(useServerStore())
+  const stopSessionWatch = watch(sessionReady, (ready) => {
+    if (ready) safePingHeartbeat()
+  })
+
   onScopeDispose(() => {
     clearInterval(heartbeatInterval)
     document.removeEventListener('visibilitychange', handleVisibilityChange)
+    stopSessionWatch()
   })
 
   return { listenersOnline, isListening, addListener, getListeners }
