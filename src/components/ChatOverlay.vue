@@ -40,6 +40,7 @@ import type { ChatRollDie, ChatRollSummary } from '@/utils/chatRollSummary'
 
 const isOpen = ref(false)
 const scrollContainer = ref<HTMLElement>()
+const chatInput = ref<HTMLTextAreaElement>()
 const { zIndex, openLayer, closeLayer } = useOverlayStack()
 const character = useInjectedCharacter()
 const { _id, _actor, shield, skills, saves, perception } = character
@@ -130,7 +131,13 @@ const {
   shield,
   messages,
   messageIsOwnActor,
-  onMessageSent: () => scrollToBottom(true)
+  onMessageSent: () => {
+    scrollToBottom(true)
+    // Return focus to the composer for rapid follow-up messages. Deferred to
+    // nextTick so it runs after the textarea's `:disabled` (isSending) clears
+    // on the post-send flush — focusing a disabled element is a no-op.
+    nextTick(() => chatInput.value?.focus())
+  }
 })
 
 const rerollModalRolls = computed<Roll[]>(() => {
@@ -345,15 +352,18 @@ defineExpose({ open, close, isOpen })
                   >
                     <div class="flex gap-3">
                       <div
-                        v-if="view.portrait"
+                        v-if="view.hasPortrait"
                         data-part="chat-portrait"
-                        class="h-12 w-12 flex-none rounded"
+                        class="h-12 w-12 flex-none overflow-hidden overflow-visible rounded"
                       >
                         <img
+                          v-if="view.portrait"
                           class="h-full w-full scale-x-(--sx) scale-y-(--sy) object-cover"
                           :src="view.portrait"
                           :alt="view.speakerName"
                           :style="view.portraitScale"
+                          loading="lazy"
+                          decoding="async"
                         />
                       </div>
                       <div class="min-w-0 flex-1">
@@ -406,7 +416,12 @@ defineExpose({ open, close, isOpen })
                         class="inline-flex items-center gap-1.5 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-100 active:bg-blue-200"
                         @click="openLocalizedInlineRoll(check)"
                       >
-                        <img :src="d20Icon" class="h-3.5 w-3.5 flex-none" alt="" aria-hidden="true" />
+                        <img
+                          :src="d20Icon"
+                          class="h-3.5 w-3.5 flex-none"
+                          alt=""
+                          aria-hidden="true"
+                        />
                         {{ inlineCheckLabel(check) }}
                       </button>
                     </div>
@@ -756,6 +771,7 @@ defineExpose({ open, close, isOpen })
               >
                 <div class="min-w-0 flex-1">
                   <textarea
+                    ref="chatInput"
                     v-model="draft"
                     class="block max-h-32 min-h-12 w-full resize-none rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-hidden"
                     rows="2"

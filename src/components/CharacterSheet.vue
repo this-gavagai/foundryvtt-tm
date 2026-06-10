@@ -122,7 +122,7 @@ defineExpose({ actor, character, actorOrWorldActor })
 </script>
 <template>
   <div
-    class="flex h-dvh select-none transition-opacity duration-500 ease-out"
+    class="flex h-dvh select-none transition-opacity duration-200 ease-out"
     :class="contentReady ? 'opacity-100' : 'opacity-0'"
     v-if="userHasActorPermission"
   >

@@ -13,6 +13,16 @@
   cursor: pointer;
 }
 
+/* iOS Safari auto-zooms when a focused form field's font-size is < 16px.
+   Enforce 16px on touch devices to prevent that without disabling pinch-zoom. */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 :is([data-part='chat-flavor'], [data-part='chat-content']) {
   .critical-success { color: oklch(42% 0.2 145); font-weight: 600; }
   .success          { color: oklch(42% 0.18 250); font-weight: 600; }

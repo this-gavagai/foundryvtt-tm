@@ -1,6 +1,9 @@
-import { computed, type Ref } from 'vue'
+import { computed, ref, watch, type Ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import { debounce } from 'lodash-es'
 import { useWorldStore } from '@/stores/world'
+import { useUserStore, lastKnownUserId } from '@/stores/user'
+import { loadCachedChatMessages, saveCachedChatMessages } from '@/utils/chatCache'
 import { getPath } from '@/utils/utilities'
 import { prepareChatHtml } from '@/utils/chatHtml'
 import { rollSummaries, type ChatRollSummary, type RollJson } from '@/utils/chatRollSummary'
@@ -83,6 +86,7 @@ export interface ChatMessageView {
   formattedTime: string
   visibilityLabel: string | null
   isOwnActor: boolean
+  hasPortrait: boolean
   portrait?: string
   portraitScale: { '--sx': number; '--sy': number }
   preparedFlavor?: string
@@ -288,10 +292,56 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
     collectionToArray<ChatSceneData>(world.value?.scenes as CollectionLike<ChatSceneData>)
   )
 
-  const messages = computed(() =>
+  // Plain function, NOT a computed: new messages are pushed into world.messages
+  // *in place* and surfaced via triggerRef, so collectionToArray returns the
+  // same array reference each time. A computed would memoize on that stable ref
+  // and (Vue 3.4+ value comparison) never notify dependents — so the only
+  // memoization point is `messages` below, which always returns a fresh array.
+  const liveMessages = () =>
     collectionToArray<ChatMessageData>(world.value?.messages as CollectionLike<ChatMessageData>)
-      .slice()
-      .sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
+
+  // Stale-while-revalidate: hydrate the last-seen messages from IndexedDB so the
+  // overlay isn't empty on a cold launch, then fall through to live data the
+  // moment the world payload arrives. Keyed by the Foundry user _id, falling
+  // back to the last-known persisted id so the read resolves before the session
+  // handshake has repopulated the user store. Save and load MUST use the same
+  // key — `userId` (the Foundry _id) is distinct from the login username.
+  const userStore = useUserStore()
+  const cacheKey = () => userStore.userId || lastKnownUserId()
+  const cachedMessages = ref<ChatMessageData[]>([])
+  void loadCachedChatMessages(cacheKey()).then((cached) => {
+    if (cached?.length) cachedMessages.value = cached
+  })
+
+  const messages = computed(() => {
+    // Once the world payload has arrived it is canonical — show it verbatim,
+    // even when empty (e.g. messages were deleted). Falling back to the cache
+    // whenever `live` is merely empty would resurrect deleted messages, so the
+    // cache is only a pre-world placeholder, gated on `world.value` presence.
+    const source = world.value ? liveMessages() : cachedMessages.value
+    return source.slice().sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
+  })
+
+  // Persist the live messages (debounced) so the next cold launch has them.
+  // Watch a content fingerprint (count + last id/timestamp) rather than the
+  // array itself: in-place mutation keeps the same reference, so a plain
+  // array watch would miss appends. Only writes live data, never the cached
+  // fallback back onto itself.
+  const persist = debounce((userId: string, msgs: ChatMessageData[]) => {
+    void saveCachedChatMessages(userId, msgs)
+  }, 1000)
+  watch(
+    () => {
+      const live = liveMessages()
+      if (!live.length) return ''
+      const last = live[live.length - 1]
+      return `${live.length}:${last?._id ?? ''}:${last?.timestamp ?? ''}`
+    },
+    (fingerprint) => {
+      if (!fingerprint) return
+      const userId = cacheKey()
+      if (userId) persist(userId, liveMessages())
+    }
   )
 
   function authorName(message: ChatMessageData): string {
@@ -350,6 +400,11 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
       formattedTime: formattedTime(message.timestamp),
       visibilityLabel: visibility,
       isOwnActor: messageIsOwnActor(message),
+      // Reserve the portrait box from a static signal (the speaker references a
+      // token) so the row keeps a stable height even before scene/token data has
+      // hydrated to resolve the actual src. Without this the box pops in late
+      // during rehydration and shifts everything below it.
+      hasPortrait: !!message.speaker?.token,
       portrait: tokenPortrait(token),
       portraitScale: tokenScale(token),
       preparedFlavor: message.flavor
