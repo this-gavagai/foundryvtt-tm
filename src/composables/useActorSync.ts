@@ -4,7 +4,9 @@ import { debounce } from 'lodash-es'
 import type { TablemateCharacter } from '@/types/character-types'
 import { sendCharacterRequest, setCharUnsynced, onActorFresh } from '@/api/characterSync'
 import { setupSocketListenersForActor } from '@/api/socketSetup'
+import { markActiveRequestSent, waitForPriorRequests } from '@/api/loadPriority'
 import { useUserStore } from '@/stores/user'
+import { useCharacterSelectStore } from '@/stores/characterSelect'
 import { useSyncStatusStore } from '@/stores/syncStatus'
 import { loadActorSnapshot } from '@/utils/actorCache'
 import { logger } from '@/utils/utilities'
@@ -27,7 +29,22 @@ export function useActorSync(
   actor: Ref<TablemateCharacter | undefined>
 ) {
   const { markStale, markFresh } = useSyncStatusStore()
+  const characterSelect = useCharacterSelectStore()
   const debouncedRequest = debounce(sendCharacterRequest, 500, { leading: true })
+
+  // Cold-load ordering: the active character's sheet sends its request right
+  // away and signals the gate; every other sheet waits behind it (and the
+  // world request) so the GM serializes the visible sheet's payload first.
+  // Refreshes are unaffected — they call sendCharacterRequest directly.
+  const sendInitialRequest = async (id: string) => {
+    if (characterSelect.activeCharacterId === id) {
+      sendCharacterRequest(id)
+      markActiveRequestSent()
+    } else {
+      await waitForPriorRequests()
+      sendCharacterRequest(id)
+    }
+  }
   const requestCharacterDetails = async () => {
     if (!characterId) return
     setCharUnsynced(characterId, true)
@@ -70,13 +87,13 @@ export function useActorSync(
       // connects, so userId may still be '' here.
       const { userId } = storeToRefs(useUserStore())
       if (userId.value) {
-        sendCharacterRequest(characterId)
+        void sendInitialRequest(id)
       } else {
         // This watch is created outside Vue's setup scope, so we track it
         // manually and clean it up in onUnmounted.
         stopUserIdWatch = watch(userId, (newId) => {
           if (!newId) return
-          sendCharacterRequest(characterId)
+          void sendInitialRequest(id)
           stopUserIdWatch?.()
           stopUserIdWatch = undefined
         })

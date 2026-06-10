@@ -4,6 +4,7 @@ import { debounce } from 'lodash-es'
 import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import { useServerStore } from '@/stores/server'
 import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
+import { markWorldRequestSent } from '@/api/loadPriority'
 
 const REFRESH_DEBOUNCE_MS = 2000
 
@@ -34,6 +35,9 @@ export const useWorldStore = defineStore('world', () => {
       worldStatus.setWorldAuthenticated(!!r?.userId)
       if (r?.userId) world.value = r
     })
+    // The world request is now out — release any non-active character sheets
+    // gated behind it so they slot in after the world (see loadPriority).
+    markWorldRequestSent()
   }
 
   // Fire an immediate world refresh so worldLoaded gets a definite value
