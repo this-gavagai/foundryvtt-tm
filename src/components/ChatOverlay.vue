@@ -143,15 +143,16 @@ function positionOnOpen() {
     const el = scrollContainer.value
     if (!el) return
     const target = el.querySelector<HTMLElement>('[data-first-unread]')
-    if (target) {
-      // offsetTop (vs getBoundingClientRect) is layout-based, so it stays
-      // correct even while the dialog's enter transition is mid-scale. The
-      // scroll container is `relative`, so this is the divider's offset within it.
-      el.scrollTop = Math.max(0, target.offsetTop - 12)
-      updateAtBottom()
-    } else {
-      scrollToBottom()
-    }
+    // offsetTop (vs getBoundingClientRect) is layout-based, so it stays correct
+    // even while the dialog's enter transition is mid-scale. The scroll
+    // container is `relative`, so this is the divider's offset within it.
+    el.scrollTop = target
+      ? Math.max(0, target.offsetTop - 12)
+      : Math.max(0, el.scrollHeight - el.clientHeight)
+    // Run the same at-bottom check a real scroll would: when the whole log fits
+    // in view (e.g. a single message) there's no scroll event to fire it, so the
+    // unread badge would otherwise never clear.
+    onScroll()
   })
 }
 
