@@ -298,8 +298,10 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
           @after-leave="onAfterLeave"
         >
           <div v-show="showPartyInventory">
-            <!-- Spacer matches ChoiceWidget height so list starts at the same vertical offset as individual panel content -->
-            <div class="h-12"></div>
+            <!-- Title row matches ChoiceWidget height so list starts at the same vertical offset as individual panel content -->
+            <div class="flex h-12 items-start pr-28">
+              <h2 class="text-xl font-semibold">{{ $t('equipment.partyStash') }}</h2>
+            </div>
             <div class="lg:columns-2">
               <section
                 v-for="inventoryType in inventoryTypes"

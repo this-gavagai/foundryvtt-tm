@@ -203,7 +203,8 @@
     "investedCount": "Invested: {count} / 10",
     "usesLabel": "Uses:",
     "useItem": "Use Item",
-    "containerLabel": "Container"
+    "containerLabel": "Container",
+    "partyStash": "Party Stash"
   },
   "spells": {
     "noSpells": "This character does not cast spells.",

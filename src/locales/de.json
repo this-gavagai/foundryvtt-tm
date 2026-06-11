@@ -202,7 +202,8 @@
     "investedTitle": "Resonanzgegenstände",
     "investedCount": "Resonanz: {count} / 10",
     "usesLabel": "Benutzungen:",
-    "useItem": "Gegenstand benutzen"
+    "useItem": "Gegenstand benutzen",
+    "partyStash": "Gruppenvorrat"
   },
   "spells": {
     "noSpells": "Dieser Charakter wirkt keine Zauber.",
