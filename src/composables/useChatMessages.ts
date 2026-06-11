@@ -8,15 +8,9 @@ import { getPath } from '@/utils/utilities'
 import { prepareChatHtml } from '@/utils/chatHtml'
 import { rollSummaries, type ChatRollSummary, type RollJson } from '@/utils/chatRollSummary'
 import { applyPf2eNotation } from '@/utils/pf2eEnrich'
+import { collectionToArray, type CollectionLike } from '@/composables/chatCollections'
+import { useChatVisibility, type UserData } from '@/composables/useChatVisibility'
 import type { ActiveRoll } from '@/types/api-types'
-
-type CollectionLike<T> =
-  | T[]
-  | {
-      contents?: T[]
-      values?: () => IterableIterator<T>
-    }
-  | undefined
 
 interface ChatSpeaker {
   alias?: string
@@ -53,17 +47,6 @@ export interface ChatMessageData {
   isRerollable?: boolean
   'flags.tablemate.originUserId'?: string | null
   getFlag?: (scope: string, key: string) => unknown
-}
-
-interface UserData {
-  _id?: string | null
-  id?: string | null
-  name?: string | null
-  flags?: {
-    tablemate?: {
-      belongsTo?: string | null
-    }
-  }
 }
 
 interface ChatTokenData {
@@ -111,14 +94,6 @@ export interface ChatRerollSummary {
   newTotal?: number
   oldDiscarded: boolean
   newDiscarded: boolean
-}
-
-function collectionToArray<T>(source: CollectionLike<T>): T[] {
-  if (!source) return []
-  if (Array.isArray(source)) return source
-  if (Array.isArray(source.contents)) return source.contents
-  if (typeof source.values === 'function') return Array.from(source.values())
-  return []
 }
 
 export function originActorId(message: ChatMessageData): string | undefined {
@@ -272,18 +247,14 @@ function shouldShowMessageContent(
 export function useChatMessages(currentActorId: Ref<string | null | undefined>) {
   const { world } = storeToRefs(useWorldStore())
 
+  // Whisper/GM gating is shared with the unread store via useChatVisibility so
+  // the overlay and the badge count always agree on what's visible.
+  const { currentUserIsGM, messageVisibleToCurrentUser, visibleMessages } = useChatVisibility()
+
   const users = computed(() =>
     collectionToArray<UserData>(world.value?.users as CollectionLike<UserData>)
   )
 
-  const currentUserIsGM = computed(() => {
-    const userId = (world.value as { userId?: string } | undefined)?.userId
-    if (!userId) return false
-    const user = collectionToArray<{ _id?: string | null; role?: number }>(
-      world.value?.users as CollectionLike<{ _id?: string | null; role?: number }>
-    ).find((u) => u._id === userId)
-    return (user?.role ?? 0) >= 4
-  })
   const userNamesById = computed(() => {
     const names = new Map<string, string>()
     users.value.forEach((user) => {
@@ -296,14 +267,6 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
   const scenes = computed(() =>
     collectionToArray<ChatSceneData>(world.value?.scenes as CollectionLike<ChatSceneData>)
   )
-
-  // Plain function, NOT a computed: new messages are pushed into world.messages
-  // *in place* and surfaced via triggerRef, so collectionToArray returns the
-  // same array reference each time. A computed would memoize on that stable ref
-  // and (Vue 3.4+ value comparison) never notify dependents — so the only
-  // memoization point is `messages` below, which always returns a fresh array.
-  const liveMessages = () =>
-    collectionToArray<ChatMessageData>(world.value?.messages as CollectionLike<ChatMessageData>)
 
   // Stale-while-revalidate: hydrate the last-seen messages from IndexedDB so the
   // overlay isn't empty on a cold launch, then fall through to live data the
@@ -318,43 +281,14 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
     if (cached?.length) cachedMessages.value = cached
   })
 
-  // The set of Foundry user ids this client "is" for whisper purposes: the
-  // logged-in sheet user plus, if configured, the human login user it Belongs
-  // To (set GM-side via the User Select menu). This lets a whisper addressed to
-  // "Bob" surface on "Bob's Sheet".
-  const currentUserIds = computed(() => {
-    const ids = new Set<string>()
-    const userId = userStore.userId
-    if (!userId) return ids
-    ids.add(userId)
-    const self = users.value.find((u) => u._id === userId || u.id === userId)
-    const owner = self?.flags?.tablemate?.belongsTo
-    if (typeof owner === 'string' && owner) ids.add(owner)
-    return ids
-  })
-
-  // A whispered message is only visible to its recipients, its author, and the
-  // GM. A message with no (or an empty) whisper list is public. Mirrors
-  // Foundry's own ChatMessage#visible gating so whispers meant for other
-  // players never surface in this client's overlay.
-  function messageVisibleToCurrentUser(message: ChatMessageData): boolean {
-    const recipients = message.whisper
-    if (!recipients?.length) return true
-    if (currentUserIsGM.value) return true
-    const ids = currentUserIds.value
-    if (!ids.size) return false
-    if (recipients.some((recipient) => ids.has(recipient))) return true
-    const authorId = typeof message.author === 'string' ? message.author : message.author?._id
-    return !!authorId && ids.has(authorId)
-  }
-
   const messages = computed(() => {
-    // Once the world payload has arrived it is canonical — show it verbatim,
-    // even when empty (e.g. messages were deleted). Falling back to the cache
-    // whenever `live` is merely empty would resurrect deleted messages, so the
-    // cache is only a pre-world placeholder, gated on `world.value` presence.
-    const source = world.value ? liveMessages() : cachedMessages.value
-    return source
+    // Once the world payload has arrived it is canonical — show it verbatim
+    // (via the shared visibleMessages), even when empty (e.g. messages were
+    // deleted). Falling back to the cache whenever `live` is merely empty would
+    // resurrect deleted messages, so the cache is only a pre-world placeholder,
+    // gated on `world.value` presence.
+    if (world.value) return visibleMessages.value
+    return cachedMessages.value
       .filter(messageVisibleToCurrentUser)
       .sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
   })
@@ -367,6 +301,12 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
   const persist = debounce((userId: string, msgs: ChatMessageData[]) => {
     void saveCachedChatMessages(userId, msgs)
   }, 1000)
+  // Raw (server-filtered) live messages for the cache write — kept verbatim so a
+  // cold relaunch restores the same tail Foundry sent. Plain function, not a
+  // computed: in-place appends + triggerRef(world) keep the array reference
+  // stable, which a value-comparing computed would memoize past.
+  const liveMessages = () =>
+    collectionToArray<ChatMessageData>(world.value?.messages as CollectionLike<ChatMessageData>)
   watch(
     () => {
       const live = liveMessages()

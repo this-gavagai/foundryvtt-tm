@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { availableLocales, setLocale } from '@/plugins/i18n'
 import { useTheme, THEMES } from '@/composables/useTheme'
+import { useSettingsStore } from '@/stores/settings'
 import ModalBox from './ModalBox.vue'
 import Dropdown from '@/components/widgets/DropdownWidget.vue'
+import Toggle from '@/components/widgets/ToggleWidget.vue'
 
 const { locale, t } = useI18n()
 const { activeTheme, setTheme } = useTheme()
+const { showUnreadOnPortrait } = storeToRefs(useSettingsStore())
 
 const themeList = [
   { id: '', name: t('common.none') },
@@ -43,6 +47,10 @@ defineExpose({ open, close })
           :changed="(newId: string) => setTheme(newId || null)"
         />
       </div>
+      <hr class="opacity-30" />
+      <Toggle :active="showUnreadOnPortrait" @changed="(v: boolean) => (showUnreadOnPortrait = v)">
+        <span class="text-lg italic">{{ $t('settings.showUnreadOnPortrait') }}</span>
+      </Toggle>
     </div>
   </ModalBox>
 </template>

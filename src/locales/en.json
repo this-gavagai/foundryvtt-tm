@@ -1,6 +1,7 @@
 {
   "settings": {
-    "title": "Settings"
+    "title": "Settings",
+    "showUnreadOnPortrait": "Show unread message count on character portrait"
   },
   "rollCheck": {
     "saves": "Saves",
@@ -257,6 +258,8 @@
   "chat": {
     "title": "Chat",
     "messageCount": "{count} messages",
+    "newMessages": "New messages",
+    "unreadMessages": "{count} unread messages",
     "noMessages": "No chat messages yet.",
     "emptyMessage": "Empty message",
     "placeholder": "Type a message...",

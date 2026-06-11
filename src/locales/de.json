@@ -1,6 +1,7 @@
 {
   "settings": {
-    "title": "Einstellungen"
+    "title": "Einstellungen",
+    "showUnreadOnPortrait": "Anzahl ungelesener Nachrichten auf Charakterporträt anzeigen"
   },
   "rollCheck": {
     "saves": "Rettungswürfe",
@@ -256,6 +257,8 @@
   "chat": {
     "title": "Chat",
     "messageCount": "{count} Nachrichten",
+    "newMessages": "Neue Nachrichten",
+    "unreadMessages": "{count} ungelesene Nachrichten",
     "noMessages": "Noch keine Chatnachrichten.",
     "emptyMessage": "Leere Nachricht",
     "placeholder": "Nachricht eingeben...",

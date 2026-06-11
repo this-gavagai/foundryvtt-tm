@@ -39,3 +39,24 @@ export async function saveCachedChatMessages(
   }
   await idbPut('chat', userId, storable)
 }
+
+// The "last read" watermark: the timestamp of the newest chat message the user
+// has actually seen (scrolled to). Persisted per user alongside the message
+// cache (in the same 'chat' store, under a `read:` key prefix so it never
+// collides with the cached message array) so that a player returning after time
+// away — or after a PWA relaunch — can be shown exactly which messages arrived
+// while they were gone. Same keying rules as the message cache: the Foundry
+// user _id, falling back to the last-known persisted id on a cold launch.
+function readMarkerKey(userId: string): string {
+  return `read:${userId}`
+}
+
+export function loadChatReadMarker(userId: string): Promise<number | undefined> {
+  if (!userId) return Promise.resolve(undefined)
+  return idbGet<number>('chat', readMarkerKey(userId))
+}
+
+export async function saveChatReadMarker(userId: string, timestamp: number): Promise<void> {
+  if (!userId) return
+  await idbPut('chat', readMarkerKey(userId), timestamp)
+}

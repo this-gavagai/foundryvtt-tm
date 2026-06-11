@@ -15,6 +15,7 @@ import { useWorldStore } from '@/stores/world'
 import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { usePixelDiceStore } from '@/stores/pixelDice'
 import { useSettingsStore } from '@/stores/settings'
+import { useChatStore } from '@/stores/chat'
 
 import Dropdown from '@/components/widgets/DropdownWidget.vue'
 import Toggle from '@/components/widgets/ToggleWidget.vue'
@@ -103,6 +104,11 @@ function openSettings() {
   sidebarOpen.value = false
   settingsModal.value?.open()
 }
+
+const chatStore = useChatStore()
+const unreadBadge = computed(() =>
+  chatStore.unreadCount > 99 ? '99+' : String(chatStore.unreadCount)
+)
 
 const chatOverlay = ref<InstanceType<typeof ChatOverlay>>()
 function openChat() {
@@ -283,6 +289,16 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                           <span class="inline-flex items-center justify-center gap-1">
                             <ChatBubbleLeftRightIcon class="h-5 w-5" aria-hidden="true" />
                             <span class="whitespace-nowrap">{{ $t('sideMenu.chat') }}</span>
+                            <span
+                              v-if="chatStore.unreadCount"
+                              data-part="chat-unread-badge"
+                              class="ml-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-bold text-white"
+                              :aria-label="
+                                $t('chat.unreadMessages', { count: chatStore.unreadCount })
+                              "
+                            >
+                              {{ unreadBadge }}
+                            </span>
                           </span>
                         </template>
                       </Button>

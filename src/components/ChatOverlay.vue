@@ -15,6 +15,7 @@ import {
 import { EllipsisVerticalIcon, PaperAirplaneIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { useOverlayStack } from '@/composables/useOverlayStack'
+import { useChatStore } from '@/stores/chat'
 import { useChatActions } from '@/composables/useChatActions'
 import {
   messageIsReroll,
@@ -108,6 +109,51 @@ function rerollLabelKey(mode: ChatRollRerollMode): string {
 }
 
 const { messages, renderedMessages, messageIsOwnActor } = useChatMessages(_id)
+
+const chatStore = useChatStore()
+
+// Key of the first message that falls below the frozen "new messages" divider,
+// so the template can render the separator immediately before that row.
+const firstUnreadKey = computed(
+  () => renderedMessages.value.find((view) => chatStore.isUnread(view.message))?.key ?? null
+)
+
+// Whether the scroll position is at (or within a hair of) the newest message.
+// Drives two things: marking everything read once the user reaches the bottom,
+// and only auto-following new arrivals when they're already there (so a user
+// reading up at the divider isn't yanked down).
+const isAtBottom = ref(true)
+function updateAtBottom() {
+  const el = scrollContainer.value
+  if (!el) {
+    isAtBottom.value = true
+    return
+  }
+  isAtBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 48
+}
+function onScroll() {
+  updateAtBottom()
+  if (isAtBottom.value) chatStore.markAllRead()
+}
+
+// On open, land the user where they left off: scroll the first unread row just
+// below the top edge if there is one, otherwise jump to the bottom as before.
+function positionOnOpen() {
+  nextTick(() => {
+    const el = scrollContainer.value
+    if (!el) return
+    const target = el.querySelector<HTMLElement>('[data-first-unread]')
+    if (target) {
+      // offsetTop (vs getBoundingClientRect) is layout-based, so it stays
+      // correct even while the dialog's enter transition is mid-scale. The
+      // scroll container is `relative`, so this is the divider's offset within it.
+      el.scrollTop = Math.max(0, target.offsetTop - 12)
+      updateAtBottom()
+    } else {
+      scrollToBottom()
+    }
+  })
+}
 
 const {
   draft,
@@ -214,8 +260,10 @@ function handleChatContentClick(event: MouseEvent) {
 
 function open() {
   openLayer()
+  // Freeze the divider at the current read position before the list paints, so
+  // the "new messages" separator marks where the user left off.
+  chatStore.beginSession()
   isOpen.value = true
-  scrollToBottom()
 }
 
 function close() {
@@ -265,14 +313,19 @@ onBeforeUnmount(() => {
 watch(
   () => isOpen.value,
   (openNow) => {
-    if (openNow) scrollToBottom()
+    if (openNow) positionOnOpen()
   }
 )
 
 watch(
   () => messages.value.length,
   (messageCount, previousMessageCount) => {
-    if (isOpen.value && messageCount > previousMessageCount) scrollToBottom(true)
+    // Only follow new arrivals when already at the bottom, so a user reading
+    // back at the divider keeps their place. Reaching the bottom marks read.
+    if (isOpen.value && messageCount > previousMessageCount && isAtBottom.value) {
+      scrollToBottom(true)
+      chatStore.markAllRead()
+    }
   }
 )
 
@@ -331,7 +384,8 @@ defineExpose({ open, close, isOpen })
               <div
                 ref="scrollContainer"
                 data-part="chat-scroll"
-                class="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4"
+                class="relative min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4"
+                @scroll="onScroll"
               >
                 <div
                   v-if="messages.length === 0"
@@ -340,278 +394,321 @@ defineExpose({ open, close, isOpen })
                   {{ $t('chat.noMessages') }}
                 </div>
                 <ol v-else class="flex flex-col gap-3">
-                  <li
-                    v-for="view in renderedMessages"
-                    :key="view.key"
-                    data-part="chat-message"
-                    class="rounded-md border border-gray-200 bg-gray-50 p-3"
-                    :data-message-id="view.message._id ?? undefined"
-                    :data-message-type="view.message.type"
-                    :data-private="!!view.visibilityLabel"
-                    :data-own-message="view.isOwnActor"
-                  >
-                    <div class="flex gap-3">
-                      <div
-                        v-if="view.hasPortrait"
-                        data-part="chat-portrait"
-                        class="h-12 w-12 flex-none overflow-hidden overflow-visible rounded"
-                      >
-                        <img
-                          v-if="view.portrait"
-                          class="h-full w-full scale-x-(--sx) scale-y-(--sy) object-cover"
-                          :src="view.portrait"
-                          :alt="view.speakerName"
-                          :style="view.portraitScale"
-                          loading="lazy"
-                          decoding="async"
-                        />
-                      </div>
-                      <div class="min-w-0 flex-1">
-                        <div class="flex gap-2">
-                          <div class="min-w-0 flex-1">
-                            <div class="truncate font-semibold text-gray-900">
-                              {{ view.speakerName }}
+                  <template v-for="view in renderedMessages" :key="view.key">
+                    <li
+                      v-if="view.key === firstUnreadKey"
+                      data-part="chat-new-divider"
+                      data-first-unread
+                      aria-hidden="true"
+                      class="flex items-center gap-2 py-1 text-xs font-semibold tracking-wide text-blue-600 uppercase"
+                    >
+                      <span class="h-px flex-1 bg-blue-300" />
+                      {{ $t('chat.newMessages') }}
+                      <span class="h-px flex-1 bg-blue-300" />
+                    </li>
+                    <li
+                      data-part="chat-message"
+                      class="rounded-md border p-3"
+                      :class="
+                        chatStore.isUnread(view.message)
+                          ? 'border-blue-300 bg-blue-50'
+                          : 'border-gray-200 bg-gray-50'
+                      "
+                      :data-message-id="view.message._id ?? undefined"
+                      :data-message-type="view.message.type"
+                      :data-private="!!view.visibilityLabel"
+                      :data-own-message="view.isOwnActor"
+                      :data-unread="chatStore.isUnread(view.message) || undefined"
+                    >
+                      <div class="flex gap-3">
+                        <div
+                          v-if="view.hasPortrait"
+                          data-part="chat-portrait"
+                          class="h-12 w-12 flex-none overflow-hidden overflow-visible rounded"
+                        >
+                          <img
+                            v-if="view.portrait"
+                            class="h-full w-full scale-x-(--sx) scale-y-(--sy) object-cover"
+                            :src="view.portrait"
+                            :alt="view.speakerName"
+                            :style="view.portraitScale"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                          <div class="flex gap-2">
+                            <div class="min-w-0 flex-1">
+                              <div class="truncate font-semibold text-gray-900">
+                                {{ view.speakerName }}
+                              </div>
+                              <div
+                                v-if="view.showAuthorName"
+                                class="truncate text-xs text-gray-500"
+                              >
+                                {{ view.authorName }}
+                              </div>
                             </div>
-                            <div v-if="view.showAuthorName" class="truncate text-xs text-gray-500">
-                              {{ view.authorName }}
-                            </div>
+                            <span
+                              v-if="view.visibilityLabel"
+                              data-part="visibility"
+                              class="mt-0.5 self-start text-xs"
+                            >
+                              {{ $t(view.visibilityLabel) }}
+                            </span>
+                            <time v-if="view.formattedTime" class="ml-auto text-xs text-gray-500">
+                              {{ view.formattedTime }}
+                            </time>
                           </div>
-                          <span
-                            v-if="view.visibilityLabel"
-                            data-part="visibility"
-                            class="mt-0.5 self-start text-xs"
-                          >
-                            {{ $t(view.visibilityLabel) }}
-                          </span>
-                          <time v-if="view.formattedTime" class="ml-auto text-xs text-gray-500">
-                            {{ view.formattedTime }}
-                          </time>
                         </div>
                       </div>
-                    </div>
-                    <div
-                      v-if="view.preparedFlavor"
-                      data-part="chat-flavor"
-                      class="mt-2 mb-2 text-sm font-medium text-gray-700"
-                      v-html="view.preparedFlavor"
-                      @click="handleChatContentClick($event)"
-                    />
-                    <div
-                      v-if="view.showContent"
-                      data-part="chat-content"
-                      class="mt-2 text-sm text-gray-900"
-                      v-html="view.preparedContent"
-                      @click="(handleChatContentClick($event), handleCardButtonClick($event))"
-                    />
-                    <div
-                      v-if="view.inlineChecks.length && _id"
-                      data-part="chat-inline-checks"
-                      class="mt-2 flex flex-wrap gap-1.5"
-                    >
-                      <button
-                        v-for="(check, checkIndex) in view.inlineChecks"
-                        :key="checkIndex"
-                        type="button"
-                        data-part="chat-inline-check-button"
-                        class="inline-flex items-center gap-1.5 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-100 active:bg-blue-200"
-                        @click="openLocalizedInlineRoll(check)"
-                      >
-                        <img
-                          :src="d20Icon"
-                          class="h-3.5 w-3.5 flex-none"
-                          alt=""
-                          aria-hidden="true"
-                        />
-                        {{ inlineCheckLabel(check) }}
-                      </button>
-                    </div>
-                    <div v-if="view.rolls.length" data-part="chat-rolls" class="mt-2 space-y-2">
                       <div
-                        v-for="(roll, rollIndex) in view.rolls"
-                        :key="`${view.key}-roll-${rollIndex}`"
-                        data-part="chat-roll"
-                        class="relative rounded border border-gray-200 bg-white px-3 py-2 text-sm"
-                        :class="messageIsReroll(view.message) ? 'pr-24' : 'pr-10'"
+                        v-if="view.preparedFlavor"
+                        data-part="chat-flavor"
+                        class="mt-2 mb-2 text-sm font-medium text-gray-700"
+                        v-html="view.preparedFlavor"
+                        @click="handleChatContentClick($event)"
+                      />
+                      <div
+                        v-if="view.showContent"
+                        data-part="chat-content"
+                        class="mt-2 text-sm text-gray-900"
+                        v-html="view.preparedContent"
+                        @click="(handleChatContentClick($event), handleCardButtonClick($event))"
+                      />
+                      <div
+                        v-if="view.inlineChecks.length && _id"
+                        data-part="chat-inline-checks"
+                        class="mt-2 flex flex-wrap gap-1.5"
                       >
-                        <span
-                          v-if="messageIsReroll(view.message)"
-                          data-part="chat-rerolled-label"
-                          class="absolute top-2 right-2 text-xs font-semibold tracking-wide uppercase"
+                        <button
+                          v-for="(check, checkIndex) in view.inlineChecks"
+                          :key="checkIndex"
+                          type="button"
+                          data-part="chat-inline-check-button"
+                          class="inline-flex items-center gap-1.5 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-100 active:bg-blue-200"
+                          @click="openLocalizedInlineRoll(check)"
                         >
-                          REROLLED
-                        </span>
-                        <Menu
-                          v-else-if="canReroll(view.message, roll)"
-                          as="div"
-                          data-part="chat-roll-menu"
-                          class="absolute top-1.5 right-1.5"
-                        >
-                          <MenuButton
-                            type="button"
-                            data-part="chat-roll-menu-button"
-                            class="inline-flex h-7 w-7 items-center justify-center rounded text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-                            :aria-label="$t('chat.rollActions')"
-                            :aria-busy="isRollActionPending(view.message, rollIndex)"
-                          >
-                            <EllipsisVerticalIcon class="h-5 w-5" aria-hidden="true" />
-                          </MenuButton>
-                          <MenuItems
-                            data-part="chat-roll-menu-items"
-                            class="absolute right-0 z-20 mt-1 w-48 rounded-md border border-gray-200 bg-white py-1 text-xs font-semibold text-gray-700 shadow-lg ring-1 ring-black/5 focus:outline-hidden"
-                          >
-                            <MenuItem v-slot="{ active }">
-                              <button
-                                type="button"
-                                data-action="hero-point-reroll"
-                                data-part="chat-roll-menu-item"
-                                class="block w-full px-3 py-2 text-left text-amber-800 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                :data-active="active ? true : undefined"
-                                :class="active ? 'bg-amber-50' : ''"
-                                :disabled="
-                                  !canTriggerRollAction(view.message, roll, rollIndex, 'hero-point')
-                                "
-                                :aria-busy="isRollActionPending(view.message, rollIndex)"
-                                @click="
-                                  openRerollModal(view.message, roll, rollIndex, 'hero-point')
-                                "
-                              >
-                                {{ $t('chat.heroPointReroll') }}
-                              </button>
-                            </MenuItem>
-                            <MenuItem v-slot="{ active }">
-                              <button
-                                type="button"
-                                data-action="reroll"
-                                data-part="chat-roll-menu-item"
-                                class="block w-full px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                :data-active="active ? true : undefined"
-                                :class="active ? 'bg-gray-100 text-gray-900' : ''"
-                                :disabled="
-                                  !canTriggerRollAction(view.message, roll, rollIndex, 'reroll')
-                                "
-                                :aria-busy="isRollActionPending(view.message, rollIndex)"
-                                @click="openRerollModal(view.message, roll, rollIndex, 'reroll')"
-                              >
-                                {{ $t('chat.reroll') }}
-                              </button>
-                            </MenuItem>
-                            <MenuItem v-slot="{ active }">
-                              <button
-                                type="button"
-                                data-action="reroll-keep-highest"
-                                data-part="chat-roll-menu-item"
-                                class="block w-full px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                :data-active="active ? true : undefined"
-                                :class="active ? 'bg-gray-100 text-gray-900' : ''"
-                                :disabled="
-                                  !canTriggerRollAction(
-                                    view.message,
-                                    roll,
-                                    rollIndex,
-                                    'keep-highest'
-                                  )
-                                "
-                                :aria-busy="isRollActionPending(view.message, rollIndex)"
-                                @click="
-                                  openRerollModal(view.message, roll, rollIndex, 'keep-highest')
-                                "
-                              >
-                                {{ $t('chat.rerollKeepHighest') }}
-                              </button>
-                            </MenuItem>
-                            <MenuItem v-slot="{ active }">
-                              <button
-                                type="button"
-                                data-action="reroll-keep-lowest"
-                                data-part="chat-roll-menu-item"
-                                class="block w-full px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                :data-active="active ? true : undefined"
-                                :class="active ? 'bg-gray-100 text-gray-900' : ''"
-                                :disabled="
-                                  !canTriggerRollAction(
-                                    view.message,
-                                    roll,
-                                    rollIndex,
-                                    'keep-lowest'
-                                  )
-                                "
-                                :aria-busy="isRollActionPending(view.message, rollIndex)"
-                                @click="
-                                  openRerollModal(view.message, roll, rollIndex, 'keep-lowest')
-                                "
-                              >
-                                {{ $t('chat.rerollKeepLowest') }}
-                              </button>
-                            </MenuItem>
-                          </MenuItems>
-                        </Menu>
+                          <img
+                            :src="d20Icon"
+                            class="h-3.5 w-3.5 flex-none"
+                            alt=""
+                            aria-hidden="true"
+                          />
+                          {{ inlineCheckLabel(check) }}
+                        </button>
+                      </div>
+                      <div v-if="view.rolls.length" data-part="chat-rolls" class="mt-2 space-y-2">
                         <div
-                          v-if="view.rerollSummary?.formula || roll.formula || roll.dice.length"
-                          data-part="chat-roll-details"
-                          class="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs text-gray-500"
+                          v-for="(roll, rollIndex) in view.rolls"
+                          :key="`${view.key}-roll-${rollIndex}`"
+                          data-part="chat-roll"
+                          class="relative rounded border border-gray-200 bg-white px-3 py-2 text-sm"
+                          :class="messageIsReroll(view.message) ? 'pr-24' : 'pr-10'"
                         >
                           <span
-                            v-if="view.rerollSummary?.formula || roll.formula"
-                            data-part="chat-roll-formula"
-                            class="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 break-words text-gray-600"
+                            v-if="messageIsReroll(view.message)"
+                            data-part="chat-rerolled-label"
+                            class="absolute top-2 right-2 text-xs font-semibold tracking-wide uppercase"
                           >
-                            {{
-                              view.rerollSummary?.formula
-                                ? rollDisplayText(view.rerollSummary.formula)
-                                : rollFormulaLabel(roll)
-                            }}
+                            REROLLED
                           </span>
-                          <span
-                            v-if="view.rerollSummary || roll.dice.length"
-                            data-part="chat-roll-dice"
-                            class="flex flex-wrap items-center gap-x-1.5 gap-y-1"
+                          <Menu
+                            v-else-if="canReroll(view.message, roll)"
+                            as="div"
+                            data-part="chat-roll-menu"
+                            class="absolute top-1.5 right-1.5"
                           >
-                            <template v-if="view.rerollSummary">
-                              <span
-                                data-part="chat-roll-die"
-                                class="inline-flex items-center gap-1 leading-none text-gray-500"
-                              >
-                                <img
-                                  :src="d20Icon"
-                                  class="h-4 w-4 opacity-45"
-                                  alt=""
-                                  aria-hidden="true"
-                                />
-                                <span
-                                  :class="
-                                    view.rerollSummary.oldDiscarded ? 'line-through opacity-60' : ''
+                            <MenuButton
+                              type="button"
+                              data-part="chat-roll-menu-button"
+                              class="inline-flex h-7 w-7 items-center justify-center rounded text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                              :aria-label="$t('chat.rollActions')"
+                              :aria-busy="isRollActionPending(view.message, rollIndex)"
+                            >
+                              <EllipsisVerticalIcon class="h-5 w-5" aria-hidden="true" />
+                            </MenuButton>
+                            <MenuItems
+                              data-part="chat-roll-menu-items"
+                              class="absolute right-0 z-20 mt-1 w-48 rounded-md border border-gray-200 bg-white py-1 text-xs font-semibold text-gray-700 shadow-lg ring-1 ring-black/5 focus:outline-hidden"
+                            >
+                              <MenuItem v-slot="{ active }">
+                                <button
+                                  type="button"
+                                  data-action="hero-point-reroll"
+                                  data-part="chat-roll-menu-item"
+                                  class="block w-full px-3 py-2 text-left text-amber-800 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                  :data-active="active ? true : undefined"
+                                  :class="active ? 'bg-amber-50' : ''"
+                                  :disabled="
+                                    !canTriggerRollAction(
+                                      view.message,
+                                      roll,
+                                      rollIndex,
+                                      'hero-point'
+                                    )
+                                  "
+                                  :aria-busy="isRollActionPending(view.message, rollIndex)"
+                                  @click="
+                                    openRerollModal(view.message, roll, rollIndex, 'hero-point')
                                   "
                                 >
-                                  {{ view.rerollSummary.oldDie }}
-                                </span>
-                              </span>
-                              <span data-part="chat-reroll-arrow">-&gt;</span>
-                              <span
-                                data-part="chat-roll-die"
-                                class="inline-flex items-center gap-1 leading-none text-gray-500"
-                              >
-                                <img
-                                  :src="d20Icon"
-                                  class="h-4 w-4 opacity-45"
-                                  alt=""
-                                  aria-hidden="true"
-                                />
-                                <span
-                                  :class="
-                                    view.rerollSummary.newDiscarded ? 'line-through opacity-60' : ''
+                                  {{ $t('chat.heroPointReroll') }}
+                                </button>
+                              </MenuItem>
+                              <MenuItem v-slot="{ active }">
+                                <button
+                                  type="button"
+                                  data-action="reroll"
+                                  data-part="chat-roll-menu-item"
+                                  class="block w-full px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                  :data-active="active ? true : undefined"
+                                  :class="active ? 'bg-gray-100 text-gray-900' : ''"
+                                  :disabled="
+                                    !canTriggerRollAction(view.message, roll, rollIndex, 'reroll')
+                                  "
+                                  :aria-busy="isRollActionPending(view.message, rollIndex)"
+                                  @click="openRerollModal(view.message, roll, rollIndex, 'reroll')"
+                                >
+                                  {{ $t('chat.reroll') }}
+                                </button>
+                              </MenuItem>
+                              <MenuItem v-slot="{ active }">
+                                <button
+                                  type="button"
+                                  data-action="reroll-keep-highest"
+                                  data-part="chat-roll-menu-item"
+                                  class="block w-full px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                  :data-active="active ? true : undefined"
+                                  :class="active ? 'bg-gray-100 text-gray-900' : ''"
+                                  :disabled="
+                                    !canTriggerRollAction(
+                                      view.message,
+                                      roll,
+                                      rollIndex,
+                                      'keep-highest'
+                                    )
+                                  "
+                                  :aria-busy="isRollActionPending(view.message, rollIndex)"
+                                  @click="
+                                    openRerollModal(view.message, roll, rollIndex, 'keep-highest')
                                   "
                                 >
-                                  {{ view.rerollSummary.newDie }}
-                                </span>
-                              </span>
-                            </template>
-                            <template v-for="(die, dieIndex) in roll.dice" v-else :key="dieIndex">
-                              <template v-if="die.results.length">
+                                  {{ $t('chat.rerollKeepHighest') }}
+                                </button>
+                              </MenuItem>
+                              <MenuItem v-slot="{ active }">
+                                <button
+                                  type="button"
+                                  data-action="reroll-keep-lowest"
+                                  data-part="chat-roll-menu-item"
+                                  class="block w-full px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                  :data-active="active ? true : undefined"
+                                  :class="active ? 'bg-gray-100 text-gray-900' : ''"
+                                  :disabled="
+                                    !canTriggerRollAction(
+                                      view.message,
+                                      roll,
+                                      rollIndex,
+                                      'keep-lowest'
+                                    )
+                                  "
+                                  :aria-busy="isRollActionPending(view.message, rollIndex)"
+                                  @click="
+                                    openRerollModal(view.message, roll, rollIndex, 'keep-lowest')
+                                  "
+                                >
+                                  {{ $t('chat.rerollKeepLowest') }}
+                                </button>
+                              </MenuItem>
+                            </MenuItems>
+                          </Menu>
+                          <div
+                            v-if="view.rerollSummary?.formula || roll.formula || roll.dice.length"
+                            data-part="chat-roll-details"
+                            class="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs text-gray-500"
+                          >
+                            <span
+                              v-if="view.rerollSummary?.formula || roll.formula"
+                              data-part="chat-roll-formula"
+                              class="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 break-words text-gray-600"
+                            >
+                              {{
+                                view.rerollSummary?.formula
+                                  ? rollDisplayText(view.rerollSummary.formula)
+                                  : rollFormulaLabel(roll)
+                              }}
+                            </span>
+                            <span
+                              v-if="view.rerollSummary || roll.dice.length"
+                              data-part="chat-roll-dice"
+                              class="flex flex-wrap items-center gap-x-1.5 gap-y-1"
+                            >
+                              <template v-if="view.rerollSummary">
                                 <span
-                                  v-for="(result, resultIndex) in die.results"
-                                  :key="resultIndex"
                                   data-part="chat-roll-die"
                                   class="inline-flex items-center gap-1 leading-none text-gray-500"
+                                >
+                                  <img
+                                    :src="d20Icon"
+                                    class="h-4 w-4 opacity-45"
+                                    alt=""
+                                    aria-hidden="true"
+                                  />
+                                  <span
+                                    :class="
+                                      view.rerollSummary.oldDiscarded
+                                        ? 'line-through opacity-60'
+                                        : ''
+                                    "
+                                  >
+                                    {{ view.rerollSummary.oldDie }}
+                                  </span>
+                                </span>
+                                <span data-part="chat-reroll-arrow">-&gt;</span>
+                                <span
+                                  data-part="chat-roll-die"
+                                  class="inline-flex items-center gap-1 leading-none text-gray-500"
+                                >
+                                  <img
+                                    :src="d20Icon"
+                                    class="h-4 w-4 opacity-45"
+                                    alt=""
+                                    aria-hidden="true"
+                                  />
+                                  <span
+                                    :class="
+                                      view.rerollSummary.newDiscarded
+                                        ? 'line-through opacity-60'
+                                        : ''
+                                    "
+                                  >
+                                    {{ view.rerollSummary.newDie }}
+                                  </span>
+                                </span>
+                              </template>
+                              <template v-for="(die, dieIndex) in roll.dice" v-else :key="dieIndex">
+                                <template v-if="die.results.length">
+                                  <span
+                                    v-for="(result, resultIndex) in die.results"
+                                    :key="resultIndex"
+                                    data-part="chat-roll-die"
+                                    class="inline-flex items-center gap-1 leading-none text-gray-500"
+                                    :title="rollDieLabel(die)"
+                                  >
+                                    <img
+                                      :src="rollDieIcon(die)"
+                                      class="h-4 w-4 opacity-45"
+                                      alt=""
+                                      aria-hidden="true"
+                                    />
+                                    <span>{{ result }}</span>
+                                  </span>
+                                </template>
+                                <span
+                                  v-else
+                                  data-part="chat-roll-die"
+                                  class="inline-flex items-center leading-none text-gray-500"
                                   :title="rollDieLabel(die)"
                                 >
                                   <img
@@ -620,139 +717,127 @@ defineExpose({ open, close, isOpen })
                                     alt=""
                                     aria-hidden="true"
                                   />
-                                  <span>{{ result }}</span>
                                 </span>
                               </template>
+                            </span>
+                          </div>
+                          <div class="mt-2 flex flex-wrap items-baseline gap-1.5">
+                            <span
+                              class="text-xs font-semibold tracking-wide text-gray-500 uppercase"
+                            >
+                              {{ rollKindLabel(roll) }}
+                            </span>
+                            <span
+                              v-if="view.rerollSummary"
+                              data-part="chat-reroll-total"
+                              class="inline-flex items-baseline gap-1.5 text-base font-semibold"
+                            >
                               <span
-                                v-else
-                                data-part="chat-roll-die"
-                                class="inline-flex items-center leading-none text-gray-500"
-                                :title="rollDieLabel(die)"
+                                :class="
+                                  view.rerollSummary.oldDiscarded ? 'line-through opacity-60' : ''
+                                "
                               >
-                                <img
-                                  :src="rollDieIcon(die)"
-                                  class="h-4 w-4 opacity-45"
-                                  alt=""
-                                  aria-hidden="true"
-                                />
+                                {{ view.rerollSummary.oldTotal }}
                               </span>
+                              <span data-part="chat-reroll-arrow">-&gt;</span>
+                              <span
+                                :class="
+                                  view.rerollSummary.newDiscarded ? 'line-through opacity-60' : ''
+                                "
+                              >
+                                {{ view.rerollSummary.newTotal }}
+                              </span>
+                            </span>
+                            <span
+                              v-else-if="roll.total !== undefined"
+                              class="text-base font-semibold"
+                            >
+                              {{ roll.total }}
+                            </span>
+                            <span
+                              v-if="roll.flavors.length"
+                              data-part="chat-roll-flavor"
+                              class="text-xs text-gray-500"
+                            >
+                              {{ rollFlavorLabel(roll) }}
+                            </span>
+                          </div>
+                          <div
+                            v-if="canApplyDamage(roll)"
+                            data-part="chat-damage-actions"
+                            class="mt-2 flex flex-wrap gap-1.5"
+                          >
+                            <button
+                              v-if="roll.isHealing"
+                              type="button"
+                              data-action="heal"
+                              class="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 active:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+                              :disabled="
+                                !canTriggerDamageAction(view.message, roll, rollIndex, 'heal')
+                              "
+                              :aria-busy="isDamageActionPending(view.message, rollIndex)"
+                              @click="applyDamageRoll(view.message, roll, rollIndex, 'heal')"
+                            >
+                              {{ $t('chat.heal') }}
+                            </button>
+                            <template v-else>
+                              <button
+                                type="button"
+                                data-action="damage"
+                                class="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-800 transition-colors hover:bg-red-100 active:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+                                :disabled="
+                                  !canTriggerDamageAction(view.message, roll, rollIndex, 'damage')
+                                "
+                                :aria-busy="isDamageActionPending(view.message, rollIndex)"
+                                @click="applyDamageRoll(view.message, roll, rollIndex, 'damage')"
+                              >
+                                {{ $t('chat.damage') }}
+                              </button>
+                              <button
+                                type="button"
+                                data-action="half"
+                                class="rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                                :disabled="
+                                  !canTriggerDamageAction(view.message, roll, rollIndex, 'half')
+                                "
+                                :aria-busy="isDamageActionPending(view.message, rollIndex)"
+                                @click="applyDamageRoll(view.message, roll, rollIndex, 'half')"
+                              >
+                                {{ $t('chat.half') }}
+                              </button>
+                              <button
+                                type="button"
+                                data-action="double"
+                                class="rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                                :disabled="
+                                  !canTriggerDamageAction(view.message, roll, rollIndex, 'double')
+                                "
+                                :aria-busy="isDamageActionPending(view.message, rollIndex)"
+                                @click="applyDamageRoll(view.message, roll, rollIndex, 'double')"
+                              >
+                                {{ $t('chat.double') }}
+                              </button>
+                              <button
+                                type="button"
+                                data-action="block"
+                                class="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-100 active:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
+                                :disabled="
+                                  !canTriggerDamageAction(view.message, roll, rollIndex, 'block')
+                                "
+                                :aria-busy="isDamageActionPending(view.message, rollIndex)"
+                                @click="applyDamageRoll(view.message, roll, rollIndex, 'block')"
+                              >
+                                {{ $t('chat.block') }}
+                              </button>
                             </template>
-                          </span>
-                        </div>
-                        <div class="mt-2 flex flex-wrap items-baseline gap-1.5">
-                          <span class="text-xs font-semibold tracking-wide text-gray-500 uppercase">
-                            {{ rollKindLabel(roll) }}
-                          </span>
-                          <span
-                            v-if="view.rerollSummary"
-                            data-part="chat-reroll-total"
-                            class="inline-flex items-baseline gap-1.5 text-base font-semibold"
-                          >
-                            <span
-                              :class="
-                                view.rerollSummary.oldDiscarded ? 'line-through opacity-60' : ''
-                              "
-                            >
-                              {{ view.rerollSummary.oldTotal }}
-                            </span>
-                            <span data-part="chat-reroll-arrow">-&gt;</span>
-                            <span
-                              :class="
-                                view.rerollSummary.newDiscarded ? 'line-through opacity-60' : ''
-                              "
-                            >
-                              {{ view.rerollSummary.newTotal }}
-                            </span>
-                          </span>
-                          <span
-                            v-else-if="roll.total !== undefined"
-                            class="text-base font-semibold"
-                          >
-                            {{ roll.total }}
-                          </span>
-                          <span
-                            v-if="roll.flavors.length"
-                            data-part="chat-roll-flavor"
-                            class="text-xs text-gray-500"
-                          >
-                            {{ rollFlavorLabel(roll) }}
-                          </span>
-                        </div>
-                        <div
-                          v-if="canApplyDamage(roll)"
-                          data-part="chat-damage-actions"
-                          class="mt-2 flex flex-wrap gap-1.5"
-                        >
-                          <button
-                            v-if="roll.isHealing"
-                            type="button"
-                            data-action="heal"
-                            class="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 active:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
-                            :disabled="
-                              !canTriggerDamageAction(view.message, roll, rollIndex, 'heal')
-                            "
-                            :aria-busy="isDamageActionPending(view.message, rollIndex)"
-                            @click="applyDamageRoll(view.message, roll, rollIndex, 'heal')"
-                          >
-                            {{ $t('chat.heal') }}
-                          </button>
-                          <template v-else>
-                            <button
-                              type="button"
-                              data-action="damage"
-                              class="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-800 transition-colors hover:bg-red-100 active:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50"
-                              :disabled="
-                                !canTriggerDamageAction(view.message, roll, rollIndex, 'damage')
-                              "
-                              :aria-busy="isDamageActionPending(view.message, rollIndex)"
-                              @click="applyDamageRoll(view.message, roll, rollIndex, 'damage')"
-                            >
-                              {{ $t('chat.damage') }}
-                            </button>
-                            <button
-                              type="button"
-                              data-action="half"
-                              class="rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
-                              :disabled="
-                                !canTriggerDamageAction(view.message, roll, rollIndex, 'half')
-                              "
-                              :aria-busy="isDamageActionPending(view.message, rollIndex)"
-                              @click="applyDamageRoll(view.message, roll, rollIndex, 'half')"
-                            >
-                              {{ $t('chat.half') }}
-                            </button>
-                            <button
-                              type="button"
-                              data-action="double"
-                              class="rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
-                              :disabled="
-                                !canTriggerDamageAction(view.message, roll, rollIndex, 'double')
-                              "
-                              :aria-busy="isDamageActionPending(view.message, rollIndex)"
-                              @click="applyDamageRoll(view.message, roll, rollIndex, 'double')"
-                            >
-                              {{ $t('chat.double') }}
-                            </button>
-                            <button
-                              type="button"
-                              data-action="block"
-                              class="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-100 active:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
-                              :disabled="
-                                !canTriggerDamageAction(view.message, roll, rollIndex, 'block')
-                              "
-                              :aria-busy="isDamageActionPending(view.message, rollIndex)"
-                              @click="applyDamageRoll(view.message, roll, rollIndex, 'block')"
-                            >
-                              {{ $t('chat.block') }}
-                            </button>
-                          </template>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div v-if="view.showEmptyMessage" class="mt-2 text-sm text-gray-500 italic">
-                      {{ $t('chat.emptyMessage') }}
-                    </div>
-                  </li>
+                      <div v-if="view.showEmptyMessage" class="mt-2 text-sm text-gray-500 italic">
+                        {{ $t('chat.emptyMessage') }}
+                      </div>
+                    </li>
+                  </template>
                 </ol>
                 <p
                   v-if="actionError"
