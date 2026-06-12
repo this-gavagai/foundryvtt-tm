@@ -64,7 +64,9 @@ function changeTab(index: number) {
   setActiveSheetTab(index)
 }
 const dragOptions = {
-  preventWindowScrollY: true,
+  // `touch-action: pan-y` on the swipe container (below) hands the vertical
+  // axis to the native scroller, so we no longer need the library to suppress
+  // scroll from JS — we just listen for horizontal swipes.
   lockDirection: true,
   swipeDistance: 100,
   axis: 'x'
@@ -139,7 +141,7 @@ defineExpose({ actor, character, actorOrWorldActor })
       data-part="sheet-right"
       v-drag="handleDrag"
       :dragOptions="dragOptions"
-      class="border-divider no-scrollbar flex w-0 flex-1 flex-col justify-between md:h-dvh md:justify-start md:border-l"
+      class="border-divider no-scrollbar flex w-0 flex-1 flex-col justify-between [touch-action:pan-y] md:h-dvh md:justify-start md:border-l"
     >
       <TabGroup :selectedIndex="activeSheetTab" @change="changeTab">
         <TabPanels tabindex="-1" class="h-dvh w-full overflow-auto md:order-last" ref="panels">
