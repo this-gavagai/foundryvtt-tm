@@ -46,4 +46,6 @@ I'm sharing this module in good faith. I use it in my own games, and I'm not awa
 
 # WARNING ABOUT FOUNDRY v14
 
-Over the last few releases, the developers of Foundry have been trying to shut down modules that operate outside the standard interface. I don't know why they're trying to do this. It's very frustrating. It's pretty simple to override these blocks with a free cloudflare tunnel, and I am planning to post documentation about this soon. In the meantime, be aware that upgrading to v14 without setting up a tunnel is likely to break this module in ways I can't fix.
+Over the last few releases, the developers of Foundry have been trying to shut down modules that operate outside the standard interface. I don't know why they're trying to do this. It's very frustrating. It's pretty simple to override these blocks with a reverse proxy, and I am planning to post documentation about this soon. In the meantime, be aware that upgrading to v14 without setting up a reverse proxy is likely to break this module in ways I can't fix.
+
+More information [here](https://github.com/this-gavagai/foundryvtt-tm/wiki/Why-do-I-just-see-a-bunch-of-plain-text-in-Foundry-v14%3F)
