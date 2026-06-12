@@ -105,6 +105,16 @@ const itemHasContents = computed(() =>
   displayInventory.value?.some((item) => item.system?.containerId === frozenItem.value?._id)
 )
 
+// An item is shown at the top level when it isn't stowed in a backpack, OR when
+// the backpack it references doesn't exist in this inventory list (e.g. the item
+// was moved between the player and the party stash, leaving a dangling containerId).
+// Without this, such items are filtered out everywhere and become invisible.
+function isUncontained(item: InventoryItem, list: InventoryItem[] | undefined) {
+  const containerId = item.system?.containerId
+  if (!containerId) return true
+  return !list?.some((i: InventoryItem) => i._id === containerId)
+}
+
 function setInventoryMode(val: string) {
   slideDirection.value = val === 'party' ? 'left' : 'right'
   inventoryMode.value = val as 'individual' | 'party'
@@ -259,7 +269,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
                 <ul>
                   <li
                     v-for="item in inventory?.filter(
-                      (i: InventoryItem) => i.type === inventoryType.type && !i.system?.containerId
+                      (i: InventoryItem) => i.type === inventoryType.type && isUncontained(i, inventory)
                     )"
                     :key="item._id"
                   >
@@ -316,7 +326,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
                 <ul>
                   <li
                     v-for="item in partyInventory?.filter(
-                      (i: InventoryItem) => i.type === inventoryType.type && !i.system?.containerId
+                      (i: InventoryItem) => i.type === inventoryType.type && isUncontained(i, partyInventory)
                     )"
                     :key="item._id"
                   >
