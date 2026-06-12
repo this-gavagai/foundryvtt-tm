@@ -164,7 +164,11 @@ defineExpose({ open, close, rollResultModal, isOpen })
                       <DialogTitle as="h3" class="text-lg leading-6 font-medium text-gray-900">
                         <slot name="title"></slot>
                       </DialogTitle>
-                      <div v-if="!$slots.banner" class="absolute top-0 right-0 pt-4 pr-4 sm:block">
+                      <div
+                        v-if="!$slots.banner"
+                        class="absolute top-0 right-0 flex items-end gap-2 pt-4 pr-4"
+                      >
+                        <slot name="headerActions"></slot>
                         <button
                           type="button"
                           data-part="close"

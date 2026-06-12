@@ -237,6 +237,44 @@ body.theme-default {
       color: oklch(70% 0.01 258);
     }
 
+    /* Equipment kebab (⋮) menu — button matches the modal close (✕) color;
+       popover + items reuse the chat-roll menu surface treatment. */
+    [data-part='equipment-menu-button'] {
+      background-color: transparent;
+      color: oklch(55% 0.01 258);
+    }
+    [data-part='equipment-menu-button']:hover,
+    [data-part='equipment-menu-button'][aria-expanded='true'] {
+      color: oklch(70% 0.01 258);
+    }
+
+    [data-part='equipment-menu-items'] {
+      background-color: var(--color-surface);
+      border: 1px solid oklch(38% 0.026 258);
+      color: var(--color-text);
+      box-shadow:
+        0 12px 28px oklch(5% 0.015 258 / 0.55),
+        0 0 0 1px oklch(50% 0.018 258 / 0.12);
+    }
+
+    [data-part='equipment-menu-item'][data-action='delete'] {
+      color: oklch(70% 0.16 25);
+
+      &[data-active='true']:not(:disabled),
+      &:hover:not(:disabled) {
+        background-color: oklch(28% 0.06 25);
+        color: oklch(82% 0.14 25);
+      }
+
+      &:active:not(:disabled) {
+        background-color: oklch(33% 0.07 25);
+      }
+
+      &:disabled {
+        color: oklch(52% 0.04 25);
+      }
+    }
+
     [data-part='container-label'] {
       font-size: 0.75rem;
       font-weight: 500;

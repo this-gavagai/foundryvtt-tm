@@ -30,7 +30,7 @@ function handleClicked() {
     <Switch
       :modelValue="props.active"
       :class="[props.active ? 'bg-green-600' : 'bg-gray-500', waiting ? 'opacity-50' : '']"
-      class="relative z-auto mt-1 inline-flex h-6 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/75"
+      class="relative z-auto inline-flex h-6 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/75"
     >
       <span class="sr-only">{{ $t('widgets.toggleSwitch') }}</span>
       <span

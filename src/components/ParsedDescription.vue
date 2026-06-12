@@ -92,7 +92,9 @@ function selectableRollsFromEnrichedHtml(html: string | undefined): string | und
   const template = document.createElement('template')
   template.innerHTML = html
   template.content
-    .querySelectorAll<HTMLElement>('[data-pf2-action], a.inline-check[data-pf2-check], a.inline-roll')
+    .querySelectorAll<HTMLElement>(
+      '[data-pf2-action], a.inline-check[data-pf2-check], a.inline-roll'
+    )
     .forEach((element) => {
       const roll = activeRollFromFoundryClickTarget(element)
       if (!roll) return
@@ -257,7 +259,8 @@ defineExpose({ activeRoll, initRolls: scheduleInitRolls })
   font-family: Pathfinder2eActions;
   src: url(@/assets/Pathfinder2eActions.ttf);
 }
-.pf2-icon-inline {
+.pf2-icon-inline,
+.action-glyph {
   font-family: 'Pathfinder2eActions', sans-serif;
   padding-right: 5px;
   position: relative;

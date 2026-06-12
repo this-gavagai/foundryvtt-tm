@@ -5,6 +5,8 @@ import { useCharacterItems } from '@/composables/character/characterItems'
 import type { TablemateCharacter } from '@/types/character-types'
 import type { ActorPF2e } from '@7h3laughingman/pf2e-types'
 import { nextTick, ref, computed, watch } from 'vue'
+import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
+import { EllipsisVerticalIcon } from '@heroicons/vue/24/outline'
 import { printPrice } from '@/utils/formatters'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { storeToRefs } from 'pinia'
@@ -348,6 +350,37 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
         :traits="frozenItem?.system?.traits?.value"
         :rolls="inlineRolls"
       >
+        <template #headerActions v-if="frozenItem">
+          <Menu as="div" class="relative flex">
+            <MenuButton
+              type="button"
+              data-part="equipment-menu-button"
+              class="cursor-pointer rounded-md focus:outline-hidden"
+              :aria-label="$t('common.actions')"
+            >
+              <EllipsisVerticalIcon class="h-6 w-6" aria-hidden="true" />
+            </MenuButton>
+            <MenuItems
+              data-part="equipment-menu-items"
+              class="absolute top-full right-0 z-20 mt-1 w-40 rounded-md border border-gray-200 bg-white py-1 text-sm font-semibold shadow-lg ring-1 ring-black/5 focus:outline-hidden"
+            >
+              <MenuItem v-slot="{ active }" :disabled="itemHasContents">
+                <button
+                  type="button"
+                  data-action="delete"
+                  data-part="equipment-menu-item"
+                  class="block w-full px-3 py-2 text-left text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                  :data-active="active ? true : undefined"
+                  :class="active ? 'bg-red-50' : ''"
+                  :disabled="itemHasContents"
+                  @click="deleteViewedItem"
+                >
+                  {{ $t('common.delete') }}
+                </button>
+              </MenuItem>
+            </MenuItems>
+          </Menu>
+        </template>
         <template #title>
           {{ frozenItem?.label ?? frozenItem?.name }}
         </template>
@@ -372,21 +405,6 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
         </template>
         <template #actionButtons v-if="frozenItem">
           <div class="flex flex-wrap justify-end gap-2">
-            <Button
-              color="lightgray"
-              :clicked="() => itemViewed?.changeQty?.((itemViewed?.system?.quantity ?? NaN) + 1)"
-            >
-              +
-            </Button>
-            <Button
-              color="lightgray"
-              :clicked="() => itemViewed?.changeQty?.((itemViewed?.system?.quantity ?? NaN) - 1)"
-            >
-              -
-            </Button>
-            <Button color="red" v-if="!itemHasContents" :clicked="deleteViewedItem">
-              {{ $t('common.delete') }}
-            </Button>
             <Button
               v-if="isListening && frozenItem?.system?.uses?.max"
               color="green"

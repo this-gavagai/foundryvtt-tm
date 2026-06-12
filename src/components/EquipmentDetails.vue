@@ -4,10 +4,13 @@ import { capitalize } from 'lodash-es'
 import type { InventoryItem } from '@/composables/character'
 import type { ActiveRoll } from '@/types/api-types'
 
+import { PlusCircleIcon, MinusCircleIcon } from '@heroicons/vue/24/outline'
 import ChoiceWidget from '@/components/widgets/ChoiceWidget.vue'
 import CounterWidget from '@/components/widgets/CounterWidget.vue'
 import DropdownWidget from '@/components/widgets/DropdownWidget.vue'
 import ToggleWidget from '@/components/widgets/ToggleWidget.vue'
+import Button from '@/components/widgets/ButtonWidget.vue'
+import Modal from '@/components/ModalBox.vue'
 import ParsedDescription from '@/components/ParsedDescription.vue'
 import meepleIcon from '@/assets/icons/meeple.svg'
 import meepleGroupIcon from '@/assets/icons/meeple-group.svg'
@@ -26,6 +29,16 @@ const emit = defineEmits<{
 
 const description = ref<InstanceType<typeof ParsedDescription>>()
 const activeRoll = ref<ActiveRoll>()
+const quantityModal = ref()
+
+function changeQuantity(newValue: number) {
+  if (Number.isNaN(newValue) || newValue < 0) return
+  props.item?.changeQty?.(newValue)
+}
+
+function onQuantityInput(e: Event) {
+  changeQuantity(Math.floor(Number((e.target as HTMLInputElement).value)))
+}
 
 function updateActiveRoll(roll: ActiveRoll | undefined) {
   activeRoll.value = roll
@@ -220,7 +233,11 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
       @update:activeRoll="updateActiveRoll"
     />
     <div class="flex">
-      <div class="flex-1 text-xl">Qty: {{ item?.system?.quantity }}</div>
+      <div class="flex-1 text-xl">
+        <button type="button" class="cursor-pointer" @click="quantityModal.open()">
+          Qty: {{ item?.system?.quantity }}
+        </button>
+      </div>
       <div class="ml-auto flex justify-end gap-1" v-if="item?.system?.uses?.value !== undefined">
         <div class="text-xl">{{ $t('equipment.usesLabel') }}</div>
         <CounterWidget
@@ -233,5 +250,28 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
         />
       </div>
     </div>
+    <Teleport to="#modals">
+      <Modal ref="quantityModal" :title="(item?.name ?? '') + ' (quantity)'">
+        <div class="flex items-center justify-between py-8 text-3xl">
+          <Button
+            color="unstyled"
+            :disabled="(item?.system?.quantity ?? 0) < 1"
+            @click="changeQuantity((item?.system?.quantity ?? 0) - 1)"
+          >
+            <MinusCircleIcon class="h-8 w-8" />
+          </Button>
+          <input
+            type="number"
+            min="0"
+            class="w-28 rounded-md border border-gray-300 py-2 text-center text-3xl"
+            :value="item?.system?.quantity"
+            @change="onQuantityInput"
+          />
+          <Button color="unstyled" @click="changeQuantity((item?.system?.quantity ?? 0) + 1)">
+            <PlusCircleIcon class="h-8 w-8" />
+          </Button>
+        </div>
+      </Modal>
+    </Teleport>
   </div>
 </template>
