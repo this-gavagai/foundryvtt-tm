@@ -47,6 +47,21 @@ export const handlePerception: CheckRollHandler = (ctx) => {
   )
 }
 
+export const handleFamiliarAttack: CheckRollHandler = (ctx) => {
+  const attackStatisticGetter = (a: ActorPF2e): Statistic | null => {
+    const familiar = a as ActorPF2e & { attackStatistic?: Statistic }
+    return familiar.attackStatistic ?? null
+  }
+  return withModifierOverrides(
+    ctx.actor,
+    attackStatisticGetter,
+    takeOverrides(ctx),
+    async () =>
+      (await attackStatisticGetter(ctx.actor as ActorPF2e)?.check.roll(statisticParams(ctx))) ??
+      null
+  )
+}
+
 export const handleInitiative: CheckRollHandler = (ctx) => {
   // Initiative wraps an underlying Statistic on `initiative.statistic`;
   // its check modifiers live there, not on `initiative` itself.

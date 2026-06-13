@@ -7,6 +7,7 @@ import { handleBlast, handleBlastDamage } from './checks/blast'
 import { handleFlat } from './checks/flat'
 import { handleSpellAttack, handleSpellDamage } from './checks/spellCheckHandlers'
 import {
+  handleFamiliarAttack,
   handleInitiative,
   handlePerception,
   handleSave,
@@ -25,6 +26,7 @@ const CHECK_ROLL_HANDLERS: Record<string, CheckRollHandler> = {
   skill: handleSkill,
   save: handleSave,
   perception: handlePerception,
+  familiarAttack: handleFamiliarAttack,
   initiative: handleInitiative,
   spellAttack: handleSpellAttack,
   spellDamage: handleSpellDamage,

@@ -1,7 +1,7 @@
 import { onMounted, onUnmounted, watch, type Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { debounce } from 'lodash-es'
-import type { TablemateCharacter } from '@/types/character-types'
+import type { TablemateActor } from '@/types/character-types'
 import { sendCharacterRequest, setCharUnsynced, onActorFresh } from '@/api/characterSync'
 import { setupSocketListenersForActor } from '@/api/socketSetup'
 import { markActiveRequestSent, waitForPriorRequests } from '@/api/loadPriority'
@@ -26,7 +26,7 @@ import { logger } from '@/utils/utilities'
 // coalesce into one request.
 export function useActorSync(
   characterId: string | undefined,
-  actor: Ref<TablemateCharacter | undefined>
+  actor: Ref<TablemateActor | undefined>
 ) {
   const { markStale, markFresh } = useSyncStatusStore()
   const characterSelect = useCharacterSelectStore()

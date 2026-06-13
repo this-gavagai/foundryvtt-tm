@@ -1,4 +1,4 @@
-import type { TablemateCharacter } from '@/types/character-types'
+import type { TablemateActor } from '@/types/character-types'
 import { idbGet, idbCount, idbPut } from '@/utils/idb'
 import { logger } from '@/utils/utilities'
 
@@ -7,8 +7,8 @@ import { logger } from '@/utils/utilities'
 // up in the background (stale-while-revalidate). Keyed by actor id in the
 // 'actors' store.
 
-export function loadActorSnapshot(actorId: string): Promise<TablemateCharacter | undefined> {
-  return idbGet<TablemateCharacter>('actors', actorId)
+export function loadActorSnapshot(actorId: string): Promise<TablemateActor | undefined> {
+  return idbGet<TablemateActor>('actors', actorId)
 }
 
 // Cheap existence check so the UI can decide whether to optimistically paint a
@@ -17,17 +17,14 @@ export function hasActorSnapshot(actorId: string): Promise<boolean> {
   return idbCount('actors', actorId).then((n) => n > 0)
 }
 
-function toStorable(
-  actorId: string,
-  actor: TablemateCharacter
-): TablemateCharacter | undefined {
+function toStorable(actorId: string, actor: TablemateActor): TablemateActor | undefined {
   try {
     return structuredClone(actor)
   } catch {
     // Non-cloneable values present — strip them via JSON.
   }
   try {
-    return JSON.parse(JSON.stringify(actor)) as TablemateCharacter
+    return JSON.parse(JSON.stringify(actor)) as TablemateActor
   } catch (e) {
     logger.debug('actorCache: snapshot not serializable', actorId, e)
     return undefined
@@ -36,7 +33,7 @@ function toStorable(
 
 export async function saveActorSnapshot(
   actorId: string,
-  actor: TablemateCharacter | undefined
+  actor: TablemateActor | undefined
 ): Promise<void> {
   if (!actor) return
   // Produce a plain, IDB-storable copy. structuredClone is fastest but throws

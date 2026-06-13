@@ -8,6 +8,17 @@ import { useInjectedCharacter } from '@/composables/injectKeys'
 
 const character = useInjectedCharacter()
 const { skills, proficiencies } = character
+
+withDefaults(
+  defineProps<{
+    showLore?: boolean
+    showProficiencies?: boolean
+  }>(),
+  {
+    showLore: true,
+    showProficiencies: true
+  }
+)
 </script>
 <template>
   <div
@@ -18,7 +29,7 @@ const { skills, proficiencies } = character
       <section
         class="border-divider break-inside-avoid-column border-t first:border-t-0 first:p-0 empty:hidden 2xl:border-t-0 2xl:pl-2 2xl:first:border-r 2xl:first:pr-6 [&:not(:has(li))]:hidden"
         :data-section="isNonLore ? 'skills' : 'lore'"
-        v-for="isNonLore in [true, false]"
+        v-for="isNonLore in showLore ? [true, false] : [true]"
         :key="isNonLore ? 'base' : 'lore'"
       >
         <h3 class="pb-2 text-lg underline">
@@ -43,6 +54,7 @@ const { skills, proficiencies } = character
       </section>
     </div>
     <div
+      v-if="showProficiencies"
       class="border-divider flex-1 border-t px-6 pt-4 lg:border-0 lg:pt-0 lg:pl-2 [&:not(:has(li))]:hidden"
     >
       <div

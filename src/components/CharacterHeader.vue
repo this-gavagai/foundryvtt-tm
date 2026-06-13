@@ -9,6 +9,14 @@ import CharacterSelector from '@/components/CharacterSelector.vue'
 import { useChatStore } from '@/stores/chat'
 import { useSettingsStore } from '@/stores/settings'
 
+withDefaults(
+  defineProps<{
+    sidebarToggleClass?: string
+  }>(),
+  {
+    sidebarToggleClass: 'md:hidden'
+  }
+)
 const emit = defineEmits(['sidebarActivated', 'chatActivated'])
 
 const chatStore = useChatStore()
@@ -39,12 +47,15 @@ const unreadBadge = computed(() =>
       <CharacterSelector />
       <div class="flex justify-start gap-8 align-middle">
         <HitPoints />
-        <HeroPoints />
+        <slot name="secondary-stat">
+          <HeroPoints />
+        </slot>
       </div>
     </div>
     <Bars3Icon
       data-part="sidebar-toggle"
-      class="border-divider my-auto h-10 w-10 cursor-pointer rounded-md p-1 md:hidden"
+      class="border-divider my-auto h-10 w-10 cursor-pointer rounded-md p-1"
+      :class="sidebarToggleClass"
       @click="() => emit('sidebarActivated')"
     />
   </div>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
-import type { TablemateCharacter } from '@/types/character-types'
+import type { TablemateActor, TablemateCharacter, TablemateFamiliar } from '@/types/character-types'
 import type { Ref, ComputedRef } from 'vue'
 import { ref, provide, computed, onMounted, watch } from 'vue'
 import { TabGroup, TabList, TabPanels } from '@headlessui/vue'
@@ -33,6 +33,7 @@ import SpellList from '@/components/SpellList.vue'
 import FeatsList from '@/components/FeatsList.vue'
 import EquipmentList from '@/components/EquipmentList.vue'
 import ActionsPanel from '@/components/ActionsPanel.vue'
+import FamiliarSheet from '@/components/FamiliarSheet.vue'
 
 const props = defineProps(['characterId'])
 
@@ -66,13 +67,23 @@ function changeTab(index: number) {
 // base data
 const { world } = storeToRefs(useWorldStore())
 const { userId } = storeToRefs(useUserStore())
-const actor: Ref<TablemateCharacter | undefined> = ref()
-const actorOrWorldActor = computed<TablemateCharacter | undefined>(
+const actor: Ref<TablemateActor | undefined> = ref()
+const actorOrWorldActor = computed<TablemateActor | undefined>(
   () =>
     actor.value ??
     (world.value?.actors?.find<CharacterPF2e<null>>((a) => a._id == props.characterId) as
-      | TablemateCharacter
+      | TablemateActor
       | undefined)
+)
+const characterActor = computed<TablemateCharacter | undefined>(() =>
+  actorOrWorldActor.value?.type === 'character'
+    ? (actorOrWorldActor.value as TablemateCharacter)
+    : undefined
+)
+const familiarActor = computed<TablemateFamiliar | undefined>(() =>
+  actorOrWorldActor.value?.type === 'familiar'
+    ? (actorOrWorldActor.value as TablemateFamiliar)
+    : undefined
 )
 const userHasActorPermission: ComputedRef<boolean> = computed(() => {
   if (
@@ -82,7 +93,7 @@ const userHasActorPermission: ComputedRef<boolean> = computed(() => {
     return true
   else return false
 })
-const { character } = useCharacter(actorOrWorldActor)
+const { character } = useCharacter(characterActor)
 provide(characterKey, character)
 
 // keep the local actor ref synced with Foundry via socket events
@@ -111,64 +122,67 @@ defineExpose({ actor, character, actorOrWorldActor })
 </script>
 <template>
   <div
-    class="flex h-dvh min-h-0 overflow-hidden select-none transition-opacity duration-200 ease-out"
+    class="flex h-dvh min-h-0 overflow-hidden transition-opacity duration-200 ease-out select-none"
     :class="contentReady ? 'opacity-100' : 'opacity-0'"
     v-if="userHasActorPermission"
   >
-    <!-- show this column only if on a tablet or laptop -->
-    <div
-      data-part="sheet-left"
-      class="border-divider app-scroll hidden border-r md:block md:h-full md:w-80"
-    >
-      <CharacterHeader class="sticky top-0 z-10 h-32" @chat-activated="sideMenu.openChat()" />
-      <FrontPage />
-    </div>
-    <!-- show this column on all devices -->
-    <div
-      data-part="sheet-right"
-      class="border-divider no-scrollbar flex h-full min-h-0 w-0 flex-1 flex-col overflow-hidden md:justify-start md:border-l"
-    >
-      <TabGroup
-        :selectedIndex="activeSheetTab"
-        @change="changeTab"
-        as="div"
-        class="flex min-h-0 flex-1 flex-col"
+    <FamiliarSheet v-if="familiarActor" :actor="familiarActor" />
+    <template v-else>
+      <!-- show this column only if on a tablet or laptop -->
+      <div
+        data-part="sheet-left"
+        class="border-divider app-scroll hidden border-r md:block md:h-full md:w-80"
       >
-        <TabPanels tabindex="-1" class="app-scroll w-full flex-1 md:order-last" ref="panels">
-          <CharacterHeader
-            class="sticky top-0 z-10 h-32 md:hidden"
-            @sidebar-activated="sideMenu.sidebarOpen = true"
-            @chat-activated="sideMenu.openChat()"
-          />
-          <CharacterPanel
-            v-for="tab in tabs"
-            :key="tab.label"
-            :goLeft="goLeft"
-            :class="{ 'md:hidden': tab.mobileOnly }"
-          >
-            <component :is="tab.content" />
-          </CharacterPanel>
-        </TabPanels>
-        <TabList
-          data-part="tab-bar"
-          class="border-divider bottom-0 flex h-24 flex-none justify-around border-t border-b"
+        <CharacterHeader class="sticky top-0 z-10 h-32" @chat-activated="sideMenu.openChat()" />
+        <FrontPage />
+      </div>
+      <!-- show this column on all devices -->
+      <div
+        data-part="sheet-right"
+        class="border-divider no-scrollbar flex h-full min-h-0 w-0 flex-1 flex-col overflow-hidden md:justify-start md:border-l"
+      >
+        <TabGroup
+          :selectedIndex="activeSheetTab"
+          @change="changeTab"
+          as="div"
+          class="flex min-h-0 flex-1 flex-col"
         >
-          <CharacterTab
-            v-for="tab in tabs"
-            :key="tab.label"
-            :src="tab.icon"
-            :label="$t(tab.label)"
-            class="w-1/6"
-            :class="{ 'md:hidden': tab.mobileOnly }"
-          />
-          <Bars3Icon
-            class="mx-4 my-auto hidden h-10 w-10 cursor-pointer rounded-md border-gray-900 p-1 text-gray-600 active:text-gray-300 md:block"
-            @click="sideMenu.sidebarOpen = true"
-          />
-        </TabList>
-      </TabGroup>
-    </div>
-    <SideMenu ref="sideMenu" />
+          <TabPanels tabindex="-1" class="app-scroll w-full flex-1 md:order-last" ref="panels">
+            <CharacterHeader
+              class="sticky top-0 z-10 h-32 md:hidden"
+              @sidebar-activated="sideMenu.sidebarOpen = true"
+              @chat-activated="sideMenu.openChat()"
+            />
+            <CharacterPanel
+              v-for="tab in tabs"
+              :key="tab.label"
+              :goLeft="goLeft"
+              :class="{ 'md:hidden': tab.mobileOnly }"
+            >
+              <component :is="tab.content" />
+            </CharacterPanel>
+          </TabPanels>
+          <TabList
+            data-part="tab-bar"
+            class="border-divider bottom-0 flex h-24 flex-none justify-around border-t border-b"
+          >
+            <CharacterTab
+              v-for="tab in tabs"
+              :key="tab.label"
+              :src="tab.icon"
+              :label="$t(tab.label)"
+              class="w-1/6"
+              :class="{ 'md:hidden': tab.mobileOnly }"
+            />
+            <Bars3Icon
+              class="mx-4 my-auto hidden h-10 w-10 cursor-pointer rounded-md border-gray-900 p-1 text-gray-600 active:text-gray-300 md:block"
+              @click="sideMenu.sidebarOpen = true"
+            />
+          </TabList>
+        </TabGroup>
+      </div>
+      <SideMenu ref="sideMenu" />
+    </template>
   </div>
   <div v-else>{{ $t('app.userDoesNotOwnCharacter') }}</div>
 </template>

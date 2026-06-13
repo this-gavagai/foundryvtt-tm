@@ -1,20 +1,20 @@
 import type {
+  ActorPF2e,
+  CharacterPF2e,
   ItemPF2e,
   PhysicalItemPF2e,
+  RawModifier,
   RollOptionRuleElement,
   WeaponPF2e
 } from '@7h3laughingman/pf2e-types'
-import type {
-  RequestCharacterDetailsArgs,
-  UpdateCharacterDetailsArgs
-} from '@/types/api-types'
+import type { RequestCharacterDetailsArgs, UpdateCharacterDetailsArgs } from '@/types/api-types'
 import { TM } from '@/api/protocol'
 import { inventoryTypes } from '@/utils/constants'
 import { logger } from '@/utils/utilities'
 
 // Narrowed shadow over the ambient CONFIG. Only the field we read is typed.
 declare const CONFIG: { PF2E: Record<string, unknown> }
-import { getCharacter, getGame } from '../utils/foundry'
+import { getGame } from '../utils/foundry'
 import {
   buildSpellcastingModifiers,
   localizeIWRLabels,
@@ -36,27 +36,85 @@ function blastReplacer(key: string, element: unknown) {
     type StatLike = { check?: { modifiers?: unknown[] }; modifiers?: unknown[] }
     const stat = element as StatLike | null
     return { modifiers: stat?.check?.modifiers ?? stat?.modifiers ?? [] }
+  } else return element
+}
+
+type StatisticTrace = {
+  rank?: number | null
+  getTraceData?: () => {
+    slug?: string
+    label?: string
+    value?: number
+    totalModifier?: number
+    dc?: number
+    breakdown?: string
+    attribute?: string | null
+    rank?: number | null
+    modifiers?: RawModifier[]
   }
-  else return element
+}
+
+function serializeModifier(modifier: RawModifier) {
+  return {
+    slug: modifier.slug,
+    label: modifier.label,
+    modifier: modifier.modifier,
+    enabled: modifier.enabled,
+    hideIfDisabled: modifier.hideIfDisabled,
+    type: modifier.type,
+    critical: (modifier as { critical?: boolean | null }).critical ?? undefined
+  }
+}
+
+function serializeStatistic(statistic: StatisticTrace | null | undefined) {
+  if (!statistic) return undefined
+  const trace = statistic.getTraceData?.()
+  if (!trace) return undefined
+  return {
+    ...trace,
+    rank: trace.rank ?? statistic.rank ?? undefined,
+    modifiers: trace.modifiers?.map(serializeModifier)
+  }
 }
 
 export async function getCharacterDetails(
   args: RequestCharacterDetailsArgs
 ): Promise<UpdateCharacterDetailsArgs> {
   const source = getGame()
-  const actor = getCharacter(source, args.actorId)
-  const elementalBlasts =
-    actor.type !== 'party' ? { ...new game.pf2e.ElementalBlast(actor), actor: actor } : null
-  const bulk = actor.inventory.bulk
+  const actor = source.actors.get(args.actorId, { strict: true }) as ActorPF2e
+  const isCharacter = actor.type === 'character'
+  const characterActor = actor as unknown as CharacterPF2e
+  const elementalBlasts = isCharacter
+    ? { ...new game.pf2e.ElementalBlast(characterActor), actor: actor }
+    : null
+  const actorWithInventory = actor as ActorPF2e & {
+    inventory?: {
+      bulk?: {
+        max?: number
+        bulk?: number
+        encumberedAfter?: number
+        encumberedAfterBreakdown?: string
+        maxBreakdown?: string
+        value?: { value?: number; light?: number; normal?: number }
+      }
+    }
+  }
+  const bulk = actorWithInventory.inventory?.bulk
   const inventory = {
-    bulk: {
-      max: bulk.max,
-      bulk: bulk.bulk,
-      encumberedAfter: bulk.encumberedAfter,
-      encumberedAfterBreakdown: bulk.encumberedAfterBreakdown,
-      maxBreakdown: bulk.maxBreakdown,
-      value: { value: bulk.value.value, light: bulk.value.light, normal: bulk.value.normal }
-    },
+    bulk: bulk
+      ? {
+          max: bulk.max,
+          bulk: bulk.bulk,
+          encumberedAfter: bulk.encumberedAfter,
+          encumberedAfterBreakdown: bulk.encumberedAfterBreakdown,
+          maxBreakdown: bulk.maxBreakdown,
+          value: {
+            value: bulk.value?.value,
+            light: bulk.value?.light,
+            normal: bulk.value?.normal
+          }
+        }
+      : undefined,
     labels: [...actor.items].reduce((acc: Record<string, string | undefined>, i: ItemPF2e) => {
       if (inventoryTypes.some((t) => t.type === i.type)) {
         acc[i._id ?? ''] = i.name
@@ -76,13 +134,16 @@ export async function getCharacterDetails(
     : null
   // Languages are stored on the actor as bare slugs; need to be localized
   const langKeys = CONFIG.PF2E.languages as Record<string, string>
-  const languages = (actor.system?.details?.languages?.value ?? []).map((slug: string) =>
+  const actorSystem = actor.system as {
+    details?: { languages?: { value?: string[] } }
+  }
+  const languages = (actorSystem.details?.languages?.value ?? []).map((slug: string) =>
     langKeys[slug] ? game.i18n.localize(langKeys[slug]) : slug
   )
-  const proficiencyLabels = localizeProficiencyLabels(actor.system)
-  const rollOptionLabels = localizeRollOptionLabels(actor)
-  const iwrLabels = localizeIWRLabels(actor)
-  const spellcastingModifiers = buildSpellcastingModifiers(actor)
+  const proficiencyLabels = isCharacter ? localizeProficiencyLabels(characterActor.system) : {}
+  const rollOptionLabels = localizeRollOptionLabels(characterActor)
+  const iwrLabels = isCharacter ? localizeIWRLabels(characterActor) : {}
+  const spellcastingModifiers = isCharacter ? buildSpellcastingModifiers(characterActor) : {}
   // Some PF2e conditions grant child conditions in-memory only (e.g. Grabbed
   // grants Off-Guard and Immobilized via `GrantItem` rule elements with
   // `inMemoryOnly: true`). These grants live on `actor.conditions` rather
@@ -118,12 +179,77 @@ export async function getCharacterDetails(
     ...actor.toObject(),
     items: baseItems
   }
+  const systemPayload = JSON.parse(JSON.stringify(actor.system)) as {
+    attributes?: {
+      hp?: { value?: number; max?: number; temp?: number }
+      ac?: {
+        value?: number
+        breakdown?: string
+        modifiers?: ReturnType<typeof serializeModifier>[]
+      }
+    }
+    perception?: object
+    saves?: Record<string, object | undefined>
+    skills?: Record<string, object | undefined>
+    attack?: object
+    movement?: { speeds?: Record<string, object | undefined> }
+  }
+  const hitPoints = actor.hitPoints
+  if (hitPoints) {
+    const attributes = (systemPayload.attributes ??= {})
+    attributes.hp = {
+      ...(attributes.hp ?? {}),
+      value: hitPoints.value,
+      max: hitPoints.max,
+      temp: hitPoints.temp
+    }
+  }
+  if (actor.armorClass) {
+    const attributes = (systemPayload.attributes ??= {})
+    attributes.ac = {
+      ...(attributes.ac ?? {}),
+      value: actor.armorClass.value,
+      breakdown: actor.armorClass.breakdown,
+      modifiers: actor.armorClass.modifiers.map(serializeModifier)
+    }
+  }
+  systemPayload.perception = serializeStatistic(actor.perception)
+  systemPayload.saves = {
+    ...(systemPayload.saves ?? {}),
+    fortitude: serializeStatistic(actor.saves?.fortitude),
+    reflex: serializeStatistic(actor.saves?.reflex),
+    will: serializeStatistic(actor.saves?.will)
+  }
+  systemPayload.skills = Object.fromEntries(
+    Object.entries(actor.skills ?? {}).map(([slug, skill]) => [slug, serializeStatistic(skill)])
+  )
+  systemPayload.attack = serializeStatistic(
+    (actor as ActorPF2e & { attackStatistic?: StatisticTrace }).attackStatistic
+  )
+  const movement = (
+    actor as ActorPF2e & {
+      movement?: { speeds?: Record<string, StatisticTrace | null | undefined> }
+    }
+  ).movement
+  if (movement?.speeds) {
+    systemPayload.movement = {
+      ...(systemPayload.movement ?? {}),
+      speeds: {
+        ...(systemPayload.movement?.speeds ?? {}),
+        land: serializeStatistic(movement.speeds.land),
+        swim: serializeStatistic(movement.speeds.swim),
+        climb: serializeStatistic(movement.speeds.climb),
+        fly: serializeStatistic(movement.speeds.fly),
+        burrow: serializeStatistic(movement.speeds.burrow)
+      }
+    }
+  }
   logger.debug('TABLEMATE: now sending ' + actor.name)
   return {
     action: TM.UPDATE_CHARACTER,
     actorId: actor._id ?? '',
     actor: actorPayload,
-    system: actor.system,
+    system: systemPayload,
     languages,
     proficiencyLabels,
     inventory,

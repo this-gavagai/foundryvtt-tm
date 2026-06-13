@@ -4,7 +4,7 @@ import { mergeWith } from 'lodash-es'
 import type { Socket } from 'socket.io-client'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type { GamePF2e } from '@7h3laughingman/pf2e-types'
-import type { TablemateCharacter } from '@/types/character-types'
+import type { TablemateActor } from '@/types/character-types'
 import type { ModuleEventArgs } from '@/types/api-types'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useListenersStore } from '@/stores/listenersOnline'
@@ -147,7 +147,7 @@ export async function setupSocketListenersForWorld(world: Ref<GamePF2e | undefin
 
 export async function setupSocketListenersForActor(
   actorId: string,
-  actor: Ref<TablemateCharacter | undefined>,
+  actor: Ref<TablemateActor | undefined>,
   refreshMethod: () => Promise<void>
 ): Promise<() => void> {
   const socket = await getSocket()

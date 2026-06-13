@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 import { mergeWith } from 'lodash-es'
-import type { TablemateCharacter } from '@/types/character-types'
+import type { TablemateActor } from '@/types/character-types'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import { debounce } from 'lodash-es'
 import { uuidv4 } from '@/utils/utilities'
@@ -86,14 +86,14 @@ export async function sendCharacterRequest(actorId: string): Promise<void> {
 
 export function parseActorData(
   actorId: string,
-  actor: Ref<TablemateCharacter | undefined>,
+  actor: Ref<TablemateActor | undefined>,
   args: UpdateCharacterDetailsArgs
 ) {
   if (actorId !== args.actorId) return
   if (characterUnsynced.get(actorId)) return
   if (characterLastRequest.get(actorId) !== args.uuid) return
 
-  if (!actor.value) actor.value = {} as TablemateCharacter
+  if (!actor.value) actor.value = {} as TablemateActor
 
   // Pull `items` out before the generic merge. Items are an ID-keyed collection;
   // merging them by array position triggers false length-mismatch warnings whenever
@@ -103,18 +103,18 @@ export function parseActorData(
     [key: string]: unknown
   }
 
-  const incoming: Partial<TablemateCharacter> = {
-    ...(actorWithoutItems as Partial<TablemateCharacter>),
-    system: args.system as TablemateCharacter['system'],
+  const incoming = {
+    ...(actorWithoutItems as Partial<TablemateActor>),
+    system: args.system,
     languages: args.languages,
     proficiencyLabels: args.proficiencyLabels,
-    elementalBlasts: (args.elementalBlasts ?? undefined) as TablemateCharacter['elementalBlasts'],
-    inventory: args.inventory as TablemateCharacter['inventory'],
+    elementalBlasts: args.elementalBlasts ?? undefined,
+    inventory: args.inventory,
     activeRules: args.activeRules,
-    spellcastingModifiers: args.spellcastingModifiers as TablemateCharacter['spellcastingModifiers'],
+    spellcastingModifiers: args.spellcastingModifiers,
     rollOptionLabels: args.rollOptionLabels,
     iwrLabels: args.iwrLabels
-  }
+  } as Partial<TablemateActor>
 
   mergeWith(actor.value, incoming, mergeWithArrayReset)
 

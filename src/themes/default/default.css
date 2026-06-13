@@ -632,10 +632,22 @@ body.theme-default {
           font-size: 1.2em;
         }
 
-        .critical-success { color: oklch(68% 0.2 145); font-weight: 600; }
-        .success          { color: oklch(70% 0.16 250); font-weight: 600; }
-        .failure          { color: oklch(70% 0.18 25);  font-weight: 600; }
-        .critical-failure { color: oklch(65% 0.22 22);  font-weight: 600; }
+        .critical-success {
+          color: oklch(68% 0.2 145);
+          font-weight: 600;
+        }
+        .success {
+          color: oklch(70% 0.16 250);
+          font-weight: 600;
+        }
+        .failure {
+          color: oklch(70% 0.18 25);
+          font-weight: 600;
+        }
+        .critical-failure {
+          color: oklch(65% 0.22 22);
+          font-weight: 600;
+        }
       }
 
       [data-part='chat-message'][data-own-message='false'] .card-buttons {
@@ -992,11 +1004,16 @@ body.theme-default {
   [data-section='armor'],
   [data-section='treasure'],
   [data-section='primal'],
-  [data-section='staff'] {
+  [data-section='staff'],
+  [data-section='master'],
+  [data-section='movement'] {
     --section-color: var(--color-proficiency-master);
   }
 
   [data-section='defenses'],
+  [data-section='identity'],
+  [data-section='abilities'],
+  [data-section='passive'],
   [data-section='archetype'],
   [data-section='general'],
   [data-section='free'],
@@ -1020,7 +1037,8 @@ body.theme-default {
       [data-component='FeatsList'],
       [data-component='EquipmentList'],
       [data-component='ActionsList'],
-      [data-component='StrikeList']
+      [data-component='StrikeList'],
+      [data-component='FamiliarActionsList']
     )
     :is(section, dl, div[data-section]),
   [data-component='SpellList'] section[data-section] {
@@ -1050,6 +1068,73 @@ body.theme-default {
     padding: 0.75rem 0.3rem;
   }
 
+  /* --- FamiliarSheet section cards: mirror FrontPage card spacing ------ */
+  [data-component='FamiliarSheet'] {
+    background-color: oklch(21% 0.018 258);
+    background-image: radial-gradient(
+      ellipse 150% 45% at 50% 0%,
+      oklch(33% 0.05 270 / 0.5),
+      transparent
+    );
+  }
+
+  [data-component='FamiliarSheet'] > main {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(32% 0.022 258) transparent;
+  }
+
+  [data-component='FamiliarSheet'] > main::-webkit-scrollbar {
+    width: 8px;
+  }
+  [data-component='FamiliarSheet'] > main::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  [data-component='FamiliarSheet'] > main::-webkit-scrollbar-thumb {
+    background-color: oklch(32% 0.022 258);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  [data-component='FamiliarSheet'] > main::-webkit-scrollbar-thumb:hover {
+    background-color: oklch(42% 0.025 258);
+    background-clip: padding-box;
+  }
+
+  [data-component='FamiliarSheet'] [data-part='familiar-detail-label'] {
+    color: var(--color-heading);
+  }
+
+  [data-component='FamiliarSheet'] [data-part='familiar-detail-value'] {
+    color: var(--color-text);
+  }
+
+  [data-component='FamiliarStatusBanner'][data-status='special'] {
+    background-color: oklch(17% 0.022 258 / 0.74);
+    border-bottom: 1px solid oklch(100% 0 0 / 0.06);
+    box-shadow:
+      inset 0 1px 0 oklch(100% 0 0 / 0.06),
+      0 8px 18px oklch(0% 0 0 / 0.22);
+  }
+
+  [data-component='FamiliarSheet'] > main > [data-component='SkillList'] > div:first-child {
+    padding-inline: 0.75rem;
+  }
+
+  [data-component='FamiliarSheet'] > main > [data-component='FamiliarActionsList'] {
+    padding-inline: 0.75rem;
+  }
+
+  [data-component='FamiliarSheet'] > main > [data-component='SkillList'],
+  [data-component='FamiliarSheet'] > main > [data-component='FamiliarActionsList'] {
+    padding-block: 0;
+  }
+
+  @media (min-width: 360px) {
+    [data-component='FamiliarSheet'] [data-component='SkillList'] [data-section='skills'] ul {
+      columns: 2;
+    }
+  }
+
   /* --- Attribute score / movement speed dividers --------------------- */
   [data-section='attributes'] > *,
   [data-component='MovementSpeed'] [data-part='speeds'] > * {
@@ -1074,7 +1159,8 @@ body.theme-default {
   [data-component='FeatsList'],
   [data-component='EquipmentList'],
   [data-component='ActionsList'],
-  [data-component='StrikeList'] {
+  [data-component='StrikeList'],
+  [data-component='FamiliarActionsList'] {
     section,
     dl,
     div[data-section] {
@@ -1108,6 +1194,7 @@ body.theme-default {
       [data-component='EquipmentList'],
       [data-component='ActionsList'],
       [data-component='StrikeList'],
+      [data-component='FamiliarActionsList'],
       [data-component='SpellList']
     )
     :is(h3, dt) {
