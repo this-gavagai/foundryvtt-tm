@@ -39,7 +39,7 @@ export function useScrollBoundaryLock() {
     const deltaY = touch.clientY - startY
     const deltaX = touch.clientX - startX
 
-    // Let horizontal swipes keep working for the sheet tab gesture.
+    // Only police vertical scrolling; ignore horizontal-dominant gestures.
     if (Math.abs(deltaX) >= Math.abs(deltaY)) return
 
     const scroller = closestScrollable(event)

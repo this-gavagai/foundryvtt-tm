@@ -71,13 +71,6 @@ function close(ignoreModal = false) {
 }
 onBeforeUnmount(closeLayer)
 
-const dragOptions = {
-  swipeDistance: 50
-}
-const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
-  if (swipe[1]) close()
-}
-
 async function sendCurrentItemToChat() {
   if (!isListening.value) return
   waiting.value = true
@@ -131,11 +124,7 @@ defineExpose({ open, close, rollResultModal, isOpen })
                 class="relative w-full max-w-4xl transform overflow-hidden bg-white p-6 text-left shadow-xl transition-all"
               >
                 <slot name="banner" :close="() => close(true)" />
-                <div
-                  class="max-h-[70vh] overflow-auto"
-                  v-drag="handleDrag"
-                  :dragOptions="dragOptions"
-                >
+                <div class="max-h-[70vh] overflow-auto">
                   <div class="flex space-x-2">
                     <div
                       v-if="canSendToChat"

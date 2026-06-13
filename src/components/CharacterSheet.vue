@@ -36,7 +36,7 @@ import ActionsPanel from '@/components/ActionsPanel.vue'
 
 const props = defineProps(['characterId'])
 
-// Single source of truth for the tab bar + swipeable panels. Order defines
+// Single source of truth for the tab bar + panels. Order defines
 // both the tab index and the panel order. `mobileOnly` tabs are hidden at
 // md+ (their content lives in the always-visible left sidebar instead).
 const tabs = [
@@ -63,19 +63,6 @@ function changeTab(index: number) {
   goLeft.value = (activeSheetTab.value ?? 0) - index >= 0 ? true : false
   setActiveSheetTab(index)
 }
-const dragOptions = {
-  // `touch-action: pan-y` on the swipe container (below) hands the vertical
-  // axis to the native scroller, so we no longer need the library to suppress
-  // scroll from JS — we just listen for horizontal swipes.
-  lockDirection: true,
-  swipeDistance: 100,
-  axis: 'x'
-}
-const handleDrag = ({ swipe }: { swipe: [number, number] }) => {
-  if (swipe[0])
-    changeTab(Math.max(0, Math.min((activeSheetTab.value ?? 0) - swipe[0], tabs.length - 1)))
-}
-
 // base data
 const { world } = storeToRefs(useWorldStore())
 const { userId } = storeToRefs(useUserStore())
@@ -139,9 +126,7 @@ defineExpose({ actor, character, actorOrWorldActor })
     <!-- show this column on all devices -->
     <div
       data-part="sheet-right"
-      v-drag="handleDrag"
-      :dragOptions="dragOptions"
-      class="border-divider no-scrollbar flex h-full min-h-0 w-0 flex-1 flex-col overflow-hidden [touch-action:pan-y] md:justify-start md:border-l"
+      class="border-divider no-scrollbar flex h-full min-h-0 w-0 flex-1 flex-col overflow-hidden md:justify-start md:border-l"
     >
       <TabGroup
         :selectedIndex="activeSheetTab"
