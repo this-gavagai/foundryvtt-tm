@@ -41,7 +41,7 @@ export interface PixelRollEvent {
 // browser when the page isn't served over a secure (HTTPS) context. Both show
 // up as a missing `navigator.bluetooth`, so a single check covers them; we use
 // `isSecureContext` only to pick the more helpful of the two messages.
-const bluetoothSupported = typeof navigator !== 'undefined' && !!navigator.bluetooth
+const bluetoothSupported = typeof navigator !== 'undefined' && 'bluetooth' in navigator
 
 export const usePixelDiceStore = defineStore('pixelDice', () => {
   const pixels = ref<PairedPixel[]>([])

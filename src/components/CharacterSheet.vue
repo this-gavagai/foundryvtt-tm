@@ -124,14 +124,14 @@ defineExpose({ actor, character, actorOrWorldActor })
 </script>
 <template>
   <div
-    class="flex h-dvh select-none transition-opacity duration-200 ease-out"
+    class="flex h-dvh min-h-0 overflow-hidden select-none transition-opacity duration-200 ease-out"
     :class="contentReady ? 'opacity-100' : 'opacity-0'"
     v-if="userHasActorPermission"
   >
     <!-- show this column only if on a tablet or laptop -->
     <div
       data-part="sheet-left"
-      class="border-divider hidden border-r md:block md:h-dvh md:w-80 md:overflow-auto"
+      class="border-divider app-scroll hidden border-r md:block md:h-full md:w-80"
     >
       <CharacterHeader class="sticky top-0 z-10 h-32" @chat-activated="sideMenu.openChat()" />
       <FrontPage />
@@ -141,10 +141,15 @@ defineExpose({ actor, character, actorOrWorldActor })
       data-part="sheet-right"
       v-drag="handleDrag"
       :dragOptions="dragOptions"
-      class="border-divider no-scrollbar flex w-0 flex-1 flex-col justify-between [touch-action:pan-y] md:h-dvh md:justify-start md:border-l"
+      class="border-divider no-scrollbar flex h-full min-h-0 w-0 flex-1 flex-col overflow-hidden [touch-action:pan-y] md:justify-start md:border-l"
     >
-      <TabGroup :selectedIndex="activeSheetTab" @change="changeTab">
-        <TabPanels tabindex="-1" class="h-dvh w-full overflow-auto md:order-last" ref="panels">
+      <TabGroup
+        :selectedIndex="activeSheetTab"
+        @change="changeTab"
+        as="div"
+        class="flex min-h-0 flex-1 flex-col"
+      >
+        <TabPanels tabindex="-1" class="app-scroll w-full flex-1 md:order-last" ref="panels">
           <CharacterHeader
             class="sticky top-0 z-10 h-32 md:hidden"
             @sidebar-activated="sideMenu.sidebarOpen = true"
@@ -161,7 +166,7 @@ defineExpose({ actor, character, actorOrWorldActor })
         </TabPanels>
         <TabList
           data-part="tab-bar"
-          class="border-divider bottom-0 flex h-24 justify-around border-t border-b"
+          class="border-divider bottom-0 flex h-24 flex-none justify-around border-t border-b"
         >
           <CharacterTab
             v-for="tab in tabs"

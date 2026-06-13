@@ -20,8 +20,10 @@ import { useCharacterRouting } from '@/composables/useCharacterRouting'
 import { useConnectionRecovery } from '@/composables/useConnectionRecovery'
 import { useKeepScreenAwake } from '@/composables/useKeepScreenAwake'
 import { useDevGlobals } from '@/composables/useDevGlobals'
+import { useScrollBoundaryLock } from '@/composables/useScrollBoundaryLock'
 
 initTheme()
+useScrollBoundaryLock()
 
 const { needsLogin } = storeToRefs(useServerStore())
 const { worldAuthenticated, worldLoaded } = storeToRefs(useFoundryWorldStatusStore())
@@ -83,7 +85,7 @@ const characters = useTemplateRef('characters')
 useDevGlobals(characters, urlId)
 </script>
 <template>
-  <div>
+  <div class="fixed inset-0 overflow-hidden">
     <div v-if="isLoading" class="flex h-dvh items-center justify-center">
       <Spinner class="h-12 w-12" />
     </div>
@@ -95,7 +97,12 @@ useDevGlobals(characters, urlId)
       {{ $t('app.noWorld') }}
     </div>
     <LoginPage v-else-if="needsLogin && !showCachedSheet" />
-    <TabGroup v-else :selectedIndex="characterList.indexOf(activeCharacterId)" as="div">
+    <TabGroup
+      v-else
+      :selectedIndex="characterList.indexOf(activeCharacterId)"
+      as="div"
+      class="h-full overflow-hidden"
+    >
       <!-- tabs control routing only; list is visually hidden -->
       <TabList class="border-divider hidden h-12 gap-0 border bg-white text-xl">
         <Tab
@@ -104,14 +111,14 @@ useDevGlobals(characters, urlId)
           :key="c"
         />
       </TabList>
-      <TabPanels>
+      <TabPanels class="h-full overflow-hidden">
         <TabPanel
           v-for="c in characterList"
           :key="c"
           :unmount="false"
           :tabIndex="-1"
           v-slot="{ selected }"
-          class="h-dvh"
+          class="h-full overflow-hidden"
         >
           <Transition
             enter-active-class="duration-1000 ease-out"

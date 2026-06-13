@@ -3,6 +3,34 @@
 @import url('https://fonts.googleapis.com/css2?family=Dosis:wght@200..800&display=swap');
 @plugin '@headlessui/tailwindcss';
 
+@layer base {
+  html,
+  body,
+  #app {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  body {
+    position: fixed;
+    inset: 0;
+  }
+
+  #app {
+    height: 100dvh;
+  }
+}
+
+@utility app-scroll {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 @font-face {
   font-family: Pathfinder2eActions;
   src: url('@/assets/Pathfinder2eActions.ttf');
@@ -28,6 +56,28 @@
   .success          { color: oklch(42% 0.18 250); font-weight: 600; }
   .failure          { color: oklch(45% 0.2 25);   font-weight: 600; }
   .critical-failure { color: oklch(38% 0.22 22);  font-weight: 600; }
+
+  /* Condition cards arrive as enriched HTML with unsized icons; constrain them
+     to match the effect tokens on the character sheet (38px, rounded). */
+  .participant-conditions ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .participant-conditions li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .participant-conditions li img {
+    width: 38px;
+    height: 38px;
+    flex: none;
+    border-radius: 9999px;
+    object-fit: cover;
+  }
 }
 
 @custom-variant pwa {
