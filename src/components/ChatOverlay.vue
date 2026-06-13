@@ -385,7 +385,7 @@ defineExpose({ open, close, isOpen })
               <div
                 ref="scrollContainer"
                 data-part="chat-scroll"
-                class="relative min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4"
+                class="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-4 sm:px-4"
                 @scroll="onScroll"
               >
                 <div
@@ -758,7 +758,7 @@ defineExpose({ open, close, isOpen })
                             <span
                               v-if="roll.flavors.length"
                               data-part="chat-roll-flavor"
-                              class="text-xs text-gray-500"
+                              class="min-w-0 text-xs break-words text-gray-500"
                             >
                               {{ rollFlavorLabel(roll) }}
                             </span>
