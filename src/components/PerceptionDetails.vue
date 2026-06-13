@@ -12,7 +12,6 @@ const { perception } = useInjectedCharacter()
     :proficiency="perception?.rank"
     :modifiers="perception?.modifiers"
     :rollAction="perception?.roll"
-    class="pl-2"
   >
     {{ formatModifier(perception?.totalModifier) }}
   </StatBox>

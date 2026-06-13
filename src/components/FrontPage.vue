@@ -23,7 +23,7 @@ import LanguagesKnown from '@/components/LanguagesKnown.vue'
     </div>
     <EffectsAndConditions />
     <AttributeScores data-section="attributes" />
-    <div data-section="defenses" class="flex gap-4">
+    <div data-section="defenses" class="grid grid-cols-5 place-items-center gap-4">
       <ArmorClass />
       <SavingThrows />
       <PerceptionDetails />
