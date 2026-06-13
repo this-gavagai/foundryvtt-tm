@@ -1516,6 +1516,27 @@ body.theme-default {
     }
   }
 
+  /* --- Character header --------------------------------
+     Sticky chrome at the top of both the desktop left column and the mobile
+     tab panels. Without an opaque/blurred background, the FrontPage cards
+     scroll up visibly behind it (most apparent in the wide two-column view,
+     where the left column has no panel background of its own). Reuse the tab
+     bar's glass treatment so the two sticky bars read as one chrome system. */
+  [data-component='CharacterHeader'] {
+    background-color: oklch(17% 0.022 258 / 0.82);
+    background-image: radial-gradient(
+      ellipse 150% 100% at 50% 0%,
+      oklch(33% 0.05 270 / 0.45),
+      transparent
+    );
+    backdrop-filter: blur(20px) saturate(1.3);
+    -webkit-backdrop-filter: blur(20px) saturate(1.3);
+    border-top-color: transparent;
+    box-shadow:
+      inset 0 -1px 0 oklch(100% 0 0 / 0.08),
+      0 8px 20px oklch(0% 0 0 / 0.32);
+  }
+
   /* --- Tab bar ----------------------------------------- */
   [data-part='tab-bar'] {
     background-color: oklch(17% 0.022 258 / 0.82);
