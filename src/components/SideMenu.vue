@@ -47,8 +47,8 @@ const connectionTitle: Record<string, string> = {
   ok: 'Connected'
 }
 const pixelStore = usePixelDiceStore()
-const { pixels } = storeToRefs(pixelStore)
-const { pairDie, reconnectDie, forgetDie } = pixelStore
+const { pixels, pairError } = storeToRefs(pixelStore)
+const { bluetoothSupported, pairDie, reconnectDie, forgetDie } = pixelStore
 
 // Per-die icon — match the paired Pixel's actual die type to the in-app SVG.
 // Variants of d6 (pipped/fudge) share the d6 icon; d00 (percentile) reuses
@@ -208,8 +208,15 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                       </Toggle>
                     </li>
                     <li class="-mt-4">
-                      <div class="cursor-pointer text-lg font-bold" @click="pairDie">
+                      <div
+                        class="text-lg font-bold"
+                        :class="bluetoothSupported ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'"
+                        @click="pairDie"
+                      >
                         {{ $t('sideMenu.pairPixelDice') }}
+                      </div>
+                      <div v-if="pairError" class="text-sm text-red-700">
+                        {{ $t(pairError) }}
                       </div>
                       <!-- Single die: full inline row (icon, name, battery, X).
                          The X stays mounted while the die reconnects so you

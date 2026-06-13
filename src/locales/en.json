@@ -308,6 +308,11 @@
     "damageEmpty": "Tap a die size to add it",
     "modifier": "Modifier"
   },
+  "pixel": {
+    "noBluetooth": "This browser doesn't support Bluetooth dice.",
+    "insecureContext": "Bluetooth dice need a secure (HTTPS) connection.",
+    "pairFailed": "Couldn't pair the die. Please try again."
+  },
   "widgets": {
     "toggleSwitch": "Toggle Switch"
   },

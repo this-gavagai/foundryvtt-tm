@@ -37,10 +37,20 @@ export interface PixelRollEvent {
   seq: number
 }
 
+// Web Bluetooth is absent in Firefox / Safari / iOS, and is also hidden by the
+// browser when the page isn't served over a secure (HTTPS) context. Both show
+// up as a missing `navigator.bluetooth`, so a single check covers them; we use
+// `isSecureContext` only to pick the more helpful of the two messages.
+const bluetoothSupported = typeof navigator !== 'undefined' && !!navigator.bluetooth
+
 export const usePixelDiceStore = defineStore('pixelDice', () => {
   const pixels = ref<PairedPixel[]>([])
   const lastRoll = ref<PixelRollEvent>()
   let rollSeq = 0
+  // i18n key of the last pairing failure, or undefined when there's nothing to
+  // show. The component translates it (client-locale UI chrome). Cleared at the
+  // start of every pair attempt.
+  const pairError = ref<string>()
 
   // The set of die face counts (20, 8, …) that have a currently-ready die.
   // Computed once here and shared so the many mounted InfoModal instances
@@ -176,9 +186,22 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
   // pairing at the OS level; we only persist the resulting system ID so we
   // can re-resolve the Pixel object on the next session.
   async function pairDie() {
-    const { requestPixel } = await loadSdk()
-    const pixel = await requestPixel()
-    await registerPixel(pixel)
+    pairError.value = undefined
+    if (!bluetoothSupported) {
+      pairError.value = window.isSecureContext ? 'pixel.noBluetooth' : 'pixel.insecureContext'
+      return
+    }
+    try {
+      const { requestPixel } = await loadSdk()
+      const pixel = await requestPixel()
+      await registerPixel(pixel)
+    } catch (e) {
+      // The user dismissing the device chooser throws NotFoundError — that's a
+      // cancel, not a failure, so stay quiet. Anything else is a real problem.
+      if ((e as Error)?.name === 'NotFoundError') return
+      logger.warn('TM-pixl: pairDie failed', e)
+      pairError.value = 'pixel.pairFailed'
+    }
   }
 
   // Re-resolve an already-paired die by system ID. Used both on store init
@@ -218,6 +241,8 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
     pixels,
     lastRoll,
     readyFaceCounts,
+    bluetoothSupported,
+    pairError,
     pairDie,
     reconnectDie,
     forgetDie

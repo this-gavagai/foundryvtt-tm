@@ -13,7 +13,8 @@ import {
   getSocket,
   mergeWithArrayReset,
   asDocumentArray,
-  type ModifyDocumentUpdate
+  type ModifyDocumentUpdate,
+  type DocumentData
 } from './internal'
 import { addRefresh, fireRefresh, parseActorData } from './characterSync'
 import { processChanges } from './documents'
@@ -105,8 +106,18 @@ export async function setupSocketListenersForWorld(world: Ref<GamePF2e | undefin
         break
       case 'Combatant': {
         const combatId = args.operation.parentUuid?.split('.')?.[1]
-        const combat = world.value?.combats.find((c) => c._id === combatId)
-        processChanges(args, asDocumentArray(combat?.combatants))
+        const combats = asDocumentArray(world.value?.combats)
+        const idx = combats?.findIndex((c) => c._id === combatId) ?? -1
+        if (combats && idx !== -1) {
+          const combat = combats[idx] as DocumentData & { combatants?: unknown }
+          processChanges(args, asDocumentArray(combat.combatants))
+          // Replace the combat with a fresh reference. We mutate combatants in
+          // place, so `activeCombat = combats.find(c => c.active)` would otherwise
+          // recompute to the same object — and Vue 3.4+ computeds short-circuit
+          // when their value is Object.is-equal, leaving dependents (e.g. the
+          // initiative roll button) stale until a full world refresh.
+          combats[idx] = { ...combat }
+        }
         triggerRef(world)
         break
       }

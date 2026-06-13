@@ -304,6 +304,11 @@
     "damageEmpty": "Tippe auf eine Würfelgröße",
     "modifier": "Modifikator"
   },
+  "pixel": {
+    "noBluetooth": "Dieser Browser unterstützt keine Bluetooth-Würfel.",
+    "insecureContext": "Bluetooth-Würfel benötigen eine sichere (HTTPS-)Verbindung.",
+    "pairFailed": "Würfel konnte nicht gekoppelt werden. Bitte versuche es erneut."
+  },
   "widgets": {
     "toggleSwitch": "Umschalter"
   },
