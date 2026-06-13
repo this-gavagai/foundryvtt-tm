@@ -23,7 +23,8 @@ const USERID_STORAGE_KEY = 'userid'
 const SOCKET_RECONNECTION_DELAY_MS = 1_000
 const SOCKET_RECONNECTION_DELAY_MAX_MS = 15_000
 const GET_SOCKET_TIMEOUT_MS = 15_000
-const JOIN_DATA_TIMEOUT_MS = 10_000
+const JOIN_DATA_TIMEOUT_MS = 3_000
+const JOIN_DATA_RETRY_ATTEMPTS = 3
 const VERIFY_CREDENTIALS_TIMEOUT_MS = 10_000
 const PROBE_CONNECTION_TIMEOUT_MS = 3_000
 const SESSION_WATCHDOG_TIMEOUT_MS = 8_000
@@ -43,6 +44,23 @@ function emitWithTimeout<T>(s: Socket, event: string, timeoutMs: number): Promis
       resolve(data)
     })
   })
+}
+
+async function emitWithRetries<T>(
+  s: Socket,
+  event: string,
+  timeoutMs: number,
+  attempts: number
+): Promise<T> {
+  let lastError: unknown
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await emitWithTimeout<T>(s, event, timeoutMs)
+    } catch (e) {
+      lastError = e
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(`${event} failed`)
 }
 
 function establishSocket(url: URL, keepAlive = false) {
@@ -141,7 +159,12 @@ export const useServerStore = defineStore('server', () => {
 
   async function getJoinData(): Promise<JoinData> {
     const s = await getSocket()
-    return emitWithTimeout<JoinData>(s, 'getJoinData', JOIN_DATA_TIMEOUT_MS)
+    return emitWithRetries<JoinData>(
+      s,
+      'getJoinData',
+      JOIN_DATA_TIMEOUT_MS,
+      JOIN_DATA_RETRY_ATTEMPTS
+    )
   }
 
   async function verifyCredentials(userid: string, password: string): Promise<boolean> {
