@@ -24,7 +24,7 @@ const { skills, proficiencies } = character
         <h3 class="pb-2 text-lg underline">
           {{ isNonLore ? $t('skills.skills') : $t('skills.lore') }}
         </h3>
-        <ul class="columns-2">
+        <ul class="columns-[12rem]">
           <li
             v-for="skill in skills?.filter((s: Stat) => !s.lore === isNonLore)"
             class="break-inside-avoid pb-4 text-lg leading-4"
@@ -52,7 +52,7 @@ const { skills, proficiencies } = character
       >
         <section :data-section="proficiencyType" class="pt-4 first:p-0 empty:hidden">
           <h3 class="pb-2 text-lg underline">{{ $t('proficiencyTypes.' + proficiencyType) }}</h3>
-          <ul class="columns-2">
+          <ul class="columns-[12rem]">
             <li
               v-for="(prof, key) in proficiencies?.filter(
                 (p) => p.type === proficiencyType && p?.rank && p.rank > 0 && !p.visible === false

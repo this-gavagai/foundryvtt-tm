@@ -74,10 +74,10 @@ defineProps<{
         class="h-10 w-25"
       >
         <span v-if="viewed.target.data.loaded">{{ $t('strikes.unload') }}</span>
-        <span v-else class="inline-flex items-center gap-1">
+        <span v-else>
           <ActionIcons
             :actions="viewed.target.data.reloadActions ?? '1'"
-            class="pf2-icon relative float-left -mt-2 h-0 text-lg leading-none"
+            class="relative float-left mt-0.75 h-0 pr-2 text-lg leading-none"
           />
           {{ $t('strikes.reload') }}
         </span>

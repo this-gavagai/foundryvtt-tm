@@ -55,7 +55,11 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
       // PF2e populates the strike's ammunition data from the weapon's loaded
       // subitems, so reloadable/loaded come straight from it.
       const reloadable = !!action?.ammunition?.requiresReload
-      const loaded = (action?.ammunition?.loaded?.length ?? 0) > 0
+      // "Loaded" means there's actually usable ammo in the weapon, not merely a
+      // loaded entry present: after firing a magazine-fed weapon dry, PF2e keeps
+      // the spent magazine attached (quantity/uses 0) rather than detaching it,
+      // so a plain length check would leave the weapon stuck showing as loaded.
+      const loaded = (action?.ammunition?.loaded ?? []).some((l) => (l.quantity ?? 0) > 0)
       const reloadActions = weaponItem?.system?.reload?.value ?? undefined
       // Effective ammo: the last-used choice (selectedAmmoId, persisted on the
       // weapon), else default to the compatible ammo with the most in inventory.
@@ -87,8 +91,8 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
           if (load && !effectiveAmmoId) return Promise.resolve(null)
           // Optimistic update: mutate the reactive actor object immediately so
           // the UI reflects the new state without waiting for a full refresh.
-          const ammoData = action?.ammunition as { loaded?: unknown[] } | undefined
-          if (ammoData) ammoData.loaded = load ? [{}] : []
+          const ammoData = action?.ammunition as { loaded?: { quantity?: number }[] } | undefined
+          if (ammoData) ammoData.loaded = load ? [{ quantity: 1 }] : []
           return weaponId
             ? setWeaponLoaded(
                 actor as Ref<CharacterPF2e>,
@@ -175,7 +179,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
           if (!loaded || !weaponId) return persistAmmoId
 
           // Weapon is loaded — unload so the new ammo selection stays in sync.
-          const ammoData = action?.ammunition as { loaded?: unknown[] } | undefined
+          const ammoData = action?.ammunition as { loaded?: { quantity?: number }[] } | undefined
           if (ammoData) ammoData.loaded = []
           return Promise.all([
             persistAmmoId,
