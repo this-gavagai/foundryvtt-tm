@@ -16,18 +16,14 @@ There are some limitations to this approach. Mainly, the character sheet doesn't
 - View most character details, including stats, conditions, modifiers, inventory, and spell lists
 - Read the full text of most items/feats/features/spells/etc., and send those items to chat
 - Manage inventory, including changing locations and investment
+- Change modifiers before making rolls
 - Change roll options and other sheet toggles
 - Roll skill checks, cast spells, and make attacks, using a targeting proxy if desired (i.e., a horizontally mounted TV)
+- Browse compendia and add items to the character sheet
 - Roll Pixel bluetooth dice and pass the results to the server
-- Theming support
-  
-## Things on the top of my to-do list:
-- Provide a way to change modifiers before making rolls
-- Continue improving UX, especially the sheet's responsiveness
-- Some backend work, especially some data abstraction and better use of typing
+- Change themes
 
-## Things further down the list:
-- Some way to browse items and add them to the character sheet
+## Things on My To-Do List:
 - More functionality when a GM is not available, and more graceful degredation for the things that aren't possible without a GM logged in
 
 # How does it work?
