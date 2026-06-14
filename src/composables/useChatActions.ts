@@ -203,8 +203,8 @@ export function useChatActions({
     }
   }
 
-  async function submitMessage() {
-    const content = draft.value.trim()
+  async function submitMessage(contentOverride?: string) {
+    const content = (contentOverride ?? draft.value).trim()
     if (!content || !actorId.value || isSending.value) return
 
     isSending.value = true

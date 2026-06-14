@@ -471,6 +471,17 @@ body.theme-default {
         color: oklch(88% 0.04 70);
       }
 
+      [data-part='chat-name-button'] {
+        cursor: pointer;
+
+        &:hover {
+          color: oklch(82% 0.06 250);
+          text-decoration: underline;
+          text-decoration-thickness: 1px;
+          text-underline-offset: 2px;
+        }
+      }
+
       /* Foundry-enriched chat card HTML */
       [data-part='chat-flavor'] {
         color: oklch(76% 0.01 258);
@@ -875,6 +886,17 @@ body.theme-default {
           --tw-ring-color: oklch(58% 0.14 250);
         }
 
+        &[data-private='true'] textarea {
+          background-color: oklch(20% 0.035 70);
+          border-color: oklch(52% 0.12 70);
+          box-shadow: inset 0 0 0 1px oklch(52% 0.12 70 / 0.28);
+        }
+
+        &[data-private='true'] textarea:focus {
+          border-color: oklch(60% 0.14 70);
+          --tw-ring-color: oklch(60% 0.14 70);
+        }
+
         button[type='submit'] {
           background-color: oklch(45% 0.13 255);
           color: oklch(96% 0.01 255);
@@ -886,6 +908,62 @@ body.theme-default {
 
         button[type='submit']:active:not(:disabled) {
           background-color: oklch(55% 0.13 255);
+        }
+
+        [data-part='chat-recipient'] {
+          color: oklch(62% 0.01 258);
+        }
+
+        [data-part='chat-recipient-button'] {
+          background-color: oklch(22% 0.026 258);
+          border-color: oklch(38% 0.026 258);
+          color: oklch(82% 0.012 258);
+
+          &:hover,
+          &[aria-expanded='true'] {
+            background-color: oklch(28% 0.03 258);
+            border-color: oklch(48% 0.06 250);
+            color: oklch(90% 0.012 258);
+          }
+
+          &:focus-visible {
+            --tw-ring-color: oklch(58% 0.14 250);
+          }
+        }
+
+        [data-part='chat-recipient-menu'] {
+          background-color: var(--color-surface);
+          border-color: oklch(38% 0.026 258);
+          color: var(--color-text);
+          box-shadow:
+            0 12px 28px oklch(5% 0.015 258 / 0.55),
+            0 0 0 1px oklch(50% 0.018 258 / 0.12);
+
+          > .border-t {
+            border-color: oklch(34% 0.024 258);
+          }
+        }
+
+        [data-part='chat-recipient-menu-item'] {
+          color: oklch(82% 0.01 258);
+
+          &:hover,
+          &.bg-gray-100 {
+            background-color: oklch(24% 0.026 258);
+            color: oklch(94% 0.008 258);
+          }
+
+          &:active {
+            background-color: oklch(29% 0.026 258);
+          }
+
+          &[aria-pressed='true'] {
+            color: oklch(88% 0.05 250);
+          }
+
+          svg {
+            color: oklch(72% 0.12 250);
+          }
         }
 
         [data-part='chat-error'] {

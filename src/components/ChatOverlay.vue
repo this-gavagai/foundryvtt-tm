@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { storeToRefs } from 'pinia'
 import {
   TransitionRoot,
   TransitionChild,
@@ -12,16 +13,26 @@ import {
   MenuItems,
   MenuItem
 } from '@headlessui/vue'
-import { EllipsisVerticalIcon, PaperAirplaneIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  EllipsisVerticalIcon,
+  PaperAirplaneIcon,
+  XMarkIcon
+} from '@heroicons/vue/24/outline'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { useOverlayStack } from '@/composables/useOverlayStack'
 import { useChatStore } from '@/stores/chat'
+import { useWorldStore } from '@/stores/world'
 import { useChatActions } from '@/composables/useChatActions'
 import {
   messageIsReroll,
   useChatMessages,
+  type ChatMessageView,
   type ChatMessageData
 } from '@/composables/useChatMessages'
+import { collectionToArray, type CollectionLike } from '@/composables/chatCollections'
+import type { UserData } from '@/composables/useChatVisibility'
 import ChatInlineRollModal from '@/components/ChatInlineRollModal.vue'
 import CompendiumItemModal from '@/components/CompendiumItemModal.vue'
 import InfoModal from '@/components/InfoModal.vue'
@@ -56,6 +67,21 @@ const activeReroll = ref<{
 }>()
 const { t } = useI18n()
 let scrollAnimationFrame: number | undefined
+
+interface WhisperUserData extends UserData {
+  role?: number
+}
+
+interface WhisperTarget {
+  key: string
+  label: string
+  commandTarget?: string
+  userIds?: string[]
+}
+
+const PUBLIC_WHISPER_TARGET = 'public'
+const GMS_WHISPER_TARGET = 'gms'
+type WhisperSelectionMode = typeof PUBLIC_WHISPER_TARGET | typeof GMS_WHISPER_TARGET | 'users'
 
 const dieIcons: Record<number, string> = {
   4: d4Icon,
@@ -111,6 +137,101 @@ function rerollLabelKey(mode: ChatRollRerollMode): string {
 const { messages, renderedMessages, messageIsOwnActor } = useChatMessages(_id)
 
 const chatStore = useChatStore()
+const { world } = storeToRefs(useWorldStore())
+
+const selectedWhisperMode = ref<WhisperSelectionMode>(PUBLIC_WHISPER_TARGET)
+const selectedWhisperUserKeys = ref(new Set<string>())
+
+const whisperGroupTargets = computed<WhisperTarget[]>(() => [
+  { key: PUBLIC_WHISPER_TARGET, label: t('chat.everyone') },
+  { key: GMS_WHISPER_TARGET, label: t('chat.gms'), commandTarget: 'gm' }
+])
+
+const whisperUserTargets = computed<WhisperTarget[]>(() => {
+  const currentUserId = (world.value as { userId?: string } | undefined)?.userId
+  return collectionToArray<WhisperUserData>(world.value?.users as CollectionLike<WhisperUserData>)
+    .filter((user) => {
+      const id = user._id ?? user.id
+      return !!user.name && id !== currentUserId
+    })
+    .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
+    .map((user) => ({
+      key: `user:${user._id ?? user.id ?? user.name}`,
+      label: user.name ?? '',
+      commandTarget: `[${user.name}]`,
+      userIds: [user._id, user.id].filter((id): id is string => !!id)
+    }))
+})
+
+const selectedWhisperUserTargets = computed(() =>
+  whisperUserTargets.value.filter((target) => selectedWhisperUserKeys.value.has(target.key))
+)
+
+const selectedWhisperCommandTargets = computed(() => {
+  if (selectedWhisperMode.value === GMS_WHISPER_TARGET) return ['gm']
+  if (selectedWhisperMode.value !== 'users') return []
+  return selectedWhisperUserTargets.value
+    .map((target) => target.commandTarget)
+    .filter((target): target is string => !!target)
+})
+
+const selectedWhisperLabel = computed(() => {
+  if (selectedWhisperMode.value === GMS_WHISPER_TARGET) return t('chat.gms')
+  if (selectedWhisperMode.value !== 'users') return t('chat.everyone')
+  return selectedWhisperUserTargets.value.map((target) => target.label).join(', ')
+})
+
+function selectWhisperGroup(key: typeof PUBLIC_WHISPER_TARGET | typeof GMS_WHISPER_TARGET) {
+  selectedWhisperMode.value = key
+  selectedWhisperUserKeys.value = new Set()
+}
+
+function toggleWhisperUser(key: string) {
+  const next = new Set(selectedWhisperUserKeys.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  selectedWhisperUserKeys.value = next
+  selectedWhisperMode.value = next.size ? 'users' : PUBLIC_WHISPER_TARGET
+}
+
+function userTargetSelected(key: string): boolean {
+  return selectedWhisperMode.value === 'users' && selectedWhisperUserKeys.value.has(key)
+}
+
+function messageAuthorIds(message: ChatMessageData): Set<string> {
+  const ids = new Set<string>()
+  const tablemateOrigin =
+    message.flags?.tablemate?.originUserId ?? message['flags.tablemate.originUserId']
+  if (typeof tablemateOrigin === 'string' && tablemateOrigin) ids.add(tablemateOrigin)
+  if (typeof message.author === 'string' && message.author) ids.add(message.author)
+  if (typeof message.author === 'object' && message.author?._id) ids.add(message.author._id)
+  if (message.user) ids.add(message.user)
+  return ids
+}
+
+function selectWhisperUserFromMessage(view: ChatMessageView) {
+  const authorIds = messageAuthorIds(view.message)
+  const nameCandidates = new Set([view.authorName, view.speakerName].filter(Boolean))
+  const target = whisperUserTargets.value.find(
+    (userTarget) =>
+      userTarget.userIds?.some((id) => authorIds.has(id)) || nameCandidates.has(userTarget.label)
+  )
+  if (!target) return
+  selectedWhisperMode.value = 'users'
+  selectedWhisperUserKeys.value = new Set([target.key])
+}
+
+function whisperContent(content: string): string {
+  const targets = selectedWhisperCommandTargets.value
+  if (!targets.length) return content
+  return `/w ${targets.join(', ')} ${content}`
+}
+
+function submitChatMessage() {
+  const content = draft.value.trim()
+  if (!content) return
+  submitMessage(whisperContent(content))
+}
 
 // Key of the first message that falls below the frozen "new messages" divider,
 // so the template can render the separator immediately before that row.
@@ -261,6 +382,7 @@ function handleChatContentClick(event: MouseEvent) {
 
 function open() {
   openLayer()
+  selectWhisperGroup(PUBLIC_WHISPER_TARGET)
   // Freeze the divider at the current read position before the list paints, so
   // the "new messages" separator marks where the user left off.
   chatStore.beginSession()
@@ -329,6 +451,17 @@ watch(
     }
   }
 )
+
+watch(whisperUserTargets, (targets) => {
+  const availableKeys = new Set(targets.map((target) => target.key))
+  const next = new Set([...selectedWhisperUserKeys.value].filter((key) => availableKeys.has(key)))
+  if (next.size !== selectedWhisperUserKeys.value.size) {
+    selectedWhisperUserKeys.value = next
+  }
+  if (selectedWhisperMode.value === 'users' && !next.size) {
+    selectedWhisperMode.value = PUBLIC_WHISPER_TARGET
+  }
+})
 
 defineExpose({ open, close, isOpen })
 </script>
@@ -440,15 +573,23 @@ defineExpose({ open, close, isOpen })
                         <div class="min-w-0 flex-1">
                           <div class="flex gap-2">
                             <div class="min-w-0 flex-1">
-                              <div class="truncate font-semibold text-gray-900">
+                              <button
+                                type="button"
+                                data-part="chat-name-button"
+                                class="block max-w-full truncate text-left font-semibold text-gray-900"
+                                @click="selectWhisperUserFromMessage(view)"
+                              >
                                 {{ view.speakerName }}
-                              </div>
-                              <div
+                              </button>
+                              <button
                                 v-if="view.showAuthorName"
-                                class="truncate text-xs text-gray-500"
+                                type="button"
+                                data-part="chat-name-button"
+                                class="block max-w-full truncate text-left text-xs text-gray-500"
+                                @click="selectWhisperUserFromMessage(view)"
                               >
                                 {{ view.authorName }}
-                              </div>
+                              </button>
                             </div>
                             <span
                               v-if="view.visibilityLabel"
@@ -853,9 +994,90 @@ defineExpose({ open, close, isOpen })
               <form
                 data-part="chat-composer"
                 class="border-divider flex flex-none items-end gap-2 border-t p-3"
-                @submit.prevent="submitMessage"
+                :data-private="selectedWhisperCommandTargets.length ? true : undefined"
+                @submit.prevent="submitChatMessage"
               >
-                <div class="min-w-0 flex-1">
+                <div class="relative min-w-0 flex-1">
+                  <div
+                    data-part="chat-recipient"
+                    class="mb-1 flex items-center gap-1.5 text-xs text-gray-500"
+                  >
+                    <span>{{ $t('chat.to') }}</span>
+                    <Menu as="div" class="relative min-w-0">
+                      <MenuButton
+                        type="button"
+                        data-part="chat-recipient-button"
+                        class="inline-flex max-w-56 items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-semibold transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500"
+                        :class="
+                          selectedWhisperCommandTargets.length
+                            ? 'border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100'
+                            : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100'
+                        "
+                        :aria-label="$t('chat.recipient')"
+                      >
+                        <span class="truncate">{{ selectedWhisperLabel }}</span>
+                        <ChevronDownIcon class="h-3.5 w-3.5 flex-none" aria-hidden="true" />
+                      </MenuButton>
+                      <MenuItems
+                        data-part="chat-recipient-menu"
+                        class="absolute bottom-full left-0 z-30 mb-2 max-h-64 w-64 overflow-y-auto rounded-md border border-gray-200 bg-white py-1 text-sm font-medium text-gray-700 shadow-lg ring-1 ring-black/5 focus:outline-hidden"
+                      >
+                        <MenuItem
+                          v-for="target in whisperGroupTargets"
+                          :key="target.key"
+                          v-slot="{ active }"
+                        >
+                          <button
+                            type="button"
+                            data-part="chat-recipient-menu-item"
+                            class="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors"
+                            :class="active ? 'bg-gray-100 text-gray-900' : ''"
+                            @click="
+                              selectWhisperGroup(
+                                target.key === GMS_WHISPER_TARGET
+                                  ? GMS_WHISPER_TARGET
+                                  : PUBLIC_WHISPER_TARGET
+                              )
+                            "
+                          >
+                            <span class="min-w-0 flex-1 truncate">{{ target.label }}</span>
+                            <CheckIcon
+                              v-if="selectedWhisperMode === target.key"
+                              class="h-4 w-4 flex-none text-blue-600"
+                              aria-hidden="true"
+                            />
+                          </button>
+                        </MenuItem>
+                        <div
+                          v-if="whisperUserTargets.length"
+                          class="my-1 border-t border-gray-200"
+                          aria-hidden="true"
+                        />
+                        <MenuItem
+                          v-for="target in whisperUserTargets"
+                          :key="target.key"
+                          as="div"
+                          v-slot="{ active }"
+                        >
+                          <button
+                            type="button"
+                            data-part="chat-recipient-menu-item"
+                            class="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors"
+                            :class="active ? 'bg-gray-100 text-gray-900' : ''"
+                            :aria-pressed="userTargetSelected(target.key)"
+                            @click.prevent.stop="toggleWhisperUser(target.key)"
+                          >
+                            <span class="min-w-0 flex-1 truncate">{{ target.label }}</span>
+                            <CheckIcon
+                              v-if="userTargetSelected(target.key)"
+                              class="h-4 w-4 flex-none text-blue-600"
+                              aria-hidden="true"
+                            />
+                          </button>
+                        </MenuItem>
+                      </MenuItems>
+                    </Menu>
+                  </div>
                   <textarea
                     ref="chatInput"
                     v-model="draft"
@@ -863,9 +1085,9 @@ defineExpose({ open, close, isOpen })
                     rows="2"
                     :placeholder="$t('chat.placeholder')"
                     :disabled="isSending || !_id"
-                    @keydown.enter.exact.prevent="submitMessage"
-                    @keydown.meta.enter.prevent="submitMessage"
-                    @keydown.ctrl.enter.prevent="submitMessage"
+                    @keydown.enter.exact.prevent="submitChatMessage"
+                    @keydown.meta.enter.prevent="submitChatMessage"
+                    @keydown.ctrl.enter.prevent="submitChatMessage"
                   />
                   <p v-if="sendError" data-part="chat-error" class="mt-1 text-xs text-red-700">
                     {{ $t('chat.sendFailed') }}
