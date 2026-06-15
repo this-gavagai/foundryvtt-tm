@@ -272,6 +272,7 @@
     "actionFailed": "Chataktion konnte nicht abgeschlossen werden.",
     "blind": "Verdeckt",
     "whisper": "Flüstern",
+    "whisperTo": "Flüstern → {names}",
     "damage": "Schaden",
     "half": "Halb",
     "double": "Doppelt",

@@ -73,6 +73,7 @@ export interface ChatMessageView {
   showAuthorName: boolean
   formattedTime: string
   visibilityLabel: string | null
+  whisperRecipients: string[]
   isOwnActor: boolean
   hasPortrait: boolean
   portrait?: string
@@ -338,6 +339,14 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
     return !!currentActorId.value && originActorId(message) === currentActorId.value
   }
 
+  // Names of the users a whispered message is directed to, resolved from the
+  // whisper recipient ids. Unknown ids fall back to the raw id so a recipient is
+  // never silently dropped from the displayed list.
+  function whisperRecipientNames(message: ChatMessageData): string[] {
+    if (!message.whisper?.length) return []
+    return message.whisper.map((id) => userNamesById.value.get(id) ?? id)
+  }
+
   function speakerToken(message: ChatMessageData): ChatTokenData | undefined {
     const speaker = message.speaker
     if (!speaker?.token) return undefined
@@ -376,6 +385,7 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
       showAuthorName: !!author && author !== speaker,
       formattedTime: formattedTime(message.timestamp),
       visibilityLabel: visibility,
+      whisperRecipients: whisperRecipientNames(message),
       isOwnActor: messageIsOwnActor(message),
       // Reserve the portrait box from a static signal (the speaker references a
       // token) so the row keeps a stable height even before scene/token data has

@@ -596,7 +596,13 @@ defineExpose({ open, close, isOpen })
                               data-part="visibility"
                               class="mt-0.5 self-start text-xs"
                             >
-                              {{ $t(view.visibilityLabel) }}
+                              {{
+                                view.whisperRecipients.length
+                                  ? $t('chat.whisperTo', {
+                                      names: view.whisperRecipients.join(', ')
+                                    })
+                                  : $t(view.visibilityLabel)
+                              }}
                             </span>
                             <time v-if="view.formattedTime" class="ml-auto text-xs text-gray-500">
                               {{ view.formattedTime }}

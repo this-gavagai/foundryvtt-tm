@@ -273,6 +273,7 @@
     "actionFailed": "Could not complete chat action.",
     "blind": "Blind",
     "whisper": "Whisper",
+    "whisperTo": "Whisper → {names}",
     "damage": "Damage",
     "half": "Half",
     "double": "Double",
