@@ -104,6 +104,9 @@ watch(itemViewed, (val) => {
 const itemHasContents = computed(() =>
   displayInventory.value?.some((item) => item.system?.containerId === frozenItem.value?._id)
 )
+const frozenItemUnidentified = computed(
+  () => frozenItem.value?.system?.identification?.status === 'unidentified'
+)
 
 function setInventoryMode(val: string) {
   slideDirection.value = val === 'party' ? 'left' : 'right'
@@ -350,7 +353,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
         ref="infoModal"
         :itemId="frozenItem?._id"
         :imageUrl="frozenItem?.img"
-        :traits="frozenItem?.system?.traits?.value"
+        :traits="frozenItemUnidentified ? undefined : frozenItem?.system?.traits?.value"
         :rolls="inlineRolls"
       >
         <template #headerActions v-if="frozenItem">
@@ -387,7 +390,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
         <template #title>
           {{ frozenItem?.label ?? frozenItem?.name }}
         </template>
-        <template #description>
+        <template #description v-if="!frozenItemUnidentified">
           Level {{ frozenItem?.system?.level?.value }}
           <span class="text-sm capitalize">
             ({{ frozenItem?.system?.traits?.rarity }}),
@@ -409,7 +412,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
         <template #actionButtons v-if="frozenItem">
           <div class="flex flex-wrap justify-end gap-2">
             <Button
-              v-if="isListening && frozenItem?.system?.uses?.max"
+              v-if="isListening && frozenItem?.system?.uses?.max && !frozenItemUnidentified"
               color="green"
               :disabled="itemViewed?.system?.uses?.value === 0"
               :clicked="

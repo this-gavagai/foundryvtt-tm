@@ -7,6 +7,10 @@ import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/ab
 export interface PhysicalItemSystem extends ItemSystem {
   bulk: { value: Maybe<number> }
   stackGroup: Maybe<string>
+  identification: {
+    status: Maybe<string>
+    unidentified: { name: Maybe<string>; data: { description: { value: Maybe<string> } } }
+  }
   equipped: {
     carryType: Maybe<string>
     invested: Maybe<boolean>
@@ -38,11 +42,30 @@ export interface PhysicalItem extends Item {
 
 export function makePhysicalItem(root: PhysicalItemPF2e): PhysicalItem {
   const base = makeItem(root)!
+  const identification = root.system.identification
+  // When an item is unidentified, the player should only see the generic
+  // "unidentified" description — the real description.value still carries the
+  // item's true nature, so swap it out at the data layer.
+  const isUnidentified = identification?.status === 'unidentified'
   return {
     ...base,
     label: undefined,
     system: {
       ...base.system,
+      description: {
+        value: isUnidentified
+          ? identification?.unidentified?.data?.description?.value ?? ''
+          : base.system.description.value
+      },
+      identification: {
+        status: identification?.status,
+        unidentified: {
+          name: identification?.unidentified?.name,
+          data: {
+            description: { value: identification?.unidentified?.data?.description?.value }
+          }
+        }
+      },
       bulk: { value: root.system.bulk?.value },
       stackGroup: root.system.stackGroup,
       equipped: {

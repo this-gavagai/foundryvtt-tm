@@ -52,6 +52,10 @@ const itemWornType = computed(() => {
   return null
 })
 
+const isUnidentified = computed(
+  () => props.item?.system?.identification?.status === 'unidentified'
+)
+
 const backpacks = computed(() => props.inventory?.filter((item) => item.type === 'backpack') ?? [])
 
 const containerList = computed(() => [
@@ -238,7 +242,10 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
           Qty: {{ item?.system?.quantity }}
         </button>
       </div>
-      <div class="ml-auto flex justify-end gap-1" v-if="item?.system?.uses?.value !== undefined">
+      <div
+        class="ml-auto flex justify-end gap-1"
+        v-if="item?.system?.uses?.value !== undefined && !isUnidentified"
+      >
         <div class="text-xl">{{ $t('equipment.usesLabel') }}</div>
         <CounterWidget
           :title="item?.name + ' (uses)'"
