@@ -330,8 +330,29 @@ const selectablePreparedSpellsByRank = computed(() => {
   }
   return [...grouped.entries()]
     .sort(([a], [b]) => a - b)
-    .map(([rank, spells]) => ({ rank, spells }))
+    .map(([rank, spells]) => ({
+      rank,
+      spells: [...spells].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
+    }))
 })
+
+// Free-text filter for the "Select a spell" dialog, reset each time it opens.
+const spellSelectionFilter = ref('')
+const filteredSelectablePreparedSpellsByRank = computed(() => {
+  const needle = spellSelectionFilter.value.trim().toLowerCase()
+  if (!needle) return selectablePreparedSpellsByRank.value
+  return selectablePreparedSpellsByRank.value
+    .map((group) => ({
+      rank: group.rank,
+      spells: group.spells.filter((s) => (s.name ?? '').toLowerCase().includes(needle))
+    }))
+    .filter((group) => group.spells.length)
+})
+
+function openSpellSelection(info: SpellInfo) {
+  spellSelectionFilter.value = ''
+  spellSelectionModal.value?.open(info)
+}
 
 const spellbook = computed(() => buildSpellbook(spellcastingEntries.value, spells.value))
 const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.value))
@@ -360,7 +381,7 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
         title-clickable
         @open-entry="openEntryModal(location)"
         @open-spell="openSpellModal"
-        @open-empty="(info) => spellSelectionModal?.open(info)"
+        @open-empty="openSpellSelection"
         @pick="pickSpellRoll"
       >
         <template #headerCounter>
@@ -565,21 +586,42 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
         </template>
       </InfoModal>
       <Modal ref="spellSelectionModal" :title="$t('spells.selectSpell')">
-        <div v-for="group in selectablePreparedSpellsByRank" :key="group.rank" class="mt-3 first:mt-1">
-          <h4 class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            {{ group.rank === 0 ? $t('spells.cantrips') : $t('spells.rank', { n: group.rank }) }}
-          </h4>
-          <ul>
-            <li
-              data-part="spell-option"
-              class="cursor-pointer rounded px-2 py-1 hover:bg-gray-100"
-              v-for="spell in group.spells"
-              @click="setPreparedSpell(spell)"
-              :key="spell._id"
-            >
-              {{ spell.name }}
-            </li>
-          </ul>
+        <input
+          v-model="spellSelectionFilter"
+          data-part="filter"
+          type="search"
+          class="mt-2 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-hidden"
+          :placeholder="$t('spells.filterSpells')"
+        />
+        <!-- Fixed-height scroll area so the panel height stays constant as the
+             filtered list shrinks, keeping the filter box in a steady position. -->
+        <div class="mt-1 h-[min(70vh,100dvh-11rem)] overflow-y-auto">
+          <div
+            v-for="group in filteredSelectablePreparedSpellsByRank"
+            :key="group.rank"
+            class="mt-3 first:mt-2"
+          >
+            <h4 class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+              {{ group.rank === 0 ? $t('spells.cantrips') : $t('spells.rank', { n: group.rank }) }}
+            </h4>
+            <ul>
+              <li
+                data-part="spell-option"
+                class="cursor-pointer rounded px-2 py-1 hover:bg-gray-100"
+                v-for="spell in group.spells"
+                @click="setPreparedSpell(spell)"
+                :key="spell._id"
+              >
+                {{ spell.name }}
+              </li>
+            </ul>
+          </div>
+          <div
+            v-if="!filteredSelectablePreparedSpellsByRank.length"
+            class="mt-3 px-2 py-1 text-sm italic text-gray-400"
+          >
+            {{ $t('common.noResults') }}
+          </div>
         </div>
       </Modal>
     </Teleport>

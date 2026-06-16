@@ -29,7 +29,8 @@
     "roll": "Roll",
     "level": "Level",
     "added": "Added",
-    "actions": "Actions"
+    "actions": "Actions",
+    "noResults": "No matches"
   },
   "compendium": {
     "addToCharacter": "Add to Character",
@@ -219,6 +220,7 @@
     "wandDetails": "Wand Details",
     "wandsAndScrolls": "Wands and Scrolls",
     "selectSpell": "Select a spell",
+    "filterSpells": "Filter spells…",
     "basic": "basic",
     "ac": "AC",
     "cast": "Cast",

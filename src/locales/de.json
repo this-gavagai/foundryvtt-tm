@@ -29,7 +29,8 @@
     "roll": "Würfeln",
     "level": "Stufe",
     "added": "Hinzugefügt",
-    "actions": "Aktionen"
+    "actions": "Aktionen",
+    "noResults": "Keine Treffer"
   },
   "compendium": {
     "addToCharacter": "Zum Charakter hinzufügen",
@@ -218,6 +219,7 @@
     "wandDetails": "Stab-Details",
     "wandsAndScrolls": "Zauberstäbe und Schriftrollen",
     "selectSpell": "Zauber auswählen",
+    "filterSpells": "Zauber filtern…",
     "basic": "einfach",
     "ac": "RK",
     "cast": "Wirken",
