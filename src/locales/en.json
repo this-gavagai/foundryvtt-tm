@@ -28,7 +28,8 @@
     "use": "Use",
     "roll": "Roll",
     "level": "Level",
-    "added": "Added"
+    "added": "Added",
+    "actions": "Actions"
   },
   "compendium": {
     "addToCharacter": "Add to Character",
@@ -205,7 +206,11 @@
     "usesLabel": "Uses:",
     "useItem": "Use Item",
     "containerLabel": "Container",
-    "partyStash": "Party Stash"
+    "partyStash": "Party Stash",
+    "attach": "Attach",
+    "attachTo": "Attach to {parent}",
+    "attachTitle": "Attach to…",
+    "detach": "Detach"
   },
   "spells": {
     "noSpells": "This character does not cast spells.",

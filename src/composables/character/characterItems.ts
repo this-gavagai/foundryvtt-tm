@@ -11,7 +11,7 @@ import { type Feat, makeFeat } from './defs/feat'
 import { type Effect, makeEffect } from './defs/effect'
 import { makeCondition } from './defs/condition'
 import { deleteActorItem, updateActorItem } from '@/api/documents'
-import { consumeItem } from '@/api/actionRpc'
+import { attachItem, consumeItem, detachItem } from '@/api/actionRpc'
 import { inventoryTypes } from '@/utils/constants'
 import type {
   AbstractEffectPF2e,
@@ -28,6 +28,11 @@ export type InventoryItem = PhysicalItem & {
   system: { uses?: { value: Maybe<number>; max: Maybe<number> } }
   consumeItem?: Consumable['consumeItem']
   changeUses?: Consumable['changeUses']
+  // Attaches this loose item onto the given parent item (for items with an
+  // `attached-to-*` trait, e.g. a shield boss).
+  attachTo?: (parentId: string) => ReturnType<typeof attachItem>
+  // Detaches this subitem from its parent, restoring it as a standalone item.
+  detach?: () => ReturnType<typeof detachItem>
 }
 
 export type EffectItem = Effect & {
@@ -202,11 +207,16 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
         changeUses: (newValue: number) => {
           const updates = { system: { uses: { value: newValue } } }
           return updateActorItem(actor as Ref<CharacterPF2e>, i._id!, updates)
-        }
+        },
+        attachTo: (parentId: string) =>
+          attachItem(actor as Ref<CharacterPF2e>, i._id!, parentId)
       }))
       .map((e) => {
         ;(e.system as PhysicalItemSystem).subitems?.forEach((s) => {
-          ;(s as { label?: string }).label = actor.value?.inventory?.labels?.[s?._id ?? '']
+          const sub = s as InventoryItem
+          sub.label = actor.value?.inventory?.labels?.[s?._id ?? '']
+          // The owning item `e` is this subitem's parent; detach goes through it.
+          sub.detach = () => detachItem(actor as Ref<CharacterPF2e>, e._id!, s._id!)
         })
         return e as InventoryItem
       })

@@ -20,6 +20,8 @@ const props = defineProps<{
   inventory?: InventoryItem[]
   labels?: Record<string, string>
   hideCarryType?: boolean
+  // Attached items (shield bosses, etc.) are read-only: no carry/container/qty controls.
+  isSubitem?: boolean
   inventoryMode?: 'individual' | 'party'
 }>()
 const emit = defineEmits<{
@@ -137,7 +139,7 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
         leave-from-class="opacity-100 max-h-24"
         leave-to-class="opacity-0 max-h-0"
       >
-        <div v-if="item?.type !== 'backpack' && backpacks.length > 0" class="mb-2">
+        <div v-if="item?.type !== 'backpack' && !isSubitem && backpacks.length > 0" class="mb-2">
           <span data-part="container-label" class="mb-1 block">{{
             $t('equipment.containerLabel')
           }}</span>
@@ -170,7 +172,7 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
         </div>
       </Transition>
       <ChoiceWidget
-        v-if="item?.type !== 'backpack' && !hideCarryType"
+        v-if="item?.type !== 'backpack' && !hideCarryType && !isSubitem"
         class="w-full"
         :selected="carryChoices.find((choice) => choice.toggleIsActive())?.id"
         :choiceSet="carryChoices.map((choice) => choice.id)"
@@ -185,7 +187,10 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
         leave-from-class="opacity-100 max-h-6"
         leave-to-class="opacity-0 max-h-0"
       >
-        <div v-if="item?.system.equipped.carryType === 'worn' && itemWornType" class="flex h-6">
+        <div
+          v-if="!isSubitem && item?.system.equipped.carryType === 'worn' && itemWornType"
+          class="flex h-6"
+        >
           <ToggleWidget
             :active="item?.system?.equipped?.inSlot"
             :clicked="
@@ -213,6 +218,7 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
       <div
         class="flex py-1"
         v-if="
+          !isSubitem &&
           item?.system?.equipped?.carryType === 'worn' &&
           (item?.system?.equipped?.invested === true || item?.system?.equipped?.invested === false)
         "
@@ -238,9 +244,15 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
     />
     <div class="flex">
       <div class="flex-1 text-xl">
-        <button type="button" class="cursor-pointer" @click="quantityModal.open()">
+        <button
+          v-if="!isSubitem"
+          type="button"
+          class="cursor-pointer"
+          @click="quantityModal.open()"
+        >
           Qty: {{ item?.system?.quantity }}
         </button>
+        <span v-else>Qty: {{ item?.system?.quantity }}</span>
       </div>
       <div
         class="ml-auto flex justify-end gap-1"

@@ -19,6 +19,8 @@ export type ModuleEventArgs =
   | SetWeaponLoadedArgs
   | SetWeaponDamageTypeArgs
   | ToggleKineticAuraArgs
+  | AttachItemArgs
+  | DetachItemArgs
   | CastStaffSpellArgs
   | FreeRollArgs
   | RollDamageArgs
@@ -238,6 +240,26 @@ export interface ToggleKineticAuraArgs {
   action: typeof TM.TOGGLE_KINETIC_AURA
   userId: string
   characterId: string
+  uuid: string
+}
+
+export interface AttachItemArgs {
+  action: typeof TM.ATTACH_ITEM
+  userId: string
+  characterId: string
+  // The loose physical item being attached, and the item it attaches to.
+  itemId: string
+  parentId: string
+  uuid: string
+}
+
+export interface DetachItemArgs {
+  action: typeof TM.DETACH_ITEM
+  userId: string
+  characterId: string
+  // The item that owns the subitem, and the subitem being detached.
+  parentId: string
+  subitemId: string
   uuid: string
 }
 

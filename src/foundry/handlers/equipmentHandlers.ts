@@ -6,6 +6,8 @@ import type {
   WeaponPF2e
 } from '@7h3laughingman/pf2e-types'
 import type {
+  AttachItemArgs,
+  DetachItemArgs,
   SetWeaponDamageTypeArgs,
   SetWeaponLoadedArgs,
   ToggleKineticAuraArgs
@@ -59,6 +61,30 @@ export async function foundrySetWeaponLoaded(args: SetWeaponLoadedArgs) {
   } else {
     for (const sub of loadedAmmo) await sub.detach({ skipConfirm: true })
   }
+  return ack
+}
+
+// Attaches a loose physical item (e.g. a shield boss) onto a parent item as a
+// subitem. PF2e's attach() handles moving the item into the parent's subitems
+// and setting carryType to "attached".
+export async function foundryAttachItem(args: AttachItemArgs) {
+  const source = getGame()
+  const ack = makeAck(args)
+  const actor = source.actors.get(args.characterId, { strict: true })
+  const item = actor.items.get(args.itemId, { strict: true }) as PhysicalItemPF2e
+  const parent = actor.items.get(args.parentId, { strict: true }) as PhysicalItemPF2e
+  await parent.attach(item)
+  return ack
+}
+
+// Detaches a subitem from its parent, restoring it as a standalone inventory item.
+export async function foundryDetachItem(args: DetachItemArgs) {
+  const source = getGame()
+  const ack = makeAck(args)
+  const actor = source.actors.get(args.characterId, { strict: true })
+  const parent = actor.items.get(args.parentId, { strict: true }) as PhysicalItemPF2e
+  const subitem = parent.subitems.get(args.subitemId, { strict: true })
+  await subitem.detach({ skipConfirm: true })
   return ack
 }
 

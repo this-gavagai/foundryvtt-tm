@@ -8,6 +8,7 @@ import { nextTick, ref, computed, watch } from 'vue'
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import { EllipsisVerticalIcon } from '@heroicons/vue/24/outline'
 import { printPrice } from '@/utils/formatters'
+import { getPath } from '@/utils/utilities'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
@@ -32,6 +33,7 @@ import meepleGroupIcon from '@/assets/icons/meeple-group.svg'
 
 const infoModal = ref()
 const investedModal = ref()
+const attachModal = ref()
 const equipmentDetails = ref<InstanceType<typeof EquipmentDetails>>()
 const equipmentActiveRoll = ref<ActiveRoll>()
 const inlineRolls = useRollsFromActiveRoll(equipmentActiveRoll)
@@ -107,6 +109,45 @@ const itemHasContents = computed(() =>
 const frozenItemUnidentified = computed(
   () => frozenItem.value?.system?.identification?.status === 'unidentified'
 )
+// Attached items (shield bosses, etc.) aren't top-level inventory entries, so
+// they have no carry/container/quantity controls — the modal shows them read-only.
+const frozenItemIsSubitem = computed(
+  () =>
+    frozenItem.value !== undefined &&
+    !displayInventory.value?.some((i: InventoryItem) => i._id === frozenItem.value?._id)
+)
+// Items with an `attached-to-*` trait can attach onto a compatible parent item.
+const frozenItemAttachTrait = computed(() =>
+  frozenItem.value?.system?.traits?.value?.find((t) => t?.startsWith('attached-to-'))
+)
+// Best-effort match of attach target to inventory items; Foundry validates the
+// actual attach, so an over-broad match just shows a button that may no-op.
+function matchesAttachTarget(item: InventoryItem, target: string) {
+  if (item.type === target) return true // e.g. attached-to-shield → shield
+  if (target === 'crossbow' || target.includes('weapon')) return item.type === 'weapon'
+  return false
+}
+// Candidate parents for a loose attachable item (empty once it's attached).
+const attachCandidates = computed(() => {
+  const trait = frozenItemAttachTrait.value
+  if (!trait || frozenItemIsSubitem.value) return []
+  const target = trait.replace('attached-to-', '')
+  return (
+    displayInventory.value?.filter(
+      (i: InventoryItem) => i._id !== frozenItem.value?._id && matchesAttachTarget(i, target)
+    ) ?? []
+  )
+})
+
+function attachToItem(parentId: string) {
+  frozenItem.value?.attachTo?.(parentId)
+  attachModal.value?.close()
+  infoModal.value.close()
+}
+function detachViewedItem() {
+  frozenItem.value?.detach?.()
+  infoModal.value.close()
+}
 
 function setInventoryMode(val: string) {
   slideDirection.value = val === 'party' ? 'left' : 'right'
@@ -269,7 +310,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
                     )"
                     :key="item._id"
                   >
-                    <EquipmentListItem :item="item" @item-clicked="viewItem(item)" />
+                    <EquipmentListItem :item="item" @item-clicked="viewItem" />
                     <ul class="pb-2" v-if="item.type === 'backpack'">
                       <li
                         v-for="stowed in inventory?.filter(
@@ -277,7 +318,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
                         )"
                         :key="stowed._id"
                       >
-                        <EquipmentListItem :item="stowed" @item-clicked="viewItem(stowed)" />
+                        <EquipmentListItem :item="stowed" @item-clicked="viewItem" />
                       </li>
                     </ul>
                   </li>
@@ -326,7 +367,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
                     )"
                     :key="item._id"
                   >
-                    <EquipmentListItem :item="item" @item-clicked="viewItem(item)" />
+                    <EquipmentListItem :item="item" @item-clicked="viewItem" />
                     <ul class="pb-2" v-if="item.type === 'backpack'">
                       <li
                         v-for="stowed in partyInventory?.filter(
@@ -334,7 +375,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
                         )"
                         :key="stowed._id"
                       >
-                        <EquipmentListItem :item="stowed" @item-clicked="viewItem(stowed)" />
+                        <EquipmentListItem :item="stowed" @item-clicked="viewItem" />
                       </li>
                     </ul>
                   </li>
@@ -356,7 +397,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
         :traits="frozenItemUnidentified ? undefined : frozenItem?.system?.traits?.value"
         :rolls="inlineRolls"
       >
-        <template #headerActions v-if="frozenItem">
+        <template #headerActions v-if="frozenItem && !frozenItemIsSubitem">
           <Menu as="div" class="relative flex">
             <MenuButton
               type="button"
@@ -404,6 +445,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
             :inventory="displayInventory"
             :labels="rollOptionLabels"
             :hideCarryType="showPartyInventory"
+            :isSubitem="frozenItemIsSubitem"
             :inventoryMode="partyActorId ? inventoryMode : undefined"
             @moveToInventory="moveItemToInventory"
             @update:activeRoll="equipmentActiveRoll = $event"
@@ -424,9 +466,49 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
             >
               {{ $t('equipment.useItem') }}
             </Button>
+            <Button
+              v-if="isListening && frozenItemIsSubitem && frozenItem?.detach"
+              color="blue"
+              :clicked="detachViewedItem"
+            >
+              {{ $t('equipment.detach') }}
+            </Button>
+            <!-- One candidate: attach directly. Several: open a picker that scales. -->
+            <Button
+              v-if="isListening && frozenItem?.attachTo && attachCandidates.length === 1"
+              color="blue"
+              :clicked="() => attachToItem(attachCandidates[0]._id!)"
+            >
+              {{
+                $t('equipment.attachTo', {
+                  parent: attachCandidates[0].label ?? attachCandidates[0].name
+                })
+              }}
+            </Button>
+            <Button
+              v-else-if="isListening && frozenItem?.attachTo && attachCandidates.length > 1"
+              color="blue"
+              :clicked="() => attachModal.open()"
+            >
+              {{ $t('equipment.attach') }}
+            </Button>
           </div>
         </template>
       </InfoModal>
+      <Modal ref="attachModal" :title="$t('equipment.attachTitle')">
+        <ul>
+          <li v-for="parent in attachCandidates" :key="parent._id">
+            <button
+              type="button"
+              class="flex w-full cursor-pointer items-center gap-2 py-1 text-left active:text-gray-500"
+              @click="attachToItem(parent._id!)"
+            >
+              <img v-if="parent.img" :src="getPath(parent.img)" class="h-6 w-6" alt="" />
+              <span class="truncate">{{ parent.label ?? parent.name }}</span>
+            </button>
+          </li>
+        </ul>
+      </Modal>
     </Teleport>
   </div>
 </template>

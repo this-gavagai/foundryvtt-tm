@@ -28,7 +28,8 @@
     "use": "Benutzen",
     "roll": "Würfeln",
     "level": "Stufe",
-    "added": "Hinzugefügt"
+    "added": "Hinzugefügt",
+    "actions": "Aktionen"
   },
   "compendium": {
     "addToCharacter": "Zum Charakter hinzufügen",
@@ -204,7 +205,11 @@
     "investedCount": "Resonanz: {count} / 10",
     "usesLabel": "Benutzungen:",
     "useItem": "Gegenstand benutzen",
-    "partyStash": "Gruppenvorrat"
+    "partyStash": "Gruppenvorrat",
+    "attach": "Anbringen",
+    "attachTo": "An {parent} anbringen",
+    "attachTitle": "Anbringen an…",
+    "detach": "Abnehmen"
   },
   "spells": {
     "noSpells": "Dieser Charakter wirkt keine Zauber.",

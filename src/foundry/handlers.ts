@@ -26,6 +26,8 @@ export { foundryRerollChatRoll, foundrySendChatMessage } from './handlers/chat'
 export { foundryCastSpell, foundryCastStaffSpell, foundryConsumeItem } from './handlers/castSpell'
 export { getCharacterDetails } from './handlers/characterDetails'
 export {
+  foundryAttachItem,
+  foundryDetachItem,
   foundrySetWeaponDamageType,
   foundrySetWeaponLoaded,
   foundryToggleKineticAura

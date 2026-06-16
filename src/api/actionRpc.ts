@@ -250,6 +250,20 @@ export const setWeaponDamageType = (
     selected
   })
 
+export const attachItem = (actor: Ref<CharacterPF2e>, itemId: string, parentId: string) =>
+  sendAction(TM.ATTACH_ITEM, {
+    ...fromActor(actor),
+    itemId,
+    parentId
+  })
+
+export const detachItem = (actor: Ref<CharacterPF2e>, parentId: string, subitemId: string) =>
+  sendAction(TM.DETACH_ITEM, {
+    ...fromActor(actor),
+    parentId,
+    subitemId
+  })
+
 export const toggleKineticAura = (actor: Ref<CharacterPF2e>) =>
   sendAction(TM.TOGGLE_KINETIC_AURA, fromActor(actor))
 

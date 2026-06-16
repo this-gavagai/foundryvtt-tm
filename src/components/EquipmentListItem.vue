@@ -17,30 +17,37 @@ const totalWeight = computed(() => {
 })
 </script>
 <template>
-  <a
-    class="grid cursor-pointer grid-cols-[auto_30px_20px] items-end gap-x-1"
-    :class="{
-      'text-gray-300': item.system?.equipped?.carryType === 'dropped',
-      'ml-3': item?.system?.containerId
-    }"
-    @click="() => emits('itemClicked', item)"
-  >
-    <div class="truncate" :class="{ italic: item.type === 'backpack' }">
-      {{ item.label ?? item.name }}
-    </div>
-    <div class="text-right text-xs font-light">(x{{ item?.system?.quantity }})</div>
-    <div
-      class="text-right text-xs"
-      :class="[
-        item?.system?.bulk?.value < 1 || item?.system?.stackGroup === 'coins'
-          ? 'font-light text-gray-600'
-          : 'font-semibold'
-      ]"
+  <div>
+    <a
+      class="grid cursor-pointer grid-cols-[auto_30px_20px] items-end gap-x-1"
+      :class="{
+        'text-gray-300': item.system?.equipped?.carryType === 'dropped',
+        'ml-3': item?.system?.containerId
+      }"
+      @click="() => emits('itemClicked', item)"
     >
-      {{ totalWeight }}
-    </div>
-    <div v-for="subitem in item?.system?.subitems" :key="subitem._id" class="pl-4 text-sm">
+      <div class="truncate" :class="{ italic: item.type === 'backpack' }">
+        {{ item.label ?? item.name }}
+      </div>
+      <div class="text-right text-xs font-light">(x{{ item?.system?.quantity }})</div>
+      <div
+        class="text-right text-xs"
+        :class="[
+          item?.system?.bulk?.value < 1 || item?.system?.stackGroup === 'coins'
+            ? 'font-light text-gray-600'
+            : 'font-semibold'
+        ]"
+      >
+        {{ totalWeight }}
+      </div>
+    </a>
+    <a
+      v-for="subitem in item?.system?.subitems"
+      :key="subitem._id"
+      class="block cursor-pointer truncate pl-4 text-sm"
+      @click="() => emits('itemClicked', subitem)"
+    >
       {{ subitem.label ?? subitem.name }}
-    </div>
-  </a>
+    </a>
+  </div>
 </template>

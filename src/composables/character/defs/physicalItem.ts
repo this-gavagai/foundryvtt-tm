@@ -86,7 +86,13 @@ export function makePhysicalItem(root: PhysicalItemPF2e): PhysicalItem {
         },
         per: root.system.price?.per
       },
-      subitems: root.subitems?.contents.map((i) => makeItem(i))
+      // The wire payload serializes items via toObject(), so attached items
+      // (shield bosses, etc.) arrive as source data under system.subitems —
+      // the live `subitems` Collection only exists on a prepared document.
+      // Prefer the source array, falling back to the Collection just in case.
+      subitems: (root.subitems?.contents ?? root.system.subitems)?.map((i) =>
+        makePhysicalItem(i as unknown as Parameters<typeof makePhysicalItem>[0])
+      )
     }
   } as PhysicalItem
 }

@@ -26,6 +26,8 @@ export const TM = {
   SEND_ITEM_TO_CHAT: 'sendItemToChat',
   SET_WEAPON_LOADED: 'setWeaponLoaded',
   SET_WEAPON_DAMAGE_TYPE: 'setWeaponDamageType',
+  ATTACH_ITEM: 'attachItem',
+  DETACH_ITEM: 'detachItem',
   TOGGLE_KINETIC_AURA: 'toggleKineticAura',
   CAST_STAFF_SPELL: 'castStaffSpell',
   FREE_ROLL: 'freeRoll',
