@@ -28,6 +28,5 @@ coverage
 *.sw?
 
 # output files
-package-lock.json
 tablemate/
 tabula/
