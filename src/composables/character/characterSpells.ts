@@ -52,6 +52,9 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
   const spellcastingEntries = computed(() =>
     actor.value?.items
       ?.filter((i): i is SpellcastingEntryPF2e<CharacterPF2e> => i?.type === 'spellcastingEntry')
+      // Mirror Foundry's display order, which sorts items by their `sort` field.
+      // `filter` already returned a fresh array, so sorting in place is safe.
+      ?.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
       ?.map((item) => {
         const spellModData = item._id ? actor.value?.spellcastingModifiers?.[item._id] : undefined
         return {

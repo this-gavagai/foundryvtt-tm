@@ -6,8 +6,13 @@ export const slotKey = (rank: number | string) => 'slot' + rank
 
 // Spellcasting-entry preparation predicates. The prepared.value / flexible
 // combination drives slot accounting and UI throughout, so the rules live here.
+// `flexible` is optional in the data and omitted for normal prepared casters
+// (e.g. clerics) — only an explicit `true` makes an entry flexible, so anything
+// that isn't flexible-true is strict prepared. Matching on `=== false` here
+// would misclassify entries with no `flexible` field as non-prepared, routing
+// them through the spontaneous/sorted path (wrong slot indices, no prep list).
 export const isStrictPrepared = (e?: SpellcastingEntry) =>
-  e?.system.prepared?.value === 'prepared' && e.system.prepared?.flexible === false
+  e?.system.prepared?.value === 'prepared' && e.system.prepared?.flexible !== true
 export const isFlexiblePrepared = (e?: SpellcastingEntry) =>
   e?.system.prepared?.value === 'prepared' && e.system.prepared?.flexible === true
 export const isSlotCaster = (e?: SpellcastingEntry) =>
