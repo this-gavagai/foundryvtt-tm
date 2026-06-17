@@ -2,6 +2,7 @@ import { ref, watch, type Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 
 import { setupSocketListenersForApp, setupSocketListenersForWorld } from '@/api/socketSetup'
+import { useServerAddressStore } from '@/stores/serverAddress'
 import { useServerStore } from '@/stores/server'
 import { useWorldStore } from '@/stores/world'
 import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
@@ -15,8 +16,7 @@ import { logger } from '@/utils/utilities'
 // Returns `reconnecting`, which is true while a world-triggered reconnect is in
 // flight so the view can show a spinner instead of the login page.
 export function useSession(): { reconnecting: Ref<boolean> } {
-  const location = new URL(window.location.origin)
-
+  const { serverUrl } = storeToRefs(useServerAddressStore())
   const serverStore = useServerStore()
   const { needsLogin, socket } = storeToRefs(serverStore)
   const { connectToServer } = serverStore
@@ -28,7 +28,14 @@ export function useSession(): { reconnecting: Ref<boolean> } {
 
   // Connect to the server. The socket watcher owns follow-up setup so every
   // successful connection path, including login and reconnect, behaves the same.
-  void connectToServer(location).catch(() => {})
+  watch(
+    serverUrl,
+    (location) => {
+      if (!location) return
+      void connectToServer(location).catch(() => {})
+    },
+    { immediate: true }
+  )
 
   // Re-register socket listeners whenever a new socket is created (e.g. after
   // connectToServer replaces the socket on auth failure or re-login).
@@ -72,7 +79,8 @@ export function useSession(): { reconnecting: Ref<boolean> } {
   const reconnecting = ref(false)
   let reconnectId = 0
   watch(worldLoaded, async (isRunning) => {
-    if (isRunning && needsLogin.value) {
+    const location = serverUrl.value
+    if (isRunning && needsLogin.value && location) {
       const currentReconnectId = ++reconnectId
       reconnecting.value = true
       try {

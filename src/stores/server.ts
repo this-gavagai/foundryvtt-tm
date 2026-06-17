@@ -1,8 +1,10 @@
 import { ref, watch } from 'vue'
 import { defineStore } from 'pinia'
+import { CapacitorCookies, CapacitorHttp, type HttpResponse } from '@capacitor/core'
 import { io, Socket } from 'socket.io-client'
 import { useUserStore } from '@/stores/user'
 import { useWorldStore } from '@/stores/world'
+import { useServerAddressStore } from '@/stores/serverAddress'
 import { logger } from '@/utils/utilities'
 import { TM } from '@/api/protocol'
 import { fireAllRefresh } from '@/api/characterSync'
@@ -20,6 +22,7 @@ export interface JoinData {
 }
 
 const USERID_STORAGE_KEY = 'userid'
+const SESSION_STORAGE_KEY = 'foundrySession'
 const SOCKET_RECONNECTION_DELAY_MS = 1_000
 const SOCKET_RECONNECTION_DELAY_MAX_MS = 15_000
 const GET_SOCKET_TIMEOUT_MS = 15_000
@@ -30,10 +33,48 @@ const PROBE_CONNECTION_TIMEOUT_MS = 3_000
 const SESSION_WATCHDOG_TIMEOUT_MS = 8_000
 
 function readSessionCookie(): string | undefined {
-  return document.cookie
+  const browserCookie = document.cookie
     .split(';')
     .map((c) => c.trim().split('='))
     .find(([k]) => k === 'session')?.[1]
+  return browserCookie ?? localStorage.getItem(SESSION_STORAGE_KEY) ?? undefined
+}
+
+function responseDataAsText(response: HttpResponse): string {
+  return typeof response.data === 'string' ? response.data : JSON.stringify(response.data ?? '')
+}
+
+function responseDataAsObject(response: HttpResponse): Record<string, unknown> {
+  if (response.data && typeof response.data === 'object') return response.data
+  if (typeof response.data !== 'string') return {}
+  try {
+    const parsed = JSON.parse(response.data)
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function readHeader(response: HttpResponse, headerName: string): string | undefined {
+  const target = headerName.toLowerCase()
+  const entry = Object.entries(response.headers).find(([key]) => key.toLowerCase() === target)
+  return entry?.[1]
+}
+
+function sessionFromSetCookie(setCookie: string | undefined): string | undefined {
+  return setCookie?.match(/(?:^|,\s*)session=([^;,]+)/)?.[1]
+}
+
+function parseJoinUsers(html: string): JoinUser[] {
+  const document = new DOMParser().parseFromString(html, 'text/html')
+  return Array.from(document.querySelectorAll<HTMLSelectElement>('select[name="userid"] option'))
+    .map((option) => ({
+      _id: option.value,
+      name: option.textContent?.trim() ?? option.value,
+      role: 0,
+      color: ''
+    }))
+    .filter((user) => user._id)
 }
 
 function emitWithTimeout<T>(s: Socket, event: string, timeoutMs: number): Promise<T> {
@@ -102,9 +143,14 @@ export const useServerStore = defineStore('server', () => {
   const needsLogin = ref(false)
   const isConnected = ref(false)
   const sessionReady = ref(false)
-  let serverUrl: URL | undefined
+  const connectionError = ref('')
+  const serverUrl = ref<URL>()
   let connectionId = 0
   let sessionWatchdog: ReturnType<typeof setTimeout> | undefined
+
+  function isNativeMobile() {
+    return useServerAddressStore().isNativeMobile
+  }
 
   function clearSessionWatchdog() {
     if (sessionWatchdog === undefined) return
@@ -119,6 +165,10 @@ export const useServerStore = defineStore('server', () => {
     socket.value = undefined
     isConnected.value = false
     sessionReady.value = false
+  }
+
+  function clearConnectionError() {
+    connectionError.value = ''
   }
 
   function currentSocket(): Socket | undefined {
@@ -158,20 +208,77 @@ export const useServerStore = defineStore('server', () => {
   }
 
   async function getJoinData(): Promise<JoinData> {
-    const s = await getSocket()
-    return emitWithRetries<JoinData>(
-      s,
-      'getJoinData',
-      JOIN_DATA_TIMEOUT_MS,
-      JOIN_DATA_RETRY_ATTEMPTS
-    )
+    try {
+      const s = await getSocket()
+      return await emitWithRetries<JoinData>(
+        s,
+        'getJoinData',
+        JOIN_DATA_TIMEOUT_MS,
+        JOIN_DATA_RETRY_ATTEMPTS
+      )
+    } catch (error) {
+      if (!isNativeMobile()) throw error
+      return getNativeJoinData()
+    }
+  }
+
+  async function getNativeJoinData(): Promise<JoinData> {
+    if (!serverUrl.value) throw new Error('Server URL not available')
+    const response = await CapacitorHttp.get({
+      url: new URL('/join', serverUrl.value).href,
+      responseType: 'text',
+      connectTimeout: JOIN_DATA_TIMEOUT_MS,
+      readTimeout: JOIN_DATA_TIMEOUT_MS
+    })
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`Join page returned ${response.status}`)
+    }
+    return {
+      users: parseJoinUsers(responseDataAsText(response)),
+      activeUsers: [],
+      userId: null
+    }
+  }
+
+  async function persistNativeSession(response: HttpResponse) {
+    if (!serverUrl.value) return
+    const session =
+      sessionFromSetCookie(readHeader(response, 'set-cookie')) ??
+      (await CapacitorCookies.getCookies({ url: serverUrl.value.origin })).session
+    if (!session) return
+    localStorage.setItem(SESSION_STORAGE_KEY, session)
+    await CapacitorCookies.setCookie({
+      url: serverUrl.value.origin,
+      key: 'session',
+      value: session,
+      path: '/'
+    })
   }
 
   async function verifyCredentials(userid: string, password: string): Promise<boolean> {
+    if (!serverUrl.value) return false
+    if (isNativeMobile()) {
+      try {
+        const response = await CapacitorHttp.post({
+          url: new URL('/join', serverUrl.value).href,
+          headers: { 'Content-Type': 'application/json' },
+          data: { action: 'join', password, userid },
+          connectTimeout: VERIFY_CREDENTIALS_TIMEOUT_MS,
+          readTimeout: VERIFY_CREDENTIALS_TIMEOUT_MS
+        })
+        if (response.status < 200 || response.status >= 300) return false
+        const data = responseDataAsObject(response)
+        if (data?.status !== 'success') return false
+        await persistNativeSession(response)
+        return true
+      } catch {
+        return false
+      }
+    }
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), VERIFY_CREDENTIALS_TIMEOUT_MS)
     try {
-      const response = await fetch('/join', {
+      const response = await fetch(new URL('/join', serverUrl.value), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'join', password, userid }),
@@ -192,11 +299,11 @@ export const useServerStore = defineStore('server', () => {
   }
 
   async function login(userid: string, password: string): Promise<boolean> {
-    if (!serverUrl) return false
+    if (!serverUrl.value) return false
     if (!(await verifyCredentials(userid, password))) return false
     localStorage.setItem(USERID_STORAGE_KEY, userid)
     try {
-      await connectToServer(serverUrl)
+      await connectToServer(serverUrl.value)
       needsLogin.value = false
     } catch {
       return false
@@ -223,12 +330,13 @@ export const useServerStore = defineStore('server', () => {
   // server URL. If the session cookie is no longer valid, the session
   // watchdog/auth handler will surface the login page.
   async function forceReconnect(): Promise<void> {
-    if (!serverUrl) return
-    await connectToServer(serverUrl)
+    if (!serverUrl.value) return
+    await connectToServer(serverUrl.value)
   }
 
   async function connectToServer(url: URL): Promise<Socket> {
-    serverUrl = url
+    serverUrl.value = url
+    connectionError.value = ''
     const thisConnectionId = ++connectionId
     disconnectCurrentSocket()
     sessionReady.value = false
@@ -293,6 +401,7 @@ export const useServerStore = defineStore('server', () => {
         socket.value = undefined
         isConnected.value = false
         sessionReady.value = false
+        connectionError.value = e instanceof Error ? e.message : 'Could not connect to server'
       }
       throw e
     }
@@ -303,6 +412,9 @@ export const useServerStore = defineStore('server', () => {
     needsLogin,
     isConnected,
     sessionReady,
+    connectionError,
+    serverUrl,
+    clearConnectionError,
     connectToServer,
     forceReconnect,
     probeConnection,
