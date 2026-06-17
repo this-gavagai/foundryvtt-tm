@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="fastlane.lanes">
+    
+    
+    
+      
+      <testcase classname="fastlane.lanes" name="0: default_platform" time="0.000312">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="1: Switch to ios sync_capacitor lane" time="8.4e-05">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="2: npm run cap:sync" time="9.732623">
+        
+      </testcase>
+    
+  </testsuite>
+</testsuites>

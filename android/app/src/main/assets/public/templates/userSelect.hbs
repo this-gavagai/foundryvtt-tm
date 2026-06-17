@@ -1,0 +1,27 @@
+<div class="standard-form" style="padding-bottom: 1rem">
+	<style>
+		.tm-belongs-to {
+			display: flex;
+			align-items: center;
+			gap: 0.35rem;
+			white-space: nowrap;
+		}
+		.tm-user-row:has(input[type="checkbox"]:not(:checked)) .tm-belongs-to {
+			visibility: hidden;
+		}
+	</style>
+	{{#each users}}
+	<div class="tm-user-row" style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.35rem">
+		<label style="flex: 1"><input type="checkbox" name="sheeted.{{this._id}}" {{#if this.sheeted}}checked{{/if}}> {{this.name}}</label>
+		<label class="tm-belongs-to">
+			<span>Belongs to</span>
+			<select name="belongsTo.{{this._id}}">
+				<option value="">— None —</option>
+				{{#each this.belongsToOptions}}
+				<option value="{{this.id}}" {{#if this.selected}}selected{{/if}}>{{this.name}}</option>
+				{{/each}}
+			</select>
+		</label>
+	</div>
+	{{/each}}
+</div>
