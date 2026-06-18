@@ -6,9 +6,6 @@ import vue from '@vitejs/plugin-vue'
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const isCapacitor = mode === 'capacitor'
-
-  const isCapacitor = mode === 'capacitor'
-
   return {
     base: isCapacitor ? './' : isCapacitor ? './' : '/modules/tablemate/',
     define: {
