@@ -481,7 +481,14 @@ defineExpose({ open, close, isOpen })
         <div class="fixed inset-0 bg-black/35" />
       </TransitionChild>
 
-      <div class="fixed inset-0 overflow-hidden p-0 sm:p-4">
+      <div
+        data-part="viewport"
+        class="fixed overflow-hidden p-0 sm:p-4"
+        style="
+          inset: var(--tm-safe-area-top) var(--tm-safe-area-right) var(--tm-safe-area-bottom)
+            var(--tm-safe-area-left);
+        "
+      >
         <div class="flex h-full items-stretch justify-center text-left sm:items-center">
           <TransitionChild
             as="template"
