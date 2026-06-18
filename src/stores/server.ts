@@ -1,6 +1,5 @@
 import { ref, watch } from 'vue'
 import { defineStore } from 'pinia'
-import { CapacitorCookies, CapacitorHttp, type HttpResponse } from '@capacitor/core'
 import { io, Socket } from 'socket.io-client'
 import { useUserStore } from '@/stores/user'
 import { useWorldStore } from '@/stores/world'
@@ -8,74 +7,24 @@ import { useServerAddressStore } from '@/stores/serverAddress'
 import { logger } from '@/utils/utilities'
 import { TM } from '@/api/protocol'
 import { fireAllRefresh } from '@/api/characterSync'
+import { browserServerTransport } from '@/api/browserServerTransport'
+import { capacitorServerTransport } from '@/api/capacitorServerTransport'
+import {
+  JOIN_DATA_RETRY_ATTEMPTS,
+  JOIN_DATA_TIMEOUT_MS,
+  type JoinData,
+  type JoinUser,
+  type ServerTransport
+} from '@/api/serverTransport'
 
-export interface JoinUser {
-  _id: string
-  name: string
-  role: number
-  color: string
-}
-export interface JoinData {
-  users: JoinUser[]
-  activeUsers: string[]
-  userId: string | null
-}
+export type { JoinData, JoinUser }
 
 const USERID_STORAGE_KEY = 'userid'
-const SESSION_STORAGE_KEY = 'foundrySession'
 const SOCKET_RECONNECTION_DELAY_MS = 1_000
 const SOCKET_RECONNECTION_DELAY_MAX_MS = 15_000
 const GET_SOCKET_TIMEOUT_MS = 15_000
-const JOIN_DATA_TIMEOUT_MS = 3_000
-const JOIN_DATA_RETRY_ATTEMPTS = 3
-const VERIFY_CREDENTIALS_TIMEOUT_MS = 10_000
 const PROBE_CONNECTION_TIMEOUT_MS = 3_000
 const SESSION_WATCHDOG_TIMEOUT_MS = 8_000
-
-function readSessionCookie(): string | undefined {
-  const browserCookie = document.cookie
-    .split(';')
-    .map((c) => c.trim().split('='))
-    .find(([k]) => k === 'session')?.[1]
-  return browserCookie ?? localStorage.getItem(SESSION_STORAGE_KEY) ?? undefined
-}
-
-function responseDataAsText(response: HttpResponse): string {
-  return typeof response.data === 'string' ? response.data : JSON.stringify(response.data ?? '')
-}
-
-function responseDataAsObject(response: HttpResponse): Record<string, unknown> {
-  if (response.data && typeof response.data === 'object') return response.data
-  if (typeof response.data !== 'string') return {}
-  try {
-    const parsed = JSON.parse(response.data)
-    return parsed && typeof parsed === 'object' ? parsed : {}
-  } catch {
-    return {}
-  }
-}
-
-function readHeader(response: HttpResponse, headerName: string): string | undefined {
-  const target = headerName.toLowerCase()
-  const entry = Object.entries(response.headers).find(([key]) => key.toLowerCase() === target)
-  return entry?.[1]
-}
-
-function sessionFromSetCookie(setCookie: string | undefined): string | undefined {
-  return setCookie?.match(/(?:^|,\s*)session=([^;,]+)/)?.[1]
-}
-
-function parseJoinUsers(html: string): JoinUser[] {
-  const document = new DOMParser().parseFromString(html, 'text/html')
-  return Array.from(document.querySelectorAll<HTMLSelectElement>('select[name="userid"] option'))
-    .map((option) => ({
-      _id: option.value,
-      name: option.textContent?.trim() ?? option.value,
-      role: 0,
-      color: ''
-    }))
-    .filter((user) => user._id)
-}
 
 function emitWithTimeout<T>(s: Socket, event: string, timeoutMs: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -104,37 +53,44 @@ async function emitWithRetries<T>(
   throw lastError instanceof Error ? lastError : new Error(`${event} failed`)
 }
 
-function establishSocket(url: URL, keepAlive = false) {
+function getServerTransport(isNativeMobile: boolean): ServerTransport {
+  return isNativeMobile ? capacitorServerTransport : browserServerTransport
+}
+
+async function establishSocket(url: URL, transport: ServerTransport, keepAlive = false) {
   return new Promise<Socket>((resolve, reject) => {
     const socketIoUrl = new URL('./socket.io', url)
-    const sid = readSessionCookie()
-    const socket = io(socketIoUrl.origin, {
-      upgrade: false,
-      path: socketIoUrl.pathname,
-      // Mobile networks (cellular ↔ wifi handoffs, NAT-binding expirations,
-      // PWA backgrounding) need an effectively unbounded retry budget — a few
-      // failed attempts is normal and giving up strands the user with a dead
-      // socket. delayMax: 15s caps the backoff so reconnection doesn't drift
-      // into minutes on prolonged outages.
-      reconnection: keepAlive,
-      reconnectionDelay: SOCKET_RECONNECTION_DELAY_MS,
-      reconnectionAttempts: Infinity,
-      reconnectionDelayMax: SOCKET_RECONNECTION_DELAY_MAX_MS,
-      transports: ['websocket'],
-      withCredentials: true,
-      ...(sid ? { query: { session: sid } } : {})
-    })
-    const onConnect = () => {
-      socket.off('connect_error', onError)
-      resolve(socket)
-    }
-    const onError = (e: Error) => {
-      socket.off('connect', onConnect)
-      socket.disconnect()
-      reject(e)
-    }
-    socket.once('connect', onConnect)
-    socket.once('connect_error', onError)
+    Promise.resolve(transport.readSession())
+      .then((sid) => {
+        const socket = io(socketIoUrl.origin, {
+          upgrade: false,
+          path: socketIoUrl.pathname,
+          // Mobile networks (cellular ↔ wifi handoffs, NAT-binding expirations,
+          // PWA backgrounding) need an effectively unbounded retry budget — a few
+          // failed attempts is normal and giving up strands the user with a dead
+          // socket. delayMax: 15s caps the backoff so reconnection doesn't drift
+          // into minutes on prolonged outages.
+          reconnection: keepAlive,
+          reconnectionDelay: SOCKET_RECONNECTION_DELAY_MS,
+          reconnectionAttempts: Infinity,
+          reconnectionDelayMax: SOCKET_RECONNECTION_DELAY_MAX_MS,
+          transports: ['websocket'],
+          withCredentials: true,
+          ...(sid ? { query: { session: sid } } : {})
+        })
+        const onConnect = () => {
+          socket.off('connect_error', onError)
+          resolve(socket)
+        }
+        const onError = (e: Error) => {
+          socket.off('connect', onConnect)
+          socket.disconnect()
+          reject(e)
+        }
+        socket.once('connect', onConnect)
+        socket.once('connect_error', onError)
+      })
+      .catch(reject)
   })
 }
 
@@ -148,8 +104,8 @@ export const useServerStore = defineStore('server', () => {
   let connectionId = 0
   let sessionWatchdog: ReturnType<typeof setTimeout> | undefined
 
-  function isNativeMobile() {
-    return useServerAddressStore().isNativeMobile
+  function currentTransport(): ServerTransport {
+    return getServerTransport(useServerAddressStore().isNativeMobile)
   }
 
   function clearSessionWatchdog() {
@@ -208,7 +164,7 @@ export const useServerStore = defineStore('server', () => {
   }
 
   async function getJoinData(): Promise<JoinData> {
-    try {
+    const socketJoinData = async () => {
       const s = await getSocket()
       return await emitWithRetries<JoinData>(
         s,
@@ -216,82 +172,10 @@ export const useServerStore = defineStore('server', () => {
         JOIN_DATA_TIMEOUT_MS,
         JOIN_DATA_RETRY_ATTEMPTS
       )
-    } catch (error) {
-      if (!isNativeMobile()) throw error
-      return getNativeJoinData()
     }
-  }
 
-  async function getNativeJoinData(): Promise<JoinData> {
     if (!serverUrl.value) throw new Error('Server URL not available')
-    const response = await CapacitorHttp.get({
-      url: new URL('/join', serverUrl.value).href,
-      responseType: 'text',
-      connectTimeout: JOIN_DATA_TIMEOUT_MS,
-      readTimeout: JOIN_DATA_TIMEOUT_MS
-    })
-    if (response.status < 200 || response.status >= 300) {
-      throw new Error(`Join page returned ${response.status}`)
-    }
-    return {
-      users: parseJoinUsers(responseDataAsText(response)),
-      activeUsers: [],
-      userId: null
-    }
-  }
-
-  async function persistNativeSession(response: HttpResponse) {
-    if (!serverUrl.value) return
-    const session =
-      sessionFromSetCookie(readHeader(response, 'set-cookie')) ??
-      (await CapacitorCookies.getCookies({ url: serverUrl.value.origin })).session
-    if (!session) return
-    localStorage.setItem(SESSION_STORAGE_KEY, session)
-    await CapacitorCookies.setCookie({
-      url: serverUrl.value.origin,
-      key: 'session',
-      value: session,
-      path: '/'
-    })
-  }
-
-  async function verifyCredentials(userid: string, password: string): Promise<boolean> {
-    if (!serverUrl.value) return false
-    if (isNativeMobile()) {
-      try {
-        const response = await CapacitorHttp.post({
-          url: new URL('/join', serverUrl.value).href,
-          headers: { 'Content-Type': 'application/json' },
-          data: { action: 'join', password, userid },
-          connectTimeout: VERIFY_CREDENTIALS_TIMEOUT_MS,
-          readTimeout: VERIFY_CREDENTIALS_TIMEOUT_MS
-        })
-        if (response.status < 200 || response.status >= 300) return false
-        const data = responseDataAsObject(response)
-        if (data?.status !== 'success') return false
-        await persistNativeSession(response)
-        return true
-      } catch {
-        return false
-      }
-    }
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), VERIFY_CREDENTIALS_TIMEOUT_MS)
-    try {
-      const response = await fetch(new URL('/join', serverUrl.value), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'join', password, userid }),
-        signal: controller.signal
-      })
-      if (!response.ok) return false
-      const data = await response.json()
-      return data?.status === 'success'
-    } catch {
-      return false
-    } finally {
-      clearTimeout(timeoutId)
-    }
+    return currentTransport().getJoinData(serverUrl.value, socketJoinData)
   }
 
   function handleAuthFailure() {
@@ -300,7 +184,8 @@ export const useServerStore = defineStore('server', () => {
 
   async function login(userid: string, password: string): Promise<boolean> {
     if (!serverUrl.value) return false
-    if (!(await verifyCredentials(userid, password))) return false
+    if (!(await currentTransport().verifyCredentials(serverUrl.value, userid, password)))
+      return false
     localStorage.setItem(USERID_STORAGE_KEY, userid)
     try {
       await connectToServer(serverUrl.value)
@@ -342,7 +227,7 @@ export const useServerStore = defineStore('server', () => {
     sessionReady.value = false
 
     try {
-      const newSocket = await establishSocket(url, true)
+      const newSocket = await establishSocket(url, currentTransport(), true)
       if (thisConnectionId !== connectionId) {
         newSocket.disconnect()
         throw new Error('Stale socket connection ignored')
