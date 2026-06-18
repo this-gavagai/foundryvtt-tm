@@ -176,7 +176,7 @@ defineExpose({ actor, character, actorOrWorldActor })
             />
             <Bars3Icon
               data-part="sidebar-toggle"
-              class="mx-4 my-auto hidden h-10 w-10 cursor-pointer rounded-md p-1 md:block"
+              class="mx-4 my-auto hidden h-10 w-10 cursor-pointer rounded-md p-1 text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-300 md:block"
               @click="sideMenu.sidebarOpen = true"
             />
           </TabList>

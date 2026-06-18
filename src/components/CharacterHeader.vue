@@ -54,7 +54,7 @@ const unreadBadge = computed(() =>
     </div>
     <Bars3Icon
       data-part="sidebar-toggle"
-      class="border-divider my-auto h-10 w-10 cursor-pointer rounded-md p-1"
+      class="my-auto h-10 w-10 cursor-pointer rounded-md p-1 text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-300"
       :class="sidebarToggleClass"
       @click="() => emit('sidebarActivated')"
     />
