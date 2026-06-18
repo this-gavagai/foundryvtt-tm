@@ -57,13 +57,6 @@ watch(
 const fullyReady = computed(
   () => worldLoaded.value === true && !needsLogin.value && worldAuthenticated.value === true
 )
-
-// Paint the cached sheet during the connection handshake rather than a
-// spinner, as long as the world isn't known-down. `reconnecting` is treated
-// like "auth still pending" — it's the signal that a needsLogin is provisional
-// and a re-handshake is in flight, so we'd rather show stale data than flash
-// the login page. Falls through to LoginPage only once login is genuinely
-// required (needsLogin true and no reconnect in flight).
 const showCachedSheet = computed(
   () =>
     !fullyReady.value &&
@@ -71,7 +64,6 @@ const showCachedSheet = computed(
     worldLoaded.value !== false &&
     (!needsLogin.value || reconnecting.value)
 )
-
 const isLoading = computed(
   () =>
     !fullyReady.value &&
