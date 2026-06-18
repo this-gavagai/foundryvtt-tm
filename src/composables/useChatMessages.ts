@@ -65,6 +65,18 @@ interface ChatSceneData {
   tokens?: CollectionLike<ChatTokenData>
 }
 
+interface ChatActorData {
+  _id?: string | null
+  img?: string | null
+  prototypeToken?: {
+    texture?: {
+      src?: string | null
+      scaleX?: number | null
+      scaleY?: number | null
+    }
+  }
+}
+
 export interface ChatMessageView {
   message: ChatMessageData
   key: string
@@ -269,6 +281,16 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
     collectionToArray<ChatSceneData>(world.value?.scenes as CollectionLike<ChatSceneData>)
   )
 
+  const actorsById = computed(() => {
+    const map = new Map<string, ChatActorData>()
+    collectionToArray<ChatActorData>(
+      world.value?.actors as CollectionLike<ChatActorData>
+    ).forEach((actor) => {
+      if (actor._id) map.set(actor._id, actor)
+    })
+    return map
+  })
+
   // Stale-while-revalidate: hydrate the last-seen messages from IndexedDB so the
   // overlay isn't empty on a cold launch, then fall through to live data the
   // moment the world payload arrives. Keyed by the Foundry user _id, falling
@@ -355,16 +377,29 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
     return collectionToArray(scene?.tokens).find((token) => token._id === speaker.token)
   }
 
-  function tokenPortrait(token: ChatTokenData | undefined): string | undefined {
-    const src = token?.texture?.src
-    return src ? getPath(src) : undefined
-  }
-
-  function tokenScale(token: ChatTokenData | undefined): { '--sx': number; '--sy': number } {
-    const texture = token?.texture
+  // Resolve a speaker's portrait, preferring the placed scene token (per-token
+  // art and scale) and falling back to the actor's own portrait. Messages whose
+  // speaker carries only an actor — plain chat sent via ChatMessage.getSpeaker,
+  // or any actor without a token in the active scene — have no scene token, so
+  // without this fallback they render with no portrait at all.
+  function speakerPortrait(message: ChatMessageData): {
+    src?: string
+    scale: { '--sx': number; '--sy': number }
+  } {
+    const token = speakerToken(message)
+    if (token?.texture?.src) {
+      return {
+        src: getPath(token.texture.src),
+        scale: { '--sx': token.texture.scaleX ?? 1, '--sy': token.texture.scaleY ?? 1 }
+      }
+    }
+    const actorId = message.speaker?.actor
+    const actor = actorId ? actorsById.value.get(actorId) : undefined
+    const proto = actor?.prototypeToken?.texture
+    const src = proto?.src ?? actor?.img ?? undefined
     return {
-      '--sx': texture?.scaleX ?? 1,
-      '--sy': texture?.scaleY ?? 1
+      src: src ? getPath(src) : undefined,
+      scale: { '--sx': proto?.scaleX ?? 1, '--sy': proto?.scaleY ?? 1 }
     }
   }
 
@@ -372,7 +407,7 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
     const rolls = rollSummaries(message.rolls)
     const rerollSummary = parseRerollSummary(message.content)
     const showContent = shouldShowMessageContent(message, rolls, rerollSummary)
-    const token = speakerToken(message)
+    const portrait = speakerPortrait(message)
     const author = authorName(message)
     const speaker = speakerName(message, author)
     const visibility = visibilityLabel(message)
@@ -388,12 +423,12 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
       whisperRecipients: whisperRecipientNames(message),
       isOwnActor: messageIsOwnActor(message),
       // Reserve the portrait box from a static signal (the speaker references a
-      // token) so the row keeps a stable height even before scene/token data has
-      // hydrated to resolve the actual src. Without this the box pops in late
-      // during rehydration and shifts everything below it.
-      hasPortrait: !!message.speaker?.token,
-      portrait: tokenPortrait(token),
-      portraitScale: tokenScale(token),
+      // token or an actor) so the row keeps a stable height even before
+      // scene/actor data has hydrated to resolve the actual src. Without this the
+      // box pops in late during rehydration and shifts everything below it.
+      hasPortrait: !!message.speaker?.token || !!message.speaker?.actor,
+      portrait: portrait.src,
+      portraitScale: portrait.scale,
       preparedFlavor: message.flavor
         ? prepareChatHtml(message.flavor, { stripGmContent: !currentUserIsGM.value })
         : undefined,
