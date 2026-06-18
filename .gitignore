@@ -30,5 +30,6 @@ coverage
 
 # output files
 /tablemate/
+/dev-dist/
 tabula/
 .gradle/
