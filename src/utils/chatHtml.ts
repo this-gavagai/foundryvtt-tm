@@ -73,7 +73,7 @@ export function normalizeFoundryAssetUrls(html: string | null | undefined): stri
   template.innerHTML = html
   template.content.querySelectorAll<HTMLImageElement>('img[src]').forEach((img) => {
     const src = img.getAttribute('src')
-    if (!src || /^(?:[a-z][a-z0-9+.-]*:|\/|#)/i.test(src)) return
+    if (!src || src.startsWith('#')) return
     img.setAttribute('src', getPath(src))
   })
   return template.innerHTML

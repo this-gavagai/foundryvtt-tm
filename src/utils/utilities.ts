@@ -1,5 +1,14 @@
+import { useServerAddressStore } from '@/stores/serverAddress'
+
 export function getPath(path: string) {
-  return /^https?:\/\/|^\/\//.test(path) ? path : '../../' + path
+  if (!path || /^[a-z][a-z0-9+.-]*:|^\/\//i.test(path)) return path
+
+  const serverAddressStore = useServerAddressStore()
+  if (serverAddressStore.isNativeMobile && serverAddressStore.serverUrl) {
+    return new URL(path, serverAddressStore.serverUrl).href
+  }
+
+  return '../../' + path
 }
 
 // Focus + select-all on the input that fired the event. Used as a click

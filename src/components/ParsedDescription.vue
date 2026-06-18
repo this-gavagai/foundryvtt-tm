@@ -14,6 +14,7 @@ import {
   activeRollFromFoundryClickTarget,
   compendiumUuidFromClickTarget
 } from '@/utils/foundryHtml'
+import { normalizeFoundryAssetUrls } from '@/utils/chatHtml'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import CompendiumItemModal from '@/components/CompendiumItemModal.vue'
 
@@ -150,7 +151,7 @@ const parsedText = computed(() => {
     inlineRoll: (formula) => `<span class="text-green-900">${escapeHtml(formula)}</span>`
   })
 
-  const selectableText = selectableRollsFromEnrichedHtml(text)
+  const selectableText = normalizeFoundryAssetUrls(selectableRollsFromEnrichedHtml(text))
   if (!shouldAutoSelect.value) return selectableText
   return selectableText?.replace(
     /(<input\b(?=[^>]*\btype="radio")(?=[^>]*\bname="roll")[^>]*)(>)/,
