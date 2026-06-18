@@ -33,6 +33,7 @@ import {
 } from '@/composables/useChatMessages'
 import { collectionToArray, type CollectionLike } from '@/composables/chatCollections'
 import type { UserData } from '@/composables/useChatVisibility'
+import AuthenticatedImage from '@/components/AuthenticatedImage.vue'
 import ChatInlineRollModal from '@/components/ChatInlineRollModal.vue'
 import CompendiumItemModal from '@/components/CompendiumItemModal.vue'
 import InfoModal from '@/components/InfoModal.vue'
@@ -560,7 +561,7 @@ defineExpose({ open, close, isOpen })
                           data-part="chat-portrait"
                           class="h-12 w-12 flex-none overflow-hidden overflow-visible rounded"
                         >
-                          <img
+                          <AuthenticatedImage
                             v-if="view.portrait"
                             class="h-full w-full scale-x-(--sx) scale-y-(--sy) object-cover"
                             :src="view.portrait"

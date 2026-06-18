@@ -28,8 +28,7 @@
 
   #app {
     position: fixed;
-    inset: var(--tm-safe-area-top) var(--tm-safe-area-right) var(--tm-safe-area-bottom)
-      var(--tm-safe-area-left);
+    inset: var(--tm-safe-area-top) var(--tm-safe-area-right) 0 var(--tm-safe-area-left);
     width: auto;
     height: auto;
   }
