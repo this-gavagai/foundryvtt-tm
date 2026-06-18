@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useServerStore } from '@/stores/server'
 import { useSyncStatusStore } from '@/stores/syncStatus'
+import { useListenersStore } from '@/stores/listenersOnline'
 import { useCharacterSelectStore } from '@/stores/characterSelect'
 import { useTopOverlayZIndex } from '@/composables/useOverlayStack'
 import Spinner from '@/components/widgets/SpinnerWidget.vue'
@@ -14,10 +15,13 @@ import Spinner from '@/components/widgets/SpinnerWidget.vue'
 //     app shell shows a spinner then, so a banner would be redundant noise).
 //   • Syncing — the active character is showing a cached snapshot from a prior
 //     session while its first live payload is still in flight. The socket is
-//     typically healthy here; we're just mid-fetch.
+//     typically healthy here; we're just mid-fetch. If no GM is listening, the
+//     fetch can't complete, so we say "Waiting for GM…" instead of spinning on
+//     an indefinite "Syncing…".
 const { isConnected } = storeToRefs(useServerStore())
 const { activeCharacterId } = storeToRefs(useCharacterSelectStore())
 const syncStatus = useSyncStatusStore()
+const { isListening } = storeToRefs(useListenersStore())
 
 const hasEverConnected = ref(false)
 watch(
@@ -30,7 +34,14 @@ watch(
 
 const reconnecting = computed(() => hasEverConnected.value && !isConnected.value)
 const syncing = computed(() => syncStatus.staleActors.has(activeCharacterId.value))
+const waitingForGm = computed(() => syncing.value && !isListening.value)
 const visible = computed(() => reconnecting.value || syncing.value)
+
+const label = computed(() => {
+  if (reconnecting.value) return 'connection.reconnecting'
+  if (waitingForGm.value) return 'connection.waitingForGm'
+  return 'connection.syncing'
+})
 
 // Sit above everything, including an open chat overlay and any teleported
 // popovers inside it. Overlays start at z-index 60 (DropdownWidget uses
@@ -59,7 +70,7 @@ const zIndex = computed(() => (topOverlayZIndex.value > 0 ? topOverlayZIndex.val
         aria-live="polite"
       >
         <Spinner class="h-4 w-4" />
-        <span>{{ reconnecting ? $t('connection.reconnecting') : $t('connection.syncing') }}</span>
+        <span>{{ $t(label) }}</span>
       </div>
     </Transition>
   </Teleport>

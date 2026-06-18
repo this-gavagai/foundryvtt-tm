@@ -44,11 +44,21 @@ body.theme-default {
     background-color: oklch(58% 0.16 145);
   }
 
-  /* sidebar toggle icon matches tab icon luminance */
+  /* sidebar toggle icon matches tab icon luminance. The same [data-part]
+     hook is shared by the mobile header toggle and the desktop tab-bar
+     toggle so both respond identically across breakpoints. Press feedback
+     mirrors the StatBox tap — a quick scale-in + brighten that eases back
+     out, via the slow resting / fast active transition pair. */
   [data-part='sidebar-toggle'] {
     color: var(--color-text);
+    transition:
+      transform 220ms ease,
+      color 220ms ease;
+
     &:active {
       color: oklch(96% 0.005 250);
+      transform: scale(0.9);
+      transition-duration: 50ms;
     }
   }
 
@@ -141,12 +151,46 @@ body.theme-default {
     transform: translateX(-50%);
     width: 1.75rem;
     height: 1px;
+    transition:
+      width 220ms ease,
+      height 220ms ease;
     background: linear-gradient(
       to right,
       transparent,
       var(--proficiency-color, oklch(95% 0.005 250)),
       transparent
     );
+  }
+
+  /* --- StatBox click feedback ----------------------------------------
+     Clicking a detailed / rollable StatBox opens its breakdown, where the
+     effective value can change (modifier toggles). Give the box a brief
+     tactile press response so the tap registers: the whole stack eases
+     inward a touch, and the value brightens to its proficiency hue before
+     springing back. The slow resting transition + fast active transition
+     make it read as a quick pulse on release rather than a hard flash. */
+  [data-component='StatBox'][data-has-details='true'] > div {
+    transition:
+      transform 220ms ease,
+      color 220ms ease;
+  }
+  [data-component='StatBox'][data-has-details='true'] > div:active {
+    transform: scale(0.95);
+    transition-duration: 50ms;
+  }
+  [data-component='StatBox'][data-has-details='true'] > div:active [data-part='modifier'] {
+    color: var(--proficiency-color, oklch(95% 0.005 250));
+    transition-duration: 50ms;
+  }
+
+  /* On rollable boxes the value carries a proficiency-colored underline;
+     bloom it on press so the same tap also lights up that accent rule. */
+  [data-component='StatBox'][data-rollable] > div:active > div:nth-child(2)::after {
+    width: 2.5rem;
+    height: 2px;
+    transition:
+      width 50ms ease,
+      height 50ms ease;
   }
 
   /* --- Inputs ------------------------------------------ */

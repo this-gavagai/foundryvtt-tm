@@ -8,6 +8,7 @@ import type { TablemateActor } from '@/types/character-types'
 import type { ModuleEventArgs } from '@/types/api-types'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useListenersStore } from '@/stores/listenersOnline'
+import { useSyncStatusStore } from '@/stores/syncStatus'
 import { logger } from '@/utils/utilities'
 import {
   getSocket,
@@ -153,8 +154,14 @@ export async function setupSocketListenersForActor(
   const socket = await getSocket()
   const removeRefresh = addRefresh(actorId, refreshMethod)
 
+  // When a GM announces presence, re-fetch any actor still waiting on live
+  // data. We re-fetch if inventory is missing (never loaded) OR the actor is
+  // flagged stale — a cached snapshot from a prior session already carries
+  // inventory, so gating on inventory alone would leave a stale sheet spinning
+  // forever when its initial request was dropped because no GM was listening.
+  const syncStatus = useSyncStatusStore()
   const unsubListener = onTmAction(TM.LISTENER_ONLINE, () => {
-    if (!actor.value?.inventory) fireRefresh(actorId)
+    if (!actor.value?.inventory || syncStatus.staleActors.has(actorId)) fireRefresh(actorId)
   })
   const unsubUpdate = onTmAction(TM.UPDATE_CHARACTER, (args) => {
     parseActorData(actorId, actor, args)

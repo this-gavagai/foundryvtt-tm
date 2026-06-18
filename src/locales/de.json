@@ -337,7 +337,8 @@
   },
   "connection": {
     "reconnecting": "Verbindung wird wiederhergestellt…",
-    "syncing": "Wird synchronisiert…"
+    "syncing": "Wird synchronisiert…",
+    "waitingForGm": "Warten auf Spielleiter…"
   },
   "infoModal": {
     "systemIcon": "PF2e-Systemsymbol",

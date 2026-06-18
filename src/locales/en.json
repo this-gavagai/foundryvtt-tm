@@ -341,7 +341,8 @@
   },
   "connection": {
     "reconnecting": "Reconnecting…",
-    "syncing": "Syncing…"
+    "syncing": "Syncing…",
+    "waitingForGm": "Waiting for GM…"
   },
   "infoModal": {
     "systemIcon": "PF2e system icon",

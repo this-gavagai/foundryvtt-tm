@@ -175,7 +175,8 @@ defineExpose({ actor, character, actorOrWorldActor })
               :class="{ 'md:hidden': tab.mobileOnly }"
             />
             <Bars3Icon
-              class="mx-4 my-auto hidden h-10 w-10 cursor-pointer rounded-md border-gray-900 p-1 text-gray-600 active:text-gray-300 md:block"
+              data-part="sidebar-toggle"
+              class="mx-4 my-auto hidden h-10 w-10 cursor-pointer rounded-md p-1 md:block"
               @click="sideMenu.sidebarOpen = true"
             />
           </TabList>
