@@ -11,10 +11,6 @@ import {
 
 const SESSION_STORAGE_KEY = 'foundrySession'
 
-export function readNativeSession(): string | undefined {
-  return readBrowserSessionCookie() ?? localStorage.getItem(SESSION_STORAGE_KEY) ?? undefined
-}
-
 function responseDataAsText(response: HttpResponse): string {
   return typeof response.data === 'string' ? response.data : JSON.stringify(response.data ?? '')
 }
@@ -85,7 +81,7 @@ async function persistNativeSession(serverUrl: URL, response: HttpResponse) {
 
 export const capacitorServerTransport: ServerTransport = {
   readSession(): string | undefined {
-    return readNativeSession()
+    return readBrowserSessionCookie() ?? localStorage.getItem(SESSION_STORAGE_KEY) ?? undefined
   },
 
   async getJoinData(serverUrl: URL, socketJoinData: () => Promise<JoinData>): Promise<JoinData> {
