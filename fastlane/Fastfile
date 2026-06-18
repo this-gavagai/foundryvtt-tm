@@ -1,0 +1,49 @@
+default_platform(:ios)
+
+private_lane :sync_capacitor do
+  sh("npm run cap:sync")
+end
+
+platform :ios do
+  desc "Build a signed iOS release IPA from the Capacitor app"
+  lane :build do
+    sync_capacitor
+
+    team_id = ENV["IOS_DEVELOPMENT_TEAM"]
+    UI.user_error!("Set IOS_DEVELOPMENT_TEAM to your Apple development team ID before running this lane.") if team_id.to_s.empty?
+
+    build_app(
+      project: "ios/App/App.xcodeproj",
+      scheme: "App",
+      configuration: "Release",
+      export_method: "development",
+      clean: true,
+      export_team_id: team_id,
+      xcargs: "DEVELOPMENT_TEAM=#{team_id}"
+    )
+  end
+end
+
+platform :android do
+  desc "Build a local Android release APK from the Capacitor app"
+  lane :build do
+    sync_capacitor
+
+    gradle(
+      project_dir: "android",
+      task: "assemble",
+      build_type: "Release"
+    )
+  end
+
+  desc "Build an Android release AAB for signing and Play Console upload"
+  lane :bundle do
+    sync_capacitor
+
+    gradle(
+      project_dir: "android",
+      task: "bundle",
+      build_type: "Release"
+    )
+  end
+end

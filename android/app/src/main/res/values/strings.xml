@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Tabula Mensa</string>
+    <string name="title_activity_main">Tabula Mensa</string>
+    <string name="package_name">io.github.thisgavagai.tablemate</string>
+    <string name="custom_url_scheme">io.github.thisgavagai.tablemate</string>
+</resources>

@@ -1,6 +1,7 @@
 import { ref, onScopeDispose } from 'vue'
 import { defineStore } from 'pinia'
 import type { Socket } from 'socket.io-client'
+import { useServerAddressStore } from '@/stores/serverAddress'
 import { useServerStore } from '@/stores/server'
 import { useWorldStore } from '@/stores/world'
 
@@ -15,12 +16,14 @@ export const useFoundryWorldStatusStore = defineStore('foundryWorldStatus', () =
   const worldLoaded = ref<boolean | undefined>(undefined)
 
   async function fetchWorldStatus(): Promise<boolean | undefined> {
+    const serverUrl = useServerAddressStore().serverUrl
+    if (!serverUrl) return undefined
     // 3s cap so a flaky cellular network doesn't strand refreshes on the
     // HTTP step. /api/status is normally a sub-100ms call.
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), STATUS_FETCH_TIMEOUT_MS)
     try {
-      const resp = await fetch(`${window.location.origin}/api/status`, {
+      const resp = await fetch(new URL('/api/status', serverUrl), {
         signal: controller.signal
       })
       clearTimeout(timeoutId)

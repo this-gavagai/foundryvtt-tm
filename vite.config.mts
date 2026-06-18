@@ -5,37 +5,49 @@ import vue from '@vitejs/plugin-vue'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
+  const isCapacitor = mode === 'capacitor'
+
+  const isCapacitor = mode === 'capacitor'
+
   return {
-    base: '/modules/tablemate/',
+    base: isCapacitor ? './' : isCapacitor ? './' : '/modules/tablemate/',
     define: {
       __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'true',
       BUILD_MODE: JSON.stringify(mode)
     },
     build: {
-      outDir: 'tablemate',
+      outDir: isCapacitor ? 'dist' : isCapacitor ? 'dist' : 'tablemate',
       sourcemap: true,
       assetsInlineLimit: 8192, // bump to 8 KiB
       chunkSizeWarningLimit: 1000, // kB
       minify: true,
-      rollupOptions: {
-        input: ['index.html', 'src/foundry/tablemate.ts'],
-        output: {
-          entryFileNames: (chunk) => {
-            if (chunk.facadeModuleId?.endsWith('tablemate.ts')) {
-              return 'tablemate.mjs'
-            } else {
-              return 'assets/[name]-[hash].js'
+      rollupOptions: isCapacitor
+        ? {
+            input: ['index.html'],
+            output: {
+              manualChunks: (id) =>
+                id.includes('@systemic-games/pixels-web-connect') ? 'pixel' : undefined
             }
           }
-          // manualChunks: {
-          //   pixel: ['@systemic-games/pixels-web-connect']
-          // }
-        }
-      }
+        : {
+            input: ['index.html', 'src/foundry/tablemate.ts'],
+            output: {
+              entryFileNames: (chunk) => {
+                if (chunk.facadeModuleId?.endsWith('tablemate.ts')) {
+                  return 'tablemate.mjs'
+                } else {
+                  return 'assets/[name]-[hash].js'
+                }
+              },
+              manualChunks: (id) =>
+                id.includes('@systemic-games/pixels-web-connect') ? 'pixel' : undefined
+            }
+          }
     },
     plugins: [
       vue(),
       VitePWA({
+        disable: isCapacitor,
         // 'prompt' surfaces an explicit "new version" banner via
         // useRegisterSW so mid-session updates are visible to the user instead
         // of silently swapping on next navigation. See UpdatePrompt.vue.
