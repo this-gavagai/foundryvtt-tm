@@ -85,14 +85,14 @@ const characters = useTemplateRef('characters')
 useDevGlobals(characters, urlId)
 </script>
 <template>
-  <div class="fixed inset-0 overflow-hidden">
-    <div v-if="isLoading" class="flex h-dvh items-center justify-center">
+  <div class="absolute inset-0 overflow-hidden">
+    <div v-if="isLoading" class="flex h-full items-center justify-center">
       <Spinner class="h-12 w-12" />
     </div>
     <div
       v-else-if="worldLoaded === false"
       data-component="NoWorldMessage"
-      class="flex h-dvh items-center justify-center p-8 text-center text-lg"
+      class="flex h-full items-center justify-center p-8 text-center text-lg"
     >
       {{ $t('app.noWorld') }}
     </div>

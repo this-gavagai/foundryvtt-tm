@@ -71,7 +71,7 @@ async function handleLogin() {
 }
 </script>
 <template>
-  <div data-component="LoginPage" class="flex h-dvh items-center justify-center">
+  <div data-component="LoginPage" class="flex h-full items-center justify-center">
     <form
       @submit.prevent="handleLogin"
       class="border-divider flex w-80 flex-col gap-4 rounded border p-6"

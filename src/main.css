@@ -4,6 +4,13 @@
 @plugin '@headlessui/tailwindcss';
 
 @layer base {
+  :root {
+    --tm-safe-area-top: env(safe-area-inset-top, 0px);
+    --tm-safe-area-right: env(safe-area-inset-right, 0px);
+    --tm-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --tm-safe-area-left: env(safe-area-inset-left, 0px);
+  }
+
   html,
   body,
   #app {
@@ -20,7 +27,11 @@
   }
 
   #app {
-    height: 100dvh;
+    position: fixed;
+    inset: var(--tm-safe-area-top) var(--tm-safe-area-right) var(--tm-safe-area-bottom)
+      var(--tm-safe-area-left);
+    width: auto;
+    height: auto;
   }
 }
 

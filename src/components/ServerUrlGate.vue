@@ -22,7 +22,7 @@ function handleSubmit() {
 </script>
 
 <template>
-  <div data-component="ServerUrlGate" class="flex h-dvh items-center justify-center p-6">
+  <div data-component="ServerUrlGate" class="flex h-full items-center justify-center p-6">
     <form
       @submit.prevent="handleSubmit"
       class="border-divider flex w-full max-w-sm flex-col gap-4 rounded border bg-white p-6"
