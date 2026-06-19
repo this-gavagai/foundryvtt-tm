@@ -5,7 +5,6 @@ import {
   BookOpenIcon,
   ChatBubbleLeftRightIcon,
   Cog6ToothIcon,
-  ServerStackIcon,
   XMarkIcon
 } from '@heroicons/vue/24/solid'
 import { storeToRefs } from 'pinia'
@@ -35,7 +34,6 @@ import ServerSidebar from './ServerSidebar.vue'
 const serverStore = useServerStore()
 const { isConnected } = storeToRefs(serverStore)
 const serverAddressStore = useServerAddressStore()
-const { isNativeMobile } = storeToRefs(serverAddressStore)
 const { isListening } = storeToRefs(useListenersStore())
 const { world } = storeToRefs(useWorldStore())
 const { worldAuthenticated } = storeToRefs(useFoundryWorldStatusStore())
@@ -134,10 +132,11 @@ function openServerManager() {
   serverSidebar.value?.open()
 }
 // "Join a new server" from the manager: drop the live connection and return to
-// the ServerUrlGate so the user can type a fresh address.
+// the ServerUrlGate, pre-selected on its "New" option so the user can type a
+// fresh address right away.
 function joinNewServer() {
   serverStore.disconnect()
-  serverAddressStore.clearActiveServer()
+  serverAddressStore.requestNewServer()
 }
 
 defineExpose({ sidebarOpen, openChat, openCompendium })
@@ -306,7 +305,7 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                     <li class="flex flex-col gap-3">
                       <Button
                         class="w-full"
-                        color="lightgray"
+                        color="green"
                         :clicked="openChat"
                         :aria-label="$t('sideMenu.chat')"
                       >
@@ -327,33 +326,6 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                           </span>
                         </template>
                       </Button>
-                      <Button
-                        class="w-full"
-                        color="lightgray"
-                        :clicked="openCompendium"
-                        :aria-label="$t('sideMenu.compendium')"
-                      >
-                        <template #default>
-                          <span class="inline-flex items-center justify-center gap-1">
-                            <BookOpenIcon class="h-5 w-5" aria-hidden="true" />
-                            <span class="whitespace-nowrap">{{ $t('sideMenu.compendium') }}</span>
-                          </span>
-                        </template>
-                      </Button>
-                      <Button
-                        v-if="isNativeMobile"
-                        class="w-full"
-                        color="lightgray"
-                        :clicked="openServerManager"
-                        :aria-label="$t('serverUrl.servers')"
-                      >
-                        <template #default>
-                          <span class="inline-flex items-center justify-center gap-1">
-                            <ServerStackIcon class="h-5 w-5" aria-hidden="true" />
-                            <span class="whitespace-nowrap">{{ $t('serverUrl.servers') }}</span>
-                          </span>
-                        </template>
-                      </Button>
                       <div class="flex gap-2">
                         <Button
                           class="flex-1"
@@ -368,6 +340,19 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                           :clicked="openDamageRoll"
                         />
                       </div>
+                      <Button
+                        class="w-full"
+                        color="lightgray"
+                        :clicked="openCompendium"
+                        :aria-label="$t('sideMenu.compendium')"
+                      >
+                        <template #default>
+                          <span class="inline-flex items-center justify-center gap-1">
+                            <BookOpenIcon class="h-5 w-5" aria-hidden="true" />
+                            <span class="whitespace-nowrap">{{ $t('sideMenu.compendium') }}</span>
+                          </span>
+                        </template>
+                      </Button>
                     </li>
                   </ul>
                 </nav>
@@ -379,7 +364,7 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
     </TransitionRoot>
     <RollCheckBuilder ref="freeRollModal" />
     <DamageRollBuilder ref="damageRollModal" />
-    <SettingsModal ref="settingsModal" />
+    <SettingsModal ref="settingsModal" @manage-servers="openServerManager" />
     <ChatOverlay ref="chatOverlay" />
     <CompendiumBrowserOverlay ref="compendiumBrowser" />
     <ServerSidebar ref="serverSidebar" @join="joinNewServer" />

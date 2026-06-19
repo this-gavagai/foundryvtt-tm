@@ -25,14 +25,14 @@ function scrollToTop() {
   >
     <Transition
       mode="out-in"
-      enter-active-class="duration-200 linear transform overflow-hidden"
+      enter-active-class="duration-300 linear transform overflow-hidden"
       :enter-from-class="
         animationsReady
           ? 'transform opacity-0 ' + (props.goLeft ? '-translate-x-8' : 'translate-x-8')
           : ''
       "
       enter-to-class="opacity-100"
-      leave-active-class="duration-200 linear transform overflow-hidden"
+      leave-active-class="duration-300 linear transform overflow-hidden"
       leave-from-class="opacity-100"
       :leave-to-class="'transform opacity-0 ' + (props.goLeft ? 'translate-x-8' : '-translate-x-8')"
       @enter="scrollToTop"

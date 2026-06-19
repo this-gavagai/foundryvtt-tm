@@ -340,9 +340,9 @@ const {
   messageIsOwnActor,
   onMessageSent: () => {
     scrollToBottom(true)
-    // Return focus to the composer for rapid follow-up messages. Deferred to
-    // nextTick so it runs after the textarea's `:disabled` (isSending) clears
-    // on the post-send flush — focusing a disabled element is a no-op.
+    // Return focus to the composer for rapid follow-up messages (e.g. after a
+    // button-click send on desktop). On a keyboard-driven send the textarea
+    // already holds focus, so this is a no-op and the iOS keyboard stays put.
     nextTick(() => chatInput.value?.focus())
   }
 })
@@ -1139,7 +1139,7 @@ defineExpose({ open, close, isOpen })
                     class="block max-h-32 min-h-12 w-full resize-none rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-hidden"
                     rows="2"
                     :placeholder="$t('chat.placeholder')"
-                    :disabled="isSending || !_id"
+                    :disabled="!_id"
                     @keydown.enter.exact.prevent="submitChatMessage"
                     @keydown.meta.enter.prevent="submitChatMessage"
                     @keydown.ctrl.enter.prevent="submitChatMessage"

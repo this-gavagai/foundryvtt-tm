@@ -48,7 +48,7 @@ defineExpose({ open })
 <template>
   <div data-component="ServerSidebar">
     <TransitionRoot as="template" :show="isOpen">
-      <Dialog as="div" class="relative z-50" @close="close">
+      <Dialog as="div" class="relative z-70" @close="close">
         <TransitionChild
           as="template"
           enter="transition-opacity ease-linear duration-300"
@@ -103,6 +103,7 @@ defineExpose({ open })
                     :key="origin"
                     data-part="server-row"
                     :data-active="origin === serverUrlText"
+                    class="flex items-center gap-1"
                   >
                     <button
                       type="button"

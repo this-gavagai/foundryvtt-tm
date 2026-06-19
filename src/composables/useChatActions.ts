@@ -209,12 +209,19 @@ export function useChatActions({
 
     isSending.value = true
     sendError.value = false
+    // Clear the draft up front so the composer empties immediately and the
+    // textarea (which stays enabled during send to keep the iOS keyboard up)
+    // never clobbers anything the user types while the request is in flight.
+    const previousDraft = draft.value
+    draft.value = ''
     try {
       await sendChatMessage(actorId.value, content)
-      draft.value = ''
       onMessageSent?.()
     } catch {
       sendError.value = true
+      // Restore the failed message so it isn't lost, unless the user has
+      // already started typing a replacement.
+      if (!draft.value) draft.value = previousDraft
     } finally {
       isSending.value = false
     }

@@ -52,5 +52,13 @@ export const useWorldStore = defineStore('world', () => {
   const refreshWorldNow = sendWorldRequest
   refreshWorld()
 
-  return { world, refreshWorld, refreshWorldNow }
+  // Drop the last-known world so stale actors/ownership from a previous
+  // session can't be checked against a new user. Called on a genuine
+  // identity change (server/user switch), not on same-user reconnects —
+  // those intentionally keep the stale world visible until fresh data lands.
+  function clearWorld(): void {
+    world.value = undefined
+  }
+
+  return { world, refreshWorld, refreshWorldNow, clearWorld }
 })

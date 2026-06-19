@@ -62,8 +62,12 @@
   "serverUrl": {
     "title": "Foundry-Server",
     "label": "Serveradresse",
+    "server": "Server",
+    "new": "Neu",
     "connect": "Verbinden",
     "invalid": "Gib eine gültige Foundry-Serveradresse ein.",
+    "unreachable": "Server weder über HTTPS noch HTTP erreichbar. Bitte Adresse prüfen und erneut versuchen.",
+    "checking": "Prüfe…",
     "connectionError": "Verbindung zu diesem Server nicht möglich. Bitte Adresse prüfen und erneut versuchen.",
     "servers": "Server",
     "active": "Aktiv",

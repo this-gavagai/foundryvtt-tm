@@ -70,12 +70,16 @@ const { world } = storeToRefs(useWorldStore())
 const { userId } = storeToRefs(useUserStore())
 const { sessionReady } = storeToRefs(useServerStore())
 const actor: Ref<TablemateActor | undefined> = ref()
-const actorOrWorldActor = computed<TablemateActor | undefined>(
+// The actor as known to the *current* world — authoritative for this session,
+// and the only source we trust for the ownership/access check below.
+const worldActor = computed<TablemateActor | undefined>(
   () =>
-    actor.value ??
-    (world.value?.actors?.find<CharacterPF2e<null>>((a) => a._id == props.characterId) as
+    world.value?.actors?.find<CharacterPF2e<null>>((a) => a._id == props.characterId) as
       | TablemateActor
-      | undefined)
+      | undefined
+)
+const actorOrWorldActor = computed<TablemateActor | undefined>(
+  () => actor.value ?? worldActor.value
 )
 const characterActor = computed<TablemateCharacter | undefined>(() =>
   actorOrWorldActor.value?.type === 'character'
@@ -87,16 +91,19 @@ const familiarActor = computed<TablemateFamiliar | undefined>(() =>
     ? (actorOrWorldActor.value as TablemateFamiliar)
     : undefined
 )
+// Ownership is decided strictly from the current world, never from `actor`.
+// `actor` may be a locally-cached IndexedDB snapshot left over from a *different*
+// server (the URL's stale ?id= keeps such a sheet mounted until the new world
+// loads); checking the new user against that snapshot's ownership produced a
+// spurious "userDoesNotOwnCharacter" flash. Until the world confirms the actor
+// we assume permission and paint optimistically from whatever data we have.
 const userHasActorPermission: ComputedRef<boolean> = computed(() => {
-  if (
-    actorOrWorldActor.value?.ownership === undefined ||
-    actorOrWorldActor.value?.ownership?.[userId.value] === 3
-  )
-    return true
+  const ownership = worldActor.value?.ownership
+  if (ownership === undefined || ownership[userId.value] === 3) return true
   else return false
 })
 const accessDenied: ComputedRef<boolean> = computed(
-  () => sessionReady.value && !!actorOrWorldActor.value && !userHasActorPermission.value
+  () => sessionReady.value && !!worldActor.value && !userHasActorPermission.value
 )
 const { character } = useCharacter(characterActor)
 provide(characterKey, character)

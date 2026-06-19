@@ -1,9 +1,9 @@
 import { ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { io, Socket } from 'socket.io-client'
-import { useUserStore } from '@/stores/user'
+import { useUserStore, rememberLoginUser, lastLoginUser } from '@/stores/user'
 import { useWorldStore } from '@/stores/world'
-import { useServerAddressStore } from '@/stores/serverAddress'
+import { useServerAddressStore, serverUrlCandidates } from '@/stores/serverAddress'
 import { logger } from '@/utils/utilities'
 import { TM } from '@/api/protocol'
 import { fireAllRefresh } from '@/api/characterSync'
@@ -19,7 +19,6 @@ import {
 
 export type { JoinData, JoinUser }
 
-const USERID_STORAGE_KEY = 'userid'
 const SOCKET_RECONNECTION_DELAY_MS = 1_000
 const SOCKET_RECONNECTION_DELAY_MAX_MS = 15_000
 const GET_SOCKET_TIMEOUT_MS = 15_000
@@ -65,7 +64,7 @@ function getServerTransport(isNativeMobile: boolean): ServerTransport {
 async function establishSocket(url: URL, transport: ServerTransport, keepAlive = false) {
   return new Promise<Socket>((resolve, reject) => {
     const socketIoUrl = new URL('./socket.io', url)
-    Promise.resolve(transport.readSession())
+    Promise.resolve(transport.readSession(url))
       .then((sid) => {
         const socket = io(socketIoUrl.origin, {
           upgrade: false,
@@ -192,6 +191,33 @@ export const useServerStore = defineStore('server', () => {
     return currentTransport().getJoinData(serverUrl.value, socketJoinData)
   }
 
+  // Resolve a user-typed address into a reachable URL. When no protocol was
+  // typed we probe https first, then http, and only report failure if neither
+  // answers. An explicit protocol is trusted as-is (the socket connection
+  // itself surfaces any connectivity problem, as before).
+  async function resolveServerUrl(
+    input: string
+  ): Promise<{ ok: true; url: URL } | { ok: false; reason: 'invalid' | 'unreachable' }> {
+    let candidates: URL[]
+    try {
+      candidates = serverUrlCandidates(input)
+    } catch {
+      return { ok: false, reason: 'invalid' }
+    }
+    if (candidates.length === 1) return { ok: true, url: candidates[0] }
+    const transport = currentTransport()
+    for (const candidate of candidates) {
+      if (await transport.probe(candidate)) return { ok: true, url: candidate }
+    }
+    return { ok: false, reason: 'unreachable' }
+  }
+
+  // The login user remembered for the active server (empty if none), used to
+  // prefill the login page's user dropdown.
+  function rememberedLoginUser(): string {
+    return serverUrl.value ? lastLoginUser(serverUrl.value.origin) : ''
+  }
+
   function handleAuthFailure() {
     needsLogin.value = true
   }
@@ -200,7 +226,7 @@ export const useServerStore = defineStore('server', () => {
     if (!serverUrl.value) return false
     if (!(await currentTransport().verifyCredentials(serverUrl.value, userid, password)))
       return false
-    localStorage.setItem(USERID_STORAGE_KEY, userid)
+    rememberLoginUser(serverUrl.value.origin, userid)
     try {
       await connectToServer(serverUrl.value)
       needsLogin.value = false
@@ -279,7 +305,17 @@ export const useServerStore = defineStore('server', () => {
         if (thisConnectionId !== connectionId) return
         clearSessionWatchdog()
         if (args?.userId) {
-          useUserStore().setUserId(args?.userId)
+          const userStore = useUserStore()
+          // A different user id means we've switched servers (or re-logged as
+          // someone else). The last-known world belongs to the previous user,
+          // so drop it before flipping sessionReady — otherwise a sheet would
+          // briefly check the new user against the old actor's ownership and
+          // flash "userDoesNotOwnCharacter" until the fresh world arrives. A
+          // same-user reconnect keeps the stale world for a seamless resume.
+          if (userStore.getUserId() && userStore.getUserId() !== args.userId) {
+            useWorldStore().clearWorld()
+          }
+          userStore.setUserId(args.userId)
           sessionReady.value = true
           needsLogin.value = false
           // Re-fire downstream refreshes on every session handshake. This
@@ -315,11 +351,13 @@ export const useServerStore = defineStore('server', () => {
     serverUrl,
     clearConnectionError,
     disconnect,
+    resolveServerUrl,
     connectToServer,
     forceReconnect,
     probeConnection,
     getSocket,
     login,
-    getJoinData
+    getJoinData,
+    rememberedLoginUser
   }
 })

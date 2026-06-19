@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useServerStore, type JoinUser } from '@/stores/server'
 
 const { t } = useI18n()
-const { login, getJoinData, getSocket } = useServerStore()
+const { login, getJoinData, getSocket, rememberedLoginUser } = useServerStore()
 const userid = ref('')
 const password = ref('')
 const submitting = ref(false)
@@ -35,8 +35,15 @@ async function loadUsers() {
     const data = await getJoinData()
     users.value = data.users
     activeUsers.value = data.activeUsers
+    // Prefer this server's remembered login user (if it still exists and isn't
+    // already signed in), otherwise fall back to the first available user.
+    const remembered = rememberedLoginUser()
+    const rememberedSelectable =
+      remembered &&
+      data.users.some((u) => u._id === remembered) &&
+      !data.activeUsers.includes(remembered)
     const firstAvailable = data.users.find((u) => !data.activeUsers.includes(u._id))
-    if (firstAvailable) userid.value = firstAvailable._id
+    userid.value = rememberedSelectable ? remembered : (firstAvailable?._id ?? '')
     const socket = await getSocket()
     socket.off('userActivity', onUserActivity)
     socket.on('userActivity', onUserActivity)
