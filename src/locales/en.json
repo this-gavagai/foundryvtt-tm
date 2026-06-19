@@ -64,7 +64,13 @@
     "label": "Server address",
     "connect": "Connect",
     "invalid": "Enter a valid Foundry server address.",
-    "connectionError": "Could not connect to that server. Check the address and try again."
+    "connectionError": "Could not connect to that server. Check the address and try again.",
+    "servers": "Servers",
+    "active": "Active",
+    "joinNew": "Join a new server",
+    "noServers": "No saved servers yet.",
+    "deleteServer": "Delete {server}",
+    "cancelConnect": "Cancel and change server"
   },
   "app": {
     "userDoesNotOwnCharacter": "User does not own this character",

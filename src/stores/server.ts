@@ -127,6 +127,17 @@ export const useServerStore = defineStore('server', () => {
     connectionError.value = ''
   }
 
+  // Tear down the socket and abandon any in-flight connection attempt. Bumping
+  // connectionId invalidates a pending connectToServer so a late-arriving
+  // socket can't yank the user back out of the gate. Used when the user cancels
+  // a stuck connection to return to the ServerUrlGate.
+  function disconnect() {
+    connectionId += 1
+    disconnectCurrentSocket()
+    needsLogin.value = false
+    connectionError.value = ''
+  }
+
   function currentSocket(): Socket | undefined {
     return socket.value?.connected ? socket.value : undefined
   }
@@ -300,6 +311,7 @@ export const useServerStore = defineStore('server', () => {
     connectionError,
     serverUrl,
     clearConnectionError,
+    disconnect,
     connectToServer,
     forceReconnect,
     probeConnection,

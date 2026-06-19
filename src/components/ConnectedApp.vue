@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 
 import { useServerStore } from '@/stores/server'
+import { useServerAddressStore } from '@/stores/serverAddress'
 import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { usePixelDice } from '@/stores/pixelDice'
 import { hasActorSnapshot } from '@/utils/actorCache'
@@ -25,8 +26,19 @@ import { useScrollBoundaryLock } from '@/composables/useScrollBoundaryLock'
 initTheme()
 useScrollBoundaryLock()
 
-const { needsLogin } = storeToRefs(useServerStore())
+const serverStore = useServerStore()
+const { needsLogin } = storeToRefs(serverStore)
+const serverAddressStore = useServerAddressStore()
+const { isNativeMobile } = storeToRefs(serverAddressStore)
 const { worldAuthenticated, worldLoaded } = storeToRefs(useFoundryWorldStatusStore())
+
+// Escape hatch from a stuck loading state: drop the live/in-flight socket and
+// deactivate the server so App.vue falls back to the ServerUrlGate. The server
+// stays in the saved list — only the active selection is cleared.
+function cancelConnecting() {
+  serverStore.disconnect()
+  serverAddressStore.clearActiveServer()
+}
 
 const { reconnecting } = useSession()
 const { urlId, characterList, activeCharacterId } = useCharacterRouting()
@@ -78,8 +90,17 @@ useDevGlobals(characters, urlId)
 </script>
 <template>
   <div class="absolute inset-0 overflow-hidden">
-    <div v-if="isLoading" class="flex h-full items-center justify-center">
+    <div v-if="isLoading" class="flex h-full flex-col items-center justify-center gap-8">
       <Spinner class="h-12 w-12" />
+      <button
+        v-if="isNativeMobile"
+        type="button"
+        data-part="cancel-connect"
+        class="rounded px-4 py-2 text-sm"
+        @click="cancelConnecting"
+      >
+        {{ $t('serverUrl.cancelConnect') }}
+      </button>
     </div>
     <div
       v-else-if="worldLoaded === false"

@@ -5,10 +5,12 @@ import {
   BookOpenIcon,
   ChatBubbleLeftRightIcon,
   Cog6ToothIcon,
+  ServerStackIcon,
   XMarkIcon
 } from '@heroicons/vue/24/solid'
 import { storeToRefs } from 'pinia'
 import { useServerStore } from '@/stores/server'
+import { useServerAddressStore } from '@/stores/serverAddress'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useWorldStore } from '@/stores/world'
@@ -28,8 +30,12 @@ import SettingsModal from './SettingsModal.vue'
 import Modal from './ModalBox.vue'
 import ChatOverlay from './ChatOverlay.vue'
 import CompendiumBrowserOverlay from './CompendiumBrowserOverlay.vue'
+import ServerSidebar from './ServerSidebar.vue'
 
-const { isConnected } = storeToRefs(useServerStore())
+const serverStore = useServerStore()
+const { isConnected } = storeToRefs(serverStore)
+const serverAddressStore = useServerAddressStore()
+const { isNativeMobile } = storeToRefs(serverAddressStore)
 const { isListening } = storeToRefs(useListenersStore())
 const { world } = storeToRefs(useWorldStore())
 const { worldAuthenticated } = storeToRefs(useFoundryWorldStatusStore())
@@ -120,6 +126,18 @@ const compendiumBrowser = ref<InstanceType<typeof CompendiumBrowserOverlay>>()
 function openCompendium() {
   sidebarOpen.value = false
   compendiumBrowser.value?.open()
+}
+
+const serverSidebar = ref<InstanceType<typeof ServerSidebar>>()
+function openServerManager() {
+  sidebarOpen.value = false
+  serverSidebar.value?.open()
+}
+// "Join a new server" from the manager: drop the live connection and return to
+// the ServerUrlGate so the user can type a fresh address.
+function joinNewServer() {
+  serverStore.disconnect()
+  serverAddressStore.clearActiveServer()
 }
 
 defineExpose({ sidebarOpen, openChat, openCompendium })
@@ -322,6 +340,20 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                           </span>
                         </template>
                       </Button>
+                      <Button
+                        v-if="isNativeMobile"
+                        class="w-full"
+                        color="lightgray"
+                        :clicked="openServerManager"
+                        :aria-label="$t('serverUrl.servers')"
+                      >
+                        <template #default>
+                          <span class="inline-flex items-center justify-center gap-1">
+                            <ServerStackIcon class="h-5 w-5" aria-hidden="true" />
+                            <span class="whitespace-nowrap">{{ $t('serverUrl.servers') }}</span>
+                          </span>
+                        </template>
+                      </Button>
                       <div class="flex gap-2">
                         <Button
                           class="flex-1"
@@ -350,6 +382,7 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
     <SettingsModal ref="settingsModal" />
     <ChatOverlay ref="chatOverlay" />
     <CompendiumBrowserOverlay ref="compendiumBrowser" />
+    <ServerSidebar ref="serverSidebar" @join="joinNewServer" />
     <!-- Detail view for paired Pixel dice. Mounted regardless of pixel count
        so toggling between 1- and 2-die states doesn't tear it down. -->
     <Modal ref="pixelDiceModal" :title="$t('sideMenu.pixelDice')">
