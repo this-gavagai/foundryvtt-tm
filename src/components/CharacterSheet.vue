@@ -7,6 +7,7 @@ import { TabGroup, TabList, TabPanels } from '@headlessui/vue'
 
 import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'
+import { useServerStore } from '@/stores/server'
 import { useCharacterSelectStore } from '@/stores/characterSelect'
 import { useCharacter } from '@/composables/character'
 import { useActorSync } from '@/composables/useActorSync'
@@ -67,6 +68,7 @@ function changeTab(index: number) {
 // base data
 const { world } = storeToRefs(useWorldStore())
 const { userId } = storeToRefs(useUserStore())
+const { sessionReady } = storeToRefs(useServerStore())
 const actor: Ref<TablemateActor | undefined> = ref()
 const actorOrWorldActor = computed<TablemateActor | undefined>(
   () =>
@@ -93,6 +95,9 @@ const userHasActorPermission: ComputedRef<boolean> = computed(() => {
     return true
   else return false
 })
+const accessDenied: ComputedRef<boolean> = computed(
+  () => sessionReady.value && !!actorOrWorldActor.value && !userHasActorPermission.value
+)
 const { character } = useCharacter(characterActor)
 provide(characterKey, character)
 
@@ -185,5 +190,5 @@ defineExpose({ actor, character, actorOrWorldActor })
       <SideMenu ref="sideMenu" />
     </template>
   </div>
-  <div v-else>{{ $t('app.userDoesNotOwnCharacter') }}</div>
+  <div v-else-if="accessDenied">{{ $t('app.userDoesNotOwnCharacter') }}</div>
 </template>

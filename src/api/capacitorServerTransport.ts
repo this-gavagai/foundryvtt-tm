@@ -85,11 +85,18 @@ export const capacitorServerTransport: ServerTransport = {
   },
 
   async getJoinData(serverUrl: URL, socketJoinData: () => Promise<JoinData>): Promise<JoinData> {
+    // On a cold start the socket connects before a session is established, and
+    // Foundry answers getJoinData with an *empty* user list rather than an
+    // error. An empty-but-successful result must still fall back to the HTTP
+    // /join page, which lists users without needing a session — otherwise the
+    // login page shows "No users available" until the app is relaunched.
     try {
-      return await socketJoinData()
+      const data = await socketJoinData()
+      if (data.users.length > 0) return data
     } catch {
-      return getNativeJoinData(serverUrl)
+      /* socket failed entirely — fall back to the HTTP join page below */
     }
+    return getNativeJoinData(serverUrl)
   },
 
   async verifyCredentials(serverUrl: URL, userid: string, password: string): Promise<boolean> {

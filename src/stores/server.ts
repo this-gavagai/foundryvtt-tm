@@ -36,8 +36,13 @@ function emitWithTimeout<T>(s: Socket, event: string, timeoutMs: number): Promis
   })
 }
 
+// Re-acquire a live socket on every attempt. A cold start can swap the socket
+// out from under an in-flight request (the world-load reconnect, or socket.io's
+// own reconnection), so retrying against a single captured reference would just
+// hammer a dead socket until the whole budget is spent. Fetching the current
+// socket each time lets a retry land on the freshly established one.
 async function emitWithRetries<T>(
-  s: Socket,
+  getS: () => Promise<Socket>,
   event: string,
   timeoutMs: number,
   attempts: number
@@ -45,7 +50,7 @@ async function emitWithRetries<T>(
   let lastError: unknown
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
-      return await emitWithTimeout<T>(s, event, timeoutMs)
+      return await emitWithTimeout<T>(await getS(), event, timeoutMs)
     } catch (e) {
       lastError = e
     }
@@ -175,15 +180,13 @@ export const useServerStore = defineStore('server', () => {
   }
 
   async function getJoinData(): Promise<JoinData> {
-    const socketJoinData = async () => {
-      const s = await getSocket()
-      return await emitWithRetries<JoinData>(
-        s,
+    const socketJoinData = async () =>
+      emitWithRetries<JoinData>(
+        () => getSocket(),
         'getJoinData',
         JOIN_DATA_TIMEOUT_MS,
         JOIN_DATA_RETRY_ATTEMPTS
       )
-    }
 
     if (!serverUrl.value) throw new Error('Server URL not available')
     return currentTransport().getJoinData(serverUrl.value, socketJoinData)
