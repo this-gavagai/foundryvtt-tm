@@ -72,8 +72,9 @@ export interface Pf2eNotationReplacers {
     dc: number | undefined,
     against: string | undefined
   ) => string
-  // @UUID[uuid]{label}  /  @Compendium[uuid]{label}
-  uuid?: (uuid: string, label: string) => string
+  // @UUID[uuid]{label}  /  @Compendium[uuid]{label}  ({label} is optional —
+  // PF2e omits it when the link text equals the referenced document's name)
+  uuid?: (uuid: string, label: string | undefined) => string
   // @Damage[formula|annotations]{label}
   damage?: (
     formula: string,
@@ -82,6 +83,10 @@ export interface Pf2eNotationReplacers {
   ) => string
   // [[/r formula]]
   inlineRoll?: (formula: string) => string
+  // @Glyph[Action 1] / @Glyph[Reaction] / @Glyph[Free Action] — action icons
+  glyph?: (value: string) => string
+  // @Trait[slug]{label} — trait tag ({label} optional)
+  trait?: (slug: string, label: string | undefined) => string
 }
 
 // Apply PF2e's text-based notation patterns to `text`, delegating each match
@@ -119,11 +124,24 @@ export function applyPf2eNotation(
     })
   }
 
-  // @UUID[uuid]{label}  /  @Compendium[uuid]{label}
+  // @UUID[uuid]{label}  /  @Compendium[uuid]{label}  ({label} optional)
   if (replacers.uuid) {
     text = text.replace(
-      /@(?:UUID|Compendium)\[([^\]]+)\]\{([^}]*)\}/gm,
-      (_, uuid: string, label: string) => replacers.uuid!(uuid, label)
+      /@(?:UUID|Compendium)\[([^\]]+)\](?:\{([^}]*)\})?/gm,
+      (_, uuid: string, label: string | undefined) => replacers.uuid!(uuid, label)
+    )
+  }
+
+  // @Glyph[Action 1] / @Glyph[Reaction] / @Glyph[Free Action]
+  if (replacers.glyph) {
+    text = text.replace(/@Glyph\[([^\]]+)\]/gm, (_, value: string) => replacers.glyph!(value))
+  }
+
+  // @Trait[slug]{label}  ({label} optional)
+  if (replacers.trait) {
+    text = text.replace(
+      /@Trait\[([^\]]+)\](?:\{([^}]*)\})?/gm,
+      (_, slug: string, label: string | undefined) => replacers.trait!(slug, label)
     )
   }
 
@@ -231,10 +249,39 @@ export function pf2eCheckHtml({
   )}${inlineAttrs(inline ?? {}, CHECK_ATTR_NAMES)}>${body}</a>`
 }
 
-export function pf2eUuidHtml(uuid: string, label: string): string {
-  return `<a class="content-link" data-uuid="${escapeAttr(uuid)}" data-type="Item">${escapeHtml(
-    label
-  )}</a>`
+export function pf2eUuidHtml(uuid: string, label: string | undefined): string {
+  // When PF2e omits the label, the link text is the referenced document's name,
+  // which the client can only learn via an async compendium lookup. Emit a
+  // placeholder flagged with data-uuid-unresolved so the host can fill it in;
+  // the link is still clickable (data-uuid) in the meantime.
+  const hasLabel = typeof label === 'string' && label.length > 0
+  const inner = hasLabel ? escapeHtml(label) : '…'
+  const flag = hasLabel ? '' : ' data-uuid-unresolved'
+  return `<a class="content-link" data-uuid="${escapeAttr(
+    uuid
+  )}" data-type="Item"${flag}>${inner}</a>`
+}
+
+// Map a PF2e @Glyph argument to the character the Pathfinder2eActions font
+// renders as that action icon (matches widgets/ActionIcons.vue's encoding).
+function actionGlyphChar(value: string): string | undefined {
+  const v = value.trim().toLowerCase()
+  if (/^(action(\s*1)?|1|a|single[- ]?action|one[- ]?action)$/.test(v)) return '1'
+  if (/^(action\s*2|2|d|two[- ]?actions?)$/.test(v)) return '2'
+  if (/^(action\s*3|3|t|three[- ]?actions?)$/.test(v)) return '3'
+  if (/^(free[- ]?action|free|f)$/.test(v)) return 'f'
+  if (/^(reaction|r)$/.test(v)) return 'r'
+  return undefined
+}
+
+export function pf2eGlyphHtml(value: string): string {
+  const char = actionGlyphChar(value)
+  if (!char) return escapeHtml(value)
+  return `<span class="action-glyph">${char}</span>`
+}
+
+export function pf2eTraitHtml(slug: string, label: string | undefined): string {
+  return escapeHtml(label ?? slug)
 }
 
 export function pf2eDamageHtml(
@@ -273,6 +320,10 @@ export function enrichChatHtml(html: string): string {
     uuid: pf2eUuidHtml,
 
     damage: pf2eDamageHtml,
+
+    glyph: pf2eGlyphHtml,
+
+    trait: pf2eTraitHtml,
 
     inlineRoll: (formula) => `<span class="text-green-900">${escapeHtml(formula)}</span>`
   }) as string

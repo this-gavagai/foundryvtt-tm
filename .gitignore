@@ -33,3 +33,8 @@ coverage
 /dev-dist/
 tabula/
 .gradle/
+
+# fastlane build artifacts
+/build/
+*.ipa
+*.dSYM.zip

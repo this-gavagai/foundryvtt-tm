@@ -5,47 +5,47 @@
     
     
       
-      <testcase classname="fastlane.lanes" name="0: default_platform" time="0.000261">
+      <testcase classname="fastlane.lanes" name="0: default_platform" time="0.000395">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="1: Switch to ios sync_capacitor lane" time="7.3e-05">
+      <testcase classname="fastlane.lanes" name="1: Switch to ios sync_capacitor lane" time="0.000111">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="2: npm run cap:sync" time="10.30861">
+      <testcase classname="fastlane.lanes" name="2: npm run cap:sync" time="10.013541">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="3: Switch to ios apple_team_id lane" time="0.000233">
+      <testcase classname="fastlane.lanes" name="3: Switch to ios apple_team_id lane" time="0.00102">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="4: Switch to ios app_store_connect_key lane" time="0.000187">
+      <testcase classname="fastlane.lanes" name="4: Switch to ios app_store_connect_key lane" time="0.000394">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="5: app_store_connect_api_key" time="0.005936">
+      <testcase classname="fastlane.lanes" name="5: app_store_connect_api_key" time="0.024621">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="6: increment_build_number" time="2.715799">
+      <testcase classname="fastlane.lanes" name="6: increment_build_number" time="0.544771">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="7: build_app" time="172.799357">
+      <testcase classname="fastlane.lanes" name="7: build_app" time="40.093434">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="8: upload_to_testflight" time="81.928035">
+      <testcase classname="fastlane.lanes" name="8: upload_to_testflight" time="77.086082">
         
       </testcase>
     

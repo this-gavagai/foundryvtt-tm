@@ -43,7 +43,7 @@ const unreadBadge = computed(() =>
         {{ unreadBadge }}
       </span>
     </div>
-    <div class="min-w-36 flex-1">
+    <div class="relative z-10 min-w-36 flex-1">
       <CharacterSelector />
       <div class="flex justify-start gap-8 align-middle">
         <HitPoints />
@@ -54,7 +54,7 @@ const unreadBadge = computed(() =>
     </div>
     <Bars3Icon
       data-part="sidebar-toggle"
-      class="my-auto h-10 w-10 cursor-pointer rounded-md p-1 text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-300"
+      class="relative z-10 my-auto h-10 w-10 cursor-pointer rounded-md p-1 text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-300"
       :class="sidebarToggleClass"
       @click="() => emit('sidebarActivated')"
     />

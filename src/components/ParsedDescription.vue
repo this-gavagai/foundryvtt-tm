@@ -8,8 +8,11 @@ import {
   pf2eActionHtml,
   pf2eCheckHtml,
   pf2eDamageHtml,
+  pf2eGlyphHtml,
+  pf2eTraitHtml,
   pf2eUuidHtml
 } from '@/utils/pf2eEnrich'
+import { resolveCompendiumName } from '@/utils/compendiumNames'
 import {
   activeRollFromFoundryClickTarget,
   compendiumUuidFromClickTarget
@@ -148,6 +151,10 @@ const parsedText = computed(() => {
       return pf2eDamageHtml(resolvedPlain, damageInline, obj.label, displayContent)
     },
 
+    glyph: pf2eGlyphHtml,
+
+    trait: pf2eTraitHtml,
+
     inlineRoll: (formula) => `<span class="text-green-900">${escapeHtml(formula)}</span>`
   })
 
@@ -158,6 +165,21 @@ const parsedText = computed(() => {
     '$1 checked$2'
   )
 })
+
+// Label-less @UUID[...] links render with a "…" placeholder (see pf2eUuidHtml);
+// resolve the referenced document's name and fill it in once it lands.
+function fillUuidLabels() {
+  formRef.value
+    ?.querySelectorAll<HTMLAnchorElement>('a.content-link[data-uuid][data-uuid-unresolved]')
+    .forEach((anchor) => {
+      const uuid = anchor.dataset.uuid
+      anchor.removeAttribute('data-uuid-unresolved')
+      if (!uuid) return
+      resolveCompendiumName(uuid).then((name) => {
+        if (name) anchor.textContent = name
+      })
+    })
+}
 
 function syncSelectedLabel() {
   const form = formRef.value
@@ -194,6 +216,7 @@ function scheduleInitRolls() {
   initTimer = window.setTimeout(() => {
     initTimer = undefined
     initRolls()
+    fillUuidLabels()
   }, 0)
 }
 

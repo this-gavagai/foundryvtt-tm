@@ -41,6 +41,7 @@ platform :ios do
       export_method: "development",
       clean: true,
       export_team_id: team_id,
+      output_directory: "build",
       xcargs: "DEVELOPMENT_TEAM=#{team_id}"
     )
   end
@@ -63,6 +64,7 @@ platform :ios do
       export_method: "app-store",
       clean: true,
       export_team_id: team_id,
+      output_directory: "build",
       xcargs: "DEVELOPMENT_TEAM=#{team_id}"
     )
 

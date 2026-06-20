@@ -17,7 +17,7 @@ defineEmits(['click'])
       :src="getPath(portraitUrl)"
       :alt="$t('app.characterPortrait')"
       :style="{ '--sx': portraitScaleX, '--sy': portraitScaleY }"
-      class="scale-x-(--sx) scale-y-(--sy)"
+      class="scale-x-(--sx) scale-y-(--sy) pointer-events-none"
     />
     <div v-else class="h-full min-h-24">
       <Spinner class="mr-2 h-full w-full p-4" />
