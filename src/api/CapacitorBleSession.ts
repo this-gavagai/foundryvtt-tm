@@ -3,13 +3,14 @@ import { PixelSession, PixelsBluetoothIds } from '@systemic-games/pixels-core-co
 import { logger } from '@/utils/utilities'
 
 // A Pixel die exposes one of two GATT service layouts depending on firmware
-// generation. We don't trust the hard-coded characteristic UUIDs (the shipped
-// web SDK's `legacyDie` set even lists notify === service, which is a quirk of
-// that data); instead we match the *service* against either known UUID and then
-// pick the actual notify/write characteristics by their declared properties.
+// generation. The legacy layout is the one the shipped web SDK connects against,
+// so we try it first, then the newer one. We don't trust the SDK's hard-coded
+// characteristic UUIDs (its `legacyDie` set even lists notify === service, a
+// quirk of that data); instead we match the *service* by UUID and then pick the
+// notify/write characteristics by their declared properties.
 const PIXEL_SERVICE_UUIDS = [
-  PixelsBluetoothIds.die.service,
-  PixelsBluetoothIds.legacyDie.service
+  PixelsBluetoothIds.legacyDie.service,
+  PixelsBluetoothIds.die.service
 ].map((u) => u.toLowerCase())
 
 /**
@@ -27,55 +28,86 @@ export class CapacitorBleSession extends PixelSession {
   private _service?: string
   private _notify?: string
   private _write?: string
+  // Which write modes the resolved write characteristic actually supports. iOS
+  // hangs (then times out) on a with-response write to a characteristic that
+  // only advertises write-without-response, so we must honour these.
+  private _canWrite = false
+  private _canWriteNoResponse = false
   private _connected = false
 
   async connect(timeoutMs: number): Promise<void> {
-    if (!this._connected) {
-      this._notifyConnectionEvent('connecting')
-      try {
-        await BleClient.connect(
-          this._systemId,
-          () => {
-            // Fired by the OS when the link drops (not on our own disconnect()).
-            this._connected = false
-            this._service = this._notify = this._write = undefined
-            this._notifyConnectionEvent('disconnected', 'linkLoss')
-          },
-          timeoutMs > 0 ? { timeout: timeoutMs } : undefined
-        )
-      } catch (e) {
-        this._notifyConnectionEvent('disconnected', 'host')
-        throw e
-      }
-      this._connected = true
-      this._notifyConnectionEvent('connected')
-      this._resolveCharacteristics(await BleClient.getServices(this._systemId))
+    // Already connected and set up (e.g. repeatConnect calling again): just
+    // re-announce ready so a freshly attached listener gets the event.
+    if (this._connected && this._service) {
+      this._notifyConnectionEvent('ready')
+      return
     }
-    // Always re-announce ready so a listener attached after connection still
-    // gets the event — mirrors the web BleSession's behaviour.
+    this._notifyConnectionEvent('connecting')
+    try {
+      await BleClient.connect(
+        this._systemId,
+        () => {
+          // Fired by the OS when the link drops (not on our own disconnect()).
+          this._resetLink()
+          this._notifyConnectionEvent('disconnected', 'linkLoss')
+        },
+        timeoutMs > 0 ? { timeout: timeoutMs } : undefined
+      )
+      this._notifyConnectionEvent('connected')
+      const services = await BleClient.getServices(this._systemId)
+      this._resolveCharacteristics(services)
+      this._connected = true
+    } catch (e) {
+      // Reset so a repeatConnect retry re-runs the *whole* sequence rather than
+      // skipping straight to subscribe with no resolved characteristics.
+      this._resetLink()
+      await BleClient.disconnect(this._systemId).catch(() => undefined)
+      logger.warn('TM-pixl: connect failed', this._systemId, e)
+      this._notifyConnectionEvent('disconnected', 'host')
+      throw e
+    }
     this._notifyConnectionEvent('ready')
   }
 
+  private _resetLink() {
+    this._connected = false
+    this._service = this._notify = this._write = undefined
+    this._canWrite = this._canWriteNoResponse = false
+  }
+
   private _resolveCharacteristics(services: BleService[]) {
-    const svc = services.find((s) => PIXEL_SERVICE_UUIDS.includes(s.uuid.toLowerCase()))
-    if (!svc) {
-      throw new Error(`TM-pixl: no Pixel service on device ${this._systemId}`)
+    for (const wanted of PIXEL_SERVICE_UUIDS) {
+      const svc = services.find((s) => s.uuid.toLowerCase() === wanted)
+      if (!svc) continue
+      const notify = svc.characteristics.find((c) => c.properties.notify || c.properties.indicate)
+      const write = svc.characteristics.find(
+        (c) => c.properties.write || c.properties.writeWithoutResponse
+      )
+      if (notify && write) {
+        this._service = svc.uuid
+        this._notify = notify.uuid
+        this._write = write.uuid
+        this._canWrite = write.properties.write
+        this._canWriteNoResponse = write.properties.writeWithoutResponse
+        // warn-level so it survives a production build during field debugging.
+        logger.warn(
+          `TM-pixl: resolved ${this._systemId} svc=${svc.uuid} notify=${notify.uuid} ` +
+            `write=${write.uuid} (write=${this._canWrite} writeNoResp=${this._canWriteNoResponse})`
+        )
+        return
+      }
     }
-    const notify = svc.characteristics.find((c) => c.properties.notify || c.properties.indicate)
-    const write = svc.characteristics.find(
-      (c) => c.properties.write || c.properties.writeWithoutResponse
-    )
-    if (!notify || !write) {
-      throw new Error(`TM-pixl: Pixel notify/write characteristics not found on ${this._systemId}`)
-    }
-    this._service = svc.uuid
-    this._notify = notify.uuid
-    this._write = write.uuid
+    // Rich error: the store logs this on pair failure, so we see exactly what the
+    // device exposed when no usable Pixel service/characteristics were found.
+    const dump = services.map((s) => ({
+      uuid: s.uuid,
+      chars: s.characteristics.map((c) => ({ uuid: c.uuid, ...c.properties }))
+    }))
+    throw new Error(`TM-pixl: no usable Pixel service on ${this._systemId}: ${JSON.stringify(dump)}`)
   }
 
   async disconnect(): Promise<void> {
-    this._connected = false
-    this._service = this._notify = this._write = undefined
+    this._resetLink()
     await BleClient.disconnect(this._systemId).catch((e) =>
       logger.debug('TM-pixl: disconnect ignored', this._systemId, e)
     )
@@ -101,8 +133,20 @@ export class CapacitorBleSession extends PixelSession {
     if (!this._service || !this._write) {
       throw new Error('TM-pixl: writeValue before connect')
     }
-    const view = new DataView(data)
-    if (withoutResponse) {
+    // The Pixels serializer hands us a raw ArrayBuffer for full messages but a
+    // Uint8Array for type-only ones (e.g. WhoAreYou). Web Bluetooth accepts
+    // either; the plugin needs a DataView, and `new DataView(typedArray)` throws
+    // ("Expected ArrayBuffer"), so view the typed array's own buffer region.
+    const source = data as ArrayBuffer | ArrayBufferView
+    const view = ArrayBuffer.isView(source)
+      ? new DataView(source.buffer, source.byteOffset, source.byteLength)
+      : new DataView(source)
+    // Honour the requested mode when the characteristic supports it, otherwise
+    // fall back to the mode it does support. Pixels acknowledge at the protocol
+    // level (a reply over the notify characteristic), not via the BLE write
+    // response, so a without-response write loses nothing functionally.
+    const useNoResponse = withoutResponse ? this._canWriteNoResponse : !this._canWrite
+    if (useNoResponse) {
       await BleClient.writeWithoutResponse(this._systemId, this._service, this._write, view)
     } else {
       await BleClient.write(this._systemId, this._service, this._write, view)
