@@ -71,6 +71,7 @@ let scrollAnimationFrame: number | undefined
 let openSettleObserver: ResizeObserver | undefined
 let openSettleQuietTimer: number | undefined
 let openSettleHardCapTimer: number | undefined
+let openSettleLoadHandler: ((event: Event) => void) | undefined
 
 interface WhisperUserData extends UserData {
   role?: number
@@ -264,6 +265,10 @@ function onScroll() {
 function stopOpenSettle() {
   openSettleObserver?.disconnect()
   openSettleObserver = undefined
+  if (openSettleLoadHandler && scrollContainer.value) {
+    scrollContainer.value.removeEventListener('load', openSettleLoadHandler, true)
+  }
+  openSettleLoadHandler = undefined
   if (openSettleQuietTimer !== undefined) {
     window.clearTimeout(openSettleQuietTimer)
     openSettleQuietTimer = undefined
@@ -306,13 +311,30 @@ function positionOnOpen() {
     stopOpenSettle()
     const content = el.firstElementChild
     if (!content) return
-    openSettleObserver = new ResizeObserver(() => {
+
+    // Re-pin and (re)start the quiet countdown on a settle event. The countdown
+    // is only armed by *real* size changes — the ResizeObserver's first callback
+    // is just it reporting the current size, and arming on that would tear us down
+    // ~250ms later, before slow-loading portraits/images grow the log on a cold
+    // cache and leave the first open stranded above the bottom.
+    let sawInitialObservation = false
+    const onSettle = (isInitial: boolean) => {
       applyTarget()
+      if (isInitial) return
       if (openSettleQuietTimer !== undefined) window.clearTimeout(openSettleQuietTimer)
       openSettleQuietTimer = window.setTimeout(stopOpenSettle, 250)
+    }
+    openSettleObserver = new ResizeObserver(() => {
+      onSettle(!sawInitialObservation)
+      sawInitialObservation = true
     })
     openSettleObserver.observe(content)
-    openSettleHardCapTimer = window.setTimeout(stopOpenSettle, 1500)
+    // Images are the main late-layout culprit and can finish loading with gaps
+    // longer than the quiet window. A direct `load` signal (capture — load events
+    // don't bubble) re-pins reliably regardless of how the resizes are spaced.
+    openSettleLoadHandler = () => onSettle(false)
+    el.addEventListener('load', openSettleLoadHandler, true)
+    openSettleHardCapTimer = window.setTimeout(stopOpenSettle, 2000)
   })
 }
 
