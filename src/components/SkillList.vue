@@ -35,7 +35,7 @@ withDefaults(
         <h3 class="pb-2 text-lg underline">
           {{ isNonLore ? $t('skills.skills') : $t('skills.lore') }}
         </h3>
-        <ul class="columns-[12rem]">
+        <ul data-part="skill-columns" class="columns-2">
           <li
             v-for="skill in skills?.filter((s: Stat) => !s.lore === isNonLore)"
             class="break-inside-avoid pb-4 text-lg leading-4"

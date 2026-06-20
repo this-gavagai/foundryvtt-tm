@@ -30,7 +30,7 @@ const unreadBadge = computed(() =>
 <template>
   <div
     data-component="CharacterHeader"
-    class="border-divider flex cursor-pointer items-center gap-2 border-t p-4"
+    class="flex cursor-pointer items-center gap-2 p-4"
   >
     <div class="xs:block relative hidden">
       <CharacterPortrait @click="() => emit('chatActivated')" />

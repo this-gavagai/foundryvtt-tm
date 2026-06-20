@@ -63,9 +63,8 @@ function toggle(mod: Modifier) {
         {
           'cursor-pointer': canToggle(mod),
           'text-gray-300': !effectiveEnabled(mod) && !isManuallyDeactivated(mod),
-          'border-green-500 bg-green-100/40 dark:bg-green-900/30': isManuallyActivated(mod),
-          'border-red-500 bg-red-100/40 text-red-700 line-through dark:bg-red-900/30 dark:text-red-300':
-            isManuallyDeactivated(mod),
+          'text-green-800 dark:text-green-400': isManuallyActivated(mod),
+          'text-red-700 line-through dark:text-red-300': isManuallyDeactivated(mod),
           'line-through opacity-50': isStackingLoser(mod)
         }
       ]"

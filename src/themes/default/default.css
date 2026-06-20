@@ -377,6 +377,18 @@ body.theme-default {
       color: oklch(45% 0.01 258);
     }
 
+    /* Manually toggled modifier rows: the theme supplies the highlight fill +
+       border. The base "None" theme intentionally has none of this, leaving
+       only the green text / red strikethrough from the component. */
+    [data-part='modifier'][data-manual-on] {
+      border-color: oklch(60% 0.17 145);
+      background-color: oklch(60% 0.17 145 / 0.18);
+    }
+    [data-part='modifier'][data-manual-off] {
+      border-color: oklch(58% 0.18 25);
+      background-color: oklch(58% 0.18 25 / 0.18);
+    }
+
     /* face picker: per-die buttons for manually selecting a roll result */
     [data-part='face-picker'] button {
       background-color: oklch(22% 0.022 258);
@@ -1146,6 +1158,13 @@ body.theme-default {
   [data-section='action'],
   [data-section='consumables'] {
     --section-color: var(--color-proficiency-trained);
+  }
+
+  /* The default theme keeps the responsive auto column-width for the skills
+     list (the base "None" theme uses a fixed two-column split instead). */
+  [data-component='SkillList'] [data-part='skill-columns'] {
+    column-count: auto;
+    column-width: 12rem;
   }
 
   /* --- Shared glass card treatment ------------------------------------

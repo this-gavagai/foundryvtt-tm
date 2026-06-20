@@ -99,7 +99,7 @@ defineExpose({ open })
                 </div>
               </TransitionChild>
               <div
-                class="flex grow flex-col gap-y-4 overflow-y-auto px-6 pt-5 pb-4"
+                class="flex grow flex-col gap-y-4 overflow-y-auto bg-white px-6 pt-5 pb-4"
                 data-part="panel"
               >
                 <h2 data-part="title" class="flex items-center gap-2 text-lg">
