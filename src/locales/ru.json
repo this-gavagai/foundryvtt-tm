@@ -1,0 +1,362 @@
+{
+  "settings": {
+    "title": "Настройки",
+    "showUnreadOnPortrait": "Показывать число непрочитанных сообщений на портрете персонажа"
+  },
+  "rollCheck": {
+    "saves": "Спасброски",
+    "spotlight": "Восприятие и инициатива",
+    "flat": "Чистая",
+    "skills": "Навыки",
+    "lores": "Знания",
+    "traits": "Признаки",
+    "trait": {
+      "concentrate": "Концентрация",
+      "manipulate": "Воздействие",
+      "fortune": "Удача",
+      "misfortune": "Неудача"
+    }
+  },
+  "common": {
+    "loading": "Загрузка...",
+    "none": "Нет",
+    "close": "Закрыть",
+    "cancel": "Отмена",
+    "delete": "Удалить",
+    "update": "Обновить",
+    "remove": "Удалить",
+    "use": "Использовать",
+    "roll": "Бросок",
+    "level": "Уровень",
+    "added": "Добавлено",
+    "actions": "Действия",
+    "noResults": "Совпадений нет"
+  },
+  "compendium": {
+    "addToCharacter": "Добавить персонажу",
+    "selectSpellcastingEntry": "Добавить в запись сотворения заклинаний",
+    "noSpellcastingEntries": "Записи сотворения заклинаний не найдены. Сначала добавьте одну персонажу."
+  },
+  "compendiumBrowser": {
+    "title": "Обозреватель библиотек",
+    "back": "Назад к библиотекам",
+    "filterPacks": "Фильтр библиотек…",
+    "filterEntries": "Фильтр записей…",
+    "noPacks": "Нет доступных библиотек.",
+    "noEntries": "Записи не найдены.",
+    "levelShort": "Ур. {level}",
+    "truncated": "+{count} ещё — уточните фильтр, чтобы сузить результаты."
+  },
+  "login": {
+    "signIn": "Войти",
+    "signingIn": "Вход…",
+    "loadingUsers": "Загрузка пользователей…",
+    "noUsersAvailable": "Нет доступных пользователей",
+    "userLabel": "Участник",
+    "passwordLabel": "Пароль",
+    "error": "Ошибка входа — проверьте учётные данные.",
+    "couldNotLoadUsers": "Не удалось загрузить список пользователей.",
+    "retry": "Повторить",
+    "activeMarker": "(активен)"
+  },
+  "serverUrl": {
+    "title": "Сервер Foundry",
+    "label": "Адрес сервера",
+    "server": "Сервер",
+    "new": "Новый",
+    "connect": "Подключиться",
+    "invalid": "Введите корректный адрес сервера Foundry.",
+    "unreachable": "Не удалось связаться с сервером по HTTPS или HTTP. Проверьте адрес и попробуйте снова.",
+    "checking": "Проверка…",
+    "connectionError": "Не удалось подключиться к серверу. Проверьте адрес и попробуйте снова.",
+    "servers": "Серверы",
+    "active": "Активный",
+    "joinNew": "Подключиться к новому серверу",
+    "noServers": "Сохранённых серверов пока нет.",
+    "deleteServer": "Удалить {server}",
+    "cancelConnect": "Отменить и сменить сервер"
+  },
+  "app": {
+    "userDoesNotOwnCharacter": "Пользователь не владеет этим персонажем",
+    "characterPortrait": "Портрет персонажа",
+    "noWorld": "На этом сервере не активирован игровой мир. Обратитесь к мастеру."
+  },
+  "tabs": {
+    "character": "Персонаж",
+    "feats": "Способности",
+    "proficiencies": "Мастерства",
+    "equipment": "Снаряжение",
+    "actions": "Действия",
+    "spells": "Заклинания"
+  },
+  "attributes": {
+    "str": "Сил",
+    "dex": "Лвк",
+    "con": "Тел",
+    "int": "Инт",
+    "wis": "Мдр",
+    "cha": "Хар"
+  },
+  "attributesFull": {
+    "str": "Сила",
+    "dex": "Ловкость",
+    "con": "Телосложение",
+    "int": "Интеллект",
+    "wis": "Мудрость",
+    "cha": "Харизма"
+  },
+  "saves": {
+    "fortitude": "Стойкость",
+    "reflex": "Рефлекс",
+    "will": "Воля",
+    "perception": "Восприятие",
+    "perceptionFull": "Восприятие"
+  },
+  "proficiencyLevels": {
+    "untrained": "Нетрен.",
+    "trained": "Обучен",
+    "expert": "Эксперт",
+    "master": "Мастер",
+    "legendary": "Легенда"
+  },
+  "savesFull": {
+    "fortitude": "Спасбросок по Стойкости",
+    "reflex": "Спасбросок по Рефлексу",
+    "will": "Спасбросок по Воле"
+  },
+  "combat": {
+    "initiative": "Инициатива"
+  },
+  "hp": {
+    "heading": "Очки здоровья",
+    "totalMax": "(Макс. всего: {max})",
+    "standard": "Обычные:",
+    "temporary": "Временные:",
+    "reset": "Сбросить ОЗ"
+  },
+  "heroPoints": {
+    "heading": "Оч. гер.",
+    "title": "Очки Героизма"
+  },
+  "ac": {
+    "heading": "КБ",
+    "shieldModal": "Щит",
+    "shieldHpHeading": "ОЗ щита",
+    "noShieldEquipped": "Щит не экипирован",
+    "acBonusLabel": "Бонус КБ:",
+    "hardnessLabel": "Твёрдость:",
+    "brokenAtLabel": "Ломается при:",
+    "hitPointsLabel": "Очки здоровья:"
+  },
+  "xp": {
+    "heading": "Опыт",
+    "title": "Очки опыта"
+  },
+  "movement": {
+    "heading": "Скорость передвижения",
+    "land": "Наземная",
+    "swim": "Плавание",
+    "climb": "Карабканье",
+    "fly": "Полёт",
+    "burrow": "Рытьё",
+    "athleticsSwim": "Проверка Атлетики (плавание)",
+    "athleticsClimb": "Проверка Атлетики (лазание)"
+  },
+  "iwr": {
+    "immunity": "Иммунитет",
+    "weakness": "Слабость",
+    "resistance": "Сопротивление"
+  },
+  "languages": {
+    "heading": "Языки",
+    "none": "Языки не известны"
+  },
+  "skills": {
+    "skills": "Навыки",
+    "lore": "Знания"
+  },
+  "proficiencyTypes": {
+    "attacks": "Атаки",
+    "defenses": "Защита",
+    "classDCs": "КС класса",
+    "spellcasting": "Колдовство",
+    "spellDC": "КС заклинаний"
+  },
+  "feats": {
+    "none": "У этого персонажа нет способностей.",
+    "categories": {
+      "ancestryfeatures": "Особенности родословной",
+      "classfeatures": "Особенности класса",
+      "ancestry": "Способности родословной",
+      "class": "Способности класса",
+      "archetype": "Способности архетипа",
+      "skill": "Способности навыков",
+      "general": "Общие способности",
+      "xdy_ancestryparagon": "Парагон предка",
+      "bonus": "Бонусные способности"
+    }
+  },
+  "effects": {
+    "effectIcon": "Значок эффекта"
+  },
+  "actions": {
+    "use": "Использовать"
+  },
+  "actionTypes": {
+    "action": "Действия",
+    "reaction": "Реакции",
+    "free": "Свободные действия",
+    "skill": "Действия навыков"
+  },
+  "inventoryTypes": {
+    "weapon": "Оружие",
+    "shield": "Щиты",
+    "consumable": "Расходуемые",
+    "equipment": "Снаряжение",
+    "armor": "Броня",
+    "treasure": "Сокровище",
+    "backpack": "Контейнеры"
+  },
+  "equipment": {
+    "noInventory": "У этого персонажа нет инвентаря.",
+    "investedTitle": "Инвестированные предметы",
+    "investedCount": "Инвестировано: {count} / 10",
+    "usesLabel": "Использований:",
+    "useItem": "Использовать предмет",
+    "containerLabel": "Контейнер",
+    "partyStash": "Общий тайник группы",
+    "attach": "Прикрепить",
+    "attachTo": "Прикрепить к {parent}",
+    "attachTitle": "Прикрепить к…",
+    "detach": "Открепить"
+  },
+  "spells": {
+    "noSpells": "Этот персонаж не сотворяет заклинания.",
+    "focusPool": "Запас",
+    "spellDetails": "Подробности заклинания",
+    "wandDetails": "Подробности жезла",
+    "wandsAndScrolls": "Жезлы и свитки",
+    "selectSpell": "Выберите заклинание",
+    "filterSpells": "Фильтр заклинаний…",
+    "basic": "базовый",
+    "ac": "КБ",
+    "cast": "Сотворить",
+    "spellList": "Список заклинаний",
+    "spellAttack": "Атака заклинанием",
+    "rollSpellAttack": "Бросок атаки заклинанием",
+    "cantrips": "Чары",
+    "rank": "Ранг {n}",
+    "range": "Дистанция",
+    "area": "Область",
+    "foot": "фут",
+    "target": "Цель",
+    "defense": "Защита",
+    "attack": "Атака",
+    "damage": "Урон"
+  },
+  "strikes": {
+    "elementalBlastsHeading": "Стихийные взрывы",
+    "elementalBlastLabel": "Стихийный взрыв ({element})",
+    "strikesHeading": "Удары",
+    "strike": "Удар",
+    "blast": "Взрыв",
+    "damage": "Урон",
+    "critical": "Критический",
+    "noAmmo": "Нет боеприпасов",
+    "rangeLabel": "Дистанция:",
+    "rangeUnit": "фт.",
+    "damageTypeLabel": "Тип урона:",
+    "meleeIcon": "значок ближнего боя",
+    "rangedIcon": "значок дистанционного боя",
+    "loaded": "Заряжено",
+    "notLoaded": "Не заряжено",
+    "reload": "Перезарядка",
+    "unload": "Разрядить",
+    "activateAura": "Направить стихии",
+    "deactivateAura": "Завершить ауру"
+  },
+  "rollOptions": {
+    "heading": "Параметры персонажа",
+    "experimentalWarning": "Реализация RollOption всё ещё экспериментальна. Рекомендуется делать резервные копии и действовать осторожно."
+  },
+  "chat": {
+    "title": "Чат",
+    "messageCount": "{count} сообщений",
+    "newMessages": "Новые сообщения",
+    "unreadMessages": "{count} непрочитанных сообщений",
+    "noMessages": "Сообщений в чате пока нет.",
+    "emptyMessage": "Пустое сообщение",
+    "to": "Кому:",
+    "recipient": "Получатель сообщения",
+    "everyone": "Все",
+    "gms": "Ведущие",
+    "placeholder": "Введите сообщение...",
+    "send": "Отправить сообщение",
+    "sending": "Отправка...",
+    "sendFailed": "Не удалось отправить сообщение.",
+    "actionFailed": "Не удалось выполнить действие чата.",
+    "blind": "Вслепую",
+    "whisper": "Шёпот",
+    "whisperTo": "Шёпот → {names}",
+    "damage": "Урон",
+    "half": "Половина",
+    "double": "Двойной",
+    "block": "Блок",
+    "heal": "Исцелить",
+    "rollActions": "Действия броска",
+    "reroll": "Перебросить, оставить новый",
+    "heroPointReroll": "Перебросить очком героизма",
+    "rerollKeepHighest": "Перебросить, оставить больший",
+    "rerollKeepLowest": "Перебросить, оставить меньший"
+  },
+  "sideMenu": {
+    "closeSidebar": "Закрыть боковую панель",
+    "chat": "Чат",
+    "compendium": "Библиотеки",
+    "targetingProxy": "Прокси нацеливания",
+    "pairPixelDice": "Сопрячь Pixel Die",
+    "pixelDice": "Pixel Dice",
+    "language": "Язык",
+    "theme": "Тема",
+    "manualDicePicker": "Ручной ввод результатов костей",
+    "freeRoll": "Проверка броском",
+    "freeRollTitle": "Проверка (d20)",
+    "secret": "Тайна",
+    "rollD20": "Бросить d20",
+    "damageRoll": "Бросок урона",
+    "traits": "Признаки",
+    "checkStat": "Бросить как",
+    "damageRollTitle": "Бросок урона",
+    "rollDamage": "Бросок урона",
+    "damageType": "Тип урона",
+    "addDie": "Добавить кость",
+    "persistent": "Продолжительный",
+    "precision": "Точный",
+    "splash": "Брызги",
+    "clear": "Очистить",
+    "damageEmpty": "Нажмите на размер кости, чтобы добавить",
+    "modifier": "Мод."
+  },
+  "pixel": {
+    "noBluetooth": "Этот браузер не поддерживает Bluetooth-кости.",
+    "insecureContext": "Для Bluetooth-костей нужно защищённое (HTTPS) соединение.",
+    "pairFailed": "Не удалось сопрячь кость. Попробуйте снова."
+  },
+  "widgets": {
+    "toggleSwitch": "Переключатель"
+  },
+  "updatePrompt": {
+    "message": "Доступна новая версия.",
+    "reload": "Перезагрузить"
+  },
+  "connection": {
+    "reconnecting": "Переподключение…",
+    "syncing": "Синхронизация…",
+    "waitingForGm": "Ожидание ведущего…"
+  },
+  "infoModal": {
+    "systemIcon": "Значок системы PF2e",
+    "dieImage": "Изображение d{faces}",
+    "clearDicePending": "Нажмите, чтобы сбросить ожидающие броски физических костей"
+  }
+}
