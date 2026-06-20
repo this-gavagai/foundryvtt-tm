@@ -75,6 +75,16 @@ export const useCharacterSelectStore = defineStore('characterSelect', () => {
     if (newId) activeCharacterId.value = newId
   }
 
+  // Drop the current selection wholesale. Used on a server switch: the active
+  // character (and any deep-linked url id) belonged to the previous server, so
+  // clearing lets the character-list watch re-default to one of the new
+  // server's owned characters once its world arrives.
+  function resetSelection() {
+    urlId.value = undefined
+    activeCharacterId.value = ''
+    activeSheetTab.value = undefined
+  }
+
   function initializeActiveSheetTab(defaultIndex: number) {
     activeSheetTab.value ??= defaultIndex
   }
@@ -90,6 +100,7 @@ export const useCharacterSelectStore = defineStore('characterSelect', () => {
     activeSheetTab,
     initialize,
     setActiveCharacterId,
+    resetSelection,
     initializeActiveSheetTab,
     setActiveSheetTab
   }

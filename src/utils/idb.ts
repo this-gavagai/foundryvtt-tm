@@ -7,8 +7,10 @@ import { logger } from '@/utils/utilities'
 // unavailable (private mode, quota, etc.) — caching is best-effort.
 
 const DB_NAME = 'tablemate'
-// Bumped to 2 to add the 'chat' store alongside the original 'actors' store.
-const DB_VERSION = 2
+// v2 added the 'chat' store alongside the original 'actors' store.
+// v3 re-keyed actor snapshots per server origin; legacy unscoped entries are
+// dropped on upgrade (see openDb) so they can't paint on the wrong server.
+const DB_VERSION = 3
 const STORE_NAMES = ['actors', 'chat'] as const
 export type StoreName = (typeof STORE_NAMES)[number]
 
@@ -19,9 +21,15 @@ function openDb(): Promise<IDBDatabase | undefined> {
   dbPromise = new Promise((resolve) => {
     try {
       const req = indexedDB.open(DB_NAME, DB_VERSION)
-      req.onupgradeneeded = () => {
+      req.onupgradeneeded = (event) => {
         for (const name of STORE_NAMES) {
           if (!req.result.objectStoreNames.contains(name)) req.result.createObjectStore(name)
+        }
+        // Upgrading from before per-server scoping: wipe the actor snapshots,
+        // which were keyed by bare actor id and so couldn't tell servers apart.
+        // The cache is best-effort — the live fetch repopulates it per server.
+        if (event.oldVersion < 3 && req.result.objectStoreNames.contains('actors')) {
+          req.transaction?.objectStore('actors').clear()
         }
       }
       req.onsuccess = () => resolve(req.result)

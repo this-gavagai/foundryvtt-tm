@@ -4,6 +4,8 @@ import { Capacitor } from '@capacitor/core'
 import { browserServerTransport } from '@/api/browserServerTransport'
 import { capacitorServerTransport } from '@/api/capacitorServerTransport'
 import { forgetLoginUser } from '@/stores/user'
+import { useWorldStore } from '@/stores/world'
+import { useCharacterSelectStore } from '@/stores/characterSelect'
 
 const ACTIVE_URL_STORAGE_KEY = 'tablemate.serverUrl'
 const SERVERS_STORAGE_KEY = 'tablemate.servers'
@@ -103,6 +105,12 @@ export const useServerAddressStore = defineStore('serverAddress', () => {
   // the gate). The gate consumes it once to pre-select its "New" option.
   const pendingNewServer = ref(false)
 
+  // The origin whose characters/world are currently held in memory. Tracked
+  // separately from serverUrl because serverUrl is cleared to undefined while
+  // the gate is showing (clearActiveServer), which would otherwise lose the
+  // comparison needed to detect a genuine server *switch* on the next activate.
+  let loadedOrigin = serverUrl.value?.origin
+
   function persistServers() {
     if (!isNativeMobile.value) return
     localStorage.setItem(SERVERS_STORAGE_KEY, JSON.stringify(servers.value))
@@ -130,6 +138,17 @@ export const useServerAddressStore = defineStore('serverAddress', () => {
   // serverUrl ref changes identity even when re-selecting the same origin —
   // useSession watches this ref and (re)connects on every change.
   function activate(url: URL) {
+    // Switching to a *different* server: drop the previous server's in-memory
+    // world and character selection now, so its sheets can't flash on the new
+    // server before the fresh world (and per-server cached snapshots) load.
+    // A same-origin reactivation (reconnect) is left untouched, preserving the
+    // seamless-resume world. Cached snapshots are already isolated per server
+    // via the actor-cache key, so the new server only ever reads its own.
+    if (loadedOrigin && loadedOrigin !== url.origin) {
+      useWorldStore().clearWorld()
+      useCharacterSelectStore().resetSelection()
+    }
+    loadedOrigin = url.origin
     serverUrl.value = url
     if (isNativeMobile.value) localStorage.setItem(ACTIVE_URL_STORAGE_KEY, url.origin)
   }
