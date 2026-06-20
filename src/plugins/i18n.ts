@@ -23,11 +23,14 @@ function localeName(id: string): string {
 }
 
 // Languages offered in the sidebar selector, derived from the discovered
-// catalogs so the list can never drift from what actually loaded.
-export const availableLocales = Object.keys(messages).map((id) => ({
-  id,
-  name: localeName(id)
-}))
+// catalogs so the list can never drift from what actually loaded. English is
+// pinned first; the rest follow in discovery order.
+export const availableLocales = Object.keys(messages)
+  .sort((a, b) => (a === 'en' ? -1 : b === 'en' ? 1 : 0))
+  .map((id) => ({
+    id,
+    name: localeName(id)
+  }))
 
 // Language is a client-side preference, cached in localStorage. Defaults to 'en'.
 function getInitialLocale(): string {

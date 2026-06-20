@@ -22,7 +22,7 @@ function handleClicked() {
 </script>
 <template>
   <div
-    class="flex justify-between gap-1 active:text-gray-500"
+    class="flex items-center justify-between gap-1 active:text-gray-500"
     @click="handleClicked()"
     :data-active="props.active"
   >
