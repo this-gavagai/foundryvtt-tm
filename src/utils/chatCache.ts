@@ -1,5 +1,5 @@
 import type { ChatMessageData } from '@/composables/useChatMessages'
-import { idbGet, idbPut } from '@/utils/idb'
+import { idbGet, idbPut, idbDeleteByPrefix } from '@/utils/idb'
 import { useServerAddressStore } from '@/stores/serverAddress'
 import { logger } from '@/utils/utilities'
 
@@ -21,10 +21,18 @@ const MAX_CACHED_MESSAGES = 200
 // Prefix a cache key with the active server origin. Returns undefined when no
 // server is active (the gate is showing); callers treat that as a cache miss /
 // no-op. '|' appears in neither an origin nor a Foundry user id.
+const KEY_DELIMITER = '|'
+
 function scopedKey(key: string): string | undefined {
   const origin = useServerAddressStore().serverUrl?.origin
   if (!origin) return undefined
-  return `${origin}|${key}`
+  return `${origin}${KEY_DELIMITER}${key}`
+}
+
+// Drop every cached chat entry (messages + read markers) for a server. Called
+// when the server is forgotten so a re-add starts with an empty chat log.
+export function clearChatCacheForServer(origin: string): Promise<void> {
+  return idbDeleteByPrefix('chat', `${origin}${KEY_DELIMITER}`)
 }
 
 export function loadCachedChatMessages(userId: string): Promise<ChatMessageData[] | undefined> {

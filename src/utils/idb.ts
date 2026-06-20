@@ -78,6 +78,38 @@ export async function idbCount(store: StoreName, key: string): Promise<number> {
   })
 }
 
+// Delete every entry whose key begins with `prefix`. Cache keys are prefixed
+// with the server origin, so this drops all of one server's cached data when
+// that server is forgotten. A bounded key range keeps the cursor from ever
+// touching another server's entries. Degrades to a no-op if IDB is unavailable.
+export async function idbDeleteByPrefix(store: StoreName, prefix: string): Promise<void> {
+  const db = await openDb()
+  if (!db) return
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(store, 'readwrite')
+      // '￿' is the largest code unit, so [prefix, prefix+'￿'] spans
+      // exactly the keys that start with `prefix` (suffixes are ASCII ids).
+      const range = IDBKeyRange.bound(prefix, `${prefix}￿`)
+      const req = tx.objectStore(store).openCursor(range)
+      req.onsuccess = () => {
+        const cursor = req.result
+        if (!cursor) return
+        cursor.delete()
+        cursor.continue()
+      }
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => {
+        logger.debug('idb: deleteByPrefix failed', store, prefix, tx.error)
+        resolve()
+      }
+    } catch (e) {
+      logger.debug('idb: deleteByPrefix failed', store, prefix, e)
+      resolve()
+    }
+  })
+}
+
 export async function idbPut(store: StoreName, key: string, value: unknown): Promise<void> {
   const db = await openDb()
   if (!db) return

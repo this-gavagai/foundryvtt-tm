@@ -68,7 +68,8 @@ onUnmounted(async () => {
 async function handleLogin() {
   submitting.value = true
   error.value = ''
-  const success = await login(userid.value, password.value)
+  const name = users.value.find((u) => u._id === userid.value)?.name
+  const success = await login(userid.value, password.value, name)
   if (success) {
     window.location.reload()
     return

@@ -1,5 +1,5 @@
 import type { TablemateActor } from '@/types/character-types'
-import { idbGet, idbCount, idbPut } from '@/utils/idb'
+import { idbGet, idbCount, idbPut, idbDeleteByPrefix } from '@/utils/idb'
 import { useServerAddressStore } from '@/stores/serverAddress'
 import { logger } from '@/utils/utilities'
 
@@ -15,12 +15,20 @@ import { logger } from '@/utils/utilities'
 // Build the per-server cache key. Returns undefined when no server is active
 // (the gate is showing) — callers then treat it as a cache miss / no-op, since
 // no sheet is mounted to read or write a snapshot in that state.
+// '|' can appear in neither an origin nor a Foundry actor id, so it's an
+// unambiguous delimiter between the two halves of a scoped key.
+const KEY_DELIMITER = '|'
+
 function scopedKey(actorId: string): string | undefined {
   const origin = useServerAddressStore().serverUrl?.origin
   if (!origin) return undefined
-  // '|' can appear in neither an origin nor a Foundry actor id, so it's an
-  // unambiguous delimiter between the two.
-  return `${origin}|${actorId}`
+  return `${origin}${KEY_DELIMITER}${actorId}`
+}
+
+// Drop every cached snapshot belonging to a server. Called when the server is
+// forgotten so a re-add starts with a clean cache instead of stale characters.
+export function clearActorSnapshotsForServer(origin: string): Promise<void> {
+  return idbDeleteByPrefix('actors', `${origin}${KEY_DELIMITER}`)
 }
 
 export function loadActorSnapshot(actorId: string): Promise<TablemateActor | undefined> {

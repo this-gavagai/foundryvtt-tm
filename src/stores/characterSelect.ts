@@ -3,6 +3,7 @@ import { defineStore, storeToRefs } from 'pinia'
 import type { ActorPF2e } from '@7h3laughingman/pf2e-types'
 import { useWorldStore } from '@/stores/world'
 import { useSettingsStore } from '@/stores/settings'
+import { getLastCharacterId } from '@/utils/utilities'
 
 export const useCharacterSelectStore = defineStore('characterSelect', () => {
   const { world } = storeToRefs(useWorldStore())
@@ -57,8 +58,8 @@ export const useCharacterSelectStore = defineStore('characterSelect', () => {
     characterList,
     (list) => {
       if (!activeCharacterId.value && list.length > 0) {
-        const saved = localStorage.getItem('lastCharacterId')
-        activeCharacterId.value = (saved && list.includes(saved)) ? saved : list[0]
+        const saved = getLastCharacterId()
+        activeCharacterId.value = saved && list.includes(saved) ? saved : list[0]
       }
     },
     { immediate: true }
@@ -75,14 +76,28 @@ export const useCharacterSelectStore = defineStore('characterSelect', () => {
     if (newId) activeCharacterId.value = newId
   }
 
-  // Drop the current selection wholesale. Used on a server switch: the active
-  // character (and any deep-linked url id) belonged to the previous server, so
-  // clearing lets the character-list watch re-default to one of the new
-  // server's owned characters once its world arrives.
-  function resetSelection() {
-    urlId.value = undefined
-    activeCharacterId.value = ''
+  // Re-point the selection at the *new* server after a switch. The previous
+  // server's active character (and deep-linked `?id=`) must not carry over, so
+  // we reseed from this server's own remembered character (scoped per origin —
+  // the caller updates serverUrl before calling this). Seeding it up front lets
+  // that character's cached snapshot paint immediately rather than waiting for
+  // the new world to load; the activeCharacterId watch in useCharacterRouting
+  // then syncs the URL/storage. If the server has no remembered character we
+  // clear the selection (and the stale `?id=`) and let the character-list watch
+  // default to an owned character once the world arrives.
+  function reseedForCurrentServer() {
     activeSheetTab.value = undefined
+    const remembered = getLastCharacterId()
+    if (remembered) {
+      urlId.value = remembered
+      activeCharacterId.value = remembered
+    } else {
+      urlId.value = undefined
+      activeCharacterId.value = ''
+      if (new URLSearchParams(window.location.search).has('id')) {
+        history.replaceState({}, '', window.location.pathname)
+      }
+    }
   }
 
   function initializeActiveSheetTab(defaultIndex: number) {
@@ -100,7 +115,7 @@ export const useCharacterSelectStore = defineStore('characterSelect', () => {
     activeSheetTab,
     initialize,
     setActiveCharacterId,
-    resetSelection,
+    reseedForCurrentServer,
     initializeActiveSheetTab,
     setActiveSheetTab
   }

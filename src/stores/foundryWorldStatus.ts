@@ -90,6 +90,7 @@ export const useFoundryWorldStatusStore = defineStore('foundryWorldStatus', () =
     fetchWorldStatus,
     markWorldLoaded,
     markWorldInactive,
+    markWorldPending,
     setWorldAuthenticated
   }
 })

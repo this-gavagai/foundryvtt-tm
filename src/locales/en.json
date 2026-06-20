@@ -74,7 +74,10 @@
     "joinNew": "Join a new server",
     "noServers": "No saved servers yet.",
     "deleteServer": "Delete {server}",
-    "cancelConnect": "Cancel and change server"
+    "cancelConnect": "Cancel and change server",
+    "notSignedIn": "Not signed in",
+    "activeSection": "Active server",
+    "otherServers": "Other servers"
   },
   "app": {
     "userDoesNotOwnCharacter": "User does not own this character",

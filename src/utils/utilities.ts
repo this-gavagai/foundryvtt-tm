@@ -1,5 +1,28 @@
 import { useServerAddressStore } from '@/stores/serverAddress'
 
+// The last-selected character id, persisted per server origin so returning to a
+// server resumes its character — and, crucially, so a *different* server never
+// inherits a character id that only exists on the one you came from (which would
+// otherwise strand the app on an invisible sheet for a foreign actor).
+function lastCharacterIdKey(origin?: string): string {
+  const o = origin ?? useServerAddressStore().serverUrl?.origin ?? ''
+  return `tablemate.lastCharacterId:${o}`
+}
+
+export function getLastCharacterId(): string | null {
+  return localStorage.getItem(lastCharacterIdKey())
+}
+
+export function setLastCharacterId(id: string): void {
+  localStorage.setItem(lastCharacterIdKey(), id)
+}
+
+// Forget a server's remembered character. Called when the server is removed so
+// a re-add doesn't auto-select a character left over from the deleted one.
+export function clearLastCharacterId(origin: string): void {
+  localStorage.removeItem(lastCharacterIdKey(origin))
+}
+
 export function getPath(path: string) {
   if (!path || /^[a-z][a-z0-9+.-]*:|^\/\//i.test(path)) return path
 

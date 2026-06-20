@@ -6,6 +6,10 @@ import { capacitorServerTransport } from '@/api/capacitorServerTransport'
 import { forgetLoginUser } from '@/stores/user'
 import { useWorldStore } from '@/stores/world'
 import { useCharacterSelectStore } from '@/stores/characterSelect'
+import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
+import { clearActorSnapshotsForServer } from '@/utils/actorCache'
+import { clearChatCacheForServer } from '@/utils/chatCache'
+import { clearLastCharacterId } from '@/utils/utilities'
 
 const ACTIVE_URL_STORAGE_KEY = 'tablemate.serverUrl'
 const SERVERS_STORAGE_KEY = 'tablemate.servers'
@@ -138,19 +142,27 @@ export const useServerAddressStore = defineStore('serverAddress', () => {
   // serverUrl ref changes identity even when re-selecting the same origin —
   // useSession watches this ref and (re)connects on every change.
   function activate(url: URL) {
-    // Switching to a *different* server: drop the previous server's in-memory
-    // world and character selection now, so its sheets can't flash on the new
-    // server before the fresh world (and per-server cached snapshots) load.
-    // A same-origin reactivation (reconnect) is left untouched, preserving the
-    // seamless-resume world. Cached snapshots are already isolated per server
-    // via the actor-cache key, so the new server only ever reads its own.
-    if (loadedOrigin && loadedOrigin !== url.origin) {
-      useWorldStore().clearWorld()
-      useCharacterSelectStore().resetSelection()
-    }
+    // Detect a genuine switch *before* mutating serverUrl. A same-origin
+    // reactivation (reconnect) is left untouched, preserving the seamless-resume
+    // world.
+    const switching = !!loadedOrigin && loadedOrigin !== url.origin
     loadedOrigin = url.origin
     serverUrl.value = url
     if (isNativeMobile.value) localStorage.setItem(ACTIVE_URL_STORAGE_KEY, url.origin)
+
+    // Switching to a *different* server: drop the previous server's in-memory
+    // world and reset world *status* to pending so the UI can't paint a stale
+    // "ready" screen for the old server. Then re-point the selection at the new
+    // server's own remembered character — seeding it now (serverUrl is already
+    // updated above, so per-server lookups resolve to the new server) lets that
+    // character's cached snapshot paint immediately instead of waiting for the
+    // full world refresh. Cross-server bleed is prevented because the selection,
+    // caches, and world status are all keyed per origin.
+    if (switching) {
+      useWorldStore().clearWorld()
+      useFoundryWorldStatusStore().markWorldPending()
+      useCharacterSelectStore().reseedForCurrentServer()
+    }
   }
 
   // Join an already-resolved server URL (protocol decided upstream by
@@ -168,9 +180,9 @@ export const useServerAddressStore = defineStore('serverAddress', () => {
     return normalized
   }
 
-  // Forget a stored server, including its stored session/cookie so a future
-  // re-add starts unauthenticated. If it was the active one, fall back to the
-  // gate.
+  // Forget a stored server, including its stored session/cookie and all of its
+  // cached data, so re-adding it starts clean (unauthenticated, no stale
+  // characters or chat). If it was the active one, fall back to the gate.
   function removeServer(origin: string) {
     servers.value = servers.value.filter((s) => s !== origin)
     persistServers()
@@ -181,6 +193,11 @@ export const useServerAddressStore = defineStore('serverAddress', () => {
       /* malformed origin — nothing to delete */
     }
     forgetLoginUser(origin)
+    // Drop this server's per-origin caches so they can't survive a delete +
+    // re-add. Best-effort and fire-and-forget — the IDB helpers never reject.
+    void clearActorSnapshotsForServer(origin)
+    void clearChatCacheForServer(origin)
+    clearLastCharacterId(origin)
     if (serverUrl.value?.origin === origin) clearActiveServer()
   }
 

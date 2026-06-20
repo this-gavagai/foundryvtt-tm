@@ -74,7 +74,10 @@
     "joinNew": "Подключиться к новому серверу",
     "noServers": "Сохранённых серверов пока нет.",
     "deleteServer": "Удалить {server}",
-    "cancelConnect": "Отменить и сменить сервер"
+    "cancelConnect": "Отменить и сменить сервер",
+    "notSignedIn": "Вход не выполнен",
+    "activeSection": "Активный сервер",
+    "otherServers": "Другие серверы"
   },
   "app": {
     "userDoesNotOwnCharacter": "Пользователь не владеет этим персонажем",

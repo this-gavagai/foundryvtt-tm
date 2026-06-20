@@ -222,11 +222,11 @@ export const useServerStore = defineStore('server', () => {
     needsLogin.value = true
   }
 
-  async function login(userid: string, password: string): Promise<boolean> {
+  async function login(userid: string, password: string, name?: string): Promise<boolean> {
     if (!serverUrl.value) return false
     if (!(await currentTransport().verifyCredentials(serverUrl.value, userid, password)))
       return false
-    rememberLoginUser(serverUrl.value.origin, userid)
+    rememberLoginUser(serverUrl.value.origin, userid, name)
     try {
       await connectToServer(serverUrl.value)
       needsLogin.value = false

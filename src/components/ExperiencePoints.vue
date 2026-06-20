@@ -44,7 +44,14 @@ function handleXpFormSubmit(e: Event) {
             height="18"
             style="fill: transparent; stroke-width: 3; stroke: currentColor"
           />
-          <text y="12" x="31" stroke="currentColor" font-size="7pt" font-weight="lighter">
+          <text
+            y="12"
+            x="37.5"
+            text-anchor="middle"
+            stroke="currentColor"
+            font-size="7pt"
+            font-weight="lighter"
+          >
             {{ xpCurrent }}
           </text>
         </svg>

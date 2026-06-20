@@ -17,13 +17,24 @@ export function lastKnownUserId(): string {
 // 'userid' key is the pre-multi-server value, read as a one-time fallback.
 const LOGIN_USER_PREFIX = 'userid:'
 const LEGACY_LOGIN_USER_KEY = 'userid'
+// The human-readable display name for that login user, remembered alongside the
+// _id so the server list can label each saved server with a name (the _id is
+// opaque). Stored separately from the id key so older installs that only have
+// the id still resolve the user, just without a name to show.
+const LOGIN_NAME_PREFIX = 'username:'
 
 function loginUserKey(origin: string): string {
   return `${LOGIN_USER_PREFIX}${origin}`
 }
 
-export function rememberLoginUser(origin: string, userid: string): void {
-  if (origin && userid) localStorage.setItem(loginUserKey(origin), userid)
+function loginNameKey(origin: string): string {
+  return `${LOGIN_NAME_PREFIX}${origin}`
+}
+
+export function rememberLoginUser(origin: string, userid: string, name?: string): void {
+  if (!origin || !userid) return
+  localStorage.setItem(loginUserKey(origin), userid)
+  if (name) localStorage.setItem(loginNameKey(origin), name)
 }
 
 export function lastLoginUser(origin: string): string {
@@ -35,8 +46,17 @@ export function lastLoginUser(origin: string): string {
   )
 }
 
+// The display name last used to sign in to this server, or '' if none was ever
+// remembered (e.g. a server added but never logged into, or an install from
+// before names were stored).
+export function lastLoginUserName(origin: string): string {
+  if (!origin) return ''
+  return localStorage.getItem(loginNameKey(origin)) ?? ''
+}
+
 export function forgetLoginUser(origin: string): void {
   localStorage.removeItem(loginUserKey(origin))
+  localStorage.removeItem(loginNameKey(origin))
 }
 
 export const useUserStore = defineStore('user', () => {

@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
-import { CheckCircleIcon, PlusIcon, ServerStackIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/solid'
+import { PlusIcon, ServerStackIcon, XMarkIcon } from '@heroicons/vue/24/solid'
 import { storeToRefs } from 'pinia'
 
 import { useServerAddressStore } from '@/stores/serverAddress'
 import { useServerStore } from '@/stores/server'
+import ServerRow from '@/components/ServerRow.vue'
 
 const emit = defineEmits<{ join: [] }>()
 
@@ -13,18 +14,23 @@ const serverAddressStore = useServerAddressStore()
 const serverStore = useServerStore()
 const { servers, serverUrlText } = storeToRefs(serverAddressStore)
 
+// Split the saved servers into the one currently connected (pulled to the top
+// under its own heading) and the rest. activeServer is only set when the active
+// origin is actually in the saved list, so an unsaved/transient active server
+// won't render an empty "active" section.
+const activeServer = computed(() =>
+  servers.value.find((origin) => origin === serverUrlText.value)
+)
+const inactiveServers = computed(() =>
+  servers.value.filter((origin) => origin !== serverUrlText.value)
+)
+
 const isOpen = ref(false)
 function open() {
   isOpen.value = true
 }
 function close() {
   isOpen.value = false
-}
-
-// Strip the protocol for display — the saved origin keeps it for connecting,
-// but the list reads cleaner showing just host:port.
-function displayName(origin: string): string {
-  return origin.replace(/^https?:\/\//, '')
 }
 
 function select(origin: string) {
@@ -46,9 +52,13 @@ defineExpose({ open })
 </script>
 
 <template>
-  <div data-component="ServerSidebar">
+  <div>
     <TransitionRoot as="template" :show="isOpen">
-      <Dialog as="div" class="relative z-70" @close="close">
+      <!-- Dialog teleports its content to a portal at <body>, so the
+           data-component marker lives here (inside the portal subtree) rather
+           than on the outer wrapper — otherwise the themed [data-component]
+           selectors wouldn't match the rendered panel. -->
+      <Dialog as="div" data-component="ServerSidebar" class="relative z-70" @close="close">
         <TransitionChild
           as="template"
           enter="transition-opacity ease-linear duration-300"
@@ -71,7 +81,7 @@ defineExpose({ open })
             leave-from="translate-x-0"
             leave-to="translate-x-full"
           >
-            <DialogPanel class="relative ml-16 flex w-full max-w-xs flex-1">
+            <DialogPanel class="relative ml-16 flex w-full max-w-sm flex-1">
               <TransitionChild
                 as="template"
                 enter="ease-in-out duration-300"
@@ -97,46 +107,31 @@ defineExpose({ open })
                   {{ $t('serverUrl.servers') }}
                 </h2>
 
-                <ul role="list" class="flex flex-col gap-2">
-                  <li
-                    v-for="origin in servers"
-                    :key="origin"
-                    data-part="server-row"
-                    :data-active="origin === serverUrlText"
-                    class="flex items-center gap-1"
-                  >
-                    <button
-                      type="button"
-                      data-part="server-select"
-                      class="flex min-w-0 flex-1 items-center gap-2 text-left"
-                      @click="select(origin)"
-                    >
-                      <CheckCircleIcon
-                        v-if="origin === serverUrlText"
-                        data-part="server-active-mark"
-                        class="h-5 w-5 flex-none"
-                        aria-hidden="true"
-                      />
-                      <span class="min-w-0 flex-1 truncate">{{ displayName(origin) }}</span>
-                      <span
-                        v-if="origin === serverUrlText"
-                        data-part="server-active-label"
-                        class="flex-none text-xs"
-                      >
-                        {{ $t('serverUrl.active') }}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      data-part="server-delete"
-                      class="flex-none rounded p-1"
-                      :aria-label="$t('serverUrl.deleteServer', { server: displayName(origin) })"
-                      @click="remove(origin)"
-                    >
-                      <TrashIcon class="h-5 w-5" aria-hidden="true" />
-                    </button>
-                  </li>
-                </ul>
+                <section v-if="activeServer" data-part="server-section">
+                  <h3 data-part="section-heading">{{ $t('serverUrl.activeSection') }}</h3>
+                  <ul role="list" class="flex flex-col gap-2.5">
+                    <ServerRow
+                      :origin="activeServer"
+                      :active="true"
+                      @select="select"
+                      @remove="remove"
+                    />
+                  </ul>
+                </section>
+
+                <section v-if="inactiveServers.length" data-part="server-section">
+                  <h3 data-part="section-heading">{{ $t('serverUrl.otherServers') }}</h3>
+                  <ul role="list" class="flex flex-col gap-2.5">
+                    <ServerRow
+                      v-for="origin in inactiveServers"
+                      :key="origin"
+                      :origin="origin"
+                      :active="false"
+                      @select="select"
+                      @remove="remove"
+                    />
+                  </ul>
+                </section>
 
                 <p v-if="!servers.length" data-part="empty" class="text-sm">
                   {{ $t('serverUrl.noServers') }}

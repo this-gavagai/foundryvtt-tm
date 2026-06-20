@@ -74,7 +74,10 @@
     "joinNew": "Neuen Server hinzufügen",
     "noServers": "Noch keine gespeicherten Server.",
     "deleteServer": "{server} löschen",
-    "cancelConnect": "Abbrechen und Server wechseln"
+    "cancelConnect": "Abbrechen und Server wechseln",
+    "notSignedIn": "Nicht angemeldet",
+    "activeSection": "Aktiver Server",
+    "otherServers": "Weitere Server"
   },
   "app": {
     "userDoesNotOwnCharacter": "Der Benutzer besitzt diesen Charakter nicht",

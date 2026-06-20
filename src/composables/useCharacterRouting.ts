@@ -1,6 +1,7 @@
 import { watch, type Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useCharacterSelectStore } from '@/stores/characterSelect'
+import { getLastCharacterId, setLastCharacterId } from '@/utils/utilities'
 
 // Resolves which character is active from the URL (`?id=`) falling back to the
 // last-used id in localStorage, seeds the character-select store, and keeps the
@@ -13,9 +14,7 @@ export function useCharacterRouting(): {
   characterList: Ref<string[]>
   activeCharacterId: Ref<string>
 } {
-  const urlId =
-    new URLSearchParams(document.location.search).get('id') ??
-    localStorage.getItem('lastCharacterId')
+  const urlId = new URLSearchParams(document.location.search).get('id') ?? getLastCharacterId()
 
   const characterSelectStore = useCharacterSelectStore()
   characterSelectStore.initialize(urlId)
@@ -23,7 +22,7 @@ export function useCharacterRouting(): {
 
   watch(activeCharacterId, (newValue) => {
     if (!newValue) return
-    localStorage.setItem('lastCharacterId', newValue)
+    setLastCharacterId(newValue)
     const url = `${window.location.origin}/modules/tablemate/index.html?id=${newValue}`
     history.replaceState({}, '', url)
   })

@@ -1927,29 +1927,73 @@ body.theme-default {
       color: var(--color-heading);
     }
 
+    [data-part='section-heading'] {
+      margin-bottom: 0.5rem;
+      color: oklch(62% 0.015 258);
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    /* A clear rule + extra space splits the active server from the rest. */
+    [data-part='server-section'] + [data-part='server-section'] {
+      margin-top: 0.5rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--color-border);
+    }
+
     [data-part='server-row'] {
-      padding: 0.35rem 0.35rem 0.35rem 0.65rem;
-      border-radius: 0.375rem;
+      padding: 0.7rem 0.5rem 0.7rem 0.85rem;
+      border-radius: 0.5rem;
       background-color: var(--color-card);
       border: 1px solid oklch(32% 0.022 258);
-      transition: background-color 120ms;
+      /* Widen the left edge on every row (matching the border colour by default)
+         so the active row can recolour it as an accent without shifting content. */
+      border-left-width: 3px;
+      transition:
+        background-color 120ms,
+        border-color 120ms;
     }
     [data-part='server-row'][data-active='true'] {
-      border-color: oklch(48% 0.1 250);
-      background-color: oklch(22% 0.03 258);
+      border-color: oklch(55% 0.13 255);
+      border-left-color: oklch(62% 0.15 255);
+      background-color: oklch(26% 0.04 258);
+      box-shadow: inset 0 0 0 1px oklch(55% 0.13 255 / 0.2);
     }
 
     [data-part='server-select'] {
       color: var(--color-text);
-      padding-block: 0.3rem;
     }
-    [data-part='server-active-mark'] {
-      color: var(--color-proficiency-trained);
+    [data-part='server-icon'] {
+      color: oklch(55% 0.015 258);
     }
-    [data-part='server-active-label'] {
-      color: oklch(68% 0.08 250);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+    [data-part='server-name'] {
+      color: var(--color-heading);
+      font-weight: 500;
+    }
+    [data-part='server-row'][data-active='true'] [data-part='server-name'] {
+      font-weight: 600;
+    }
+    /* The active server's leading icon picks up the accent so the connected
+       server reads at a glance, even without a label. */
+    [data-part='server-row'][data-active='true'] [data-part='server-icon'] {
+      color: oklch(70% 0.14 255);
+    }
+    [data-part='server-user'] {
+      font-size: 0.75rem;
+      /* Kept well below the server name in contrast so it reads as secondary. */
+      color: oklch(62% 0.01 258);
+    }
+    [data-part='server-row'][data-active='true'] [data-part='server-user'] {
+      color: oklch(70% 0.02 255);
+    }
+    /* A small glowing dot marks the live/connected server in place of a label. */
+    [data-part='server-active-dot'] {
+      width: 0.55rem;
+      height: 0.55rem;
+      border-radius: 999px;
+      background-color: oklch(72% 0.17 150);
+      box-shadow: 0 0 0 3px oklch(72% 0.17 150 / 0.18);
     }
 
     [data-part='server-delete'] {
