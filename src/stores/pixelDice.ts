@@ -3,14 +3,7 @@ import { defineStore } from 'pinia'
 import type { Pixel, PixelDieType } from '@systemic-games/pixels-web-connect'
 import { useStorage } from '@vueuse/core'
 import { logger } from '@/utils/utilities'
-
-// Lazy-load the Pixel SDK. The library is ~30 KB gzipped and only needed
-// when the user actually pairs a die — most users will never trigger this.
-// The returned promise is cached so subsequent calls are free.
-let sdkPromise: Promise<typeof import('@systemic-games/pixels-web-connect')> | undefined
-function loadSdk() {
-  return (sdkPromise ??= import('@systemic-games/pixels-web-connect'))
-}
+import { bluetoothSupported, loadPixelApi } from '@/api/pixelTransport'
 
 // Reactive snapshot of a paired die. The underlying `pixel` instance is the
 // SDK class, which is not reactive itself; we mirror the properties we care
@@ -36,12 +29,6 @@ export interface PixelRollEvent {
   face: number
   seq: number
 }
-
-// Web Bluetooth is absent in Firefox / Safari / iOS, and is also hidden by the
-// browser when the page isn't served over a secure (HTTPS) context. Both show
-// up as a missing `navigator.bluetooth`, so a single check covers them; we use
-// `isSecureContext` only to pick the more helpful of the two messages.
-const bluetoothSupported = typeof navigator !== 'undefined' && 'bluetooth' in navigator
 
 export const usePixelDiceStore = defineStore('pixelDice', () => {
   const pixels = ref<PairedPixel[]>([])
@@ -131,7 +118,7 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
       // the UI shows it as "disconnected (reconnecting)" rather than gone.
       if (status.status === 'disconnected' && !reconnectingIds.has(pixel.systemId)) {
         reconnectingIds.add(pixel.systemId)
-        loadSdk()
+        loadPixelApi()
           .then(({ repeatConnect }) => repeatConnect(pixel))
           .catch((e) => logger.warn('TM-pixl: repeatConnect failed', pixel.systemId, e))
           .finally(() => reconnectingIds.delete(pixel.systemId))
@@ -165,7 +152,7 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
     // a statusChanged drop, or a double-click). The snapshot + listeners above
     // are now in place; don't stack a second concurrent repeatConnect.
     if (reconnectingIds.has(pixel.systemId)) return
-    const { repeatConnect, Color } = await loadSdk()
+    const { repeatConnect, Color } = await loadPixelApi()
     reconnectingIds.add(pixel.systemId)
     try {
       await repeatConnect(pixel)
@@ -182,7 +169,7 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
     pixel.blink(Color.green).catch(() => undefined)
   }
 
-  // Open the Web Bluetooth chooser to add a new die. The SDK persists the
+  // Open the device chooser to add a new die. The transport persists the
   // pairing at the OS level; we only persist the resulting system ID so we
   // can re-resolve the Pixel object on the next session.
   async function pairDie() {
@@ -192,13 +179,15 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
       return
     }
     try {
-      const { requestPixel } = await loadSdk()
+      const { requestPixel } = await loadPixelApi()
       const pixel = await requestPixel()
       await registerPixel(pixel)
     } catch (e) {
-      // The user dismissing the device chooser throws NotFoundError — that's a
-      // cancel, not a failure, so stay quiet. Anything else is a real problem.
-      if ((e as Error)?.name === 'NotFoundError') return
+      // The user dismissing the chooser is a cancel, not a failure — stay quiet.
+      // Web Bluetooth throws NotFoundError; the native plugin rejects with a
+      // "cancelled" message instead. Anything else is a real problem.
+      const err = e as Error
+      if (err?.name === 'NotFoundError' || /cancel/i.test(err?.message ?? '')) return
       logger.warn('TM-pixl: pairDie failed', e)
       pairError.value = 'pixel.pairFailed'
     }
@@ -207,7 +196,7 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
   // Re-resolve an already-paired die by system ID. Used both on store init
   // and from the UI when the user wants to wake a sleeping die.
   async function reconnectDie(systemId: string) {
-    const { getPixel } = await loadSdk()
+    const { getPixel } = await loadPixelApi()
     const pixel = await getPixel(systemId)
     if (!pixel) {
       logger.warn(`TM-pixl: getPixel returned no pixel for ${systemId}`)

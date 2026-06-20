@@ -3,6 +3,7 @@
 	"appName": "Tabula Mensa",
 	"webDir": "dist",
 	"packageClassList": [
+		"BluetoothLe",
 		"StatusBarPlugin"
 	]
 }

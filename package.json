@@ -28,6 +28,7 @@
     "generate-pwa-assets": "pwa-assets-generator --preset minimal-2023 public/3d-meeple.svg"
   },
   "dependencies": {
+    "@capacitor-community/bluetooth-le": "^8.2.0",
     "@capacitor/android": "^8.4.0",
     "@capacitor/core": "^8.4.0",
     "@capacitor/ios": "^8.4.0",
