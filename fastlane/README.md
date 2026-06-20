@@ -23,6 +23,14 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 Build a signed iOS release IPA from the Capacitor app
 
+### ios beta
+
+```sh
+[bundle exec] fastlane ios beta
+```
+
+Build an App Store IPA and upload it to TestFlight
+
 ----
 
 

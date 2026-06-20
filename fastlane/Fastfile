@@ -4,13 +4,35 @@ private_lane :sync_capacitor do
   sh("npm run cap:sync")
 end
 
+private_lane :apple_team_id do
+  team_id = ENV["IOS_DEVELOPMENT_TEAM"]
+  UI.user_error!("Set IOS_DEVELOPMENT_TEAM to your Apple development team ID before running this lane.") if team_id.to_s.empty?
+
+  team_id
+end
+
+private_lane :app_store_connect_key do
+  key_id = ENV["APP_STORE_CONNECT_KEY_ID"]
+  issuer_id = ENV["APP_STORE_CONNECT_ISSUER_ID"]
+  key_filepath = ENV["APP_STORE_CONNECT_KEY_FILE"]
+
+  UI.user_error!("Set APP_STORE_CONNECT_KEY_ID before running this lane.") if key_id.to_s.empty?
+  UI.user_error!("Set APP_STORE_CONNECT_ISSUER_ID before running this lane.") if issuer_id.to_s.empty?
+  UI.user_error!("Set APP_STORE_CONNECT_KEY_FILE to the .p8 API key path before running this lane.") if key_filepath.to_s.empty?
+
+  app_store_connect_api_key(
+    key_id: key_id,
+    issuer_id: issuer_id,
+    key_filepath: key_filepath
+  )
+end
+
 platform :ios do
   desc "Build a signed iOS release IPA from the Capacitor app"
   lane :build do
     sync_capacitor
 
-    team_id = ENV["IOS_DEVELOPMENT_TEAM"]
-    UI.user_error!("Set IOS_DEVELOPMENT_TEAM to your Apple development team ID before running this lane.") if team_id.to_s.empty?
+    team_id = apple_team_id
 
     build_app(
       project: "ios/App/App.xcodeproj",
@@ -20,6 +42,33 @@ platform :ios do
       clean: true,
       export_team_id: team_id,
       xcargs: "DEVELOPMENT_TEAM=#{team_id}"
+    )
+  end
+
+  desc "Build an App Store IPA and upload it to TestFlight"
+  lane :beta do
+    sync_capacitor
+
+    team_id = apple_team_id
+    api_key = app_store_connect_key
+
+    increment_build_number(
+      xcodeproj: "ios/App/App.xcodeproj"
+    )
+
+    build_app(
+      project: "ios/App/App.xcodeproj",
+      scheme: "App",
+      configuration: "Release",
+      export_method: "app-store",
+      clean: true,
+      export_team_id: team_id,
+      xcargs: "DEVELOPMENT_TEAM=#{team_id}"
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: true
     )
   end
 end
