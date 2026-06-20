@@ -1,5 +1,6 @@
 import type { ChatMessageData } from '@/composables/useChatMessages'
 import { idbGet, idbPut } from '@/utils/idb'
+import { useServerAddressStore } from '@/stores/serverAddress'
 import { logger } from '@/utils/utilities'
 
 // Persists the most recent chat messages the current user can see so a
@@ -11,11 +12,26 @@ import { logger } from '@/utils/utilities'
 // another login on the same device from reading back messages that weren't
 // theirs. Only the tail is kept — older history isn't worth the storage/parse
 // cost, and the live fetch fills it back in within the handshake.
+//
+// The key is *also* scoped to the active server's origin: Foundry user ids are
+// world-local, so two servers (e.g. a copied world) can share one — without the
+// origin prefix that would leak one server's whispers/blind rolls onto another.
 const MAX_CACHED_MESSAGES = 200
+
+// Prefix a cache key with the active server origin. Returns undefined when no
+// server is active (the gate is showing); callers treat that as a cache miss /
+// no-op. '|' appears in neither an origin nor a Foundry user id.
+function scopedKey(key: string): string | undefined {
+  const origin = useServerAddressStore().serverUrl?.origin
+  if (!origin) return undefined
+  return `${origin}|${key}`
+}
 
 export function loadCachedChatMessages(userId: string): Promise<ChatMessageData[] | undefined> {
   if (!userId) return Promise.resolve(undefined)
-  return idbGet<ChatMessageData[]>('chat', userId)
+  const key = scopedKey(userId)
+  if (!key) return Promise.resolve(undefined)
+  return idbGet<ChatMessageData[]>('chat', key)
 }
 
 export async function saveCachedChatMessages(
@@ -23,6 +39,8 @@ export async function saveCachedChatMessages(
   messages: ChatMessageData[]
 ): Promise<void> {
   if (!userId) return
+  const key = scopedKey(userId)
+  if (!key) return
   const tail = messages.slice(-MAX_CACHED_MESSAGES)
   let storable: ChatMessageData[]
   try {
@@ -37,7 +55,7 @@ export async function saveCachedChatMessages(
       return
     }
   }
-  await idbPut('chat', userId, storable)
+  await idbPut('chat', key, storable)
 }
 
 // The "last read" watermark: the timestamp of the newest chat message the user
@@ -53,10 +71,14 @@ function readMarkerKey(userId: string): string {
 
 export function loadChatReadMarker(userId: string): Promise<number | undefined> {
   if (!userId) return Promise.resolve(undefined)
-  return idbGet<number>('chat', readMarkerKey(userId))
+  const key = scopedKey(readMarkerKey(userId))
+  if (!key) return Promise.resolve(undefined)
+  return idbGet<number>('chat', key)
 }
 
 export async function saveChatReadMarker(userId: string, timestamp: number): Promise<void> {
   if (!userId) return
-  await idbPut('chat', readMarkerKey(userId), timestamp)
+  const key = scopedKey(readMarkerKey(userId))
+  if (!key) return
+  await idbPut('chat', key, timestamp)
 }
