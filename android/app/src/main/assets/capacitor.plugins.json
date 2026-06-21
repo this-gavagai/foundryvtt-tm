@@ -4,6 +4,10 @@
 		"classpath": "com.capacitorjs.community.plugins.bluetoothle.BluetoothLe"
 	},
 	{
+		"pkg": "@capacitor/filesystem",
+		"classpath": "com.capacitorjs.plugins.filesystem.FilesystemPlugin"
+	},
+	{
 		"pkg": "@capacitor/status-bar",
 		"classpath": "com.capacitorjs.plugins.statusbar.StatusBarPlugin"
 	}

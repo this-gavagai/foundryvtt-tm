@@ -1,4 +1,5 @@
 import { useServerAddressStore } from '@/stores/serverAddress'
+import { cachedImageSrc } from '@/api/imageCache'
 
 // The last-selected character id, persisted per server origin so returning to a
 // server resumes its character — and, crucially, so a *different* server never
@@ -28,7 +29,10 @@ export function getPath(path: string) {
 
   const serverAddressStore = useServerAddressStore()
   if (serverAddressStore.isNativeMobile && serverAddressStore.serverUrl) {
-    return new URL(path, serverAddressStore.serverUrl).href
+    // Resolve to the remote asset URL, then let the native image cache hand
+    // back a local file:// copy when one exists (reactive: a render re-runs
+    // and swaps the src once a background download lands).
+    return cachedImageSrc(new URL(path, serverAddressStore.serverUrl).href)
   }
 
   return '../../' + path

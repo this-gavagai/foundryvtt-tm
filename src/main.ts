@@ -7,8 +7,14 @@ import { i18n } from '@/plugins/i18n'
 
 import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
+import { initImageCache } from '@/api/imageCache'
 
 if (Capacitor.isNativePlatform()) {
+  // Repopulate the on-disk image cache index before first render so previously
+  // cached assets serve from disk instead of re-downloading. Failures fall back
+  // to lazy population and never block startup.
+  void initImageCache()
+
   // Lay the WebView out below the status bar instead of under it, so no app
   // content (sheet, side menu, overlays) can extend into / block the status
   // bar. The exposed strip matches the dark theme background; light text/icons

@@ -4,6 +4,7 @@
 	"webDir": "dist",
 	"packageClassList": [
 		"BluetoothLe",
+		"FilesystemPlugin",
 		"StatusBarPlugin"
 	]
 }
