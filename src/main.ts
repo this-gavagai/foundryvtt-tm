@@ -9,33 +9,42 @@ import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { initImageCache } from '@/api/imageCache'
 
-if (Capacitor.isNativePlatform()) {
-  // Repopulate the on-disk image cache index before first render so previously
-  // cached assets serve from disk instead of re-downloading. Failures fall back
-  // to lazy population and never block startup.
-  void initImageCache()
-
-  // Lay the WebView out below the status bar instead of under it, so no app
-  // content (sheet, side menu, overlays) can extend into / block the status
-  // bar. The exposed strip matches the dark theme background; light text/icons
-  // (Style.Dark) sit on top. Errors are swallowed so a missing plugin never
-  // blocks startup. Color is set before toggling overlay so the strip paints
-  // dark immediately rather than flashing the plugin's default black.
-  StatusBar.setBackgroundColor({ color: '#181d25' }).catch(() => {})
-  StatusBar.setStyle({ style: Style.Dark }).catch(() => {})
-  StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {})
-}
-
 window.__TM_ENV__ = {
   MODE: import.meta.env.MODE,
   DEV: import.meta.env.DEV,
   PROD: import.meta.env.PROD
 }
 
-const pinia = createPinia()
-const app = createApp(App)
+async function bootstrap() {
+  if (Capacitor.isNativePlatform()) {
+    // Lay the WebView out below the status bar instead of under it, so no app
+    // content (sheet, side menu, overlays) can extend into / block the status
+    // bar. The exposed strip matches the dark theme background; light text/icons
+    // (Style.Dark) sit on top. Errors are swallowed so a missing plugin never
+    // blocks startup. Color is set before toggling overlay so the strip paints
+    // dark immediately rather than flashing the plugin's default black. These are
+    // fire-and-forget — they must not delay the index await or the first paint.
+    StatusBar.setBackgroundColor({ color: '#181d25' }).catch(() => {})
+    StatusBar.setStyle({ style: Style.Dark }).catch(() => {})
+    StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {})
 
-app.use(i18n)
-app.use(pinia)
+    // Await the on-disk image cache index *before* the first render so a
+    // previously cached asset (portrait, icon) resolves to its local file:// copy
+    // on first paint, instead of racing the render: a miss returns the remote URL
+    // and only swaps to the cached file after a background re-render, which costs
+    // a network fetch + a second image load every launch. The readdir is fast and
+    // initImageCache never rejects — an empty/unreadable cache just falls back to
+    // lazy population, so this can only delay mount by a quick directory listing.
+    await initImageCache()
+  }
 
-app.mount('#app')
+  const pinia = createPinia()
+  const app = createApp(App)
+
+  app.use(i18n)
+  app.use(pinia)
+
+  app.mount('#app')
+}
+
+void bootstrap()
