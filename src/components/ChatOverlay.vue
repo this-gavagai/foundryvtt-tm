@@ -549,8 +549,7 @@ defineExpose({ open, close, isOpen })
         data-part="viewport"
         class="fixed overflow-hidden p-0 sm:p-4"
         style="
-          inset: var(--tm-safe-area-top) var(--tm-safe-area-right) var(--tm-safe-area-bottom)
-            var(--tm-safe-area-left);
+          inset: var(--tm-safe-area-top) var(--tm-safe-area-right) 0 var(--tm-safe-area-left);
         "
       >
         <div class="flex h-full items-stretch justify-center text-left sm:items-center">
