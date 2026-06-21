@@ -104,12 +104,19 @@ export const useServerStore = defineStore('server', () => {
   const isConnected = ref(false)
   const sessionReady = ref(false)
   const connectionError = ref('')
-  const serverUrl = ref<URL>()
   let connectionId = 0
   let sessionWatchdog: ReturnType<typeof setTimeout> | undefined
 
   function currentTransport(): ServerTransport {
     return getServerTransport(useServerAddressStore().isNativeMobile)
+  }
+
+  // The active server lives in the serverAddress store (the single source of
+  // truth that useSession watches to drive connectToServer). Read it here
+  // rather than mirroring it locally, so a server the user has left can never
+  // be silently reconnected to from a stale copy.
+  function activeServerUrl(): URL | undefined {
+    return useServerAddressStore().serverUrl
   }
 
   function clearSessionWatchdog() {
@@ -187,8 +194,9 @@ export const useServerStore = defineStore('server', () => {
         JOIN_DATA_RETRY_ATTEMPTS
       )
 
-    if (!serverUrl.value) throw new Error('Server URL not available')
-    return currentTransport().getJoinData(serverUrl.value, socketJoinData)
+    const url = activeServerUrl()
+    if (!url) throw new Error('Server URL not available')
+    return currentTransport().getJoinData(url, socketJoinData)
   }
 
   // Resolve a user-typed address into a reachable URL. When no protocol was
@@ -215,7 +223,8 @@ export const useServerStore = defineStore('server', () => {
   // The login user remembered for the active server (empty if none), used to
   // prefill the login page's user dropdown.
   function rememberedLoginUser(): string {
-    return serverUrl.value ? lastLoginUser(serverUrl.value.origin) : ''
+    const url = activeServerUrl()
+    return url ? lastLoginUser(url.origin) : ''
   }
 
   function handleAuthFailure() {
@@ -223,12 +232,12 @@ export const useServerStore = defineStore('server', () => {
   }
 
   async function login(userid: string, password: string, name?: string): Promise<boolean> {
-    if (!serverUrl.value) return false
-    if (!(await currentTransport().verifyCredentials(serverUrl.value, userid, password)))
-      return false
-    rememberLoginUser(serverUrl.value.origin, userid, name)
+    const url = activeServerUrl()
+    if (!url) return false
+    if (!(await currentTransport().verifyCredentials(url, userid, password))) return false
+    rememberLoginUser(url.origin, userid, name)
     try {
-      await connectToServer(serverUrl.value)
+      await connectToServer(url)
       needsLogin.value = false
     } catch {
       return false
@@ -255,12 +264,12 @@ export const useServerStore = defineStore('server', () => {
   // server URL. If the session cookie is no longer valid, the session
   // watchdog/auth handler will surface the login page.
   async function forceReconnect(): Promise<void> {
-    if (!serverUrl.value) return
-    await connectToServer(serverUrl.value)
+    const url = activeServerUrl()
+    if (!url) return
+    await connectToServer(url)
   }
 
   async function connectToServer(url: URL): Promise<Socket> {
-    serverUrl.value = url
     connectionError.value = ''
     const thisConnectionId = ++connectionId
     disconnectCurrentSocket()
@@ -348,7 +357,6 @@ export const useServerStore = defineStore('server', () => {
     isConnected,
     sessionReady,
     connectionError,
-    serverUrl,
     clearConnectionError,
     disconnect,
     resolveServerUrl,

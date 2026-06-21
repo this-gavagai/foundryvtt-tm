@@ -9,6 +9,8 @@ import type { ModuleEventArgs } from '@/types/api-types'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { useSyncStatusStore } from '@/stores/syncStatus'
+import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
+import { useWorldStore } from '@/stores/world'
 import { logger } from '@/utils/utilities'
 import {
   getSocket,
@@ -59,8 +61,15 @@ type AppChannelHandler = (args: ModuleEventArgs) => void
 type ModifyDocumentHandler = (args: DocumentSocketResponse) => void
 type UserActivityHandler = (user: string, args: { targets?: string[]; active?: boolean }) => void
 
+// Foundry streams 'progress' events while a world loads. We mark the world
+// pending immediately, then refresh once events stop arriving (trailing edge).
+const WORLD_PROGRESS_DEBOUNCE_MS = 2000
+
 let dispatchHandler: AppChannelHandler | null = null
 let dispatchSocket: Socket | null = null
+let progressHandler: (() => void) | null = null
+let progressSocket: Socket | null = null
+let progressTimer: ReturnType<typeof setTimeout> | undefined
 let worldModifyHandler: ModifyDocumentHandler | null = null
 let worldModifySocket: Socket | null = null
 let worldUserActivityHandler: UserActivityHandler | null = null
@@ -78,6 +87,25 @@ export async function setupSocketListenersForApp() {
   }
   socket.on(TM.CHANNEL, dispatchHandler)
   dispatchSocket = socket
+
+  // Re-attach the world-load progress listener to the (potentially new) socket.
+  // This lives here rather than in foundryWorldStatus because a one-shot
+  // getSocket().then() binding is lost whenever the socket is replaced (server
+  // switch, forceReconnect); re-running on every socket keeps it live.
+  if (progressHandler) {
+    progressSocket?.off('progress', progressHandler)
+    // Drop any trailing-refresh armed against the old socket: on a hard swap
+    // the world context is changing, so a pending refresh for the prior load
+    // is stale.
+    clearTimeout(progressTimer)
+  }
+  progressHandler = () => {
+    useFoundryWorldStatusStore().markWorldPending()
+    clearTimeout(progressTimer)
+    progressTimer = setTimeout(() => useWorldStore().refreshWorld(), WORLD_PROGRESS_DEBOUNCE_MS)
+  }
+  socket.on('progress', progressHandler)
+  progressSocket = socket
 
   // Register the app-level subscribers exactly once. Subsequent calls to
   // setupSocketListenersForApp only re-attach the dispatcher.

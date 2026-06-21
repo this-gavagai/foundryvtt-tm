@@ -1,12 +1,9 @@
 import { ref, onScopeDispose } from 'vue'
 import { defineStore } from 'pinia'
-import type { Socket } from 'socket.io-client'
 import { useServerAddressStore } from '@/stores/serverAddress'
-import { useServerStore } from '@/stores/server'
 import { useWorldStore } from '@/stores/world'
 
 const STATUS_FETCH_TIMEOUT_MS = 3000
-const REFRESH_DEBOUNCE_MS = 2000
 const POLL_INTERVAL_MS = 8000
 
 export const useFoundryWorldStatusStore = defineStore('foundryWorldStatus', () => {
@@ -68,21 +65,8 @@ export const useFoundryWorldStatusStore = defineStore('foundryWorldStatus', () =
   }, POLL_INTERVAL_MS)
   onScopeDispose(() => clearInterval(pollInterval))
 
-  // Foundry broadcasts 'progress' events while loading a world. Listen for
-  // them to detect an in-progress world load (independent of auth state):
-  // reset worldAuthenticated to undefined so the spinner shows during loading,
-  // then fire refreshWorld() on the trailing edge once events stop arriving.
-  useServerStore()
-    .getSocket()
-    .then((s: Socket) => {
-      let progressTimer: ReturnType<typeof setTimeout> | undefined
-      s.on('progress', () => {
-        markWorldPending()
-        clearTimeout(progressTimer)
-        progressTimer = setTimeout(() => useWorldStore().refreshWorld(), REFRESH_DEBOUNCE_MS)
-      })
-    })
-    .catch(() => undefined)
+  // The world-load 'progress' listener is registered in socketSetup
+  // (setupSocketListenersForApp) so it re-attaches on every socket swap.
 
   return {
     worldAuthenticated,
