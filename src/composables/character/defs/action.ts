@@ -17,7 +17,7 @@ export interface Action extends Item {
   actionType: string | null
   item: Item
   macroId: Maybe<string>
-  doMacro?: () => void
+  doMacro?: () => Promise<unknown> | void
 }
 
 export function makeAction(root: AbilityItemPF2e): Action {

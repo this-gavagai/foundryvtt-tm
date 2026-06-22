@@ -14,6 +14,7 @@ import { buildSpellbook, buildPrepList, slotKey, isStrictPrepared, type SpellInf
 import { useModifierOverrides } from '@/composables/useModifierOverrides'
 
 import Button from '@/components/widgets/ButtonWidget.vue'
+import Spinner from '@/components/widgets/SpinnerWidget.vue'
 import CounterWidget from '@/components/widgets/CounterWidget.vue'
 import Modal from '@/components/ModalBox.vue'
 import InfoModal from '@/components/InfoModal.vue'
@@ -224,7 +225,7 @@ function openEntryModal(entry: SpellcastingEntry) {
 }
 
 function clearPreparedSpell() {
-  viewedInfoEntry.value
+  return viewedInfoEntry.value
     ?.setPrepared?.(viewedSpellInfo.value?.castingRank, viewedSpellInfo.value?.castingSlot, null)
     ?.then(() => infoModal.value?.close())
 }
@@ -284,14 +285,19 @@ const castDisabled = computed(() => {
   return (entry.system.slots?.[slotKey(rank)]?.value ?? 0) <= 0
 })
 
+const preparingSpellId = ref<string | null>(null)
 function setPreparedSpell(spell: Spell) {
-  return entryById(spellSelectionModal.value?.options?.entryId)
-    ?.setPrepared?.(
+  if (preparingSpellId.value) return
+  preparingSpellId.value = spell._id ?? null
+  return Promise.resolve(
+    entryById(spellSelectionModal.value?.options?.entryId)?.setPrepared?.(
       spellSelectionModal.value?.options?.castingRank,
       spellSelectionModal.value?.options?.castingSlot,
       spell._id ?? null
     )
-    ?.then(() => spellSelectionModal.value?.close())
+  )
+    .then(() => spellSelectionModal.value?.close())
+    .finally(() => (preparingSpellId.value = null))
 }
 
 const sortedConsumables = computed(() =>
@@ -607,12 +613,18 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
             <ul>
               <li
                 data-part="spell-option"
-                class="cursor-pointer rounded px-2 py-1 hover:bg-gray-100"
+                class="flex items-center justify-between rounded px-2 py-1 transition-opacity"
+                :class="
+                  preparingSpellId
+                    ? 'pointer-events-none cursor-default opacity-50'
+                    : 'cursor-pointer hover:bg-gray-100'
+                "
                 v-for="spell in group.spells"
                 @click="setPreparedSpell(spell)"
                 :key="spell._id"
               >
-                {{ spell.name }}
+                <span>{{ spell.name }}</span>
+                <Spinner v-if="preparingSpellId === spell._id" class="ml-2 h-4 w-4" />
               </li>
             </ul>
           </div>

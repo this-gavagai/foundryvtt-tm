@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, useAttrs } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SignedNumber } from '@/utils/formatters'
 import { proficiencyLevels } from '@/utils/constants'
@@ -37,6 +37,12 @@ const isSecret = ref(false)
 const { isListening } = storeToRefs(useListenersStore())
 
 const canOpen = computed(() => (props?.modifiers || props?.breakdown) && !props.preventInfoModal)
+
+// A StatBox is also interactive when the caller attaches an external click
+// handler (HP, hero points, etc.) that falls through to the root element. We
+// surface the same press feedback in that case so taps feel responsive.
+const attrs = useAttrs()
+const isClickable = computed(() => !!canOpen.value || !!attrs.onClick)
 
 function openIfDetailed() {
   if (canOpen.value) infoModal.value.open()
@@ -108,7 +114,7 @@ defineExpose({ infoModal })
     <div
       class="fit-content"
       :class="{
-        'active:drop-shadow-glow cursor-pointer': canOpen
+        'active:drop-shadow-glow cursor-pointer': isClickable
       }"
       @click="openIfDetailed"
     >

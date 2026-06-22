@@ -101,12 +101,19 @@ function onButtonClick() {
     <div ref="buttonWrapper" class="relative mt-1" @click="onButtonClick">
       <ListboxButton
         :data-waiting="waiting ? true : undefined"
-        class="focus-visible:ring-opacity-75 relative w-full cursor-default rounded-md border border-gray-400 bg-white py-2 pr-10 pl-3 text-left focus:outline-hidden focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm"
-        :class="[props.disabled || waiting ? 'bg-gray-200 opacity-50' : '']"
+        class="focus-visible:ring-opacity-75 relative w-full cursor-default rounded-md border border-gray-400 bg-white py-2 pr-10 pl-3 text-left transition duration-75 hover:border-gray-500 hover:bg-gray-50 focus:outline-hidden focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 active:scale-[0.98] active:border-indigo-500 active:bg-indigo-50 sm:text-sm"
+        :class="[
+          props.disabled || waiting ? 'bg-gray-200 opacity-50' : '',
+          open ? 'border-indigo-500 ring-2 ring-indigo-200' : ''
+        ]"
       >
         <span class="block truncate">{{ selected?.name }}</span>
         <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-          <ChevronUpDownIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
+          <ChevronUpDownIcon
+            class="h-5 w-5 text-gray-400 transition-transform duration-150"
+            :class="open ? 'rotate-180 text-indigo-500' : ''"
+            aria-hidden="true"
+          />
         </span>
       </ListboxButton>
     </div>

@@ -40,7 +40,7 @@ function viewAction(action: Action) {
 // own useAction(). For actions without an actionable macro, this is a no-op
 // for now; future work will route through PF2e's native action.use().
 function useViewedAction() {
-  actionViewed.value?.doMacro?.()
+  return actionViewed.value?.doMacro?.()
 }
 </script>
 

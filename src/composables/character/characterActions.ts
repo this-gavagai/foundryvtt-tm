@@ -86,7 +86,7 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
                 : 'action',
           macroId,
           doMacro: () => {
-            if (macroId && itemId) runActionable(actor as Ref<CharacterPF2e>, itemId)
+            if (macroId && itemId) return runActionable(actor as Ref<CharacterPF2e>, itemId)
           }
         }
       })

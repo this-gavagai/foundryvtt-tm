@@ -362,9 +362,10 @@ const {
   messageIsOwnActor,
   onMessageSent: () => {
     scrollToBottom(true)
-    // Return focus to the composer for rapid follow-up messages (e.g. after a
-    // button-click send on desktop). On a keyboard-driven send the textarea
-    // already holds focus, so this is a no-op and the iOS keyboard stays put.
+    // Safety net to return focus to the composer for rapid follow-up messages.
+    // The send button's `@mousedown.prevent` already keeps the textarea focused
+    // through a tap/click (so the iOS keyboard never drops and bounces back), so
+    // in the normal case the textarea still holds focus and this is a no-op.
     nextTick(() => chatInput.value?.focus())
   }
 })
@@ -1174,6 +1175,7 @@ defineExpose({ open, close, isOpen })
                   class="inline-flex h-12 w-12 flex-none items-center justify-center rounded-md bg-blue-600 text-white transition-colors enabled:hover:bg-blue-500 enabled:active:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
                   :disabled="!canSend"
                   :aria-label="$t('chat.send')"
+                  @mousedown.prevent
                 >
                   <span
                     v-if="isSending"
