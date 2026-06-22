@@ -53,7 +53,9 @@ function useViewedAction() {
         v-for="group in actionTypes"
         :key="group.type"
       >
-        <h3 class="text-lg underline">{{ $t(group.titleKey) }}</h3>
+        <h3 class="text-[1.1rem] font-normal tracking-[0.01em]">
+          {{ $t(group.titleKey) }}
+        </h3>
         <ul>
           <li
             v-for="action in actions?.filter((a: Action) => a.actionType === group.type)"

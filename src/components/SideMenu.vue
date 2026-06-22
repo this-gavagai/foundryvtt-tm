@@ -204,7 +204,15 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                         <span
                           data-part="connection-dot"
                           :data-state="connectionState"
-                          :class="{ 'animate-pulse': connectionState !== 'ok' }"
+                          :class="[
+                            { 'animate-pulse': connectionState !== 'ok' },
+                            {
+                              down: 'bg-[oklch(55%_0.18_25)]',
+                              'no-world': 'bg-[oklch(72%_0.16_80)]',
+                              'no-gm': 'bg-[oklch(72%_0.14_55)]',
+                              ok: 'bg-[oklch(58%_0.16_145)]'
+                            }[connectionState]
+                          ]"
                           class="h-2.5 w-2.5 flex-none rounded-full"
                         />
                         <span class="text-sm">{{ connectionTitle[connectionState] }}</span>

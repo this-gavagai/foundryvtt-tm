@@ -8,7 +8,9 @@ const { languages } = character
 <template>
   <div data-component="LanguagesKnown" class="[&:not(:has(li))]:hidden">
     <div v-if="languages?.length === 0" class="italic">{{ $t('languages.none') }}</div>
-    <div v-else class="underline">{{ $t('languages.heading') }}</div>
+    <div v-else data-part="heading" class="text-[0.8rem] font-normal uppercase">
+      {{ $t('languages.heading') }}
+    </div>
     <ul class="min-h-6">
       <li
         class="inline text-sm capitalize not-last:after:content-[',_']"

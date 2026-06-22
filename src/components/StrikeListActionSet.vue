@@ -47,10 +47,7 @@ const damageVariants = computed(() => [
           :key="'variant_' + index"
         >
           <span v-if="!index">
-            <ActionIcons
-              actions="1"
-              class="relative float-left mt-[-1px] h-0 text-lg leading-none"
-            />
+            <ActionIcons actions="1" class="relative float-left -mt-px h-0 text-lg leading-none" />
             <span class="pl-4">{{ typeLabel }}&nbsp;</span>
           </span>
           <span>{{

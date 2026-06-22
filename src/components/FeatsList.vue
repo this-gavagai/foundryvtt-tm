@@ -75,7 +75,7 @@ const featCategories = computed(() => {
         class="break-inside-avoid-column overflow-hidden pb-4 [&:not(:has(dd))]:hidden"
         :key="slug"
       >
-        <dt class="text-lg underline only:hidden">
+        <dt class="text-[1.1rem] font-normal tracking-[0.01em] only:hidden">
           {{ category.label }}
         </dt>
         <dd

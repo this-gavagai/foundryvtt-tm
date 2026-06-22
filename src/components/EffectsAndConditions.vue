@@ -85,7 +85,7 @@ function adjustViewedEffectQty(delta: number) {
               />
             </div>
             <div
-              class="hidden overflow-hidden text-center text-[0.5rem] whitespace-nowrap"
+              class="block overflow-hidden text-center text-[0.5rem] whitespace-nowrap"
               data-part="label"
             >
               {{ effect?.name?.replace('Effect: ', '') }}

@@ -23,7 +23,7 @@ withDefaults(
 <template>
   <div
     data-component="SkillList"
-    class="py-4 empty:hidden lg:flex lg:justify-between [&_[data-component=StatBox]>div>div]:text-left"
+    class="gap-8 py-4 empty:hidden lg:flex lg:justify-between [&_[data-component=StatBox]>div>div]:text-left"
   >
     <div class="flex-1 px-6 lg:pr-2">
       <section
@@ -32,16 +32,17 @@ withDefaults(
         v-for="isNonLore in showLore ? [true, false] : [true]"
         :key="isNonLore ? 'base' : 'lore'"
       >
-        <h3 class="pb-2 text-lg underline">
+        <h3 class="text-[1.1rem] font-normal tracking-[0.01em]">
           {{ isNonLore ? $t('skills.skills') : $t('skills.lore') }}
         </h3>
-        <ul data-part="skill-columns" class="columns-2">
+        <ul data-part="skill-columns" class="xl:columns-2">
           <li
             v-for="skill in skills?.filter((s: Stat) => !s.lore === isNonLore)"
             class="break-inside-avoid pb-4 text-lg leading-4"
             :key="skill.slug"
           >
             <StatBox
+              row
               :heading="skill.label"
               :proficiency="skill.rank"
               :modifiers="skill.modifiers"
@@ -63,7 +64,9 @@ withDefaults(
         class="[&:not(:has(li))]:hidden"
       >
         <section :data-section="proficiencyType" class="pt-4 first:p-0 empty:hidden">
-          <h3 class="pb-2 text-lg underline">{{ $t('proficiencyTypes.' + proficiencyType) }}</h3>
+          <h3 class="text-[1.1rem] font-normal tracking-[0.01em]">
+            {{ $t('proficiencyTypes.' + proficiencyType) }}
+          </h3>
           <ul class="columns-[12rem]">
             <li
               v-for="(prof, key) in proficiencies?.filter(
@@ -72,7 +75,7 @@ withDefaults(
               class="break-inside-avoid pb-4 text-lg leading-4 empty:hidden"
               :key="key"
             >
-              <StatBox :heading="prof.label ?? prof.slug" :proficiency="prof.rank">
+              <StatBox row :heading="prof.label ?? prof.slug" :proficiency="prof.rank">
                 {{
                   ['classDCs', 'spellcasting'].includes(proficiencyType)
                     ? prof.value

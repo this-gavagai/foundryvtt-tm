@@ -142,7 +142,7 @@
     "title": "Hero Points"
   },
   "ac": {
-    "heading": "AC",
+    "heading": "Armor Class",
     "shieldModal": "Shield",
     "shieldHpHeading": "Shield HP",
     "noShieldEquipped": "No shield equipped",

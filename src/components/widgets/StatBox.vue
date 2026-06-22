@@ -20,6 +20,9 @@ const props = defineProps<{
   fullHeading?: string
   modalHeading?: string
   proficiency?: number
+  // Lay the heading and value out on a single row (name left, value right)
+  // instead of the default centered stack — used by list contexts like skills.
+  row?: boolean
   modifiers?: Modifier[] | undefined
   breakdown?: string
   preventInfoModal?: boolean
@@ -113,18 +116,35 @@ defineExpose({ infoModal })
   >
     <div
       class="fit-content"
-      :class="{
-        'active:drop-shadow-glow cursor-pointer': isClickable
-      }"
+      :class="[
+        { 'flex items-baseline justify-between gap-2': row },
+        {
+          // Tactile press: the content sinks in slightly and dims on tap,
+          // snapping back on release. Subtle, just enough to confirm the touch.
+          'cursor-pointer transition duration-[180ms] ease-out active:scale-[0.90] active:opacity-50 active:duration-[60ms]':
+            isClickable
+        }
+      ]"
       @click="openIfDetailed"
     >
       <div
-        :class="proficiencyLevels[props.proficiency ?? 0]?.color"
-        class="overflow-visible pb-1 text-center text-[0.65rem] whitespace-nowrap uppercase"
+        :class="[
+          proficiencyLevels[props.proficiency ?? 0]?.color,
+          row
+            ? 'flex-1 overflow-hidden text-base text-ellipsis whitespace-nowrap text-left normal-case tracking-[0.02em]'
+            : 'overflow-visible pb-1 text-center text-[0.65rem] whitespace-nowrap uppercase'
+        ]"
       >
         {{ heading }}
       </div>
-      <div class="text-center text-lg whitespace-nowrap" data-part="modifier">
+      <div
+        class="text-center whitespace-nowrap"
+        :class="[
+          row ? 'text-base' : 'text-lg',
+          { 'underline decoration-dotted underline-offset-4': rollAction }
+        ]"
+        data-part="modifier"
+      >
         <slot></slot>
       </div>
       <div class="hidden whitespace-nowrap uppercase">{{ fullHeading }}</div>

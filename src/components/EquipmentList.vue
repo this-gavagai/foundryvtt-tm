@@ -294,7 +294,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
                 }}
               </button>
             </div>
-            <div class="lg:columns-2">
+            <div class="gap-8 xl:columns-2">
               <section
                 v-for="inventoryType in inventoryTypes"
                 :data-section="inventoryType.type"
@@ -302,7 +302,9 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
                 :class="{ 'break-before-column': inventoryType.type === 'backpack' }"
                 :key="inventoryType.type"
               >
-                <h3 class="text-lg underline only:hidden">{{ $t(inventoryType.titleKey) }}</h3>
+                <h3 class="text-[1.1rem] font-normal tracking-[0.01em] only:hidden">
+                  {{ $t(inventoryType.titleKey) }}
+                </h3>
                 <ul>
                   <li
                     v-for="item in inventory?.filter(
@@ -351,7 +353,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
             <div class="flex h-12 items-start pr-28">
               <h2 class="text-xl font-semibold">{{ $t('equipment.partyStash') }}</h2>
             </div>
-            <div class="lg:columns-2">
+            <div class="gap-8 xl:columns-2">
               <section
                 v-for="inventoryType in inventoryTypes"
                 :data-section="inventoryType.type"
@@ -359,7 +361,9 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
                 :class="{ 'break-before-column': inventoryType.type === 'backpack' }"
                 :key="inventoryType.type"
               >
-                <h3 class="text-lg underline only:hidden">{{ $t(inventoryType.titleKey) }}</h3>
+                <h3 class="text-[1.1rem] font-normal tracking-[0.01em] only:hidden">
+                  {{ $t(inventoryType.titleKey) }}
+                </h3>
                 <ul>
                   <li
                     v-for="item in partyInventory?.filter(

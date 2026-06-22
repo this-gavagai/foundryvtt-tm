@@ -140,7 +140,10 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
         leave-to-class="opacity-0 max-h-0"
       >
         <div v-if="item?.type !== 'backpack' && !isSubitem && backpacks.length > 0" class="mb-2">
-          <span data-part="container-label" class="mb-1 block">{{
+          <span
+            data-part="container-label"
+            class="mb-1 block text-xs font-medium tracking-wider uppercase"
+            >{{
             $t('equipment.containerLabel')
           }}</span>
           <div class="flex items-center gap-2">
@@ -155,6 +158,7 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
               v-if="inventoryMode !== undefined"
               type="button"
               data-part="inventory-mode-toggle"
+              class="mt-1.25 flex items-center gap-[0.2rem] self-stretch rounded-md px-2 text-[0.8rem]"
               @click="
                 emit('moveToInventory', inventoryMode === 'individual' ? 'party' : 'individual')
               "

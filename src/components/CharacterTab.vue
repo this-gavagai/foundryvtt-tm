@@ -10,7 +10,7 @@ const props = defineProps(['src', 'label'])
   >
     <img
       :src="props.src"
-      class="m-auto h-10 select-none transition-opacity duration-200 group-active:opacity-60"
+      class="m-auto h-10 select-none transition duration-200 ease-out group-active:scale-90 group-active:opacity-50 group-active:duration-60"
       :alt="label + 'icon'"
       style="-webkit-touch-callout: none"
     />
@@ -18,7 +18,7 @@ const props = defineProps(['src', 'label'])
       class="m-auto h-10 select-none bg-[url('assets/icons/plain-dagger.svg')] bg-contain bg-center bg-no-repeat"
     /> -->
     <div
-      class="overflow-hidden text-[.5rem] whitespace-normal transition-opacity duration-200 group-active:opacity-60"
+      class="overflow-hidden text-[.5rem] whitespace-normal transition duration-200 ease-out group-active:scale-90 group-active:opacity-50 group-active:duration-60"
     >
       {{ label }}
     </div>

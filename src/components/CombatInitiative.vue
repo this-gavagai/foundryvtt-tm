@@ -37,7 +37,9 @@ const initiativeReady = computed(() => {
 </script>
 <template>
   <div data-component="CombatInitiative">
-    <div data-part="heading" class="pb-1">{{ $t('combat.initiative') }}</div>
+    <div data-part="heading" class="pb-1 text-[0.8rem] font-normal uppercase">
+      {{ $t('combat.initiative') }}
+    </div>
     <div class="flex gap-4">
       <DropdownWidget
         class="grow"
@@ -50,7 +52,10 @@ const initiativeReady = computed(() => {
         :disabled="!isListening"
         :changed="(newValue) => (initiativeStat = newValue)"
       />
-      <div data-component="InitiativeBox">
+      <div
+        data-component="InitiativeBox"
+        class="flex items-center px-2 [&_[data-component=StatBox]>div>div:first-child]:hidden"
+      >
         <StatBox
           :modalHeading="$t('combat.initiative')"
           :modifiers="initiativeMods"

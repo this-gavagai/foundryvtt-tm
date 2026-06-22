@@ -176,7 +176,7 @@ defineExpose({ actor, character, actorOrWorldActor })
           </TabPanels>
           <TabList
             data-part="tab-bar"
-            class="border-divider bottom-0 flex h-24 flex-none justify-around border-t border-b"
+            class="border-divider bottom-0 flex h-24 flex-none justify-around border-t border-b bg-white"
           >
             <CharacterTab
               v-for="tab in tabs"

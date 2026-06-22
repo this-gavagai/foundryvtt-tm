@@ -10,7 +10,13 @@ import type { Roll } from '@/types/roll-types'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 import { parseDamageFormulaDice, makeDiceResults } from '@/utils/diceFormula'
-import { buildSpellbook, buildPrepList, slotKey, isStrictPrepared, type SpellInfo } from '@/utils/spellcasting'
+import {
+  buildSpellbook,
+  buildPrepList,
+  slotKey,
+  isStrictPrepared,
+  type SpellInfo
+} from '@/utils/spellcasting'
 import { useModifierOverrides } from '@/composables/useModifierOverrides'
 
 import Button from '@/components/widgets/ButtonWidget.vue'
@@ -324,14 +330,18 @@ const selectablePreparedSpells = computed(() => {
   return spells.value?.filter(
     (i) =>
       i.system.location?.value === options?.entryId &&
-      (options.castingRank === 0 ? isCantrip(i) : !isCantrip(i) && (i.system.level?.value ?? 0) <= options.castingRank)
+      (options.castingRank === 0
+        ? isCantrip(i)
+        : !isCantrip(i) && (i.system.level?.value ?? 0) <= options.castingRank)
   )
 })
 
 const selectablePreparedSpellsByRank = computed(() => {
   const grouped = new Map<number, Spell[]>()
   for (const spell of selectablePreparedSpells.value ?? []) {
-    const rank = spell.system.traits?.value?.includes('cantrip') ? 0 : (spell.system.level?.value ?? 0)
+    const rank = spell.system.traits?.value?.includes('cantrip')
+      ? 0
+      : (spell.system.level?.value ?? 0)
     ;(grouped.get(rank) ?? grouped.set(rank, []).get(rank)!).push(spell)
   }
   return [...grouped.entries()]
@@ -431,13 +441,15 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
         data-section="consumables"
         class="mt-4 break-inside-avoid-column [&:not(:has(li))]:hidden"
       >
-        <h3 class="flex justify-between px-4 py-2 align-bottom">
+        <h3
+          class="mb-1.5 flex justify-between px-4 align-bottom text-[1.1rem] font-normal tracking-[0.01em]"
+        >
           <span>
             <span class="text-xl"> {{ $t('spells.wandsAndScrolls') }} </span>
             <span v-if="spellDC" class="text-xs"> (DC {{ spellDC }}) </span>
           </span>
         </h3>
-        <ul class="pb-4 empty:hidden">
+        <ul class="mb-1 empty:hidden">
           <li v-for="item in sortedConsumables" class="flex justify-between px-4" :key="item._id">
             <div>
               <button
@@ -607,7 +619,9 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
             :key="group.rank"
             class="mt-3 first:mt-2"
           >
-            <h4 class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            <h4
+              class="mb-1 pb-1 text-[0.7rem] font-semibold tracking-[0.07em] text-gray-400 uppercase"
+            >
               {{ group.rank === 0 ? $t('spells.cantrips') : $t('spells.rank', { n: group.rank }) }}
             </h4>
             <ul>
@@ -630,7 +644,7 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
           </div>
           <div
             v-if="!filteredSelectablePreparedSpellsByRank.length"
-            class="mt-3 px-2 py-1 text-sm italic text-gray-400"
+            class="mt-3 px-2 py-1 text-sm text-gray-400 italic"
           >
             {{ $t('common.noResults') }}
           </div>

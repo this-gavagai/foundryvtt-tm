@@ -104,6 +104,13 @@
   cursor: pointer;
 }
 
+/* MovementSpeed's athletics-swim box is rollable but renders a d20 glyph
+   instead of a value, so it opts out of the rollable dotted underline that
+   StatBox applies to rollable values. */
+[data-component='MovementSpeed'] [data-rollable] [data-part='modifier'] {
+  text-decoration: none;
+}
+
 /* iOS Safari auto-zooms when a focused form field's font-size is < 16px.
    Enforce 16px on touch devices to prevent that without disabling pinch-zoom. */
 @media (pointer: coarse) {
@@ -114,12 +121,32 @@
   }
 }
 
-:is([data-part='chat-flavor'], [data-part='chat-content']) {
-  .critical-success { color: oklch(42% 0.2 145); font-weight: 600; }
-  .success          { color: oklch(42% 0.18 250); font-weight: 600; }
-  .failure          { color: oklch(45% 0.2 25);   font-weight: 600; }
-  .critical-failure { color: oklch(38% 0.22 22);  font-weight: 600; }
+/* Roll-result colors are BASE defaults (the darker, light-background values).
+   They live in @layer base so the dark theme's overrides in default.css
+   (@layer themes, a later layer) win. Left unlayered they would beat the
+   theme, because unlayered styles outrank every cascade layer. */
+@layer base {
+  :is([data-part='chat-flavor'], [data-part='chat-content']) {
+    .critical-success {
+      color: oklch(42% 0.2 145);
+      font-weight: 600;
+    }
+    .success {
+      color: oklch(42% 0.18 250);
+      font-weight: 600;
+    }
+    .failure {
+      color: oklch(45% 0.2 25);
+      font-weight: 600;
+    }
+    .critical-failure {
+      color: oklch(38% 0.22 22);
+      font-weight: 600;
+    }
+  }
+}
 
+:is([data-part='chat-flavor'], [data-part='chat-content']) {
   /* Condition cards arrive as enriched HTML with unsized icons; constrain them
      to match the effect tokens on the character sheet (38px, rounded). */
   .participant-conditions ul {
@@ -141,6 +168,160 @@
     border-radius: 9999px;
     object-fit: cover;
   }
+
+  /* --- Foundry-enriched chat-card layout -------------------------------
+     Chat cards arrive as HTML injected by Foundry, so they can't carry Vue
+     component utility classes. Their *structure* (grid / flex / spacing /
+     fonts) is theme-agnostic and lives here in the base layer; the default
+     theme only reskins their colors/surfaces (see default.css). Border-WIDTH
+     and -STYLE stay here, but border/background COLOR is left to the theme —
+     so these base rules deliberately avoid the `border`/`background` shorthands
+     that would otherwise set a color and (being unlayered) beat the theme. */
+  img {
+    max-width: 100%;
+  }
+
+  hr {
+    margin-block: 0.375rem;
+  }
+
+  .tags,
+  .tags[data-tooltip-class='pf2e'] {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+
+  .tags > .tag,
+  .tags[data-tooltip-class='pf2e'] > .tag {
+    display: inline-flex;
+    align-items: center;
+    border: 0;
+    padding-inline: 0.25rem;
+    font-size: 0.5rem;
+    font-weight: 400;
+    line-height: 1rem;
+    text-transform: uppercase;
+  }
+
+  .tags > .tag.tag_transparent,
+  .tags[data-tooltip-class='pf2e'] > .tag.tag_transparent {
+    border: 1px solid currentColor;
+    border-radius: 9999px;
+    background-color: transparent;
+    padding-inline: 0.375rem;
+  }
+
+  .modifiers {
+    padding-block: 0.25rem;
+  }
+
+  h4.action {
+    padding-block: 0.125rem;
+  }
+
+  .card-header {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    column-gap: 0.5rem;
+    row-gap: 0.25rem;
+    align-items: start;
+
+    > img {
+      grid-column: 1;
+      grid-row: span 2;
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+      align-self: center;
+    }
+
+    > h3,
+    > h4 {
+      grid-column: 2;
+      grid-row: 1;
+      margin: 0;
+    }
+
+    > .tags {
+      grid-column: 2;
+      grid-row: 2;
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+
+      > .tag,
+      > span {
+        display: inline-flex;
+        width: auto;
+        flex: 0 0 auto;
+      }
+    }
+  }
+
+  footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    font-size: 0.8em;
+
+    > span + span {
+      border-left-width: 1px;
+      border-left-style: solid;
+      padding-left: 0.5rem;
+    }
+  }
+
+  .card-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+
+    button {
+      padding: 0.4rem 1.1rem;
+      border-radius: 0.375rem;
+      border-width: 1px;
+      border-style: solid;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 120ms;
+    }
+  }
+
+  [data-pf2-action] {
+    display: inline-block;
+    text-decoration: none;
+    padding: 0 0.3rem;
+    border-radius: 0.2rem;
+    cursor: pointer;
+
+    [data-pf2-repost] {
+      display: none;
+    }
+  }
+
+  a.inline-roll {
+    display: inline-block;
+    text-decoration: none;
+    padding: 0 0.3rem;
+    border-radius: 0.2rem;
+    cursor: pointer;
+  }
+
+  .action-glyph {
+    font-family: 'Pathfinder2eActions', sans-serif;
+    font-size: 1.2em;
+  }
+}
+
+/* Hide the action/damage buttons on chat cards that aren't the player's own
+   message — structural behavior, theme-agnostic. */
+[data-part='chat-message'][data-own-message='false'] .card-buttons {
+  display: none;
 }
 
 @custom-variant pwa {
@@ -163,7 +344,6 @@
   --color-proficiency-master: var(--color-yellow-500);
   --color-proficiency-legendary: var(--color-red-500);
 
-  --drop-shadow-glow: 0 0 4px rgba(150, 150, 255, 0.85);
   --animate-rollin: shown 300ms ease-in-out;
   @keyframes shown {
     0% {

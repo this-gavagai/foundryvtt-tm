@@ -21,7 +21,9 @@ function parseSpeed(speed: Stat | undefined) {
 </script>
 <template>
   <div data-component="MovementSpeed">
-    <div data-part="heading" class="pb-2 underline">{{ $t('movement.heading') }}</div>
+    <div data-part="heading" class="pb-[0.35rem] pl-[0.7rem] text-[0.8rem] font-normal uppercase">
+      {{ $t('movement.heading') }}
+    </div>
     <div data-part="speeds" class="flex justify-between gap-1 *:w-1/5">
       <StatBox :heading="$t('movement.land')" :breakdown="land?.breakdown">
         {{ parseSpeed(land) }}

@@ -47,7 +47,7 @@ function spellInfo(rank: string, index: number): SpellInfo {
 </script>
 <template>
   <section :data-section="dataSection" class="break-inside-avoid-column">
-    <h3 class="flex justify-between px-4 py-2 align-bottom">
+    <h3 class="mb-1.5 flex justify-between px-4 py-2 align-bottom">
       <span>
         <button
           v-if="titleClickable"
@@ -69,7 +69,7 @@ function spellInfo(rank: string, index: number): SpellInfo {
       :class="{ hidden: !spells.length }"
       :key="'rank' + rank"
     >
-      <h4 class="flex justify-between px-4 align-bottom text-sm italic">
+      <h4 class="flex justify-between px-4 pb-1 align-bottom text-sm italic">
         <span class="pr-1">
           {{ rank == '0' ? $t('spells.cantrips') : $t('spells.rank', { n: rank }) }}
         </span>
@@ -150,8 +150,12 @@ function spellInfo(rank: string, index: number): SpellInfo {
         </li>
       </ul>
     </section>
-    <!-- Spell List (all spells available to prepare, for prepared entries) -->
-    <template v-if="prepList && Object.values(prepList).some((s) => s.length)">
+    <!-- Spell List (all spells available to prepare). Strict prepared casters
+         fill empty slots via the "select a spell" popup, so this inline list is
+         only shown for flexible prepared entries (which have no empty slots). -->
+    <template
+      v-if="prepList && !isStrictPrepared(entry) && Object.values(prepList).some((s) => s.length)"
+    >
       <h4 class="mt-3 px-4 text-sm italic">{{ $t('spells.spellList') }}</h4>
       <section
         v-for="(spells, rank) in prepList"
@@ -159,15 +163,11 @@ function spellInfo(rank: string, index: number): SpellInfo {
         :class="{ hidden: !spells.length }"
         :key="'prep' + rank"
       >
-        <h5 class="px-4 text-xs italic text-gray-500">
+        <h5 class="px-4 text-xs text-gray-500 italic">
           {{ rank == '0' ? $t('spells.cantrips') : $t('spells.rank', { n: rank }) }}
         </h5>
         <ul class="mb-1 empty:hidden">
-          <li
-            v-for="spell in spells"
-            :key="spell?._id"
-            class="px-4 py-px"
-          >
+          <li v-for="spell in spells" :key="spell?._id" class="px-4 py-px">
             <button
               v-if="spell"
               type="button"
