@@ -1,5 +1,6 @@
 @import 'tailwindcss';
-@import './themes/default/default.css' layer(themes);
+@import './themes/moonlit/moonlit.css' layer(themes);
+@import './themes/sunny/sunny.css' layer(themes);
 @plugin '@headlessui/tailwindcss';
 
 /* Dosis is self-hosted rather than pulled from Google Fonts. As a remote
@@ -122,7 +123,7 @@
 }
 
 /* Roll-result colors are BASE defaults (the darker, light-background values).
-   They live in @layer base so the dark theme's overrides in default.css
+   They live in @layer base so the dark theme's overrides in moonlit.css
    (@layer themes, a later layer) win. Left unlayered they would beat the
    theme, because unlayered styles outrank every cascade layer. */
 @layer base {
@@ -172,8 +173,8 @@
   /* --- Foundry-enriched chat-card layout -------------------------------
      Chat cards arrive as HTML injected by Foundry, so they can't carry Vue
      component utility classes. Their *structure* (grid / flex / spacing /
-     fonts) is theme-agnostic and lives here in the base layer; the default
-     theme only reskins their colors/surfaces (see default.css). Border-WIDTH
+     fonts) is theme-agnostic and lives here in the base layer; the moonlit
+     theme only reskins their colors/surfaces (see moonlit.css). Border-WIDTH
      and -STYLE stay here, but border/background COLOR is left to the theme —
      so these base rules deliberately avoid the `border`/`background` shorthands
      that would otherwise set a color and (being unlayered) beat the theme. */

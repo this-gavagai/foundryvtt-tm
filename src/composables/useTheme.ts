@@ -1,11 +1,11 @@
 import { ref } from 'vue'
 
-export const THEMES = ['default'] as const
+export const THEMES = ['moonlit', 'sunny'] as const
 export type Theme = (typeof THEMES)[number]
 
 const STORAGE_KEY = 'tm-theme'
 // Sentinel persisted when the user explicitly picks "None" — distinguishes
-// that choice from "never set" (which should default to 'default').
+// that choice from "never set" (which should default to 'moonlit').
 const NONE_SENTINEL = 'none'
 const activeTheme = ref<Theme | null>(null)
 
@@ -22,10 +22,10 @@ function applyTheme(theme: Theme | null) {
 export function initTheme() {
   const saved = localStorage.getItem(STORAGE_KEY)
   let theme: Theme | null
-  if (saved === null) theme = 'default' // never set → default theme
+  if (saved === null) theme = 'moonlit' // never set → default theme
   else if (saved === NONE_SENTINEL) theme = null // explicit "no theme"
   else if ((THEMES as readonly string[]).includes(saved)) theme = saved as Theme
-  else theme = 'default' // unknown legacy value → reset to default
+  else theme = 'moonlit' // unknown/legacy value (e.g. old 'default') → moonlit
   activeTheme.value = theme
   applyTheme(theme)
 }
