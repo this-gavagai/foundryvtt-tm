@@ -83,9 +83,9 @@ export function useInfoModalRolls({
   function executeRollFromButton(roll: Roll) {
     const isArmed = roll.key === armedRoll.value?.key
     if (isArmed && bufferComplete.value) {
-      executeRoll(roll, buffer.value as number[])
+      return executeRoll(roll, buffer.value as number[])
     } else {
-      executeRoll(roll)
+      return executeRoll(roll)
     }
   }
 

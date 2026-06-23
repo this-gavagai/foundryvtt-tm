@@ -35,7 +35,7 @@ const quantityModal = ref()
 
 function changeQuantity(newValue: number) {
   if (Number.isNaN(newValue) || newValue < 0) return
-  props.item?.changeQty?.(newValue)
+  return props.item?.changeQty?.(newValue)
 }
 
 function onQuantityInput(e: Event) {
@@ -279,7 +279,7 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
           <Button
             color="unstyled"
             :disabled="(item?.system?.quantity ?? 0) < 1"
-            @click="changeQuantity((item?.system?.quantity ?? 0) - 1)"
+            :clicked="() => changeQuantity((item?.system?.quantity ?? 0) - 1)"
           >
             <MinusCircleIcon class="h-8 w-8" />
           </Button>
@@ -290,7 +290,7 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
             :value="item?.system?.quantity"
             @change="onQuantityInput"
           />
-          <Button color="unstyled" @click="changeQuantity((item?.system?.quantity ?? 0) + 1)">
+          <Button color="unstyled" :clicked="() => changeQuantity((item?.system?.quantity ?? 0) + 1)">
             <PlusCircleIcon class="h-8 w-8" />
           </Button>
         </div>

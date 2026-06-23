@@ -2,13 +2,10 @@
 import Button from '@/components/widgets/ButtonWidget.vue'
 import type { Roll } from '@/types/roll-types'
 
-defineProps<{
+const props = defineProps<{
   rolls?: Roll[]
   armedRoll?: Roll
-}>()
-
-defineEmits<{
-  'execute-roll': [roll: Roll]
+  executeRoll: (roll: Roll) => Promise<unknown> | void
 }>()
 </script>
 
@@ -19,7 +16,7 @@ defineEmits<{
     :color="roll.color ?? 'blue'"
     :disabled="roll.disabled"
     :data-armed="roll.key === armedRoll?.key ? true : undefined"
-    :clicked="() => $emit('execute-roll', roll)"
+    :clicked="() => props.executeRoll(roll)"
   >
     {{ roll.label }}
   </Button>

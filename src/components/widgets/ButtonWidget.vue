@@ -25,7 +25,7 @@ function handleClick() {
   if (props.clicked) {
     waiting.value = true
     const response = props.clicked?.()
-    Promise.resolve(response).then(() => (waiting.value = false))
+    Promise.resolve(response).finally(() => (waiting.value = false))
   }
 }
 

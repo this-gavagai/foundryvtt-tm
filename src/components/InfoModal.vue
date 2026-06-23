@@ -216,7 +216,7 @@ defineExpose({ open, close, rollResultModal, isOpen })
                   <RollButtons
                     :rolls="props.rolls"
                     :armedRoll="armedRoll"
-                    @execute-roll="executeRollFromButton"
+                    :executeRoll="executeRollFromButton"
                   />
                   <slot name="actionButtons"></slot>
                 </div>
