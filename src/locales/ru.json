@@ -56,8 +56,11 @@
     "passwordLabel": "Пароль",
     "error": "Ошибка входа — проверьте учётные данные.",
     "couldNotLoadUsers": "Не удалось загрузить список пользователей.",
+    "noUsersRetry": "Пользователей пока нет — возможно, мир ещё запускается.",
     "retry": "Повторить",
-    "activeMarker": "(активен)"
+    "activeMarker": "(активен)",
+    "connectingTo": "Вход на",
+    "changeServer": "Сменить сервер"
   },
   "serverUrl": {
     "title": "Сервер Foundry",

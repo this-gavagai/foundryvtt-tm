@@ -21,6 +21,8 @@ import { modifyDocument, processChanges } from '@/api/documents'
 
 import EquipmentInvested from '@/components/EquipmentInvested.vue'
 import EquipmentListItem from '@/components/EquipmentListItem.vue'
+import ViewableItem from '@/components/widgets/ViewableItem.vue'
+import SheetSection from '@/components/widgets/SheetSection.vue'
 import Modal from '@/components/ModalBox.vue'
 import InfoModal from '@/components/InfoModal.vue'
 import EquipmentDetails from '@/components/EquipmentDetails.vue'
@@ -280,10 +282,9 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
               <div class="min-w-0 flex-1">
                 <EquipmentBulk />
               </div>
-              <button
-                type="button"
+              <ViewableItem
                 data-part="invested-count"
-                class="cursor-pointer whitespace-nowrap"
+                class="inline-block whitespace-nowrap"
                 @click="investedModal.open()"
               >
                 {{
@@ -292,19 +293,17 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
                       .length
                   })
                 }}
-              </button>
+              </ViewableItem>
             </div>
             <div class="gap-8 xl:columns-2">
-              <section
+              <SheetSection
                 v-for="inventoryType in inventoryTypes"
-                :data-section="inventoryType.type"
+                :section="inventoryType.type"
+                :title="$t(inventoryType.titleKey)"
                 class="break-before-avoid break-inside-avoid-column pt-4 whitespace-nowrap [&:not(:has(li))]:hidden"
                 :class="{ 'break-before-column': inventoryType.type === 'backpack' }"
                 :key="inventoryType.type"
               >
-                <h3 class="text-[1.1rem] font-normal tracking-[0.01em] only:hidden">
-                  {{ $t(inventoryType.titleKey) }}
-                </h3>
                 <ul>
                   <li
                     v-for="item in inventory?.filter(
@@ -325,7 +324,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
                     </ul>
                   </li>
                 </ul>
-              </section>
+              </SheetSection>
             </div>
           </div>
         </Transition>
@@ -354,16 +353,14 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
               <h2 class="text-xl font-semibold">{{ $t('equipment.partyStash') }}</h2>
             </div>
             <div class="gap-8 xl:columns-2">
-              <section
+              <SheetSection
                 v-for="inventoryType in inventoryTypes"
-                :data-section="inventoryType.type"
+                :section="inventoryType.type"
+                :title="$t(inventoryType.titleKey)"
                 class="break-before-avoid break-inside-avoid-column pt-4 whitespace-nowrap [&:not(:has(li))]:hidden"
                 :class="{ 'break-before-column': inventoryType.type === 'backpack' }"
                 :key="inventoryType.type"
               >
-                <h3 class="text-[1.1rem] font-normal tracking-[0.01em] only:hidden">
-                  {{ $t(inventoryType.titleKey) }}
-                </h3>
                 <ul>
                   <li
                     v-for="item in partyInventory?.filter(
@@ -384,7 +381,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
                     </ul>
                   </li>
                 </ul>
-              </section>
+              </SheetSection>
             </div>
           </div>
         </Transition>

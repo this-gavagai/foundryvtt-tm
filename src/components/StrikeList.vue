@@ -8,6 +8,7 @@ import { useListenersStore } from '@/stores/listenersOnline'
 import InfoModal from './InfoModal.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import StrikeActionSet from './StrikeListActionSet.vue'
+import SheetSection from '@/components/widgets/SheetSection.vue'
 import StrikeDetails from './StrikeDetails.vue'
 import type { Weapon } from '@/composables/character'
 import type { DiceResults, RequestResolutionArgs } from '@/types/api-types'
@@ -335,10 +336,11 @@ watch([strikes, blasts], () => {
 <template>
   <div data-component="StrikeList">
     <div class="break-inside-avoid py-4 [&:not(:has(li))]:hidden">
-      <div data-section="blasts" class="break-inside-avoid [&:not(:has(li))]:hidden">
-        <h3 class="text-[1.1rem] font-normal tracking-[0.01em]">
-          {{ $t('strikes.elementalBlastsHeading') }}
-        </h3>
+      <SheetSection
+        section="blasts"
+        :title="$t('strikes.elementalBlastsHeading')"
+        class="break-inside-avoid [&:not(:has(li))]:hidden"
+      >
         <Button
           v-if="isListening"
           class="mt-1 mb-2"
@@ -367,14 +369,12 @@ watch([strikes, blasts], () => {
             </div>
           </li>
         </ul>
-      </div>
-      <div
-        data-section="strikes"
+      </SheetSection>
+      <SheetSection
+        section="strikes"
+        :title="$t('strikes.strikesHeading')"
         class="break-inside-avoid [&:not(:has(li))]:hidden [div_&:not(.hidden)]:pt-2"
       >
-        <h3 class="text-[1.1rem] font-normal tracking-[0.01em]">
-          {{ $t('strikes.strikesHeading') }}
-        </h3>
         <ul>
           <li
             v-for="(strike, i) in strikes?.filter(
@@ -409,7 +409,7 @@ watch([strikes, blasts], () => {
             </div>
           </li>
         </ul>
-      </div>
+      </SheetSection>
     </div>
     <Teleport to="#modals">
       <InfoModal

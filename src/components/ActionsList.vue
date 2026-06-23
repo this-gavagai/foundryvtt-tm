@@ -9,6 +9,8 @@ import { useListenersStore } from '@/stores/listenersOnline'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
+import ViewableItem from '@/components/widgets/ViewableItem.vue'
+import SheetSection from '@/components/widgets/SheetSection.vue'
 import Button from './widgets/ButtonWidget.vue'
 
 import InfoModal from '@/components/InfoModal.vue'
@@ -47,21 +49,23 @@ function useViewedAction() {
 <template>
   <div data-component="ActionsList">
     <div class="break-inside-avoid-column py-4">
-      <div
-        :data-section="group.type"
+      <SheetSection
+        :section="group.type"
+        :title="$t(group.titleKey)"
         class="pb-4 [&:not(:has(li))]:hidden"
         v-for="group in actionTypes"
         :key="group.type"
       >
-        <h3 class="text-[1.1rem] font-normal tracking-[0.01em]">
-          {{ $t(group.titleKey) }}
-        </h3>
         <ul>
           <li
             v-for="action in actions?.filter((a: Action) => a.actionType === group.type)"
             :key="action._id"
           >
-            <a class="cursor-pointer" @click="viewAction(action)">
+            <ViewableItem
+              scale="firm"
+              class="inline-block"
+              @click="viewAction(action)"
+            >
               {{ action.name }}
               <ActionIcons
                 class="relative -mt-2 pl-1 text-2xl leading-4"
@@ -73,10 +77,10 @@ function useViewedAction() {
                       : (action?.system?.actions?.value?.toString() ?? '')
                 "
               />
-            </a>
+            </ViewableItem>
           </li>
         </ul>
-      </div>
+      </SheetSection>
     </div>
     <Teleport to="#modals">
       <InfoModal

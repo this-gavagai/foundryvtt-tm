@@ -4,6 +4,8 @@ import { isSlotCaster, isStrictPrepared, slotKey, type SpellInfo } from '@/utils
 
 import CounterWidget from '@/components/widgets/CounterWidget.vue'
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
+import ViewableItem from '@/components/widgets/ViewableItem.vue'
+import SheetSection from '@/components/widgets/SheetSection.vue'
 import SpellRollButtons from '@/components/SpellRollButtons.vue'
 
 // One "source → rank → spell list" block, shared by spellcasting entries and the
@@ -46,22 +48,23 @@ function spellInfo(rank: string, index: number): SpellInfo {
 }
 </script>
 <template>
-  <section :data-section="dataSection" class="break-inside-avoid-column">
-    <h3 class="mb-1.5 flex justify-between px-4 py-2 align-bottom">
-      <span>
-        <button
-          v-if="titleClickable"
-          type="button"
-          class="cursor-pointer text-xl"
-          @click="emit('openEntry')"
-        >
-          {{ title }}
-        </button>
-        <span v-else class="text-xl">{{ title }}</span>
-        <span v-if="dc" class="text-xs"> (DC {{ dc }}) </span>
-      </span>
-      <slot name="headerCounter" />
-    </h3>
+  <SheetSection :section="dataSection" class="break-inside-avoid-column">
+    <template #header>
+      <h3 class="mb-1 flex justify-between align-bottom">
+        <span>
+          <ViewableItem
+            v-if="titleClickable"
+            class="inline-block text-xl underline"
+            @click="emit('openEntry')"
+          >
+            {{ title }}
+          </ViewableItem>
+          <span v-else class="text-xl underline">{{ title }}</span>
+          <span v-if="dc" class="text-xs"> (DC {{ dc }}) </span>
+        </span>
+        <slot name="headerCounter" />
+      </h3>
+    </template>
     <!-- Spell Ranks -->
     <section
       v-for="(spells, rank) in ranks ?? {}"
@@ -69,7 +72,7 @@ function spellInfo(rank: string, index: number): SpellInfo {
       :class="{ hidden: !spells.length }"
       :key="'rank' + rank"
     >
-      <h4 class="flex justify-between px-4 pb-1 align-bottom text-sm italic">
+      <h4 class="flex justify-between pb-1 align-bottom text-sm italic">
         <span class="pr-1">
           {{ rank == '0' ? $t('spells.cantrips') : $t('spells.rank', { n: rank }) }}
         </span>
@@ -87,15 +90,14 @@ function spellInfo(rank: string, index: number): SpellInfo {
       <ul class="mb-1 empty:hidden">
         <li
           v-for="(spell, index) in spells"
-          class="grid grid-cols-[1fr_auto] items-center gap-x-2 px-4 py-px min-[430px]:grid-cols-[1fr_auto_auto]"
+          class="grid grid-cols-[1fr_auto] items-center gap-x-2 py-px min-[430px]:grid-cols-[1fr_auto_auto]"
           :key="spell?._id"
         >
           <!-- col 1, row 1 at all widths -->
           <div class="text-md min-w-0">
-            <button
+            <ViewableItem
               v-if="spell"
-              type="button"
-              class="flex max-w-full cursor-pointer items-baseline overflow-hidden"
+              class="flex max-w-full items-baseline overflow-hidden"
               @click="emit('openSpell', spell?._id, spellInfo(String(rank), index))"
             >
               <span class="truncate">
@@ -108,11 +110,11 @@ function spellInfo(rank: string, index: number): SpellInfo {
                 >{{ spell?.name }}</span
               >
               <ActionIcons class="text-md ml-1 shrink-0" :actions="spell?.system?.time?.value" />
-            </button>
+            </ViewableItem>
             <button
               v-else-if="entry"
               type="button"
-              class="cursor-pointer text-gray-500"
+              class="cursor-pointer text-gray-500 transition duration-180 ease-out active:scale-[0.97] active:opacity-50 active:duration-60"
               @click="emit('openEmpty', spellInfo(String(rank), index))"
             >
               (empty)
@@ -156,30 +158,29 @@ function spellInfo(rank: string, index: number): SpellInfo {
     <template
       v-if="prepList && !isStrictPrepared(entry) && Object.values(prepList).some((s) => s.length)"
     >
-      <h4 class="mt-3 px-4 text-sm italic">{{ $t('spells.spellList') }}</h4>
+      <h4 class="mt-3 text-sm italic">{{ $t('spells.spellList') }}</h4>
       <section
         v-for="(spells, rank) in prepList"
         class="[section:not(.hidden)~&]:mt-1"
         :class="{ hidden: !spells.length }"
         :key="'prep' + rank"
       >
-        <h5 class="px-4 text-xs text-gray-500 italic">
+        <h5 class="text-xs text-gray-500 italic">
           {{ rank == '0' ? $t('spells.cantrips') : $t('spells.rank', { n: rank }) }}
         </h5>
         <ul class="mb-1 empty:hidden">
-          <li v-for="spell in spells" :key="spell?._id" class="px-4 py-px">
-            <button
+          <li v-for="spell in spells" :key="spell?._id" class="py-px">
+            <ViewableItem
               v-if="spell"
-              type="button"
-              class="flex cursor-pointer items-baseline"
+              class="flex items-baseline"
               @click="emit('openSpell', spell._id, { entry, entryId: entry?._id })"
             >
               <span class="text-sm">{{ spell.name }}</span>
               <ActionIcons class="ml-1 shrink-0 text-sm" :actions="spell.system?.time?.value" />
-            </button>
+            </ViewableItem>
           </li>
         </ul>
       </section>
     </template>
-  </section>
+  </SheetSection>
 </template>

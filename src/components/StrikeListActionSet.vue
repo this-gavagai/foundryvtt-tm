@@ -42,12 +42,12 @@ const damageVariants = computed(() => [
       <span data-part="attack">
         <span
           v-for="(variant, index) in mapLabelSet"
-          class="mr-1 mb-1 inline-block border border-gray-400 bg-gray-100 p-2 text-xs whitespace-nowrap text-blue-600 transition-colors select-none active:bg-gray-300"
+          class="relative mr-1 mb-1 inline-block cursor-pointer border border-gray-400 bg-gray-100 p-2 text-xs whitespace-nowrap text-blue-600 transition duration-180 ease-out select-none active:scale-[0.90] active:opacity-50 active:duration-60"
           @click="emit('clicked', id, { type, subtype: index })"
           :key="'variant_' + index"
         >
           <span v-if="!index">
-            <ActionIcons actions="1" class="relative float-left -mt-px h-0 text-lg leading-none" />
+            <ActionIcons actions="1" class="absolute -mt-px h-0 text-lg leading-none" />
             <span class="pl-4">{{ typeLabel }}&nbsp;</span>
           </span>
           <span>{{
@@ -58,7 +58,7 @@ const damageVariants = computed(() => [
       <span data-part="damage">
         <span
           v-for="(variant, index) in damageVariants"
-          class="mr-1 mb-1 inline-block border border-gray-400 bg-gray-100 p-2 text-xs text-red-600 transition-colors select-none active:bg-gray-300"
+          class="mr-1 mb-1 inline-block cursor-pointer border border-gray-400 bg-gray-100 p-2 text-xs text-red-600 transition duration-180 ease-out select-none active:scale-[0.90] active:opacity-50 active:duration-60"
           @click="emit('clicked', id, { type: type + '_damage', subtype: index })"
           :key="'damage_' + index"
         >

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import ViewableItem from '@/components/widgets/ViewableItem.vue'
 
 const { item } = defineProps(['item'])
 const emits = defineEmits(['itemClicked'])
@@ -18,8 +19,8 @@ const totalWeight = computed(() => {
 </script>
 <template>
   <div>
-    <a
-      class="grid cursor-pointer grid-cols-[auto_30px_20px] items-end gap-x-1"
+    <ViewableItem
+      class="grid grid-cols-[auto_30px_20px] items-end gap-x-1"
       :class="{
         'text-gray-300': item.system?.equipped?.carryType === 'dropped',
         'ml-3': item?.system?.containerId
@@ -40,14 +41,14 @@ const totalWeight = computed(() => {
       >
         {{ totalWeight }}
       </div>
-    </a>
-    <a
+    </ViewableItem>
+    <ViewableItem
       v-for="subitem in item?.system?.subitems"
       :key="subitem._id"
-      class="block cursor-pointer truncate pl-4 text-sm"
+      class="block truncate pl-4 text-sm"
       @click="() => emits('itemClicked', subitem)"
     >
       {{ subitem.label ?? subitem.name }}
-    </a>
+    </ViewableItem>
   </div>
 </template>

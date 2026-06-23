@@ -22,7 +22,7 @@ const emit = defineEmits<{
 const { isListening } = storeToRefs(useListenersStore())
 
 const buttonClass =
-  'inline-block cursor-pointer border border-gray-400 bg-gray-100 px-2 py-1 transition-colors select-none active:bg-gray-300'
+  'inline-block cursor-pointer border border-gray-400 bg-gray-100 px-2 py-1 transition duration-180 ease-out select-none active:scale-[0.90] active:opacity-50 active:duration-60'
 </script>
 <template>
   <div

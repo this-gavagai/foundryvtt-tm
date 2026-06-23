@@ -121,8 +121,13 @@ defineExpose({ infoModal })
         {
           // Tactile press: the content sinks in slightly and dims on tap,
           // snapping back on release. Subtle, just enough to confirm the touch.
-          'cursor-pointer transition duration-[180ms] ease-out active:scale-[0.90] active:opacity-50 active:duration-[60ms]':
-            isClickable
+          'cursor-pointer transition duration-180 ease-out active:opacity-50 active:duration-60':
+            isClickable,
+          // Row-mode boxes are wide, so a 0.90 scale travels too far and reads
+          // as a lurch; ease it back to a gentler dip. Stacked boxes keep the
+          // fuller press since they're compact.
+          'active:scale-[0.90]': isClickable && !row,
+          'active:scale-[0.97]': isClickable && row
         }
       ]"
       @click="openIfDetailed"

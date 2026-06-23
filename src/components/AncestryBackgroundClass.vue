@@ -3,6 +3,7 @@ import type { Item } from '@/composables/character'
 import { ref, computed } from 'vue'
 import InfoModal from '@/components/InfoModal.vue'
 import ParsedDescription from './ParsedDescription.vue'
+import ViewableItem from '@/components/widgets/ViewableItem.vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 
@@ -25,13 +26,19 @@ function viewItem(item: Item | undefined) {
 <template>
   <div>
     <div class="my-auto shrink">
-      <div class="cursor-pointer overflow-hidden whitespace-nowrap">
-        <span @click="viewItem(ancestry)">{{ ancestry?.name ?? '-' }}&nbsp;</span>
-        <span @click="viewItem(background)">{{ background?.name }}</span>
+      <div class="overflow-hidden whitespace-nowrap">
+        <ViewableItem class="inline-block" @click="viewItem(ancestry)"
+          >{{ ancestry?.name ?? '-' }}&nbsp;</ViewableItem
+        >
+        <ViewableItem class="inline-block" @click="viewItem(background)">{{
+          background?.name
+        }}</ViewableItem>
       </div>
-      <div class="cursor-pointer overflow-hidden whitespace-nowrap" @click="viewItem(classType)">
-        <span>{{ classType?.name ?? '-' }}</span>
-        <span v-if="level && classType?.name">{{ ` (Level ${level})` }}</span>
+      <div class="overflow-hidden whitespace-nowrap">
+        <ViewableItem class="inline-block" @click="viewItem(classType)">
+          <span>{{ classType?.name ?? '-' }}</span>
+          <span v-if="level && classType?.name">{{ ` (Level ${level})` }}</span>
+        </ViewableItem>
       </div>
     </div>
     <Teleport to="#modals">

@@ -7,6 +7,7 @@ import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 
 import InfoModal from '@/components/InfoModal.vue'
 import FeatsListItem from './FeatsListItem.vue'
+import SheetSection from '@/components/widgets/SheetSection.vue'
 import ParsedDescription from './ParsedDescription.vue'
 
 const { t } = useI18n()
@@ -69,32 +70,32 @@ const featCategories = computed(() => {
   <div data-component="FeatsList">
     <div v-if="feats?.length === 0" class="px-6 py-4 italic">{{ $t('feats.none') }}</div>
     <div v-else class="px-6 py-4 lg:columns-2">
-      <dl
+      <SheetSection
         v-for="(category, slug) in featCategories"
-        :data-section="slug"
-        class="break-inside-avoid-column overflow-hidden pb-4 [&:not(:has(dd))]:hidden"
+        :section="slug"
+        :title="category.label"
+        class="break-inside-avoid-column overflow-hidden pb-4 [&:not(:has(li))]:hidden"
         :key="slug"
       >
-        <dt class="text-[1.1rem] font-normal tracking-[0.01em] only:hidden">
-          {{ category.label }}
-        </dt>
-        <dd
-          v-for="feat in category.feats.sort(
-            (a, b) =>
-              (a?.system?.level?.taken ??
-                Number(a?.system?.location?.value?.split('-')?.[1]) ??
-                a?.system?.level?.value ??
-                0) -
-              (b?.system?.level?.taken ??
-                Number(b?.system?.location?.value?.split('-')?.[1]) ??
-                b?.system?.level?.value ??
-                0)
-          )"
-          :key="feat._id"
-        >
-          <FeatsListItem :featId="feat._id" @clicked="viewFeat" />
-        </dd>
-      </dl>
+        <ul>
+          <li
+            v-for="feat in category.feats.sort(
+              (a, b) =>
+                (a?.system?.level?.taken ??
+                  Number(a?.system?.location?.value?.split('-')?.[1]) ??
+                  a?.system?.level?.value ??
+                  0) -
+                (b?.system?.level?.taken ??
+                  Number(b?.system?.location?.value?.split('-')?.[1]) ??
+                  b?.system?.level?.value ??
+                  0)
+            )"
+            :key="feat._id"
+          >
+            <FeatsListItem :featId="feat._id" @clicked="viewFeat" />
+          </li>
+        </ul>
+      </SheetSection>
     </div>
     <Teleport to="#modals">
       <InfoModal

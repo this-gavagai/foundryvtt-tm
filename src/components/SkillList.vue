@@ -4,6 +4,7 @@ import type { Stat } from '@/composables/character'
 import { formatModifier } from '@/utils/formatters'
 
 import StatBox from './widgets/StatBox.vue'
+import SheetSection from './widgets/SheetSection.vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 
 const character = useInjectedCharacter()
@@ -26,15 +27,13 @@ withDefaults(
     class="gap-8 py-4 empty:hidden lg:flex lg:justify-between [&_[data-component=StatBox]>div>div]:text-left"
   >
     <div class="flex-1 px-6 lg:pr-2">
-      <section
+      <SheetSection
         class="border-divider break-inside-avoid-column border-t first:border-t-0 first:p-0 empty:hidden 2xl:border-t-0 2xl:pl-2 2xl:first:border-r 2xl:first:pr-6 [&:not(:has(li))]:hidden"
-        :data-section="isNonLore ? 'skills' : 'lore'"
+        :section="isNonLore ? 'skills' : 'lore'"
+        :title="isNonLore ? $t('skills.skills') : $t('skills.lore')"
         v-for="isNonLore in showLore ? [true, false] : [true]"
         :key="isNonLore ? 'base' : 'lore'"
       >
-        <h3 class="text-[1.1rem] font-normal tracking-[0.01em]">
-          {{ isNonLore ? $t('skills.skills') : $t('skills.lore') }}
-        </h3>
         <ul data-part="skill-columns" class="xl:columns-2">
           <li
             v-for="skill in skills?.filter((s: Stat) => !s.lore === isNonLore)"
@@ -52,7 +51,7 @@ withDefaults(
             </StatBox>
           </li>
         </ul>
-      </section>
+      </SheetSection>
     </div>
     <div
       v-if="showProficiencies"
@@ -63,10 +62,11 @@ withDefaults(
         :key="proficiencyType"
         class="[&:not(:has(li))]:hidden"
       >
-        <section :data-section="proficiencyType" class="pt-4 first:p-0 empty:hidden">
-          <h3 class="text-[1.1rem] font-normal tracking-[0.01em]">
-            {{ $t('proficiencyTypes.' + proficiencyType) }}
-          </h3>
+        <SheetSection
+          :section="proficiencyType"
+          :title="$t('proficiencyTypes.' + proficiencyType)"
+          class="pt-4 first:p-0 empty:hidden"
+        >
           <ul class="columns-[12rem]">
             <li
               v-for="(prof, key) in proficiencies?.filter(
@@ -84,7 +84,7 @@ withDefaults(
               </StatBox>
             </li>
           </ul>
-        </section>
+        </SheetSection>
       </div>
     </div>
   </div>

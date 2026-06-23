@@ -56,8 +56,11 @@
     "passwordLabel": "Password",
     "error": "Login failed — check your credentials.",
     "couldNotLoadUsers": "Could not load user list.",
+    "noUsersRetry": "No users yet — the world may still be starting.",
     "retry": "Retry",
-    "activeMarker": "(active)"
+    "activeMarker": "(active)",
+    "connectingTo": "Signing in to",
+    "changeServer": "Change server"
   },
   "serverUrl": {
     "title": "Foundry server",

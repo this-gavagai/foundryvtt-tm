@@ -1017,7 +1017,7 @@ body.theme-moonlit {
       [data-component='StrikeList'],
       [data-component='FamiliarActionsList']
     )
-    :is(section, dl, div[data-section]),
+    section[data-section],
   [data-component='SpellList'] section[data-section] {
     background-color: oklch(17% 0.022 258 / 0.45);
     backdrop-filter: blur(14px) saturate(1.4);
@@ -1134,22 +1134,18 @@ body.theme-moonlit {
   [data-component='ActionsList'],
   [data-component='StrikeList'],
   [data-component='FamiliarActionsList'] {
-    section,
-    dl,
-    div[data-section] {
+    section[data-section] {
       padding: 0.75rem 1rem;
       margin-bottom: 0.75rem;
     }
 
-    li,
-    dd {
+    li {
       padding-top: 0.35rem;
       padding-bottom: 0.35rem;
       border-bottom: 1px solid var(--color-divider);
     }
 
-    li:last-child,
-    dd:last-child {
+    li:last-child {
       border-bottom: none;
     }
   }
@@ -1173,11 +1169,28 @@ body.theme-moonlit {
       [data-component='FamiliarActionsList'],
       [data-component='SpellList']
     )
-    :is(h3, dt) {
+    h3 {
     color: var(--color-heading);
     border-bottom: 2px solid;
     border-image: linear-gradient(to right, var(--section-color, var(--color-divider)), transparent)
       1;
+  }
+
+  /* The section-header underline ships as an `underline` utility class on the
+     components; the theme draws the accent as the gradient border above
+     instead, so suppress the text decoration here (the gradient stays). Covers
+     the SheetSection <h3> and the spell headers' inner title link/span. */
+  :is(
+      [data-component='SkillList'],
+      [data-component='FeatsList'],
+      [data-component='EquipmentList'],
+      [data-component='ActionsList'],
+      [data-component='StrikeList'],
+      [data-component='FamiliarActionsList'],
+      [data-component='SpellList']
+    )
+    :is(h3, h3 *) {
+    text-decoration: none;
   }
 
   /* --- SkillList --------------------------------------- */
@@ -1200,7 +1213,7 @@ body.theme-moonlit {
       border-top: 1px solid var(--color-divider);
     }
 
-    dd:has([data-part='sub-feat']:has(*)) {
+    li:has([data-part='sub-feat']:has(*)) {
       padding-bottom: 0;
     }
   }
@@ -1211,7 +1224,7 @@ body.theme-moonlit {
     > div {
       padding-bottom: 0;
     }
-    div[data-section]:last-child {
+    section[data-section]:last-child {
       margin-bottom: 0;
     }
 
@@ -1243,7 +1256,6 @@ body.theme-moonlit {
       background-color: oklch(19% 0.022 258);
       border-color: oklch(32% 0.022 258);
       color: oklch(72% 0.015 258);
-      transition: background-color 120ms;
       margin-bottom: 0;
     }
 
@@ -1286,7 +1298,6 @@ body.theme-moonlit {
       font-size: 0.8rem;
       font-weight: 500;
       font-variant-numeric: tabular-nums;
-      transition: background-color 120ms;
     }
     [data-part='invested-count']:hover {
       background-color: oklch(25% 0.025 258);
@@ -1643,6 +1654,10 @@ body.theme-moonlit {
       background-color: var(--color-card);
       border-color: var(--color-border);
       color: var(--color-text);
+      /* Render the native dropdown arrow (and the option popup) with the dark
+         UA chrome so the arrow shows up light against the dark surface instead
+         of as a black glyph. */
+      color-scheme: dark;
 
       option {
         background-color: var(--color-surface);
@@ -1696,6 +1711,10 @@ body.theme-moonlit {
       background-color: var(--color-surface);
       border-color: var(--color-border);
       color: var(--color-text);
+      /* Render the native dropdown arrow (and the option popup) with the dark
+         UA chrome so the arrow shows up light against the dark surface instead
+         of as a black glyph. */
+      color-scheme: dark;
     }
 
     input:focus,

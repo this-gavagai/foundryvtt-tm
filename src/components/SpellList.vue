@@ -28,6 +28,8 @@ import ActionIcons from '@/components/widgets/ActionIcons.vue'
 import ModifierOverrideList from '@/components/ModifierOverrideList.vue'
 import SpellSourceSection from '@/components/SpellSourceSection.vue'
 import SpellDetails from '@/components/SpellDetails.vue'
+import ViewableItem from '@/components/widgets/ViewableItem.vue'
+import SheetSection from '@/components/widgets/SheetSection.vue'
 
 const { t } = useI18n()
 const character = useInjectedCharacter()
@@ -437,29 +439,30 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
         </template>
       </SpellSourceSection>
       <!-- Wands and Scrolls -->
-      <section
-        data-section="consumables"
+      <SheetSection
+        section="consumables"
         class="mt-4 break-inside-avoid-column [&:not(:has(li))]:hidden"
       >
-        <h3
-          class="mb-1.5 flex justify-between px-4 align-bottom text-[1.1rem] font-normal tracking-[0.01em]"
-        >
-          <span>
-            <span class="text-xl"> {{ $t('spells.wandsAndScrolls') }} </span>
-            <span v-if="spellDC" class="text-xs"> (DC {{ spellDC }}) </span>
-          </span>
-        </h3>
+        <template #header>
+          <h3
+            class="mb-1.5 flex justify-between align-bottom text-[1.1rem] font-normal tracking-[0.01em]"
+          >
+            <span>
+              <span class="text-xl underline"> {{ $t('spells.wandsAndScrolls') }} </span>
+              <span v-if="spellDC" class="text-xs"> (DC {{ spellDC }}) </span>
+            </span>
+          </h3>
+        </template>
         <ul class="mb-1 empty:hidden">
-          <li v-for="item in sortedConsumables" class="flex justify-between px-4" :key="item._id">
+          <li v-for="item in sortedConsumables" class="flex justify-between" :key="item._id">
             <div>
-              <button
-                type="button"
+              <ViewableItem
                 v-if="item"
                 @click="openSpellModal(item?._id, { isConsumable: true })"
-                class="cursor-pointer text-left"
+                class="inline-block text-left"
               >
                 {{ item.name }}
-              </button>
+              </ViewableItem>
             </div>
             <CounterWidget
               class="mt-1 mr-2 h-3 text-sm"
@@ -471,7 +474,7 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
             />
           </li>
         </ul>
-      </section>
+      </SheetSection>
     </div>
     <Teleport to="#modals">
       <InfoModal

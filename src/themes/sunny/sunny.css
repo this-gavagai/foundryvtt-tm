@@ -8,7 +8,7 @@
    shadows, and a few radii change.
    ========================================================================== */
 body.theme-sunny {
-  background-color: oklch(97.5% 0.018 95);
+  background-color: oklch(94% 0.022 95);
   background-image:
     radial-gradient(ellipse 95% 50% at 12% 0%, oklch(93% 0.045 350 / 0.32), transparent),
     radial-gradient(ellipse 95% 55% at 90% 4%, oklch(94% 0.04 215 / 0.28), transparent);
@@ -24,7 +24,7 @@ body.theme-sunny {
   --color-card: oklch(99.5% 0.008 95); /* section / list cards, dropdown button */
   --color-surface: oklch(100% 0 0); /* modals, dropdown popovers */
   --color-border: oklch(86% 0.03 80); /* modal / dropdown outlines */
-  --color-text: oklch(34% 0.035 285);
+  --color-text: oklch(27% 0.04 285);
   --color-heading: oklch(56% 0.13 25); /* warm coral headings — cheerful */
 
   /* playful tangerine primary used for buttons / selections / accents */
@@ -981,7 +981,7 @@ body.theme-sunny {
       [data-component='StrikeList'],
       [data-component='FamiliarActionsList']
     )
-    :is(section, dl, div[data-section]),
+    section[data-section],
   [data-component='SpellList'] section[data-section] {
     background-color: oklch(100% 0 0 / 0.62);
     backdrop-filter: blur(12px) saturate(1.3);
@@ -1004,7 +1004,7 @@ body.theme-sunny {
 
   /* --- FamiliarSheet --- */
   [data-component='FamiliarSheet'] {
-    background-color: oklch(97.5% 0.018 95);
+    background-color: oklch(94% 0.022 95);
     background-image:
       radial-gradient(ellipse 95% 50% at 12% 0%, oklch(93% 0.045 350 / 0.32), transparent),
       radial-gradient(ellipse 95% 55% at 90% 4%, oklch(94% 0.04 215 / 0.28), transparent);
@@ -1093,22 +1093,18 @@ body.theme-sunny {
   [data-component='ActionsList'],
   [data-component='StrikeList'],
   [data-component='FamiliarActionsList'] {
-    section,
-    dl,
-    div[data-section] {
+    section[data-section] {
       padding: 0.75rem 1rem;
       margin-bottom: 0.75rem;
     }
 
-    li,
-    dd {
+    li {
       padding-top: 0.35rem;
       padding-bottom: 0.35rem;
       border-bottom: 1px solid var(--color-divider);
     }
 
-    li:last-child,
-    dd:last-child {
+    li:last-child {
       border-bottom: none;
     }
   }
@@ -1129,11 +1125,28 @@ body.theme-sunny {
       [data-component='FamiliarActionsList'],
       [data-component='SpellList']
     )
-    :is(h3, dt) {
+    h3 {
     color: var(--color-heading);
     border-bottom: 2px solid;
     border-image: linear-gradient(to right, var(--section-color, var(--color-divider)), transparent)
       1;
+  }
+
+  /* The section-header underline ships as an `underline` utility class on the
+     components; the theme draws the accent as the gradient border above
+     instead, so suppress the text decoration here (the gradient stays). Covers
+     the SheetSection <h3> and the spell headers' inner title link/span. */
+  :is(
+      [data-component='SkillList'],
+      [data-component='FeatsList'],
+      [data-component='EquipmentList'],
+      [data-component='ActionsList'],
+      [data-component='StrikeList'],
+      [data-component='FamiliarActionsList'],
+      [data-component='SpellList']
+    )
+    :is(h3, h3 *) {
+    text-decoration: none;
   }
 
   /* --- SkillList --- */
@@ -1153,7 +1166,7 @@ body.theme-sunny {
       border-top: 1px solid var(--color-divider);
     }
 
-    dd:has([data-part='sub-feat']:has(*)) {
+    li:has([data-part='sub-feat']:has(*)) {
       padding-bottom: 0;
     }
   }
@@ -1163,7 +1176,7 @@ body.theme-sunny {
     > div {
       padding-bottom: 0;
     }
-    div[data-section]:last-child {
+    section[data-section]:last-child {
       margin-bottom: 0;
     }
 
@@ -1193,7 +1206,6 @@ body.theme-sunny {
       background-color: oklch(98% 0.01 95);
       border-color: var(--color-border);
       color: oklch(50% 0.02 285);
-      transition: background-color 120ms;
       margin-bottom: 0;
     }
 
@@ -1228,7 +1240,6 @@ body.theme-sunny {
       font-size: 0.8rem;
       font-weight: 500;
       font-variant-numeric: tabular-nums;
-      transition: background-color 120ms;
     }
     [data-part='invested-count']:hover {
       background-color: oklch(93% 0.02 80);
@@ -1409,7 +1420,7 @@ body.theme-sunny {
   }
 
   [data-part='sheet-right'] {
-    background-color: oklch(97.5% 0.018 95);
+    background-color: oklch(94% 0.022 95);
     background-image:
       radial-gradient(ellipse 95% 50% at 12% 0%, oklch(93% 0.045 350 / 0.32), transparent),
       radial-gradient(ellipse 95% 55% at 90% 4%, oklch(94% 0.04 215 / 0.28), transparent);

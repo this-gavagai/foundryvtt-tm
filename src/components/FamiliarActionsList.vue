@@ -6,6 +6,7 @@ import { useInjectedFamiliar } from '@/composables/injectKeys'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
+import ViewableItem from '@/components/widgets/ViewableItem.vue'
 import InfoModal from '@/components/InfoModal.vue'
 import ParsedDescription from '@/components/ParsedDescription.vue'
 
@@ -33,7 +34,11 @@ function viewAction(action: Action) {
       <h3 class="text-[1.1rem] font-normal tracking-[0.01em] pb-2 mb-[0.6rem]">Abilities</h3>
       <ul class="space-y-1">
         <li v-for="action in actions" :key="action._id">
-          <a class="cursor-pointer" @click="viewAction(action)">
+          <ViewableItem
+            scale="firm"
+            class="inline-block"
+            @click="viewAction(action)"
+          >
             {{ action.name }}
             <ActionIcons
               v-if="action.actionType !== 'passive'"
@@ -46,7 +51,7 @@ function viewAction(action: Action) {
                     : (action?.system?.actions?.value?.toString() ?? '')
               "
             />
-          </a>
+          </ViewableItem>
         </li>
       </ul>
     </div>

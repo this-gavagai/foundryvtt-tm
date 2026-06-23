@@ -2,6 +2,7 @@
 
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import type { Equipment } from '@/composables/character'
+import ViewableItem from '@/components/widgets/ViewableItem.vue'
 
 const character = useInjectedCharacter()
 const { inventory } = character
@@ -23,8 +24,8 @@ const emits = defineEmits(['itemClicked'])
         :class="item.name ? 'max-h-7' : 'max-h-0'"
         :key="item._id"
       >
-        <a
-          class="cursor-pointer"
+        <ViewableItem
+          class="inline-block"
           @click="
             emits('itemClicked', item)
             // () => {
@@ -51,7 +52,7 @@ const emits = defineEmits(['itemClicked'])
             <span v-else class="absolute origin-center pr-1">❷</span>
           </Transition>
           <span class="ml-6">{{ item.label ?? item.name }}</span>
-        </a>
+        </ViewableItem>
       </li>
     </TransitionGroup>
   </ul>

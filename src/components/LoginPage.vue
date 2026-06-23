@@ -1,10 +1,30 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useServerStore, type JoinUser } from '@/stores/server'
+import { useServerAddressStore } from '@/stores/serverAddress'
 
 const { t } = useI18n()
-const { login, getJoinData, getSocket, rememberedLoginUser } = useServerStore()
+const serverStore = useServerStore()
+const { login, getJoinData, getSocket, rememberedLoginUser } = serverStore
+const serverAddressStore = useServerAddressStore()
+const { isNativeMobile, serverUrlText } = storeToRefs(serverAddressStore)
+
+// Host:port of the server being signed in to — the saved origin keeps its
+// protocol for connecting, but it reads cleaner here without it.
+const serverName = computed(() => serverUrlText.value.replace(/^https?:\/\//, ''))
+
+// Return to the ServerUrlGate to pick a different server. Tearing down the
+// socket first (like ConnectedApp's cancel) abandons any in-flight connection
+// so a late socket can't yank the user back out of the gate; the server stays
+// in the saved list — only the active selection is cleared. Native-only: in
+// browser mode the app is served by its one Foundry host, so there's nothing
+// to switch to.
+function changeServer() {
+  serverStore.disconnect()
+  serverAddressStore.clearActiveServer()
+}
 const userid = ref('')
 const password = ref('')
 const submitting = ref(false)
@@ -28,13 +48,41 @@ function onUserActivity(userId: string, data: { active?: boolean }) {
   }
 }
 
+// A cold-boot socket can answer getJoinData with an empty-but-successful user
+// list (the session/world isn't ready yet) instead of throwing. That's
+// recoverable, not a dead end — so we keep retrying for a while until the world
+// finishes coming up, on top of always offering the manual retry button.
+const MAX_AUTO_RETRIES = 5
+const AUTO_RETRY_DELAY_MS = 3_000
+let autoRetries = 0
+let retryTimer: ReturnType<typeof setTimeout> | undefined
+
+function cancelAutoRetry() {
+  if (retryTimer === undefined) return
+  clearTimeout(retryTimer)
+  retryTimer = undefined
+}
+
+function scheduleAutoRetry() {
+  if (autoRetries >= MAX_AUTO_RETRIES) return
+  autoRetries += 1
+  retryTimer = setTimeout(loadUsers, AUTO_RETRY_DELAY_MS)
+}
+
 async function loadUsers() {
+  cancelAutoRetry()
   loadingUsers.value = true
   error.value = ''
   try {
     const data = await getJoinData()
     users.value = data.users
     activeUsers.value = data.activeUsers
+    if (data.users.length === 0) {
+      error.value = t('login.noUsersRetry')
+      scheduleAutoRetry()
+      return
+    }
+    autoRetries = 0
     // Prefer this server's remembered login user (if it still exists and isn't
     // already signed in), otherwise fall back to the first available user.
     const remembered = rememberedLoginUser()
@@ -49,14 +97,22 @@ async function loadUsers() {
     socket.on('userActivity', onUserActivity)
   } catch {
     error.value = t('login.couldNotLoadUsers')
+    scheduleAutoRetry()
   } finally {
     loadingUsers.value = false
   }
 }
 
+// Manual retry resets the auto-retry budget so the user can keep trying.
+function retryUsers() {
+  autoRetries = 0
+  void loadUsers()
+}
+
 onMounted(loadUsers)
 
 onUnmounted(async () => {
+  cancelAutoRetry()
   try {
     const socket = await getSocket(1_000)
     socket.off('userActivity', onUserActivity)
@@ -85,6 +141,9 @@ async function handleLogin() {
       class="border-divider flex w-80 flex-col gap-4 rounded border p-6"
     >
       <h1 class="text-xl">{{ $t('login.signIn') }}</h1>
+      <p v-if="serverName" data-part="server" class="-mt-2 text-sm text-gray-600">
+        {{ $t('login.connectingTo') }} <span class="font-medium">{{ serverName }}</span>
+      </p>
       <label class="flex flex-col gap-1">
         <span class="text-sm text-gray-600">{{ $t('login.userLabel') }}</span>
         <select
@@ -124,8 +183,23 @@ async function handleLogin() {
       </button>
       <div v-if="error" data-part="error" class="flex items-center justify-between gap-2 text-sm">
         <span>{{ error }}</span>
-        <button type="button" class="underline" @click="loadUsers">{{ $t('login.retry') }}</button>
+        <button
+          type="button"
+          class="underline transition duration-180 ease-out active:scale-[0.90] active:opacity-50 active:duration-60"
+          @click="retryUsers"
+        >
+          {{ $t('login.retry') }}
+        </button>
       </div>
+      <button
+        v-if="isNativeMobile"
+        type="button"
+        data-part="change-server"
+        class="text-sm text-gray-500 underline transition duration-180 ease-out active:scale-[0.90] active:opacity-50 active:duration-60"
+        @click="changeServer"
+      >
+        {{ $t('login.changeServer') }}
+      </button>
     </form>
   </div>
 </template>

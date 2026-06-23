@@ -56,8 +56,11 @@
     "passwordLabel": "Passwort",
     "error": "Anmeldung fehlgeschlagen — bitte Zugangsdaten prüfen.",
     "couldNotLoadUsers": "Benutzerliste konnte nicht geladen werden.",
+    "noUsersRetry": "Noch keine Benutzer — die Welt startet möglicherweise noch.",
     "retry": "Erneut versuchen",
-    "activeMarker": "(aktiv)"
+    "activeMarker": "(aktiv)",
+    "connectingTo": "Anmeldung bei",
+    "changeServer": "Server wechseln"
   },
   "serverUrl": {
     "title": "Foundry-Server",
