@@ -1156,6 +1156,26 @@ body.theme-moonlit {
     padding-bottom: 0;
   }
 
+  /* Uniform horizontal gutter around the section cards across the list tabs.
+     Each component sets this as a px-6 utility on its own content wrapper;
+     override it to px-3 here so all tabs match the familiar sheet's 0.75rem. */
+  :is(
+      [data-component='SkillList'],
+      [data-component='FeatsList'],
+      [data-component='EquipmentList'],
+      [data-component='SpellList']
+    )
+    > div {
+    padding-inline: 0.75rem;
+  }
+
+  /* The Actions tab is the exception: ActionsPanel wraps StrikeList +
+     ActionsList in one px-6 container (the gutter lives there, not on each
+     list's inner wrapper), so target that shared wrapper directly. */
+  div:has(> [data-component='StrikeList']) {
+    padding-inline: 0.75rem;
+  }
+
   /* --- Shared section headers (fading accent rule) ---
      Typography + spacing (size/weight/tracking/padding/margin, no underline)
      live on the components; the theme only supplies the heading color and the
@@ -1392,6 +1412,7 @@ body.theme-moonlit {
     /* outer card per spell source — glass treatment comes from the shared
        rule above; only layout-specific declarations belong here. */
     section[data-section] {
+      padding: 0.75rem 1rem;
       margin-bottom: 0.75rem;
       overflow: hidden;
     }
