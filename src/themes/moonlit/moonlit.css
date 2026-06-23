@@ -1310,6 +1310,9 @@ body.theme-moonlit {
        double-digit values doesn't shift the bulk-bar width next to it.
        `tabular-nums` keeps the digit columns themselves stable. */
     [data-part='invested-count'] {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       height: 38px;
       padding-inline: 1rem;
       border-radius: 5px;

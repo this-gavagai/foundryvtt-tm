@@ -1253,6 +1253,9 @@ body.theme-sunny {
   /* --- EquipmentList --- */
   [data-component='EquipmentList'] {
     [data-part='invested-count'] {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       height: 38px;
       padding-inline: 1rem;
       border-radius: 5px;
