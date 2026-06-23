@@ -1,0 +1,323 @@
+{
+  "settings": {
+    "title": "Configuración"
+  },
+  "rollCheck": {
+    "saves": "Salvaciones",
+    "spotlight": "Percepción e Iniciativa",
+    "flat": "Plana",
+    "skills": "Habilidades",
+    "lores": "Saberes",
+    "traits": "Rasgos",
+    "trait": {
+      "concentrate": "Concentración",
+      "manipulate": "Manipulación",
+      "fortune": "Fortuna",
+      "misfortune": "Infortunio"
+    }
+  },
+  "common": {
+    "loading": "Cargando...",
+    "none": "Ninguno",
+    "close": "Cerrar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "update": "Actualizar",
+    "remove": "Quitar",
+    "use": "Usar",
+    "roll": "Tirar",
+    "level": "Nivel",
+    "added": "Añadido"
+  },
+  "compendium": {
+    "addToCharacter": "Añadir al personaje",
+    "selectSpellcastingEntry": "Añadir a entrada de lanzamiento de conjuros",
+    "noSpellcastingEntries": "No se encontraron entradas de lanzamiento de conjuros. Añade una al personaje primero."
+  },
+  "compendiumBrowser": {
+    "title": "Explorador de compendios",
+    "back": "Volver a los compendios",
+    "filterPacks": "Filtrar compendios…",
+    "filterEntries": "Filtrar entradas…",
+    "noPacks": "No hay compendios disponibles.",
+    "noEntries": "No se encontraron entradas.",
+    "levelShort": "Lvl {level}",
+    "truncated": "+{count} más — refina el filtro para reducir los resultados."
+  },
+  "login": {
+    "signIn": "Iniciar sesión",
+    "signingIn": "Iniciando sesión…",
+    "loadingUsers": "Cargando usuarios…",
+    "noUsersAvailable": "No hay usuarios disponibles",
+    "userLabel": "Usuario",
+    "passwordLabel": "Contraseña",
+    "error": "Error al iniciar sesión — comprueba tus credenciales.",
+    "couldNotLoadUsers": "No se pudo cargar la lista de usuarios.",
+    "retry": "Reintentar",
+    "activeMarker": "(activo)"
+  },
+  "app": {
+    "userDoesNotOwnCharacter": "El usuario no es dueño de este personaje",
+    "characterPortrait": "Retrato del personaje",
+    "noWorld": "Este servidor no tiene un mundo de juego activado. Por favor, contacta con tu GM."
+  },
+  "tabs": {
+    "character": "Personaje",
+    "feats": "Dotes",
+    "proficiencies": "Competencias",
+    "equipment": "Equipo",
+    "actions": "Acciones",
+    "spells": "Conjuros"
+  },
+  "attributes": {
+    "str": "Fue",
+    "dex": "Des",
+    "con": "Con",
+    "int": "Int",
+    "wis": "Sab",
+    "cha": "Car"
+  },
+  "attributesFull": {
+    "str": "Fuerza",
+    "dex": "Destreza",
+    "con": "Constitución",
+    "int": "Inteligencia",
+    "wis": "Sabiduría",
+    "cha": "Carisma"
+  },
+  "saves": {
+    "fortitude": "Fortaleza",
+    "reflex": "Reflejos",
+    "will": "Voluntad",
+    "perception": "Percepción",
+    "perceptionFull": "Percepción"
+  },
+  "proficiencyLevels": {
+    "untrained": "Sin entrenar",
+    "trained": "Entrenado",
+    "expert": "Experto",
+    "master": "Maestro",
+    "legendary": "Legendario"
+  },
+  "savesFull": {
+    "fortitude": "Tirada de Fortaleza",
+    "reflex": "Tirada de Reflejos",
+    "will": "Tirada de Voluntad"
+  },
+  "combat": {
+    "initiative": "Iniciativa"
+  },
+  "hp": {
+    "heading": "Puntos de golpe",
+    "totalMax": "(Máx. total: {max})",
+    "standard": "Estándar:",
+    "temporary": "Temporales:",
+    "reset": "Restablecer PG"
+  },
+  "heroPoints": {
+    "heading": "Pts. de héroe",
+    "title": "Puntos de héroe"
+  },
+  "ac": {
+    "heading": "CA",
+    "shieldModal": "Escudo",
+    "shieldHpHeading": "PG del escudo",
+    "noShieldEquipped": "Sin escudo equipado",
+    "acBonusLabel": "Bonificador a la CA:",
+    "hardnessLabel": "Dureza:",
+    "brokenAtLabel": "Roto a:",
+    "hitPointsLabel": "Puntos de golpe:"
+  },
+  "xp": {
+    "heading": "Experiencia",
+    "title": "Puntos de experiencia"
+  },
+  "movement": {
+    "heading": "Velocidad de movimiento",
+    "land": "Tierra",
+    "swim": "Nadar",
+    "climb": "Trepar",
+    "fly": "Volar",
+    "burrow": "Excavar",
+    "athleticsSwim": "Prueba de Atletismo (Nadar)",
+    "athleticsClimb": "Prueba de Atletismo (Trepar)"
+  },
+  "iwr": {
+    "immunity": "Inmunidad",
+    "weakness": "Debilidad",
+    "resistance": "Resistencia"
+  },
+  "languages": {
+    "heading": "Idiomas",
+    "none": "No conoce idiomas"
+  },
+  "skills": {
+    "skills": "Habilidades",
+    "lore": "Saber"
+  },
+  "proficiencyTypes": {
+    "attacks": "Ataques",
+    "defenses": "Defensas",
+    "classDCs": "CDs de clase",
+    "spellcasting": "Lanzamiento de conjuros",
+    "spellDC": "CD de conjuro"
+  },
+  "feats": {
+    "none": "Este personaje no tiene dotes.",
+    "categories": {
+      "ancestryfeatures": "Rasgos de Ascendencia",
+      "classfeatures": "Rasgos de clase",
+      "ancestry": "Dotes de Ascendencia",
+      "class": "Dotes de Clase",
+      "archetype": "Dotes de Arquetipo",
+      "skill": "Dotes de Habilidad",
+      "general": "Dotes Generales",
+      "xdy_ancestryparagon": "Parangón de Ascendencia",
+      "bonus": "Dotes Adicionales"
+    }
+  },
+  "effects": {
+    "effectIcon": "Icono de efecto"
+  },
+  "actions": {
+    "use": "Usar"
+  },
+  "actionTypes": {
+    "action": "Acciones",
+    "reaction": "Reacciones",
+    "free": "Acciones libres",
+    "skill": "Acciones de habilidad"
+  },
+  "inventoryTypes": {
+    "weapon": "Armas",
+    "shield": "Escudos",
+    "consumable": "Consumibles",
+    "equipment": "Equipo",
+    "armor": "Armaduras",
+    "treasure": "Tesoros",
+    "backpack": "Contenedores"
+  },
+  "equipment": {
+    "noInventory": "Este personaje no tiene inventario.",
+    "investedTitle": "Objetos investidos",
+    "investedCount": "Investidos: {count} / 10",
+    "usesLabel": "Usos:",
+    "useItem": "Usar objeto",
+    "containerLabel": "Contenedor"
+  },
+  "spells": {
+    "noSpells": "Este personaje no lanza conjuros.",
+    "focusPool": "Reserva de Foco",
+    "spellDetails": "Detalles del Conjuro",
+    "wandDetails": "Detalles de la Varita",
+    "wandsAndScrolls": "Varitas y Pergaminos",
+    "selectSpell": "Selecciona un conjuro",
+    "basic": "básico",
+    "ac": "CA",
+    "cast": "Lanzar",
+    "spellList": "Lista de conjuros",
+    "spellAttack": "Ataque de conjuro",
+    "rollSpellAttack": "Tirar ataque de conjuro",
+    "cantrips": "Trucos",
+    "rank": "Rango {n}",
+    "range": "Alcance",
+    "area": "Área",
+    "foot": "pies",
+    "target": "Objetivo",
+    "defense": "Defensa",
+    "attack": "Ataque",
+    "damage": "Daño"
+  },
+  "strikes": {
+    "elementalBlastsHeading": "Ráfagas elementales",
+    "elementalBlastLabel": "Ráfaga elemental ({element})",
+    "strikesHeading": "Ataques",
+    "strike": "Ataque",
+    "blast": "Ráfaga",
+    "damage": "Daño",
+    "critical": "Crítico",
+    "noAmmo": "Sin munición",
+    "rangeLabel": "Alcance:",
+    "rangeUnit": "pies",
+    "damageTypeLabel": "Tipo de daño:",
+    "meleeIcon": "icono de cuerpo a cuerpo",
+    "rangedIcon": "icono de a distancia",
+    "loaded": "Cargado",
+    "notLoaded": "Sin cargar",
+    "reload": "Recargar",
+    "unload": "Descargar",
+    "activateAura": "Canalizar elementos",
+    "deactivateAura": "Finalizar aura"
+  },
+  "rollOptions": {
+    "heading": "Opciones de personaje",
+    "experimentalWarning": "La implementación de Opciones de Tirada (RollOption) es todavía muy experimental. Se aconseja precaución y hacer copias de seguridad."
+  },
+  "chat": {
+    "title": "Chat",
+    "messageCount": "{count} mensajes",
+    "noMessages": "No hay mensajes de chat todavía.",
+    "emptyMessage": "Mensaje vacío",
+    "placeholder": "Escribe un mensaje...",
+    "send": "Enviar mensaje",
+    "sending": "Enviando...",
+    "sendFailed": "No se pudo enviar el mensaje.",
+    "actionFailed": "No se pudo completar la acción de chat.",
+    "blind": "A ciegas",
+    "whisper": "Susurro",
+    "damage": "Daño",
+    "half": "Mitad",
+    "double": "Doble",
+    "block": "Bloquear",
+    "heal": "Curar",
+    "rollActions": "Acciones de tirada",
+    "reroll": "Repetir tirada, mantener nueva",
+    "heroPointReroll": "Repetir tirada con Punto de héroe",
+    "rerollKeepHighest": "Repetir tirada, mantener la más alta",
+    "rerollKeepLowest": "Repetir tirada, mantener la más baja"
+  },
+  "sideMenu": {
+    "closeSidebar": "Cerrar barra lateral",
+    "chat": "Chat",
+    "compendium": "Compendios",
+    "targetingProxy": "Proxy de objetivo",
+    "pairPixelDice": "Vincular dado Pixel",
+    "pixelDice": "Dados Pixel",
+    "language": "Idioma",
+    "theme": "Tema",
+    "manualDicePicker": "Resultados manuales de dados",
+    "freeRoll": "Tirar prueba",
+    "freeRollTitle": "Tirada de prueba (d20)",
+    "secret": "Secreta",
+    "rollD20": "Tirar d20",
+    "damageRoll": "Tirar daño",
+    "traits": "Rasgos",
+    "checkStat": "Tirar como",
+    "damageRollTitle": "Tirada de daño",
+    "rollDamage": "Tirada de daño",
+    "damageType": "Tipo de daño",
+    "addDie": "Añadir dado",
+    "persistent": "Persistente",
+    "precision": "Precisión",
+    "splash": "Salpicadura",
+    "clear": "Limpiar",
+    "damageEmpty": "Toca el tipo de un dado para añadirlo",
+    "modifier": "Modificador"
+  },
+  "widgets": {
+    "toggleSwitch": "Interruptor"
+  },
+  "updatePrompt": {
+    "message": "Hay una nueva versión disponible.",
+    "reload": "Recargar"
+  },
+  "connection": {
+    "reconnecting": "Reconectando…",
+    "syncing": "Sincronizando…"
+  },
+  "infoModal": {
+    "systemIcon": "Icono del sistema de PF2e",
+    "dieImage": "Imagen de d{faces}",
+    "clearDicePending": "Haz clic para limpiar las tiradas de dados físicos pendientes"
+  }
+}
