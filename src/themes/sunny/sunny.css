@@ -74,12 +74,14 @@ body.theme-sunny {
     color: var(--color-heading);
   }
 
-  [data-component='FrontPage'] [data-component='StatBox'] [data-part='modifier'] {
-    font-size: 130%;
+  /* Nudge the Movement Speed heading inward to align over its content — its box
+     is wider than the sibling FrontPage headings, so compensate. */
+  [data-component='MovementSpeed'] [data-part='heading'] {
+    margin-left: 0.7rem;
   }
 
-  [data-component='MovementSpeed'] [data-component='StatBox'] > div > div:first-child {
-    font-size: 0.8rem;
+  [data-component='FrontPage'] [data-component='StatBox'] [data-part='modifier'] {
+    font-size: 130%;
   }
 
   /* --- Proficiency coloring --- */
@@ -1520,12 +1522,7 @@ body.theme-sunny {
       left: 0;
       right: 0;
       height: 2px;
-      background: linear-gradient(
-        to right,
-        transparent,
-        var(--color-primary),
-        transparent
-      );
+      background: linear-gradient(to right, transparent, var(--color-primary), transparent);
       transform: scaleX(0.2);
       opacity: 0;
       transition:

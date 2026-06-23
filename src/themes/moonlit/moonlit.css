@@ -63,13 +63,14 @@ body.theme-moonlit {
     color: var(--color-heading);
   }
 
-  [data-component='FrontPage'] [data-component='StatBox'] [data-part='modifier'] {
-    font-size: 130%;
+  /* Nudge the Movement Speed heading inward to align over its content — its box
+     is wider than the sibling FrontPage headings, so compensate. */
+  [data-component='MovementSpeed'] [data-part='heading'] {
+    margin-left: 0.7rem;
   }
 
-  /* bump MovementSpeed stat-box labels from the StatBox default (0.65rem) */
-  [data-component='MovementSpeed'] [data-component='StatBox'] > div > div:first-child {
-    font-size: 0.8rem;
+  [data-component='FrontPage'] [data-component='StatBox'] [data-part='modifier'] {
+    font-size: 130%;
   }
 
   /* --- Proficiency coloring ---
