@@ -12,6 +12,7 @@ import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
 import type { Modifier } from '@/composables/character'
 import { useModifierOverrides } from '@/composables/useModifierOverrides'
+import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 
 const { t } = useI18n()
 const props = defineProps<{
@@ -131,6 +132,7 @@ defineExpose({ infoModal })
         }
       ]"
       @click="openIfDetailed"
+      @pointerdown="isClickable && triggerLightHapticFeedback()"
     >
       <div
         :class="[

@@ -316,6 +316,7 @@
     "rerollKeepLowest": "Перебросить, оставить меньший"
   },
   "sideMenu": {
+    "openSidebar": "Открыть боковую панель",
     "closeSidebar": "Закрыть боковую панель",
     "chat": "Чат",
     "compendium": "Библиотеки",

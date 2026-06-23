@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'
 import { useTopOverlayZIndex } from '@/composables/useOverlayStack'
+import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 interface ListChoice {
   id: string | undefined
   name: string | undefined
@@ -106,6 +107,7 @@ function onButtonClick() {
           props.disabled || waiting ? 'bg-gray-200 opacity-50' : '',
           open ? 'border-indigo-500 ring-2 ring-indigo-200' : ''
         ]"
+        @pointerdown="!props.disabled && !waiting && triggerLightHapticFeedback()"
       >
         <span class="block truncate">{{ selected?.name }}</span>
         <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
@@ -141,6 +143,7 @@ function onButtonClick() {
               active ? 'bg-amber-100 text-amber-900' : 'text-gray-900',
               'relative cursor-default py-2 pr-4 pl-10 select-none'
             ]"
+            @pointerdown="!waiting && triggerLightHapticFeedback()"
           >
             <span :class="[selected ? 'font-medium' : 'font-normal', 'block truncate']">
               {{ option.name }}

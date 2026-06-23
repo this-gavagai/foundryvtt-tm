@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Tab } from '@headlessui/vue'
+import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 const props = defineProps(['src', 'label'])
 </script>
 
@@ -7,6 +8,7 @@ const props = defineProps(['src', 'label'])
   <Tab
     data-part="tab"
     class="group transition-color ui-selected:bg-selected ui-not-selected:bg-inherit hover:ui-not-selected:bg-hovered active:ui-not-selected:bg-active pwa:pb-6 pwa:md:pb-2 relative top-0 flex-1 cursor-pointer touch-none p-2 outline-hidden duration-200 focus:outline-hidden"
+    @pointerdown="triggerLightHapticFeedback()"
   >
     <img
       :src="props.src"

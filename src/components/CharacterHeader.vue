@@ -6,6 +6,7 @@ import HitPoints from '@/components/HitPoints.vue'
 import HeroPoints from '@/components/HeroPoints.vue'
 import CharacterPortrait from '@/components/CharacterPortrait.vue'
 import CharacterSelector from '@/components/CharacterSelector.vue'
+import IconButtonWidget from '@/components/widgets/IconButtonWidget.vue'
 import { useChatStore } from '@/stores/chat'
 import { useSettingsStore } from '@/stores/settings'
 
@@ -52,11 +53,14 @@ const unreadBadge = computed(() =>
         </slot>
       </div>
     </div>
-    <Bars3Icon
+    <IconButtonWidget
       data-part="sidebar-toggle"
       class="relative z-10 my-auto h-10 w-10 cursor-pointer rounded-md p-1 text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-300"
       :class="sidebarToggleClass"
+      :label="$t('sideMenu.openSidebar')"
       @click="() => emit('sidebarActivated')"
-    />
+    >
+      <Bars3Icon aria-hidden="true" class="h-full w-full" />
+    </IconButtonWidget>
   </div>
 </template>

@@ -5,6 +5,7 @@ import { PlusCircleIcon, MinusCircleIcon } from '@heroicons/vue/24/outline'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import Spinner from '@/components/widgets/SpinnerWidget.vue'
 import PipWidget from '@/components/widgets/PipWidget.vue'
+import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 
 const props = defineProps<{
   value: number | undefined
@@ -33,7 +34,11 @@ function close() {
 defineExpose({ click, close })
 </script>
 <template>
-  <div @click="click" class="cursor-pointer">
+  <div
+    @click="click"
+    @pointerdown="props.editable && triggerLightHapticFeedback()"
+    class="cursor-pointer"
+  >
     <div class="mt-1.5 flex h-full">
       <span v-for="i in Number(props.max ?? props.value ?? 0)" :key="'pip' + i">
         <PipWidget :filled="i <= (props.value ?? 0)" class="h-full" />

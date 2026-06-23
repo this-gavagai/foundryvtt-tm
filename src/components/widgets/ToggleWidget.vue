@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { Switch } from '@headlessui/vue'
 import type { ModuleEventArgs } from '@/types/api-types'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
+import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 
 const props = defineProps<{
   active: boolean | undefined
@@ -24,6 +25,7 @@ function handleClicked() {
   <div
     class="flex items-center justify-between gap-1 active:text-gray-500"
     @click="handleClicked()"
+    @pointerdown="triggerLightHapticFeedback"
     :data-active="props.active"
   >
     <slot></slot>

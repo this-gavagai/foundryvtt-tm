@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
+
 // A tappable text link that "views" an item (feat, spell, equipment, identity,
 // …) — typically opening it in a modal. Renders an <a> on purpose: native
 // <button> elements suppress the press transform in iOS WebKit, so the zoom
@@ -14,6 +16,7 @@ withDefaults(defineProps<{ scale?: 'gentle' | 'firm' }>(), { scale: 'gentle' })
   <a
     class="cursor-pointer transition duration-180 ease-out active:opacity-50 active:duration-60"
     :class="scale === 'firm' ? 'active:scale-[0.90]' : 'active:scale-[0.97]'"
+    @pointerdown="triggerLightHapticFeedback"
   >
     <slot />
   </a>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
+
 const {
   icon,
   label,
@@ -22,6 +24,7 @@ const {
     :data-selected="selected === choice ? true : undefined"
     class="relative inline-flex flex-1 cursor-pointer items-center justify-center border-r border-gray-400 text-sm last:border-r-0 focus:z-10 data-selected:bg-blue-200 data-selected:text-gray-900"
     :class="size === 'sm' ? 'px-2 py-1' : 'px-3 py-2'"
+    @pointerdown="!disabled && triggerLightHapticFeedback()"
   >
     <img
       v-if="icon"

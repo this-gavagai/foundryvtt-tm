@@ -315,6 +315,7 @@
     "rerollKeepLowest": "Neu würfeln, niedrigeren behalten"
   },
   "sideMenu": {
+    "openSidebar": "Seitenleiste öffnen",
     "closeSidebar": "Seitenleiste schließen",
     "chat": "Chat",
     "compendium": "Kompendium",

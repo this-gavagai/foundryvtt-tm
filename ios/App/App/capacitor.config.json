@@ -5,6 +5,7 @@
 	"packageClassList": [
 		"BluetoothLe",
 		"FilesystemPlugin",
+		"HapticsPlugin",
 		"StatusBarPlugin"
 	]
 }

@@ -21,6 +21,7 @@ import { useChatStore } from '@/stores/chat'
 import Dropdown from '@/components/widgets/DropdownWidget.vue'
 import Toggle from '@/components/widgets/ToggleWidget.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
+import IconButtonWidget from '@/components/widgets/IconButtonWidget.vue'
 import RollOptions from '@/components/RollOptions.vue'
 import Spinner from './widgets/SpinnerWidget.vue'
 import DamageRollBuilder from './DamageRollBuilder.vue'
@@ -216,12 +217,14 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                           class="h-2.5 w-2.5 flex-none rounded-full"
                         />
                         <span class="text-sm">{{ connectionTitle[connectionState] }}</span>
-                        <Cog6ToothIcon
+                        <IconButtonWidget
                           data-part="settings-toggle"
                           class="ml-auto h-7 w-7 cursor-pointer text-gray-500 hover:text-gray-800 active:text-gray-400"
-                          :aria-label="$t('settings.title')"
+                          :label="$t('settings.title')"
                           @click="openSettings"
-                        />
+                        >
+                          <Cog6ToothIcon aria-hidden="true" class="h-full w-full" />
+                        </IconButtonWidget>
                       </div>
                     </li>
                     <li>

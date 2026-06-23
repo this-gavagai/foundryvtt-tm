@@ -277,6 +277,7 @@
     "rerollKeepLowest": "Repetir tirada, mantener la más baja"
   },
   "sideMenu": {
+    "openSidebar": "Abrir barra lateral",
     "closeSidebar": "Cerrar barra lateral",
     "chat": "Chat",
     "compendium": "Compendios",

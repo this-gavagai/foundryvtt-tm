@@ -27,6 +27,7 @@ import skills from '@/assets/icons/skills.svg'
 import SideMenu from '@/components/SideMenu.vue'
 import CharacterHeader from '@/components/CharacterHeader.vue'
 import CharacterTab from '@/components/CharacterTab.vue'
+import IconButtonWidget from '@/components/widgets/IconButtonWidget.vue'
 import CharacterPanel from './CharacterPanel.vue'
 import FrontPage from '@/components/FrontPage.vue'
 import Skills from '@/components/SkillList.vue'
@@ -186,11 +187,16 @@ defineExpose({ actor, character, actorOrWorldActor })
               class="w-1/6"
               :class="{ 'md:hidden': tab.mobileOnly }"
             />
-            <Bars3Icon
-              data-part="sidebar-toggle"
-              class="mx-4 my-auto hidden h-10 w-10 cursor-pointer rounded-md p-1 text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-300 md:block"
-              @click="sideMenu.sidebarOpen = true"
-            />
+            <div class="mx-4 my-auto hidden md:block">
+              <IconButtonWidget
+                data-part="sidebar-toggle"
+                class="h-10 w-10 cursor-pointer rounded-md p-1 text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-300"
+                :label="$t('sideMenu.openSidebar')"
+                @click="sideMenu.sidebarOpen = true"
+              >
+                <Bars3Icon aria-hidden="true" class="h-full w-full" />
+              </IconButtonWidget>
+            </div>
           </TabList>
         </TabGroup>
       </div>

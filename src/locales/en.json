@@ -316,6 +316,7 @@
     "rerollKeepLowest": "Reroll, Keep Lower"
   },
   "sideMenu": {
+    "openSidebar": "Open sidebar",
     "closeSidebar": "Close sidebar",
     "chat": "Chat",
     "compendium": "Compendium",
