@@ -335,7 +335,7 @@ watch([strikes, blasts], () => {
 </script>
 <template>
   <div data-component="StrikeList">
-    <div class="break-inside-avoid py-4 [&:not(:has(li))]:hidden">
+    <div class="break-inside-avoid pt-4 pb-8 [&:not(:has(li))]:hidden">
       <SheetSection
         section="blasts"
         :title="$t('strikes.elementalBlastsHeading')"

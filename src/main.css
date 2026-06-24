@@ -88,6 +88,106 @@
   }
 }
 
+/* --- Native (Capacitor) status-bar overlay -----------------------------------
+   On native the WebView extends *under* the status bar (overlay mode, set in
+   main.ts), so env(safe-area-inset-top) resolves to the status-bar height.
+   Rather than reserve that strip on #app (which leaves the bare body gradient
+   showing behind the bar), we let #app reach the top edge and push the
+   safe-area padding into the surfaces that actually touch the top — the sticky
+   CharacterHeader, the desktop tab bar, and the server-url gate — so each fills
+   the strip with its own themed color, seamless with the sheet below it. The
+   touched surfaces also grow by the inset so their content isn't squeezed.
+   Gated on `html.tm-native` (set in main.ts) to stay off the web build, and
+   left unlayered so it beats the Tailwind h-32 / h-24 / p-4 / inset utilities.
+
+   The top inset reported by the OS (env(safe-area-inset-top)) is more than the
+   sheet needs to clear the bar, so --tm-status-pad uses half of it. Tune that
+   one factor to adjust every top-touching surface at once. */
+html.tm-native {
+  --tm-status-pad: calc(var(--tm-safe-area-top) * 0.5);
+}
+
+html.tm-native #app {
+  /* Reach both edges: the header fills the status-bar strip at the top, and the
+     tab bar fills down to the very bottom edge. The home-indicator clearance is
+     applied as padding inside the tab bar (below) rather than reserved here, so
+     the bar's background bleeds all the way to the bottom of the screen. */
+  top: 0;
+  bottom: 0;
+}
+
+html.tm-native [data-component='CharacterHeader'] {
+  height: calc(8rem + var(--tm-status-pad)); /* h-32 + inset */
+  padding-top: calc(1rem + var(--tm-status-pad)); /* p-4 top + inset */
+}
+
+html.tm-native [data-component='ServerUrlGate'] {
+  /* No header on this screen — pad the gate itself so its centered form never
+     rides under the status bar. */
+  padding-top: var(--tm-status-pad);
+}
+
+/* Side menu: the panel's top row (connection status + settings cog) and the
+   close button in the left strip both sit at the top edge. Unlike the sheet
+   header (which only needs the bar cleared visually), these are interactive and
+   must sit fully clear of the dynamic island / status bar, so they use the full
+   inset rather than the halved --tm-status-pad.
+
+   Headless UI's Dialog teleports this content to a Portal under <body>, so it
+   is NOT a descendant of [data-component='SideMenu'] at runtime — these
+   selectors deliberately omit that ancestor. data-side-menu distinguishes this
+   panel from the other [data-part='panel'] overlays. */
+html.tm-native [data-side-menu] {
+  padding-top: var(--tm-safe-area-top);
+}
+
+html.tm-native [data-part='sidebar-close'] {
+  padding-top: calc(1.25rem + var(--tm-safe-area-top)); /* pt-5 + inset */
+}
+
+/* Server manager — same right-side slide-over shape as the side menu. Its
+   Dialog carries data-component="ServerSidebar" inside the portal subtree, so
+   we scope through that. The panel already has pt-5, preserved in the calc. The
+   close button reuses the shared [data-part='sidebar-close'] rule above. */
+html.tm-native [data-component='ServerSidebar'] [data-part='panel'] {
+  padding-top: calc(1.25rem + var(--tm-safe-area-top)); /* pt-5 + inset */
+}
+
+/* Compendium browser is full-bleed on phones (p-0), so its header (back /
+   title / close) sits at the top edge — pad it clear of the bar. At >=sm it
+   becomes an inset, centered card (sm:p-4) that never reaches the top, so this
+   is scoped to phone-portrait widths only. */
+@media (max-width: 639px) {
+  html.tm-native [data-component='CompendiumBrowserOverlay'] {
+    padding-top: var(--tm-safe-area-top);
+  }
+}
+
+/* The tab bar sits at the bottom on phones, but the md (two-pane) layout flips
+   it to the top of the right column — pad it only there. */
+@media (min-width: 768px) {
+  html.tm-native [data-part='tab-bar'] {
+    height: calc(6rem + var(--tm-status-pad)); /* h-24 + inset */
+    padding-top: var(--tm-status-pad);
+  }
+}
+
+/* CharacterPanel's scroll area is sized by subtracting the header + tab bar
+   from the panel height (h-[calc(100%-13.5rem)], md:5.5rem). Those magic
+   numbers assume the un-padded heights, but on native the header (mobile) and
+   the top tab bar (md) each grew by --tm-status-pad, so the scroll box runs
+   that much too tall and its last content hides behind the bar. Subtract the
+   same amount here. Keep the 13.5rem / 5.5rem in sync with CharacterPanel.vue. */
+html.tm-native [data-part='panel-scroll'] {
+  height: calc(100% - 13.5rem - var(--tm-status-pad));
+}
+
+@media (min-width: 768px) {
+  html.tm-native [data-part='panel-scroll'] {
+    height: calc(100% - 5.5rem - var(--tm-status-pad));
+  }
+}
+
 @utility app-scroll {
   min-height: 0;
   overflow: auto;

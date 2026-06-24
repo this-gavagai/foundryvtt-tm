@@ -68,13 +68,13 @@ const featCategories = computed(() => {
 </script>
 <template>
   <div data-component="FeatsList">
-    <div v-if="feats?.length === 0" class="px-6 py-4 italic">{{ $t('feats.none') }}</div>
-    <div v-else class="px-6 py-4 lg:columns-2">
+    <div v-if="feats?.length === 0" class="px-6 pt-4 pb-8 italic">{{ $t('feats.none') }}</div>
+    <div v-else class="px-6 pb-8 lg:columns-2">
       <SheetSection
         v-for="(category, slug) in featCategories"
         :section="slug"
         :title="category.label"
-        class="break-inside-avoid-column overflow-hidden pb-4 [&:not(:has(li))]:hidden"
+        class="break-inside-avoid-column overflow-hidden pt-4 [&:not(:has(li))]:hidden"
         :key="slug"
       >
         <ul>

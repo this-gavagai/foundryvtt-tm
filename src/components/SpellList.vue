@@ -377,15 +377,15 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
 </script>
 <template>
   <div data-component="SpellList">
-    <div v-if="spellcastingEntries?.length === 0" class="px-6 py-4 italic">
+    <div v-if="spellcastingEntries?.length === 0" class="px-6 pt-4 pb-8 italic">
       {{ $t('spells.noSpells') }}
     </div>
-    <div v-else class="px-6 py-4 xl:columns-2">
+    <div v-else class="px-6 pb-8 xl:columns-2">
       <!-- Spell Sources -->
       <SpellSourceSection
         v-for="location in spellcastingEntries"
         :key="location._id"
-        class="mb-4"
+        class="pt-4"
         :data-section="
           location.system.prepared?.value === 'focus'
             ? 'focus'
@@ -419,7 +419,7 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
       <!-- Staff from PF2e-Dailies -->
       <SpellSourceSection
         v-if="staff?.staffId"
-        class="mt-4 [&:not(:has(li))]:hidden"
+        class="pt-4 [&:not(:has(li))]:hidden"
         data-section="staff"
         :title="staffItem?.name ?? ''"
         :dc="spellDC"
@@ -441,7 +441,7 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
       <!-- Wands and Scrolls -->
       <SheetSection
         section="consumables"
-        class="mt-4 break-inside-avoid-column [&:not(:has(li))]:hidden"
+        class="pt-4 break-inside-avoid-column [&:not(:has(li))]:hidden"
       >
         <template #header>
           <h3

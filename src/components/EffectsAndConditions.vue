@@ -13,6 +13,7 @@ import { getPath } from '@/utils/utilities'
 import type { EffectItem } from '@/composables/character'
 import type { ActiveRoll } from '@/types/api-types'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
+import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 
 const character = useInjectedCharacter()
 const { effects, rollOptionLabels } = character
@@ -67,6 +68,7 @@ function adjustViewedEffectQty(delta: number) {
           class="cursor-pointer"
           v-for="effect in effects"
           :key="effect._id"
+          @pointerdown="triggerLightHapticFeedback()"
           @click="viewEffect(effect)"
         >
           <div class="w-[38px]">

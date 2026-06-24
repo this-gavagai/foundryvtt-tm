@@ -91,7 +91,10 @@ defineExpose({ open })
                 leave-from="opacity-100"
                 leave-to="opacity-0"
               >
-                <div class="absolute top-0 -left-16 flex w-16 justify-center pt-5">
+                <div
+                  data-part="sidebar-close"
+                  class="absolute top-0 -left-16 flex w-16 justify-center pt-5"
+                >
                   <button type="button" class="-m-2.5 p-2.5" @click="close">
                     <span class="sr-only">{{ $t('common.close') }}</span>
                     <XMarkIcon class="h-6 w-6 text-white" aria-hidden="true" />

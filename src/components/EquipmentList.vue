@@ -275,10 +275,10 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
 </script>
 <template>
   <div data-component="EquipmentList">
-    <div v-if="displayInventory?.length === 0" class="px-6 py-4 italic">
+    <div v-if="displayInventory?.length === 0" class="px-6 pt-4 pb-8 italic">
       {{ $t('equipment.noInventory') }}
     </div>
-    <div v-else class="px-6 py-4">
+    <div v-else class="px-6 pt-4 pb-8">
       <!-- Content: two always-rendered panels toggled with v-show to avoid DOM churn during transition -->
       <div class="relative overflow-hidden">
         <!-- ChoiceWidget anchored at top-right, stays fixed while panels slide -->

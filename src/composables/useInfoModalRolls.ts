@@ -1,6 +1,7 @@
 import { computed, ref, watch, type Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePixelDiceStore } from '@/stores/pixelDice'
+import { triggerRollHapticFeedback } from '@/composables/useHapticFeedback'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import type { Roll } from '@/types/roll-types'
 
@@ -81,6 +82,7 @@ export function useInfoModalRolls({
   // Roll buttons clicked manually: use the buffer only if the armed roll is the
   // one being fired and every face is selected.
   function executeRollFromButton(roll: Roll) {
+    if (!roll.disabled) triggerRollHapticFeedback()
     const isArmed = roll.key === armedRoll.value?.key
     if (isArmed && bufferComplete.value) {
       return executeRoll(roll, buffer.value as number[])

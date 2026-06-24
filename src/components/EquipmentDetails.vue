@@ -204,7 +204,12 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
         leave-to-class="opacity-0 max-h-0"
       >
         <div
-          v-if="!isSubitem && item?.system.equipped.carryType === 'worn' && itemWornType"
+          v-if="
+            !isSubitem &&
+            inventoryMode !== 'party' &&
+            item?.system.equipped.carryType === 'worn' &&
+            itemWornType
+          "
           class="flex h-6"
         >
           <ToggleWidget
@@ -235,6 +240,7 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
         class="flex py-1"
         v-if="
           !isSubitem &&
+          inventoryMode !== 'party' &&
           item?.system?.equipped?.carryType === 'worn' &&
           (item?.system?.equipped?.invested === true || item?.system?.equipped?.invested === false)
         "

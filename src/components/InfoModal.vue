@@ -17,6 +17,7 @@ import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { useSettingsStore } from '@/stores/settings'
 import { useOverlayStack } from '@/composables/useOverlayStack'
+import { triggerDismissHapticFeedback } from '@/composables/useHapticFeedback'
 import Spinner from './widgets/SpinnerWidget.vue'
 import TraitList from './TraitList.vue'
 import ManualDicePicker from './ManualDicePicker.vue'
@@ -71,6 +72,14 @@ function close(ignoreModal = false) {
 }
 onBeforeUnmount(closeLayer)
 
+// User-initiated dismiss (backdrop, escape, X button). Fires a subtle tick to
+// confirm the dismissal. The internal roll-resolve close() is intentionally not
+// routed through here — a roll haptic already played in that flow.
+function dismiss(ignoreModal = false) {
+  triggerDismissHapticFeedback()
+  close(ignoreModal)
+}
+
 async function sendCurrentItemToChat() {
   if (!isListening.value) return
   waiting.value = true
@@ -95,7 +104,7 @@ defineExpose({ open, close, rollResultModal, isOpen })
 <template>
   <div class="touch-manipulation transition-all">
     <TransitionRoot appear :show="isOpen" as="template">
-      <Dialog as="div" @close="close" class="relative" :style="{ zIndex }">
+      <Dialog as="div" @close="dismiss()" class="relative" :style="{ zIndex }">
         <TransitionChild
           as="template"
           enter="duration-300 ease-out"
@@ -123,7 +132,7 @@ defineExpose({ open, close, rollResultModal, isOpen })
                 data-part="panel"
                 class="relative w-full max-w-4xl transform overflow-hidden bg-white p-6 text-left shadow-xl transition-all"
               >
-                <slot name="banner" :close="() => close(true)" />
+                <slot name="banner" :close="() => dismiss(true)" />
                 <div class="max-h-[70vh] overflow-auto">
                   <div class="flex space-x-2">
                     <div
@@ -162,7 +171,7 @@ defineExpose({ open, close, rollResultModal, isOpen })
                           type="button"
                           data-part="close"
                           class="cursor-pointer rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-hidden"
-                          @click="close(true)"
+                          @click="dismiss(true)"
                         >
                           <span class="sr-only">{{ $t('common.close') }}</span>
                           <XMarkIcon class="h-6 w-6" aria-hidden="true" />

@@ -10,20 +10,32 @@ import { StatusBar, Style } from '@capacitor/status-bar'
 import { initImageCache } from '@/api/imageCache'
 
 if (Capacitor.isNativePlatform()) {
+  // Marks the build as native so the status-bar-overlay layout rules in
+  // main.css (which pad the top-touching surfaces by env(safe-area-inset-top))
+  // apply only here, never on the web build.
+  document.documentElement.classList.add('tm-native')
+
   // Repopulate the on-disk image cache index before first render so previously
   // cached assets serve from disk instead of re-downloading. Failures fall back
   // to lazy population and never block startup.
   void initImageCache()
 
-  // Lay the WebView out below the status bar instead of under it, so no app
-  // content (sheet, side menu, overlays) can extend into / block the status
-  // bar. The exposed strip matches the dark theme background; light text/icons
-  // (Style.Dark) sit on top. Errors are swallowed so a missing plugin never
-  // blocks startup. Color is set before toggling overlay so the strip paints
-  // dark immediately rather than flashing the plugin's default black.
-  StatusBar.setBackgroundColor({ color: '#181d25' }).catch(() => {})
+  // Let the WebView extend *under* the status bar so the sheet's themed
+  // background + gradient flow continuously up through the strip — a seamless
+  // top rather than a separate solid band. App content (sheet, side menu,
+  // overlays) is kept clear of the status bar by the env(safe-area-inset-top)
+  // inset on #app / ChatOverlay (see main.css). On Android the status-bar
+  // background is made transparent so the gradient shows through; iOS ignores
+  // setBackgroundColor and is always transparent in overlay mode. Errors are
+  // swallowed so a missing plugin never blocks startup.
+  //
+  // The icon/text style is theme-driven (syncNativeStatusBar in useTheme):
+  // initTheme() runs during first render and flips it to suit the active
+  // theme's background luminance. Style.Dark (light icons) below is only a
+  // pre-paint placeholder matching the common dark theme.
+  StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {})
+  StatusBar.setBackgroundColor({ color: '#00000000' }).catch(() => {})
   StatusBar.setStyle({ style: Style.Dark }).catch(() => {})
-  StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {})
 }
 
 window.__TM_ENV__ = {

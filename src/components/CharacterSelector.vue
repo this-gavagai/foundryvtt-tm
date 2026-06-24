@@ -5,6 +5,7 @@ import Spinner from '@/components/widgets/SpinnerWidget.vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { useCharacterSelectStore } from '@/stores/characterSelect'
 import { useWorldStore } from '@/stores/world'
+import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 import { storeToRefs } from 'pinia'
 
 const { world } = storeToRefs(useWorldStore())
@@ -16,7 +17,7 @@ const { setActiveCharacterId } = characterSelectStore
 <template>
   <h3 class="mb-2 w-full text-2xl whitespace-nowrap">
     <Listbox>
-      <ListboxButton class="block w-full">
+      <ListboxButton class="block w-full" @pointerdown="triggerLightHapticFeedback()">
         <div class="w-full cursor-pointer truncate text-left">
           {{ name ?? $t('common.loading') }}
         </div>
@@ -35,6 +36,7 @@ const { setActiveCharacterId } = characterSelectStore
             .filter((c) => c !== _id)
             .map((c: string) => world?.actors.find((a: ActorPF2e) => a._id === c))"
           :value="chr"
+          @pointerdown="triggerLightHapticFeedback()"
           @click="setActiveCharacterId(chr?._id ?? undefined)"
           :key="chr?._id ?? undefined"
         >

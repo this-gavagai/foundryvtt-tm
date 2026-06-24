@@ -17,6 +17,7 @@ import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { usePixelDiceStore } from '@/stores/pixelDice'
 import { useSettingsStore } from '@/stores/settings'
 import { useChatStore } from '@/stores/chat'
+import { triggerDismissHapticFeedback } from '@/composables/useHapticFeedback'
 
 import Dropdown from '@/components/widgets/DropdownWidget.vue'
 import Toggle from '@/components/widgets/ToggleWidget.vue'
@@ -90,6 +91,14 @@ const { updateProxyId } = targetHelperStore
 const targetProxySelector = ref()
 const sidebarOpen = ref(false)
 
+// Plain dismiss of the sidebar (backdrop, escape, X button). Fires a subtle
+// tick. Menu items that close the sidebar as a side effect of an action keep
+// their own click haptic instead.
+function dismissSidebar() {
+  triggerDismissHapticFeedback()
+  sidebarOpen.value = false
+}
+
 const { manualDicePicker } = storeToRefs(useSettingsStore())
 
 const freeRollModal = ref<InstanceType<typeof RollCheckBuilder>>()
@@ -145,7 +154,7 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
 <template>
   <div data-component="SideMenu">
     <TransitionRoot as="template" :show="sidebarOpen">
-      <Dialog as="div" class="relative z-50" @close="sidebarOpen = false">
+      <Dialog as="div" class="relative z-50" @close="dismissSidebar">
         <TransitionChild
           as="template"
           enter="transition-opacity ease-linear duration-300"
@@ -187,8 +196,11 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                 leave-from="opacity-100"
                 leave-to="opacity-0"
               >
-                <div class="absolute top-0 -left-16 flex w-16 justify-center pt-5">
-                  <button type="button" class="-m-2.5 p-2.5" @click="sidebarOpen = false">
+                <div
+                  data-part="sidebar-close"
+                  class="absolute top-0 -left-16 flex w-16 justify-center pt-5"
+                >
+                  <button type="button" class="-m-2.5 p-2.5" @click="dismissSidebar">
                     <span class="sr-only">{{ $t('sideMenu.closeSidebar') }}</span>
                     <XMarkIcon class="h-6 w-6 text-white" aria-hidden="true" />
                   </button>
@@ -197,6 +209,7 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
               <div
                 class="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4"
                 data-part="panel"
+                data-side-menu
               >
                 <nav class="flex flex-1 flex-col">
                   <ul role="list" class="flex flex-1 flex-col gap-y-7 pt-4">

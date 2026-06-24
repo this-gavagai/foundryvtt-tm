@@ -2,6 +2,7 @@
 import { onBeforeUnmount, ref } from 'vue'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
 import { useOverlayStack } from '@/composables/useOverlayStack'
+import { triggerDismissHapticFeedback } from '@/composables/useHapticFeedback'
 
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 import { InformationCircleIcon } from '@heroicons/vue/24/solid'
@@ -28,6 +29,13 @@ function close() {
   closeLayer()
   // options.value = null
 }
+// User-initiated dismiss (backdrop, escape, X button). Fires a subtle tick.
+// The exposed close() stays clean so programmatic callers (which already have
+// their own click haptic) don't stack a second tick on top.
+function dismiss() {
+  triggerDismissHapticFeedback()
+  close()
+}
 onBeforeUnmount(closeLayer)
 defineExpose({ open, close, options, isOpen })
 </script>
@@ -36,7 +44,7 @@ defineExpose({ open, close, options, isOpen })
   <TransitionRoot appear :show="isOpen" as="template">
     <Dialog
       as="div"
-      @close="close"
+      @close="dismiss"
       class="relative touch-manipulation"
       :style="{ zIndex }"
       :initial-focus="props.focusTarget ?? xButton"
@@ -83,7 +91,7 @@ defineExpose({ open, close, options, isOpen })
                 <button
                   data-part="close"
                   class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-hidden"
-                  @click="close"
+                  @click="dismiss"
                   type="button"
                   ref="xButton"
                 >

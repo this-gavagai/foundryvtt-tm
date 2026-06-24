@@ -48,11 +48,11 @@ function useViewedAction() {
 
 <template>
   <div data-component="ActionsList">
-    <div class="break-inside-avoid-column py-4">
+    <div class="break-inside-avoid-column pb-8">
       <SheetSection
         :section="group.type"
         :title="$t(group.titleKey)"
-        class="pb-4 [&:not(:has(li))]:hidden"
+        class="pt-4 [&:not(:has(li))]:hidden"
         v-for="group in actionTypes"
         :key="group.type"
       >

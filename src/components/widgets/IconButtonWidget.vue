@@ -25,7 +25,7 @@ defineExpose({ waiting })
     @click="handleClick"
     @pointerdown="handlePointerDown"
   >
-    <span :class="{ invisible: waiting }"><slot v-bind="{ waiting }" /></span>
+    <span class="inline-flex items-center gap-[inherit]" :class="{ invisible: waiting }"><slot v-bind="{ waiting }" /></span>
     <span class="absolute" :class="{ invisible: !waiting }"><Spinner class="h-5" /></span>
   </button>
 </template>
