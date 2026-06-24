@@ -10,6 +10,7 @@ import CounterWidget from '@/components/widgets/CounterWidget.vue'
 import DropdownWidget from '@/components/widgets/DropdownWidget.vue'
 import ToggleWidget from '@/components/widgets/ToggleWidget.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
+import IconButtonWidget from '@/components/widgets/IconButtonWidget.vue'
 import Modal from '@/components/ModalBox.vue'
 import ParsedDescription from '@/components/ParsedDescription.vue'
 import meepleIcon from '@/assets/icons/meeple.svg'
@@ -23,9 +24,10 @@ const props = defineProps<{
   // Attached items (shield bosses, etc.) are read-only: no carry/container/qty controls.
   isSubitem?: boolean
   inventoryMode?: 'individual' | 'party'
+  // Async so the move button can show a waiting state until the server write confirms.
+  moveToInventory?: (target: 'individual' | 'party') => unknown
 }>()
 const emit = defineEmits<{
-  moveToInventory: [target: 'individual' | 'party']
   'update:activeRoll': [roll: ActiveRoll | undefined]
 }>()
 
@@ -159,13 +161,18 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
               :changed="changeContainer"
               growContainer
             />
-            <button
+            <IconButtonWidget
               v-if="inventoryMode !== undefined"
-              type="button"
               data-part="inventory-mode-toggle"
-              class="mt-1.25 flex items-center gap-[0.2rem] self-stretch rounded-md px-2 text-[0.8rem]"
-              @click="
-                emit('moveToInventory', inventoryMode === 'individual' ? 'party' : 'individual')
+              class="mt-1.25 ml-auto gap-[0.2rem] self-stretch rounded-md px-2 text-[0.8rem]"
+              :label="
+                inventoryMode === 'individual'
+                  ? $t('equipment.transferToParty')
+                  : $t('equipment.transferToIndividual')
+              "
+              :clicked="
+                () =>
+                  props.moveToInventory?.(inventoryMode === 'individual' ? 'party' : 'individual')
               "
             >
               <template v-if="inventoryMode === 'individual'">
@@ -176,7 +183,7 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
                 <span>‹</span>
                 <img :src="meepleIcon" class="h-6.25" alt="" />
               </template>
-            </button>
+            </IconButtonWidget>
           </div>
         </div>
       </Transition>

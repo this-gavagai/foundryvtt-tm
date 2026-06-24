@@ -75,7 +75,9 @@ function checkClientVersion(args: ModuleEventArgs) {
     `with this module (${moduleVersion() ?? 'unknown'}). Update both to the same ` +
     `release so they can talk to each other.`
   logger.warn('TABLEMATE: ' + message, { clientProtocol: protocol, moduleProtocol: PROTOCOL_VERSION })
-  ui.notifications?.error(message, { permanent: true })
+  // Advisory only — a transient (non-permanent) notification so it warns the GM
+  // without wedging an undismissable error on screen.
+  ui.notifications?.error(message)
 }
 
 // Map of TM action → Foundry-side handler. Handler args are narrowed via

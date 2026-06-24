@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-
 import Spinner from '@/components/widgets/SpinnerWidget.vue'
-import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
+import { useAsyncClick } from '@/composables/useAsyncClick'
 const props = defineProps<{
   label?: string
   color?: string
   disabled?: boolean
   clicked?: () => void
 }>()
-const waiting = ref(false)
+const { waiting, handleClick, handlePointerDown } = useAsyncClick(
+  () => props.clicked?.(),
+  () => props.disabled
+)
 
 const styles = new Map([
   ['unstyled', ['enabled:active:text-gray-500', 'disabled:invisible', 'bg-transparent']],
@@ -21,15 +22,6 @@ const styles = new Map([
   [undefined, [`bg-gray-500`]]
 ])
 
-function handleClick() {
-  if (props.disabled) return
-  if (props.clicked) {
-    waiting.value = true
-    const response = props.clicked?.()
-    Promise.resolve(response).finally(() => (waiting.value = false))
-  }
-}
-
 defineExpose({ waiting })
 </script>
 <template>
@@ -40,7 +32,7 @@ defineExpose({ waiting })
     class="inline-flex min-h-10 min-w-16 cursor-pointer items-end justify-center border border-transparent px-4 py-2 font-medium transition-colors focus:outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
     :class="[{ 'opacity-50': waiting }, ...(styles.get(props.color) ?? ['bg-gray-500'])]"
     @click="handleClick"
-    @pointerdown="!props.disabled && triggerLightHapticFeedback()"
+    @pointerdown="handlePointerDown"
   >
     <span :class="{ invisible: waiting }">
       <span class="whitespace-nowrap">{{ props?.label }}</span>

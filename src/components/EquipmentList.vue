@@ -485,7 +485,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
             :hideCarryType="showPartyInventory"
             :isSubitem="frozenItemIsSubitem"
             :inventoryMode="partyActorId ? inventoryMode : undefined"
-            @moveToInventory="moveItemToInventory"
+            :moveToInventory="moveItemToInventory"
             @update:activeRoll="equipmentActiveRoll = $event"
           />
         </template>

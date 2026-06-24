@@ -234,7 +234,9 @@
     "attach": "Attach",
     "attachTo": "Attach to {parent}",
     "attachTitle": "Attach to…",
-    "detach": "Detach"
+    "detach": "Detach",
+    "transferToParty": "Move to party stash",
+    "transferToIndividual": "Move to your inventory"
   },
   "spells": {
     "noSpells": "This character does not cast spells.",
@@ -357,7 +359,7 @@
     "reload": "Reload"
   },
   "versionMismatch": {
-    "title": "Version mismatch",
+    "title": "Update required",
     "message": "This app ({appVersion}) isn't compatible with the connected Foundry module ({moduleVersion}). Update both to the same release.",
     "reload": "Reload"
   },
