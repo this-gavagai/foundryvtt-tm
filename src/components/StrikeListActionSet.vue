@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ActionIcons from './widgets/ActionIcons.vue'
+import RollButton from './widgets/RollButton.vue'
 
 import melee from '@/assets/icons/plain-dagger.svg'
 import ranged from '@/assets/icons/high-shot.svg'
@@ -40,9 +41,9 @@ const damageVariants = computed(() => [
     </div>
     <div data-part="strike-buttons" class="flex flex-wrap leading-9">
       <span data-part="attack">
-        <span
+        <RollButton
           v-for="(variant, index) in mapLabelSet"
-          class="relative mr-1 mb-1 inline-block cursor-pointer border border-gray-400 bg-gray-100 p-2 text-xs whitespace-nowrap text-blue-600 transition duration-180 ease-out select-none active:scale-[0.90] active:opacity-50 active:duration-60"
+          class="relative mr-1 mb-1 p-2 text-xs whitespace-nowrap text-blue-600"
           @click="emit('clicked', id, { type, subtype: index })"
           :key="'variant_' + index"
         >
@@ -53,17 +54,17 @@ const damageVariants = computed(() => [
           <span>{{
             index ? variant.label?.match(/\((.*)\)/)?.pop() || variant.label || '—' : variant.label
           }}</span>
-        </span>
+        </RollButton>
       </span>
       <span data-part="damage">
-        <span
+        <RollButton
           v-for="(variant, index) in damageVariants"
-          class="mr-1 mb-1 inline-block cursor-pointer border border-gray-400 bg-gray-100 p-2 text-xs text-red-600 transition duration-180 ease-out select-none active:scale-[0.90] active:opacity-50 active:duration-60"
+          class="mr-1 mb-1 p-2 text-xs text-red-600"
           @click="emit('clicked', id, { type: type + '_damage', subtype: index })"
           :key="'damage_' + index"
         >
           <span class="overflow-hidden whitespace-nowrap">{{ variant.label }}</span>
-        </span>
+        </RollButton>
       </span>
     </div>
   </div>

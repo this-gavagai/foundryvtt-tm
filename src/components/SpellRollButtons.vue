@@ -2,6 +2,7 @@
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
 import type { Spell, SpellcastingEntry } from '@/composables/character'
+import RollButton from '@/components/widgets/RollButton.vue'
 
 defineProps<{
   spell: Spell | undefined
@@ -21,8 +22,7 @@ const emit = defineEmits<{
 
 const { isListening } = storeToRefs(useListenersStore())
 
-const buttonClass =
-  'inline-block cursor-pointer border border-gray-400 bg-gray-100 px-2 py-1 transition duration-180 ease-out select-none active:scale-[0.90] active:opacity-50 active:duration-60'
+const buttonClass = 'px-2 py-1'
 </script>
 <template>
   <div
@@ -39,31 +39,31 @@ const buttonClass =
       v-if="spell.system?.traits?.value?.includes('attack')"
       class="flex gap-1"
     >
-      <span
+      <RollButton
         :class="buttonClass"
         class="whitespace-nowrap text-blue-600"
         @click="emit('pick', spell, entry, rank, 'attack', 0)"
-        >{{ $t('spells.attack') }}</span
+        >{{ $t('spells.attack') }}</RollButton
       >
-      <span
+      <RollButton
         :class="buttonClass"
         class="w-9 text-center text-blue-600"
         @click="emit('pick', spell, entry, rank, 'attack', 1)"
-        >-5</span
+        >-5</RollButton
       >
-      <span
+      <RollButton
         :class="buttonClass"
         class="w-9 text-center text-blue-600"
         @click="emit('pick', spell, entry, rank, 'attack', 2)"
-        >-10</span
+        >-10</RollButton
       >
     </span>
     <span data-part="damage" v-if="spell.system?.hasDamage" class="flex gap-1">
-      <span
+      <RollButton
         :class="buttonClass"
         class="whitespace-nowrap text-red-600"
         @click="emit('pick', spell, entry, rank, 'damage', 0)"
-        >{{ $t('spells.damage') }}</span
+        >{{ $t('spells.damage') }}</RollButton
       >
     </span>
   </div>
