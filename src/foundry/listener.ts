@@ -32,7 +32,7 @@ import {
 import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
 import { logger } from '@/utils/utilities'
-import { TM } from '@/api/protocol'
+import { TM, PROTOCOL_VERSION, MODULE_ID } from '@/api/protocol'
 import { stampTablemateChatOrigin } from './utils/foundry'
 
 type GetEvent = { action: 'get' }
@@ -41,6 +41,41 @@ declare const game: GamePF2e
 declare const Hooks: {
   on: (event: string, cb: (...args: unknown[]) => void) => number
   off: (event: string, id: number) => void
+}
+declare const ui: {
+  notifications?: { error: (message: string, options?: object) => void }
+}
+
+// Running module release, read from the manifest Foundry parsed at load.
+function moduleVersion(): string | undefined {
+  return game.modules?.get?.(MODULE_ID)?.version ?? undefined
+}
+
+// Warn the GM at most once per incompatible client per window, so the 30s
+// presence heartbeat doesn't spam a persistent error notification.
+const VERSION_WARN_THROTTLE_MS = 10 * 60 * 1000
+const versionWarnings = new Map<string, number>()
+
+// Compare a connecting client's protocol version against ours. A mismatch
+// (including a client too old to report one) means the wire protocol differs,
+// so surface it to the GM with both human-readable versions for triage.
+function checkClientVersion(args: ModuleEventArgs) {
+  const protocol = 'protocol' in args ? args.protocol : undefined
+  if (protocol === PROTOCOL_VERSION) return
+
+  const userId = args.userId ?? 'unknown'
+  const now = Date.now()
+  const lastWarned = versionWarnings.get(userId)
+  if (lastWarned && now - lastWarned < VERSION_WARN_THROTTLE_MS) return
+  versionWarnings.set(userId, now)
+
+  const appVersion = ('appVersion' in args && args.appVersion) || 'an older version'
+  const message =
+    `Tablemate version mismatch: a connected app (${appVersion}) is not compatible ` +
+    `with this module (${moduleVersion() ?? 'unknown'}). Update both to the same ` +
+    `release so they can talk to each other.`
+  logger.warn('TABLEMATE: ' + message, { clientProtocol: protocol, moduleProtocol: PROTOCOL_VERSION })
+  ui.notifications?.error(message, { permanent: true })
 }
 
 // Map of TM action → Foundry-side handler. Handler args are narrowed via
@@ -232,6 +267,7 @@ export function setupListener() {
     logger.info('TM.RECV (listener)', args)
 
     if (args.action === TM.ANYBODY_HOME) {
+      checkClientVersion(args)
       announceSelf()
       broadcastTargets()
       return
@@ -293,7 +329,10 @@ function iAmProxyOrFallbackGM(userId: string) {
 function announceSelf() {
   game.socket.emit(TM.CHANNEL, {
     action: TM.LISTENER_ONLINE,
-    userId: game.user._id
+    userId: game.user._id,
+    // Let the app run the reciprocal version check on its side.
+    protocol: PROTOCOL_VERSION,
+    moduleVersion: moduleVersion()
   })
 }
 

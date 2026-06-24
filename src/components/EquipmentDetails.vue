@@ -139,8 +139,12 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
         leave-from-class="opacity-100 max-h-24"
         leave-to-class="opacity-0 max-h-0"
       >
-        <div v-if="item?.type !== 'backpack' && !isSubitem && backpacks.length > 0" class="mb-2">
+        <div
+          v-if="item?.type !== 'backpack' && !isSubitem && (backpacks.length > 0 || inventoryMode !== undefined)"
+          class="mb-2"
+        >
           <span
+            v-if="backpacks.length > 0"
             data-part="container-label"
             class="mb-1 block text-xs font-medium tracking-wider uppercase"
             >{{
@@ -148,6 +152,7 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
           }}</span>
           <div class="flex items-center gap-2">
             <DropdownWidget
+              v-if="backpacks.length > 0"
               class="flex-1"
               :list="containerList"
               :selectedId="item?.system?.containerId ?? ''"

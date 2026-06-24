@@ -1,7 +1,15 @@
 import { fileURLToPath, URL } from 'node:url'
+import { readFileSync } from 'node:fs'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+
+// App version baked into the bundle for the module/app handshake. CI sets the
+// git tag via APP_VERSION before building (see build-and-release.yml); locally
+// it falls back to package.json so dev builds carry a stable, recognizable value.
+const pkgVersion = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
+  .version
+const appVersion = process.env.APP_VERSION ?? pkgVersion
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -10,7 +18,8 @@ export default defineConfig(({ mode }) => {
     base: isCapacitor ? './' : isCapacitor ? './' : '/modules/tablemate/',
     define: {
       __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'true',
-      BUILD_MODE: JSON.stringify(mode)
+      BUILD_MODE: JSON.stringify(mode),
+      __APP_VERSION__: JSON.stringify(appVersion)
     },
     build: {
       outDir: isCapacitor ? 'dist' : isCapacitor ? 'dist' : 'tablemate',

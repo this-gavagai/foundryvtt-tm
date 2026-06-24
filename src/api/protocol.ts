@@ -3,6 +3,19 @@
 // source of truth. Discriminator types in api-types.ts derive from these
 // via `typeof TM.X`, so a rename here propagates through the whole codebase.
 
+// Foundry package id of the module. Used app-side to read the running module's
+// version off game.modules, and as the flag scope on the Foundry side.
+export const MODULE_ID = 'tablemate'
+
+// Wire-protocol compatibility version. Bump ONLY when a change to the messages
+// in this file (or their payloads/semantics) breaks an older peer — NOT on every
+// release. Both ends are built from the same commit, so they always agree for a
+// given build; a mismatch only happens at deploy time when a stale PWA talks to
+// a freshly-updated module (or vice versa). Each end compares this integer (not
+// the human-readable release tag) to decide compatibility, so unrelated patch
+// releases don't needlessly hard-block users whose PWA hasn't refreshed yet.
+export const PROTOCOL_VERSION = 1
+
 export const TM = {
   // Socket.io channel name. All tablemate messages flow over this channel.
   CHANNEL: 'module.tablemate',

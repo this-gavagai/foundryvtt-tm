@@ -44,6 +44,11 @@ export interface AcknowledgementArgs {
 export interface ListenderOnlineArgs {
   action: typeof TM.LISTENER_ONLINE
   userId: string
+  // Wire-protocol version + human-readable module release, stamped by the
+  // Foundry side. Optional because a module predating the version handshake
+  // omits them — the app reads `protocol === undefined` as incompatible.
+  protocol?: number
+  moduleVersion?: string
 }
 export interface UpdateCharacterDetailsArgs {
   action: typeof TM.UPDATE_CHARACTER
@@ -74,6 +79,11 @@ export interface RequestCharacterDetailsArgs {
 export interface AnybodyHomeArgs {
   action: typeof TM.ANYBODY_HOME
   userId: string
+  // Wire-protocol version + human-readable app release, stamped by the browser.
+  // Optional because an app predating the version handshake omits them — the
+  // Foundry side reads `protocol === undefined` as incompatible.
+  protocol?: number
+  appVersion?: string
 }
 export interface UpdateActorArgs {
   action: typeof TM.UPDATE_ACTOR

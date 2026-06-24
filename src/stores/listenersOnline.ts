@@ -3,7 +3,7 @@ import { defineStore, storeToRefs } from 'pinia'
 import { getAuthenticatedSocket } from '@/api/internal'
 import { useServerStore } from '@/stores/server'
 import { logger } from '@/utils/utilities'
-import { TM } from '@/api/protocol'
+import { TM, PROTOCOL_VERSION } from '@/api/protocol'
 
 export const useListenersStore = defineStore('listenersOnline', () => {
   const listenersOnline = ref(new Map<string, number>())
@@ -22,7 +22,11 @@ export const useListenersStore = defineStore('listenersOnline', () => {
     const { socket, userId } = await getAuthenticatedSocket()
     socket.emit(TM.CHANNEL, {
       userId,
-      action: TM.ANYBODY_HOME
+      action: TM.ANYBODY_HOME,
+      // Piggyback the version handshake on the existing presence ping so the
+      // Foundry side can flag an incompatible client (no extra round-trip).
+      protocol: PROTOCOL_VERSION,
+      appVersion: __APP_VERSION__
     })
     listenersOnline.value.forEach((value, key, map) => {
       if (Date.now() - value > 45000) map.delete(key)

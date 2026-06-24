@@ -17,7 +17,11 @@ jobs:
         run: npm install
 
       - name: Build
-        run: npm run build-only
+        # Bake the git tag into the app bundle (Vite reads APP_VERSION) so the
+        # app/module version handshake compares the real release, not the dev
+        # placeholder. The package.json/module.json edits below run AFTER the
+        # build, so they can't be the source of the bundled app version.
+        run: APP_VERSION=${{ github.ref_name }} npm run build-only
 
       - name: update package.json version info
         uses: jossef/action-set-json-field@v2.1

@@ -185,23 +185,56 @@ function deleteViewedItem() {
   return itemViewed.value?.delete?.()
 }
 
+// Total quantity of items matching the given one (by name + type) across an
+// inventory. Used to confirm a transfer landed: both a fresh create and a
+// quantity bump on an existing stack raise this total by one.
+function matchingQty(inv: InventoryItem[] | undefined, item: InventoryItem) {
+  return (
+    inv
+      ?.filter((i) => i.name === item.name && i.type === item.type)
+      .reduce((sum, i) => sum + (i.system?.quantity ?? 0), 0) ?? 0
+  )
+}
+
+// Resolve once `check()` becomes true (watching its reactive deps), or false
+// after `timeoutMs`. Inventory writes are confirmed via the broadcast channel
+// (the originating modifyDocument emit isn't reliably acked in relay setups),
+// so we wait for the target inventory to actually reflect the change rather
+// than awaiting the socket ack — which may never arrive.
+function waitForCondition(check: () => boolean, timeoutMs = 10_000): Promise<boolean> {
+  if (check()) return Promise.resolve(true)
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      stop()
+      resolve(false)
+    }, timeoutMs)
+    const stop = watch(check, (ok) => {
+      if (!ok) return
+      clearTimeout(timer)
+      stop()
+      resolve(true)
+    })
+  })
+}
+
 async function moveItemToInventory(targetMode: 'individual' | 'party') {
   if (!itemViewed.value || !partyActorId.value) return
 
   const item = itemViewed.value
   const currentQty = item.system?.quantity ?? 1
   const targetActorId = targetMode === 'party' ? partyActorId.value : _id.value
-  const targetInventory = targetMode === 'party' ? partyInventory.value : inventory.value
+  const targetInventoryRef = targetMode === 'party' ? partyInventory : inventory
 
-  const existing = targetInventory?.find(
+  const existing = targetInventoryRef.value?.find(
     (i: InventoryItem) => i.name === item.name && i.type === item.type
   )
 
-  let confirmed = false
+  // Snapshot the target's matching total before the write so we can detect the
+  // +1 it produces, regardless of whether it created a new stack or bumped one.
+  const beforeQty = matchingQty(targetInventoryRef.value, item)
 
   if (existing) {
-    const response = await existing.changeQty?.((existing.system?.quantity ?? 0) + 1)
-    confirmed = Array.isArray(response?.result) && response.result.length > 0
+    existing.changeQty?.((existing.system?.quantity ?? 0) + 1)
   } else {
     const raw = JSON.parse(JSON.stringify(item)) as Record<string, unknown>
     delete raw._id
@@ -209,7 +242,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
     // The backpack the item was stowed in doesn't exist in the target inventory,
     // so drop the reference rather than carrying a dangling containerId across.
     delete (raw.system as Record<string, unknown>).containerId
-    const response = await modifyDocument(
+    modifyDocument(
       {
         action: 'create',
         type: 'Item',
@@ -223,16 +256,20 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
         fireRefresh(targetActorId)
       }
     )
-    confirmed = Array.isArray(response?.result) && response.result.length > 0
   }
 
+  // Only remove the source copy once the target actually reflects the addition,
+  // so a failed/dropped write can't make the item vanish from both inventories.
+  const confirmed = await waitForCondition(
+    () => matchingQty(targetInventoryRef.value, item) >= beforeQty + 1
+  )
   if (!confirmed) return
 
   if (currentQty <= 1) {
-    await item.delete?.()
+    item.delete?.()
     infoModal.value.close()
   } else {
-    await item.changeQty?.(currentQty - 1)
+    item.changeQty?.(currentQty - 1)
   }
 }
 </script>

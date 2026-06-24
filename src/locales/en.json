@@ -356,6 +356,11 @@
     "message": "A new version is available.",
     "reload": "Reload"
   },
+  "versionMismatch": {
+    "title": "Version mismatch",
+    "message": "This app ({appVersion}) isn't compatible with the connected Foundry module ({moduleVersion}). Update both to the same release.",
+    "reload": "Reload"
+  },
   "connection": {
     "reconnecting": "Reconnecting…",
     "syncing": "Syncing…",

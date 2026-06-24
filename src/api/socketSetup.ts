@@ -8,6 +8,7 @@ import type { TablemateActor } from '@/types/character-types'
 import type { ModuleEventArgs } from '@/types/api-types'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useListenersStore } from '@/stores/listenersOnline'
+import { useVersionCompatStore } from '@/stores/versionCompat'
 import { useSyncStatusStore } from '@/stores/syncStatus'
 import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { useWorldStore } from '@/stores/world'
@@ -113,6 +114,7 @@ export async function setupSocketListenersForApp() {
   appSubsRegistered = true
 
   const { addListener } = useListenersStore()
+  const { reportModule } = useVersionCompatStore()
   onTmAction(TM.ACK, (args) => resolveAck(args.uuid, args))
   onTmAction(TM.SHARE_TARGETS, (args) => {
     const { updateTargets } = useTargetHelperStore()
@@ -120,7 +122,14 @@ export async function setupSocketListenersForApp() {
       updateTargets(userId, targets as string[])
     )
   })
-  onTmAction(TM.LISTENER_ONLINE, (args) => addListener(args.userId))
+  onTmAction(TM.LISTENER_ONLINE, (args) => {
+    addListener(args.userId)
+    // The module reports its protocol/version on every announcement; compare so
+    // the app can surface a banner when a stale PWA meets a newer module (or
+    // vice versa). A module too old to send `protocol` reads as undefined here,
+    // which is correctly treated as a mismatch.
+    reportModule(args.protocol, args.moduleVersion)
+  })
 }
 
 export async function setupSocketListenersForWorld(world: Ref<GamePF2e | undefined>) {
