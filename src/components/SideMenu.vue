@@ -451,12 +451,20 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
           :class="chr._id === activeCharacterId ? 'bg-gray-100 font-semibold' : ''"
           @click="selectCharacter(chr._id ?? undefined)"
         >
-          <img
+          <div
             v-if="chr.prototypeToken?.texture?.src ?? chr.img"
-            :src="getPath((chr.prototypeToken?.texture?.src ?? chr.img) as string)"
-            :alt="chr.name ?? ''"
-            class="h-10 w-10 flex-none rounded-full object-cover"
-          />
+            class="flex h-10 w-10 flex-none items-center overflow-hidden rounded-full"
+          >
+            <img
+              :src="getPath((chr.prototypeToken?.texture?.src ?? chr.img) as string)"
+              :alt="chr.name ?? ''"
+              :style="{
+                '--sx': chr.prototypeToken?.texture?.scaleX ?? 1,
+                '--sy': chr.prototypeToken?.texture?.scaleY ?? 1,
+              }"
+              class="scale-x-(--sx) scale-y-(--sy)"
+            />
+          </div>
           <span class="truncate">{{ chr.name }}</span>
         </li>
       </ul>
