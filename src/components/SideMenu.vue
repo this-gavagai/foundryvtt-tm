@@ -447,6 +447,8 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
         <li
           v-for="chr in characterOptions"
           :key="chr._id ?? undefined"
+          data-part="character-option"
+          :data-active="chr._id === activeCharacterId"
           class="flex cursor-pointer items-center gap-3 rounded-lg p-2 hover:bg-gray-100"
           :class="chr._id === activeCharacterId ? 'bg-gray-100 font-semibold' : ''"
           @click="selectCharacter(chr._id ?? undefined)"

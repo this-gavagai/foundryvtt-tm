@@ -19,9 +19,9 @@
   font-weight: 200 800;
   font-display: swap;
   src: url('@/assets/fonts/dosis-latin.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
-    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
-    U+2212, U+2215, U+FEFF, U+FFFD;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
   font-family: 'Dosis';
@@ -29,9 +29,10 @@
   font-weight: 200 800;
   font-display: swap;
   src: url('@/assets/fonts/dosis-latin-ext.woff2') format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
-    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
-    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
 }
 /* Dosis ships no Cyrillic subset (Google serves only latin/latin-ext/vietnamese),
    so Cyrillic character data would fall back to a wide system font. Jura is a
@@ -53,8 +54,7 @@
   font-weight: 200 800;
   font-display: swap;
   src: url('@/assets/fonts/jura-cyrillic-ext.woff2') format('woff2');
-  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F,
-    U+FE2E-FE2F;
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
 }
 
 @layer base {
@@ -136,13 +136,17 @@ html.tm-native [data-component='ServerUrlGate'] {
    Headless UI's Dialog teleports this content to a Portal under <body>, so it
    is NOT a descendant of [data-component='SideMenu'] at runtime — these
    selectors deliberately omit that ancestor. data-side-menu distinguishes this
-   panel from the other [data-part='panel'] overlays. */
+   panel from the other [data-part='panel'] overlays.
+
+   The full inset clears the bar with room to spare; 0.75 of it still keeps
+   these interactive elements below the dynamic island while letting the content
+   sit a little higher. */
 html.tm-native [data-side-menu] {
-  padding-top: var(--tm-safe-area-top);
+  padding-top: calc(var(--tm-safe-area-top) * 0.6);
 }
 
 html.tm-native [data-part='sidebar-close'] {
-  padding-top: calc(1.25rem + var(--tm-safe-area-top)); /* pt-5 + inset */
+  padding-top: calc(1.25rem + var(--tm-safe-area-top) * 0.6); /* pt-5 + inset */
 }
 
 /* Server manager — same right-side slide-over shape as the side menu. Its

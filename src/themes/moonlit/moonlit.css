@@ -306,6 +306,18 @@ body.theme-moonlit {
       background-color: oklch(30% 0.028 258);
     }
 
+    /* Change-character picker rows. The component's bg-gray-100 highlight (used
+       for both hover and the active row) is a near-white fill that washes out
+       on the dark panel and kills the contrast of the white character name.
+       Reskin to the same accent treatment as the active server row. */
+    [data-part='character-option']:hover {
+      background-color: oklch(26% 0.025 258);
+    }
+    [data-part='character-option'][data-active='true'] {
+      background-color: oklch(26% 0.04 258);
+      box-shadow: inset 0 0 0 1px oklch(55% 0.13 255 / 0.2);
+    }
+
     [data-part='entry-option'] {
       border-color: oklch(36% 0.025 258);
       color: var(--color-text);
