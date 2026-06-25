@@ -106,9 +106,18 @@ useDevGlobals(characters, urlId)
     <div
       v-else-if="worldLoaded === false"
       data-component="NoWorldMessage"
-      class="flex h-full items-center justify-center p-8 text-center text-lg"
+      class="flex h-full flex-col items-center justify-center gap-8 p-8 text-center text-lg"
     >
       {{ $t('app.noWorld') }}
+      <button
+        v-if="isNativeMobile"
+        type="button"
+        data-part="change-server"
+        class="rounded px-4 py-2 text-sm"
+        @click="cancelConnecting"
+      >
+        {{ $t('serverUrl.cancelConnect') }}
+      </button>
     </div>
     <LoginPage v-else-if="needsLogin && !showCachedSheet" />
     <TabGroup

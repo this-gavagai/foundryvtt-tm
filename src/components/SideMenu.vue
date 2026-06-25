@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import type { ActorPF2e } from '@7h3laughingman/pf2e-types'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
 import {
   BookOpenIcon,
   ChatBubbleLeftRightIcon,
   Cog6ToothIcon,
+  UsersIcon,
   XMarkIcon
 } from '@heroicons/vue/24/solid'
 import { storeToRefs } from 'pinia'
@@ -17,7 +19,12 @@ import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { usePixelDiceStore } from '@/stores/pixelDice'
 import { useSettingsStore } from '@/stores/settings'
 import { useChatStore } from '@/stores/chat'
-import { triggerDismissHapticFeedback } from '@/composables/useHapticFeedback'
+import { useCharacterSelectStore } from '@/stores/characterSelect'
+import {
+  triggerDismissHapticFeedback,
+  triggerLightHapticFeedback
+} from '@/composables/useHapticFeedback'
+import { getPath } from '@/utils/utilities'
 
 import Dropdown from '@/components/widgets/DropdownWidget.vue'
 import Toggle from '@/components/widgets/ToggleWidget.vue'
@@ -136,6 +143,30 @@ function openCompendium() {
   compendiumBrowser.value?.open()
 }
 
+// Character switcher — mirrors the header dropdown but as a side-menu modal.
+// Resolves the owned-character ids to their world actors so the modal can show
+// portrait + name; falls back to nothing while the world is still loading.
+const characterSelectStore = useCharacterSelectStore()
+const { characterList, activeCharacterId } = storeToRefs(characterSelectStore)
+const { setActiveCharacterId } = characterSelectStore
+const characterOptions = computed(() =>
+  (characterList.value ?? []).flatMap((id) => {
+    const actor = world.value?.actors.find((a: ActorPF2e) => a._id === id)
+    return actor ? [actor] : []
+  })
+)
+
+const characterPicker = ref<InstanceType<typeof Modal>>()
+function openCharacterPicker() {
+  sidebarOpen.value = false
+  characterPicker.value?.open()
+}
+function selectCharacter(id: string | undefined) {
+  triggerLightHapticFeedback()
+  if (id) setActiveCharacterId(id)
+  characterPicker.value?.close()
+}
+
 const serverSidebar = ref<InstanceType<typeof ServerSidebar>>()
 function openServerManager() {
   sidebarOpen.value = false
@@ -251,7 +282,9 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                     <li class="-mt-4">
                       <div
                         class="text-lg font-bold"
-                        :class="bluetoothSupported ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'"
+                        :class="
+                          bluetoothSupported ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
+                        "
                         @click="pairDie"
                       >
                         {{ $t('sideMenu.pairPixelDice') }}
@@ -329,6 +362,21 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                     <li class="flex flex-col gap-3">
                       <Button
                         class="w-full"
+                        color="lightgray"
+                        :clicked="openCharacterPicker"
+                        :aria-label="$t('sideMenu.changeCharacter')"
+                      >
+                        <template #default>
+                          <span class="inline-flex items-center justify-center gap-1">
+                            <UsersIcon class="h-5 w-5" aria-hidden="true" />
+                            <span class="whitespace-nowrap">{{
+                              $t('sideMenu.changeCharacter')
+                            }}</span>
+                          </span>
+                        </template>
+                      </Button>
+                      <Button
+                        class="w-full"
                         color="green"
                         :clicked="openChat"
                         :aria-label="$t('sideMenu.chat')"
@@ -392,6 +440,27 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
     <ChatOverlay ref="chatOverlay" />
     <CompendiumBrowserOverlay ref="compendiumBrowser" />
     <ServerSidebar ref="serverSidebar" @join="joinNewServer" />
+    <!-- Character switcher modal — lists every owned character so the user can
+       jump to another sheet without using the header dropdown. -->
+    <Modal ref="characterPicker" :title="$t('sideMenu.changeCharacter')">
+      <ul class="flex flex-col gap-1 py-2">
+        <li
+          v-for="chr in characterOptions"
+          :key="chr._id ?? undefined"
+          class="flex cursor-pointer items-center gap-3 rounded-lg p-2 hover:bg-gray-100"
+          :class="chr._id === activeCharacterId ? 'bg-gray-100 font-semibold' : ''"
+          @click="selectCharacter(chr._id ?? undefined)"
+        >
+          <img
+            v-if="chr.prototypeToken?.texture?.src ?? chr.img"
+            :src="getPath((chr.prototypeToken?.texture?.src ?? chr.img) as string)"
+            :alt="chr.name ?? ''"
+            class="h-10 w-10 flex-none rounded-full object-cover"
+          />
+          <span class="truncate">{{ chr.name }}</span>
+        </li>
+      </ul>
+    </Modal>
     <!-- Detail view for paired Pixel dice. Mounted regardless of pixel count
        so toggling between 1- and 2-die states doesn't tear it down. -->
     <Modal ref="pixelDiceModal" :title="$t('sideMenu.pixelDice')">
