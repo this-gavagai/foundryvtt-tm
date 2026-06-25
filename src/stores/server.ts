@@ -27,9 +27,13 @@ const SESSION_WATCHDOG_TIMEOUT_MS = 8_000
 
 function emitWithTimeout<T>(s: Socket, event: string, timeoutMs: number): Promise<T> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`${event} timed out`)), timeoutMs)
+    const timer = setTimeout(() => {
+      logger.debug('TM-DIAG emit timed out', event, { id: s.id, connected: s.connected })
+      reject(new Error(`${event} timed out`))
+    }, timeoutMs)
     s.emit(event, (data: T) => {
       clearTimeout(timer)
+      logger.debug('TM-DIAG emit acked', event)
       resolve(data)
     })
   })
@@ -155,7 +159,17 @@ export const useServerStore = defineStore('server', () => {
 
   function getSocket(timeoutMs = GET_SOCKET_TIMEOUT_MS): Promise<Socket> {
     const connected = currentSocket()
-    if (connected) return Promise.resolve(connected)
+    if (connected) {
+      logger.debug('TM-DIAG getSocket: reusing live socket', {
+        id: connected.id,
+        sessionReady: sessionReady.value
+      })
+      return Promise.resolve(connected)
+    }
+    logger.debug('TM-DIAG getSocket: no live socket, waiting', {
+      hasSocket: !!socket.value,
+      connected: socket.value?.connected
+    })
     return new Promise((resolve, reject) => {
       const existingSocket = socket.value
       const timer = setTimeout(() => {
@@ -265,7 +279,11 @@ export const useServerStore = defineStore('server', () => {
   // watchdog/auth handler will surface the login page.
   async function forceReconnect(): Promise<void> {
     const url = activeServerUrl()
-    if (!url) return
+    if (!url) {
+      logger.debug('TM-DIAG forceReconnect: no active server url')
+      return
+    }
+    logger.debug('TM-DIAG forceReconnect: re-establishing socket')
     await connectToServer(url)
   }
 
@@ -291,11 +309,13 @@ export const useServerStore = defineStore('server', () => {
         logger.debug('TM-SEND', name, ...args)
       })
       isConnected.value = true
-      socket.value.on('disconnect', () => {
+      socket.value.on('disconnect', (reason) => {
+        logger.debug('TM-DIAG socket disconnect', reason)
         isConnected.value = false
         sessionReady.value = false
       })
       socket.value.on('connect', () => {
+        logger.debug('TM-DIAG socket (re)connect', { id: socket.value?.id })
         isConnected.value = true
         sessionReady.value = false
       })
@@ -311,6 +331,10 @@ export const useServerStore = defineStore('server', () => {
       }, SESSION_WATCHDOG_TIMEOUT_MS)
 
       socket.value.on('session', (args: { userId: string }) => {
+        logger.debug('TM-DIAG session event', {
+          userId: args?.userId,
+          stale: thisConnectionId !== connectionId
+        })
         if (thisConnectionId !== connectionId) return
         clearSessionWatchdog()
         if (args?.userId) {

@@ -4,10 +4,11 @@ import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useServerStore, type JoinUser } from '@/stores/server'
 import { useServerAddressStore } from '@/stores/serverAddress'
+import { logger } from '@/utils/utilities'
 
 const { t } = useI18n()
 const serverStore = useServerStore()
-const { login, getJoinData, getSocket, rememberedLoginUser } = serverStore
+const { login, getJoinData, getSocket, forceReconnect, rememberedLoginUser } = serverStore
 const serverAddressStore = useServerAddressStore()
 const { isNativeMobile, serverUrlText } = storeToRefs(serverAddressStore)
 
@@ -75,10 +76,20 @@ async function loadUsers() {
   error.value = ''
   try {
     const data = await getJoinData()
+    logger.debug('TM-DIAG loadUsers: getJoinData returned', { users: data.users.length })
     users.value = data.users
     activeUsers.value = data.activeUsers
     if (data.users.length === 0) {
+      // No users came back. On native this is the "stuck" case: the socket's
+      // getJoinData never acked (its Foundry session handshake didn't complete)
+      // and the HTTP /join fallback hit a logged-in redirect, so neither path
+      // can list users. Re-establish a fresh socket — exactly what relaunching
+      // the app does to cure this — before retrying. A still-valid session then
+      // bounces us straight into the app; otherwise the new socket answers
+      // getJoinData (or HTTP shows the real login form) on the next attempt.
+      logger.debug('TM-DIAG loadUsers: empty user list — repairing socket')
       error.value = t('login.noUsersRetry')
+      await forceReconnect().catch(() => undefined)
       scheduleAutoRetry()
       return
     }
@@ -96,7 +107,11 @@ async function loadUsers() {
     socket.off('userActivity', onUserActivity)
     socket.on('userActivity', onUserActivity)
   } catch {
+    // getJoinData failed on both the socket and the HTTP fallback. Re-establish
+    // a fresh socket before retrying so the next attempt lands on a live one.
+    logger.debug('TM-DIAG loadUsers: getJoinData threw — repairing socket')
     error.value = t('login.couldNotLoadUsers')
+    await forceReconnect().catch(() => undefined)
     scheduleAutoRetry()
   } finally {
     loadingUsers.value = false

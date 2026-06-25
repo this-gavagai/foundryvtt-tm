@@ -1,5 +1,7 @@
 import { CapacitorCookies, CapacitorHttp, type HttpResponse } from '@capacitor/core'
 
+import { logger } from '@/utils/utilities'
+
 import {
   JOIN_DATA_TIMEOUT_MS,
   PROBE_TIMEOUT_MS,
@@ -118,11 +120,15 @@ export const capacitorServerTransport: ServerTransport = {
     // login page shows "No users available" until the app is relaunched.
     try {
       const data = await socketJoinData()
+      logger.debug('TM-DIAG capacitor getJoinData: socket users', data.users.length)
       if (data.users.length > 0) return data
-    } catch {
+    } catch (e) {
+      logger.debug('TM-DIAG capacitor getJoinData: socket failed', String(e))
       /* socket failed entirely — fall back to the HTTP join page below */
     }
-    return getNativeJoinData(serverUrl)
+    const httpData = await getNativeJoinData(serverUrl)
+    logger.debug('TM-DIAG capacitor getJoinData: http users', httpData.users.length)
+    return httpData
   },
 
   async probe(serverUrl: URL): Promise<boolean> {
