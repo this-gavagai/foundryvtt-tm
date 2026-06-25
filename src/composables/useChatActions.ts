@@ -4,6 +4,7 @@ import { applyDamage, consumeItem, rerollChatRoll, sendChatMessage } from '@/api
 import type { ApplyDamageMode, ChatRollRerollMode } from '@/types/api-types'
 import type { ChatRollSummary } from '@/utils/chatRollSummary'
 import { messageIsReroll, originItemId, type ChatMessageData } from '@/composables/useChatMessages'
+import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 
 interface ShieldState {
   itemId: Ref<string | null | undefined>
@@ -180,6 +181,7 @@ export function useChatActions({
     if (!btn) return
     event.preventDefault()
     event.stopPropagation()
+    triggerLightHapticFeedback()
     const msgEl = btn.closest<HTMLElement>('[data-message-id]')
     const message = messages.value.find((m) => m._id === msgEl?.dataset.messageId)
     if (!message || !messageIsOwnActor(message) || !actor.value) return

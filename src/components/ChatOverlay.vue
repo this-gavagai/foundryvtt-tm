@@ -33,6 +33,7 @@ import {
 } from '@/composables/useChatMessages'
 import { collectionToArray, type CollectionLike } from '@/composables/chatCollections'
 import type { UserData } from '@/composables/useChatVisibility'
+import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 import ChatInlineRollModal from '@/components/ChatInlineRollModal.vue'
 import CompendiumItemModal from '@/components/CompendiumItemModal.vue'
 import InfoModal from '@/components/InfoModal.vue'
@@ -706,6 +707,7 @@ defineExpose({ open, close, isOpen })
                           type="button"
                           data-part="chat-inline-check-button"
                           class="inline-flex items-center gap-1.5 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-100 active:bg-blue-200"
+                          @pointerdown="triggerLightHapticFeedback()"
                           @click="openLocalizedInlineRoll(check)"
                         >
                           <img
@@ -744,6 +746,7 @@ defineExpose({ open, close, isOpen })
                               class="inline-flex h-7 w-7 items-center justify-center rounded text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                               :aria-label="$t('chat.rollActions')"
                               :aria-busy="isRollActionPending(view.message, rollIndex)"
+                              @pointerdown="triggerLightHapticFeedback()"
                             >
                               <EllipsisVerticalIcon class="h-5 w-5" aria-hidden="true" />
                             </MenuButton>
@@ -768,6 +771,7 @@ defineExpose({ open, close, isOpen })
                                     )
                                   "
                                   :aria-busy="isRollActionPending(view.message, rollIndex)"
+                                  @pointerdown="triggerLightHapticFeedback()"
                                   @click="
                                     openRerollModal(view.message, roll, rollIndex, 'hero-point')
                                   "
@@ -787,6 +791,7 @@ defineExpose({ open, close, isOpen })
                                     !canTriggerRollAction(view.message, roll, rollIndex, 'reroll')
                                   "
                                   :aria-busy="isRollActionPending(view.message, rollIndex)"
+                                  @pointerdown="triggerLightHapticFeedback()"
                                   @click="openRerollModal(view.message, roll, rollIndex, 'reroll')"
                                 >
                                   {{ $t('chat.reroll') }}
@@ -809,6 +814,7 @@ defineExpose({ open, close, isOpen })
                                     )
                                   "
                                   :aria-busy="isRollActionPending(view.message, rollIndex)"
+                                  @pointerdown="triggerLightHapticFeedback()"
                                   @click="
                                     openRerollModal(view.message, roll, rollIndex, 'keep-highest')
                                   "
@@ -833,6 +839,7 @@ defineExpose({ open, close, isOpen })
                                     )
                                   "
                                   :aria-busy="isRollActionPending(view.message, rollIndex)"
+                                  @pointerdown="triggerLightHapticFeedback()"
                                   @click="
                                     openRerollModal(view.message, roll, rollIndex, 'keep-lowest')
                                   "
@@ -995,6 +1002,7 @@ defineExpose({ open, close, isOpen })
                                 !canTriggerDamageAction(view.message, roll, rollIndex, 'heal')
                               "
                               :aria-busy="isDamageActionPending(view.message, rollIndex)"
+                              @pointerdown="triggerLightHapticFeedback()"
                               @click="applyDamageRoll(view.message, roll, rollIndex, 'heal')"
                             >
                               {{ $t('chat.heal') }}
@@ -1008,6 +1016,7 @@ defineExpose({ open, close, isOpen })
                                   !canTriggerDamageAction(view.message, roll, rollIndex, 'damage')
                                 "
                                 :aria-busy="isDamageActionPending(view.message, rollIndex)"
+                                @pointerdown="triggerLightHapticFeedback()"
                                 @click="applyDamageRoll(view.message, roll, rollIndex, 'damage')"
                               >
                                 {{ $t('chat.damage') }}
@@ -1020,6 +1029,7 @@ defineExpose({ open, close, isOpen })
                                   !canTriggerDamageAction(view.message, roll, rollIndex, 'half')
                                 "
                                 :aria-busy="isDamageActionPending(view.message, rollIndex)"
+                                @pointerdown="triggerLightHapticFeedback()"
                                 @click="applyDamageRoll(view.message, roll, rollIndex, 'half')"
                               >
                                 {{ $t('chat.half') }}
@@ -1032,6 +1042,7 @@ defineExpose({ open, close, isOpen })
                                   !canTriggerDamageAction(view.message, roll, rollIndex, 'double')
                                 "
                                 :aria-busy="isDamageActionPending(view.message, rollIndex)"
+                                @pointerdown="triggerLightHapticFeedback()"
                                 @click="applyDamageRoll(view.message, roll, rollIndex, 'double')"
                               >
                                 {{ $t('chat.double') }}
@@ -1044,6 +1055,7 @@ defineExpose({ open, close, isOpen })
                                   !canTriggerDamageAction(view.message, roll, rollIndex, 'block')
                                 "
                                 :aria-busy="isDamageActionPending(view.message, rollIndex)"
+                                @pointerdown="triggerLightHapticFeedback()"
                                 @click="applyDamageRoll(view.message, roll, rollIndex, 'block')"
                               >
                                 {{ $t('chat.block') }}

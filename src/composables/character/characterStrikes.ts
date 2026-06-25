@@ -79,29 +79,12 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
       // actor has been re-derived with the new toggle value.
       let pendingToggle: Promise<unknown> | null = null
       const base = makeStrike(action, weaponItem)
-      return {
-        ...base,
-        reloadable,
-        loaded,
-        reloadActions,
-        ammunition: base?.ammunition
-          ? { ...base.ammunition, selected: { id: effectiveAmmoId ?? '' } }
-          : base?.ammunition,
-        setLoaded: (load: boolean) => {
-          if (load && !effectiveAmmoId) return Promise.resolve(null)
-          // Optimistic update: mutate the reactive actor object immediately so
-          // the UI reflects the new state without waiting for a full refresh.
-          const ammoData = action?.ammunition as { loaded?: { quantity?: number }[] } | undefined
-          if (ammoData) ammoData.loaded = load ? [{ quantity: 1 }] : []
-          return weaponId
-            ? setWeaponLoaded(
-                actor as Ref<CharacterPF2e>,
-                weaponId,
-                load,
-                load ? effectiveAmmoId : null
-              )
-            : Promise.resolve(null)
-        },
+      // The roll/damage methods are keyed on `action.slug` and take the altUsage
+      // index as a parameter, so the same set works for the base strike (altUsage
+      // undefined) and every alt usage. Attach them to the altUsage objects too —
+      // otherwise clicking a weapon's ranged/thrown usage hits undefined methods
+      // and returns an empty roll-results modal.
+      const strikeMethods = {
         getDamage: (
           altUsage = undefined,
           _blastOptions = undefined,
@@ -127,6 +110,32 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
               modifierOverrides ? { modifierOverrides } : {}
             )
           return pendingToggle ? pendingToggle.then(doRoll) : doRoll()
+        }
+      } satisfies Partial<Strike>
+      return {
+        ...base,
+        reloadable,
+        loaded,
+        reloadActions,
+        ammunition: base?.ammunition
+          ? { ...base.ammunition, selected: { id: effectiveAmmoId ?? '' } }
+          : base?.ammunition,
+        altUsages: base?.altUsages?.map((au) => (au ? { ...au, ...strikeMethods } : au)),
+        ...strikeMethods,
+        setLoaded: (load: boolean) => {
+          if (load && !effectiveAmmoId) return Promise.resolve(null)
+          // Optimistic update: mutate the reactive actor object immediately so
+          // the UI reflects the new state without waiting for a full refresh.
+          const ammoData = action?.ammunition as { loaded?: { quantity?: number }[] } | undefined
+          if (ammoData) ammoData.loaded = load ? [{ quantity: 1 }] : []
+          return weaponId
+            ? setWeaponLoaded(
+                actor as Ref<CharacterPF2e>,
+                weaponId,
+                load,
+                load ? effectiveAmmoId : null
+              )
+            : Promise.resolve(null)
         },
         setDamageType: (newType) => {
           if (!actor.value || !weaponId) return Promise.resolve(null)

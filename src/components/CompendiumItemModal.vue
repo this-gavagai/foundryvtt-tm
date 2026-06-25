@@ -31,7 +31,7 @@ const preparedEntries = computed(() =>
   (spellcastingEntries.value ?? []).filter((e) => isStrictPrepared(e) || isFlexiblePrepared(e))
 )
 
-const ADDABLE_TYPES = new Set(['action', 'effect', 'condition', 'equipment', 'consumable', 'backpack'])
+const ADDABLE_TYPES = new Set(['action', 'effect', 'condition', 'equipment', 'consumable', 'backpack', 'weapon', 'armor', 'shield', 'treasure'])
 const canAdd = computed(() => {
   if (!item.value) return false
   const type = item.value.type ?? ''
