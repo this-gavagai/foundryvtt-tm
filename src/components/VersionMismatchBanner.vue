@@ -50,7 +50,7 @@ function dismiss() {
       <Button color="blue" :clicked="reload" :label="$t('versionMismatch.reload')" />
       <button
         type="button"
-        class="cursor-pointer px-1 text-white/70 hover:text-white"
+        class="flex h-8 w-8 cursor-pointer items-center justify-center rounded text-2xl leading-none text-white/70 hover:bg-white/10 hover:text-white"
         :aria-label="$t('common.close')"
         @click="dismiss"
       >
