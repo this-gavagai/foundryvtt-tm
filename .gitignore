@@ -38,3 +38,7 @@ tabula/
 /build/
 *.ipa
 *.dSYM.zip
+
+# Xcode per-user state
+xcuserdata/
+*.xcuserdatad/
