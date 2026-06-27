@@ -24,8 +24,7 @@
     "fastlane:android:bundle": "bundle exec fastlane android bundle",
     "type-check": "vue-tsc --build --force",
     "lint": "eslint . --fix",
-    "format": "prettier --write src/",
-    "generate-pwa-assets": "pwa-assets-generator --preset minimal-2023 public/3d-meeple.svg"
+    "format": "prettier --write src/"
   },
   "dependencies": {
     "@capacitor-community/bluetooth-le": "^8.2.0",

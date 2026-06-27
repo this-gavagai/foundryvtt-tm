@@ -58,7 +58,7 @@ export default defineConfig(({ mode }) => {
         // useRegisterSW so mid-session updates are visible to the user instead
         // of silently swapping on next navigation. See UpdatePrompt.vue.
         registerType: 'prompt',
-        includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'maskable-icon-512x512.png'],
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
         // PWA stays off in dev: the dev server emits Vite-mangled paths
         // (/node_modules/.vite/deps/...?v=hash, /src/*.ts, /@id/__x00__...)
         // that don't exist in the precache manifest, so workbox spams
@@ -76,23 +76,24 @@ export default defineConfig(({ mode }) => {
           scope: '/modules/tablemate/',
           icons: [
             {
-              src: 'pwa-64x64.png',
-              sizes: '64x64',
-              type: 'image/png'
-            },
-            {
-              src: 'pwa-192x192.png',
+              src: 'icon-192.png',
               sizes: '192x192',
               type: 'image/png'
             },
             {
-              src: 'pwa-512x512.png',
+              src: 'icon-512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any'
             },
             {
-              src: 'maskable-icon-512x512.png',
+              src: 'icon-192-maskable.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'maskable'
+            },
+            {
+              src: 'icon-512-maskable.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable'
