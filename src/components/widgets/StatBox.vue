@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, useAttrs } from 'vue'
+import { ref, computed, watch, useAttrs } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SignedNumber } from '@/utils/formatters'
 import { proficiencyLevels } from '@/utils/constants'
 import InfoModal from '@/components/InfoModal.vue'
 import ModifierOverrideList from '@/components/ModifierOverrideList.vue'
+import ActionIcons from '@/components/widgets/ActionIcons.vue'
+import TraitList from '@/components/TraitList.vue'
 import Toggle from '@/components/widgets/ToggleWidget.vue'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import type { Roll } from '@/types/roll-types'
@@ -15,6 +17,27 @@ import { useModifierOverrides } from '@/composables/useModifierOverrides'
 import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 
 const { t } = useI18n()
+
+// An alternate roll the modal can switch to — e.g. a skill action (Demoralize,
+// Tumble Through) hung off a skill. Selecting one swaps the modal's modifiers,
+// traits, and roll target while leaving the base stat in place to return to.
+export interface StatBoxVariant {
+  key: string
+  label: string
+  cost?: string
+  traits?: string[]
+  modifier?: number
+  modifiers?: Modifier[]
+  rollAction: (
+    r: number | undefined,
+    options?: {
+      modifierOverrides?: Record<string, boolean>
+      messageMode?: 'blind'
+      rollMode?: 'blindroll'
+    }
+  ) => Promise<RequestResolutionArgs | null>
+}
+
 const props = defineProps<{
   heading?: string
   subheading?: string
@@ -27,6 +50,7 @@ const props = defineProps<{
   modifiers?: Modifier[] | undefined
   breakdown?: string
   preventInfoModal?: boolean
+  variants?: StatBoxVariant[]
   rollAction?: (
     r: number | undefined,
     options?: {
@@ -36,11 +60,27 @@ const props = defineProps<{
     }
   ) => Promise<RequestResolutionArgs | null>
 }>()
+
+// Which variant (if any) the modal is currently showing. null = the base stat.
+const selectedKey = ref<string | null>(null)
+const selectedVariant = computed(
+  () => props.variants?.find((v) => v.key === selectedKey.value) ?? null
+)
+// The base stat and each variant carry their own modifiers / roll / traits;
+// everything downstream reads the "active" one so the modal updates in place.
+const activeModifiers = computed(() =>
+  selectedVariant.value ? (selectedVariant.value.modifiers ?? []) : props.modifiers
+)
+const activeRollAction = computed(() => selectedVariant.value?.rollAction ?? props.rollAction)
+const activeTraits = computed(() => selectedVariant.value?.traits ?? [])
 const infoModal = ref()
 const isSecret = ref(false)
 const { isListening } = storeToRefs(useListenersStore())
 
-const canOpen = computed(() => (props?.modifiers || props?.breakdown) && !props.preventInfoModal)
+const canOpen = computed(
+  () =>
+    (props?.modifiers || props?.breakdown || props.variants?.length) && !props.preventInfoModal
+)
 
 // A StatBox is also interactive when the caller attaches an external click
 // handler (HP, hero points, etc.) that falls through to the root element. We
@@ -56,7 +96,7 @@ function openIfDetailed() {
 // modifier on a display-only StatBox (AC, HP, etc.) would have no effect
 // since there's no roll to feed the overrides into. canToggleModifiers
 // gates both the click handler and the cursor/visual affordances below.
-const canToggleModifiers = computed(() => !!props.rollAction)
+const canToggleModifiers = computed(() => !!activeRollAction.value)
 const {
   modifierOverrides,
   toggleModifier: toggleModifierOverride,
@@ -64,7 +104,22 @@ const {
   isManuallyActivated,
   isManuallyDeactivated,
   isStackingLoser
-} = useModifierOverrides(computed(() => props.modifiers))
+} = useModifierOverrides(activeModifiers)
+
+// Switching variants changes the modifier set entirely, so any in-flight
+// per-modifier toggles no longer apply — start the new selection clean.
+// A secret-trait action (e.g. Recall Knowledge, Sense Direction) should roll
+// blind, so auto-arm the secret toggle on select and disarm it on deselect.
+watch(selectedKey, () => {
+  modifierOverrides.value = {}
+  isSecret.value = selectedVariant.value?.traits?.includes('secret') ?? false
+})
+
+function onModalClosed() {
+  modifierOverrides.value = {}
+  selectedKey.value = null
+  isSecret.value = false
+}
 
 function toggleModifier(mod: Modifier) {
   if (canToggleModifiers.value) toggleModifierOverride(mod)
@@ -73,7 +128,7 @@ function toggleModifier(mod: Modifier) {
 // Sum of all effectively-enabled, non-stacking-loser modifiers — drives the
 // roll button label so the user can see the combined modifier before rolling.
 const effectiveTotal = computed<number | undefined>(() => {
-  const mods = props.modifiers
+  const mods = activeModifiers.value
   if (!mods?.length) return undefined
   return mods
     .filter((m) => effectiveEnabled(m) && !isStackingLoser(m))
@@ -81,7 +136,7 @@ const effectiveTotal = computed<number | undefined>(() => {
 })
 
 const rolls = computed<Roll[]>(() => {
-  if (!props.rollAction || !isListening.value) return []
+  if (!activeRollAction.value || !isListening.value) return []
   const totalLabel =
     effectiveTotal.value !== undefined ? ' ' + SignedNumber.format(effectiveTotal.value) : ''
   return [
@@ -100,7 +155,7 @@ const rolls = computed<Roll[]>(() => {
             ? { messageMode: 'blind' as const, rollMode: 'blindroll' as const }
             : {})
         }
-        return props.rollAction!(faces?.[0], Object.keys(options).length ? options : undefined)
+        return activeRollAction.value!(faces?.[0], Object.keys(options).length ? options : undefined)
       }
     }
   ]
@@ -157,10 +212,10 @@ defineExpose({ infoModal })
       <div class="hidden whitespace-nowrap uppercase">{{ fullHeading }}</div>
     </div>
     <Teleport to="#modals">
-      <InfoModal ref="infoModal" :rolls="rolls" @closing="modifierOverrides = {}">
+      <InfoModal ref="infoModal" :rolls="rolls" @closing="onModalClosed">
         <template #bottomLeft>
           <Toggle
-            v-if="props.rollAction && isListening"
+            v-if="activeRollAction && isListening"
             :active="isSecret"
             @changed="(v: boolean) => (isSecret = v)"
           >
@@ -179,10 +234,46 @@ defineExpose({ infoModal })
               ({{ $t(proficiencyLevels[props.proficiency].labelKey) }})
             </span>
           </h3>
-          <h4 class="text-l mb-2">{{ subheading }}</h4>
-          <div>{{ props?.breakdown }}</div>
+          <h4 v-if="subheading" class="text-l mb-2">{{ subheading }}</h4>
+          <div v-if="!selectedVariant && props?.breakdown">{{ props?.breakdown }}</div>
+          <!-- Skill actions usable with this stat: tap to switch the modal to
+               that action's modifiers/traits/roll; tap the active one again to
+               return to the plain skill roll. Set apart with a quiet divider +
+               label so it reads as its own group without crowding the card. -->
+          <div
+            v-if="props.variants?.length"
+            class="border-divider mt-3 mb-4 flex flex-wrap items-center gap-2 border-b pb-4"
+          >
+            <button
+              v-for="variant in props.variants"
+              :key="variant.key"
+              type="button"
+              class="rounded border px-2 py-1 text-sm active:opacity-50"
+              :class="
+                selectedKey === variant.key
+                  ? 'border-blue-600 bg-blue-600 text-white'
+                  : 'border-divider'
+              "
+              @click="selectedKey = selectedKey === variant.key ? null : variant.key"
+            >
+              <ActionIcons
+                v-if="variant.cost"
+                :actions="variant.cost"
+                class="relative -mb-0.5 mr-1 text-base leading-none"
+              />
+              {{ variant.label }}
+              <span v-if="variant.modifier !== undefined" class="opacity-70">
+                {{ SignedNumber.format(variant.modifier) }}
+              </span>
+            </button>
+          </div>
+          <TraitList
+            v-if="activeTraits.length"
+            :traits="activeTraits"
+            class="mt-2 mb-3 text-sm [&_p]:my-2"
+          />
           <ModifierOverrideList
-            :modifiers="props.modifiers"
+            :modifiers="activeModifiers"
             :toggleable="canToggleModifiers"
             :effectiveEnabled="effectiveEnabled"
             :isManuallyActivated="isManuallyActivated"

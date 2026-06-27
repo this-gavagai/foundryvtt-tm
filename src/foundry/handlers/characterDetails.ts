@@ -8,6 +8,7 @@ import type {
   WeaponPF2e
 } from '@7h3laughingman/pf2e-types'
 import type { RequestCharacterDetailsArgs, UpdateCharacterDetailsArgs } from '@/types/api-types'
+import type { SkillActionData } from '@/types/character-types'
 import { TM } from '@/api/protocol'
 import { inventoryTypes } from '@/utils/constants'
 import { logger } from '@/utils/utilities'
@@ -41,6 +42,10 @@ function blastReplacer(key: string, element: unknown) {
 
 type StatisticTrace = {
   rank?: number | null
+  // Skill statistics carry a `lore` flag on the live object, but getTraceData()
+  // doesn't emit it — so lore skills arrive client-side indistinguishable from
+  // core skills. Capture it here so the app can break lores out on their own.
+  lore?: boolean
   getTraceData?: () => {
     slug?: string
     label?: string
@@ -73,8 +78,136 @@ function serializeStatistic(statistic: StatisticTrace | null | undefined) {
   return {
     ...trace,
     rank: trace.rank ?? statistic.rank ?? undefined,
+    lore: statistic.lore ?? undefined,
     modifiers: trace.modifiers?.map(serializeModifier)
   }
+}
+
+// Skill actions (Demoralize, Tumble Through, Recall Knowledge, …) don't store
+// their own modifier on the actor — they roll against a parent skill statistic.
+// But the rollable number isn't simply that skill's modifier: feats/items can
+// grant bonuses scoped to a single action via FlatModifier rule elements
+// predicated on `action:<slug>`, which the bare skill modifier omits.
+//
+// We mirror PF2e's own `SingleCheckActionVariant.toActionCheckPreview`: take the
+// skill statistic's modifiers (which already include the actor's skill-domain
+// synthetics, extracted in BaseStatistic), append the action's own declared
+// modifiers, then recompute against the action's roll options. Re-testing flips
+// on any action-predicated modifiers, so both the total and the per-modifier
+// `enabled` flags reflect the action context. We build it here (not client-side)
+// because predicate evaluation needs the live actor + synthetics.
+//
+// Unlike PF2e's preview (which returns only the total), we also serialize the
+// resolved modifier list so the app can show the breakdown and let the player
+// toggle modifiers — exactly as it already does for a plain skill roll.
+type LiveStatistic = {
+  label: string
+  modifiers: RawModifier[]
+  dc?: { options?: Iterable<string> }
+  lore?: boolean
+}
+type SkillActionLike = {
+  slug?: string
+  name?: string
+  cost?: 'free' | 'reaction' | 0 | 1 | 2 | 3
+  traits?: string[]
+  statistic?: string | string[]
+  modifiers?: RawModifier[]
+  rollOptions?: string[]
+}
+type PF2eModifierApi = {
+  actions?: { values?: () => Iterable<SkillActionLike> }
+  Modifier?: new (raw: RawModifier) => RawModifier
+  StatisticModifier?: new (
+    slug: string,
+    modifiers: RawModifier[],
+    rollOptions: Set<string>
+  ) => { totalModifier: number; modifiers: RawModifier[] }
+}
+
+function serializeSkillActions(actor: ActorPF2e): SkillActionData[] {
+  const pf2e = game.pf2e as unknown as PF2eModifierApi
+  const getStatistic = (actor as ActorPF2e & { getStatistic?: (s: string) => LiveStatistic | null })
+    .getStatistic
+  // The set of slugs that are actually skills (core + lore) on this actor. Not
+  // every action sets `section: "skill"` — Track and Sense Direction, for
+  // example, sit in the "exploration" group — so we key off the statistic being
+  // a skill rather than the section. This also excludes actions that roll a
+  // save/perception (their statistic slug won't be in here).
+  const actorSkills =
+    (actor as ActorPF2e & { skills?: Record<string, LiveStatistic> }).skills ?? {}
+  // Lore skills (Warfare Lore, etc.) are valid Recall Knowledge statistics, but
+  // PF2e's preview never appends them (see its own "append relevant statistic
+  // replacements" TODO). Splice them in so Recall Knowledge shows on lores too.
+  const loreSlugs = Object.entries(actorSkills)
+    .filter(([, stat]) => stat?.lore)
+    .map(([slug]) => slug)
+  const { actions: registry, Modifier, StatisticModifier } = pf2e
+  if (!registry?.values || !Modifier || !StatisticModifier || !getStatistic) return []
+  const out: SkillActionData[] = []
+  for (const action of registry.values()) {
+    if (!action?.statistic) continue
+    const declared = Array.isArray(action.statistic) ? action.statistic : [action.statistic]
+    const candidates =
+      action.slug === 'recall-knowledge' ? [...declared, ...loreSlugs] : declared
+    const actionModifiers = Array.isArray(action.modifiers) ? action.modifiers : []
+    const rollOptions = Array.isArray(action.rollOptions)
+      ? action.rollOptions
+      : action.slug
+        ? [`action:${action.slug}`]
+        : []
+    const statistics: SkillActionData['statistics'] = []
+    for (const slug of candidates) {
+      if (!(slug in actorSkills)) continue
+      const statistic = getStatistic.call(actor, slug)
+      if (!statistic) continue
+      try {
+        const actionMods = actionModifiers.map((m) => new Modifier(m))
+        const actionSlugs = new Set(actionMods.map((m) => m.slug))
+        const combined = [...statistic.modifiers, ...actionMods]
+        const sm = new StatisticModifier(
+          slug,
+          combined,
+          new Set([...rollOptions, ...(statistic.dc?.options ?? [])])
+        )
+        statistics.push({
+          statistic: slug,
+          label: statistic.label,
+          modifier: sm.totalModifier,
+          modifiers: sm.modifiers.map((m) => {
+            const fromAction = actionSlugs.has(m.slug) || undefined
+            // Positive string atoms of the predicate are the sub-roll-options
+            // that switch a conditional action modifier on (e.g. pocketed).
+            const predicate = (m as { predicate?: unknown[] }).predicate
+            const enableOptions =
+              fromAction && Array.isArray(predicate)
+                ? predicate.filter((p): p is string => typeof p === 'string')
+                : []
+            return {
+              ...serializeModifier(m),
+              fromAction,
+              enableOptions: enableOptions.length ? enableOptions : undefined
+            }
+          })
+        })
+      } catch {
+        // A misbehaving action (homebrew/module) shouldn't sink the whole sync.
+        continue
+      }
+    }
+    if (!statistics.length) continue
+    out.push({
+      slug: action.slug ?? '',
+      label: action.name ? game.i18n.localize(action.name) : (action.slug ?? ''),
+      cost: action.cost === undefined ? undefined : String(action.cost),
+      traits: Array.isArray(action.traits) ? action.traits : [],
+      // Replayed as extraRollOptions on the actual roll so the rolled number
+      // matches the previewed modifier (action-specific bonuses fire again).
+      rollOptions,
+      statistics
+    })
+  }
+  return out.sort((a, b) => a.label.localeCompare(b.label))
 }
 
 export async function getCharacterDetails(
@@ -258,6 +391,7 @@ export async function getCharacterDetails(
     spellcastingModifiers,
     rollOptionLabels,
     iwrLabels,
+    skillActions: isCharacter ? serializeSkillActions(actor) : [],
     uuid: args.uuid,
     userId: game.user._id ?? ''
   }

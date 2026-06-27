@@ -8,12 +8,14 @@ import { type CharacterItems, useCharacterItems } from './characterItems'
 import { type CharacterSpells, useCharacterSpells } from './characterSpells'
 import { type CharacterActions, useCharacterActions } from './characterActions'
 import { type CharacterStrikes, useCharacterStrikes } from './characterStrikes'
+import { type CharacterSkillActions, useCharacterSkillActions } from './characterSkillActions'
 import { type CharacterRules, useCharacterRules } from './characterRules'
 
 import type { Item } from './defs/item'
 import type { Stat } from './defs/stat'
 import type { Modifier } from './defs/modifier'
 import type { Strike, ElementalBlast } from './defs/strikeDef'
+import type { SkillActionForSkill } from './characterSkillActions'
 import type { Equipment } from './defs/equipmentDef'
 import type { Feat } from './defs/feat'
 import type { Consumable } from './defs/consumable'
@@ -39,6 +41,7 @@ export type {
   Action,
   Weapon,
   ElementalBlast,
+  SkillActionForSkill,
   IWR,
   EffectItem,
   Armor,
@@ -55,6 +58,7 @@ export interface Character
     CharacterSpells,
     CharacterActions,
     CharacterStrikes,
+    CharacterSkillActions,
     CharacterRules {}
 
 export function useCharacter(actor: Ref<TablemateCharacter | undefined>) {
@@ -66,6 +70,7 @@ export function useCharacter(actor: Ref<TablemateCharacter | undefined>) {
     ...useCharacterSpells(actor),
     ...useCharacterActions(actor),
     ...useCharacterStrikes(actor),
+    ...useCharacterSkillActions(actor),
     ...useCharacterRules(actor)
   }
   return { character }

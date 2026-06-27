@@ -11,7 +11,8 @@ import {
   handleInitiative,
   handlePerception,
   handleSave,
-  handleSkill
+  handleSkill,
+  handleSkillAction
 } from './checks/statistic'
 import { handleStrike, handleStrikeDamage } from './checks/strikeCheckHandlers'
 import type { CheckRollContext, CheckRollHandler } from './checks/types'
@@ -24,6 +25,7 @@ const CHECK_ROLL_HANDLERS: Record<string, CheckRollHandler> = {
   blast: handleBlast,
   blastDamage: handleBlastDamage,
   skill: handleSkill,
+  skillAction: handleSkillAction,
   save: handleSave,
   perception: handlePerception,
   familiarAttack: handleFamiliarAttack,

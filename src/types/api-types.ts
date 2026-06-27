@@ -1,5 +1,6 @@
 import type { ItemPF2e, RawDamageDice, RawModifier } from '@7h3laughingman/pf2e-types'
 import type { TM } from '@/api/protocol'
+import type { SkillActionData } from '@/types/character-types'
 
 export type ModuleEventArgs =
   | AcknowledgementArgs
@@ -67,6 +68,7 @@ export interface UpdateCharacterDetailsArgs {
   spellcastingModifiers: Record<string, object>
   rollOptionLabels: Record<string, string>
   iwrLabels: Record<string, string>
+  skillActions: SkillActionData[]
   uuid: string
   userId: string
 }

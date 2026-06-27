@@ -8,7 +8,7 @@ import SheetSection from './widgets/SheetSection.vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 
 const character = useInjectedCharacter()
-const { skills, proficiencies } = character
+const { skills, proficiencies, skillActionsBySkill } = character
 
 withDefaults(
   defineProps<{
@@ -28,15 +28,13 @@ withDefaults(
   >
     <div class="flex-1 px-6 lg:pr-2">
       <SheetSection
-        class="border-divider break-inside-avoid-column border-t first:border-t-0 first:p-0 empty:hidden 2xl:border-t-0 2xl:pl-2 2xl:first:border-r 2xl:first:pr-6 [&:not(:has(li))]:hidden"
-        :section="isNonLore ? 'skills' : 'lore'"
-        :title="isNonLore ? $t('skills.skills') : $t('skills.lore')"
-        v-for="isNonLore in showLore ? [true, false] : [true]"
-        :key="isNonLore ? 'base' : 'lore'"
+        class="break-inside-avoid-column p-0 empty:hidden 2xl:pl-2"
+        section="skills"
+        :title="$t('skills.skills')"
       >
         <ul data-part="skill-columns" class="xl:columns-2">
           <li
-            v-for="skill in skills?.filter((s: Stat) => !s.lore === isNonLore)"
+            v-for="skill in skills?.filter((s: Stat) => !s.lore)"
             class="break-inside-avoid pb-4 text-lg leading-4"
             :key="skill.slug"
           >
@@ -45,6 +43,32 @@ withDefaults(
               :heading="skill.label"
               :proficiency="skill.rank"
               :modifiers="skill.modifiers"
+              :variants="skill.slug ? skillActionsBySkill?.[skill.slug] : undefined"
+              :rollAction="skill?.roll"
+            >
+              {{ formatModifier(skill.totalModifier) }}
+            </StatBox>
+          </li>
+        </ul>
+      </SheetSection>
+      <SheetSection
+        v-if="showLore"
+        class="border-divider mt-4 break-inside-avoid-column border-t pt-4 empty:hidden 2xl:pl-2 [&:not(:has(li))]:hidden"
+        section="lore"
+        :title="$t('skills.lore')"
+      >
+        <ul data-part="lore-columns" class="xl:columns-2">
+          <li
+            v-for="skill in skills?.filter((s: Stat) => s.lore)"
+            class="break-inside-avoid pb-4 text-lg leading-4"
+            :key="skill.slug"
+          >
+            <StatBox
+              row
+              :heading="skill.label"
+              :proficiency="skill.rank"
+              :modifiers="skill.modifiers"
+              :variants="skill.slug ? skillActionsBySkill?.[skill.slug] : undefined"
               :rollAction="skill?.roll"
             >
               {{ formatModifier(skill.totalModifier) }}

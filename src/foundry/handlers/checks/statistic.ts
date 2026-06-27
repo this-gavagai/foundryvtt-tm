@@ -28,6 +28,56 @@ export const handleSkill: CheckRollHandler = (ctx) => {
   )
 }
 
+// Skill actions (Demoralize, Steal, Recall Knowledge, …) roll through PF2e's
+// own action machinery rather than a bare skill check, so the chat card gets the
+// action's title + glyph, trait pills, target DC / degree of success, and roll
+// notes natively — and emits the `self:action:slug:…` option automation keys off.
+// checkSubtype = action slug; options carry the chosen statistic, any
+// sub-roll-options (toggled conditional modifiers), and modifier overrides.
+type SkillActionUseResult = { roll?: unknown }
+type UsableAction = { use?: (options: Record<string, unknown>) => Promise<unknown> }
+
+export const handleSkillAction: CheckRollHandler = (ctx) => {
+  const slug = ctx.args.checkSubtype
+  const opts = ctx.args.options as {
+    statistic?: string
+    rollOptions?: string[]
+    modifierOverrides?: ModifierOverrideMap
+    messageMode?: string
+    rollMode?: string
+  }
+  const statisticSlug = opts?.statistic ?? ''
+  const registry = (ctx.source.pf2e as { actions?: { get?: (s: string) => UsableAction | undefined } })
+    .actions
+  const action = registry?.get?.(slug)
+  if (typeof action?.use !== 'function') return Promise.resolve(null)
+  const secret = opts?.messageMode === 'blind' || opts?.rollMode === 'blindroll'
+  // PF2e derives skipDialog from the event's shiftKey vs the user's
+  // showCheckDialogs setting; pick shiftKey so it always resolves to true.
+  // ctrlKey routes a secret roll to a GM-only message.
+  const event = {
+    ctrlKey: secret,
+    metaKey: false,
+    shiftKey: !!ctx.source.user.settings.showCheckDialogs
+  }
+  return withModifierOverrides(
+    ctx.actor,
+    (a) => (a as ActorPF2e).skills?.[statisticSlug] ?? null,
+    opts?.modifierOverrides,
+    async () => {
+      const results = (await action.use!({
+        actors: [ctx.actor],
+        statistic: statisticSlug,
+        rollOptions: opts?.rollOptions ?? [],
+        event,
+        target: ctx.targetActorProxy ?? undefined,
+        message: { create: true }
+      })) as SkillActionUseResult[] | undefined
+      return results?.[0]?.roll ?? null
+    }
+  )
+}
+
 export const handleSave: CheckRollHandler = (ctx) => {
   const slug = ctx.args.checkSubtype as SaveType
   return withModifierOverrides(
