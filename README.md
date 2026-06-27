@@ -38,23 +38,7 @@ Manifest is here: https://github.com/this-gavagai/foundryvtt-tm/releases/latest/
 4) To enable full functionality, sign in on another device or browser as a GM.
 
 # Native builds
-The Capacitor app can be synced with `npm run cap:sync`.
-
-Fastlane is configured for repeatable local native builds:
-
-- `npm run fastlane:ios:build` builds a signed iOS release IPA.
-- `npm run fastlane:android:build` builds an Android release APK.
-- `npm run fastlane:android:bundle` builds an Android release AAB for signing and Play Console upload.
-
-Fastlane requires Ruby 3.0 or newer and should be run through Bundler:
-
-```sh
-bundle update
-bundle exec fastlane ios build
-bundle exec fastlane android build
-```
-
-Android release builds require Java 11 or newer. Store upload lanes are not configured yet; add those after Apple and Google Play signing credentials are settled.
+Coming soon...
 
 # A note of caution
 I'm sharing this module in good faith. I use it in my own games, and I'm not aware of anything that would seriously mess up your game data. That said, I'm not particularly knowledgable as a programmer, and it's very possible I've done something stupid. Use at your own risk. Backups are good.
