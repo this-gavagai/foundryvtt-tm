@@ -58,3 +58,38 @@ jobs:
           generateReleaseNotes: true
           token: ${{ secrets.WORKFLOW_KEY }}
           artifacts: './tablemate/module.json,./tablemate/tablemate.zip'
+
+  ios-testflight:
+    # Build & upload the iOS app to TestFlight once the GitHub release exists.
+    needs: build-release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Import signing certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.IOS_DIST_CERT_BASE64 }}
+          p12-password: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+
+      - name: Build and upload to TestFlight
+        env:
+          # The git tag (e.g. alpha-0106) — baked into the web bundle, the
+          # CFBundleVersion build number, and the TestFlight changelog.
+          APP_VERSION: ${{ github.ref_name }}
+          IOS_DEVELOPMENT_TEAM: ${{ secrets.IOS_DEVELOPMENT_TEAM }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_KEY_CONTENT }}
+        run: bundle exec fastlane ios beta
