@@ -8,7 +8,9 @@ apply plugin: 'com.android.application'
 def keystoreFile = System.getenv("ANDROID_KEYSTORE_FILE")
 def keystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
 def keyAliasName = System.getenv("ANDROID_KEY_ALIAS")
-def keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+// Named to avoid colliding with the signingConfig DSL setter of the same name —
+// `keyPassword keyPassword` makes Groovy call the String variable as a method.
+def keyPasswordValue = System.getenv("ANDROID_KEY_PASSWORD")
 
 def localSigningProps = new File(System.getProperty("user.home"), ".config/tablemate-android/keystore.properties")
 if (!keystoreFile && localSigningProps.exists()) {
@@ -17,7 +19,7 @@ if (!keystoreFile && localSigningProps.exists()) {
     keystoreFile = props.getProperty("storeFile")
     keystorePassword = props.getProperty("storePassword")
     keyAliasName = props.getProperty("keyAlias")
-    keyPassword = props.getProperty("keyPassword")
+    keyPasswordValue = props.getProperty("keyPassword")
 }
 
 android {
@@ -45,7 +47,7 @@ android {
                 storeFile file(keystoreFile)
                 storePassword keystorePassword
                 keyAlias keyAliasName
-                keyPassword keyPassword
+                keyPassword keyPasswordValue
             }
         }
     }
