@@ -106,18 +106,57 @@ platform :ios do
       end
     end
 
-    ipa_path = build_app(
-      project: "ios/App/App.xcodeproj",
-      scheme: "App",
-      configuration: "Release",
-      export_method: "app-store",
-      clean: true,
-      export_team_id: team_id,
-      output_directory: "build",
-      # -allowProvisioningUpdates lets Xcode create/download the App Store
-      # provisioning profile via the API key on CI (automatic signing).
-      xcargs: "DEVELOPMENT_TEAM=#{team_id} CURRENT_PROJECT_VERSION=#{next_build_number} -allowProvisioningUpdates"
-    )
+    app_identifier = CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier)
+
+    if ENV["CI"].to_s.casecmp("true").zero?
+      # On CI there is no signed-in Xcode account, so automatic signing can't
+      # talk to the developer portal. Download an App Store profile with the API
+      # key and switch the project to manual signing against the distribution
+      # certificate that was imported into the temporary keychain.
+      get_provisioning_profile(
+        api_key: api_key,
+        app_identifier: app_identifier,
+        readonly: false
+      )
+      profile_name = lane_context[SharedValues::SIGH_NAME]
+
+      update_code_signing_settings(
+        path: "ios/App/App.xcodeproj",
+        use_automatic_signing: false,
+        team_id: team_id,
+        code_sign_identity: "Apple Distribution",
+        profile_name: profile_name,
+        targets: ["App"]
+      )
+
+      ipa_path = build_app(
+        project: "ios/App/App.xcodeproj",
+        scheme: "App",
+        configuration: "Release",
+        export_method: "app-store",
+        clean: true,
+        export_team_id: team_id,
+        output_directory: "build",
+        xcargs: "CURRENT_PROJECT_VERSION=#{next_build_number}",
+        export_options: {
+          signingStyle: "manual",
+          provisioningProfiles: { app_identifier => profile_name }
+        }
+      )
+    else
+      # Local developer machine: rely on the automatic signing already
+      # configured in Xcode, letting it manage the provisioning profile.
+      ipa_path = build_app(
+        project: "ios/App/App.xcodeproj",
+        scheme: "App",
+        configuration: "Release",
+        export_method: "app-store",
+        clean: true,
+        export_team_id: team_id,
+        output_directory: "build",
+        xcargs: "DEVELOPMENT_TEAM=#{team_id} CURRENT_PROJECT_VERSION=#{next_build_number} -allowProvisioningUpdates"
+      )
+    end
     ipa_build_number = get_ipa_info_plist_value(
       ipa: ipa_path,
       key: "CFBundleVersion"
