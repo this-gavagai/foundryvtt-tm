@@ -50,13 +50,27 @@ Build an App Store IPA and upload it to TestFlight
 
 ## Android
 
+### android keystore
+
+```sh
+[bundle exec] fastlane android keystore
+```
+
+Create a self-signed upload keystore and print the GitHub secrets to add.
+
+Android sideload signing needs no Apple-style portal round-trip: this just
+
+wraps keytool. Run once, e.g.:
+
+  bundle exec fastlane android keystore key_password:hunter2
+
 ### android build
 
 ```sh
 [bundle exec] fastlane android build
 ```
 
-Build a local Android release APK from the Capacitor app
+Build a signed Android release APK from the Capacitor app for sideloading
 
 ### android bundle
 

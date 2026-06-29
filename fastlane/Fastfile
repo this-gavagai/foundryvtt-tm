@@ -210,15 +210,73 @@ platform :ios do
 end
 
 platform :android do
-  desc "Build a local Android release APK from the Capacitor app"
+  desc "Create a self-signed upload keystore and print the GitHub secrets to add."
+  desc "Android sideload signing needs no Apple-style portal round-trip: this just"
+  desc "wraps keytool. Run once, e.g.:"
+  desc "  bundle exec fastlane android keystore key_password:hunter2"
+  lane :keystore do |options|
+    # The keystore is a long-lived, irreplaceable credential (losing it breaks
+    # sideloaded upgrades), so — like the App Store Connect .p8 — it lives outside
+    # the repo, not in the transient fastlane/certs scratch dir.
+    output_path = File.expand_path(options[:output_path] || "~/.config/tablemate-android")
+    password = options[:key_password]
+    alias_name = options[:key_alias] || "tablemate"
+    UI.user_error!("Pass key_password:<password> to protect the keystore.") if password.to_s.empty?
+
+    FileUtils.mkdir_p(output_path)
+    keystore = File.join(output_path, "tablemate-release.jks")
+    UI.user_error!("#{keystore} already exists; delete it first if you mean to regenerate.") if File.exist?(keystore)
+
+    app_identifier = CredentialsManager::AppfileConfig.try_fetch_value(:package_name)
+
+    sh(
+      "keytool", "-genkeypair", "-v",
+      "-keystore", keystore,
+      "-alias", alias_name,
+      "-keyalg", "RSA", "-keysize", "2048",
+      "-validity", "10000",
+      "-storepass", password,
+      "-keypass", password,
+      "-dname", "CN=#{app_identifier}, OU=TableMate, O=TableMate, C=US"
+    )
+
+    # Drop a sibling keystore.properties so local `fastlane android build` (and
+    # plain ./gradlew assembleRelease) sign without any env prefix; CI ignores
+    # this file and uses the ANDROID_* env vars instead.
+    props_file = File.join(output_path, "keystore.properties")
+    File.write(props_file, <<~PROPS)
+      storeFile=#{keystore}
+      storePassword=#{password}
+      keyAlias=#{alias_name}
+      keyPassword=#{password}
+    PROPS
+
+    UI.success("Keystore written to #{keystore} (outside the repo, alongside the App Store Connect key).")
+    UI.message("Local signing config written to #{props_file}; local release builds now sign automatically.")
+    UI.important("Add these GitHub secrets, then back up #{keystore} somewhere safe (losing it means sideloaded users must uninstall before upgrading):")
+    UI.message("  ANDROID_KEYSTORE_BASE64    = output of:  base64 -i #{keystore}")
+    UI.message("  ANDROID_KEYSTORE_PASSWORD  = #{password}")
+    UI.message("  ANDROID_KEY_ALIAS          = #{alias_name}")
+    UI.message("  ANDROID_KEY_PASSWORD       = #{password}")
+  end
+
+  desc "Build a signed Android release APK from the Capacitor app for sideloading"
   lane :build do
     sync_capacitor
+
+    # Mirror the iOS build-number scheme: the integer digits of the release tag
+    # (alpha-0108 -> 108) become the versionCode so sideloaded upgrades install
+    # over the previous build. Untagged local builds keep gradle's default of 1.
+    tag_digits = ENV["APP_VERSION"].to_s.gsub(/\D/, "")
+    ENV["ANDROID_VERSION_CODE"] = tag_digits unless tag_digits.empty?
 
     gradle(
       project_dir: "android",
       task: "assemble",
       build_type: "Release"
     )
+
+    UI.success("APK: #{lane_context[SharedValues::GRADLE_APK_OUTPUT_PATH]}")
   end
 
   desc "Build an Android release AAB for signing and Play Console upload"

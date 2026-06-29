@@ -99,3 +99,56 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_KEY_CONTENT }}
         run: bundle exec fastlane ios beta
+
+  android-build:
+    # Build a signed APK and attach it to the GitHub release for manual install
+    # (sideloading) — the Android analog of the iOS TestFlight upload.
+    needs: build-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Decode signing keystore
+        # The keystore (a self-signed cert + private key) is stored as a base64
+        # secret; write it to a temp file that build.gradle reads via env.
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"
+
+      - name: Build signed APK
+        env:
+          # The git tag (e.g. alpha-0106) — baked into the web bundle, the
+          # versionName, and (its digits) the versionCode.
+          APP_VERSION: ${{ github.ref_name }}
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: bundle exec fastlane android build
+
+      - name: Attach APK to the release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
+          omitPrereleaseDuringUpdate: true
+          replacesArtifacts: true
+          token: ${{ secrets.WORKFLOW_KEY }}
+          tag: ${{ github.ref_name }}
+          artifacts: ./android/app/build/outputs/apk/release/app-release.apk
