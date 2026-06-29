@@ -15,6 +15,20 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 ## iOS
 
+### ios certificates
+
+```sh
+[bundle exec] fastlane ios certificates
+```
+
+Create (or download) the Apple Distribution certificate and export a .p12
+
+for the IOS_DIST_CERT_BASE64 GitHub secret. Run once, then export/encode the
+
+result. Pass an output dir + password, e.g.:
+
+  bundle exec fastlane ios certificates dist_cert_password:hunter2
+
 ### ios build
 
 ```sh
