@@ -3,3 +3,8 @@ Preview.html
 screenshots/
 test_output/
 readme.md
+certs/
+*.p12
+*.cer
+*.certSigningRequest
+*.mobileprovision

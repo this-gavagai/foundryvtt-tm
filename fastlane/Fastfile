@@ -41,6 +41,42 @@ private_lane :app_store_connect_key do
 end
 
 platform :ios do
+  desc "Create (or download) the Apple Distribution certificate and export a .p12"
+  desc "for the IOS_DIST_CERT_BASE64 GitHub secret. Run once, then export/encode the"
+  desc "result. Pass an output dir + password, e.g.:"
+  desc "  bundle exec fastlane ios certificates dist_cert_password:hunter2"
+  lane :certificates do |options|
+    api_key = app_store_connect_key
+    output_path = options[:output_path] || "fastlane/certs"
+    password = options[:dist_cert_password]
+    UI.user_error!("Pass dist_cert_password:<password> to protect the exported .p12.") if password.to_s.empty?
+
+    get_certificates(
+      api_key: api_key,
+      type: "distribution",
+      output_path: output_path,
+      generate_apple_certs: true
+    )
+
+    cert_id = lane_context[SharedValues::CERT_CERTIFICATE_ID]
+    cer = File.join(output_path, "#{cert_id}.cer")        # certificate (DER)
+    key_pem = File.join(output_path, "#{cert_id}.p12")    # private key (PEM, despite the extension)
+    cert_pem = File.join(output_path, "#{cert_id}.pem")
+    p12 = File.join(output_path, "dist.p12")
+
+    # Bundle the cert + private key into one password-protected PKCS#12 for the
+    # IOS_DIST_CERT_BASE64 secret. Pass the password via env so it never lands in
+    # the process list. -legacy keeps it importable by macOS `security`.
+    ENV["TM_P12_PASS"] = password
+    sh("openssl", "x509", "-inform", "der", "-in", cer, "-out", cert_pem)
+    sh("openssl", "pkcs12", "-export", "-legacy", "-inkey", key_pem, "-in", cert_pem, "-out", p12, "-passout", "env:TM_P12_PASS")
+
+    UI.success("Distribution .p12 written to #{p12}")
+    UI.important("Add these GitHub secrets, then delete #{output_path}:")
+    UI.message("  IOS_DIST_CERT_BASE64    = output of:  base64 -i #{p12}")
+    UI.message("  IOS_DIST_CERT_PASSWORD  = #{password}")
+  end
+
   desc "Build a signed iOS release IPA from the Capacitor app"
   lane :build do
     sync_capacitor
