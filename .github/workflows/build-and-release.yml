@@ -62,9 +62,19 @@ jobs:
   ios-testflight:
     # Build & upload the iOS app to TestFlight once the GitHub release exists.
     needs: build-release
-    runs-on: macos-latest
+    # macos-26 ships Xcode 26 / the iOS 26 SDK, which Apple now requires for all
+    # App Store Connect uploads (older images default to Xcode 16 / iOS 18 SDK,
+    # which the upload step rejects with a 409 SDK-version error).
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v5
+
+      - name: Select Xcode 26
+        # Pin to the newest installed Xcode so the build uses the iOS 26 SDK even
+        # if the image later adds a newer default or keeps an older one around.
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
 
       - uses: actions/setup-node@v5
         with:
@@ -127,8 +137,14 @@ jobs:
 
       - name: Decode signing keystore
         # The keystore (a self-signed cert + private key) is stored as a base64
-        # secret; write it to a temp file that build.gradle reads via env.
-        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"
+        # secret; write it to a temp file that build.gradle reads via env. Strip
+        # any whitespace/line-wrapping first — a wrapped secret decodes to a
+        # corrupt .jks (keytool: "toDerInputStream rejects tag type ...").
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/release.jks"
+          keytool -list -keystore "$RUNNER_TEMP/release.jks" -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" >/dev/null \
+            && echo "Keystore decoded and readable." \
+            || { echo "::error::Decoded keystore is unreadable — re-create the ANDROID_KEYSTORE_BASE64 secret as a single line (see below)."; exit 1; }
 
       - name: Build signed APK
         env:
