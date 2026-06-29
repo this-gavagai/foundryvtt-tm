@@ -236,23 +236,24 @@ defineExpose({ infoModal })
           </h3>
           <h4 v-if="subheading" class="text-l mb-2">{{ subheading }}</h4>
           <div v-if="!selectedVariant && props?.breakdown">{{ props?.breakdown }}</div>
-          <!-- Skill actions usable with this stat: tap to switch the modal to
-               that action's modifiers/traits/roll; tap the active one again to
-               return to the plain skill roll. Set apart with a quiet divider +
-               label so it reads as its own group without crowding the card. -->
+          <!-- Skill actions usable with this stat, grouped in a contained
+               sub-box so they read as their own set of toggles rather than
+               floating chips. Tap one to switch the modal to that action's
+               modifiers/traits/roll; tap the active one again to return to the
+               plain skill roll. -->
           <div
             v-if="props.variants?.length"
-            class="border-divider mt-3 mb-4 flex flex-wrap items-center gap-2 border-b pb-4"
+            class="border-divider mt-3 mb-4 flex flex-wrap gap-2 rounded-lg border bg-black/3 p-2.5 dark:bg-white/5"
           >
             <button
               v-for="variant in props.variants"
               :key="variant.key"
               type="button"
-              class="rounded border px-2 py-1 text-sm active:opacity-50"
+              class="rounded-full border px-3 py-1 text-sm transition-colors active:opacity-50"
               :class="
                 selectedKey === variant.key
-                  ? 'border-blue-600 bg-blue-600 text-white'
-                  : 'border-divider'
+                  ? 'border-blue-600 bg-blue-600 text-white shadow-sm'
+                  : 'border-divider bg-white dark:bg-white/10'
               "
               @click="selectedKey = selectedKey === variant.key ? null : variant.key"
             >
