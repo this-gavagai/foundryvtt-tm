@@ -42,11 +42,11 @@ jobs:
         with:
           file: tablemate/module.json
           field: download
-          value: https://github.com/this-gavagai/foundryvtt-tm/releases/download/${{ github.ref_name }}/tabulamensa-${{ github.ref_name }}.zip
+          value: https://github.com/this-gavagai/foundryvtt-tm/releases/download/${{ github.ref_name }}/tabulamensa.zip
 
       - name: Zip Files
         working-directory: ./tablemate
-        run: zip -r ./tabulamensa-${{ github.ref_name }}.zip ./*
+        run: zip -r ./tabulamensa.zip ./*
 
       - name: Create Version Release
         id: create_version_release
@@ -57,7 +57,7 @@ jobs:
           prerelease: true
           generateReleaseNotes: true
           token: ${{ secrets.WORKFLOW_KEY }}
-          artifacts: './tablemate/module.json,./tablemate/tabulamensa-${{ github.ref_name }}.zip'
+          artifacts: './tablemate/module.json,./tablemate/tabulamensa.zip'
 
   build-ios:
     # Build & upload the iOS app to TestFlight once the GitHub release exists.
@@ -167,4 +167,4 @@ jobs:
           replacesArtifacts: true
           token: ${{ secrets.WORKFLOW_KEY }}
           tag: ${{ github.ref_name }}
-          artifacts: ./android/app/build/outputs/apk/release/tabulamensa-*.apk
+          artifacts: ./android/app/build/outputs/apk/release/tabulamensa.apk

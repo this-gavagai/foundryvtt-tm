@@ -60,13 +60,12 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-    // Name the release APK tabulamensa-<version>.apk (e.g. tabulamensa-alpha-0108.apk
-    // on CI, tabulamensa-1.0.apk locally) instead of the default app-release.apk, so
-    // sideloaded builds are self-identifying.
+    // Name the release APK tabulamensa.apk instead of the default app-release.apk,
+    // so the sideload artifact has a stable, version-less filename.
     applicationVariants.all { variant ->
         if (variant.buildType.name == "release") {
             variant.outputs.all { output ->
-                output.outputFileName = "tabulamensa-${variant.versionName}.apk"
+                output.outputFileName = "tabulamensa.apk"
             }
         }
     }
