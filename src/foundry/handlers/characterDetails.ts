@@ -285,6 +285,28 @@ export async function getCharacterDetails(
   // wire payload reflects what the Foundry runtime actually sees.
   const baseItems = [...actor.items].map((i) => {
     const obj = i.toObject() as { _id?: string; system?: Record<string, unknown> }
+    // toObject() returns source data, so system.level.value and
+    // system.price.value are the BASE values without runes/precious material.
+    // PF2e's prepareBaseData() recomputes both (level = max of base + each
+    // rune/material level; price = base + rune/material costs) and writes them
+    // back onto the prepared document. Overlay those derived values so weapons,
+    // armor, and shields show their rune-adjusted level and price.
+    if (i.isOfType('physical')) {
+      const sys = (obj.system ??= {})
+      const level = (sys.level as { value?: number } | undefined) ?? {}
+      ;(sys.level as { value?: number }) = { ...level, value: i.system.level.value }
+      const preparedPrice = i.system.price.value
+      const price = (sys.price as { value?: Record<string, number> } | undefined) ?? {}
+      ;(sys.price as { value?: Record<string, number> }) = {
+        ...price,
+        value: {
+          pp: preparedPrice.pp,
+          gp: preparedPrice.gp,
+          sp: preparedPrice.sp,
+          cp: preparedPrice.cp
+        }
+      }
+    }
     // toObject() returns source data, so for weapons system.damage.damageType
     // is the BASE type and the modular toggle is just a numeric index whose
     // options array isn't serialized. Overlay the *current* damage type so
