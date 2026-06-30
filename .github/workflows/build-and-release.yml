@@ -59,7 +59,7 @@ jobs:
           token: ${{ secrets.WORKFLOW_KEY }}
           artifacts: './tablemate/module.json,./tablemate/tablemate.zip'
 
-  ios-testflight:
+  build-ios:
     # Build & upload the iOS app to TestFlight once the GitHub release exists.
     needs: build-release
     # macos-26 ships Xcode 26 / the iOS 26 SDK, which Apple now requires for all
@@ -110,7 +110,7 @@ jobs:
           APP_STORE_CONNECT_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_KEY_CONTENT }}
         run: bundle exec fastlane ios beta
 
-  android-build:
+  build-android:
     # Build a signed APK and attach it to the GitHub release for manual install
     # (sideloading) — the Android analog of the iOS TestFlight upload.
     needs: build-release
