@@ -167,4 +167,4 @@ jobs:
           replacesArtifacts: true
           token: ${{ secrets.WORKFLOW_KEY }}
           tag: ${{ github.ref_name }}
-          artifacts: ./android/app/build/outputs/apk/release/app-release.apk
+          artifacts: ./android/app/build/outputs/apk/release/tabula-*.apk
