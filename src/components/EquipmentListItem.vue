@@ -5,8 +5,17 @@ import ViewableItem from '@/components/widgets/ViewableItem.vue'
 const { item } = defineProps(['item'])
 const emits = defineEmits(['itemClicked'])
 
+// Coins are negligible individually but accrue 1 Bulk per 1000 (PF2e RAW): 999
+// coins are 0 Bulk, 1000 are 1, 2000 are 2. Their per-unit source bulk.value is
+// meaningless for this, so compute the stack Bulk directly from quantity.
+const COINS_PER_BULK = 1000
+
 const totalWeight = computed(() => {
-  if (item?.system?.bulk?.value === 0 || item?.system?.stackGroup === 'coins') return '-'
+  if (item?.system?.stackGroup === 'coins') {
+    const bulk = Math.floor((item?.system?.quantity ?? 0) / COINS_PER_BULK)
+    return bulk === 0 ? '-' : bulk
+  }
+  if (item?.system?.bulk?.value === 0) return '-'
   else if (item?.system?.bulk?.value < 1)
     return (
       Math.floor(
@@ -34,9 +43,7 @@ const totalWeight = computed(() => {
       <div
         class="text-right text-xs"
         :class="[
-          item?.system?.bulk?.value < 1 || item?.system?.stackGroup === 'coins'
-            ? 'font-light text-gray-600'
-            : 'font-semibold'
+          typeof totalWeight === 'number' ? 'font-semibold' : 'font-light text-gray-600'
         ]"
       >
         {{ totalWeight }}
