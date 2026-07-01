@@ -63,6 +63,10 @@ export type SkillActionData = {
   traits: string[]
   rollOptions: string[]
   statistics: SkillActionStatistic[]
+  // Enriched HTML description pulled Foundry-side from the pf2e.actionspf2e
+  // compendium (keyed by slug). Rendered client-side via ParsedDescription.
+  // Absent for actions with no matching compendium item (e.g. homebrew).
+  description?: string
 }
 
 export type TablemateActorExtras = {

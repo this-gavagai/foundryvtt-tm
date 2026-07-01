@@ -125,7 +125,57 @@ type PF2eModifierApi = {
   ) => { totalModifier: number; modifiers: RawModifier[] }
 }
 
-function serializeSkillActions(actor: ActorPF2e): SkillActionData[] {
+// Skill-action descriptions live in the pf2e.actionspf2e compendium (rich HTML
+// with the Success/Failure breakdown), not on the runtime action objects — the
+// registry only carries a localization key for a one-line blurb. We load the
+// pack once and cache a slug → description map: the compendium is static, and
+// getCharacterDetails runs on every sheet open. Keyed by the item's own slug,
+// which matches the action registry slug for the standard actions.
+let skillActionDescriptions: Map<string, string> | null = null
+
+type ActionCompendiumDoc = {
+  slug?: string | null
+  name?: string
+  system?: { slug?: string | null; description?: { value?: string } }
+}
+
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+async function getSkillActionDescriptions(): Promise<Map<string, string>> {
+  if (skillActionDescriptions) return skillActionDescriptions
+  const map = new Map<string, string>()
+  try {
+    const packs = (
+      game as unknown as {
+        packs?: { get?: (id: string) => { getDocuments?: () => Promise<ActionCompendiumDoc[]> } }
+      }
+    ).packs
+    const pack = packs?.get?.('pf2e.actionspf2e')
+    const docs = (await pack?.getDocuments?.()) ?? []
+    for (const doc of docs) {
+      const html = doc.system?.description?.value
+      if (!html) continue
+      const slug = doc.system?.slug ?? doc.slug ?? (doc.name ? slugify(doc.name) : '')
+      if (slug) map.set(slug, html)
+    }
+  } catch (e) {
+    logger.debug('TABLEMATE: failed to load skill action descriptions: ' + e)
+  }
+  // Only cache a populated map — an empty result likely means the pack wasn't
+  // ready yet, so leave the cache unset to retry on the next call.
+  if (map.size) skillActionDescriptions = map
+  return map
+}
+
+function serializeSkillActions(
+  actor: ActorPF2e,
+  descriptions: Map<string, string>
+): SkillActionData[] {
   const pf2e = game.pf2e as unknown as PF2eModifierApi
   const getStatistic = (actor as ActorPF2e & { getStatistic?: (s: string) => LiveStatistic | null })
     .getStatistic
@@ -204,7 +254,8 @@ function serializeSkillActions(actor: ActorPF2e): SkillActionData[] {
       // Replayed as extraRollOptions on the actual roll so the rolled number
       // matches the previewed modifier (action-specific bonuses fire again).
       rollOptions,
-      statistics
+      statistics,
+      description: action.slug ? descriptions.get(action.slug) : undefined
     })
   }
   return out.sort((a, b) => a.label.localeCompare(b.label))
@@ -306,6 +357,10 @@ export async function getCharacterDetails(
           cp: preparedPrice.cp
         }
       }
+      // stackGroup is a derived getter on treasure (coins/gems/upb) rather than
+      // a stored schema field, so toObject() drops it — the client then can't
+      // tell a coin stack apart from a 1-Bulk item. Overlay the prepared value.
+      ;(sys as { stackGroup?: string | null }).stackGroup = i.system.stackGroup ?? null
     }
     // toObject() returns source data, so for weapons system.damage.damageType
     // is the BASE type and the modular toggle is just a numeric index whose
@@ -399,6 +454,7 @@ export async function getCharacterDetails(
       }
     }
   }
+  const skillActionDescs = isCharacter ? await getSkillActionDescriptions() : new Map<string, string>()
   logger.debug('TABLEMATE: now sending ' + actor.name)
   return {
     action: TM.UPDATE_CHARACTER,
@@ -413,7 +469,7 @@ export async function getCharacterDetails(
     spellcastingModifiers,
     rollOptionLabels,
     iwrLabels,
-    skillActions: isCharacter ? serializeSkillActions(actor) : [],
+    skillActions: isCharacter ? serializeSkillActions(actor, skillActionDescs) : [],
     uuid: args.uuid,
     userId: game.user._id ?? ''
   }

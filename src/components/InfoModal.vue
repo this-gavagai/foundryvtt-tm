@@ -133,7 +133,7 @@ defineExpose({ open, close, rollResultModal, isOpen })
                 class="relative w-full max-w-4xl transform overflow-hidden bg-white p-6 text-left shadow-xl transition-all"
               >
                 <slot name="banner" :close="() => dismiss(true)" />
-                <div class="max-h-[70vh] overflow-auto">
+                <div class="max-h-[70vh] overflow-auto scrollbar-gutter-stable">
                   <div class="flex space-x-2">
                     <div
                       v-if="canSendToChat"

@@ -18,6 +18,9 @@ export interface SkillActionForSkill {
   traits: string[]
   modifier: number
   modifiers: Modifier[]
+  // Enriched HTML description (from the pf2e.actionspf2e compendium) for display
+  // in the action modal; undefined when the action has no compendium item.
+  description?: string
   rollAction: (result?: number, options?: object) => Promise<RequestResolutionArgs | null>
 }
 
@@ -40,6 +43,7 @@ export function useCharacterSkillActions(
           traits: action.traits,
           modifier: stat.modifier,
           modifiers: makeModifiers(stat.modifiers as unknown as RawModifier[]) ?? [],
+          description: action.description,
           // Rolls through PF2e's native action (the 'skillAction' handler runs
           // game.pf2e.actions.get(slug).use(...)), so the card, traits, target
           // DC, degree of success and notes all come from the system. We split

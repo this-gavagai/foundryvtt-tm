@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, watch, useAttrs } from 'vue'
+import { ref, computed, watch, useAttrs, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SignedNumber } from '@/utils/formatters'
 import { proficiencyLevels } from '@/utils/constants'
+import { characterKey } from '@/composables/injectKeys'
 import InfoModal from '@/components/InfoModal.vue'
 import ModifierOverrideList from '@/components/ModifierOverrideList.vue'
+import ParsedDescription from '@/components/ParsedDescription.vue'
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
 import TraitList from '@/components/TraitList.vue'
 import Toggle from '@/components/widgets/ToggleWidget.vue'
@@ -18,6 +20,12 @@ import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 
 const { t } = useI18n()
 
+// StatBox is a generic widget used outside a CharacterSheet too (e.g. familiars),
+// so inject non-throwingly. ParsedDescription itself requires the character
+// context, so we only render a variant's description when it's present.
+const injectedCharacter = inject(characterKey, undefined)
+const rollOptionLabels = injectedCharacter?.rollOptionLabels
+
 // An alternate roll the modal can switch to — e.g. a skill action (Demoralize,
 // Tumble Through) hung off a skill. Selecting one swaps the modal's modifiers,
 // traits, and roll target while leaving the base stat in place to return to.
@@ -28,6 +36,8 @@ export interface StatBoxVariant {
   traits?: string[]
   modifier?: number
   modifiers?: Modifier[]
+  // Enriched HTML description shown when this variant is selected (skill actions).
+  description?: string
   rollAction: (
     r: number | undefined,
     options?: {
@@ -281,6 +291,17 @@ defineExpose({ infoModal })
             :isManuallyDeactivated="isManuallyDeactivated"
             :isStackingLoser="isStackingLoser"
             :onToggle="toggleModifier"
+          />
+          <!-- Selected skill action's rulebook description (rich HTML from the
+               pf2e.actionspf2e compendium). Read-only: autoSelect off so inline
+               check/damage radios aren't pre-armed; the primary roll is the
+               action's own check via the roll button below. -->
+          <ParsedDescription
+            v-if="injectedCharacter && selectedVariant?.description"
+            :text="selectedVariant.description"
+            :labels="rollOptionLabels"
+            :autoSelect="false"
+            class="mt-3 mb-3 max-w-full min-w-0 overflow-x-auto text-sm wrap-anywhere [&_p]:my-2 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto"
           />
         </div>
       </InfoModal>
