@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue'
 import { characterKey, familiarKey } from '@/composables/injectKeys'
+import { formatTraitLabel } from '@/utils/traitLabels'
 
 const props = defineProps<{
   traits?: string[]
@@ -18,7 +19,7 @@ const traitLabels = computed(
   () => props.labels ?? character?.traitLabels.value ?? familiar?.traitLabels.value ?? {}
 )
 
-const labelFor = (slug: string) => traitLabels.value[slug] ?? slug
+const labelFor = (slug: string) => formatTraitLabel(slug, traitLabels.value)
 </script>
 
 <template>

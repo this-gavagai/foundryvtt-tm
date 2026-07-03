@@ -110,6 +110,31 @@ export function localizeTraitLabels(): Record<string, string> {
       labels[slug] = game.i18n.localize(key)
     }
   }
+  // Base labels for the parameterized weapon-trait families. The common
+  // enumerated variants (thrown-20, deadly-d8, versatile-s, …) are already
+  // localized above from weaponTraits; these base words let the client format
+  // arbitrary/homebrew values outside the enumeration (e.g. "thrown-25",
+  // "deadly-2d6") via formatTraitLabel(). Base slugs aren't real dictionary
+  // keys, so they don't collide with anything merged above.
+  const BASE_TRAIT_KEYS: Record<string, string> = {
+    thrown: 'PF2E.TraitThrown',
+    range: 'PF2E.TraitRange',
+    volley: 'PF2E.TraitVolley',
+    scatter: 'PF2E.TraitScatter',
+    reload: 'PF2E.TraitReload',
+    capacity: 'PF2E.TraitCapacity',
+    deadly: 'PF2E.TraitDeadly',
+    fatal: 'PF2E.TraitFatal',
+    'fatal-aim': 'PF2E.TraitFatalAim',
+    'two-hand': 'PF2E.TraitTwoHand',
+    jousting: 'PF2E.TraitJousting',
+    versatile: 'PF2E.TraitVersatile'
+  }
+  for (const [slug, key] of Object.entries(BASE_TRAIT_KEYS)) {
+    if (slug in labels) continue
+    const label = game.i18n.localize(key)
+    if (label !== key) labels[slug] = label
+  }
   return labels
 }
 
