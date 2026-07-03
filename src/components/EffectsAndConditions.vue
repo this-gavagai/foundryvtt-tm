@@ -5,7 +5,7 @@ export default { name: 'EffectsAndConditions' }
 // defineOptions({ name: 'EffectsAndConditions' })
 import { ref, computed } from 'vue'
 import InfoModal from '@/components/InfoModal.vue'
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 import { useAnimationsReady } from '@/composables/useAnimationsReady'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import ParsedDescription from './ParsedDescription.vue'
@@ -15,7 +15,7 @@ import type { ActiveRoll } from '@/types/api-types'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 
-const character = useInjectedCharacter()
+const character = useInjectedActor()
 const { effects, rollOptionLabels } = character
 
 // Suppress the panel's enter/scale transitions until the character's initial

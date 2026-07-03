@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { parseIncrement, selectAllOnClick } from '@/utils/utilities'
-import { useInjectedCharacter } from '@/composables/injectKeys'
-import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
-import type { Ref } from 'vue'
+import { useInjectedActor } from '@/composables/injectKeys'
 
 import StatBox from '@/components/widgets/StatBox.vue'
 import Modal from '@/components/ModalBox.vue'
@@ -22,7 +20,7 @@ interface FormData {
 const hpStat = ref()
 const hitpointsModal = ref()
 
-const character = useInjectedCharacter()
+const character = useInjectedActor()
 const { current: hpCurrent, max: hpMax, temp: hpTemp, modifiers: hpModifiers } = character.hp
 const { _actor } = character
 const { lastDamageAmount, lastDamageMessageId } = useLastDamage()
@@ -52,11 +50,11 @@ function handleHpFormSubmit(e: Event) {
       break
     case 'lastDamageMinus':
       if (lastDamageMessageId.value)
-        applyDamage(_actor as Ref<CharacterPF2e>, lastDamageMessageId.value, 'damage', 0)
+        applyDamage(_actor, lastDamageMessageId.value, 'damage', 0)
       break
     case 'lastDamagePlus':
       if (lastDamageMessageId.value)
-        applyDamage(_actor as Ref<CharacterPF2e>, lastDamageMessageId.value, 'heal', 0)
+        applyDamage(_actor, lastDamageMessageId.value, 'heal', 0)
       break
   }
   hitpointsModal.value.close()

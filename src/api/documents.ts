@@ -1,7 +1,6 @@
-import type { Ref } from 'vue'
 import { mergeWith } from 'lodash-es'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
-import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
+import type { TablemateActorRef } from '@/types/character-types'
 import {
   getSocket,
   mergeWithArrayReset,
@@ -92,10 +91,10 @@ export function processChanges(args: DocumentSocketResponse, root: DocumentData[
   }
 }
 
-export function updateActor(actor: Ref<CharacterPF2e>, update: object) {
+export function updateActor(actor: TablemateActorRef, update: object) {
   if (useListenersStore().isListening) {
-    return updateActorRemote(actor.value._id!, update).then(() => {
-      fireRefresh(actor.value._id)
+    return updateActorRemote(actor.value!._id!, update).then(() => {
+      fireRefresh(actor.value!._id)
       return null
     })
   }
@@ -106,20 +105,20 @@ export function updateActor(actor: Ref<CharacterPF2e>, update: object) {
       operation: {
         diff: true,
         render: true,
-        updates: [{ _id: actor.value._id!, ...update }]
+        updates: [{ _id: actor.value!._id!, ...update }]
       }
     },
     (r) => {
       ;(r.result as ModifyDocumentUpdate[]).forEach((change) => {
-        mergeWith(actor.value, change, mergeWithArrayReset)
+        mergeWith(actor.value!, change, mergeWithArrayReset)
       })
-      fireRefresh(actor.value._id)
+      fireRefresh(actor.value!._id)
     }
   )
 }
 
 export function updateActorItem(
-  actor: Ref<CharacterPF2e>,
+  actor: TablemateActorRef,
   itemId: string | string[],
   update: object | object[]
 ) {
@@ -131,7 +130,7 @@ export function updateActorItem(
       operation: {
         diff: true,
         render: true,
-        parentUuid: 'Actor.' + actor.value._id!,
+        parentUuid: 'Actor.' + actor.value!._id!,
         updates: itemIds.map((id, i) => ({
           _id: id,
           ...(Array.isArray(update) ? update[i] : update)
@@ -139,25 +138,25 @@ export function updateActorItem(
       }
     },
     (r) => {
-      processChanges(r, asDocumentArray(actor.value.items))
-      fireRefresh(actor.value._id)
+      processChanges(r, asDocumentArray(actor.value!.items))
+      fireRefresh(actor.value!._id)
     }
   )
 }
 
-export function deleteActorItem(actor: Ref<CharacterPF2e>, itemId: string) {
+export function deleteActorItem(actor: TablemateActorRef, itemId: string) {
   return modifyDocument(
     {
       action: 'delete',
       type: 'Item',
       operation: {
         ids: [itemId],
-        parentUuid: 'Actor.' + actor.value._id!
+        parentUuid: 'Actor.' + actor.value!._id!
       }
     },
     (r) => {
-      processChanges(r, asDocumentArray(actor.value.items))
-      fireRefresh(actor.value._id)
+      processChanges(r, asDocumentArray(actor.value!.items))
+      fireRefresh(actor.value!._id)
     }
   )
 }

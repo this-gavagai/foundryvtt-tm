@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 import { makeDiceResults, parseDamageFormulaDice } from '@/utils/diceFormula'
 import InfoModal from '@/components/InfoModal.vue'
 import Toggle from '@/components/widgets/ToggleWidget.vue'
@@ -22,7 +22,7 @@ const dieIcons: Record<string, string> = {
 }
 
 const { t } = useI18n()
-const { doDamage } = useInjectedCharacter()
+const { doDamage } = useInjectedActor()
 
 const modalRef = ref()
 const isSecret = ref(false)

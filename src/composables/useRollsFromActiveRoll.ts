@@ -2,10 +2,9 @@ import { computed, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ActiveRoll, RequestResolutionArgs } from '@/types/api-types'
 import type { Roll } from '@/types/roll-types'
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 import { parseDamageFormulaDice, makeDiceResults } from '@/utils/diceFormula'
 import { rollInlineCheck } from '@/api/actionRpc'
-import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 
 type SaveSlug = 'fortitude' | 'will' | 'reflex'
 const SAVE_SLUGS: readonly SaveSlug[] = ['fortitude', 'will', 'reflex']
@@ -15,7 +14,7 @@ export function useRollsFromActiveRoll(
   modifierOverrides?: Ref<Record<string, boolean>>
 ): ComputedRef<Roll[]> {
   const { t } = useI18n()
-  const { _actor, doCharacterAction, doDamage, doFlatCheck, saves, skills } = useInjectedCharacter()
+  const { _actor, doCharacterAction, doDamage, doFlatCheck, saves, skills } = useInjectedActor()
 
   return computed<Roll[]>(() => {
     const ar = activeRoll.value
@@ -25,7 +24,9 @@ export function useRollsFromActiveRoll(
     const buttonLabel = `${t('common.roll')} ${label}`.trim()
 
     if (ar.action === 'action') {
-      if (!slug) return []
+      // Actors without the capability (familiars) get no button rather than
+      // an armed control that silently does nothing.
+      if (!slug || !doCharacterAction) return []
       return [
         {
           key: `inline:action:${slug}`,
@@ -84,7 +85,7 @@ export function useRollsFromActiveRoll(
         execute = (faces) => {
           if (!_actor.value) return Promise.resolve(null)
           const diceResults = faces?.[0] != null ? { d20: [faces[0]] } : undefined
-          return rollInlineCheck(_actor as Ref<CharacterPF2e>, slug, {
+          return rollInlineCheck(_actor, slug, {
             against: ar.against,
             itemId: ar.itemId,
             inline: ar.checkInline,
@@ -101,6 +102,8 @@ export function useRollsFromActiveRoll(
           return saves[saveSlug].value?.roll?.(faces?.[0], opts) ?? Promise.resolve(null)
         }
       } else if (slug === 'flat') {
+        // Hide the affordance on actors without flat checks (familiars).
+        if (!doFlatCheck) return []
         execute = (faces) => doFlatCheck(faces?.[0], rollOptions)
       } else {
         execute = (faces) => {

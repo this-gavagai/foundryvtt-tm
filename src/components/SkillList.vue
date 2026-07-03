@@ -5,9 +5,9 @@ import { formatModifier } from '@/utils/formatters'
 
 import StatBox from './widgets/StatBox.vue'
 import SheetSection from './widgets/SheetSection.vue'
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 
-const character = useInjectedCharacter()
+const character = useInjectedActor()
 const { skills, proficiencies, skillActionsBySkill } = character
 
 withDefaults(

@@ -8,14 +8,14 @@ import { BookOpenIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 import { getCompendiumItem, addCompendiumItem } from '@/api/actionRpc'
 import { logger } from '@/utils/utilities'
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 import { useTraitLabels } from '@/composables/useTraitLabels'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { isStrictPrepared, isFlexiblePrepared } from '@/utils/spellcasting'
 import { storeToRefs } from 'pinia'
 import type { CompendiumItemData } from '@/types/api-types'
 
-const { _id: characterId, spellcastingEntries } = useInjectedCharacter()
+const { _id: characterId, spellcastingEntries } = useInjectedActor()
 const { labelFor: rarityLabel } = useTraitLabels()
 const { isListening } = storeToRefs(useListenersStore())
 
@@ -30,7 +30,7 @@ const description = ref()
 const rolls = useRollsFromActiveRoll(computed(() => description.value?.activeRoll))
 
 const preparedEntries = computed(() =>
-  (spellcastingEntries.value ?? []).filter((e) => isStrictPrepared(e) || isFlexiblePrepared(e))
+  (spellcastingEntries?.value ?? []).filter((e) => isStrictPrepared(e) || isFlexiblePrepared(e))
 )
 
 const ADDABLE_TYPES = new Set(['action', 'effect', 'condition', 'equipment', 'consumable', 'backpack', 'weapon', 'armor', 'shield', 'treasure'])
@@ -83,7 +83,8 @@ async function addToCharacter() {
 defineExpose({ open })
 </script>
 <template>
-  <InfoModal ref="modal" :imageUrl="item?.img" :itemUuid="currentUuid || undefined" :traits="item?.system?.traits?.value" :rolls="rolls">
+  <div data-component="CompendiumItemModalRoot">
+    <InfoModal ref="modal" :imageUrl="item?.img" :itemUuid="currentUuid || undefined" :traits="item?.system?.traits?.value" :rolls="rolls">
     <template #banner="{ close }">
       <div
         data-part="compendium-banner"
@@ -130,6 +131,7 @@ defineExpose({ open })
         {{ added ? $t('common.added') : $t('compendium.addToCharacter') }}
       </Button>
     </template>
-  </InfoModal>
-  <SpellcastingEntryPickerModal ref="entryPicker" />
+    </InfoModal>
+    <SpellcastingEntryPickerModal ref="entryPicker" />
+  </div>
 </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 import { freeRoll } from '@/api/actionRpc'
 import InfoModal from '@/components/InfoModal.vue'
 import Toggle from '@/components/widgets/ToggleWidget.vue'
@@ -9,7 +9,7 @@ import type { Roll } from '@/types/roll-types'
 import type { RequestResolutionArgs } from '@/types/api-types'
 
 const { t } = useI18n()
-const { _id: characterId, skills, perception, saves, doFlatCheck } = useInjectedCharacter()
+const { _id: characterId, skills, perception, saves, doFlatCheck } = useInjectedActor()
 
 const modalRef = ref()
 const isSecret = ref(false)
@@ -67,18 +67,21 @@ const saveRollers = computed<Roller[]>(() => [
   }
 ])
 
-const flatRollers: Roller[] = [
-  {
-    slug: 'flat-5',
-    label: 'Flat DC 5',
-    execute: (face, opts) => doFlatCheck(face, { ...(opts ?? {}), dc: 5 })
-  },
-  {
-    slug: 'flat-11',
-    label: 'Flat DC 11',
-    execute: (face, opts) => doFlatCheck(face, { ...(opts ?? {}), dc: 11 })
-  }
-]
+// Empty (and hidden by the group's v-if) on actors without flat checks.
+const flatRollers: Roller[] = doFlatCheck
+  ? [
+      {
+        slug: 'flat-5',
+        label: 'Flat DC 5',
+        execute: (face, opts) => doFlatCheck(face, { ...(opts ?? {}), dc: 5 })
+      },
+      {
+        slug: 'flat-11',
+        label: 'Flat DC 11',
+        execute: (face, opts) => doFlatCheck(face, { ...(opts ?? {}), dc: 11 })
+      }
+    ]
+  : []
 
 // Perception leads the skill list, followed by trained skills, with lore
 // skills appended at the end in italics. Initiative is intentionally omitted —

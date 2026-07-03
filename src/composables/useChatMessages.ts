@@ -8,7 +8,7 @@ import { getPath } from '@/utils/utilities'
 import { prepareChatHtml } from '@/utils/chatHtml'
 import { rollSummaries, type ChatRollSummary, type RollJson } from '@/utils/chatRollSummary'
 import { applyPf2eNotation } from '@/utils/pf2eEnrich'
-import { collectionToArray, type CollectionLike } from '@/composables/chatCollections'
+import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
 import { useChatVisibility, type UserData } from '@/composables/useChatVisibility'
 import type { ActiveRoll } from '@/types/api-types'
 

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import StatBox from './widgets/StatBox.vue'
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 
-const { ac } = useInjectedCharacter()
+const { ac } = useInjectedActor()
 const { current, modifiers } = ac
 </script>
 <template>

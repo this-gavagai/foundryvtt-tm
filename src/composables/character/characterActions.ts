@@ -45,7 +45,7 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
     modifierOverrides?: Record<string, boolean>,
     statisticSlug?: string
   ) => {
-    return characterAction(actor as Ref<CharacterPF2e>, slug, options ?? {}, {
+    return characterAction(actor, slug, options ?? {}, {
       d20: [rollResult ?? 0]
     }, modifierOverrides, statisticSlug)
   }
@@ -86,7 +86,7 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
                 : 'action',
           macroId,
           doMacro: () => {
-            if (macroId && itemId) return runActionable(actor as Ref<CharacterPF2e>, itemId)
+            if (macroId && itemId) return runActionable(actor, itemId)
           }
         }
       })
@@ -97,14 +97,14 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
       set: (newValue) => {
         actor.value!.system.initiative.statistic = newValue!
         const update = { system: { initiative: { statistic: newValue } } }
-        updateActor(actor as Ref<CharacterPF2e>, update)
+        updateActor(actor, update)
       }
     }),
     modifiers: computed(() => makeModifiers(actor.value?.system?.initiative?.modifiers)),
     totalModifier: computed(() => actor.value?.system?.initiative?.totalModifier),
     roll: (result: number | undefined, options: object | undefined = {}) => {
       return rollCheck(
-        actor as Ref<CharacterPF2e>,
+        actor,
         'initiative',
         '',
         { d20: [result ?? 0] },
@@ -122,7 +122,7 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
       itemId?: string
       damageInline?: Record<string, string | true>
     } = {}
-  ) => rollDamage(actor as Ref<CharacterPF2e>, formula, opts)
+  ) => rollDamage(actor, formula, opts)
 
   return {
     doCharacterAction,

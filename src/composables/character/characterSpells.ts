@@ -63,7 +63,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
           spellAttackModifiers: makeModifiers(spellModData?.modifiers),
           doSpellAttack: (result?: number, modifierOverrides?: Record<string, boolean>) =>
             rollCheck(
-              actor as Ref<CharacterPF2e>,
+              actor,
               'spellAttack',
               item._id ?? '',
               { d20: [result ?? 0] },
@@ -82,11 +82,11 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
             prepared[slot].id = newSpellId
             prepared[slot].expended = expended
             const update = { system: { slots: { ['slot' + rank]: { prepared: prepared } } } }
-            return updateActorItem(actor as Ref<CharacterPF2e>, item._id!, update)
+            return updateActorItem(actor, item._id!, update)
           },
           setSlotCount: (rank: number, newValue: number) => {
             const update = { system: { slots: { ['slot' + rank]: { value: newValue } } } }
-            return updateActorItem(actor as Ref<CharacterPF2e>, item._id!, update)
+            return updateActorItem(actor, item._id!, update)
           }
         }
       })
@@ -99,7 +99,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
         ...makeSpell(item),
         doSpell: (rank: number | undefined, slot: number | undefined) => {
           if (rank === undefined || slot === undefined) return Promise.resolve(null)
-          return castSpell(actor as Ref<CharacterPF2e>, item._id!, rank, slot)
+          return castSpell(actor, item._id!, rank, slot)
         },
         doSpellAttack: (
           attackNumber: 1 | 2 | 3,
@@ -107,7 +107,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
           modifierOverrides?: Record<string, boolean>
         ) =>
           rollCheck(
-            actor as Ref<CharacterPF2e>,
+            actor,
             'spellAttack',
             `${item.system.location?.value ?? ''},${item._id},${attackNumber}`,
             { d20: [result ?? 0] },
@@ -121,7 +121,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
           modifierOverrides?: Record<string, boolean>
         ) =>
           rollCheck(
-            actor as Ref<CharacterPF2e>,
+            actor,
             'spellDamage',
             `${item._id},${mapIncreases},${castingRank ?? ''}`,
             result ?? {},
@@ -129,7 +129,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
             modifierOverrides ? { modifierOverrides } : {}
           ),
         getDamage: (castingRank?: number, modifierOverrides?: Record<string, boolean>) =>
-          getSpellDamage(actor as Ref<CharacterPF2e>, item._id!, castingRank, modifierOverrides)
+          getSpellDamage(actor, item._id!, castingRank, modifierOverrides)
       }))
 
     const dailies = actor.value?.flags?.['pf2e-dailies'] as PF2eDailiesFlags
@@ -137,7 +137,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
     const staffSpells = (staves?.spells ?? []).filter(isSpellSource).map((i) => ({
       ...makeSpell(i),
       doSpell: (rank: number | undefined) =>
-        castStaffSpell(actor as Ref<CharacterPF2e>, staves!.staffId!, i._id!, rank ?? 1)
+        castStaffSpell(actor, staves!.staffId!, i._id!, rank ?? 1)
     }))
 
     return [...(actorSpells ?? []), ...staffSpells]
@@ -155,10 +155,10 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
       )
       ?.map((i) => ({
         ...makeConsumable(i),
-        consumeItem: () => consumeItem(actor as Ref<CharacterPF2e>, i._id!),
+        consumeItem: () => consumeItem(actor, i._id!),
         changeUses: (newValue: number) => {
           const updates = { system: { uses: { value: newValue } } }
-          return updateActorItem(actor as Ref<CharacterPF2e>, i._id!, updates)
+          return updateActorItem(actor, i._id!, updates)
         }
       }))
   )
@@ -176,14 +176,14 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
       spells: (staffData?.spells ?? []).filter(isSpellSource).map((i) => ({
         ...makeSpell(i),
         doSpell: (rank: number | undefined) =>
-          castStaffSpell(actor as Ref<CharacterPF2e>, staffData!.staffId!, i._id!, rank ?? 1),
+          castStaffSpell(actor, staffData!.staffId!, i._id!, rank ?? 1),
         doSpellAttack: (
           attackNumber: 1 | 2 | 3,
           result?: number,
           modifierOverrides?: Record<string, boolean>
         ) =>
           rollCheck(
-            actor as Ref<CharacterPF2e>,
+            actor,
             'spellAttack',
             `${staffEntryId},${i._id},${attackNumber}`,
             { d20: [result ?? 0] },
@@ -197,7 +197,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
           modifierOverrides?: Record<string, boolean>
         ) =>
           rollCheck(
-            actor as Ref<CharacterPF2e>,
+            actor,
             'spellDamage',
             `${i._id},${mapIncreases},${castingRank ?? ''}`,
             result ?? {},
@@ -205,7 +205,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
             modifierOverrides ? { modifierOverrides } : {}
           ),
         getDamage: (castingRank?: number, modifierOverrides?: Record<string, boolean>) =>
-          getSpellDamage(actor as Ref<CharacterPF2e>, i._id!, castingRank, modifierOverrides)
+          getSpellDamage(actor, i._id!, castingRank, modifierOverrides)
       })),
       expended: staffData?.expended,
       setStaffCharges: (newValue: number) => {
@@ -214,7 +214,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
             'pf2e-dailies': { extra: { dailies: { staves: { charges: { value: newValue } } } } }
           }
         }
-        return updateActor(actor as Ref<CharacterPF2e>, update)
+        return updateActor(actor, update)
       }
     }
   })

@@ -18,7 +18,8 @@ import {
   compendiumUuidFromClickTarget
 } from '@/utils/foundryHtml'
 import { normalizeFoundryAssetUrls } from '@/utils/chatHtml'
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
+import type { TablemateCharacter } from '@/types/character-types'
 import CompendiumItemModal from '@/components/CompendiumItemModal.vue'
 
 const props = withDefaults(
@@ -51,10 +52,13 @@ const shouldAutoSelect = computed(() => props.autoSelect !== false)
 // and the paths would otherwise dead-end at `actor.abilities`. Wrap the actor
 // in a thin proxy that aliases the well-known getters back to their system-
 // data sources for `resolveFormula`'s dotted-path walk.
-const { _actor } = useInjectedCharacter()
+const { _actor } = useInjectedActor()
 function makeActorRollData(actor: typeof _actor.value): Record<string, unknown> | undefined {
   if (!actor) return undefined
-  const system = actor.system
+  // Dotted-path walk over serialized data: familiars simply lack some of these
+  // system branches, and `?.` resolves them to undefined, so read through the
+  // character shape.
+  const system = (actor as TablemateCharacter).system
   return {
     ...actor,
     abilities: system?.abilities,

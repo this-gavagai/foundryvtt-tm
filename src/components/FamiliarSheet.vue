@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed, provide, ref, toRef } from 'vue'
-import type { Character } from '@/composables/character'
 import { useFamiliar } from '@/composables/familiar'
 import type { TablemateFamiliar } from '@/types/character-types'
-import { characterKey, familiarKey } from '@/composables/injectKeys'
+import { actorKey, familiarKey } from '@/composables/injectKeys'
 import { useWorldStore } from '@/stores/world'
 import { storeToRefs } from 'pinia'
 
@@ -28,9 +27,7 @@ const { familiar } = useFamiliar(actorRef)
 const sideMenu = ref()
 
 provide(familiarKey, familiar)
-// InfoModal and ParsedDescription are actor-generic in practice, but still
-// consume the historical character injection key.
-provide(characterKey, familiar as unknown as Character)
+provide(actorKey, familiar)
 
 const { world } = storeToRefs(useWorldStore())
 const masterName = computed(

@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 import { startCase } from 'lodash-es'
 
 import Toggle from './widgets/ToggleWidget.vue'
 import Dropdown from './widgets/DropdownWidget.vue'
 
-const character = useInjectedCharacter()
+const character = useInjectedActor()
 const { rollOptions } = character
 </script>
 <template>

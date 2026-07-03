@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import Spinner from '@/components/widgets/SpinnerWidget.vue'
 import { getPath } from '@/utils/utilities'
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 
-const { portraitUrl, portraitScaleX, portraitScaleY } = useInjectedCharacter()
+const { portraitUrl, portraitScaleX, portraitScaleY } = useInjectedActor()
 
 defineEmits(['click'])
 </script>

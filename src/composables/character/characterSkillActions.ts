@@ -1,5 +1,5 @@
 import { computed, type Ref } from 'vue'
-import type { CharacterPF2e, RawModifier } from '@7h3laughingman/pf2e-types'
+import type { RawModifier } from '@7h3laughingman/pf2e-types'
 import type { TablemateCharacter } from '@/types/character-types'
 import type { Field } from './helpers'
 import type { RequestResolutionArgs } from '@/types/api-types'
@@ -70,7 +70,7 @@ export function useCharacterSkillActions(
               Object.entries(overrides).filter(([slug]) => !actionSlugs.has(slug))
             )
             return rollCheck(
-              actor as Ref<CharacterPF2e>,
+              actor,
               'skillAction',
               action.slug,
               { d20: [result ?? 0] },

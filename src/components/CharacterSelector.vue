@@ -2,14 +2,14 @@
 import type { ActorPF2e } from '@7h3laughingman/pf2e-types'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import Spinner from '@/components/widgets/SpinnerWidget.vue'
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 import { useCharacterSelectStore } from '@/stores/characterSelect'
 import { useWorldStore } from '@/stores/world'
 import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 import { storeToRefs } from 'pinia'
 
 const { world } = storeToRefs(useWorldStore())
-const { _id, name } = useInjectedCharacter()
+const { _id, name } = useInjectedActor()
 const characterSelectStore = useCharacterSelectStore()
 const { characterList } = storeToRefs(characterSelectStore)
 const { setActiveCharacterId } = characterSelectStore

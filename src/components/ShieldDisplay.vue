@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, type Ref } from 'vue'
-import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
+import { ref, computed } from 'vue'
 import StatBox from './widgets/StatBox.vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { parseIncrement, selectAllOnClick } from '@/utils/utilities'
@@ -48,7 +47,7 @@ const RAISE_A_SHIELD_MACRO_UUID = 'Compendium.pf2e.action-macros.Macro.4hfQEMiEO
 function raiseShield() {
   if (!isListening.value || !_actor.value) return
   shieldWaiting.value = true
-  runMacro(_actor as Ref<CharacterPF2e>, RAISE_A_SHIELD_MACRO_UUID).then(() => {
+  runMacro(_actor, RAISE_A_SHIELD_MACRO_UUID).then(() => {
     shieldWaiting.value = false
   })
 }

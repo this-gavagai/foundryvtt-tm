@@ -11,7 +11,7 @@ import { useServerStore } from '@/stores/server'
 import { useCharacterSelectStore } from '@/stores/characterSelect'
 import { useCharacter } from '@/composables/character'
 import { useActorSync } from '@/composables/useActorSync'
-import { characterKey } from '@/composables/injectKeys'
+import { actorKey, characterKey } from '@/composables/injectKeys'
 import { useWindowSize } from '@vueuse/core'
 import { useUserStore } from '@/stores/user'
 
@@ -26,6 +26,7 @@ import skills from '@/assets/icons/skills.svg'
 
 import SideMenu from '@/components/SideMenu.vue'
 import CharacterHeader from '@/components/CharacterHeader.vue'
+import HeroPoints from '@/components/HeroPoints.vue'
 import CharacterTab from '@/components/CharacterTab.vue'
 import IconButtonWidget from '@/components/widgets/IconButtonWidget.vue'
 import CharacterPanel from './CharacterPanel.vue'
@@ -108,6 +109,7 @@ const accessDenied: ComputedRef<boolean> = computed(
 )
 const { character } = useCharacter(characterActor)
 provide(characterKey, character)
+provide(actorKey, character)
 
 // keep the local actor ref synced with Foundry via socket events
 useActorSync(props.characterId, actor)
@@ -146,7 +148,9 @@ defineExpose({ actor, character, actorOrWorldActor })
         data-part="sheet-left"
         class="border-divider app-scroll hidden border-r md:block md:h-full md:w-80"
       >
-        <CharacterHeader class="sticky top-0 z-10 h-32" @chat-activated="sideMenu.openChat()" />
+        <CharacterHeader class="sticky top-0 z-10 h-32" @chat-activated="sideMenu.openChat()">
+          <template #secondary-stat><HeroPoints /></template>
+        </CharacterHeader>
         <FrontPage />
       </div>
       <!-- show this column on all devices -->
@@ -165,7 +169,9 @@ defineExpose({ actor, character, actorOrWorldActor })
               class="sticky top-0 z-10 h-32 md:hidden"
               @sidebar-activated="sideMenu.sidebarOpen = true"
               @chat-activated="sideMenu.openChat()"
-            />
+            >
+              <template #secondary-stat><HeroPoints /></template>
+            </CharacterHeader>
             <CharacterPanel
               v-for="tab in tabs"
               :key="tab.label"

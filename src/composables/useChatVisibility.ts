@@ -2,7 +2,7 @@ import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'
 import { useUserStore } from '@/stores/user'
-import { collectionToArray, type CollectionLike } from '@/composables/chatCollections'
+import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
 import type { ChatMessageData } from '@/composables/useChatMessages'
 
 export interface UserData {

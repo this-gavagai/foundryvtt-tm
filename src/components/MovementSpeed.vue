@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import StatBox from './widgets/StatBox.vue'
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 import type { Stat } from '@/composables/character'
 
 import d20 from '@/assets/icons/d20.svg'
 
-const character = useInjectedCharacter()
+const character = useInjectedActor()
 const { land, swim, climb, fly, burrow } = character.movement
 const { skills } = character
 

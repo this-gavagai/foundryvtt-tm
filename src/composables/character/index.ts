@@ -1,5 +1,6 @@
 import type { Ref } from 'vue'
 import type { TablemateCharacter } from '@/types/character-types'
+import type { Actor } from '@/composables/actor'
 
 import { type CharacterCore, useCharacterCore } from './characterCore'
 import { type CharacterStats, useCharacterStats } from './characterStats'
@@ -60,6 +61,13 @@ export interface Character
     CharacterStrikes,
     CharacterSkillActions,
     CharacterRules {}
+
+// Compile-time conformance check: Character must satisfy the shared Actor
+// surface. It can't `extends Actor` nominally (some members are narrower,
+// e.g. _actor), so this constraint makes drift fail here — at the model —
+// rather than at a distant provide() call site.
+type Satisfies<T extends U, U> = T
+export type CharacterSatisfiesActor = Satisfies<Character, Actor>
 
 export function useCharacter(actor: Ref<TablemateCharacter | undefined>) {
   const character: Character = {

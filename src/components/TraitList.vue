@@ -1,23 +1,20 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue'
-import { characterKey, familiarKey } from '@/composables/injectKeys'
+import { actorKey } from '@/composables/injectKeys'
 import { formatTraitLabel } from '@/utils/traitLabels'
 
 const props = defineProps<{
   traits?: string[]
-  // slug→localized label map; falls back to the injected character/familiar
-  // map when omitted (Foundry localizes trait slugs into the world locale).
+  // slug→localized label map; falls back to the injected actor's map when
+  // omitted (Foundry localizes trait slugs into the world locale).
   labels?: Record<string, string>
 }>()
 
-// Soft injects — TraitList also renders outside a sheet (e.g. compendium
-// browser), where no character/familiar is provided.
-const character = inject(characterKey, undefined)
-const familiar = inject(familiarKey, undefined)
+// Soft inject — TraitList also renders outside a sheet (e.g. compendium
+// browser), where no actor is provided.
+const actor = inject(actorKey, undefined)
 
-const traitLabels = computed(
-  () => props.labels ?? character?.traitLabels.value ?? familiar?.traitLabels.value ?? {}
-)
+const traitLabels = computed(() => props.labels ?? actor?.traitLabels.value ?? {})
 
 const labelFor = (slug: string) => formatTraitLabel(slug, traitLabels.value)
 </script>

@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import type { ActiveRoll } from '@/types/api-types'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 import { useModifierOverrides } from '@/composables/useModifierOverrides'
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 import InfoModal from '@/components/InfoModal.vue'
 import ModifierOverrideList from '@/components/ModifierOverrideList.vue'
 
@@ -11,7 +11,7 @@ const activeRoll = ref<ActiveRoll>()
 const rollTitle = ref('')
 const modal = ref<InstanceType<typeof InfoModal>>()
 
-const { skills, saves, perception } = useInjectedCharacter()
+const { skills, saves, perception } = useInjectedActor()
 
 type SaveSlug = 'fortitude' | 'will' | 'reflex'
 const SAVE_SLUGS: readonly string[] = ['fortitude', 'will', 'reflex']

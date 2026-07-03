@@ -20,7 +20,7 @@ import {
   PaperAirplaneIcon,
   XMarkIcon
 } from '@heroicons/vue/24/outline'
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 import { useOverlayStack } from '@/composables/useOverlayStack'
 import { useChatStore } from '@/stores/chat'
 import { useWorldStore } from '@/stores/world'
@@ -31,7 +31,7 @@ import {
   type ChatMessageView,
   type ChatMessageData
 } from '@/composables/useChatMessages'
-import { collectionToArray, type CollectionLike } from '@/composables/chatCollections'
+import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
 import type { UserData } from '@/composables/useChatVisibility'
 import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 import ChatInlineRollModal from '@/components/ChatInlineRollModal.vue'
@@ -55,7 +55,7 @@ const isOpen = ref(false)
 const scrollContainer = ref<HTMLElement>()
 const chatInput = ref<HTMLTextAreaElement>()
 const { zIndex, openLayer, closeLayer } = useOverlayStack()
-const character = useInjectedCharacter()
+const character = useInjectedActor()
 const { _id, _actor, shield, skills, saves, perception } = character
 const inlineRollModal = ref<InstanceType<typeof ChatInlineRollModal>>()
 const compendiumModal = ref<InstanceType<typeof CompendiumItemModal>>()

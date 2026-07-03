@@ -1,5 +1,6 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
+import type { TablemateActor } from '@/types/character-types'
 import { applyDamage, consumeItem, rerollChatRoll, sendChatMessage } from '@/api/actionRpc'
 import type { ApplyDamageMode, ChatRollRerollMode } from '@/types/api-types'
 import type { ChatRollSummary } from '@/utils/chatRollSummary'
@@ -48,8 +49,10 @@ export function useChatActions({
   onMessageSent
 }: {
   actorId: Ref<string | null | undefined>
-  actor: Ref<CharacterPF2e | null | undefined>
-  shield: ShieldState
+  actor: Ref<TablemateActor | null | undefined>
+  // Characters only — familiars have no shield, so shield-block actions are
+  // simply unavailable on their sheets.
+  shield?: ShieldState
   messages: ComputedRef<ChatMessageData[]>
   messageIsOwnActor: (message: ChatMessageData) => boolean
   onMessageSent?: () => void
@@ -82,9 +85,9 @@ export function useChatActions({
 
   function canShieldBlock(): boolean {
     return (
-      !!shield.itemId.value &&
-      (shield.hp.current.value ?? 0) > 0 &&
-      (shield.hardness.value ?? 0) > 0
+      !!shield?.itemId.value &&
+      (shield?.hp.current.value ?? 0) > 0 &&
+      (shield?.hardness.value ?? 0) > 0
     )
   }
 
@@ -117,7 +120,12 @@ export function useChatActions({
     mode: ChatRollRerollMode
   ): boolean {
     if (!canReroll(message, roll)) return false
-    if (mode === 'hero-point' && (actor.value?.system?.resources?.heroPoints?.value ?? 0) <= 0) {
+    // Hero points are a character resource; familiars resolve to 0 and can't
+    // hero-point reroll.
+    if (
+      mode === 'hero-point' &&
+      ((actor.value as CharacterPF2e | undefined)?.system?.resources?.heroPoints?.value ?? 0) <= 0
+    ) {
       return false
     }
     const key = rollActionKey(message, rollIndex)
@@ -137,7 +145,7 @@ export function useChatActions({
     actionError.value = false
     setPending(pendingDamageActions, key, true)
     try {
-      await applyDamage(actor as Ref<CharacterPF2e>, message._id, mode, rollIndex)
+      await applyDamage(actor, message._id, mode, rollIndex)
     } catch {
       actionError.value = true
     } finally {
@@ -160,7 +168,7 @@ export function useChatActions({
     setPending(pendingRollActions, key, true)
     try {
       return await rerollChatRoll(
-        actor as Ref<CharacterPF2e>,
+        actor,
         message._id,
         mode,
         rollIndex,
@@ -195,7 +203,7 @@ export function useChatActions({
     btn.disabled = true
     btn.setAttribute('aria-busy', 'true')
     try {
-      await consumeItem(actor as Ref<CharacterPF2e>, itemId)
+      await consumeItem(actor, itemId)
     } catch {
       actionError.value = true
     } finally {

@@ -1,3 +1,4 @@
+import type { Ref } from 'vue'
 import type {
   CharacterPF2e,
   ElementalBlast as PF2eElementalBlast,
@@ -85,3 +86,9 @@ export type TablemateActorExtras = {
 export type TablemateCharacter = CharacterPF2e & TablemateActorExtras
 export type TablemateFamiliar = FamiliarPF2e & TablemateActorExtras
 export type TablemateActor = TablemateCharacter | TablemateFamiliar
+
+// The ref shape the API layer accepts: any tablemate actor, possibly not yet
+// loaded. RPCs only serialize `_id` (see fromActor in actionRpc), so callers
+// must ensure the actor is loaded before invoking — the same contract the old
+// Ref<CharacterPF2e> signatures implied via casts at every call site.
+export type TablemateActorRef = Ref<TablemateActor | null | undefined>

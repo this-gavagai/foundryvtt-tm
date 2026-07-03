@@ -1,5 +1,5 @@
 import { ref, watch } from 'vue'
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 
 // Returns a flag that starts false and flips true one animation frame after the
 // character's initial data has painted. Gate entrance transitions on it so a
@@ -9,9 +9,10 @@ import { useInjectedCharacter } from '@/composables/injectKeys'
 //
 // `_actor` (rather than any derived list) is the signal: most derived fields
 // are always-defined and so can't distinguish "data arriving on load" from "the
-// user changed something." Must be called from within a <CharacterSheet>.
+// user changed something." Must be called from within a sheet that provides
+// the actor injection.
 export function useAnimationsReady() {
-  const { _actor } = useInjectedCharacter()
+  const { _actor } = useInjectedActor()
   const animationsReady = ref(false)
   const stop = watch(
     () => !!_actor.value,

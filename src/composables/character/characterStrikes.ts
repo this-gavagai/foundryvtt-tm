@@ -89,10 +89,10 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
           altUsage = undefined,
           _blastOptions = undefined,
           modifierOverrides = undefined
-        ) => getStrikeDamage(actor as Ref<CharacterPF2e>, action.slug, altUsage, modifierOverrides),
+        ) => getStrikeDamage(actor, action.slug, altUsage, modifierOverrides),
         doStrike: (variant, altUsage, blastOptions, result, modifierOverrides) =>
           rollCheck(
-            actor as Ref<CharacterPF2e>,
+            actor,
             'strike',
             `${action.slug},${variant},${altUsage ?? ''}`,
             { d20: [result ?? 0] },
@@ -102,7 +102,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
         doDamage: (variant, altUsage, _blastOptions, result, modifierOverrides) => {
           const doRoll = () =>
             rollCheck(
-              actor as Ref<CharacterPF2e>,
+              actor,
               'damage',
               `${action.slug},${variant ? 'critical' : 'damage'},${altUsage ?? ''}`,
               result ?? {},
@@ -130,7 +130,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
           if (ammoData) ammoData.loaded = load ? [{ quantity: 1 }] : []
           return weaponId
             ? setWeaponLoaded(
-                actor as Ref<CharacterPF2e>,
+                actor,
                 weaponId,
                 load,
                 load ? effectiveAmmoId : null
@@ -159,7 +159,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
             toggles.versatile.selected = selected as DamageType | null
           }
           pendingToggle = setWeaponDamageType(
-            actor as Ref<CharacterPF2e>,
+            actor,
             weaponId,
             trait,
             selected
@@ -181,7 +181,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
             (actorAction as { selectedAmmoId?: string | null }).selectedAmmoId = newId || null
 
           const persistAmmoId =
-            updateActorItem(actor as Ref<CharacterPF2e>, action?.item?._id ?? '', {
+            updateActorItem(actor, action?.item?._id ?? '', {
               system: { selectedAmmoId: newId || null }
             }) ?? Promise.resolve(null)
 
@@ -192,7 +192,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
           if (ammoData) ammoData.loaded = []
           return Promise.all([
             persistAmmoId,
-            setWeaponLoaded(actor as Ref<CharacterPF2e>, weaponId, false, null)
+            setWeaponLoaded(actor, weaponId, false, null)
           ])
         }
       } as Strike
@@ -205,14 +205,14 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
           ...blast,
           getDamage: (altUsage, blastOptions, modifierOverrides) =>
             getStrikeDamage(
-              actor as Ref<CharacterPF2e>,
+              actor,
               `blast:${blastOptions?.element},${blastOptions?.damageType},${blastOptions?.isMelee}`,
               undefined,
               modifierOverrides
             ),
           doStrike: (variant, altUsage, blastOptions, result, modifierOverrides) =>
             rollCheck(
-              actor as Ref<CharacterPF2e>,
+              actor,
               'blast',
               `${blastOptions?.element},${blastOptions?.damageType},${variant},${blastOptions?.isMelee}`,
               { d20: [result ?? 0] },
@@ -221,7 +221,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
             ),
           doDamage: (variant, altUsage, blastOptions, result, modifierOverrides) =>
             rollCheck(
-              actor as Ref<CharacterPF2e>,
+              actor,
               'blastDamage',
               `${blastOptions?.element},${blastOptions?.damageType},${variant ? 'criticalSuccess' : 'success'},${blastOptions?.isMelee}`,
               result ?? {},
@@ -233,7 +233,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
             dmgs[blast?.blastElement ?? ''] = newType
             const update = { flags: { pf2e: { damageSelections: dmgs } } }
             blast.damageSelections[blast?.blastElement ?? ''] = newType
-            return updateActorItem(actor as Ref<CharacterPF2e>, blast.blastItemId ?? '', update)
+            return updateActorItem(actor, blast.blastItemId ?? '', update)
           }
         }) as ElementalBlast
     )
@@ -252,7 +252,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
       | undefined
     if (actionRule) actionRule.selection = newValue
     if (!blastItemId) return undefined
-    return updateActorItem(actor as Ref<CharacterPF2e>, blastItemId, { system: { rules } })
+    return updateActorItem(actor, blastItemId, { system: { rules } })
   }
 
   const blastActions = computed({
@@ -284,7 +284,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
         items.push({ system: { slug: 'effect-kinetic-aura' } })
       }
     }
-    return toggleKineticAura(actor as Ref<CharacterPF2e>)
+    return toggleKineticAura(actor)
   }
 
   return {

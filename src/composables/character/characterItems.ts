@@ -91,10 +91,10 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
         if (isGranted) return base
         return {
           ...base,
-          delete: () => deleteActorItem(actor as Ref<CharacterPF2e>, i._id!),
+          delete: () => deleteActorItem(actor, i._id!),
           changeQty: (newValue: number) => {
             const update = { system: { value: { value: newValue } } }
-            return updateActorItem(actor as Ref<CharacterPF2e>, i._id!, update)
+            return updateActorItem(actor, i._id!, update)
           }
         }
       })
@@ -154,7 +154,7 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
       )
       .map((i) => ({
         ...makeFeat(i),
-        delete: () => deleteActorItem(actor as Ref<CharacterPF2e>, i._id!),
+        delete: () => deleteActorItem(actor, i._id!),
       })) as EffectItem[]
 
     return [...stored, ...derived, ...divineIntercessions]
@@ -175,14 +175,14 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
         label: actor.value?.inventory?.labels?.[i._id!],
         toggleInvested: (newValue: boolean = !i?.system?.equipped?.invested) => {
           const update = { system: { equipped: { invested: newValue } } }
-          return updateActorItem(actor as Ref<CharacterPF2e>, i._id!, update)
+          return updateActorItem(actor, i._id!, update)
         },
-        delete: () => deleteActorItem(actor as Ref<CharacterPF2e>, i._id!),
+        delete: () => deleteActorItem(actor, i._id!),
         changeQty: (newValue: number) => {
           if (i?.system?.quantity === undefined) return Promise.resolve(null)
           i.system.quantity = Math.max(newValue, 0)
           const update = { system: { quantity: Math.max(newValue, 0) } }
-          return updateActorItem(actor as Ref<CharacterPF2e>, i._id!, update)
+          return updateActorItem(actor, i._id!, update)
         },
         changeCarry: (
           carryType: Maybe<string>,
@@ -201,22 +201,22 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
               equipped: { carryType, handsHeld, inSlot }
             }
           }
-          return updateActorItem(actor as Ref<CharacterPF2e>, i._id!, update)
+          return updateActorItem(actor, i._id!, update)
         },
-        consumeItem: () => consumeItem(actor as Ref<CharacterPF2e>, i._id!),
+        consumeItem: () => consumeItem(actor, i._id!),
         changeUses: (newValue: number) => {
           const updates = { system: { uses: { value: newValue } } }
-          return updateActorItem(actor as Ref<CharacterPF2e>, i._id!, updates)
+          return updateActorItem(actor, i._id!, updates)
         },
         attachTo: (parentId: string) =>
-          attachItem(actor as Ref<CharacterPF2e>, i._id!, parentId)
+          attachItem(actor, i._id!, parentId)
       }))
       .map((e) => {
         ;(e.system as PhysicalItemSystem).subitems?.forEach((s) => {
           const sub = s as InventoryItem
           sub.label = actor.value?.inventory?.labels?.[s?._id ?? '']
           // The owning item `e` is this subitem's parent; detach goes through it.
-          sub.detach = () => detachItem(actor as Ref<CharacterPF2e>, e._id!, s._id!)
+          sub.detach = () => detachItem(actor, e._id!, s._id!)
         })
         return e as InventoryItem
       })

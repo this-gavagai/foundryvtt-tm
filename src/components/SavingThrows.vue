@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import StatBox from './widgets/StatBox.vue'
 import { formatModifier } from '@/utils/formatters'
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 
-const character = useInjectedCharacter()
+const character = useInjectedActor()
 const { fortitude, reflex, will } = character.saves
 </script>
 <template>

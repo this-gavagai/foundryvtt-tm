@@ -8,7 +8,7 @@ import {
   TransitionRoot,
   TransitionChild
 } from '@headlessui/vue'
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 import { useInfoModalRolls } from '@/composables/useInfoModalRolls'
 import { sendItemToChat, sendCompendiumItemToChat } from '@/api/actionRpc'
 import { getPath } from '@/utils/utilities'
@@ -26,7 +26,7 @@ import RollButtons from './RollButtons.vue'
 import RollResultModal from './RollResultModal.vue'
 import type { Roll } from '@/types/roll-types'
 
-const { _id: characterId } = useInjectedCharacter()
+const { _id: characterId } = useInjectedActor()
 
 const { isListening } = storeToRefs(useListenersStore())
 const { manualDicePicker } = storeToRefs(useSettingsStore())

@@ -1,7 +1,6 @@
 import type { Ref } from 'vue'
 import { computed } from 'vue'
 import type {
-  CharacterPF2e,
   AncestryPF2e,
   BackgroundPF2e,
   ClassPF2e as ClassPF2eType,
@@ -76,7 +75,7 @@ export function useCharacterCore(actor: Ref<TablemateCharacter | undefined>): Ch
       set: (newValue) => {
         actor.value!.system.details.xp.value = newValue!
         const update = { system: { details: { xp: { value: newValue } } } }
-        updateActor(actor as Ref<CharacterPF2e>, update)
+        updateActor(actor, update)
       }
     }),
     max: computed(() => actor.value?.system?.details?.xp?.max)

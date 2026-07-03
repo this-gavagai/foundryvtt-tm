@@ -7,19 +7,17 @@ import type {
   SaveType
 } from '@7h3laughingman/pf2e-types'
 import type { TablemateFamiliar } from '@/types/character-types'
-import type { Field, WritableField } from '@/composables/character/helpers'
-import type { Action } from '@/composables/character/defs/action'
-import { makeAction } from '@/composables/character/defs/action'
-import type { EffectItem } from '@/composables/character/characterItems'
+import type { Actor } from '@/composables/actor'
+import type { Field } from '@/composables/character/helpers'
+import { type Action, makeAction } from '@/composables/character/defs/action'
 import { makeCondition } from '@/composables/character/defs/condition'
 import { makeEffect } from '@/composables/character/defs/effect'
 import type { Stat } from '@/composables/character/defs/stat'
 import { makeStat } from '@/composables/character/defs/stat'
-import type { Modifier } from '@/composables/character/defs/modifier'
 import { makeModifiers } from '@/composables/character/defs/modifier'
 import { updateActor, deleteActorItem, updateActorItem } from '@/api/documents'
 import { rollCheck, rollDamage } from '@/api/actionRpc'
-import type { DiceResults, RequestResolutionArgs } from '@/types/api-types'
+import type { DiceResults } from '@/types/api-types'
 
 type FamiliarHp = {
   value?: number
@@ -40,62 +38,14 @@ type FamiliarActionItem = AbilityItemPF2e<CharacterPF2e> & {
 }
 type StatInput = Parameters<typeof makeStat>[0]
 
-export interface Familiar {
+export interface Familiar extends Actor {
   _actor: Ref<TablemateFamiliar | undefined>
-  _id: Field<string>
   type: Field<string>
-  name: Field<string>
-  portraitUrl: Field<string>
-  portraitScaleX: Field<number>
-  portraitScaleY: Field<number>
   masterId: Field<string>
   masterAbility: Field<string>
   creature: Field<string>
-  hp: {
-    current: WritableField<number>
-    max: Field<number>
-    temp: WritableField<number>
-    modifiers: Field<Modifier[]>
-  }
-  heroPoints: {
-    current: WritableField<number>
-    max: Field<number>
-  }
-  ac: {
-    current: Field<number>
-    modifiers: Field<Modifier[]>
-  }
-  movement: {
-    land: Field<Stat>
-    swim: Field<Stat>
-    climb: Field<Stat>
-    fly: Field<Stat>
-    burrow: Field<Stat>
-  }
-  actions: Field<Action[]>
-  effects: Field<EffectItem[]>
-  rollOptionLabels: Field<Record<string, string>>
-  traitLabels: Field<Record<string, string>>
-  saves: {
-    fortitude: Field<Stat>
-    reflex: Field<Stat>
-    will: Field<Stat>
-  }
-  perception: Field<Stat>
   attack: Field<Stat>
-  skills: Field<Stat[]>
-  proficiencies: Field<Stat[]>
-  doCharacterAction: () => Promise<RequestResolutionArgs | null>
-  doDamage: (
-    formula: string,
-    opts?: {
-      secret?: boolean
-      diceResults?: DiceResults
-      itemId?: string
-      damageInline?: Record<string, string | true>
-    }
-  ) => Promise<RequestResolutionArgs | null>
-  doFlatCheck: () => Promise<RequestResolutionArgs | null>
+  actions: Field<Action[]>
 }
 
 export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
@@ -104,7 +54,7 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
       ...(makeStat(actor.value?.system?.saves?.[subtype]) as Stat),
       roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
         rollCheck(
-          actor as unknown as Ref<CharacterPF2e>,
+          actor,
           'save',
           subtype,
           { d20: [result ?? 0] },
@@ -132,7 +82,7 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
         set: (newValue) => {
           if (!actor.value || newValue === undefined) return
           actor.value.system.attributes.hp.value = newValue
-          void updateActor(actor as unknown as Ref<CharacterPF2e>, {
+          void updateActor(actor, {
             system: { attributes: { hp: { value: newValue } } }
           })
         }
@@ -143,19 +93,12 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
         set: (newValue) => {
           if (!actor.value || newValue === undefined) return
           actor.value.system.attributes.hp.temp = newValue
-          void updateActor(actor as unknown as Ref<CharacterPF2e>, {
+          void updateActor(actor, {
             system: { attributes: { hp: { temp: newValue } } }
           })
         }
       }),
       modifiers: computed(() => [])
-    },
-    heroPoints: {
-      current: computed({
-        get: () => undefined,
-        set: () => {}
-      }),
-      max: computed(() => undefined)
     },
     ac: {
       current: computed(() => actor.value?.system?.attributes?.ac?.value),
@@ -219,10 +162,10 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
               : makeEffect(item)
           return {
             ...base,
-            delete: () => deleteActorItem(actor as unknown as Ref<CharacterPF2e>, i._id!),
+            delete: () => deleteActorItem(actor, i._id!),
             changeQty: (newValue: number) => {
               const update = { system: { value: { value: newValue } } }
-              return updateActorItem(actor as unknown as Ref<CharacterPF2e>, i._id!, update)
+              return updateActorItem(actor, i._id!, update)
             }
           }
         })
@@ -238,7 +181,7 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
       ...(makeStat(actor.value?.system?.perception) as Stat),
       roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
         rollCheck(
-          actor as unknown as Ref<CharacterPF2e>,
+          actor,
           'perception',
           '',
           { d20: [result ?? 0] },
@@ -256,7 +199,7 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
         ...stat,
         roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
           rollCheck(
-            actor as unknown as Ref<CharacterPF2e>,
+            actor,
             'familiarAttack',
             '',
             { d20: [result ?? 0] },
@@ -273,7 +216,7 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
           rank: stat?.rank ?? 0,
           roll: (result, options = {}) =>
             rollCheck(
-              actor as unknown as Ref<CharacterPF2e>,
+              actor,
               'skill',
               key,
               { d20: [result ?? 0] },
@@ -283,8 +226,8 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
         } as Stat
       })
     ),
-    proficiencies: computed(() => []),
-    doCharacterAction: () => Promise.resolve(null),
+    // doCharacterAction / doFlatCheck deliberately absent: familiars can't
+    // perform them, and the UI hides those affordances when undefined.
     doDamage: (
       formula: string,
       opts: {
@@ -293,8 +236,7 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
         itemId?: string
         damageInline?: Record<string, string | true>
       } = {}
-    ) => rollDamage(actor as unknown as Ref<CharacterPF2e>, formula, opts),
-    doFlatCheck: () => Promise.resolve(null)
+    ) => rollDamage(actor, formula, opts)
   }
 
   return { familiar }

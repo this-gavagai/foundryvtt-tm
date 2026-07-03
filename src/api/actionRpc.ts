@@ -1,5 +1,4 @@
-import type { Ref } from 'vue'
-import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
+import type { TablemateActorRef } from '@/types/character-types'
 import type {
   ModuleEventArgs,
   RequestResolutionArgs,
@@ -67,15 +66,16 @@ async function sendAction<K extends ModuleEventArgs['action']>(
 }
 
 // Common payload prefixes. Every action needs characterId; most "interactive"
-// actions also need the current target set.
-const fromActor = (a: Ref<CharacterPF2e>) => ({ characterId: a.value._id! })
-const fromActorTargeted = (a: Ref<CharacterPF2e>) => ({
-  characterId: a.value._id!,
+// actions also need the current target set. Callers guarantee the actor is
+// loaded (non-null assertions match the old Ref<CharacterPF2e> contract).
+const fromActor = (a: TablemateActorRef) => ({ characterId: a.value!._id! })
+const fromActorTargeted = (a: TablemateActorRef) => ({
+  characterId: a.value!._id!,
   targets: useTargetHelperStore().getTargets()
 })
 
 export const castSpell = (
-  actor: Ref<CharacterPF2e>,
+  actor: TablemateActorRef,
   spellId: string,
   castingLevel: number,
   castingSlot: number
@@ -88,7 +88,7 @@ export const castSpell = (
   })
 
 export const castStaffSpell = (
-  actor: Ref<CharacterPF2e>,
+  actor: TablemateActorRef,
   staffId: string,
   spellId: string,
   rank: number
@@ -101,7 +101,7 @@ export const castStaffSpell = (
   })
 
 export const rollCheck = (
-  actor: Ref<CharacterPF2e>,
+  actor: TablemateActorRef,
   checkType: string,
   checkSubtype = '',
   diceResults: DiceResults = {},
@@ -120,7 +120,7 @@ export const rollCheck = (
   })
 
 export const characterAction = (
-  actor: Ref<CharacterPF2e>,
+  actor: TablemateActorRef,
   characterAction: string,
   options = {},
   diceResults: DiceResults = {},
@@ -136,7 +136,7 @@ export const characterAction = (
     statisticSlug
   })
 
-export const consumeItem = (actor: Ref<CharacterPF2e>, consumableId: string, options = {}) =>
+export const consumeItem = (actor: TablemateActorRef, consumableId: string, options = {}) =>
   sendAction(TM.CONSUME_ITEM, {
     ...fromActor(actor),
     consumableId,
@@ -144,7 +144,7 @@ export const consumeItem = (actor: Ref<CharacterPF2e>, consumableId: string, opt
   })
 
 export const getStrikeDamage = (
-  actor: Ref<CharacterPF2e>,
+  actor: TablemateActorRef,
   actionSlug: string,
   altUsage: number | undefined = undefined,
   modifierOverrides?: Record<string, boolean>
@@ -157,7 +157,7 @@ export const getStrikeDamage = (
   })
 
 export const getSpellDamage = (
-  actor: Ref<CharacterPF2e>,
+  actor: TablemateActorRef,
   spellId: string,
   castingRank: number | undefined = undefined,
   modifierOverrides?: Record<string, boolean>
@@ -174,7 +174,7 @@ export const getSpellDamage = (
 // handler routes through PF2e's _onClickInlineRoll pipeline (item header,
 // trait pills, item-context modifiers); without it, posts a bare DamageRoll.
 export const rollDamage = (
-  actor: Ref<CharacterPF2e>,
+  actor: TablemateActorRef,
   formula: string,
   opts: {
     secret?: boolean
@@ -198,7 +198,7 @@ export const rollDamage = (
 // statistic lookup, target DC from `against`, traits/options/role propagation,
 // chat-card flavor block.
 export const rollInlineCheck = (
-  actor: Ref<CharacterPF2e>,
+  actor: TablemateActorRef,
   slug: string,
   opts: {
     against?: string
@@ -225,7 +225,7 @@ export const sendChatMessage = (characterId: string, content: string) =>
   sendAction(TM.SEND_CHAT_MESSAGE, { characterId, content })
 
 export const setWeaponLoaded = (
-  actor: Ref<CharacterPF2e>,
+  actor: TablemateActorRef,
   weaponId: string,
   loaded: boolean,
   ammoId: string | null = null
@@ -238,7 +238,7 @@ export const setWeaponLoaded = (
   })
 
 export const setWeaponDamageType = (
-  actor: Ref<CharacterPF2e>,
+  actor: TablemateActorRef,
   weaponId: string,
   trait: 'versatile' | 'modular',
   selected: string | null
@@ -250,21 +250,21 @@ export const setWeaponDamageType = (
     selected
   })
 
-export const attachItem = (actor: Ref<CharacterPF2e>, itemId: string, parentId: string) =>
+export const attachItem = (actor: TablemateActorRef, itemId: string, parentId: string) =>
   sendAction(TM.ATTACH_ITEM, {
     ...fromActor(actor),
     itemId,
     parentId
   })
 
-export const detachItem = (actor: Ref<CharacterPF2e>, parentId: string, subitemId: string) =>
+export const detachItem = (actor: TablemateActorRef, parentId: string, subitemId: string) =>
   sendAction(TM.DETACH_ITEM, {
     ...fromActor(actor),
     parentId,
     subitemId
   })
 
-export const toggleKineticAura = (actor: Ref<CharacterPF2e>) =>
+export const toggleKineticAura = (actor: TablemateActorRef) =>
   sendAction(TM.TOGGLE_KINETIC_AURA, fromActor(actor))
 
 // Raw 1d20 roll — the Check Roll modal's "Roll d20" fallback when no stat
@@ -290,7 +290,7 @@ export const freeRoll = (
 // `targets` (all targets, as Token objects) in its execution scope. Macros
 // that reference game.user.targets won't see the tablet's targets — they
 // need to read from the scope instead.
-export const runMacro = (actor: Ref<CharacterPF2e>, macroUuid: string) =>
+export const runMacro = (actor: TablemateActorRef, macroUuid: string) =>
   sendAction(TM.RUN_MACRO, {
     ...fromActorTargeted(actor),
     macroUuid
@@ -301,7 +301,7 @@ export const runMacro = (actor: Ref<CharacterPF2e>, macroUuid: string) =>
 // with the full toolbelt scope (actor, item, token, targets, use, cancel),
 // matching toolbelt's own useAction() entry point. Use this for any item
 // that exposes a non-empty `macroId` from characterActions.
-export const runActionable = (actor: Ref<CharacterPF2e>, itemId: string) =>
+export const runActionable = (actor: TablemateActorRef, itemId: string) =>
   sendAction(TM.RUN_ACTIONABLE, {
     ...fromActorTargeted(actor),
     itemId
@@ -327,7 +327,7 @@ export const getCompendiumIndex = (packId: string) =>
   sendAction(TM.GET_COMPENDIUM_INDEX, { packId })
 
 export const applyDamage = (
-  actor: Ref<CharacterPF2e>,
+  actor: TablemateActorRef,
   messageId: string,
   mode: ApplyDamageMode,
   rollIndex?: number
@@ -340,7 +340,7 @@ export const applyDamage = (
   })
 
 export const rerollChatRoll = (
-  actor: Ref<CharacterPF2e>,
+  actor: TablemateActorRef,
   messageId: string,
   mode: ChatRollRerollMode,
   rollIndex?: number,

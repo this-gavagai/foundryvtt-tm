@@ -3,7 +3,7 @@ import { ref, computed, watch, useAttrs, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SignedNumber } from '@/utils/formatters'
 import { proficiencyLevels } from '@/utils/constants'
-import { characterKey } from '@/composables/injectKeys'
+import { actorKey } from '@/composables/injectKeys'
 import InfoModal from '@/components/InfoModal.vue'
 import ModifierOverrideList from '@/components/ModifierOverrideList.vue'
 import ParsedDescription from '@/components/ParsedDescription.vue'
@@ -20,11 +20,11 @@ import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 
 const { t } = useI18n()
 
-// StatBox is a generic widget used outside a CharacterSheet too (e.g. familiars),
-// so inject non-throwingly. ParsedDescription itself requires the character
-// context, so we only render a variant's description when it's present.
-const injectedCharacter = inject(characterKey, undefined)
-const rollOptionLabels = injectedCharacter?.rollOptionLabels
+// StatBox is a generic widget used outside a sheet too (e.g. compendium
+// browser), so inject non-throwingly. ParsedDescription itself requires the
+// actor context, so we only render a variant's description when it's present.
+const injectedActor = inject(actorKey, undefined)
+const rollOptionLabels = injectedActor?.rollOptionLabels
 
 // An alternate roll the modal can switch to — e.g. a skill action (Demoralize,
 // Tumble Through) hung off a skill. Selecting one swaps the modal's modifiers,
@@ -297,7 +297,7 @@ defineExpose({ infoModal })
                check/damage radios aren't pre-armed; the primary roll is the
                action's own check via the roll button below. -->
           <ParsedDescription
-            v-if="injectedCharacter && selectedVariant?.description"
+            v-if="injectedActor && selectedVariant?.description"
             :text="selectedVariant.description"
             :labels="rollOptionLabels"
             :autoSelect="false"

@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { Bars3Icon } from '@heroicons/vue/24/solid'
 import HitPoints from '@/components/HitPoints.vue'
-import HeroPoints from '@/components/HeroPoints.vue'
 import CharacterPortrait from '@/components/CharacterPortrait.vue'
 import CharacterSelector from '@/components/CharacterSelector.vue'
 import IconButtonWidget from '@/components/widgets/IconButtonWidget.vue'
@@ -48,9 +47,9 @@ const unreadBadge = computed(() =>
       <CharacterSelector />
       <div class="flex justify-start gap-8 align-middle">
         <HitPoints />
-        <slot name="secondary-stat">
-          <HeroPoints />
-        </slot>
+        <!-- No fallback: the header is shared chrome, so each sheet supplies
+             its own secondary stat (HeroPoints, familiar attack, ...). -->
+        <slot name="secondary-stat" />
       </div>
     </div>
     <IconButtonWidget

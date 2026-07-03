@@ -1,6 +1,5 @@
 import { computed, type Ref } from 'vue'
 import type {
-  CharacterPF2e,
   Immunity,
   Weakness,
   Resistance,
@@ -107,7 +106,7 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
           const shieldId = actor.value?.system?.attributes?.shield?.itemId
           actor.value!.system.attributes.shield.hp.value = newValue!
           const update = { system: { hp: { value: newValue } } }
-          updateActorItem(actor as Ref<CharacterPF2e>, shieldId ?? '', update)
+          updateActorItem(actor, shieldId ?? '', update)
         }
       }),
       max: computed(() => actor.value?.system?.attributes?.shield?.hp?.max),
@@ -129,7 +128,7 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
       ...(makeStat(actor.value?.system?.saves?.[subtype]) as Stat),
       roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
         rollCheck(
-          actor as Ref<CharacterPF2e>,
+          actor,
           'save',
           subtype,
           { d20: [result ?? 0] },
@@ -146,7 +145,7 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
     ...(makeStat(actor.value?.system?.perception) as Stat),
     roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
       rollCheck(
-        actor as Ref<CharacterPF2e>,
+        actor,
         'perception',
         '',
         { d20: [result ?? 0] },
@@ -162,7 +161,7 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
           ...makeStat(skill, key),
           roll: (result, options = {}) =>
             rollCheck(
-              actor as Ref<CharacterPF2e>,
+              actor,
               'skill',
               skill.slug,
               { d20: [result ?? 0] },
@@ -186,7 +185,7 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
           // same path.
           roll: (result?: number, options: object = {}) =>
             rollCheck(
-              actor as Ref<CharacterPF2e>,
+              actor,
               'skill',
               slug,
               { d20: [result ?? 0] },
@@ -259,7 +258,7 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
     options: object | undefined = {}
   ) => {
     return rollCheck(
-      actor as Ref<CharacterPF2e>,
+      actor,
       'flat',
       '',
       { d20: [rollResult ?? 0] },
