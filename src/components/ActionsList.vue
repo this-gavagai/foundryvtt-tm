@@ -48,7 +48,7 @@ function useViewedAction() {
 
 <template>
   <div data-component="ActionsList">
-    <div class="break-inside-avoid-column pb-8">
+    <div class="break-inside-avoid-column pt-4 pb-8">
       <SheetSection
         :section="group.type"
         :title="$t(group.titleKey)"
@@ -61,11 +61,7 @@ function useViewedAction() {
             v-for="action in actions?.filter((a: Action) => a.actionType === group.type)"
             :key="action._id"
           >
-            <ViewableItem
-              scale="firm"
-              class="inline-block"
-              @click="viewAction(action)"
-            >
+            <ViewableItem scale="firm" class="inline-block" @click="viewAction(action)">
               {{ action.name }}
               <ActionIcons
                 class="relative -mt-2 pl-1 text-2xl leading-4"
