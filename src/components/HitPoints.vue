@@ -8,7 +8,7 @@ import type { Ref } from 'vue'
 import StatBox from '@/components/widgets/StatBox.vue'
 import Modal from '@/components/ModalBox.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
-import { useLastDamage } from '@/composables/lastDamage'
+import { useLastDamage } from '@/composables/useLastDamage'
 import { applyDamage } from '@/api/actionRpc'
 
 interface SubmissionEvent {
