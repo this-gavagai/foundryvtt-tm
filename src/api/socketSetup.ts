@@ -62,6 +62,23 @@ type AppChannelHandler = (args: ModuleEventArgs) => void
 type ModifyDocumentHandler = (args: DocumentSocketResponse) => void
 type UserActivityHandler = (user: string, args: { targets?: string[]; active?: boolean }) => void
 
+// ── Actor modifyDocument dispatcher ─────────────────────────────────────────
+// Like the TM.CHANNEL dispatcher above: per-actor handlers live in a
+// module-level registry that survives socket swaps, and one socket listener
+// (re-attached on every swap by setupSocketListenersForApp) fans events out.
+// Binding per-actor listeners directly to a captured socket left them attached
+// to a dead socket after any reconnect, silently dropping incremental GM edits
+// until the sheet remounted.
+
+const actorModifySubs = new Set<ModifyDocumentHandler>()
+
+function onActorModify(handler: ModifyDocumentHandler): () => void {
+  actorModifySubs.add(handler)
+  return () => {
+    actorModifySubs.delete(handler)
+  }
+}
+
 // Foundry streams 'progress' events while a world loads. We mark the world
 // pending immediately, then refresh once events stop arriving (trailing edge).
 const WORLD_PROGRESS_DEBOUNCE_MS = 2000
@@ -71,6 +88,8 @@ let dispatchSocket: Socket | null = null
 let progressHandler: (() => void) | null = null
 let progressSocket: Socket | null = null
 let progressTimer: ReturnType<typeof setTimeout> | undefined
+let actorModifyHandler: ModifyDocumentHandler | null = null
+let actorModifySocket: Socket | null = null
 let worldModifyHandler: ModifyDocumentHandler | null = null
 let worldModifySocket: Socket | null = null
 let worldUserActivityHandler: UserActivityHandler | null = null
@@ -89,10 +108,20 @@ export async function setupSocketListenersForApp() {
   socket.on(TM.CHANNEL, dispatchHandler)
   dispatchSocket = socket
 
+  // Re-attach the actor modifyDocument dispatcher to the (potentially new)
+  // socket. The per-actor subscriptions live in the module-level registry, so
+  // sheets keep receiving incremental GM edits across socket swaps.
+  if (actorModifyHandler) actorModifySocket?.off('modifyDocument', actorModifyHandler)
+  actorModifyHandler = (args: DocumentSocketResponse) => {
+    actorModifySubs.forEach((h) => h(args))
+  }
+  socket.on('modifyDocument', actorModifyHandler)
+  actorModifySocket = socket
+
   // Re-attach the world-load progress listener to the (potentially new) socket.
   // This lives here rather than in foundryWorldStatus because a one-shot
   // getSocket().then() binding is lost whenever the socket is replaced (server
-  // switch, forceReconnect); re-running on every socket keeps it live.
+  // switch, requestReconnect); re-running on every socket keeps it live.
   if (progressHandler) {
     progressSocket?.off('progress', progressHandler)
     // Drop any trailing-refresh armed against the old socket: on a hard swap
@@ -183,12 +212,14 @@ export async function setupSocketListenersForWorld(world: Ref<GamePF2e | undefin
   worldUserActivitySocket = socket
 }
 
+// Registers purely against module-level registries (no socket capture), so
+// subscriptions are live immediately and survive socket swaps. Kept async for
+// callers that treat setup as a lifecycle step.
 export async function setupSocketListenersForActor(
   actorId: string,
   actor: Ref<TablemateActor | undefined>,
   refreshMethod: () => Promise<void>
 ): Promise<() => void> {
-  const socket = await getSocket()
   const removeRefresh = addRefresh(actorId, refreshMethod)
 
   // When a GM announces presence, re-fetch any actor still waiting on live
@@ -223,12 +254,12 @@ export async function setupSocketListenersForActor(
         break
     }
   }
-  socket.on('modifyDocument', modifyHandler)
+  const unsubModify = onActorModify(modifyHandler)
 
   return () => {
     unsubListener()
     unsubUpdate()
-    socket.off('modifyDocument', modifyHandler)
+    unsubModify()
     removeRefresh()
   }
 }

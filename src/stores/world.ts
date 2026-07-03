@@ -17,6 +17,9 @@ export const useWorldStore = defineStore('world', () => {
     const running = await worldStatus.fetchWorldStatus()
     if (running === false) {
       worldStatus.markWorldInactive()
+      // No world request will go out — release the sheets gated behind it so
+      // they don't sit out the full loadPriority fallback timeout.
+      markWorldRequestSent()
       return
     }
     if (running === true) worldStatus.markWorldLoaded()
@@ -27,7 +30,10 @@ export const useWorldStore = defineStore('world', () => {
     const socket = await useServerStore()
       .getSocket()
       .catch(() => null)
-    if (!socket) return
+    if (!socket) {
+      markWorldRequestSent()
+      return
+    }
 
     socket.emit('world', (r: GamePF2e) => {
       // A valid world response always includes a userId. An empty object or

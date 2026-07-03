@@ -1,6 +1,8 @@
 import {
+  classifyJoinResponse,
   readBrowserSessionCookie,
   PROBE_TIMEOUT_MS,
+  SESSION_CHECK_TIMEOUT_MS,
   VERIFY_CREDENTIALS_TIMEOUT_MS,
   type JoinData,
   type ServerTransport
@@ -16,6 +18,22 @@ export const browserServerTransport: ServerTransport = {
 
   getJoinData(_serverUrl: URL, socketJoinData: () => Promise<JoinData>): Promise<JoinData> {
     return socketJoinData()
+  },
+
+  async sessionIsAuthenticated(serverUrl: URL): Promise<boolean | undefined> {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), SESSION_CHECK_TIMEOUT_MS)
+    try {
+      // Same-origin fetch carries the session cookie; Foundry redirects an
+      // authenticated session away from /join to /game.
+      const response = await fetch(new URL('/join', serverUrl), { signal: controller.signal })
+      if (!response.ok) return undefined
+      return classifyJoinResponse(response.url, await response.text())
+    } catch {
+      return undefined
+    } finally {
+      clearTimeout(timeoutId)
+    }
   },
 
   async probe(serverUrl: URL): Promise<boolean> {

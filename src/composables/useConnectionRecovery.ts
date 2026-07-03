@@ -19,10 +19,10 @@ import { useServerStore } from '@/stores/server'
 const RESUME_PROBE_TIMEOUT_MS = 1_200
 
 export function useConnectionRecovery(): void {
-  const { forceReconnect, probeConnection } = useServerStore()
+  const { requestReconnect, probeConnection } = useServerStore()
 
   function reconnectQuietly() {
-    void forceReconnect().catch(() => undefined)
+    void requestReconnect().catch(() => undefined)
   }
 
   function handleResumeProbe() {

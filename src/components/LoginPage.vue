@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useServerStore, type JoinUser } from '@/stores/server'
@@ -8,7 +8,8 @@ import { logger } from '@/utils/utilities'
 
 const { t } = useI18n()
 const serverStore = useServerStore()
-const { login, getJoinData, getSocket, forceReconnect, rememberedLoginUser } = serverStore
+const { login, getJoinData, getSocket, requestReconnect, rememberedLoginUser } = serverStore
+const { isConnected } = storeToRefs(serverStore)
 const serverAddressStore = useServerAddressStore()
 const { isNativeMobile, serverUrlText } = storeToRefs(serverAddressStore)
 
@@ -51,10 +52,11 @@ function onUserActivity(userId: string, data: { active?: boolean }) {
 
 // A cold-boot socket can answer getJoinData with an empty-but-successful user
 // list (the session/world isn't ready yet) instead of throwing. That's
-// recoverable, not a dead end — so we keep retrying for a while until the world
-// finishes coming up, on top of always offering the manual retry button.
-const MAX_AUTO_RETRIES = 5
-const AUTO_RETRY_DELAY_MS = 3_000
+// recoverable, not a dead end — so we keep retrying (with backoff, no cap:
+// a Foundry world boot takes longer than any fixed retry budget) until the
+// page unmounts, on top of always offering the manual retry button.
+const AUTO_RETRY_BASE_DELAY_MS = 3_000
+const AUTO_RETRY_MAX_DELAY_MS = 15_000
 let autoRetries = 0
 let retryTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -65,9 +67,9 @@ function cancelAutoRetry() {
 }
 
 function scheduleAutoRetry() {
-  if (autoRetries >= MAX_AUTO_RETRIES) return
+  const delay = Math.min(AUTO_RETRY_BASE_DELAY_MS * 2 ** autoRetries, AUTO_RETRY_MAX_DELAY_MS)
   autoRetries += 1
-  retryTimer = setTimeout(loadUsers, AUTO_RETRY_DELAY_MS)
+  retryTimer = setTimeout(loadUsers, delay)
 }
 
 async function loadUsers() {
@@ -80,16 +82,18 @@ async function loadUsers() {
     users.value = data.users
     activeUsers.value = data.activeUsers
     if (data.users.length === 0) {
-      // No users came back. On native this is the "stuck" case: the socket's
-      // getJoinData never acked (its Foundry session handshake didn't complete)
-      // and the HTTP /join fallback hit a logged-in redirect, so neither path
-      // can list users. Re-establish a fresh socket — exactly what relaunching
-      // the app does to cure this — before retrying. A still-valid session then
-      // bounces us straight into the app; otherwise the new socket answers
-      // getJoinData (or HTTP shows the real login form) on the next attempt.
-      logger.debug('TM-DIAG loadUsers: empty user list — repairing socket')
+      // No users came back. Over a *healthy* socket that means the world is
+      // still booting — waiting (backoff retry below) is the cure, and tearing
+      // the socket down would only thrash. Without a live socket it's the
+      // "stuck" case: ask for a fresh one — exactly what relaunching the app
+      // does — via requestReconnect, which is idempotent and store-serialized
+      // so these retries can't stack teardowns on top of the store's own
+      // repair loops. A still-valid session then bounces us straight into the
+      // app; otherwise the new socket answers getJoinData (or HTTP shows the
+      // real login form) on the next attempt.
+      logger.debug('TM-DIAG loadUsers: empty user list', { connected: isConnected.value })
       error.value = t('login.noUsersRetry')
-      await forceReconnect().catch(() => undefined)
+      if (!isConnected.value) void requestReconnect()
       scheduleAutoRetry()
       return
     }
@@ -107,24 +111,41 @@ async function loadUsers() {
     socket.off('userActivity', onUserActivity)
     socket.on('userActivity', onUserActivity)
   } catch {
-    // getJoinData failed on both the socket and the HTTP fallback. Re-establish
-    // a fresh socket before retrying so the next attempt lands on a live one.
+    // getJoinData failed on both the socket and the HTTP fallback. Ask for a
+    // fresh socket so the next attempt lands on a live one.
     logger.debug('TM-DIAG loadUsers: getJoinData threw — repairing socket')
     error.value = t('login.couldNotLoadUsers')
-    await forceReconnect().catch(() => undefined)
+    void requestReconnect()
     scheduleAutoRetry()
   } finally {
     loadingUsers.value = false
   }
 }
 
-// Manual retry resets the auto-retry budget so the user can keep trying.
+// Manual retry resets the backoff so the user can keep trying at full speed.
 function retryUsers() {
   autoRetries = 0
   void loadUsers()
 }
 
+// The retry *button* additionally forces a fresh socket — the in-app
+// equivalent of the relaunch users discovered cures a wedged connection.
+// (Not part of retryUsers: the isConnected watch below calls that on every
+// reconnect, and reconnecting from there would loop.)
+function manualRetry() {
+  void requestReconnect()
+  retryUsers()
+}
+
 onMounted(loadUsers)
+
+// When the socket (re)connects while we're sitting here without a user list,
+// reload immediately instead of waiting out the current backoff — the fresh
+// socket is exactly what the earlier attempts were missing.
+watch(isConnected, (connected) => {
+  if (!connected || loadingUsers.value || users.value.length > 0) return
+  retryUsers()
+})
 
 onUnmounted(async () => {
   cancelAutoRetry()
@@ -142,7 +163,9 @@ async function handleLogin() {
   const name = users.value.find((u) => u._id === userid.value)?.name
   const success = await login(userid.value, password.value, name)
   if (success) {
-    window.location.reload()
+    // No reload needed: login() reconnected with the fresh session, and the
+    // session handshake clears needsLogin (unmounting this page) and fires the
+    // world/actor refreshes itself.
     return
   }
   submitting.value = false
@@ -201,7 +224,7 @@ async function handleLogin() {
         <button
           type="button"
           class="underline transition duration-180 ease-out active:scale-[0.90] active:opacity-50 active:duration-60"
-          @click="retryUsers"
+          @click="manualRetry"
         >
           {{ $t('login.retry') }}
         </button>

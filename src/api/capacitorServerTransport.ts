@@ -3,9 +3,11 @@ import { CapacitorCookies, CapacitorHttp, type HttpResponse } from '@capacitor/c
 import { logger } from '@/utils/utilities'
 
 import {
+  classifyJoinResponse,
   JOIN_DATA_TIMEOUT_MS,
   PROBE_TIMEOUT_MS,
   readBrowserSessionCookie,
+  SESSION_CHECK_TIMEOUT_MS,
   VERIFY_CREDENTIALS_TIMEOUT_MS,
   type JoinData,
   type JoinUser,
@@ -47,16 +49,22 @@ function sessionFromSetCookie(setCookie: string | undefined): string | undefined
   return setCookie?.match(/(?:^|,\s*)session=([^;,]+)/)?.[1]
 }
 
-function parseJoinUsers(html: string): JoinUser[] {
+function parseJoinPage(html: string): { users: JoinUser[]; activeUsers: string[] } {
   const document = new DOMParser().parseFromString(html, 'text/html')
-  return Array.from(document.querySelectorAll<HTMLSelectElement>('select[name="userid"] option'))
-    .map((option) => ({
+  const options = Array.from(
+    document.querySelectorAll<HTMLOptionElement>('select[name="userid"] option')
+  ).filter((option) => option.value)
+  return {
+    users: options.map((option) => ({
       _id: option.value,
       name: option.textContent?.trim() ?? option.value,
       role: 0,
       color: ''
-    }))
-    .filter((user) => user._id)
+    })),
+    // Foundry disables options for users who are already signed in; surface
+    // them as active so the login form greys them out like the socket path.
+    activeUsers: options.filter((option) => option.disabled).map((option) => option.value)
+  }
 }
 
 async function getNativeJoinData(serverUrl: URL): Promise<JoinData> {
@@ -69,11 +77,7 @@ async function getNativeJoinData(serverUrl: URL): Promise<JoinData> {
   if (response.status < 200 || response.status >= 300) {
     throw new Error(`Join page returned ${response.status}`)
   }
-  return {
-    users: parseJoinUsers(responseDataAsText(response)),
-    activeUsers: [],
-    userId: null
-  }
+  return { ...parseJoinPage(responseDataAsText(response)), userId: null }
 }
 
 async function persistNativeSession(serverUrl: URL, response: HttpResponse) {
@@ -94,13 +98,28 @@ async function persistNativeSession(serverUrl: URL, response: HttpResponse) {
 }
 
 export const capacitorServerTransport: ServerTransport = {
-  readSession(serverUrl: URL): string | undefined {
-    return (
-      readBrowserSessionCookie() ??
+  // Per-origin storage is the authoritative source: it's written at login for
+  // exactly this server. The webview's document.cookie is origin-blind (it's
+  // the app origin's jar, not the server's), so a session cookie found there
+  // could belong to any server — it's only a last resort for installs that
+  // predate per-origin storage.
+  async readSession(serverUrl: URL): Promise<string | undefined> {
+    const stored =
       localStorage.getItem(sessionStorageKey(serverUrl)) ??
-      localStorage.getItem(LEGACY_SESSION_KEY) ??
-      undefined
-    )
+      localStorage.getItem(LEGACY_SESSION_KEY)
+    if (stored) {
+      // Keep the native jar in agreement with the sid we're about to hand the
+      // socket, so the websocket handshake's Cookie header can't carry a
+      // different (stale) session than the query parameter.
+      await CapacitorCookies.setCookie({
+        url: serverUrl.origin,
+        key: 'session',
+        value: stored,
+        path: '/'
+      }).catch(() => {})
+      return stored
+    }
+    return readBrowserSessionCookie() ?? undefined
   },
 
   async deleteSession(serverUrl: URL): Promise<void> {
@@ -129,6 +148,24 @@ export const capacitorServerTransport: ServerTransport = {
     const httpData = await getNativeJoinData(serverUrl)
     logger.debug('TM-DIAG capacitor getJoinData: http users', httpData.users.length)
     return httpData
+  },
+
+  async sessionIsAuthenticated(serverUrl: URL): Promise<boolean | undefined> {
+    try {
+      // CapacitorHttp attaches the native jar's cookies and follows redirects;
+      // an authenticated session lands on /game, an anonymous one gets the
+      // join form.
+      const response = await CapacitorHttp.get({
+        url: new URL('/join', serverUrl).href,
+        responseType: 'text',
+        connectTimeout: SESSION_CHECK_TIMEOUT_MS,
+        readTimeout: SESSION_CHECK_TIMEOUT_MS
+      })
+      if (response.status < 200 || response.status >= 300) return undefined
+      return classifyJoinResponse(response.url, responseDataAsText(response))
+    } catch {
+      return undefined
+    }
   },
 
   async probe(serverUrl: URL): Promise<boolean> {

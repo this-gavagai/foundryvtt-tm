@@ -53,10 +53,26 @@ function displayName(origin: string): string {
 async function handleSubmit() {
   error.value = ''
   if (!isNew.value) {
-    // Commit first (sets the active serverUrl), then clear the error so the
-    // gate hands off to ConnectedApp, which connects to the chosen server.
-    serverAddressStore.selectServer(selected.value)
-    serverStore.clearConnectionError()
+    // Probe reachability before committing so an unreachable saved server
+    // reports its error right here in the gate. (Automatic connects no longer
+    // surface connectionError — once we hand off to ConnectedApp, failures
+    // retry quietly — so this is the user's feedback point.) Only then commit
+    // (sets the active serverUrl) and clear the error so the gate hands off to
+    // ConnectedApp, which connects to the chosen server.
+    checking.value = true
+    try {
+      const reachable = await serverStore.probeServer(new URL(selected.value))
+      if (!reachable) {
+        error.value = 'serverUrl.unreachable'
+        return
+      }
+      serverAddressStore.selectServer(selected.value)
+      serverStore.clearConnectionError()
+    } catch {
+      error.value = 'serverUrl.invalid'
+    } finally {
+      checking.value = false
+    }
     return
   }
   // Fresh address: resolve the protocol (https first, then http) before

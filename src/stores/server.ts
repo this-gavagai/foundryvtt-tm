@@ -24,6 +24,15 @@ const SOCKET_RECONNECTION_DELAY_MAX_MS = 15_000
 const GET_SOCKET_TIMEOUT_MS = 15_000
 const PROBE_CONNECTION_TIMEOUT_MS = 3_000
 const SESSION_WATCHDOG_TIMEOUT_MS = 8_000
+// Backoff for automatic (non-user-initiated) reconnect attempts. Automatic
+// failures never surface the ServerUrlGate — the cached sheet plus the
+// reconnecting banner stay up while the store retries quietly.
+const RETRY_BACKOFF_BASE_MS = 1_000
+const RETRY_BACKOFF_MAX_MS = 15_000
+// How many times a stalled handshake with a *confirmed-valid* session is
+// repaired with a fresh socket before giving up and showing the login page
+// anyway (so the user is never stranded on a spinner by a pathological server).
+const MAX_STALLED_HANDSHAKE_RETRIES = 3
 
 function emitWithTimeout<T>(s: Socket, event: string, timeoutMs: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -65,7 +74,16 @@ function getServerTransport(isNativeMobile: boolean): ServerTransport {
   return isNativeMobile ? capacitorServerTransport : browserServerTransport
 }
 
-async function establishSocket(url: URL, transport: ServerTransport, keepAlive = false) {
+// `onCreated` runs synchronously after the socket object exists but before the
+// connection is awaited, so callers can attach their event handlers (session,
+// connect, disconnect) with no window in which a fast server could emit into
+// the void.
+async function establishSocket(
+  url: URL,
+  transport: ServerTransport,
+  keepAlive = false,
+  onCreated?: (socket: Socket) => void
+) {
   return new Promise<Socket>((resolve, reject) => {
     const socketIoUrl = new URL('./socket.io', url)
     Promise.resolve(transport.readSession(url))
@@ -86,6 +104,7 @@ async function establishSocket(url: URL, transport: ServerTransport, keepAlive =
           withCredentials: true,
           ...(sid ? { query: { session: sid } } : {})
         })
+        onCreated?.(socket)
         const onConnect = () => {
           socket.off('connect_error', onError)
           resolve(socket)
@@ -104,12 +123,24 @@ async function establishSocket(url: URL, transport: ServerTransport, keepAlive =
 
 export const useServerStore = defineStore('server', () => {
   const socket = ref<Socket>()
+  // Verified-anonymous state: set only when Foundry affirmatively reports the
+  // session as unauthenticated (a session event without a userId, or an HTTP
+  // /join that renders the login form) — never on a mere timeout.
   const needsLogin = ref(false)
   const isConnected = ref(false)
   const sessionReady = ref(false)
   const connectionError = ref('')
   let connectionId = 0
   let sessionWatchdog: ReturnType<typeof setTimeout> | undefined
+  // Automatic-retry machinery. `retryTimer` is the pending backoff wake-up,
+  // `reconnectInFlight` makes requestReconnect idempotent so the several
+  // repair triggers (resume probe, login page, watchdog, online event) can't
+  // stack teardowns on top of each other.
+  let retryTimer: ReturnType<typeof setTimeout> | undefined
+  let consecutiveFailures = 0
+  let stalledHandshakeRetries = 0
+  let lastAttemptOrigin: string | undefined
+  let reconnectInFlight: Promise<void> | undefined
 
   function currentTransport(): ServerTransport {
     return getServerTransport(useServerAddressStore().isNativeMobile)
@@ -129,6 +160,12 @@ export const useServerStore = defineStore('server', () => {
     sessionWatchdog = undefined
   }
 
+  function clearRetryTimer() {
+    if (retryTimer === undefined) return
+    clearTimeout(retryTimer)
+    retryTimer = undefined
+  }
+
   function disconnectCurrentSocket() {
     clearSessionWatchdog()
     socket.value?.removeAllListeners()
@@ -142,15 +179,19 @@ export const useServerStore = defineStore('server', () => {
     connectionError.value = ''
   }
 
-  // Tear down the socket and abandon any in-flight connection attempt. Bumping
-  // connectionId invalidates a pending connectToServer so a late-arriving
-  // socket can't yank the user back out of the gate. Used when the user cancels
-  // a stuck connection to return to the ServerUrlGate.
+  // Tear down the socket and abandon any in-flight connection attempt or
+  // scheduled retry. Bumping connectionId invalidates a pending connectToServer
+  // so a late-arriving socket can't yank the user back out of the gate. Used
+  // when the user cancels a stuck connection to return to the ServerUrlGate.
   function disconnect() {
     connectionId += 1
+    clearRetryTimer()
     disconnectCurrentSocket()
     needsLogin.value = false
     connectionError.value = ''
+    consecutiveFailures = 0
+    stalledHandshakeRetries = 0
+    lastAttemptOrigin = undefined
   }
 
   function currentSocket(): Socket | undefined {
@@ -200,9 +241,14 @@ export const useServerStore = defineStore('server', () => {
   }
 
   async function getJoinData(): Promise<JoinData> {
+    // Bound the socket wait to the same budget as the emit itself. Without
+    // this, a missing socket makes each "3-second" attempt silently inherit
+    // getSocket's 15s default — three attempts meant the login page could sit
+    // on "loading users" for the better part of a minute before the HTTP
+    // fallback even ran.
     const socketJoinData = async () =>
       emitWithRetries<JoinData>(
-        () => getSocket(),
+        () => getSocket(JOIN_DATA_TIMEOUT_MS),
         'getJoinData',
         JOIN_DATA_TIMEOUT_MS,
         JOIN_DATA_RETRY_ATTEMPTS
@@ -232,6 +278,13 @@ export const useServerStore = defineStore('server', () => {
       if (await transport.probe(candidate)) return { ok: true, url: candidate }
     }
     return { ok: false, reason: 'unreachable' }
+  }
+
+  // Reachability check for an already-normalized server URL — used by the
+  // gate to give immediate feedback on a saved-server selection instead of
+  // committing to a server that can't be reached.
+  function probeServer(url: URL): Promise<boolean> {
+    return currentTransport().probe(url)
   }
 
   // The login user remembered for the active server (empty if none), used to
@@ -274,94 +327,189 @@ export const useServerStore = defineStore('server', () => {
     )
   }
 
-  // Tear down the current socket and start fresh against the last-known
-  // server URL. If the session cookie is no longer valid, the session
-  // watchdog/auth handler will surface the login page.
-  async function forceReconnect(): Promise<void> {
+  // The single automatic-repair entry point. Every trigger that wants a fresh
+  // socket (resume probe, online event, login page's empty user list, stalled
+  // handshakes) funnels through here: if a reconnect is already in flight the
+  // existing attempt is shared instead of stacking a competing teardown, and a
+  // pending backoff retry is promoted to "now".
+  function requestReconnect(): Promise<void> {
+    if (reconnectInFlight) return reconnectInFlight
     const url = activeServerUrl()
     if (!url) {
-      logger.debug('TM-DIAG forceReconnect: no active server url')
-      return
+      logger.debug('TM-DIAG requestReconnect: no active server url')
+      return Promise.resolve()
     }
-    logger.debug('TM-DIAG forceReconnect: re-establishing socket')
-    await connectToServer(url)
+    clearRetryTimer()
+    logger.debug('TM-DIAG requestReconnect: re-establishing socket')
+    const attempt = connectToServer(url)
+      .then(() => undefined)
+      // A failed automatic attempt has already scheduled its own backoff retry.
+      .catch(() => undefined)
+      .finally(() => {
+        reconnectInFlight = undefined
+      })
+    reconnectInFlight = attempt
+    return attempt
   }
 
-  async function connectToServer(url: URL): Promise<Socket> {
+  // Exponential backoff for automatic reconnects; runs until a connect
+  // succeeds, the user picks a different server, or disconnect() cancels it.
+  function scheduleReconnect() {
+    if (retryTimer !== undefined) return
+    consecutiveFailures += 1
+    const delay = Math.min(
+      RETRY_BACKOFF_BASE_MS * 2 ** (consecutiveFailures - 1),
+      RETRY_BACKOFF_MAX_MS
+    )
+    logger.debug('TM-DIAG scheduling reconnect', { attempt: consecutiveFailures, delayMs: delay })
+    retryTimer = setTimeout(() => {
+      retryTimer = undefined
+      if (!activeServerUrl()) return
+      void requestReconnect()
+    }, delay)
+  }
+
+  // The session event didn't arrive in time. A timeout alone doesn't mean the
+  // user is logged out — Foundry may still be loading a world, or the socket's
+  // Foundry-side handshake may have silently stalled (the classic "restart the
+  // app and it works" state). Ask the server over plain HTTP whether the
+  // stored session is authenticated and route accordingly; only a confirmed
+  // anonymous session goes to the login page directly.
+  async function resolveStalledHandshake(epoch: number, url: URL) {
+    logger.debug('TM-INIT: session event did not arrive — probing session over HTTP')
+    const authenticated = await currentTransport()
+      .sessionIsAuthenticated(url)
+      .catch(() => undefined)
+    if (epoch !== connectionId) return
+    logger.debug('TM-DIAG stalled handshake verdict', {
+      authenticated,
+      retries: stalledHandshakeRetries
+    })
+    if (authenticated !== false && stalledHandshakeRetries < MAX_STALLED_HANDSHAKE_RETRIES) {
+      // Session valid (or unverifiable): a fresh socket — exactly what
+      // relaunching the app does — is the cure, not the login page.
+      stalledHandshakeRetries += 1
+      void requestReconnect()
+    } else {
+      // Confirmed anonymous, or fresh sockets keep stalling: show the login
+      // page rather than spinning forever. A late session event still wins —
+      // its handler clears needsLogin.
+      handleAuthFailure()
+    }
+  }
+
+  // Watchdog: if Foundry's session event doesn't arrive shortly after a
+  // (re)connect, disambiguate over HTTP (see resolveStalledHandshake) instead
+  // of camping on a spinner. Cleared by the session handler on the first valid
+  // handshake; re-armed on every connect, including socket.io's internal soft
+  // reconnects (which previously got no watchdog at all).
+  function armSessionWatchdog(epoch: number, url: URL) {
+    clearSessionWatchdog()
+    sessionWatchdog = setTimeout(() => {
+      if (epoch !== connectionId) return
+      void resolveStalledHandshake(epoch, url)
+    }, SESSION_WATCHDOG_TIMEOUT_MS)
+  }
+
+  // Attached synchronously at socket creation (before the connection is
+  // awaited) so a fast server can't emit `session` into the void. Every
+  // handler is epoch-guarded: a socket that loses the connectionId race is
+  // inert even before its establishSocket promise settles.
+  function attachSocketHandlers(s: Socket, epoch: number, url: URL) {
+    s.onAny((name, ...args) => {
+      if (name === 'userActivity' || (name.match('module.') && !name.match(TM.CHANNEL))) return
+      logger.debug('TM-RECV', name, ...args)
+    })
+    s.onAnyOutgoing((name, ...args) => {
+      logger.debug('TM-SEND', name, ...args)
+    })
+    s.on('disconnect', (reason) => {
+      if (epoch !== connectionId) return
+      logger.debug('TM-DIAG socket disconnect', reason)
+      isConnected.value = false
+      sessionReady.value = false
+    })
+    s.on('connect', () => {
+      if (epoch !== connectionId) return
+      logger.debug('TM-DIAG socket (re)connect', { id: s.id })
+      isConnected.value = true
+      sessionReady.value = false
+      armSessionWatchdog(epoch, url)
+    })
+    s.on('session', (args: { userId: string }) => {
+      logger.debug('TM-DIAG session event', {
+        userId: args?.userId,
+        stale: epoch !== connectionId
+      })
+      if (epoch !== connectionId) return
+      clearSessionWatchdog()
+      if (args?.userId) {
+        const userStore = useUserStore()
+        // A different user id means we've switched servers (or re-logged as
+        // someone else). The last-known world belongs to the previous user,
+        // so drop it before flipping sessionReady — otherwise a sheet would
+        // briefly check the new user against the old actor's ownership and
+        // flash "userDoesNotOwnCharacter" until the fresh world arrives. A
+        // same-user reconnect keeps the stale world for a seamless resume.
+        if (userStore.getUserId() && userStore.getUserId() !== args.userId) {
+          useWorldStore().clearWorld()
+        }
+        userStore.setUserId(args.userId)
+        sessionReady.value = true
+        needsLogin.value = false
+        stalledHandshakeRetries = 0
+        consecutiveFailures = 0
+        // Re-fire downstream refreshes on every session handshake. This
+        // covers both initial auth and post-reconnect re-auth — including
+        // socket.io's internal soft reconnects, which don't replace
+        // socket.value and therefore don't trip App.vue's socket-watch.
+        void useWorldStore().refreshWorldNow()
+        fireAllRefresh()
+      } else {
+        sessionReady.value = false
+        handleAuthFailure()
+      }
+    })
+  }
+
+  // `userInitiated` marks connects the user explicitly asked for (picking a
+  // server in the gate): their failures surface connectionError immediately so
+  // the gate can show it. Automatic connects (cold start, resume, repairs)
+  // never set connectionError — they retry quietly on a backoff so a transient
+  // network wobble can't bounce the user off their cached sheet.
+  async function connectToServer(
+    url: URL,
+    opts: { userInitiated?: boolean } = {}
+  ): Promise<Socket> {
     connectionError.value = ''
     const thisConnectionId = ++connectionId
+    clearRetryTimer()
     disconnectCurrentSocket()
     sessionReady.value = false
+    // A different server invalidates the previous one's verified login state
+    // and repair budgets.
+    if (lastAttemptOrigin !== url.origin) {
+      needsLogin.value = false
+      stalledHandshakeRetries = 0
+      consecutiveFailures = 0
+    }
+    lastAttemptOrigin = url.origin
 
     try {
-      const newSocket = await establishSocket(url, currentTransport(), true)
+      // The connect handler (attached pre-connect) owns flipping isConnected
+      // and arming the session watchdog, so initial connects and socket.io's
+      // internal reconnects follow the identical path.
+      const newSocket = await establishSocket(url, currentTransport(), true, (s) =>
+        attachSocketHandlers(s, thisConnectionId, url)
+      )
       if (thisConnectionId !== connectionId) {
         newSocket.disconnect()
         throw new Error('Stale socket connection ignored')
       }
       logger.debug('TM-INIT: establishing socket connection')
       socket.value = newSocket
-      socket.value.onAny((name, ...args) => {
-        if (name === 'userActivity' || (name.match('module.') && !name.match(TM.CHANNEL))) return
-        logger.debug('TM-RECV', name, ...args)
-      })
-      socket.value.onAnyOutgoing((name, ...args) => {
-        logger.debug('TM-SEND', name, ...args)
-      })
       isConnected.value = true
-      socket.value.on('disconnect', (reason) => {
-        logger.debug('TM-DIAG socket disconnect', reason)
-        isConnected.value = false
-        sessionReady.value = false
-      })
-      socket.value.on('connect', () => {
-        logger.debug('TM-DIAG socket (re)connect', { id: socket.value?.id })
-        isConnected.value = true
-        sessionReady.value = false
-      })
-
-      // Watchdog: if Foundry's session event doesn't arrive shortly after
-      // the socket comes up, treat it as an auth failure so the user lands
-      // on LoginPage instead of a perpetual spinner. Cleared by the
-      // session handler below on the first valid handshake.
-      sessionWatchdog = setTimeout(() => {
-        if (thisConnectionId !== connectionId) return
-        logger.debug('TM-INIT: session event did not arrive — falling back to auth recovery')
-        handleAuthFailure()
-      }, SESSION_WATCHDOG_TIMEOUT_MS)
-
-      socket.value.on('session', (args: { userId: string }) => {
-        logger.debug('TM-DIAG session event', {
-          userId: args?.userId,
-          stale: thisConnectionId !== connectionId
-        })
-        if (thisConnectionId !== connectionId) return
-        clearSessionWatchdog()
-        if (args?.userId) {
-          const userStore = useUserStore()
-          // A different user id means we've switched servers (or re-logged as
-          // someone else). The last-known world belongs to the previous user,
-          // so drop it before flipping sessionReady — otherwise a sheet would
-          // briefly check the new user against the old actor's ownership and
-          // flash "userDoesNotOwnCharacter" until the fresh world arrives. A
-          // same-user reconnect keeps the stale world for a seamless resume.
-          if (userStore.getUserId() && userStore.getUserId() !== args.userId) {
-            useWorldStore().clearWorld()
-          }
-          userStore.setUserId(args.userId)
-          sessionReady.value = true
-          needsLogin.value = false
-          // Re-fire downstream refreshes on every session handshake. This
-          // covers both initial auth and post-reconnect re-auth — including
-          // socket.io's internal soft reconnects, which don't replace
-          // socket.value and therefore don't trip App.vue's socket-watch.
-          void useWorldStore().refreshWorldNow()
-          fireAllRefresh()
-        } else {
-          sessionReady.value = false
-          handleAuthFailure()
-        }
-      })
+      consecutiveFailures = 0
       return newSocket
     } catch (e) {
       logger.debug('Error loading socket: ', e)
@@ -369,7 +517,11 @@ export const useServerStore = defineStore('server', () => {
         socket.value = undefined
         isConnected.value = false
         sessionReady.value = false
-        connectionError.value = e instanceof Error ? e.message : 'Could not connect to server'
+        if (opts.userInitiated) {
+          connectionError.value = e instanceof Error ? e.message : 'Could not connect to server'
+        } else {
+          scheduleReconnect()
+        }
       }
       throw e
     }
@@ -384,8 +536,9 @@ export const useServerStore = defineStore('server', () => {
     clearConnectionError,
     disconnect,
     resolveServerUrl,
+    probeServer,
     connectToServer,
-    forceReconnect,
+    requestReconnect,
     probeConnection,
     getSocket,
     login,
