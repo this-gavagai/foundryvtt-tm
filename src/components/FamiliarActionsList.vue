@@ -30,7 +30,7 @@ function viewAction(action: Action) {
 </script>
 <template>
   <div data-component="FamiliarActionsList" class="px-6 py-4">
-    <div data-section="abilities" class="[&:not(:has(li))]:hidden">
+    <section data-section="abilities" class="[&:not(:has(li))]:hidden">
       <h3 class="text-[1.1rem] font-normal tracking-[0.01em] pb-2 mb-[0.6rem]">Abilities</h3>
       <ul class="space-y-1">
         <li v-for="action in actions" :key="action._id">
@@ -54,7 +54,7 @@ function viewAction(action: Action) {
           </ViewableItem>
         </li>
       </ul>
-    </div>
+    </section>
     <div v-if="actions?.length === 0" class="py-8 text-center text-sm text-gray-500">
       No familiar abilities.
     </div>
