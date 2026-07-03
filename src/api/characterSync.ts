@@ -113,6 +113,7 @@ export function parseActorData(
     activeRules: args.activeRules,
     spellcastingModifiers: args.spellcastingModifiers,
     rollOptionLabels: args.rollOptionLabels,
+    traitLabels: args.traitLabels,
     iwrLabels: args.iwrLabels,
     skillActions: args.skillActions
   } as Partial<TablemateActor>

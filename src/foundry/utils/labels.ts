@@ -71,6 +71,48 @@ export function localizeProficiencyLabels(
   return labels
 }
 
+// PF2e stores item/creature traits as bare slugs (e.g. "concentrate",
+// "manipulate") and keeps a separate slug→i18n-key dictionary per family
+// (actionTraits, spellTraits, weaponTraits, …). Merge the dictionaries whose
+// traits surface in the app and localize each, so the client can turn the raw
+// slugs it renders (item.system.traits.value) into display-ready labels.
+// Dynamic/parametrized traits (e.g. "deadly-d8", "versatile-s") aren't literal
+// dictionary keys, so they fall through to the raw slug — same as before.
+export function localizeTraitLabels(): Record<string, string> {
+  const cfg = CONFIG.PF2E as Record<string, unknown>
+  const DICTIONARIES = [
+    'actionTraits',
+    'spellTraits',
+    'featTraits',
+    'weaponTraits',
+    'armorTraits',
+    'shieldTraits',
+    'equipmentTraits',
+    'consumableTraits',
+    'ancestryTraits',
+    'backgroundTraits',
+    'classTraits',
+    'creatureTraits',
+    'effectTraits',
+    'damageTraits',
+    'elementTraits',
+    'rarityTraits',
+    'npcAttackTraits',
+    'vehicleTraits',
+    'hazardTraits'
+  ]
+  const labels: Record<string, string> = {}
+  for (const name of DICTIONARIES) {
+    const dict = cfg[name]
+    if (!dict || typeof dict !== 'object') continue
+    for (const [slug, key] of Object.entries(dict as Record<string, unknown>)) {
+      if (typeof key !== 'string' || slug in labels) continue
+      labels[slug] = game.i18n.localize(key)
+    }
+  }
+  return labels
+}
+
 export function localizeRollOptionLabels(actor: CharacterPF2e): Record<string, string> {
   type StatWithLabel = { label?: string }
   type RuleWithLabel = { key?: string; label?: string; suboptions?: { label?: string }[] }

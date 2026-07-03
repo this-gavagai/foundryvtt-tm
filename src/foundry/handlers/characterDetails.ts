@@ -20,7 +20,8 @@ import {
   buildSpellcastingModifiers,
   localizeIWRLabels,
   localizeProficiencyLabels,
-  localizeRollOptionLabels
+  localizeRollOptionLabels,
+  localizeTraitLabels
 } from '../utils/labels'
 
 // JSON-replacer for ElementalBlast: drops the circular `actor` back-reference,
@@ -326,6 +327,7 @@ export async function getCharacterDetails(
   )
   const proficiencyLabels = isCharacter ? localizeProficiencyLabels(characterActor.system) : {}
   const rollOptionLabels = localizeRollOptionLabels(characterActor)
+  const traitLabels = localizeTraitLabels()
   const iwrLabels = isCharacter ? localizeIWRLabels(characterActor) : {}
   const spellcastingModifiers = isCharacter ? buildSpellcastingModifiers(characterActor) : {}
   // Some PF2e conditions grant child conditions in-memory only (e.g. Grabbed
@@ -468,6 +470,7 @@ export async function getCharacterDetails(
     elementalBlasts: cleanBlasts,
     spellcastingModifiers,
     rollOptionLabels,
+    traitLabels,
     iwrLabels,
     skillActions: isCharacter ? serializeSkillActions(actor, skillActionDescs) : [],
     uuid: args.uuid,

@@ -67,6 +67,7 @@ export interface UpdateCharacterDetailsArgs {
   elementalBlasts: object | null
   spellcastingModifiers: Record<string, object>
   rollOptionLabels: Record<string, string>
+  traitLabels: Record<string, string>
   iwrLabels: Record<string, string>
   skillActions: SkillActionData[]
   uuid: string

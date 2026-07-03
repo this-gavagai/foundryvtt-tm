@@ -44,6 +44,7 @@ export interface CharacterCore {
   }
   languages: Field<string[]>
   rollOptionLabels: Field<Record<string, string>>
+  traitLabels: Field<Record<string, string>>
 }
 
 export function useCharacterCore(actor: Ref<TablemateCharacter | undefined>): CharacterCore {
@@ -89,6 +90,7 @@ export function useCharacterCore(actor: Ref<TablemateCharacter | undefined>): Ch
   }
   const languages = computed(() => actor.value?.languages)
   const rollOptionLabels = computed(() => actor.value?.rollOptionLabels)
+  const traitLabels = computed(() => actor.value?.traitLabels)
 
   return {
     _actor: actor,
@@ -105,6 +107,7 @@ export function useCharacterCore(actor: Ref<TablemateCharacter | undefined>): Ch
     xp,
     movement,
     languages,
-    rollOptionLabels
+    rollOptionLabels,
+    traitLabels
   }
 }

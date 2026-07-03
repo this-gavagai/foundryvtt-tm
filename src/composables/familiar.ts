@@ -75,6 +75,7 @@ export interface Familiar {
   actions: Field<Action[]>
   effects: Field<EffectItem[]>
   rollOptionLabels: Field<Record<string, string>>
+  traitLabels: Field<Record<string, string>>
   saves: {
     fortitude: Field<Stat>
     reflex: Field<Stat>
@@ -227,6 +228,7 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
         })
     ),
     rollOptionLabels: computed(() => actor.value?.rollOptionLabels),
+    traitLabels: computed(() => actor.value?.traitLabels),
     saves: {
       fortitude: makeSave('fortitude'),
       reflex: makeSave('reflex'),

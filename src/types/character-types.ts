@@ -76,6 +76,7 @@ export type TablemateActorExtras = {
   proficiencyLabels?: Record<string, string>
   spellcastingModifiers?: Record<string, SpellcastingModifierData>
   rollOptionLabels?: Record<string, string>
+  traitLabels?: Record<string, string>
   iwrLabels?: Record<string, string>
   skillActions?: SkillActionData[]
   inventory?: Partial<CharacterPF2e['inventory']> & { labels?: Record<string, string | undefined> }
