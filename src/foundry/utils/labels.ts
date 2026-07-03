@@ -71,6 +71,19 @@ export function localizeProficiencyLabels(
   return labels
 }
 
+// Localize a single rarity slug (common/uncommon/rare/unique) via the
+// rarityTraits dictionary. Used by the compendium index, which localizes just
+// the one rarity per entry rather than building the full trait-label map.
+// Falls back to the raw slug when the dictionary or key is missing.
+export function localizeRarity(slug?: string): string | undefined {
+  if (!slug) return slug
+  const dict = (CONFIG.PF2E as Record<string, unknown>).rarityTraits as
+    | Record<string, string>
+    | undefined
+  const key = dict?.[slug]
+  return typeof key === 'string' ? game.i18n.localize(key) : slug
+}
+
 // PF2e stores item/creature traits as bare slugs (e.g. "concentrate",
 // "manipulate") and keeps a separate slug→i18n-key dictionary per family
 // (actionTraits, spellTraits, weaponTraits, …). Merge the dictionaries whose

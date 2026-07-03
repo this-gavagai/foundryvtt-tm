@@ -18,6 +18,7 @@ import {
   type SpellInfo
 } from '@/utils/spellcasting'
 import { useModifierOverrides } from '@/composables/useModifierOverrides'
+import { useTraitLabels } from '@/composables/useTraitLabels'
 
 import Button from '@/components/widgets/ButtonWidget.vue'
 import Spinner from '@/components/widgets/SpinnerWidget.vue'
@@ -44,6 +45,7 @@ const {
   level: characterLevel
 } = character
 const { max: focusMax, current: focusCurrent } = character.focusPoints
+const { labelFor: rarityLabel } = useTraitLabels()
 
 const entryById = (id?: string | null) => spellcastingEntries.value?.find((e) => e._id === id)
 
@@ -506,7 +508,7 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
                 ? $t('spells.cantrips')
                 : $t('spells.rank', { n: viewedItem?.system.level?.value })
             }}
-            <span class="text-sm capitalize">{{ viewedItem?.system.traits?.rarity }}</span>
+            <span class="text-sm">{{ rarityLabel(viewedItem?.system.traits?.rarity) }}</span>
           </template>
         </template>
         <template #body>

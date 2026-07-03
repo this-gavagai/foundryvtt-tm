@@ -1,6 +1,7 @@
 import type { GetCompendiumIndexArgs, CompendiumIndexEntry } from '@/types/api-types'
 import { logger } from '@/utils/utilities'
 import { getGame, makeAck } from '../utils/foundry'
+import { localizeRarity } from '../utils/labels'
 
 // Index entries carry the fields Foundry always indexes (_id, name, img, type)
 // plus whatever extra `fields` we request below.
@@ -38,7 +39,8 @@ export async function foundryGetCompendiumIndex(args: GetCompendiumIndexArgs) {
       img: entry.img,
       type: entry.type,
       level: entry.system?.level?.value,
-      rarity: entry.system?.traits?.rarity
+      rarity: entry.system?.traits?.rarity,
+      rarityLabel: localizeRarity(entry.system?.traits?.rarity)
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
 

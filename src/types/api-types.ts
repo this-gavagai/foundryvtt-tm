@@ -365,6 +365,7 @@ export interface CompendiumIndexEntry {
   type?: string
   level?: number
   rarity?: string
+  rarityLabel?: string
 }
 
 export type ApplyDamageMode = 'damage' | 'half' | 'double' | 'heal' | 'block'

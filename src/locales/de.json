@@ -233,7 +233,14 @@
     "attach": "Anbringen",
     "attachTo": "An {parent} anbringen",
     "attachTitle": "Anbringen an…",
-    "detach": "Abnehmen"
+    "detach": "Abnehmen",
+    "carry": {
+      "1hand": "1 Hand",
+      "2hands": "2 Hände",
+      "worn": "Getragen",
+      "stowed": "Verstaut",
+      "dropped": "Fallen gelassen"
+    }
   },
   "spells": {
     "noSpells": "Dieser Charakter wirkt keine Zauber.",

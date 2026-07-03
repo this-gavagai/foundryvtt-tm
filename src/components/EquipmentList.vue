@@ -8,6 +8,7 @@ import { nextTick, ref, computed, watch } from 'vue'
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import { EllipsisVerticalIcon } from '@heroicons/vue/24/outline'
 import { printPrice } from '@/utils/formatters'
+import { useTraitLabels } from '@/composables/useTraitLabels'
 import { getPath } from '@/utils/utilities'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { storeToRefs } from 'pinia'
@@ -42,6 +43,8 @@ const inlineRolls = useRollsFromActiveRoll(equipmentActiveRoll)
 
 const character = useInjectedCharacter()
 const { inventory, rollOptionLabels, _id } = character
+
+const { labelFor: rarityLabel } = useTraitLabels()
 const { isListening } = storeToRefs(useListenersStore())
 const { world } = storeToRefs(useWorldStore())
 
@@ -470,9 +473,11 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
           {{ frozenItem?.label ?? frozenItem?.name }}
         </template>
         <template #description v-if="!frozenItemUnidentified">
-          Level {{ frozenItem?.system?.level?.value }}
-          <span class="text-sm capitalize">
-            ({{ frozenItem?.system?.traits?.rarity }}),
+          {{ $t('common.level') }} {{ frozenItem?.system?.level?.value }}
+          <span class="text-sm">
+            <template v-if="frozenItem?.system?.traits?.rarity"
+              >({{ rarityLabel(frozenItem?.system?.traits?.rarity) }}),
+            </template>
             {{ printPrice(frozenItem?.system?.price?.value) }}
           </span>
         </template>

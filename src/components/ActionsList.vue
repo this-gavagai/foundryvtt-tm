@@ -7,6 +7,7 @@ import { useInjectedCharacter } from '@/composables/injectKeys'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
+import { useTraitLabels } from '@/composables/useTraitLabels'
 
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
 import ViewableItem from '@/components/widgets/ViewableItem.vue'
@@ -23,6 +24,7 @@ const inlineRolls = useRollsFromActiveRoll(activeRoll)
 
 const character = useInjectedCharacter()
 const { actions, rollOptionLabels } = character
+const { labelFor: rarityLabel } = useTraitLabels()
 
 const { isListening } = storeToRefs(useListenersStore())
 
@@ -93,8 +95,8 @@ function useViewedAction() {
           <span v-if="actionViewed?.system?.level?.value"
             >{{ $t('common.level') }} {{ actionViewed?.system?.level?.value }}</span
           >
-          <span v-if="actionViewed?.system?.traits?.rarity" class="text-sm capitalize">
-            ({{ actionViewed?.system?.traits?.rarity }})</span
+          <span v-if="actionViewed?.system?.traits?.rarity" class="text-sm">
+            ({{ rarityLabel(actionViewed?.system?.traits?.rarity) }})</span
           >
         </template>
         <template #body>

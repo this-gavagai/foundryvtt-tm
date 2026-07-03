@@ -236,7 +236,14 @@
     "attachTitle": "Attach to…",
     "detach": "Detach",
     "transferToParty": "Move to party stash",
-    "transferToIndividual": "Move to your inventory"
+    "transferToIndividual": "Move to your inventory",
+    "carry": {
+      "1hand": "1-Hand",
+      "2hands": "2-Hands",
+      "worn": "Worn",
+      "stowed": "Stowed",
+      "dropped": "Dropped"
+    }
   },
   "spells": {
     "noSpells": "This character does not cast spells.",

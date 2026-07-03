@@ -6,11 +6,13 @@ import ParsedDescription from './ParsedDescription.vue'
 import ViewableItem from '@/components/widgets/ViewableItem.vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
+import { useTraitLabels } from '@/composables/useTraitLabels'
 
 const infoModal = ref()
 const description = ref()
 const character = useInjectedCharacter()
 const { ancestry, heritage, background, classType, level, rollOptionLabels } = character
+const { labelFor: rarityLabel } = useTraitLabels()
 const identityViewedId = ref<string | undefined>()
 const identityViewed = computed(
   () =>
@@ -37,7 +39,7 @@ function viewItem(item: Item | undefined) {
       <div class="overflow-hidden whitespace-nowrap">
         <ViewableItem class="inline-block" @click="viewItem(classType)">
           <span>{{ classType?.name ?? '-' }}</span>
-          <span v-if="level && classType?.name">{{ ` (Level ${level})` }}</span>
+          <span v-if="level && classType?.name">{{ ` (${$t('common.level')} ${level})` }}</span>
         </ViewableItem>
       </div>
     </div>
@@ -56,8 +58,8 @@ function viewItem(item: Item | undefined) {
           <span v-if="identityViewed?.system?.level?.value"
             >{{ $t('common.level') }} {{ identityViewed?.system?.level?.value ?? '-' }}</span
           >
-          <span v-if="identityViewed?.system?.traits?.rarity" class="capitalize"
-            >({{ identityViewed?.system?.traits?.rarity }})</span
+          <span v-if="identityViewed?.system?.traits?.rarity"
+            >({{ rarityLabel(identityViewed?.system?.traits?.rarity) }})</span
           >
         </template>
         <template #body>

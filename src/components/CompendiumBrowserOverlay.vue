@@ -248,9 +248,9 @@ defineExpose({ open, close, isOpen })
                           <span
                             v-if="entry.rarity && entry.rarity !== 'common'"
                             data-part="rarity"
-                            class="flex-none text-xs text-gray-400 capitalize"
+                            class="flex-none text-xs text-gray-400"
                           >
-                            {{ entry.rarity }}
+                            {{ entry.rarityLabel ?? entry.rarity }}
                           </span>
                           <span
                             v-if="entry.level !== undefined"

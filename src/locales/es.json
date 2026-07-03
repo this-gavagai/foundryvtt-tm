@@ -203,7 +203,14 @@
     "investedCount": "Investidos: {count} / 10",
     "usesLabel": "Usos:",
     "useItem": "Usar objeto",
-    "containerLabel": "Contenedor"
+    "containerLabel": "Contenedor",
+    "carry": {
+      "1hand": "1 mano",
+      "2hands": "2 manos",
+      "worn": "Puesto",
+      "stowed": "Guardado",
+      "dropped": "Soltado"
+    }
   },
   "spells": {
     "noSpells": "Este personaje no lanza conjuros.",

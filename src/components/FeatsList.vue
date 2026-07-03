@@ -4,6 +4,7 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
+import { useTraitLabels } from '@/composables/useTraitLabels'
 
 import InfoModal from '@/components/InfoModal.vue'
 import FeatsListItem from './FeatsListItem.vue'
@@ -15,6 +16,7 @@ const infoModal = ref()
 const description = ref()
 const character = useInjectedCharacter()
 const { feats, ancestry, background, classType, rollOptionLabels } = character
+const { labelFor: rarityLabel } = useTraitLabels()
 
 const viewedFeatId = ref<string | undefined>()
 const viewedFeat = computed(() => feats.value?.find((f) => f._id === viewedFeatId.value))
@@ -114,7 +116,7 @@ const featCategories = computed(() => {
               {{ $t('common.level') }} {{ viewedFeat?.system?.level?.value ?? '-' }}
             </span>
             <span v-if="viewedFeat?.system?.traits?.rarity" class="inline-block">
-              <span class="text-sm capitalize">({{ viewedFeat?.system.traits.rarity }})</span>
+              <span class="text-sm">({{ rarityLabel(viewedFeat?.system.traits.rarity) }})</span>
             </span>
           </div>
         </template>

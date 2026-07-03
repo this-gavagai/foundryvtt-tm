@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { capitalize } from 'lodash-es'
 import type { InventoryItem } from '@/composables/character'
 import type { ActiveRoll } from '@/types/api-types'
@@ -30,6 +31,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:activeRoll': [roll: ActiveRoll | undefined]
 }>()
+
+const { t } = useI18n()
 
 const description = ref<InstanceType<typeof ParsedDescription>>()
 const activeRoll = ref<ActiveRoll>()
@@ -78,7 +81,7 @@ function changeContainer(newValue: string) {
 const carryChoices = computed(() => [
   {
     id: '1hand',
-    toggleText: '1-Hand',
+    toggleText: t('equipment.carry.1hand'),
     toggleTrigger: () => props.item?.changeCarry?.('held', 1, null),
     toggleIsActive: () =>
       props.item?.system?.equipped.carryType === 'held' &&
@@ -86,7 +89,7 @@ const carryChoices = computed(() => [
   },
   {
     id: '2hands',
-    toggleText: '2-Hands',
+    toggleText: t('equipment.carry.2hands'),
     toggleTrigger: () => props.item?.changeCarry?.('held', 2, null),
     toggleIsActive: () =>
       props.item?.system?.equipped.carryType === 'held' &&
@@ -94,13 +97,13 @@ const carryChoices = computed(() => [
   },
   {
     id: 'worn',
-    toggleText: 'Worn',
+    toggleText: t('equipment.carry.worn'),
     toggleTrigger: () => props.item?.changeCarry?.('worn', 0, null),
     toggleIsActive: () => props.item?.system?.equipped.carryType === 'worn'
   },
   {
     id: 'stowed',
-    toggleText: 'Stowed',
+    toggleText: t('equipment.carry.stowed'),
     toggleTrigger: () => {
       const backpackId = backpacks.value[0]?._id
       props.item?.changeCarry?.('stowed', 0, backpackId)
@@ -109,7 +112,7 @@ const carryChoices = computed(() => [
   },
   {
     id: 'dropped',
-    toggleText: 'Dropped',
+    toggleText: t('equipment.carry.dropped'),
     toggleTrigger: () => props.item?.changeCarry?.('dropped', 0, null),
     toggleIsActive: () => props.item?.system?.equipped.carryType === 'dropped'
   }

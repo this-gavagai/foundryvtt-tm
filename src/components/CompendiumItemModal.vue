@@ -9,12 +9,14 @@ import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 import { getCompendiumItem, addCompendiumItem } from '@/api/actionRpc'
 import { logger } from '@/utils/utilities'
 import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useTraitLabels } from '@/composables/useTraitLabels'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { isStrictPrepared, isFlexiblePrepared } from '@/utils/spellcasting'
 import { storeToRefs } from 'pinia'
 import type { CompendiumItemData } from '@/types/api-types'
 
 const { _id: characterId, spellcastingEntries } = useInjectedCharacter()
+const { labelFor: rarityLabel } = useTraitLabels()
 const { isListening } = storeToRefs(useListenersStore())
 
 const modal = ref()
@@ -104,8 +106,8 @@ defineExpose({ open })
         <span v-if="item?.system?.level?.value"
           >{{ $t('common.level') }} {{ item.system.level.value }}</span
         >
-        <span v-if="item?.system?.traits?.rarity" class="capitalize"
-          >({{ item.system.traits.rarity }})</span
+        <span v-if="item?.system?.traits?.rarity"
+          >({{ rarityLabel(item.system.traits.rarity) }})</span
         >
       </div>
     </template>
