@@ -81,13 +81,21 @@ export function activeRollFromInlineRollAnchor(anchor: HTMLAnchorElement): Activ
   }
 }
 
+// Action-cost glyph spans (ours and PF2e-native) hold characters like "1" or
+// "r" that only read as icons through the Pathfinder2eActions font — they must
+// not leak into a text label.
+const GLYPH_SPAN_SELECTOR = '.pf2-icon-inline, .pf2-icon, .action-glyph, .activity-glyph'
+
+function textContentWithoutGlyphs(element: HTMLElement): string | undefined {
+  const clone = element.cloneNode(true) as HTMLElement
+  clone.querySelectorAll(GLYPH_SPAN_SELECTOR).forEach((glyph) => glyph.remove())
+  return clone.textContent?.trim() || undefined
+}
+
 export function activeRollFromActionElement(element: HTMLElement): ActiveRoll | undefined {
   const slug = element.dataset.pf2Action
   if (!slug) return undefined
-  const label =
-    element.querySelector<HTMLElement>(':scope > span')?.textContent?.trim() ||
-    element.textContent?.trim() ||
-    slug
+  const label = textContentWithoutGlyphs(element) || slug
   const params: Record<string, string> = {}
   Object.assign(params, paramsFromString(element.dataset.pf2ParamsString))
   if (element.dataset.pf2Variant) params.variant = element.dataset.pf2Variant
