@@ -9,7 +9,7 @@ defineEmits(['click'])
 </script>
 <template>
   <div
-    class="xs:flex border-divider -z-1 hidden h-24 w-24 items-center rounded-full"
+    class="xs:flex border-divider -z-1 hidden h-24 w-24 items-center rounded-full transition duration-180 ease-out select-none active:scale-90 active:opacity-50 active:duration-60"
     @click="$emit('click')"
   >
     <img

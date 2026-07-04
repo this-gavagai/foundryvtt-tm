@@ -8,6 +8,7 @@ import CharacterSelector from '@/components/CharacterSelector.vue'
 import IconButtonWidget from '@/components/widgets/IconButtonWidget.vue'
 import { useChatStore } from '@/stores/chat'
 import { useSettingsStore } from '@/stores/settings'
+import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 
 withDefaults(
   defineProps<{
@@ -25,6 +26,11 @@ const showUnreadBadge = computed(() => showUnreadOnPortrait.value && chatStore.u
 const unreadBadge = computed(() =>
   chatStore.unreadCount > 99 ? '99+' : String(chatStore.unreadCount)
 )
+
+function activateChat() {
+  triggerLightHapticFeedback()
+  emit('chatActivated')
+}
 </script>
 
 <template>
@@ -33,7 +39,7 @@ const unreadBadge = computed(() =>
     class="border-divider flex cursor-pointer items-center gap-2 border-b p-4"
   >
     <div class="xs:block relative hidden">
-      <CharacterPortrait @click="() => emit('chatActivated')" />
+      <CharacterPortrait @click="activateChat" />
       <span
         v-if="showUnreadBadge"
         data-part="chat-unread-badge"
