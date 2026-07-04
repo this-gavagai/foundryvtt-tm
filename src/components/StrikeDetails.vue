@@ -125,6 +125,7 @@ defineProps<{
           : viewed?.target.data._modifiers
       "
       :toggleable="viewed?.phase === 'attack' || viewed?.phase === 'damage'"
+      :diceToggleable="viewed?.phase === 'damage' && viewed?.target.kind === 'strike'"
       showAll
       showDamageType
       :effectiveEnabled="effectiveEnabled"

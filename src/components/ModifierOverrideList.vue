@@ -6,6 +6,10 @@ import type { Modifier } from '@/composables/character'
 const props = defineProps<{
   modifiers?: Modifier[]
   toggleable?: boolean
+  // Whether dice-based entries (sneak attack, deadly, …) can be toggled too.
+  // Opt-in per context: the Foundry-side override hooks cover strike damage
+  // dice (DamageDicePF2e.applyAlterations), but not blast or spell dice.
+  diceToggleable?: boolean
   showAll?: boolean
   showDamageType?: boolean
   effectiveEnabled: (mod: Modifier) => boolean
@@ -32,7 +36,9 @@ const gridClass = computed(() =>
 )
 
 function canToggle(mod: Modifier) {
-  return props.toggleable && mod.modifier !== undefined
+  if (!props.toggleable) return false
+  if (mod.modifier !== undefined) return true
+  return !!props.diceToggleable && mod.diceNumber !== undefined
 }
 
 function toggle(mod: Modifier) {

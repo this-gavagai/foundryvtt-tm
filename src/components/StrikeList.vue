@@ -285,6 +285,10 @@ async function updateDamageFormula() {
     strikeModalDamage.value = undefined
     return
   }
+  // The @closing reset of modifierOverrides retriggers the watch below while
+  // `viewed` still points at the dismissed strike — skip the fetch instead of
+  // paying a wasted round-trip to the Foundry client.
+  if (!strikeModal.value?.isOpen) return
   const overrides = Object.keys(modifierOverrides.value).length
     ? { ...modifierOverrides.value }
     : undefined
