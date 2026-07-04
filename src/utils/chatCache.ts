@@ -16,6 +16,11 @@ import { logger } from '@/utils/utilities'
 // The key is *also* scoped to the active server's origin: Foundry user ids are
 // world-local, so two servers (e.g. a copied world) can share one — without the
 // origin prefix that would leak one server's whispers/blind rolls onto another.
+//
+// Deliberate retention: re-logging as a different user on the same server does
+// NOT delete the previous user's cached tail or read marker. The per-user key
+// keeps it unreadable from the UI (and the render-time visibility filter guards
+// whispers besides); the data is only removed when the server is forgotten.
 const MAX_CACHED_MESSAGES = 200
 
 // Prefix a cache key with the active server origin. Returns undefined when no
@@ -23,8 +28,10 @@ const MAX_CACHED_MESSAGES = 200
 // no-op. '|' appears in neither an origin nor a Foundry user id.
 const KEY_DELIMITER = '|'
 
-function scopedKey(key: string): string | undefined {
-  const origin = useServerAddressStore().serverUrl?.origin
+function scopedKey(
+  key: string,
+  origin = useServerAddressStore().serverUrl?.origin
+): string | undefined {
   if (!origin) return undefined
   return `${origin}${KEY_DELIMITER}${key}`
 }
@@ -42,12 +49,17 @@ export function loadCachedChatMessages(userId: string): Promise<ChatMessageData[
   return idbGet<ChatMessageData[]>('chat', key)
 }
 
+// `origin` is passed by the caller, captured *before* any deferral (the save
+// sits behind a debounce): resolving it here at write time would let a server
+// switch mid-debounce file the old server's messages under the new server's
+// key — the cross-server bleed the per-origin scoping exists to prevent.
 export async function saveCachedChatMessages(
   userId: string,
-  messages: ChatMessageData[]
+  messages: ChatMessageData[],
+  origin: string
 ): Promise<void> {
   if (!userId) return
-  const key = scopedKey(userId)
+  const key = scopedKey(userId, origin)
   if (!key) return
   const tail = messages.slice(-MAX_CACHED_MESSAGES)
   let storable: ChatMessageData[]

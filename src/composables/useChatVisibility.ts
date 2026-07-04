@@ -96,6 +96,7 @@ export function useChatVisibility() {
     currentUserIds,
     messageVisibleToCurrentUser,
     messageIsFromCurrentUser,
+    liveMessages,
     visibleMessages
   }
 }

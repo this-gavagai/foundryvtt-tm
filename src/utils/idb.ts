@@ -19,9 +19,20 @@ let dbPromise: Promise<IDBDatabase | undefined> | undefined
 
 function openDb(): Promise<IDBDatabase | undefined> {
   if (dbPromise) return dbPromise
-  dbPromise = new Promise((resolve) => {
+  const promise = new Promise<IDBDatabase | undefined>((resolve) => {
+    // Resolve as a miss but let the NEXT operation retry the open: transient
+    // failures (Safari cold-start flakiness, a briefly-blocking sibling tab)
+    // must not disable caching for the rest of the session. The synchronous
+    // catch below (IndexedDB missing entirely) stays memoized — retrying
+    // can't fix that, and it also runs before `dbPromise` is assigned.
+    const failForNow = (reason: string, error?: unknown) => {
+      logger.debug(`idb: ${reason}`, error)
+      if (dbPromise === promise) dbPromise = undefined
+      resolve(undefined)
+    }
     try {
       const req = indexedDB.open(DB_NAME, DB_VERSION)
+      let blocked = false
       req.onupgradeneeded = (event) => {
         for (const name of STORE_NAMES) {
           if (!req.result.objectStoreNames.contains(name)) req.result.createObjectStore(name)
@@ -36,17 +47,40 @@ function openDb(): Promise<IDBDatabase | undefined> {
           }
         }
       }
-      req.onsuccess = () => resolve(req.result)
-      req.onerror = () => {
-        logger.debug('idb: failed to open', req.error)
-        resolve(undefined)
+      // Another tab still holds an older DB version open, so this open can't
+      // proceed. Without this handler the promise would stay pending forever
+      // and silently hang every cache read/write behind it.
+      req.onblocked = () => {
+        blocked = true
+        failForNow('open blocked by another tab')
       }
+      req.onsuccess = () => {
+        const db = req.result
+        if (blocked) {
+          // The blocking tab eventually closed and the open completed after
+          // all — but this promise already resolved as a miss and a retried
+          // open owns the next connection. Close this one so it can't itself
+          // block a future upgrade.
+          db.close()
+          return
+        }
+        // Yield when another tab requests a version upgrade: close this
+        // connection (the next operation here reopens at the new version)
+        // instead of blocking that tab indefinitely.
+        db.onversionchange = () => {
+          db.close()
+          if (dbPromise === promise) dbPromise = undefined
+        }
+        resolve(db)
+      }
+      req.onerror = () => failForNow('failed to open', req.error)
     } catch (e) {
       logger.debug('idb: unavailable', e)
       resolve(undefined)
     }
   })
-  return dbPromise
+  dbPromise = promise
+  return promise
 }
 
 export async function idbGet<T>(store: StoreName, key: string): Promise<T | undefined> {

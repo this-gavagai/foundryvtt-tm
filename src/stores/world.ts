@@ -1,4 +1,4 @@
-import { shallowRef } from 'vue'
+import { ref, shallowRef } from 'vue'
 import { defineStore } from 'pinia'
 import { debounce } from 'lodash-es'
 import type { GamePF2e } from '@7h3laughingman/pf2e-types'
@@ -10,6 +10,17 @@ const REFRESH_DEBOUNCE_MS = 2000
 
 export const useWorldStore = defineStore('world', () => {
   const world = shallowRef<GamePF2e | undefined>(undefined)
+
+  // Counts in-place mutations to world.messages (creates/updates/deletes
+  // arriving via modifyDocument — bumped by the socket handler). The chat
+  // persistence watcher folds this into its change fingerprint: an *update* to
+  // an older message (e.g. damage applied rewriting its content) changes
+  // neither the message count nor the tail identity, so without this signal
+  // the cached tail would silently keep the pre-edit copy.
+  const messagesRevision = ref(0)
+  function bumpMessagesRevision(): void {
+    messagesRevision.value++
+  }
 
   async function sendWorldRequest(): Promise<void> {
     // Check /api/status first — works regardless of auth state.
@@ -66,5 +77,5 @@ export const useWorldStore = defineStore('world', () => {
     world.value = undefined
   }
 
-  return { world, refreshWorld, refreshWorldNow, clearWorld }
+  return { world, messagesRevision, bumpMessagesRevision, refreshWorld, refreshWorldNow, clearWorld }
 })

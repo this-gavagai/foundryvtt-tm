@@ -19,8 +19,10 @@ import { logger } from '@/utils/utilities'
 // unambiguous delimiter between the two halves of a scoped key.
 const KEY_DELIMITER = '|'
 
-function scopedKey(actorId: string): string | undefined {
-  const origin = useServerAddressStore().serverUrl?.origin
+function scopedKey(
+  actorId: string,
+  origin = useServerAddressStore().serverUrl?.origin
+): string | undefined {
   if (!origin) return undefined
   return `${origin}${KEY_DELIMITER}${actorId}`
 }
@@ -45,12 +47,14 @@ export function hasActorSnapshot(actorId: string): Promise<boolean> {
   return idbCount('actors', key).then((n) => n > 0)
 }
 
+// Produce a plain, IDB-storable copy. The synced actor lives in a deeply
+// reactive ref, so what arrives here is a Vue Proxy — which the structured
+// clone algorithm rejects outright (DataCloneError), before even reaching the
+// functions and class instances tucked into the PF2e payload. A JSON
+// round-trip handles both: it reads through the proxy and drops
+// non-serializable values (the snapshot is display-only data, so that's
+// exactly what we want).
 function toStorable(actorId: string, actor: TablemateActor): TablemateActor | undefined {
-  try {
-    return structuredClone(actor)
-  } catch {
-    // Non-cloneable values present — strip them via JSON.
-  }
   try {
     return JSON.parse(JSON.stringify(actor)) as TablemateActor
   } catch (e) {
@@ -59,18 +63,18 @@ function toStorable(actorId: string, actor: TablemateActor): TablemateActor | un
   }
 }
 
+// `origin` is passed by the caller, captured *before* any deferral (the save
+// sits behind a debounce): resolving it here at write time would let a server
+// switch mid-debounce file the old server's actor under the new server's key —
+// exactly the cross-server bleed the per-origin scoping exists to prevent.
 export async function saveActorSnapshot(
   actorId: string,
-  actor: TablemateActor | undefined
+  actor: TablemateActor | undefined,
+  origin: string
 ): Promise<void> {
   if (!actor) return
-  const key = scopedKey(actorId)
+  const key = scopedKey(actorId, origin)
   if (!key) return
-  // Produce a plain, IDB-storable copy. structuredClone is fastest but throws
-  // (DataCloneError) if the synced actor carries any non-cloneable values —
-  // functions, symbols, or class instances tucked into the PF2e payload. Fall
-  // back to a JSON round-trip, which simply drops those (the snapshot is
-  // display-only data, so that's exactly what we want).
   const snapshot = toStorable(actorId, actor)
   if (!snapshot) return
   await idbPut('actors', key, snapshot)

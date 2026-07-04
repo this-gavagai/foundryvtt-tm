@@ -5,6 +5,7 @@ import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import { debounce } from 'lodash-es'
 import { uuidv4 } from '@/utils/utilities'
 import { saveActorSnapshot } from '@/utils/actorCache'
+import { useServerAddressStore } from '@/stores/serverAddress'
 import { getAuthenticatedSocket, mergeWithArrayReset, asDocumentArray } from './internal'
 import { TM } from './protocol'
 
@@ -60,15 +61,29 @@ export function onActorFresh(actorId: string, fn: () => void): () => void {
 // updates (e.g. several modifyDocument deltas) collapses into one IDB write.
 // The debounce is *per actor* — a single shared debounce would coalesce
 // concurrent saves across characters and only ever persist the last one, so
-// with multiple owned actors all but one would silently fail to cache.
+// with multiple owned actors all but one would silently fail to cache. Each
+// debouncer removes itself from the map when it fires, so the map only ever
+// holds the actors with a write currently pending.
 const saveDebouncers = new Map<string, ReturnType<typeof debounce<typeof saveActorSnapshot>>>()
 function queueSnapshotSave(actorId: string, actor: Parameters<typeof saveActorSnapshot>[1]) {
+  // Capture the origin now, not when the debounce fires: a server switch
+  // inside the debounce window would otherwise re-key this (old) server's
+  // actor data under the new server's origin.
+  const origin = useServerAddressStore().serverUrl?.origin
+  if (!origin) return
   let save = saveDebouncers.get(actorId)
   if (!save) {
-    save = debounce(saveActorSnapshot, 1000, { trailing: true })
+    save = debounce(
+      (...args: Parameters<typeof saveActorSnapshot>) => {
+        saveDebouncers.delete(actorId)
+        return saveActorSnapshot(...args)
+      },
+      1000,
+      { trailing: true }
+    )
     saveDebouncers.set(actorId, save)
   }
-  save(actorId, actor)
+  save(actorId, actor, origin)
 }
 
 export async function sendCharacterRequest(actorId: string): Promise<void> {

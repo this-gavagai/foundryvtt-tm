@@ -190,6 +190,9 @@ export async function setupSocketListenersForWorld(world: Ref<GamePF2e | undefin
       }
       case 'ChatMessage':
         processChanges(args, asDocumentArray(world.value?.messages))
+        // Signal the chat cache that messages changed even when the mutation is
+        // invisible to its count/tail fingerprint (in-place updates).
+        useWorldStore().bumpMessagesRevision()
         triggerRef(world)
         break
     }

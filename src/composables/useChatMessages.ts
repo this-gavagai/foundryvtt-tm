@@ -1,9 +1,7 @@
-import { computed, ref, watch, type Ref } from 'vue'
+import { computed, type Ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { debounce } from 'lodash-es'
 import { useWorldStore } from '@/stores/world'
-import { useUserStore, lastKnownUserId } from '@/stores/user'
-import { loadCachedChatMessages, saveCachedChatMessages } from '@/utils/chatCache'
+import { useChatStore } from '@/stores/chat'
 import { getPath } from '@/utils/utilities'
 import { prepareChatHtml } from '@/utils/chatHtml'
 import { rollSummaries, type ChatRollSummary, type RollJson } from '@/utils/chatRollSummary'
@@ -291,18 +289,10 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
     return map
   })
 
-  // Stale-while-revalidate: hydrate the last-seen messages from IndexedDB so the
-  // overlay isn't empty on a cold launch, then fall through to live data the
-  // moment the world payload arrives. Keyed by the Foundry user _id, falling
-  // back to the last-known persisted id so the read resolves before the session
-  // handshake has repopulated the user store. Save and load MUST use the same
-  // key — `userId` (the Foundry _id) is distinct from the login username.
-  const userStore = useUserStore()
-  const cacheKey = () => userStore.userId || lastKnownUserId()
-  const cachedMessages = ref<ChatMessageData[]>([])
-  void loadCachedChatMessages(cacheKey()).then((cached) => {
-    if (cached?.length) cachedMessages.value = cached
-  })
+  // Stale-while-revalidate: the chat store owns the IndexedDB tail (hydration
+  // and write-back — it's a singleton, while this composable is instantiated
+  // once per mounted sheet); this computed only decides which list to show.
+  const chatStore = useChatStore()
 
   const messages = computed(() => {
     // Once the world payload has arrived it is canonical — show it verbatim
@@ -311,38 +301,10 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
     // resurrect deleted messages, so the cache is only a pre-world placeholder,
     // gated on `world.value` presence.
     if (world.value) return visibleMessages.value
-    return cachedMessages.value
+    return chatStore.cachedMessages
       .filter(messageVisibleToCurrentUser)
       .sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
   })
-
-  // Persist the live messages (debounced) so the next cold launch has them.
-  // Watch a content fingerprint (count + last id/timestamp) rather than the
-  // array itself: in-place mutation keeps the same reference, so a plain
-  // array watch would miss appends. Only writes live data, never the cached
-  // fallback back onto itself.
-  const persist = debounce((userId: string, msgs: ChatMessageData[]) => {
-    void saveCachedChatMessages(userId, msgs)
-  }, 1000)
-  // Raw (server-filtered) live messages for the cache write — kept verbatim so a
-  // cold relaunch restores the same tail Foundry sent. Plain function, not a
-  // computed: in-place appends + triggerRef(world) keep the array reference
-  // stable, which a value-comparing computed would memoize past.
-  const liveMessages = () =>
-    collectionToArray<ChatMessageData>(world.value?.messages as CollectionLike<ChatMessageData>)
-  watch(
-    () => {
-      const live = liveMessages()
-      if (!live.length) return ''
-      const last = live[live.length - 1]
-      return `${live.length}:${last?._id ?? ''}:${last?.timestamp ?? ''}`
-    },
-    (fingerprint) => {
-      if (!fingerprint) return
-      const userId = cacheKey()
-      if (userId) persist(userId, liveMessages())
-    }
-  )
 
   function authorName(message: ChatMessageData): string {
     const tablemateOrigin = tablemateOriginUserId(message)

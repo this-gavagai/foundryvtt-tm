@@ -106,6 +106,10 @@ export function useActorSync(
     stopUserIdWatch?.()
     removeRefresh?.()
     removeFresh?.()
+    // Drop any pending trailing-edge request — the UPDATE listener is being
+    // unsubscribed, so a late emit would just make the GM serialize a payload
+    // nobody is left to receive.
+    debouncedRequest.cancel()
     // Don't leave a stale flag behind for an unmounted sheet.
     if (characterId) markFresh(characterId)
   })
