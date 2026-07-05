@@ -51,13 +51,37 @@ export type ModifyDocumentPayload =
       }
     }
 
+// Foundry answers a successful create/update/delete with a `result` array. A
+// denied or failed operation answers without one — iterating it (as onResponse
+// does) would throw inside the socket callback and leave the promise pending.
+// And if the socket drops before any answer, the ack callback never fires at
+// all. Both are handled below: a missing/invalid result rejects (skipping the
+// apply callback), and a timeout rejects rather than hanging forever.
+const MODIFY_DOCUMENT_TIMEOUT_MS = 15_000
+
 export async function modifyDocument(
   payload: ModifyDocumentPayload,
   onResponse?: (r: DocumentSocketResponse) => void
 ): Promise<DocumentSocketResponse> {
   const socket = await getSocket()
-  return new Promise<DocumentSocketResponse>((resolve) => {
+  const label = `${payload.action} ${payload.type}`
+  return new Promise<DocumentSocketResponse>((resolve, reject) => {
+    let settled = false
+    const timer = setTimeout(() => {
+      if (settled) return
+      settled = true
+      reject(new Error(`modifyDocument ${label} timed out after ${MODIFY_DOCUMENT_TIMEOUT_MS}ms`))
+    }, MODIFY_DOCUMENT_TIMEOUT_MS)
+
     socket.emit('modifyDocument', payload, (r: DocumentSocketResponse) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      if (!Array.isArray((r as { result?: unknown })?.result)) {
+        const detail = (r as { error?: unknown })?.error ?? r
+        reject(new Error(`modifyDocument ${label} failed: ${JSON.stringify(detail)}`))
+        return
+      }
       onResponse?.(r)
       resolve(r)
     })

@@ -2,6 +2,7 @@ import type { MacroPF2e, TokenPF2e } from '@7h3laughingman/pf2e-types'
 import type { RunActionableArgs } from '@/types/api-types'
 import { logger } from '@/utils/utilities'
 import { getGame, makeAck } from '../utils/foundry'
+import { getRequestingUser, userCanRunMacro } from '../utils/permissions'
 
 // Run a PF2e-toolbelt "actionable" macro attached to an action/feat item.
 // Matches toolbelt's own useAction() helper (pf2e-toolbelt/scripts/main.js,
@@ -66,6 +67,16 @@ export async function foundryRunActionable(args: RunActionableArgs) {
   const macro = await fromUuid(macroUuid)
   if (!macro) {
     logger.warn(`TM-RUN-ACTIONABLE: could not resolve macro ${macroUuid}`)
+    return makeAck(args)
+  }
+
+  // The macro executes with GM privileges. The item is owned by the requester,
+  // but its toolbelt flag could point at a macro they can't run themselves
+  // (e.g. a GM utility macro), so gate on the requesting user's own execute
+  // permission — same check as runMacro.
+  const requestingUser = getRequestingUser(source, args.userId)
+  if (!requestingUser || !userCanRunMacro(macro, requestingUser)) {
+    logger.warn(`TM-RUN-ACTIONABLE: ${args.userId} may not execute ${macroUuid}`)
     return makeAck(args)
   }
 
