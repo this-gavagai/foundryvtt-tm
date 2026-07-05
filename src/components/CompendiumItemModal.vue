@@ -33,6 +33,11 @@ const preparedEntries = computed(() =>
   (spellcastingEntries?.value ?? []).filter((e) => isStrictPrepared(e) || isFlexiblePrepared(e))
 )
 
+// Journal UUIDs (whole entry or a single page) carry a JournalEntry segment;
+// their body is prose HTML rather than an item stat block, so it gets the
+// journal-content typography hook (see main.css).
+const isJournal = computed(() => /JournalEntry/.test(currentUuid.value))
+
 const ADDABLE_TYPES = new Set(['action', 'effect', 'condition', 'equipment', 'consumable', 'backpack', 'weapon', 'armor', 'shield', 'treasure'])
 const canAdd = computed(() => {
   if (!item.value) return false
@@ -117,6 +122,7 @@ defineExpose({ open })
       <ParsedDescription
         v-else-if="item"
         ref="description"
+        :data-part="isJournal ? 'journal-content' : undefined"
         :text="item.system?.description?.value"
       />
       <div v-else class="py-4 text-center text-gray-400">Item not found.</div>

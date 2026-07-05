@@ -429,6 +429,77 @@ html.tm-native [data-part='panel-scroll'] {
   display: none;
 }
 
+/* --- Journal-entry prose ---------------------------------------------------
+   Journal pages arrive as raw Foundry HTML (headings, lists, paragraphs) with
+   no utility classes, and Tailwind's preflight has flattened the default
+   heading sizes, list markers, and block margins. Restore a readable prose
+   rhythm here — STRUCTURE only (spacing / sizing / weight). Text and link
+   COLOR are left to the themes (see the ParsedDescription rules in
+   moonlit.css), mirroring how the chat cards split structure from skin. Kept
+   unlayered so it beats preflight's @layer base resets. */
+[data-part='journal-content'] {
+  line-height: 1.5;
+
+  > :first-child {
+    margin-top: 0;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: 700;
+    line-height: 1.25;
+    margin-block: 0.75em 0.25em;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+  h2 {
+    font-size: 1.25rem;
+  }
+  h3 {
+    font-size: 1.1rem;
+  }
+  h4 {
+    font-size: 1rem;
+  }
+
+  p {
+    margin-block: 0.5em;
+  }
+
+  ul,
+  ol {
+    margin-block: 0.5em;
+    padding-inline-start: 1.5rem;
+  }
+
+  ul {
+    list-style: disc;
+  }
+  ol {
+    list-style: decimal;
+  }
+
+  li {
+    margin-block: 0.125em;
+  }
+
+  hr {
+    margin-block: 0.75em;
+    border: 0;
+    border-top-width: 1px;
+    border-top-style: solid;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
 @custom-variant pwa {
   @media (display-mode: standalone) {
     @slot;
