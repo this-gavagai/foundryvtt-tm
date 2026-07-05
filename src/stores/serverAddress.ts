@@ -9,6 +9,7 @@ import { useCharacterSelectStore } from '@/stores/characterSelect'
 import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { clearActorSnapshotsForServer } from '@/utils/actorCache'
 import { clearChatCacheForServer } from '@/utils/chatCache'
+import { clearImageCacheForServer } from '@/api/imageCache'
 import { clearLastCharacterId } from '@/utils/utilities'
 
 const ACTIVE_URL_STORAGE_KEY = 'tablemate.serverUrl'
@@ -197,6 +198,7 @@ export const useServerAddressStore = defineStore('serverAddress', () => {
     // re-add. Best-effort and fire-and-forget — the IDB helpers never reject.
     void clearActorSnapshotsForServer(origin)
     void clearChatCacheForServer(origin)
+    void clearImageCacheForServer(origin)
     clearLastCharacterId(origin)
     if (serverUrl.value?.origin === origin) clearActiveServer()
   }

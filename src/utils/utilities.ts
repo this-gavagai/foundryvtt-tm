@@ -25,16 +25,22 @@ export function clearLastCharacterId(origin: string): void {
 }
 
 export function getPath(path: string) {
-  if (!path || /^[a-z][a-z0-9+.-]*:|^\/\//i.test(path)) return path
+  if (!path) return path
+  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(path)?.[1]?.toLowerCase()
 
   const serverAddressStore = useServerAddressStore()
   if (serverAddressStore.isNativeMobile && serverAddressStore.serverUrl) {
-    // Resolve to the remote asset URL, then let the native image cache hand
+    // Non-web schemes (data:, blob:) pass through untouched. Everything else —
+    // server-relative paths but also absolute http(s) and protocol-relative
+    // URLs (external token art, which the webview otherwise re-downloads every
+    // launch) — resolves to its remote URL, then the native image cache hands
     // back a local file:// copy when one exists (reactive: a render re-runs
     // and swaps the src once a background download lands).
+    if (scheme && scheme !== 'http' && scheme !== 'https') return path
     return cachedImageSrc(new URL(path, serverAddressStore.serverUrl).href)
   }
 
+  if (scheme || path.startsWith('//')) return path
   return '../../' + path
 }
 

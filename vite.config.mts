@@ -126,13 +126,17 @@ export default defineConfig(({ mode }) => {
           navigateFallbackAllowlist: [/^\/modules\/tablemate/],
           runtimeCaching: [
             {
-              urlPattern: ({ request }) => request.destination === 'image',
+              // Same-origin only: cross-origin images (external token art)
+              // yield opaque responses, which Chrome pads to ~7 MB each
+              // against the storage quota — 300 of those would exhaust it.
+              urlPattern: ({ sameOrigin, request }) =>
+                sameOrigin && request.destination === 'image',
               handler: 'CacheFirst',
               options: {
                 cacheName: 'images',
                 expiration: {
                   maxEntries: 300,
-                  maxAgeSeconds: 90 * 24 * 60 * 60 // 60 days
+                  maxAgeSeconds: 90 * 24 * 60 * 60 // 90 days
                 }
               }
             }
