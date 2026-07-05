@@ -34,6 +34,14 @@ function pushToAckQueue(
   }, timeoutMs)
   ackQueue[uuid] = (args) => {
     clearTimeout(timer)
+    // A handler that threw on the Foundry side answers with an ack carrying an
+    // `error` string; reject so the caller sees the real failure instead of
+    // waiting out the full timeout.
+    if (args.error) {
+      logger.warn(`TM-WARN: request ${uuid} failed: ${args.error}`)
+      reject(new Error(args.error))
+      return
+    }
     resolve(args)
   }
 }
@@ -313,8 +321,11 @@ export const updateActorRemote = (actorId: string, update: object) =>
 export const getCompendiumItem = (itemUuid: string) =>
   sendAction(TM.GET_COMPENDIUM_ITEM, { itemUuid })
 
-export const addCompendiumItem = (characterId: string, itemUuid: string, spellcastingEntryId?: string) =>
-  sendAction(TM.ADD_COMPENDIUM_ITEM, { characterId, itemUuid, spellcastingEntryId })
+export const addCompendiumItem = (
+  characterId: string,
+  itemUuid: string,
+  spellcastingEntryId?: string
+) => sendAction(TM.ADD_COMPENDIUM_ITEM, { characterId, itemUuid, spellcastingEntryId })
 
 export const sendCompendiumItemToChat = (characterId: string, itemUuid: string) =>
   sendAction(TM.SEND_COMPENDIUM_ITEM_TO_CHAT, { characterId, itemUuid })

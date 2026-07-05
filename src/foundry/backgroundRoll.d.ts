@@ -1,4 +1,4 @@
-export function useBackgroundRoll(rollResults?: object): {
-  registerBackgroundRoll: () => void
-  unregisterBackgroundRoll: () => void
-}
+export function withBackgroundRoll<T>(
+  diceResults: object | undefined,
+  run: () => Promise<T>
+): Promise<T>

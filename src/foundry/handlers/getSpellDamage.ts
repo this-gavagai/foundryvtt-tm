@@ -1,6 +1,6 @@
 import type { ActorPF2e, SpellPF2e } from '@7h3laughingman/pf2e-types'
 import type { GetSpellDamageArgs } from '@/types/api-types'
-import { useBackgroundRoll } from '../backgroundRoll'
+import { withBackgroundRoll } from '../backgroundRoll'
 import { getCharacter, getGame, makeAck } from '../utils/foundry'
 import { findSpell } from '../utils/spellLookup'
 import { withDamageModifierOverrides, type ModifierOverrideMap } from './checks/modifierOverrides'
@@ -32,8 +32,6 @@ export async function foundryGetSpellDamage(args: GetSpellDamageArgs) {
       modifiers?: unknown[]
     }
   } | null>
-  const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll()
-  registerBackgroundRoll()
   const overrides = (args as { modifierOverrides?: ModifierOverrideMap }).modifierOverrides
   const getDamage = () =>
     (spell!.getDamage as unknown as SpellGetDamage)({
@@ -41,9 +39,11 @@ export async function foundryGetSpellDamage(args: GetSpellDamageArgs) {
       skipDialog: true,
       rollMode: 'blindroll'
     })
-  const sd = spell ? await withDamageModifierOverrides(overrides, getDamage) : null
-  const baseline = spell && overrides && Object.keys(overrides).length ? await getDamage() : sd
-  unregisterBackgroundRoll()
+  const { sd, baseline } = await withBackgroundRoll(undefined, async () => {
+    const sd = spell ? await withDamageModifierOverrides(overrides, getDamage) : null
+    const baseline = spell && overrides && Object.keys(overrides).length ? await getDamage() : sd
+    return { sd, baseline }
+  })
   return {
     ...makeAck(args),
     response: {

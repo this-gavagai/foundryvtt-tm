@@ -1,5 +1,6 @@
 import type { RollInlineCheckArgs } from '@/types/api-types'
-import { useBackgroundRoll } from '../backgroundRoll'
+import { withBackgroundRoll } from '../backgroundRoll'
+import { registerCapture } from '../chatCapture'
 import { getGame, makeAck } from '../utils/foundry'
 import { extractRollPayload } from '../utils/roll'
 
@@ -25,11 +26,6 @@ import { extractRollPayload } from '../utils/roll'
 // The anchor must live in the document so the document-level listener fires
 // from the bubbled click; we append it hidden, click, then remove on the
 // next tick (after PF2e has read the dataset off `event.target`).
-declare const Hooks: {
-  once: (event: string, cb: (msg: { rolls?: unknown[] }) => void) => number
-  off: (event: string, id: number) => void
-}
-
 function buildAnchor(args: RollInlineCheckArgs, itemUuid: string | undefined): HTMLAnchorElement {
   const anchor = document.createElement('a')
   anchor.classList.add('inline-check')
@@ -78,40 +74,34 @@ export async function foundryRollInlineCheck(args: RollInlineCheckArgs) {
   const source = getGame()
   const actor = source.actors.get(args.characterId, { strict: true })
   const item = args.itemId ? actor.items.get(args.itemId) : null
-  const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll(args.diceResults)
-  registerBackgroundRoll()
 
-  const anchor = buildAnchor(args, item?.uuid)
-  document.body.appendChild(anchor)
+  const message = await withBackgroundRoll(args.diceResults, async () => {
+    const anchor = buildAnchor(args, item?.uuid)
+    document.body.appendChild(anchor)
 
-  // PF2e's listener doesn't return the ChatMessage; capture it via a one-shot
-  // createChatMessage hook with a 5s safety timeout (parallels rollDamage.ts).
-  let resolveMessage: ((msg: { rolls?: unknown[] } | undefined) => void) | undefined
-  const messagePromise = new Promise<{ rolls?: unknown[] } | undefined>((resolve) => {
-    resolveMessage = resolve
+    // PF2e's listener doesn't return the ChatMessage; capture it by request
+    // uuid (see rollDamage.ts / chatCapture.ts). The capture's timeout guards
+    // against the click resolving no message.
+    const capture = registerCapture(args.uuid)
+
+    // ctrlKey flips the roll to blindroll via PF2e's eventToRollParams; shiftKey
+    // honours the user's dialog setting (suppressing the GM-side roll dialog
+    // since the tablet user can't interact with it).
+    const event = new PointerEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      shiftKey: !!source.user.settings['showDamageDialogs'],
+      ctrlKey: args.secret
+    })
+    anchor.dispatchEvent(event)
+
+    try {
+      return await capture
+    } finally {
+      // Anchor's job is done — remove it once PF2e has read the dataset.
+      anchor.remove()
+    }
   })
-  const hookId = Hooks.once('createChatMessage', (msg) => resolveMessage?.(msg))
-  const timeoutId = setTimeout(() => {
-    Hooks.off('createChatMessage', hookId)
-    resolveMessage?.(undefined)
-  }, 5000)
-
-  // ctrlKey flips the roll to blindroll via PF2e's eventToRollParams; shiftKey
-  // honours the user's dialog setting (suppressing the GM-side roll dialog
-  // since the tablet user can't interact with it).
-  const event = new PointerEvent('click', {
-    bubbles: true,
-    cancelable: true,
-    shiftKey: !!source.user.settings['showDamageDialogs'],
-    ctrlKey: args.secret
-  })
-  anchor.dispatchEvent(event)
-
-  const message = await messagePromise
-  clearTimeout(timeoutId)
-  // Anchor's job is done — remove it once PF2e has read the dataset.
-  anchor.remove()
-  unregisterBackgroundRoll()
 
   const rollMode = args.secret ? 'blindroll' : 'publicroll'
   return {

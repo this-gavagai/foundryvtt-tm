@@ -6,8 +6,13 @@ import type {
   SendCompendiumItemToChatArgs
 } from '@/types/api-types'
 import { logger } from '@/utils/utilities'
-import { useBackgroundRoll } from '../backgroundRoll'
+import { withBackgroundRoll } from '../backgroundRoll'
 import { getGame, makeAck, makeFakeEvent } from '../utils/foundry'
+import {
+  compendiumPackIdFromUuid,
+  getRequestingUser,
+  userCanObservePack
+} from '../utils/permissions'
 import type { FoundryRoll } from '../utils/roll'
 import { resolveTarget } from '../utils/target'
 import { withModifierOverrides } from './checks/modifierOverrides'
@@ -33,15 +38,12 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
     event: makeFakeEvent(source)
   }
 
-  const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll(args.diceResults)
-  registerBackgroundRoll()
-
   const getStatistic = args.statisticSlug
     ? (a: ActorPF2e): Statistic | null =>
         (a as ActorPF2e & { skills?: Record<string, Statistic> }).skills?.[args.statisticSlug!] ??
         (a as ActorPF2e & { saves?: Record<string, Statistic> }).saves?.[args.statisticSlug!] ??
         (args.statisticSlug === 'perception'
-          ? (a as ActorPF2e & { perception?: Statistic }).perception ?? null
+          ? ((a as ActorPF2e & { perception?: Statistic }).perception ?? null)
           : null)
     : undefined
 
@@ -50,9 +52,8 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
     roll?: { formula: unknown; result: unknown; total: unknown; dice: unknown }
   }
 
-  let r: ActionResult[] | undefined
-  try {
-    r = (await withModifierOverrides(
+  const r = (await withBackgroundRoll(args.diceResults, () =>
+    withModifierOverrides(
       actor,
       getStatistic ?? (() => null),
       args.modifierOverrides,
@@ -60,10 +61,8 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
         source.pf2e.actions
           .get(args.characterAction)
           ?.use(params as unknown as Partial<ActionUseOptions>) as Promise<ActionResult[]>
-    )) as ActionResult[] | undefined
-  } finally {
-    unregisterBackgroundRoll()
-  }
+    )
+  )) as ActionResult[] | undefined
 
   logger.debug(r, args.characterAction)
   const isSecret =
@@ -79,8 +78,6 @@ export async function foundryFreeRoll(args: FreeRollArgs) {
   logger.debug('free roll', args)
   const source = getGame()
   const actor = source.actors.get(args.characterId, { strict: true })
-  const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll(args.diceResults)
-  registerBackgroundRoll()
   const rollMode = args.secret ? 'blindroll' : 'publicroll'
   // Display labels — purely a tag on the chat message so a glance at the chat
   // log identifies what the roll was for. No mechanical effect.
@@ -90,9 +87,11 @@ export async function foundryFreeRoll(args: FreeRollArgs) {
       ? `+${args.modifier}`
       : `${args.modifier}`
     : ''
-  const roll: FoundryRoll = await new Roll(`1d20${modSuffix}`).evaluate()
-  await roll.toMessage({ speaker: { actor: actor._id ?? undefined }, flavor }, { rollMode })
-  unregisterBackgroundRoll()
+  const roll: FoundryRoll = await withBackgroundRoll(args.diceResults, async () => {
+    const r: FoundryRoll = await new Roll(`1d20${modSuffix}`).evaluate()
+    await r.toMessage({ speaker: { actor: actor._id ?? undefined }, flavor }, { rollMode })
+    return r
+  })
   return {
     ...makeAck(args),
     roll: {
@@ -116,13 +115,34 @@ export async function foundrySendItemToChat(args: SendItemToChatArgs) {
 
 declare function fromUuid(uuid: string): Promise<{ toObject(): object } | null>
 declare const CONFIG: {
-  Item: { documentClass: new (data: object, context: { parent: object }) => { toChat(): Promise<unknown> } }
+  Item: {
+    documentClass: new (data: object, context: { parent: object }) => { toChat(): Promise<unknown> }
+  }
 }
 
 export async function foundrySendCompendiumItemToChat(args: SendCompendiumItemToChatArgs) {
+  const source = getGame()
+  const actor = source.actors.get(args.characterId)
+  if (!actor) return makeAck(args)
+
+  // Only post items from a compendium the requesting user may observe — a bare
+  // fromUuid would otherwise let a player broadcast any document's contents.
+  const packId = compendiumPackIdFromUuid(args.itemUuid)
+  const pack = packId ? source.packs.get(packId) : undefined
+  const user = getRequestingUser(source, args.userId)
+  if (
+    !packId ||
+    !pack ||
+    pack.documentName !== 'Item' ||
+    !user ||
+    !userCanObservePack(pack, user)
+  ) {
+    logger.warn('TM-SEND-COMPENDIUM-ITEM: not permitted or not a compendium item', args.itemUuid)
+    return makeAck(args)
+  }
+
   const doc = await fromUuid(args.itemUuid)
-  const actor = game.actors.get(args.characterId)
-  if (!doc || !actor) return makeAck(args)
+  if (!doc) return makeAck(args)
   // PF2e's toChat() requires an owned item. Create a temporary in-memory item
   // with the character as parent so the ownership check passes without persisting.
   const tempItem = new CONFIG.Item.documentClass(doc.toObject(), { parent: actor })

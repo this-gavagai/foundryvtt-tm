@@ -1,5 +1,6 @@
 import type { RollDamageArgs } from '@/types/api-types'
-import { useBackgroundRoll } from '../backgroundRoll'
+import { withBackgroundRoll } from '../backgroundRoll'
+import { registerCapture } from '../chatCapture'
 import { getGame, makeAck } from '../utils/foundry'
 import { extractRollPayload, rollDamageFormulaToMessage } from '../utils/roll'
 
@@ -18,11 +19,6 @@ declare const game: {
     TextEditor: { _onClickInlineRoll: (event: PointerEvent) => Promise<unknown> }
   }
 }
-declare const Hooks: {
-  once: (event: string, cb: (msg: { rolls?: unknown[] }) => void) => number
-  off: (event: string, id: number) => void
-}
-
 // Mirrors PF2e's @Damage enricher (text-editor.ts:776-805): combine explicit
 // traits with the item's own traits (unless overrideTraits), and stamp the
 // rest of the pipe annotations onto the corresponding dataset attributes that
@@ -60,7 +56,10 @@ function makeInlineAnchorEvent(
   const overrideTraits = damageInline?.overrideTraits === true
   const paramTraits =
     typeof damageInline?.traits === 'string'
-      ? damageInline.traits.split(',').map((t) => t.trim()).filter(Boolean)
+      ? damageInline.traits
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean)
       : []
   const mergedTraits = overrideTraits
     ? paramTraits
@@ -94,33 +93,23 @@ function makeInlineAnchorEvent(
 export async function foundryRollDamage(args: RollDamageArgs) {
   const source = getGame()
   const actor = source.actors.get(args.characterId, { strict: true })
-  const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll(args.diceResults)
-  registerBackgroundRoll()
 
   const item = args.itemId ? actor.items.get(args.itemId) : null
   const rollMode = args.secret ? 'blindroll' : 'publicroll'
 
-  let rRaw: unknown
-  if (!item) {
-    // No item context — post a bare DamageRoll with the requested message
-    // visibility. The side-menu formula builder lands here.
-    rRaw = await rollDamageFormulaToMessage(args.formula, actor, { rollMode })
-  } else {
+  const rRaw = await withBackgroundRoll(args.diceResults, async () => {
+    if (!item) {
+      // No item context — post a bare DamageRoll with the requested message
+      // visibility. The side-menu formula builder lands here.
+      return rollDamageFormulaToMessage(args.formula, actor, { rollMode })
+    }
     // _onClickInlineRoll's augment branch awaits DamagePF2e.roll but doesn't
-    // return its ChatMessage (text-editor.ts:185-189), so capture it via a
-    // one-shot createChatMessage hook installed around the call. The 5s
-    // timeout guards against the augment pipeline bailing out silently
-    // (e.g. augmentInlineDamageRoll returning null on an unparsable formula).
-    let resolveMessage: ((msg: { rolls?: unknown[] } | undefined) => void) | undefined
-    const messagePromise = new Promise<{ rolls?: unknown[] } | undefined>((resolve) => {
-      resolveMessage = resolve
-    })
-    const hookId = Hooks.once('createChatMessage', (msg) => resolveMessage?.(msg))
-    const timeoutId = setTimeout(() => {
-      Hooks.off('createChatMessage', hookId)
-      resolveMessage?.(undefined)
-    }, 5000)
-
+    // return its ChatMessage (text-editor.ts:185-189), so capture it by request
+    // uuid: the listener stamps args.uuid onto the message it creates, and
+    // registerCapture resolves once that message exists. Its timeout guards
+    // against the augment pipeline bailing out silently (e.g.
+    // augmentInlineDamageRoll returning null on an unparsable formula).
+    const capture = registerCapture(args.uuid)
     const itemTraits =
       (item.system as { traits?: { value?: string[] } } | undefined)?.traits?.value ?? []
     const event = makeInlineAnchorEvent(
@@ -131,11 +120,12 @@ export async function foundryRollDamage(args: RollDamageArgs) {
       args.secret
     )
     await game.pf2e.TextEditor._onClickInlineRoll(event)
-    const message = await messagePromise
-    clearTimeout(timeoutId)
-    rRaw = message?.rolls?.[0]
-  }
+    const message = await capture
+    return message?.rolls?.[0]
+  })
 
-  unregisterBackgroundRoll()
-  return { ...makeAck(args), ...extractRollPayload(rRaw, { userId: args.userId, options: { rollMode } }) }
+  return {
+    ...makeAck(args),
+    ...extractRollPayload(rRaw, { userId: args.userId, options: { rollMode } })
+  }
 }

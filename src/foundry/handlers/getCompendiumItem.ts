@@ -1,6 +1,11 @@
 import type { GetCompendiumItemArgs } from '@/types/api-types'
 import { logger } from '@/utils/utilities'
 import { getGame, makeAck } from '../utils/foundry'
+import {
+  compendiumPackIdFromUuid,
+  getRequestingUser,
+  userCanObservePack
+} from '../utils/permissions'
 
 interface CompendiumDocObject {
   _id?: string
@@ -46,17 +51,29 @@ function journalDescriptionHtml(obj: CompendiumDocObject): string | undefined {
 }
 
 export async function foundryGetCompendiumItem(args: GetCompendiumItemArgs) {
+  const source = getGame()
+  const emptyAck = { ...makeAck(args), compendiumItem: null }
+
+  // Only compendium documents are exposed, and only from a pack the requesting
+  // user may observe — fromUuid on the GM client would otherwise resolve world
+  // or actor-embedded documents (and GM-only packs) past player permissions.
+  // UUID shape: Compendium.<scope>.<pack>.<type>.<id>
+  // e.g. Compendium.pf2e.conditionitems.Item.xyz → pack id "pf2e.conditionitems"
+  const packId = compendiumPackIdFromUuid(args.itemUuid)
+  const pack = packId ? source.packs.get(packId) : undefined
+  const user = getRequestingUser(source, args.userId)
+  if (!packId || !pack || !user || !userCanObservePack(pack, user)) {
+    logger.warn('TM-GET-COMPENDIUM-ITEM: not permitted or not a compendium uuid', args.itemUuid)
+    return emptyAck
+  }
+
   const doc = await fromUuid(args.itemUuid)
   if (!doc) {
     logger.warn('TM-GET-COMPENDIUM-ITEM: could not resolve', args.itemUuid)
-    return { ...makeAck(args), compendiumItem: null }
+    return emptyAck
   }
-  // UUID shape: Compendium.<scope>.<pack>.<type>.<id>
-  // e.g. Compendium.pf2e.conditionitems.Item.xyz → pack id "pf2e.conditionitems"
-  const uuidParts = args.itemUuid.split('.')
-  const packId = uuidParts.length >= 3 ? `${uuidParts[1]}.${uuidParts[2]}` : args.itemUuid
-  const source = getGame().packs.get(packId)?.metadata.label ?? packId
 
+  const packLabel = pack.metadata.label ?? packId
   const obj = doc.toObject()
   const journalHtml = journalDescriptionHtml(obj)
   if (journalHtml !== undefined) {
@@ -65,6 +82,6 @@ export async function foundryGetCompendiumItem(args: GetCompendiumItemArgs) {
 
   return {
     ...makeAck(args),
-    compendiumItem: { ...obj, source }
+    compendiumItem: { ...obj, source: packLabel }
   }
 }

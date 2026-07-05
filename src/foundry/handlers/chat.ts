@@ -1,6 +1,7 @@
 import type { ChatRollRerollMode, RerollChatRollArgs, SendChatMessageArgs } from '@/types/api-types'
 import type { GamePF2e } from '@7h3laughingman/pf2e-types'
-import { useBackgroundRoll } from '../backgroundRoll'
+import { withBackgroundRoll } from '../backgroundRoll'
+import { registerCapture } from '../chatCapture'
 import { extractRollPayload } from '../utils/roll'
 import { getCharacter, getGame, makeAck } from '../utils/foundry'
 
@@ -13,10 +14,6 @@ interface WhisperUser {
   id?: string | null
   name?: string | null
   isGM?: boolean
-}
-declare const Hooks: {
-  once: (event: string, cb: (msg: { rolls?: unknown[] }) => void) => number
-  off: (event: string, id: number) => void
 }
 
 type RerollKeep = 'new' | 'higher' | 'lower'
@@ -143,27 +140,14 @@ export async function foundryRerollChatRoll(args: RerollChatRollArgs) {
   if (message.isRerollable === false) return makeAck(args)
   if (args.mode === 'hero-point' && actor.heroPoints.value <= 0) return makeAck(args)
 
-  const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll(args.diceResults)
-  let resolveMessage: ((msg: { rolls?: unknown[] } | undefined) => void) | undefined
-  const messagePromise = new Promise<{ rolls?: unknown[] } | undefined>((resolve) => {
-    resolveMessage = resolve
-  })
-  const hookId = Hooks.once('createChatMessage', (msg) => resolveMessage?.(msg))
-  const timeoutId = setTimeout(() => {
-    Hooks.off('createChatMessage', hookId)
-    resolveMessage?.(undefined)
-  }, 5000)
-
-  let rerollMessage: { rolls?: unknown[] } | undefined
-  try {
-    registerBackgroundRoll()
+  // PF2e's rerollFromMessage creates the replacement message internally without
+  // returning it; capture it by request uuid (see chatCapture.ts) rather than
+  // grabbing the globally-next message.
+  const rerollMessage = await withBackgroundRoll(args.diceResults, async () => {
+    const capture = registerCapture(args.uuid)
     await source.pf2e.Check.rerollFromMessage(message as never, rerollOptionsForMode(args.mode))
-    rerollMessage = await messagePromise
-  } finally {
-    clearTimeout(timeoutId)
-    Hooks.off('createChatMessage', hookId)
-    unregisterBackgroundRoll()
-  }
+    return capture
+  })
 
   return { ...makeAck(args), ...extractRollPayload(rerollMessage?.rolls?.[0], args) }
 }

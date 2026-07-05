@@ -1,5 +1,5 @@
 import type { RollCheckArgs } from '@/types/api-types'
-import { useBackgroundRoll } from '../backgroundRoll'
+import { withBackgroundRoll } from '../backgroundRoll'
 import { extractRollPayload } from '../utils/roll'
 import { getCharacter, getGame, makeAck, makeFakeEvent } from '../utils/foundry'
 import { resolveTarget } from '../utils/target'
@@ -60,9 +60,8 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   }
   const ctx: CheckRollContext = { source, actor, args, params, targetActorProxy }
 
-  const { registerBackgroundRoll, unregisterBackgroundRoll } = useBackgroundRoll(args.diceResults)
-  registerBackgroundRoll()
-  const rRaw = await CHECK_ROLL_HANDLERS[args.checkType]?.(ctx)
-  unregisterBackgroundRoll()
+  const rRaw = await withBackgroundRoll(args.diceResults, () =>
+    Promise.resolve(CHECK_ROLL_HANDLERS[args.checkType]?.(ctx))
+  )
   return { ...makeAck(args), ...extractRollPayload(rRaw, args) }
 }

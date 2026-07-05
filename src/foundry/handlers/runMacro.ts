@@ -2,6 +2,7 @@ import type { MacroPF2e, TokenPF2e } from '@7h3laughingman/pf2e-types'
 import type { RunMacroArgs } from '@/types/api-types'
 import { logger } from '@/utils/utilities'
 import { getGame, makeAck } from '../utils/foundry'
+import { getRequestingUser, userCanRunMacro } from '../utils/permissions'
 
 // Run an arbitrary macro by UUID. Scope follows Foundry's canonical shape:
 // `{ actor, token, targets, ...rest }`. _executeScript destructures `actor`
@@ -33,6 +34,15 @@ export async function foundryRunMacro(args: RunMacroArgs) {
   const macro = await fromUuid(args.macroUuid)
   if (!macro) {
     logger.warn(`TM-RUN-MACRO: could not resolve ${args.macroUuid}`)
+    return makeAck(args)
+  }
+
+  // The macro runs with GM privileges, so gate it on the requesting user's own
+  // permission to execute it — otherwise any player could run GM utility macros
+  // (delete tokens, award XP, edit scenes) by UUID.
+  const user = getRequestingUser(source, args.userId)
+  if (!user || !userCanRunMacro(macro, user)) {
+    logger.warn(`TM-RUN-MACRO: ${args.userId} may not execute ${args.macroUuid}`)
     return makeAck(args)
   }
 

@@ -442,6 +442,11 @@ export interface CompendiumItemData {
 export interface RequestResolutionArgs {
   action: typeof TM.ACK
   uuid: string
+  // Set by the Foundry side when the handler threw. When present, the app-side
+  // ack queue rejects the pending request with this message instead of
+  // resolving it, so a failed handler surfaces as a rejected promise rather
+  // than a 30s timeout indistinguishable from "the GM is slow".
+  error?: string
   roll?: RollResult
   response?: {
     damage?: string

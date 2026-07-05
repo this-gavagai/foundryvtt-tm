@@ -31,6 +31,20 @@ export function tablemateChatOriginUserId(message: unknown): string | undefined 
         undefined)
 }
 
+// Request uuid stamped onto a chat message the Foundry side created while a
+// tablemate request was on the chat-origin stack. Read by the createChatMessage
+// hook to resolve the matching capture (see foundry/chatCapture.ts).
+export function tablemateChatOriginUuid(message: unknown): string | undefined {
+  const document = message as {
+    getFlag?: (scope: string, key: string) => unknown
+    flags?: { tablemate?: { originUuid?: string | null } }
+  }
+  const flagged = document.getFlag?.('tablemate', 'originUuid')
+  return typeof flagged === 'string'
+    ? flagged
+    : (document.flags?.tablemate?.originUuid ?? undefined)
+}
+
 export async function stampTablemateChatOrigin(message: unknown, originUserId: string) {
   if (!message || tablemateChatOriginUserId(message)) return
   const document = message as {

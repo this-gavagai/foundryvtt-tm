@@ -2,6 +2,7 @@ import type { GetCompendiumIndexArgs, CompendiumIndexEntry } from '@/types/api-t
 import { logger } from '@/utils/utilities'
 import { getGame, makeAck } from '../utils/foundry'
 import { localizeRarity } from '../utils/labels'
+import { getRequestingUser, userCanObservePack } from '../utils/permissions'
 
 // Index entries carry the fields Foundry always indexes (_id, name, img, type)
 // plus whatever extra `fields` we request below.
@@ -24,9 +25,11 @@ interface PackLike {
 const INDEX_FIELDS = ['system.level.value', 'system.traits.rarity']
 
 export async function foundryGetCompendiumIndex(args: GetCompendiumIndexArgs) {
-  const pack = getGame().packs.get(args.packId) as unknown as PackLike | undefined
-  if (!pack) {
-    logger.warn('TM-GET-COMPENDIUM-INDEX: unknown pack', args.packId)
+  const source = getGame()
+  const pack = source.packs.get(args.packId) as unknown as PackLike | undefined
+  const user = getRequestingUser(source, args.userId)
+  if (!pack || !user || !userCanObservePack(pack, user)) {
+    logger.warn('TM-GET-COMPENDIUM-INDEX: unknown or unpermitted pack', args.packId)
     return { ...makeAck(args), compendiumIndex: [] }
   }
 
