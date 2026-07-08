@@ -38,16 +38,6 @@ function dieIconForFaces(faces: number) {
   return dieIcons[faces]
 }
 
-// The die shape is drawn as a CSS mask over currentColor instead of an <img>,
-// so it renders solid black on the light chip in every theme — the dark
-// theme's global `img[src*='svg'] { filter: invert(0.85) }` would otherwise
-// wash it out to pale gray. Both prefixed and standard properties are set for
-// older WebKit.
-function dieIconStyle(faces: number) {
-  const mask = `url('${dieIcons[faces]}') center / contain no-repeat`
-  return { mask, '-webkit-mask': mask }
-}
-
 const singleD20Result = computed(() => {
   if (roll.value?.isSecret) return null
   const d20Results = rollDice.value
@@ -56,16 +46,13 @@ const singleD20Result = computed(() => {
   return d20Results.length === 1 ? d20Results[0] : null
 })
 
-// Chip tint + animation for the single-d20 highlight. The color sits on the
-// chip (not the number span) so the masked die icon, which paints in
-// currentColor, tints along with the number.
-function dieChipClass(dieResult: DisplayDieResult) {
-  if (dieResult !== singleD20Result.value) return 'bg-white text-black ring-gray-900/20'
+function d20ResultClass(dieResult: DisplayDieResult) {
+  if (dieResult !== singleD20Result.value) return null
   if (dieResult.result === 20)
-    return 'animate-nat-twenty bg-green-100 text-green-800 ring-green-700/40 motion-reduce:animate-none'
+    return 'inline-block animate-nat-twenty text-green-700 motion-reduce:animate-none'
   if (dieResult.result === 1)
-    return 'animate-nat-one bg-red-100 text-red-800 ring-red-700/40 motion-reduce:animate-none'
-  return 'bg-white text-black ring-gray-900/20'
+    return 'inline-block animate-nat-one text-red-700 motion-reduce:animate-none'
+  return null
 }
 
 function open(newResult: RequestResolutionArgs | null | undefined) {
@@ -86,36 +73,33 @@ defineExpose({ open, close, isOpen })
   <Modal ref="modal">
     <div class="flex">
       <div class="m-auto">
-        <div class="m-auto text-center text-sm text-gray-500" data-part="roll-formula">
-          {{ roll?.formula }}
-        </div>
+        <div class="m-auto">{{ roll?.formula }}</div>
         <div
-          class="flex flex-wrap items-center justify-center gap-1.5 py-1"
+          class="flex items-center justify-center"
           v-for="(die, i) in rollDice"
           :key="'die_' + i"
         >
-          <div
-            v-for="(dieResult, j) in die.results"
-            :key="'result_' + j"
-            data-part="roll-die-chip"
-            class="flex items-center gap-1.5 rounded-lg px-2 py-1 text-2xl font-semibold shadow-sm ring-1"
-            :class="dieChipClass(dieResult)"
-          >
-            <span
-              v-if="dieIconForFaces(die.faces)"
-              class="inline-block h-7 w-7 bg-current"
-              :style="dieIconStyle(die.faces)"
-              role="img"
-              :aria-label="$t('infoModal.dieImage', { faces: die.faces })"
-            />
-            <span>
-              {{ roll?.isSecret ? '?' : dieResult.result }}
-            </span>
+          <div class="flex gap-1 text-2xl">
+            <div
+              v-for="(dieResult, j) in die.results"
+              :key="'result_' + j"
+              class="align-items-center mr-1 flex gap-1"
+            >
+              <img
+                v-if="dieIconForFaces(die.faces)"
+                :src="dieIconForFaces(die.faces)"
+                class="mt-1 h-6 w-6"
+                :alt="$t('infoModal.dieImage', { faces: die.faces })"
+              />
+              <span :class="d20ResultClass(dieResult)">
+                {{ roll?.isSecret ? '?' : dieResult.result }}
+              </span>
+            </div>
           </div>
         </div>
       </div>
       <div class="m-auto">
-        <div class="text-6xl font-semibold">
+        <div class="text-6xl">
           {{ roll?.isSecret ? '???' : roll?.total }}
         </div>
       </div>
