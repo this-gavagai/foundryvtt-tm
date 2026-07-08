@@ -38,6 +38,23 @@ function dieIconForFaces(faces: number) {
   return dieIcons[faces]
 }
 
+const singleD20Result = computed(() => {
+  if (roll.value?.isSecret) return null
+  const d20Results = rollDice.value
+    .filter((die) => die.faces === 20)
+    .flatMap((die) => die.results)
+  return d20Results.length === 1 ? d20Results[0] : null
+})
+
+function d20ResultClass(dieResult: DisplayDieResult) {
+  if (dieResult !== singleD20Result.value) return null
+  if (dieResult.result === 20)
+    return 'inline-block animate-nat-twenty text-green-700 motion-reduce:animate-none'
+  if (dieResult.result === 1)
+    return 'inline-block animate-nat-one text-red-700 motion-reduce:animate-none'
+  return null
+}
+
 function open(newResult: RequestResolutionArgs | null | undefined) {
   result.value = newResult
   modal.value?.open()
@@ -74,7 +91,7 @@ defineExpose({ open, close, isOpen })
                 class="mt-1 h-6 w-6"
                 :alt="$t('infoModal.dieImage', { faces: die.faces })"
               />
-              <span>
+              <span :class="d20ResultClass(dieResult)">
                 {{ roll?.isSecret ? '?' : dieResult.result }}
               </span>
             </div>
