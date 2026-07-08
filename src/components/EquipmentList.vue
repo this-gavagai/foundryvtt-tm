@@ -9,7 +9,7 @@ import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import { EllipsisVerticalIcon } from '@heroicons/vue/24/outline'
 import { printPrice } from '@/utils/formatters'
 import { useTraitLabels } from '@/composables/useTraitLabels'
-import { getPath } from '@/utils/utilities'
+import { getPath, logger } from '@/utils/utilities'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
@@ -19,6 +19,7 @@ import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 import { setupSocketListenersForActor } from '@/api/socketSetup'
 import { sendCharacterRequest, fireRefresh } from '@/api/characterSync'
 import { modifyDocument, processChanges } from '@/api/documents'
+import { asDocumentArray } from '@/api/internal'
 
 import EquipmentInvested from '@/components/EquipmentInvested.vue'
 import EquipmentListItem from '@/components/EquipmentListItem.vue'
@@ -42,7 +43,7 @@ const equipmentActiveRoll = ref<ActiveRoll>()
 const inlineRolls = useRollsFromActiveRoll(equipmentActiveRoll)
 
 const character = useInjectedCharacter()
-const { inventory, rollOptionLabels, _id } = character
+const { inventory, rollOptionLabels, _id, _actor } = character
 
 const { labelFor: rarityLabel } = useTraitLabels()
 const { isListening } = storeToRefs(useListenersStore())
@@ -236,8 +237,9 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
   // +1 it produces, regardless of whether it created a new stack or bumped one.
   const beforeQty = matchingQty(targetInventoryRef.value, item)
 
+  let write: Promise<unknown>
   if (existing) {
-    existing.changeQty?.((existing.system?.quantity ?? 0) + 1)
+    write = Promise.resolve(existing.changeQty?.((existing.system?.quantity ?? 0) + 1))
   } else {
     const raw = JSON.parse(JSON.stringify(item)) as Record<string, unknown>
     delete raw._id
@@ -245,27 +247,45 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
     // The backpack the item was stowed in doesn't exist in the target inventory,
     // so drop the reference rather than carrying a dangling containerId across.
     delete (raw.system as Record<string, unknown>).containerId
-    modifyDocument(
+    write = modifyDocument(
       {
         action: 'create',
         type: 'Item',
         operation: { parentUuid: `Actor.${targetActorId}`, data: [raw] }
       },
       (r) => {
-        if (targetMode === 'party' && partyActorRef.value?.items) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          processChanges(r, partyActorRef.value.items as any)
-        }
+        // Echo the created item into the local items array the target inventory
+        // computed reads from. Foundry answers only the emitting socket via this
+        // ack (the modifyDocument broadcast goes to *other* clients), so without
+        // the echo the confirmation below would hinge on a GM-answered refresh
+        // round trip — which never comes when no listener client is online.
+        processChanges(
+          r,
+          targetMode === 'party'
+            ? asDocumentArray(partyActorForItems.value?.items)
+            : asDocumentArray(_actor.value?.items)
+        )
         fireRefresh(targetActorId)
       }
     )
   }
+  // An explicit write failure (permission denial, socket timeout) ends the
+  // transfer as soon as it's known instead of spinning out the full
+  // confirmation timeout. Success still comes from the inventory check below,
+  // not from awaiting the write — the ack may never arrive in relay setups.
+  const writeFailed = new Promise<false>((resolve) =>
+    write.catch((err: unknown) => {
+      logger.error('item transfer write failed', err)
+      resolve(false)
+    })
+  )
 
   // Only remove the source copy once the target actually reflects the addition,
   // so a failed/dropped write can't make the item vanish from both inventories.
-  const confirmed = await waitForCondition(
-    () => matchingQty(targetInventoryRef.value, item) >= beforeQty + 1
-  )
+  const confirmed = await Promise.race([
+    waitForCondition(() => matchingQty(targetInventoryRef.value, item) >= beforeQty + 1),
+    writeFailed
+  ])
   if (!confirmed) return
 
   if (currentQty <= 1) {
