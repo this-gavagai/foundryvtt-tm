@@ -29,12 +29,19 @@ function applyManualRollBadge(message: TablemateChatMessage, element: HTMLElemen
   if (!sender) return
   const badge = document.createElement('span')
   badge.className = 'tm-manual-roll-badge'
-  badge.textContent = '🎲 manual'
   badge.title = 'Dice result supplied by the player (manual face picker or Pixel dice)'
+  // A solid white chip with black die + text (rather than currentColor at
+  // reduced opacity) so the tag stays high-contrast on both the parchment
+  // and dark Foundry chat themes. The die is Foundry's bundled FontAwesome
+  // d20 — the 🎲 emoji rendered in platform colors and read as noise.
   badge.style.cssText =
-    'margin-left:0.35em;padding:0 0.35em;font-size:0.65em;font-weight:normal;' +
-    'vertical-align:middle;border:1px solid currentColor;border-radius:0.5em;' +
-    'opacity:0.7;white-space:nowrap;'
+    'margin-left:0.35em;padding:0.1em 0.45em;font-size:0.7em;font-weight:600;' +
+    'vertical-align:middle;color:#000;background:#fff;border:1px solid rgba(0,0,0,0.5);' +
+    'border-radius:0.6em;box-shadow:0 1px 2px rgba(0,0,0,0.25);white-space:nowrap;'
+  const die = document.createElement('i')
+  die.className = 'fa-solid fa-dice-d20'
+  die.style.marginRight = '0.3em'
+  badge.append(die, 'manual')
   sender.appendChild(badge)
 }
 
