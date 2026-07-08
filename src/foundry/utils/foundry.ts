@@ -45,6 +45,21 @@ export function tablemateChatOriginUuid(message: unknown): string | undefined {
     : (document.flags?.tablemate?.originUuid ?? undefined)
 }
 
+// True when the message was produced by a request whose dice faces were
+// player-determined (manual picker / Pixel dice) under the 'flag' policy.
+// Stamped in listener.ts (stampChatOrigin); read by chatOriginDisplay.ts to
+// render the "manual" tag on the chat card.
+export function tablemateManualRoll(message: unknown): boolean {
+  const document = message as {
+    getFlag?: (scope: string, key: string) => unknown
+    flags?: { tablemate?: { manualRoll?: boolean | null } }
+  }
+  return (
+    document.getFlag?.('tablemate', 'manualRoll') === true ||
+    document.flags?.tablemate?.manualRoll === true
+  )
+}
+
 export async function stampTablemateChatOrigin(message: unknown, originUserId: string) {
   if (!message || tablemateChatOriginUserId(message)) return
   const document = message as {

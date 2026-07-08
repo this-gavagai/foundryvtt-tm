@@ -1,7 +1,9 @@
 import { computed, ref, watch, type Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePixelDiceStore } from '@/stores/pixelDice'
+import { useGmPolicyStore } from '@/stores/gmPolicy'
 import { triggerRollHapticFeedback } from '@/composables/useHapticFeedback'
+import { TM_ERROR_MANUAL_ROLLS_DISABLED } from '@/api/protocol'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import type { Roll } from '@/types/roll-types'
 
@@ -19,6 +21,8 @@ export function useInfoModalRolls({
   onRollError = (error) => console.error('Failed to execute roll', error)
 }: UseInfoModalRollsOptions) {
   const { lastRoll, readyFaceCounts } = storeToRefs(usePixelDiceStore())
+  const gmPolicy = useGmPolicyStore()
+  const { manualRollsBlocked } = storeToRefs(gmPolicy)
 
   // The roll that consumes the next physical-die input: prefer an explicitly
   // armed roll; otherwise the first dice-eligible roll.
@@ -30,9 +34,12 @@ export function useInfoModalRolls({
   })
 
   // Whether any of the armed roll's dice has a matching ready physical die —
-  // gates the whole bouncing-dice affordance.
-  const hasReadyPixel = computed(() =>
-    (armedRoll.value?.dice ?? []).some((die) => readyFaceCounts.value.has(Number(die.slice(1))))
+  // gates the whole bouncing-dice affordance. Suppressed entirely when the GM
+  // rejects player-determined dice results.
+  const hasReadyPixel = computed(
+    () =>
+      !manualRollsBlocked.value &&
+      (armedRoll.value?.dice ?? []).some((die) => readyFaceCounts.value.has(Number(die.slice(1))))
   )
 
   // Per-die face selections for the armed roll. The buffer is always sized to
@@ -72,9 +79,17 @@ export function useInfoModalRolls({
     if (roll.disabled) return
     buffer.value = emptyBuffer()
     try {
-      const result = await roll.execute(faces)
+      // Belt-and-braces client gate: never send player-determined faces when
+      // the GM rejects them (covers a buffer filled before the policy arrived).
+      const result = await roll.execute(manualRollsBlocked.value ? undefined : faces)
       onRollResolved(result)
     } catch (error) {
+      // The module refused the roll because manual results are disabled —
+      // adopt the policy so the picker/Pixel affordances disappear even if we
+      // fired before hearing the LISTENER_ONLINE announcement.
+      if (error instanceof Error && error.message === TM_ERROR_MANUAL_ROLLS_DISABLED) {
+        gmPolicy.reportPolicy('reject')
+      }
       onRollError(error)
     }
   }
@@ -94,6 +109,7 @@ export function useInfoModalRolls({
   watch(lastRoll, () => {
     const roll = armedRoll.value
     const event = lastRoll.value
+    if (manualRollsBlocked.value) return
     if (!isOpen.value || !roll?.dice?.length || !event) return
     // Match physical dice to roll slots by face count: a d20 can't fill a d6
     // slot, etc. Within matching slots we fill the first empty one in order,
@@ -137,6 +153,7 @@ export function useInfoModalRolls({
     clearBuffer,
     dieFaces,
     hasReadyPixel,
-    readyFaceCounts
+    readyFaceCounts,
+    manualRollsBlocked
   }
 }

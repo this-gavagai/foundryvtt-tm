@@ -42,6 +42,14 @@ export interface AcknowledgementArgs {
   uuid: string
   userId: string
 }
+// World-scoped GM policy for rolls that arrive with player-determined dice
+// faces (manual picker or Pixel dice):
+//   'allow'  — honour them (default)
+//   'flag'   — honour them, but tag the resulting chat message so the GM can
+//              see the result was supplied by the player
+//   'reject' — refuse the roll with a TM_ERROR_MANUAL_ROLLS_DISABLED error ack
+export type ManualRollPolicy = 'allow' | 'flag' | 'reject'
+
 export interface ListenderOnlineArgs {
   action: typeof TM.LISTENER_ONLINE
   userId: string
@@ -50,6 +58,9 @@ export interface ListenderOnlineArgs {
   // omits them — the app reads `protocol === undefined` as incompatible.
   protocol?: number
   moduleVersion?: string
+  // Manual-roll policy of the announcing world. Optional because a module
+  // predating the setting omits it — the app treats undefined as 'allow'.
+  manualRollPolicy?: ManualRollPolicy
 }
 export interface UpdateCharacterDetailsArgs {
   action: typeof TM.UPDATE_CHARACTER

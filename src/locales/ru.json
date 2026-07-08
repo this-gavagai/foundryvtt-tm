@@ -333,6 +333,7 @@
     "language": "Язык",
     "theme": "Тема",
     "manualDicePicker": "Ручной ввод результатов костей",
+    "manualRollsDisabledByGm": "Ручные результаты и кубики Pixel отключены мастером",
     "freeRoll": "Проверка броском",
     "freeRollTitle": "Проверка (d20)",
     "secret": "Тайна",

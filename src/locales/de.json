@@ -332,6 +332,7 @@
     "language": "Sprache",
     "theme": "Thema",
     "manualDicePicker": "Manuelle Würfelergebnisse",
+    "manualRollsDisabledByGm": "Manuelle und Pixel-Würfelergebnisse wurden von der SL deaktiviert",
     "freeRoll": "Probe würfeln",
     "damageRoll": "Schaden würfeln",
     "traits": "Merkmale",

@@ -8,11 +8,13 @@ import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 const props = defineProps<{
   active: boolean | undefined
   clicked?: () => Promise<ModuleEventArgs | DocumentSocketResponse | null> | void | undefined
+  disabled?: boolean
 }>()
 const emit = defineEmits(['changed'])
 
 const waiting = ref(false)
 function handleClicked() {
+  if (props.disabled) return
   emit('changed', !props.active)
   if (props.clicked) {
     waiting.value = true
@@ -23,9 +25,10 @@ function handleClicked() {
 </script>
 <template>
   <div
-    class="flex items-center justify-between gap-1 active:text-gray-500"
+    class="flex items-center justify-between gap-1"
+    :class="props.disabled ? 'cursor-not-allowed opacity-50' : 'active:text-gray-500'"
     @click="handleClicked()"
-    @pointerdown="triggerLightHapticFeedback"
+    @pointerdown="!props.disabled && triggerLightHapticFeedback()"
     :data-active="props.active"
   >
     <slot></slot>

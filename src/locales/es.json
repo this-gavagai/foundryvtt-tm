@@ -294,6 +294,7 @@
     "language": "Idioma",
     "theme": "Tema",
     "manualDicePicker": "Resultados manuales de dados",
+    "manualRollsDisabledByGm": "El DJ ha desactivado los resultados manuales y de dados Pixel",
     "freeRoll": "Tirar prueba",
     "freeRollTitle": "Tirada de prueba (d20)",
     "secret": "Secreta",

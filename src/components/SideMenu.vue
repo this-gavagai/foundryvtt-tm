@@ -18,6 +18,7 @@ import { useWorldStore } from '@/stores/world'
 import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { usePixelDiceStore } from '@/stores/pixelDice'
 import { useSettingsStore } from '@/stores/settings'
+import { useGmPolicyStore } from '@/stores/gmPolicy'
 import { useChatStore } from '@/stores/chat'
 import { useCharacterSelectStore } from '@/stores/characterSelect'
 import {
@@ -107,6 +108,7 @@ function dismissSidebar() {
 }
 
 const { manualDicePicker } = storeToRefs(useSettingsStore())
+const { manualRollsBlocked } = storeToRefs(useGmPolicyStore())
 
 const freeRollModal = ref<InstanceType<typeof RollCheckBuilder>>()
 function openFreeRoll() {
@@ -272,12 +274,19 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                       </div>
                     </li>
                     <li>
+                      <!-- The switch reads as off while the GM rejects manual
+                           results; the local preference itself is untouched so
+                           it comes back if the GM re-allows them. -->
                       <Toggle
-                        :active="manualDicePicker"
+                        :active="manualDicePicker && !manualRollsBlocked"
+                        :disabled="manualRollsBlocked"
                         @changed="(v: boolean) => (manualDicePicker = v)"
                       >
                         <span class="text-lg italic">{{ $t('sideMenu.manualDicePicker') }}</span>
                       </Toggle>
+                      <div v-if="manualRollsBlocked" class="text-sm text-gray-500">
+                        {{ $t('sideMenu.manualRollsDisabledByGm') }}
+                      </div>
                     </li>
                     <li class="-mt-4">
                       <div
@@ -462,7 +471,7 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
               :alt="chr.name ?? ''"
               :style="{
                 '--sx': chr.prototypeToken?.texture?.scaleX ?? 1,
-                '--sy': chr.prototypeToken?.texture?.scaleY ?? 1,
+                '--sy': chr.prototypeToken?.texture?.scaleY ?? 1
               }"
               class="scale-x-(--sx) scale-y-(--sy)"
             />

@@ -44,15 +44,24 @@ const props = defineProps<{
   rolls?: Roll[]
 }>()
 
-const { armedRoll, buffer, executeRollFromButton, pickFace, clearBuffer, dieFaces, hasReadyPixel, readyFaceCounts } =
-  useInfoModalRolls({
-    rolls: computed(() => props.rolls),
-    isOpen,
-    onRollResolved: (result) => {
-      close(true)
-      rollResultModal.value?.open(result)
-    }
-  })
+const {
+  armedRoll,
+  buffer,
+  executeRollFromButton,
+  pickFace,
+  clearBuffer,
+  dieFaces,
+  hasReadyPixel,
+  readyFaceCounts,
+  manualRollsBlocked
+} = useInfoModalRolls({
+  rolls: computed(() => props.rolls),
+  isOpen,
+  onRollResolved: (result) => {
+    close(true)
+    rollResultModal.value?.open(result)
+  }
+})
 
 function open() {
   openLayer()
@@ -133,7 +142,7 @@ defineExpose({ open, close, rollResultModal, isOpen })
                 class="relative w-full max-w-4xl transform overflow-hidden bg-white p-6 text-left shadow-xl transition-all"
               >
                 <slot name="banner" :close="() => dismiss(true)" />
-                <div class="max-h-[70vh] overflow-auto scrollbar-gutter-stable">
+                <div class="max-h-[70vh] scrollbar-gutter-stable overflow-auto">
                   <div class="flex space-x-2">
                     <div
                       v-if="canSendToChat"
@@ -202,7 +211,7 @@ defineExpose({ open, close, rollResultModal, isOpen })
                   </div>
                 </div>
                 <ManualDicePicker
-                  v-if="manualDicePicker && armedRoll?.dice?.length"
+                  v-if="manualDicePicker && !manualRollsBlocked && armedRoll?.dice?.length"
                   :dice="armedRoll.dice"
                   :buffer="buffer"
                   :dieFaces="dieFaces"

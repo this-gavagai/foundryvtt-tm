@@ -32,9 +32,14 @@ import {
 import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
 import { logger } from '@/utils/utilities'
-import { TM, PROTOCOL_VERSION, MODULE_ID } from '@/api/protocol'
+import { TM, TM_ERROR_MANUAL_ROLLS_DISABLED, PROTOCOL_VERSION, MODULE_ID } from '@/api/protocol'
 import { stampTablemateChatOrigin, tablemateChatOriginUuid } from './utils/foundry'
 import { resolveCapture, type CapturedMessage } from './chatCapture'
+import {
+  registerManualRollPolicySetting,
+  manualRollPolicy,
+  hasPresetDiceResults
+} from './manualRollPolicy'
 
 type GetEvent = { action: 'get' }
 
@@ -136,8 +141,10 @@ const PASSIVE_ACTIONS = new Set<string>([
 const getChar: Record<string, (args: RequestCharacterDetailsArgs) => void> = {}
 const CHAT_ORIGIN_GRACE_MS = 2000
 // A request currently executing: userId drives chat attribution, uuid lets the
-// createChatMessage hook resolve the matching capture (see chatCapture.ts).
-type ChatOrigin = { userId: string; uuid?: string }
+// createChatMessage hook resolve the matching capture (see chatCapture.ts),
+// manualRoll marks a request whose dice faces were player-determined under the
+// 'flag' policy so the resulting chat message gets tagged.
+type ChatOrigin = { userId: string; uuid?: string; manualRoll?: boolean }
 const chatOriginStack: ChatOrigin[] = []
 let recentChatOrigin: { userId: string; expiresAt: number } | undefined
 let chatOriginStampingRegistered = false
@@ -283,6 +290,7 @@ function handleCharacterRequest(args: RequestCharacterDetailsArgs) {
 function stampChatOrigin(message: unknown, data: unknown, origin: ChatOrigin) {
   const tablemate: Record<string, unknown> = { originUserId: origin.userId }
   if (origin.uuid) tablemate.originUuid = origin.uuid
+  if (origin.manualRoll) tablemate.manualRoll = true
   const sourceUpdate = { flags: { tablemate } }
   const document = message as { updateSource?: (changes: typeof sourceUpdate) => unknown }
   if (typeof document.updateSource === 'function') {
@@ -334,10 +342,14 @@ function setupChatOriginStamping() {
   Hooks.on('preCreateChatMessage', (message, data) => {
     const originUserId = currentChatOriginUserId()
     if (!originUserId) return
-    // userId honours the grace window (attribution); uuid comes only from a
-    // live stack entry, so it correlates a capture to the request that is
+    // userId honours the grace window (attribution); uuid and manualRoll come
+    // only from a live stack entry, so they correlate to the request that is
     // actually producing the message right now.
-    stampChatOrigin(message, data, { userId: originUserId, uuid: currentChatOrigin()?.uuid })
+    stampChatOrigin(message, data, {
+      userId: originUserId,
+      uuid: currentChatOrigin()?.uuid,
+      manualRoll: currentChatOrigin()?.manualRoll
+    })
   })
   Hooks.on('createChatMessage', (message) => {
     const originUserId = currentChatOriginUserId()
@@ -360,6 +372,10 @@ async function withChatOrigin<T>(origin: ChatOrigin, run: () => Promise<T>): Pro
 
 export function setupListener() {
   logger.info('TABLEMATE: Setting up listener')
+  // World policy for player-determined dice results. Re-announce on change so
+  // connected apps update their manual/Pixel affordances without waiting for
+  // the next presence heartbeat.
+  registerManualRollPolicySetting(() => announceSelf())
   setupChatOriginStamping()
   announceSelf()
 
@@ -404,11 +420,36 @@ export function setupListener() {
       return
     }
 
+    // Manual-roll policy gate: a payload carrying player-determined dice faces
+    // is checked here, at the single dispatch point, before withBackgroundRoll
+    // can stamp the faces onto a Roll. 'reject' answers with a sentinel error
+    // ack the app recognizes; 'flag' lets the roll through but marks the chat
+    // origin so the resulting message gets tagged.
+    const presetDice = hasPresetDiceResults('diceResults' in args ? args.diceResults : undefined)
+    const policy = presetDice ? manualRollPolicy() : 'allow'
+    if (policy === 'reject') {
+      logger.warn('TABLEMATE: manual roll rejected by world policy', args.action, args.userId)
+      const uuid = requestUuid(args)
+      if (uuid) {
+        game.socket.emit(TM.CHANNEL, {
+          action: TM.ACK,
+          uuid,
+          userId: game.user._id,
+          error: TM_ERROR_MANUAL_ROLLS_DISABLED
+        })
+      }
+      return
+    }
+
     const handler = actionHandlers[args.action] as
       | ((a: ModuleEventArgs) => Promise<unknown>)
       | undefined
     if (handler) {
-      const origin: ChatOrigin = { userId: args.userId, uuid: requestUuid(args) }
+      const origin: ChatOrigin = {
+        userId: args.userId,
+        uuid: requestUuid(args),
+        manualRoll: policy === 'flag'
+      }
       withChatOrigin(origin, () => handler(args))
         .then((result) => game.socket.emit(TM.CHANNEL, result))
         .catch((error) => emitHandlerError(args, error))
@@ -455,7 +496,10 @@ function announceSelf() {
     userId: game.user._id,
     // Let the app run the reciprocal version check on its side.
     protocol: PROTOCOL_VERSION,
-    moduleVersion: moduleVersion()
+    moduleVersion: moduleVersion(),
+    // Piggyback the manual-roll policy so apps can gray out their manual/Pixel
+    // affordances proactively; the dispatch gate above stays authoritative.
+    manualRollPolicy: manualRollPolicy()
   })
 }
 

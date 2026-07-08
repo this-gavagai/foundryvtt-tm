@@ -9,6 +9,7 @@ import type { ModuleEventArgs } from '@/types/api-types'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { useVersionCompatStore } from '@/stores/versionCompat'
+import { useGmPolicyStore } from '@/stores/gmPolicy'
 import { useSyncStatusStore } from '@/stores/syncStatus'
 import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { useWorldStore } from '@/stores/world'
@@ -144,6 +145,7 @@ export async function setupSocketListenersForApp() {
 
   const { addListener } = useListenersStore()
   const { reportModule } = useVersionCompatStore()
+  const { reportPolicy } = useGmPolicyStore()
   onTmAction(TM.ACK, (args) => resolveAck(args.uuid, args))
   onTmAction(TM.SHARE_TARGETS, (args) => {
     const { updateTargets } = useTargetHelperStore()
@@ -158,6 +160,9 @@ export async function setupSocketListenersForApp() {
     // vice versa). A module too old to send `protocol` reads as undefined here,
     // which is correctly treated as a mismatch.
     reportModule(args.protocol, args.moduleVersion)
+    // World manual-roll policy rides along on every announcement (including
+    // the re-announce the module fires when the GM changes the setting).
+    reportPolicy(args.manualRollPolicy)
   })
 }
 

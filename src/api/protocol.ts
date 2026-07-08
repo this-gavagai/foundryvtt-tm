@@ -21,6 +21,12 @@ export const MODULE_ID = 'tablemate'
 //       rejects on, instead of the request hanging until the client timeout.
 export const PROTOCOL_VERSION = 2
 
+// Error-ack sentinel: the request carried player-determined dice results while
+// the world's manual-roll policy is 'reject'. The app matches this string
+// verbatim to distinguish a policy refusal from a real handler failure (and to
+// self-heal its cached policy if it fired before hearing the announcement).
+export const TM_ERROR_MANUAL_ROLLS_DISABLED = 'TM_MANUAL_ROLLS_DISABLED'
+
 export const TM = {
   // Socket.io channel name. All tablemate messages flow over this channel.
   CHANNEL: 'module.tablemate',

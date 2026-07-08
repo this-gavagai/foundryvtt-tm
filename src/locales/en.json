@@ -336,6 +336,7 @@
     "language": "Language",
     "theme": "Theme",
     "manualDicePicker": "Manual dice results",
+    "manualRollsDisabledByGm": "Manual and Pixel dice results are turned off by the GM",
     "freeRoll": "Roll Check",
     "freeRollTitle": "Check Roll (d20)",
     "secret": "Secret",

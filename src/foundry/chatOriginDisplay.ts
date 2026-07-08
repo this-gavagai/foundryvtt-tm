@@ -7,9 +7,30 @@ import {
   findRenderedChatMessage,
   type TablemateChatMessage
 } from './utils/chatMessage'
-import { tablemateChatOriginUserId } from './utils/foundry'
+import { tablemateChatOriginUserId, tablemateManualRoll } from './utils/foundry'
 
 let chatOriginDisplayRegistered = false
+
+// Under the 'flag' manual-roll policy, messages whose dice faces were supplied
+// by the player carry flags.tablemate.manualRoll — surface that as a small tag
+// next to the sender so the GM can tell at a glance. Idempotent: the retry
+// patching below calls this repeatedly on the same element.
+function applyManualRollBadge(message: TablemateChatMessage, element: HTMLElement) {
+  if (!tablemateManualRoll(message)) return
+  if (element.querySelector('.tm-manual-roll-badge')) return
+  const sender =
+    element.querySelector<HTMLElement>('.message-header .message-sender') ??
+    element.querySelector<HTMLElement>('.message-sender')
+  if (!sender) return
+  const badge = document.createElement('span')
+  badge.className = 'tm-manual-roll-badge'
+  badge.textContent = '🎲 manual'
+  badge.title = 'Dice result supplied by the player (manual face picker or Pixel dice)'
+  badge.style.cssText =
+    'margin-left:0.35em;padding:0 0.35em;font-size:0.7em;font-weight:normal;' +
+    'border:1px solid currentColor;border-radius:0.5em;opacity:0.7;white-space:nowrap;'
+  sender.insertAdjacentElement('afterend', badge)
+}
 
 function applyChatOriginDisplay(
   message: TablemateChatMessage,
@@ -34,6 +55,8 @@ function applyChatOriginDisplay(
     pf2eUser.textContent = originName
     pf2eUser.title = `${originName} via Tablemate`
   }
+
+  applyManualRollBadge(message, element)
 }
 
 function patchRenderedChatOrigin(message: TablemateChatMessage) {
