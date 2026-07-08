@@ -13,8 +13,13 @@ let chatOriginDisplayRegistered = false
 
 // Under the 'flag' manual-roll policy, messages whose dice faces were supplied
 // by the player carry flags.tablemate.manualRoll — surface that as a small tag
-// next to the sender so the GM can tell at a glance. Idempotent: the retry
-// patching below calls this repeatedly on the same element.
+// next to the sender so the GM can tell at a glance. The badge is appended
+// INSIDE h4.message-sender (inline with the name) rather than as a header
+// sibling: the header is a wrapping flex row, so a sibling becomes its own
+// flex item and lands on a wrapped line next to the flavor text. Must run
+// after the origin rename above — sender.textContent assignment replaces the
+// h4's children. Idempotent: the retry patching below calls this repeatedly
+// on the same element.
 function applyManualRollBadge(message: TablemateChatMessage, element: HTMLElement) {
   if (!tablemateManualRoll(message)) return
   if (element.querySelector('.tm-manual-roll-badge')) return
@@ -27,9 +32,10 @@ function applyManualRollBadge(message: TablemateChatMessage, element: HTMLElemen
   badge.textContent = '🎲 manual'
   badge.title = 'Dice result supplied by the player (manual face picker or Pixel dice)'
   badge.style.cssText =
-    'margin-left:0.35em;padding:0 0.35em;font-size:0.7em;font-weight:normal;' +
-    'border:1px solid currentColor;border-radius:0.5em;opacity:0.7;white-space:nowrap;'
-  sender.insertAdjacentElement('afterend', badge)
+    'margin-left:0.35em;padding:0 0.35em;font-size:0.65em;font-weight:normal;' +
+    'vertical-align:middle;border:1px solid currentColor;border-radius:0.5em;' +
+    'opacity:0.7;white-space:nowrap;'
+  sender.appendChild(badge)
 }
 
 function applyChatOriginDisplay(
