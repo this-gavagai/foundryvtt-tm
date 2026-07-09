@@ -1,7 +1,11 @@
 import { ref, watch, type Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 
-import { setupSocketListenersForApp, setupSocketListenersForWorld } from '@/api/socketSetup'
+import { setupSocketListenersForApp } from '@/api/socketSetup'
+import {
+  registerServerEventWiring,
+  setupSocketListenersForWorld
+} from '@/composables/serverEventWiring'
 import { useServerAddressStore } from '@/stores/serverAddress'
 import { useServerStore } from '@/stores/server'
 import { useWorldStore } from '@/stores/world'
@@ -16,6 +20,11 @@ import { logger } from '@/utils/utilities'
 // Returns `reconnecting`, which is true while a world-triggered reconnect is in
 // flight so the view can show a spinner instead of the login page.
 export function useSession(): { reconnecting: Ref<boolean> } {
+  // Register the store-facing socket wiring (session hooks, TM handlers,
+  // world-progress) before anything below can open a socket, so the first
+  // session handshake already finds its hooks in place. Idempotent.
+  registerServerEventWiring()
+
   const { serverUrl } = storeToRefs(useServerAddressStore())
   const serverStore = useServerStore()
   const { needsLogin, socket } = storeToRefs(serverStore)
@@ -51,13 +60,9 @@ export function useSession(): { reconnecting: Ref<boolean> } {
     }
   }
 
-  async function setupWorldSocketListeners() {
+  function setupWorldSocketListeners() {
     if (!world.value) return
-    try {
-      await setupSocketListenersForWorld(world)
-    } catch (e) {
-      logger.debug('Error setting up world socket listeners: ', e)
-    }
+    setupSocketListenersForWorld(world)
   }
 
   watch(
@@ -65,7 +70,7 @@ export function useSession(): { reconnecting: Ref<boolean> } {
     (newSocket) => {
       if (!newSocket) return
       void setupAppSocketListeners()
-      if (worldListenersReady) void setupWorldSocketListeners()
+      if (worldListenersReady) setupWorldSocketListeners()
     },
     { immediate: true }
   )
@@ -103,7 +108,7 @@ export function useSession(): { reconnecting: Ref<boolean> } {
       if (!worldListenersReady) {
         worldListenersReady = true
       }
-      void setupWorldSocketListeners()
+      setupWorldSocketListeners()
     },
     { immediate: true }
   )

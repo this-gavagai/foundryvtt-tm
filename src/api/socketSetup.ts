@@ -1,30 +1,14 @@
-import type { Ref } from 'vue'
-import { triggerRef } from 'vue'
-import { mergeWith } from 'lodash-es'
 import type { Socket } from 'socket.io-client'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
-import type { GamePF2e } from '@7h3laughingman/pf2e-types'
-import type { TablemateActor } from '@/types/character-types'
 import type { ModuleEventArgs } from '@/types/api-types'
-import { useTargetHelperStore } from '@/stores/targetHelper'
-import { useListenersStore } from '@/stores/listenersOnline'
-import { useVersionCompatStore } from '@/stores/versionCompat'
-import { useGmPolicyStore } from '@/stores/gmPolicy'
-import { useSyncStatusStore } from '@/stores/syncStatus'
-import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
-import { useWorldStore } from '@/stores/world'
-import { logger } from '@/utils/utilities'
-import {
-  getSocket,
-  mergeWithArrayReset,
-  asDocumentArray,
-  type ModifyDocumentUpdate,
-  type DocumentData
-} from './internal'
-import { addRefresh, fireRefresh, parseActorData } from './characterSync'
-import { processChanges } from './documents'
+import { getSocket } from './internal'
 import { resolveAck } from './actionRpc'
 import { TM } from './protocol'
+
+// Socket event infrastructure only: module-level subscription registries plus
+// the per-socket dispatcher attachment. Handlers that drive app state (stores,
+// world refreshes) live in composables/serverEventWiring.ts — this file faces
+// strictly downward so api/ never reaches up into Pinia.
 
 // ── TM.CHANNEL dispatcher ────────────────────────────────────────────────
 // One socket listener owns TM.CHANNEL; everyone else registers handlers via
@@ -59,215 +43,114 @@ export function onTmAction<K extends ModuleEventArgs['action']>(
   }
 }
 
-type AppChannelHandler = (args: ModuleEventArgs) => void
-type ModifyDocumentHandler = (args: DocumentSocketResponse) => void
-type UserActivityHandler = (user: string, args: { targets?: string[]; active?: boolean }) => void
+// ── modifyDocument dispatcher ────────────────────────────────────────────
+// Per-actor and world-level handlers live in a module-level registry that
+// survives socket swaps, and one socket listener (re-attached on every swap
+// by setupSocketListenersForApp) fans events out. Binding listeners directly
+// to a captured socket left them attached to a dead socket after any
+// reconnect, silently dropping incremental GM edits until the sheet remounted.
 
-// ── Actor modifyDocument dispatcher ─────────────────────────────────────────
-// Like the TM.CHANNEL dispatcher above: per-actor handlers live in a
-// module-level registry that survives socket swaps, and one socket listener
-// (re-attached on every swap by setupSocketListenersForApp) fans events out.
-// Binding per-actor listeners directly to a captured socket left them attached
-// to a dead socket after any reconnect, silently dropping incremental GM edits
-// until the sheet remounted.
+export type ModifyDocumentHandler = (args: DocumentSocketResponse) => void
 
-const actorModifySubs = new Set<ModifyDocumentHandler>()
+const modifySubs = new Set<ModifyDocumentHandler>()
 
-function onActorModify(handler: ModifyDocumentHandler): () => void {
-  actorModifySubs.add(handler)
+export function onModifyDocument(handler: ModifyDocumentHandler): () => void {
+  modifySubs.add(handler)
   return () => {
-    actorModifySubs.delete(handler)
+    modifySubs.delete(handler)
   }
 }
 
-// Foundry streams 'progress' events while a world loads. We mark the world
-// pending immediately, then refresh once events stop arriving (trailing edge).
-const WORLD_PROGRESS_DEBOUNCE_MS = 2000
+// ── userActivity dispatcher ──────────────────────────────────────────────
 
-let dispatchHandler: AppChannelHandler | null = null
-let dispatchSocket: Socket | null = null
-let progressHandler: (() => void) | null = null
-let progressSocket: Socket | null = null
-let progressTimer: ReturnType<typeof setTimeout> | undefined
-let actorModifyHandler: ModifyDocumentHandler | null = null
-let actorModifySocket: Socket | null = null
-let worldModifyHandler: ModifyDocumentHandler | null = null
-let worldModifySocket: Socket | null = null
-let worldUserActivityHandler: UserActivityHandler | null = null
-let worldUserActivitySocket: Socket | null = null
-let appSubsRegistered = false
+export type UserActivityHandler = (
+  user: string,
+  args: { targets?: string[]; active?: boolean }
+) => void
 
+const userActivitySubs = new Set<UserActivityHandler>()
+
+export function onUserActivity(handler: UserActivityHandler): () => void {
+  userActivitySubs.add(handler)
+  return () => {
+    userActivitySubs.delete(handler)
+  }
+}
+
+// ── world-load progress dispatcher ───────────────────────────────────────
+// Foundry streams 'progress' events while a world loads; the wiring layer
+// subscribes to mark the world pending and refresh on the trailing edge.
+
+const progressSubs = new Set<() => void>()
+
+export function onWorldProgress(handler: () => void): () => void {
+  progressSubs.add(handler)
+  return () => {
+    progressSubs.delete(handler)
+  }
+}
+
+// ── socket-swap notification ─────────────────────────────────────────────
+// Fired when the dispatchers are re-attached after a previous socket existed
+// (server switch, requestReconnect). Lets subscribers drop work armed against
+// the old socket — e.g. the wiring's pending world-progress refresh, which is
+// stale once the world context changes under a hard swap.
+
+const socketSwapSubs = new Set<() => void>()
+
+export function onSocketSwap(handler: () => void): () => void {
+  socketSwapSubs.add(handler)
+  return () => {
+    socketSwapSubs.delete(handler)
+  }
+}
+
+let attachedSocket: Socket | null = null
+let tmDispatch: ((args: ModuleEventArgs) => void) | null = null
+let modifyDispatch: ModifyDocumentHandler | null = null
+let userActivityDispatch: UserActivityHandler | null = null
+let progressDispatch: (() => void) | null = null
+let coreSubsRegistered = false
+
+// Re-attach the dispatchers to the (potentially new) socket. The subscription
+// registries are module-level and survive socket swaps, so this is the only
+// per-socket work: everything else registers once and stays live.
 export async function setupSocketListenersForApp() {
   const socket = await getSocket()
 
-  // Re-attach the dispatcher to the (potentially new) socket. The subscription
-  // registry is module-level and survives socket swaps.
-  if (dispatchHandler) dispatchSocket?.off(TM.CHANNEL, dispatchHandler)
-  dispatchHandler = (args: ModuleEventArgs) => {
+  if (attachedSocket) {
+    if (tmDispatch) attachedSocket.off(TM.CHANNEL, tmDispatch)
+    if (modifyDispatch) attachedSocket.off('modifyDocument', modifyDispatch)
+    if (userActivityDispatch) attachedSocket.off('userActivity', userActivityDispatch)
+    if (progressDispatch) attachedSocket.off('progress', progressDispatch)
+    socketSwapSubs.forEach((h) => h())
+  }
+
+  tmDispatch = (args: ModuleEventArgs) => {
     tmSubs.get(args.action)?.forEach((h) => h(args))
   }
-  socket.on(TM.CHANNEL, dispatchHandler)
-  dispatchSocket = socket
+  socket.on(TM.CHANNEL, tmDispatch)
 
-  // Re-attach the actor modifyDocument dispatcher to the (potentially new)
-  // socket. The per-actor subscriptions live in the module-level registry, so
-  // sheets keep receiving incremental GM edits across socket swaps.
-  if (actorModifyHandler) actorModifySocket?.off('modifyDocument', actorModifyHandler)
-  actorModifyHandler = (args: DocumentSocketResponse) => {
-    actorModifySubs.forEach((h) => h(args))
+  modifyDispatch = (args: DocumentSocketResponse) => {
+    modifySubs.forEach((h) => h(args))
   }
-  socket.on('modifyDocument', actorModifyHandler)
-  actorModifySocket = socket
+  socket.on('modifyDocument', modifyDispatch)
 
-  // Re-attach the world-load progress listener to the (potentially new) socket.
-  // This lives here rather than in foundryWorldStatus because a one-shot
-  // getSocket().then() binding is lost whenever the socket is replaced (server
-  // switch, requestReconnect); re-running on every socket keeps it live.
-  if (progressHandler) {
-    progressSocket?.off('progress', progressHandler)
-    // Drop any trailing-refresh armed against the old socket: on a hard swap
-    // the world context is changing, so a pending refresh for the prior load
-    // is stale.
-    clearTimeout(progressTimer)
+  userActivityDispatch = (user, args) => {
+    userActivitySubs.forEach((h) => h(user, args))
   }
-  progressHandler = () => {
-    useFoundryWorldStatusStore().markWorldPending()
-    clearTimeout(progressTimer)
-    progressTimer = setTimeout(() => useWorldStore().refreshWorld(), WORLD_PROGRESS_DEBOUNCE_MS)
+  socket.on('userActivity', userActivityDispatch)
+
+  progressDispatch = () => {
+    progressSubs.forEach((h) => h())
   }
-  socket.on('progress', progressHandler)
-  progressSocket = socket
+  socket.on('progress', progressDispatch)
 
-  // Register the app-level subscribers exactly once. Subsequent calls to
-  // setupSocketListenersForApp only re-attach the dispatcher.
-  if (appSubsRegistered) return
-  appSubsRegistered = true
+  attachedSocket = socket
 
-  const { addListener } = useListenersStore()
-  const { reportModule } = useVersionCompatStore()
-  const { reportPolicy } = useGmPolicyStore()
+  // RPC acks are api-internal plumbing (actionRpc's pending-request queue),
+  // so they register here rather than in the store-facing wiring. Exactly once.
+  if (coreSubsRegistered) return
+  coreSubsRegistered = true
   onTmAction(TM.ACK, (args) => resolveAck(args.uuid, args))
-  onTmAction(TM.SHARE_TARGETS, (args) => {
-    const { updateTargets } = useTargetHelperStore()
-    Object.entries(args.targets).forEach(([userId, targets]) =>
-      updateTargets(userId, targets as string[])
-    )
-  })
-  onTmAction(TM.LISTENER_ONLINE, (args) => {
-    addListener(args.userId)
-    // The module reports its protocol/version on every announcement; compare so
-    // the app can surface a banner when a stale PWA meets a newer module (or
-    // vice versa). A module too old to send `protocol` reads as undefined here,
-    // which is correctly treated as a mismatch.
-    reportModule(args.protocol, args.moduleVersion)
-    // World manual-roll policy rides along on every announcement (including
-    // the re-announce the module fires when the GM changes the setting).
-    reportPolicy(args.manualRollPolicy)
-  })
-}
-
-export async function setupSocketListenersForWorld(world: Ref<GamePF2e | undefined>) {
-  const socket = await getSocket()
-
-  if (worldModifyHandler) worldModifySocket?.off('modifyDocument', worldModifyHandler)
-  worldModifyHandler = (args: DocumentSocketResponse) => {
-    switch (args.type) {
-      case 'Combat':
-        processChanges(args, asDocumentArray(world.value?.combats))
-        triggerRef(world)
-        break
-      case 'Combatant': {
-        const combatId = args.operation.parentUuid?.split('.')?.[1]
-        const combats = asDocumentArray(world.value?.combats)
-        const idx = combats?.findIndex((c) => c._id === combatId) ?? -1
-        if (combats && idx !== -1) {
-          const combat = combats[idx] as DocumentData & { combatants?: unknown }
-          processChanges(args, asDocumentArray(combat.combatants))
-          // Replace the combat with a fresh reference. We mutate combatants in
-          // place, so `activeCombat = combats.find(c => c.active)` would otherwise
-          // recompute to the same object — and Vue 3.4+ computeds short-circuit
-          // when their value is Object.is-equal, leaving dependents (e.g. the
-          // initiative roll button) stale until a full world refresh.
-          combats[idx] = { ...combat }
-        }
-        triggerRef(world)
-        break
-      }
-      case 'ChatMessage':
-        processChanges(args, asDocumentArray(world.value?.messages))
-        // Signal the chat cache that messages changed even when the mutation is
-        // invisible to its count/tail fingerprint (in-place updates).
-        useWorldStore().bumpMessagesRevision()
-        triggerRef(world)
-        break
-    }
-  }
-  socket.on('modifyDocument', worldModifyHandler)
-  worldModifySocket = socket
-
-  if (worldUserActivityHandler)
-    worldUserActivitySocket?.off('userActivity', worldUserActivityHandler)
-  worldUserActivityHandler = (user: string, args: { targets?: string[]; active?: boolean }) => {
-    if (args.targets) {
-      logger.info('user event', user, args)
-      const { updateTargets } = useTargetHelperStore()
-      updateTargets(user, args.targets)
-    } else if (args.active) {
-      logger.info('user online', user, args)
-    }
-  }
-  socket.on('userActivity', worldUserActivityHandler)
-  worldUserActivitySocket = socket
-}
-
-// Registers purely against module-level registries (no socket capture), so
-// subscriptions are live immediately and survive socket swaps. Kept async for
-// callers that treat setup as a lifecycle step.
-export async function setupSocketListenersForActor(
-  actorId: string,
-  actor: Ref<TablemateActor | undefined>,
-  refreshMethod: () => Promise<void>
-): Promise<() => void> {
-  const removeRefresh = addRefresh(actorId, refreshMethod)
-
-  // When a GM announces presence, re-fetch any actor still waiting on live
-  // data. We re-fetch if inventory is missing (never loaded) OR the actor is
-  // flagged stale — a cached snapshot from a prior session already carries
-  // inventory, so gating on inventory alone would leave a stale sheet spinning
-  // forever when its initial request was dropped because no GM was listening.
-  const syncStatus = useSyncStatusStore()
-  const unsubListener = onTmAction(TM.LISTENER_ONLINE, () => {
-    if (!actor.value?.inventory || syncStatus.staleActors.has(actorId)) fireRefresh(actorId)
-  })
-  const unsubUpdate = onTmAction(TM.UPDATE_CHARACTER, (args) => {
-    parseActorData(actorId, actor, args)
-  })
-
-  const modifyHandler = (args: DocumentSocketResponse) => {
-    if (!actor.value) return
-    switch (args.type) {
-      case 'Actor':
-        ;(args.result as ModifyDocumentUpdate[]).forEach((result: ModifyDocumentUpdate) => {
-          if (result._id === actorId) {
-            mergeWith(actor.value, result, mergeWithArrayReset)
-            fireRefresh(actorId)
-          }
-        })
-        break
-      case 'Item':
-        if (args.operation.parentUuid === 'Actor.' + actorId) {
-          processChanges(args, asDocumentArray(actor.value.items))
-          fireRefresh(actorId)
-        }
-        break
-    }
-  }
-  const unsubModify = onActorModify(modifyHandler)
-
-  return () => {
-    unsubListener()
-    unsubUpdate()
-    unsubModify()
-    removeRefresh()
-  }
 }

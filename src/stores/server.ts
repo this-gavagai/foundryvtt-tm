@@ -1,14 +1,17 @@
 import { ref, watch } from 'vue'
 import { defineStore } from 'pinia'
-import { io, Socket } from 'socket.io-client'
+import type { Socket } from 'socket.io-client'
 import { useUserStore, rememberLoginUser, lastLoginUser } from '@/stores/user'
-import { useWorldStore } from '@/stores/world'
 import { useServerAddressStore, serverUrlCandidates } from '@/stores/serverAddress'
 import { logger } from '@/utils/utilities'
 import { TM } from '@/api/protocol'
-import { fireAllRefresh } from '@/api/characterSync'
-import { browserServerTransport } from '@/api/browserServerTransport'
-import { capacitorServerTransport } from '@/api/capacitorServerTransport'
+import {
+  emitWithRetries,
+  emitWithTimeout,
+  establishSocket,
+  getServerTransport
+} from '@/api/socketConnection'
+import { createReconnectPolicy } from '@/api/reconnectPolicy'
 import {
   JOIN_DATA_RETRY_ATTEMPTS,
   JOIN_DATA_TIMEOUT_MS,
@@ -19,106 +22,26 @@ import {
 
 export type { JoinData, JoinUser }
 
-const SOCKET_RECONNECTION_DELAY_MS = 1_000
-const SOCKET_RECONNECTION_DELAY_MAX_MS = 15_000
 const GET_SOCKET_TIMEOUT_MS = 15_000
 const PROBE_CONNECTION_TIMEOUT_MS = 3_000
 const SESSION_WATCHDOG_TIMEOUT_MS = 8_000
-// Backoff for automatic (non-user-initiated) reconnect attempts. Automatic
-// failures never surface the ServerUrlGate — the cached sheet plus the
-// reconnecting banner stay up while the store retries quietly.
-const RETRY_BACKOFF_BASE_MS = 1_000
-const RETRY_BACKOFF_MAX_MS = 15_000
 // How many times a stalled handshake with a *confirmed-valid* session is
 // repaired with a fresh socket before giving up and showing the login page
 // anyway (so the user is never stranded on a spinner by a pathological server).
 const MAX_STALLED_HANDSHAKE_RETRIES = 3
 
-function emitWithTimeout<T>(s: Socket, event: string, timeoutMs: number): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      logger.debug('TM-DIAG emit timed out', event, { id: s.id, connected: s.connected })
-      reject(new Error(`${event} timed out`))
-    }, timeoutMs)
-    s.emit(event, (data: T) => {
-      clearTimeout(timer)
-      logger.debug('TM-DIAG emit acked', event)
-      resolve(data)
-    })
-  })
-}
-
-// Re-acquire a live socket on every attempt. A cold start can swap the socket
-// out from under an in-flight request (the world-load reconnect, or socket.io's
-// own reconnection), so retrying against a single captured reference would just
-// hammer a dead socket until the whole budget is spent. Fetching the current
-// socket each time lets a retry land on the freshly established one.
-async function emitWithRetries<T>(
-  getS: () => Promise<Socket>,
-  event: string,
-  timeoutMs: number,
-  attempts: number
-): Promise<T> {
-  let lastError: unknown
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    try {
-      return await emitWithTimeout<T>(await getS(), event, timeoutMs)
-    } catch (e) {
-      lastError = e
-    }
-  }
-  throw lastError instanceof Error ? lastError : new Error(`${event} failed`)
-}
-
-function getServerTransport(isNativeMobile: boolean): ServerTransport {
-  return isNativeMobile ? capacitorServerTransport : browserServerTransport
-}
-
-// `onCreated` runs synchronously after the socket object exists but before the
-// connection is awaited, so callers can attach their event handlers (session,
-// connect, disconnect) with no window in which a fast server could emit into
-// the void.
-async function establishSocket(
-  url: URL,
-  transport: ServerTransport,
-  keepAlive = false,
-  onCreated?: (socket: Socket) => void
-) {
-  return new Promise<Socket>((resolve, reject) => {
-    const socketIoUrl = new URL('./socket.io', url)
-    Promise.resolve(transport.readSession(url))
-      .then((sid) => {
-        const socket = io(socketIoUrl.origin, {
-          upgrade: false,
-          path: socketIoUrl.pathname,
-          // Mobile networks (cellular ↔ wifi handoffs, NAT-binding expirations,
-          // PWA backgrounding) need an effectively unbounded retry budget — a few
-          // failed attempts is normal and giving up strands the user with a dead
-          // socket. delayMax: 15s caps the backoff so reconnection doesn't drift
-          // into minutes on prolonged outages.
-          reconnection: keepAlive,
-          reconnectionDelay: SOCKET_RECONNECTION_DELAY_MS,
-          reconnectionAttempts: Infinity,
-          reconnectionDelayMax: SOCKET_RECONNECTION_DELAY_MAX_MS,
-          transports: ['websocket'],
-          withCredentials: true,
-          ...(sid ? { query: { session: sid } } : {})
-        })
-        onCreated?.(socket)
-        const onConnect = () => {
-          socket.off('connect_error', onError)
-          resolve(socket)
-        }
-        const onError = (e: Error) => {
-          socket.off('connect', onConnect)
-          socket.disconnect()
-          reject(e)
-        }
-        socket.once('connect', onConnect)
-        socket.once('connect_error', onError)
-      })
-      .catch(reject)
-  })
+// Session lifecycle hooks, registered by the connection wiring
+// (composables/serverEventWiring.ts). Inverting these keeps this store free of
+// world/character-sync imports — previously a server ⇄ world module cycle.
+// Hooks run synchronously inside the session handler at the exact points the
+// inlined calls used to run, so their ordering guarantees are unchanged.
+export interface SessionHooks {
+  // Fired before the new userId is committed, when the session's user differs
+  // from the previous one (server switch, or re-login as someone else).
+  onUserChanged?: () => void
+  // Fired after sessionReady flips true — on every session handshake, initial
+  // auth and every reconnect re-auth alike.
+  onSessionAuthenticated?: () => void
 }
 
 export const useServerStore = defineStore('server', () => {
@@ -132,15 +55,22 @@ export const useServerStore = defineStore('server', () => {
   const connectionError = ref('')
   let connectionId = 0
   let sessionWatchdog: ReturnType<typeof setTimeout> | undefined
-  // Automatic-retry machinery. `retryTimer` is the pending backoff wake-up,
-  // `reconnectInFlight` makes requestReconnect idempotent so the several
-  // repair triggers (resume probe, login page, watchdog, online event) can't
-  // stack teardowns on top of each other.
-  let retryTimer: ReturnType<typeof setTimeout> | undefined
-  let consecutiveFailures = 0
   let stalledHandshakeRetries = 0
   let lastAttemptOrigin: string | undefined
-  let reconnectInFlight: Promise<void> | undefined
+
+  let sessionHooks: SessionHooks = {}
+  function registerSessionHooks(hooks: SessionHooks) {
+    sessionHooks = hooks
+  }
+
+  // Automatic-repair machinery (backoff, in-flight dedup) lives in the policy;
+  // it drives connectToServer through the injected callback, and reads the
+  // active URL live so a server the user has left can never be reconnected to.
+  const reconnectPolicy = createReconnectPolicy({
+    activeUrl: () => activeServerUrl(),
+    connect: (url) => connectToServer(url)
+  })
+  const requestReconnect = reconnectPolicy.requestReconnect
 
   function currentTransport(): ServerTransport {
     return getServerTransport(useServerAddressStore().isNativeMobile)
@@ -158,12 +88,6 @@ export const useServerStore = defineStore('server', () => {
     if (sessionWatchdog === undefined) return
     clearTimeout(sessionWatchdog)
     sessionWatchdog = undefined
-  }
-
-  function clearRetryTimer() {
-    if (retryTimer === undefined) return
-    clearTimeout(retryTimer)
-    retryTimer = undefined
   }
 
   function disconnectCurrentSocket() {
@@ -185,11 +109,10 @@ export const useServerStore = defineStore('server', () => {
   // when the user cancels a stuck connection to return to the ServerUrlGate.
   function disconnect() {
     connectionId += 1
-    clearRetryTimer()
+    reconnectPolicy.cancel()
     disconnectCurrentSocket()
     needsLogin.value = false
     connectionError.value = ''
-    consecutiveFailures = 0
     stalledHandshakeRetries = 0
     lastAttemptOrigin = undefined
   }
@@ -327,48 +250,6 @@ export const useServerStore = defineStore('server', () => {
     )
   }
 
-  // The single automatic-repair entry point. Every trigger that wants a fresh
-  // socket (resume probe, online event, login page's empty user list, stalled
-  // handshakes) funnels through here: if a reconnect is already in flight the
-  // existing attempt is shared instead of stacking a competing teardown, and a
-  // pending backoff retry is promoted to "now".
-  function requestReconnect(): Promise<void> {
-    if (reconnectInFlight) return reconnectInFlight
-    const url = activeServerUrl()
-    if (!url) {
-      logger.debug('TM-DIAG requestReconnect: no active server url')
-      return Promise.resolve()
-    }
-    clearRetryTimer()
-    logger.debug('TM-DIAG requestReconnect: re-establishing socket')
-    const attempt = connectToServer(url)
-      .then(() => undefined)
-      // A failed automatic attempt has already scheduled its own backoff retry.
-      .catch(() => undefined)
-      .finally(() => {
-        reconnectInFlight = undefined
-      })
-    reconnectInFlight = attempt
-    return attempt
-  }
-
-  // Exponential backoff for automatic reconnects; runs until a connect
-  // succeeds, the user picks a different server, or disconnect() cancels it.
-  function scheduleReconnect() {
-    if (retryTimer !== undefined) return
-    consecutiveFailures += 1
-    const delay = Math.min(
-      RETRY_BACKOFF_BASE_MS * 2 ** (consecutiveFailures - 1),
-      RETRY_BACKOFF_MAX_MS
-    )
-    logger.debug('TM-DIAG scheduling reconnect', { attempt: consecutiveFailures, delayMs: delay })
-    retryTimer = setTimeout(() => {
-      retryTimer = undefined
-      if (!activeServerUrl()) return
-      void requestReconnect()
-    }, delay)
-  }
-
   // The session event didn't arrive in time. A timeout alone doesn't mean the
   // user is logged out — Foundry may still be loading a world, or the socket's
   // Foundry-side handshake may have silently stalled (the classic "restart the
@@ -446,25 +327,22 @@ export const useServerStore = defineStore('server', () => {
       if (args?.userId) {
         const userStore = useUserStore()
         // A different user id means we've switched servers (or re-logged as
-        // someone else). The last-known world belongs to the previous user,
-        // so drop it before flipping sessionReady — otherwise a sheet would
-        // briefly check the new user against the old actor's ownership and
-        // flash "userDoesNotOwnCharacter" until the fresh world arrives. A
-        // same-user reconnect keeps the stale world for a seamless resume.
+        // someone else). Let the wiring drop identity-scoped state (the
+        // last-known world) before sessionReady flips; a same-user reconnect
+        // skips this for a seamless resume. See serverEventWiring.
         if (userStore.getUserId() && userStore.getUserId() !== args.userId) {
-          useWorldStore().clearWorld()
+          sessionHooks.onUserChanged?.()
         }
         userStore.setUserId(args.userId)
         sessionReady.value = true
         needsLogin.value = false
         stalledHandshakeRetries = 0
-        consecutiveFailures = 0
-        // Re-fire downstream refreshes on every session handshake. This
-        // covers both initial auth and post-reconnect re-auth — including
-        // socket.io's internal soft reconnects, which don't replace
-        // socket.value and therefore don't trip App.vue's socket-watch.
-        void useWorldStore().refreshWorldNow()
-        fireAllRefresh()
+        reconnectPolicy.resetBackoff()
+        // Downstream refreshes (world data, character re-sync) fire on every
+        // session handshake via the wiring hook — including socket.io's
+        // internal soft reconnects, which don't replace socket.value and
+        // therefore don't trip useSession's socket-watch.
+        sessionHooks.onSessionAuthenticated?.()
       } else {
         sessionReady.value = false
         handleAuthFailure()
@@ -483,7 +361,7 @@ export const useServerStore = defineStore('server', () => {
   ): Promise<Socket> {
     connectionError.value = ''
     const thisConnectionId = ++connectionId
-    clearRetryTimer()
+    reconnectPolicy.clearRetryTimer()
     disconnectCurrentSocket()
     sessionReady.value = false
     // A different server invalidates the previous one's verified login state
@@ -491,7 +369,7 @@ export const useServerStore = defineStore('server', () => {
     if (lastAttemptOrigin !== url.origin) {
       needsLogin.value = false
       stalledHandshakeRetries = 0
-      consecutiveFailures = 0
+      reconnectPolicy.resetBackoff()
     }
     lastAttemptOrigin = url.origin
 
@@ -509,7 +387,7 @@ export const useServerStore = defineStore('server', () => {
       logger.debug('TM-INIT: establishing socket connection')
       socket.value = newSocket
       isConnected.value = true
-      consecutiveFailures = 0
+      reconnectPolicy.resetBackoff()
       return newSocket
     } catch (e) {
       logger.debug('Error loading socket: ', e)
@@ -520,7 +398,7 @@ export const useServerStore = defineStore('server', () => {
         if (opts.userInitiated) {
           connectionError.value = e instanceof Error ? e.message : 'Could not connect to server'
         } else {
-          scheduleReconnect()
+          reconnectPolicy.scheduleRetry()
         }
       }
       throw e
@@ -543,6 +421,7 @@ export const useServerStore = defineStore('server', () => {
     getSocket,
     login,
     getJoinData,
-    rememberedLoginUser
+    rememberedLoginUser,
+    registerSessionHooks
   }
 })
