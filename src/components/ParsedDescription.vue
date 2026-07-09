@@ -17,7 +17,7 @@ import {
   activeRollFromFoundryClickTarget,
   compendiumUuidFromClickTarget
 } from '@/utils/foundryHtml'
-import { normalizeFoundryAssetUrls } from '@/utils/chatHtml'
+import { normalizeFoundryAssetUrls, sanitizeChatHtml } from '@/utils/chatHtml'
 import { useInjectedActor } from '@/composables/injectKeys'
 import type { TablemateCharacter } from '@/types/character-types'
 import CompendiumItemModal from '@/components/CompendiumItemModal.vue'
@@ -119,7 +119,13 @@ function selectableRollsFromEnrichedHtml(html: string | undefined): string | und
 }
 
 const parsedText = computed(() => {
-  const text = applyPf2eNotation(props.text, {
+  // Description HTML arrives over the socket as raw Foundry content
+  // (system.description.value on items/spells/feats) — the same trust level
+  // as chat messages, which are sanitized before rendering. Sanitize the
+  // source *before* enrichment so everything injected downstream (roll
+  // inputs/labels, enriched anchors) is app-generated and the sanitizer's
+  // allowlist doesn't need to admit form elements.
+  const text = applyPf2eNotation(sanitizeChatHtml(props.text), {
     action: (slug, params, label) =>
       pf2eActionHtml({
         slug,

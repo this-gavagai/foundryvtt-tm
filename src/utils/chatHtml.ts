@@ -62,7 +62,11 @@ const TAG_ATTRS: Record<string, Set<string>> = {
 }
 
 function hasSafeUrl(value: string): boolean {
-  return /^(?:https?:|\/|#)/i.test(value) || !/^[a-z][a-z0-9+.-]*:/i.test(value)
+  // Browsers strip C0 controls and spaces when parsing URLs, so " javascript:x"
+  // and "java\tscript:x" still execute; run the scheme check on that same
+  // normalized form or those spellings read as "no scheme" and pass.
+  const normalized = value.replace(/[\u0000-\u0020]/g, '')
+  return /^(?:https?:|\/|#)/i.test(normalized) || !/^[a-z][a-z0-9+.-]*:/i.test(normalized)
 }
 
 export function normalizeFoundryAssetUrls(html: string | null | undefined): string | undefined {
@@ -111,9 +115,9 @@ export function sanitizeChatHtml(
     template.content.querySelectorAll('[data-visibility="gm"]').forEach((el) => el.remove())
   }
 
-  template.content.querySelectorAll('script, style, iframe, object, embed, link, meta').forEach(
-    (element) => element.remove()
-  )
+  template.content
+    .querySelectorAll('script, style, iframe, object, embed, link, meta')
+    .forEach((element) => element.remove())
 
   Array.from(template.content.querySelectorAll('*')).forEach((element) => {
     if (!ALLOWED_TAGS.has(element.tagName)) {
