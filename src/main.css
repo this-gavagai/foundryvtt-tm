@@ -539,19 +539,31 @@ html.tm-native [data-part='panel-scroll'] {
     }
   }
 
-  --animate-nat-one: nat-one-droop 1.2s ease-out;
-  @keyframes nat-one-droop {
+  --animate-nat-one: nat-one-shrivel 1.4s ease-in-out;
+  @keyframes nat-one-shrivel {
     0% {
-      transform: translateY(0) rotate(0deg);
+      transform: translateY(0) scale(1) rotate(0deg);
     }
-    35% {
-      transform: translateY(4px) rotate(-8deg) scale(0.92);
+    10% {
+      transform: translateY(2px) scale(0.85, 0.8) rotate(-7deg);
+    }
+    20% {
+      transform: translateY(4px) scale(0.68, 0.6) rotate(6deg);
+    }
+    30% {
+      transform: translateY(5px) scale(0.55, 0.45) rotate(-4deg);
+    }
+    38% {
+      transform: translateY(5px) scale(0.55, 0.45) rotate(2deg);
+    }
+    45% {
+      transform: translateY(5px) scale(0.55, 0.45) rotate(0deg);
     }
     70% {
-      transform: translateY(3px) rotate(-5deg) scale(0.95);
+      transform: translateY(5px) scale(0.55, 0.45) rotate(0deg);
     }
     100% {
-      transform: translateY(0) rotate(0deg) scale(1);
+      transform: translateY(0) scale(1) rotate(0deg);
     }
   }
 
