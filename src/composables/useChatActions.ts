@@ -7,6 +7,19 @@ import type { ChatRollSummary } from '@/utils/chatRollSummary'
 import { messageIsReroll, originItemId, type ChatMessageData } from '@/composables/useChatMessages'
 import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 
+// The full action surface, passed down to ChatMessageRow/ChatRollCard as a
+// single prop so the pending-set state stays owned by the overlay's instance.
+export type ChatActions = ReturnType<typeof useChatActions>
+
+// Everything needed to launch (and later execute) a reroll: assembled by the
+// roll card that owns the context, consumed by the overlay's reroll modal.
+export interface ChatRerollRequest {
+  message: ChatMessageData
+  roll: ChatRollSummary
+  rollIndex: number
+  mode: ChatRollRerollMode
+}
+
 interface ShieldState {
   itemId: Ref<string | null | undefined>
   hp: {
