@@ -15,7 +15,12 @@ export default defineConfigWithVueTs(
       '**/coverage/**',
       '**/libs/**',
       '**/tablemate/**',
-      '**/tabula/**'
+      '**/tabula/**',
+      // Generated native-platform and build trees — not ours to lint.
+      '**/android/**',
+      '**/ios/**',
+      '**/.gradle/**',
+      '**/build/**'
     ]
   },
   pluginVue.configs['flat/essential'],
