@@ -28,6 +28,7 @@ import {
 } from '@/api/internal'
 import { addRefresh, fireAllRefresh, fireRefresh, parseActorData } from '@/api/characterSync'
 import { processChanges } from '@/api/documents'
+import { resetLoadPriority } from '@/api/loadPriority'
 import { TM } from '@/api/protocol'
 
 // The store-facing half of the socket wiring: subscribes to the api layer's
@@ -100,6 +101,11 @@ export function registerServerEventWiring() {
   // the world context is changing, so a pending refresh for the prior load
   // is stale.
   onSocketSwap(() => clearTimeout(progressTimer))
+
+  // A socket swap starts a fresh cold-load ordering cycle, so an in-app
+  // server switch gets the active-character → world → others sequencing
+  // instead of gates that already resolved on the previous server.
+  onSocketSwap(resetLoadPriority)
 }
 
 let worldModifyUnsub: (() => void) | null = null

@@ -1,5 +1,4 @@
 import { computed, type Ref } from 'vue'
-import type { RawModifier } from '@7h3laughingman/pf2e-types'
 import type { TablemateCharacter } from '@/types/character-types'
 import type { Field } from './helpers'
 import type { RequestResolutionArgs } from '@/types/api-types'
@@ -42,7 +41,7 @@ export function useCharacterSkillActions(
           cost: action.cost,
           traits: action.traits,
           modifier: stat.modifier,
-          modifiers: makeModifiers(stat.modifiers as unknown as RawModifier[]) ?? [],
+          modifiers: makeModifiers(stat.modifiers) ?? [],
           description: action.description,
           // Rolls through PF2e's native action (the 'skillAction' handler runs
           // game.pf2e.actions.get(slug).use(...)), so the card, traits, target

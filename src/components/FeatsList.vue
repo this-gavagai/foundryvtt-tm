@@ -3,28 +3,34 @@ import type { Feat } from '@/composables/character'
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useInjectedCharacter } from '@/composables/injectKeys'
-import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
-import { useTraitLabels } from '@/composables/useTraitLabels'
 
-import InfoModal from '@/components/InfoModal.vue'
+import DetailInfoModal from '@/components/DetailInfoModal.vue'
 import FeatsListItem from './FeatsListItem.vue'
 import SheetSection from '@/components/widgets/SheetSection.vue'
-import ParsedDescription from './ParsedDescription.vue'
 
 const { t } = useI18n()
-const infoModal = ref()
-const description = ref()
+const detailModal = ref<InstanceType<typeof DetailInfoModal>>()
 const character = useInjectedCharacter()
 const { feats, ancestry, background, classType, rollOptionLabels } = character
-const { labelFor: rarityLabel } = useTraitLabels()
 
 const viewedFeatId = ref<string | undefined>()
 const viewedFeat = computed(() => feats.value?.find((f) => f._id === viewedFeatId.value))
-const inlineRolls = useRollsFromActiveRoll(computed(() => description.value?.activeRoll))
 
 function viewFeat(clickedFeatId: string) {
   viewedFeatId.value = clickedFeatId
-  infoModal.value.open()
+  detailModal.value?.open()
+}
+
+// The level a feat was taken at, for display order: prefer the explicit
+// `taken` level, then the slot suffix in its location (e.g. "class-4"), then
+// the feat's own level.
+function featSortLevel(feat: Feat): number {
+  return (
+    feat?.system?.level?.taken ??
+    Number(feat?.system?.location?.value?.split('-')?.[1]) ??
+    feat?.system?.level?.value ??
+    0
+  )
 }
 
 const featCategories = computed(() => {
@@ -65,6 +71,11 @@ const featCategories = computed(() => {
       categories['xdy_ancestryparagon']?.feats.push(f)
     else categories['bonus']?.feats.push(f)
   })
+  // Sort here (the arrays are freshly built each recompute) rather than in the
+  // template, which re-sorted — and mutated — every category on every render.
+  Object.values(categories).forEach((category) =>
+    category.feats.sort((a, b) => featSortLevel(a) - featSortLevel(b))
+  )
   return categories
 })
 </script>
@@ -80,55 +91,12 @@ const featCategories = computed(() => {
         :key="slug"
       >
         <ul>
-          <li
-            v-for="feat in category.feats.sort(
-              (a, b) =>
-                (a?.system?.level?.taken ??
-                  Number(a?.system?.location?.value?.split('-')?.[1]) ??
-                  a?.system?.level?.value ??
-                  0) -
-                (b?.system?.level?.taken ??
-                  Number(b?.system?.location?.value?.split('-')?.[1]) ??
-                  b?.system?.level?.value ??
-                  0)
-            )"
-            :key="feat._id"
-          >
+          <li v-for="feat in category.feats" :key="feat._id">
             <FeatsListItem :featId="feat._id" @clicked="viewFeat" />
           </li>
         </ul>
       </SheetSection>
     </div>
-    <Teleport to="#modals">
-      <InfoModal
-        ref="infoModal"
-        :itemId="viewedFeat?._id"
-        :imageUrl="viewedFeat?.img"
-        :traits="viewedFeat?.system?.traits?.value"
-        :rolls="inlineRolls"
-      >
-        <template #title>
-          {{ viewedFeat?.name }}
-        </template>
-        <template #description>
-          <div class="flex gap-1">
-            <span v-if="viewedFeat?.system?.level?.value" class="inline-block">
-              {{ $t('common.level') }} {{ viewedFeat?.system?.level?.value ?? '-' }}
-            </span>
-            <span v-if="viewedFeat?.system?.traits?.rarity" class="inline-block">
-              <span class="text-sm">({{ rarityLabel(viewedFeat?.system.traits.rarity) }})</span>
-            </span>
-          </div>
-        </template>
-        <template #body>
-          <ParsedDescription
-            ref="description"
-            :text="viewedFeat?.system?.description.value"
-            :labels="rollOptionLabels"
-            :itemId="viewedFeat?._id ?? undefined"
-          />
-        </template>
-      </InfoModal>
-    </Teleport>
+    <DetailInfoModal ref="detailModal" :item="viewedFeat" :labels="rollOptionLabels" />
   </div>
 </template>

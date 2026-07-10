@@ -1,44 +1,32 @@
 <script setup lang="ts">
 import type { Action } from '@/composables/character'
-import type { ActiveRoll } from '@/types/api-types'
-import { computed, nextTick, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useInjectedFamiliar } from '@/composables/injectKeys'
-import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
 import ViewableItem from '@/components/widgets/ViewableItem.vue'
-import InfoModal from '@/components/InfoModal.vue'
-import ParsedDescription from '@/components/ParsedDescription.vue'
+import DetailInfoModal from '@/components/DetailInfoModal.vue'
 
 const familiar = useInjectedFamiliar()
 const { actions, rollOptionLabels } = familiar
 
-const infoModal = ref()
-const description = ref<InstanceType<typeof ParsedDescription>>()
-const activeRoll = ref<ActiveRoll>()
-const inlineRolls = useRollsFromActiveRoll(activeRoll)
+const detailModal = ref<InstanceType<typeof DetailInfoModal>>()
 
 const actionViewedId = ref<string | undefined>()
 const actionViewed = computed(() => actions.value?.find((a) => a._id === actionViewedId.value))
 
 function viewAction(action: Action) {
-  activeRoll.value = undefined
   actionViewedId.value = action._id
-  infoModal.value.open()
-  nextTick(() => description.value?.initRolls())
+  detailModal.value?.open()
 }
 </script>
 <template>
   <div data-component="FamiliarActionsList" class="px-6 py-4">
     <section data-section="abilities" class="[&:not(:has(li))]:hidden">
-      <h3 class="text-[1.1rem] font-normal tracking-[0.01em] pb-2 mb-[0.6rem]">Abilities</h3>
+      <h3 class="mb-[0.6rem] pb-2 text-[1.1rem] font-normal tracking-[0.01em]">Abilities</h3>
       <ul class="space-y-1">
         <li v-for="action in actions" :key="action._id">
-          <ViewableItem
-            scale="firm"
-            class="inline-block"
-            @click="viewAction(action)"
-          >
+          <ViewableItem scale="firm" class="inline-block" @click="viewAction(action)">
             {{ action.name }}
             <ActionIcons
               v-if="action.actionType !== 'passive'"
@@ -58,30 +46,10 @@ function viewAction(action: Action) {
     <div v-if="actions?.length === 0" class="py-8 text-center text-sm text-gray-500">
       No familiar abilities.
     </div>
-    <Teleport to="#modals">
-      <InfoModal
-        ref="infoModal"
-        :imageUrl="actionViewed?.img"
-        :itemId="actionViewed?._id"
-        :traits="actionViewed?.system?.traits?.value"
-        :rolls="inlineRolls"
-      >
-        <template #title>
-          {{ actionViewed?.name }}
-        </template>
-        <template #description>
-          <span v-if="actionViewed?.actionType === 'passive'">Passive</span>
-        </template>
-        <template #body>
-          <ParsedDescription
-            ref="description"
-            :text="actionViewed?.system?.description.value"
-            :labels="rollOptionLabels"
-            :itemId="actionViewed?._id ?? undefined"
-            @update:activeRoll="activeRoll = $event"
-          />
-        </template>
-      </InfoModal>
-    </Teleport>
+    <DetailInfoModal ref="detailModal" :item="actionViewed" :labels="rollOptionLabels">
+      <template #description>
+        <span v-if="actionViewed?.actionType === 'passive'">Passive</span>
+      </template>
+    </DetailInfoModal>
   </div>
 </template>

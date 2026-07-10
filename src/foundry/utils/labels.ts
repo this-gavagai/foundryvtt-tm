@@ -3,14 +3,13 @@
 // IWR entries) into display-ready strings for the client.
 
 import type { CharacterPF2e, ItemPF2e, RawModifier } from '@7h3laughingman/pf2e-types'
+import type { SpellcastingModifierData } from '@/types/character-types'
 
 // Narrowed shadow over the ambient CONFIG. pf2e-types' ConfigPF2e is wider
 // but doesn't expose the field shapes we read here.
 declare const CONFIG: { PF2E: Record<string, unknown> }
 
-export function localizeProficiencyLabels(
-  system: CharacterPF2e['system']
-): Record<string, string> {
+export function localizeProficiencyLabels(system: CharacterPF2e['system']): Record<string, string> {
   const WEAPON_CATEGORIES = ['unarmed', 'simple', 'martial', 'advanced']
   const cfg = CONFIG.PF2E as {
     weaponCategories: Record<string, string>
@@ -23,10 +22,7 @@ export function localizeProficiencyLabels(
     slug.replace(/(?:^|-)(\w)/g, (_m, c: string) => c.toUpperCase())
   const labels: Record<string, string> = {}
 
-  const attacks = (system?.proficiencies?.attacks ?? {}) as Record<
-    string,
-    { label?: string }
-  >
+  const attacks = (system?.proficiencies?.attacks ?? {}) as Record<string, { label?: string }>
   for (const [key, data] of Object.entries(attacks)) {
     const group = /^weapon-group-([-\w]+)$/.exec(key)
     const base = /^weapon-base-([-\w]+)$/.exec(key)
@@ -46,24 +42,16 @@ export function localizeProficiencyLabels(
     if (label) labels[key] = label
   }
 
-  const defenses = (system?.proficiencies?.defenses ?? {}) as Record<
-    string,
-    { label?: string }
-  >
+  const defenses = (system?.proficiencies?.defenses ?? {}) as Record<string, { label?: string }>
   for (const [key, data] of Object.entries(defenses)) {
     if (key in cfg.armorCategories) {
-      labels[key] = game.i18n.localize(
-        'PF2E.Actor.Character.Proficiency.Defense.' + toPascal(key)
-      )
+      labels[key] = game.i18n.localize('PF2E.Actor.Character.Proficiency.Defense.' + toPascal(key))
     } else if (data.label) {
       labels[key] = game.i18n.localize(data.label)
     }
   }
 
-  const classDCs = (system?.proficiencies?.classDCs ?? {}) as Record<
-    string,
-    { label?: string }
-  >
+  const classDCs = (system?.proficiencies?.classDCs ?? {}) as Record<string, { label?: string }>
   for (const [key, data] of Object.entries(classDCs)) {
     if (data.label) labels[key] = game.i18n.localize(data.label)
   }
@@ -199,16 +187,15 @@ export function localizeIWRLabels(actor: CharacterPF2e): Record<string, string> 
 // serialization helpers since it's a sibling of the label localizers.
 export function buildSpellcastingModifiers(
   actor: CharacterPF2e
-): Record<string, object> {
+): Record<string, SpellcastingModifierData> {
   type SpellcastingStatistic = {
     mod?: number
     check?: { modifiers?: RawModifier[] }
   }
-  const result: Record<string, object> = {}
+  const result: Record<string, SpellcastingModifierData> = {}
   for (const item of actor.items) {
     if (item.type !== 'spellcastingEntry') continue
-    const stat = (item as ItemPF2e<CharacterPF2e> & { statistic?: SpellcastingStatistic })
-      .statistic
+    const stat = (item as ItemPF2e<CharacterPF2e> & { statistic?: SpellcastingStatistic }).statistic
     result[item._id ?? ''] = {
       mod: stat?.mod ?? 0,
       modifiers: (stat?.check?.modifiers ?? []).map((m: RawModifier) => ({

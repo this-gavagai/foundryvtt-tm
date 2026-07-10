@@ -21,7 +21,10 @@ export default defineConfigWithVueTs(
   pluginVue.configs['flat/essential'],
   {
     rules: {
-      'vue/no-multiple-template-root': 'error'
+      'vue/no-multiple-template-root': 'error',
+      // Underscore-prefixed parameters are positional placeholders (kept to
+      // preserve argument order at call sites) — don't flag them as unused.
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
     }
   },
   vueTsConfigs.recommended,

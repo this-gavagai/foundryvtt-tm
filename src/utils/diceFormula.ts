@@ -63,7 +63,6 @@ function tryEvalMath(expr: string): number | null {
   const stripped = expr.replace(/\b(floor|ceil|round|abs|max|min)\b/g, '')
   if (!/^[\d\s+\-*/.(),]+$/.test(stripped)) return null
   try {
-    // eslint-disable-next-line no-new-func
     const result = new Function(...Object.keys(SAFE_MATH_FNS), `"use strict"; return (${expr})`)(
       ...Object.values(SAFE_MATH_FNS)
     )

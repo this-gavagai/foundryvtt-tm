@@ -25,25 +25,39 @@ function deferred(): { promise: Promise<void>; resolve: () => void } {
   return { promise, resolve }
 }
 
-const activeRequested = deferred()
-const worldRequested = deferred()
+// One gating cycle per connection: the deferreds and the fallback window are
+// bundled so an in-app server switch can start a fresh cycle (see
+// resetLoadPriority) instead of reusing gates that resolved on the previous
+// server and would let every sheet fire in parallel.
+interface LoadCycle {
+  activeRequested: ReturnType<typeof deferred>
+  worldRequested: ReturnType<typeof deferred>
+  priorReady: Promise<void>
+}
 
-// Resolves once both higher-priority requests are out, or after the fallback
-// timeout — whichever comes first. Background sheets await this before their
-// initial emit.
-const priorReady: Promise<void> = Promise.race([
-  Promise.all([activeRequested.promise, worldRequested.promise]).then(() => undefined),
-  new Promise<void>((resolve) => setTimeout(resolve, FALLBACK_TIMEOUT_MS))
-])
+function newLoadCycle(): LoadCycle {
+  const activeRequested = deferred()
+  const worldRequested = deferred()
+  // Resolves once both higher-priority requests are out, or after the fallback
+  // timeout — whichever comes first. Background sheets await this before their
+  // initial emit.
+  const priorReady: Promise<void> = Promise.race([
+    Promise.all([activeRequested.promise, worldRequested.promise]).then(() => undefined),
+    new Promise<void>((resolve) => setTimeout(resolve, FALLBACK_TIMEOUT_MS))
+  ])
+  return { activeRequested, worldRequested, priorReady }
+}
+
+let cycle = newLoadCycle()
 
 /** Called by the active character's sheet once its initial request is sent. */
 export function markActiveRequestSent(): void {
-  activeRequested.resolve()
+  cycle.activeRequested.resolve()
 }
 
 /** Called by the world store once the world request has been emitted. */
 export function markWorldRequestSent(): void {
-  worldRequested.resolve()
+  cycle.worldRequested.resolve()
 }
 
 /**
@@ -52,5 +66,16 @@ export function markWorldRequestSent(): void {
  * are out (or after a fallback timeout).
  */
 export function waitForPriorRequests(): Promise<void> {
-  return priorReady
+  return cycle.priorReady
+}
+
+/**
+ * Start a fresh gating cycle. Called on every socket swap (server switch,
+ * requestReconnect): a swap that precedes remounting sheets is exactly a new
+ * cold load, and one that doesn't is harmless — post-reconnect refreshes never
+ * await the gate. Anything still awaiting the old cycle keeps its old promise
+ * (with its own fallback timer), so nothing can hang across a reset.
+ */
+export function resetLoadPriority(): void {
+  cycle = newLoadCycle()
 }

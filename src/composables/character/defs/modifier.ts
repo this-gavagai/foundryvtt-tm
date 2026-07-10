@@ -1,5 +1,6 @@
 import type { Maybe } from '@/composables/character/helpers'
 import type { RawDamageDice, RawModifier } from '@7h3laughingman/pf2e-types'
+import type { SerializedModifier } from '@/types/character-types'
 
 export interface Modifier {
   slug: Maybe<string>
@@ -20,8 +21,11 @@ export interface Modifier {
   critical: Maybe<boolean>
 }
 type RawDamageModifier = RawModifier | RawDamageDice
+// Accept both live PF2e modifiers (world data that never left Foundry) and the
+// trimmed SerializedModifier shape that statistics arrive as over the wire.
+type ModifierLike = RawDamageModifier | SerializedModifier
 
-export function makeModifiers(set: RawDamageModifier[] | undefined): Modifier[] | undefined {
+export function makeModifiers(set: ModifierLike[] | undefined): Modifier[] | undefined {
   if (!set) return undefined
   return set?.map((m) => ({
     slug: m.slug,
@@ -29,7 +33,7 @@ export function makeModifiers(set: RawDamageModifier[] | undefined): Modifier[] 
     modifier: 'modifier' in m ? m.modifier : undefined,
     diceNumber: 'diceNumber' in m ? m.diceNumber : undefined,
     dieSize: 'dieSize' in m ? (m.dieSize ?? undefined) : undefined,
-    damageType: m.damageType ?? undefined,
+    damageType: 'damageType' in m ? (m.damageType ?? undefined) : undefined,
     enabled: m.enabled,
     hideIfDisabled: m.hideIfDisabled,
     type: 'type' in m ? m.type : undefined,

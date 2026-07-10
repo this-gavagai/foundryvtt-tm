@@ -185,8 +185,7 @@ function serializeSkillActions(
   // example, sit in the "exploration" group — so we key off the statistic being
   // a skill rather than the section. This also excludes actions that roll a
   // save/perception (their statistic slug won't be in here).
-  const actorSkills =
-    (actor as ActorPF2e & { skills?: Record<string, LiveStatistic> }).skills ?? {}
+  const actorSkills = (actor as ActorPF2e & { skills?: Record<string, LiveStatistic> }).skills ?? {}
   // Lore skills (Warfare Lore, etc.) are valid Recall Knowledge statistics, but
   // PF2e's preview never appends them (see its own "append relevant statistic
   // replacements" TODO). Splice them in so Recall Knowledge shows on lores too.
@@ -199,8 +198,7 @@ function serializeSkillActions(
   for (const action of registry.values()) {
     if (!action?.statistic) continue
     const declared = Array.isArray(action.statistic) ? action.statistic : [action.statistic]
-    const candidates =
-      action.slug === 'recall-knowledge' ? [...declared, ...loreSlugs] : declared
+    const candidates = action.slug === 'recall-knowledge' ? [...declared, ...loreSlugs] : declared
     const actionModifiers = Array.isArray(action.modifiers) ? action.modifiers : []
     const rollOptions = Array.isArray(action.rollOptions)
       ? action.rollOptions
@@ -456,16 +454,23 @@ export async function getCharacterDetails(
       }
     }
   }
-  const skillActionDescs = isCharacter ? await getSkillActionDescriptions() : new Map<string, string>()
+  const skillActionDescs = isCharacter
+    ? await getSkillActionDescriptions()
+    : new Map<string, string>()
   logger.debug('TABLEMATE: now sending ' + actor.name)
   return {
     action: TM.UPDATE_CHARACTER,
     actorId: actor._id ?? '',
-    actor: actorPayload,
-    system: systemPayload,
+    // The wire types state the client-facing contract (prepared-actor shapes
+    // that parseActorData merges into TablemateActor). What actually crosses
+    // the socket is serialized source data (toObject() + the prepared-value
+    // overlays above), which the upstream instance types can't describe —
+    // these casts are the single seam where the two shape families meet.
+    actor: actorPayload as unknown as UpdateCharacterDetailsArgs['actor'],
+    system: systemPayload as unknown as UpdateCharacterDetailsArgs['system'],
     languages,
     proficiencyLabels,
-    inventory,
+    inventory: inventory as unknown as UpdateCharacterDetailsArgs['inventory'],
     activeRules: [...activeRules],
     elementalBlasts: cleanBlasts,
     spellcastingModifiers,

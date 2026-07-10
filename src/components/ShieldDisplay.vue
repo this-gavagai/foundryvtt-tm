@@ -18,7 +18,7 @@ interface FormData {
 }
 
 const character = useInjectedCharacter()
-const { _id: characterId, _actor, effects } = character
+const { _actor, effects } = character
 const { hardness, ac: shAC, itemId: shItemId } = character.shield
 const { current: shpCurrent, max: shpMax, brokenThreshold: shpBT } = character.shield.hp
 

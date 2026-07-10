@@ -1,4 +1,4 @@
-import type { ApplyDamageArgs, ApplyDamageMode } from '@/types/api-types'
+import type { ApplyDamageArgs } from '@/types/api-types'
 import { getGame, getCharacter, makeAck } from '../utils/foundry'
 
 type DamageRollLike = {

@@ -5,8 +5,14 @@ import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import { useServerStore } from '@/stores/server'
 import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { markWorldRequestSent } from '@/api/loadPriority'
+import { emitWithTimeout } from '@/api/socketConnection'
 
 const REFRESH_DEBOUNCE_MS = 2000
+// World payloads can be large and the GM serializes them behind actor
+// requests, so give the ack a generous budget before giving up. A timed-out
+// request is simply dropped — the next refresh trigger (session handshake,
+// world-progress trailing edge, visibility resume) retries.
+const WORLD_REQUEST_TIMEOUT_MS = 15_000
 
 export const useWorldStore = defineStore('world', () => {
   const world = shallowRef<GamePF2e | undefined>(undefined)
@@ -46,15 +52,22 @@ export const useWorldStore = defineStore('world', () => {
       return
     }
 
-    socket.emit('world', (r: GamePF2e) => {
+    const request = emitWithTimeout<GamePF2e>(socket, 'world', WORLD_REQUEST_TIMEOUT_MS)
+    // The world request is now out — release any non-active character sheets
+    // gated behind it so they slot in after the world (see loadPriority).
+    markWorldRequestSent()
+
+    try {
+      const r = await request
       // A valid world response always includes a userId. An empty object or
       // a response without userId means the world is not active.
       worldStatus.setWorldAuthenticated(!!r?.userId)
       if (r?.userId) world.value = r
-    })
-    // The world request is now out — release any non-active character sheets
-    // gated behind it so they slot in after the world (see loadPriority).
-    markWorldRequestSent()
+    } catch {
+      // No ack before the timeout. Don't downgrade worldAuthenticated — the
+      // last-known state stays visible until a healthy round-trip arrives
+      // (same policy as the socket-acquisition failure above).
+    }
   }
 
   // Fire an immediate world refresh so worldLoaded gets a definite value
@@ -77,5 +90,12 @@ export const useWorldStore = defineStore('world', () => {
     world.value = undefined
   }
 
-  return { world, messagesRevision, bumpMessagesRevision, refreshWorld, refreshWorldNow, clearWorld }
+  return {
+    world,
+    messagesRevision,
+    bumpMessagesRevision,
+    refreshWorld,
+    refreshWorldNow,
+    clearWorld
+  }
 })

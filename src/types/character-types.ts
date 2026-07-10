@@ -18,7 +18,9 @@ import type {
 
 export type SpellcastingModifierData = {
   mod: number
-  modifiers: RawModifier[]
+  // Trimmed on the wire (see buildSpellcastingModifiers Foundry-side) — the
+  // full RawModifier never crosses the socket.
+  modifiers: SerializedModifier[]
 }
 
 // The trimmed modifier shape sent over the wire (see serializeModifier in the

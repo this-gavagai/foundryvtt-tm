@@ -1,6 +1,11 @@
 import type { ItemPF2e, RawDamageDice, RawModifier } from '@7h3laughingman/pf2e-types'
 import type { TM } from '@/api/protocol'
-import type { SkillActionData } from '@/types/character-types'
+import type {
+  SkillActionData,
+  SpellcastingModifierData,
+  TablemateActor,
+  TablemateActorExtras
+} from '@/types/character-types'
 
 export type ModuleEventArgs =
   | AcknowledgementArgs
@@ -69,14 +74,21 @@ export interface UpdateCharacterDetailsArgs {
   // handles wire serialization itself; the Foundry side runs a single
   // JSON.parse(JSON.stringify(...)) pass on elementalBlasts only, to break
   // its circular `actor` reference and shrink nested `item` references.
-  actor: object
-  system: object
+  //
+  // `actor`/`system` state the CLIENT-facing contract: the shapes
+  // parseActorData merges into its TablemateActor model. The Foundry side
+  // serializes from source data (actor.toObject() plus prepared-value
+  // overlays), which the upstream instance types can't describe, so it casts
+  // once at its return site — the single seam where source and prepared
+  // shapes meet.
+  actor: Partial<TablemateActor>
+  system: Partial<TablemateActor['system']>
   languages: string[]
   proficiencyLabels: Record<string, string>
-  inventory: object
+  inventory: TablemateActorExtras['inventory']
   activeRules: string[]
-  elementalBlasts: object | null
-  spellcastingModifiers: Record<string, object>
+  elementalBlasts: TablemateActorExtras['elementalBlasts'] | null
+  spellcastingModifiers: Record<string, SpellcastingModifierData>
   rollOptionLabels: Record<string, string>
   traitLabels: Record<string, string>
   iwrLabels: Record<string, string>
