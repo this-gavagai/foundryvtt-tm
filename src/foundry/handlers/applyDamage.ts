@@ -31,15 +31,20 @@ export async function foundryApplyDamage(args: ApplyDamageArgs) {
   const source = getGame()
   const actor = getCharacter(source, args.characterId)
 
+  // Failures throw: the dispatch's central catch turns them into error acks,
+  // so the app shows "action failed" instead of a tap that silently did
+  // nothing (most commonly: the actor has no token on the active scene).
   const message = source.messages.get(args.messageId)
-  if (!message) return makeAck(args)
+  if (!message) throw new Error(`Chat message ${args.messageId} not found`)
 
   const rollIndex = args.rollIndex ?? 0
   const roll = message.rolls?.[rollIndex] as DamageRollLike | undefined
-  if (!roll || typeof roll.total !== 'number') return makeAck(args)
+  if (!roll || typeof roll.total !== 'number') {
+    throw new Error(`No damage roll at index ${rollIndex}`)
+  }
 
   const token = actor.getActiveTokens(true, true)[0]
-  if (!token) return makeAck(args)
+  if (!token) throw new Error(`${actor.name} has no token on the active scene`)
 
   switch (args.mode) {
     case 'half':

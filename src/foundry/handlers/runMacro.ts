@@ -1,6 +1,5 @@
 import type { MacroPF2e, TokenPF2e } from '@7h3laughingman/pf2e-types'
 import type { RunMacroArgs } from '@/types/api-types'
-import { logger } from '@/utils/utilities'
 import { getGame, makeAck } from '../utils/foundry'
 import { getRequestingUser, userCanRunMacro } from '../utils/permissions'
 
@@ -31,29 +30,23 @@ export async function foundryRunMacro(args: RunMacroArgs) {
     .map((t) => t.object as TokenPF2e | null)
     .filter((t): t is TokenPF2e => !!t)
 
+  // Failures throw: the dispatch's central catch turns them into error acks,
+  // so the app rejects instead of believing a failed macro ran.
   const macro = await fromUuid(args.macroUuid)
-  if (!macro) {
-    logger.warn(`TM-RUN-MACRO: could not resolve ${args.macroUuid}`)
-    return makeAck(args)
-  }
+  if (!macro) throw new Error(`Macro not found: ${args.macroUuid}`)
 
   // The macro runs with GM privileges, so gate it on the requesting user's own
   // permission to execute it — otherwise any player could run GM utility macros
   // (delete tokens, award XP, edit scenes) by UUID.
   const user = getRequestingUser(source, args.userId)
   if (!user || !userCanRunMacro(macro, user)) {
-    logger.warn(`TM-RUN-MACRO: ${args.userId} may not execute ${args.macroUuid}`)
-    return makeAck(args)
+    throw new Error(`User may not execute macro ${args.macroUuid}`)
   }
 
-  try {
-    await macro.execute({
-      actor,
-      token: tokens[0],
-      targets: tokens
-    } as Parameters<MacroPF2e['execute']>[0])
-  } catch (e) {
-    logger.warn('TM-RUN-MACRO: macro threw', args.macroUuid, e)
-  }
+  await macro.execute({
+    actor,
+    token: tokens[0],
+    targets: tokens
+  } as Parameters<MacroPF2e['execute']>[0])
   return makeAck(args)
 }

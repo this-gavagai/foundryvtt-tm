@@ -129,16 +129,25 @@ export async function foundrySendChatMessage(args: SendChatMessageArgs) {
 export async function foundryRerollChatRoll(args: RerollChatRollArgs) {
   const source = getGame()
   const actor = getCharacter(source, args.characterId)
+
+  // The app gates these same conditions client-side (canTriggerRollAction),
+  // so reaching one here means the app's state has drifted from the world's —
+  // throw so the dispatch answers with an error ack and the app shows the
+  // failure instead of pretending the reroll happened.
   const message = source.messages.get(args.messageId) as RerollableChatMessage | undefined
-  if (!message) return makeAck(args)
+  if (!message) throw new Error(`Chat message ${args.messageId} not found`)
 
   const messageActorId = message.actor?._id ?? message.speaker?.actor
-  if (messageActorId !== actor._id) return makeAck(args)
+  if (messageActorId !== actor._id) throw new Error('Roll belongs to a different actor')
 
   const roll = message.rolls?.[args.rollIndex ?? 0]
-  if (roll?.class && roll.class !== 'CheckRoll') return makeAck(args)
-  if (message.isRerollable === false) return makeAck(args)
-  if (args.mode === 'hero-point' && actor.heroPoints.value <= 0) return makeAck(args)
+  if (roll?.class && roll.class !== 'CheckRoll') {
+    throw new Error('Only check rolls can be rerolled')
+  }
+  if (message.isRerollable === false) throw new Error('This roll can no longer be rerolled')
+  if (args.mode === 'hero-point' && actor.heroPoints.value <= 0) {
+    throw new Error(`${actor.name} has no hero points available`)
+  }
 
   // PF2e's rerollFromMessage creates the replacement message internally without
   // returning it; capture it by request uuid (see chatCapture.ts) rather than

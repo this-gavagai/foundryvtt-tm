@@ -1,6 +1,5 @@
 import type { MacroPF2e, TokenPF2e } from '@7h3laughingman/pf2e-types'
 import type { RunActionableArgs } from '@/types/api-types'
-import { logger } from '@/utils/utilities'
 import { getGame, makeAck } from '../utils/foundry'
 import { getRequestingUser, userCanRunMacro } from '../utils/permissions'
 
@@ -49,26 +48,19 @@ type ToolbeltActionableFlag = { linked?: string; macro?: string }
 export async function foundryRunActionable(args: RunActionableArgs) {
   const source = getGame()
   const actor = source.actors.get(args.characterId, { strict: true })
+  // Failures throw: the dispatch's central catch turns them into error acks,
+  // so the app rejects instead of believing a failed action ran.
   const item = actor.items.get(args.itemId)
-  if (!item) {
-    logger.warn(`TM-RUN-ACTIONABLE: no item ${args.itemId} on ${actor.name}`)
-    return makeAck(args)
-  }
+  if (!item) throw new Error(`Item ${args.itemId} not found on ${actor.name}`)
 
   const tbFlag = (
     item.flags as Record<string, { actionable?: ToolbeltActionableFlag } | undefined>
   )?.['pf2e-toolbelt']?.actionable
   const macroUuid = tbFlag?.linked ?? tbFlag?.macro
-  if (!macroUuid) {
-    logger.warn(`TM-RUN-ACTIONABLE: no actionable macro on ${item.name}`)
-    return makeAck(args)
-  }
+  if (!macroUuid) throw new Error(`No actionable macro on ${item.name}`)
 
   const macro = await fromUuid(macroUuid)
-  if (!macro) {
-    logger.warn(`TM-RUN-ACTIONABLE: could not resolve macro ${macroUuid}`)
-    return makeAck(args)
-  }
+  if (!macro) throw new Error(`Macro not found: ${macroUuid}`)
 
   // The macro executes with GM privileges. The item is owned by the requester,
   // but its toolbelt flag could point at a macro they can't run themselves
@@ -76,8 +68,7 @@ export async function foundryRunActionable(args: RunActionableArgs) {
   // permission — same check as runMacro.
   const requestingUser = getRequestingUser(source, args.userId)
   if (!requestingUser || !userCanRunMacro(macro, requestingUser)) {
-    logger.warn(`TM-RUN-ACTIONABLE: ${args.userId} may not execute ${macroUuid}`)
-    return makeAck(args)
+    throw new Error(`User may not execute macro ${macroUuid}`)
   }
 
   const tokenDocs = (args.targets ?? [])
@@ -137,6 +128,8 @@ export async function foundryRunActionable(args: RunActionableArgs) {
     writable: true,
     enumerable: true
   })
+  // A throwing macro propagates to the central dispatch catch (error ack);
+  // only the user.character restoration must survive the unwind.
   try {
     await macro.execute({
       actor,
@@ -147,8 +140,6 @@ export async function foundryRunActionable(args: RunActionableArgs) {
       use,
       cancel
     } as Parameters<MacroPF2e['execute']>[0])
-  } catch (e) {
-    logger.warn('TM-RUN-ACTIONABLE: macro threw', macroUuid, e)
   } finally {
     if (ownCharDescriptor) {
       Object.defineProperty(user, 'character', ownCharDescriptor)
