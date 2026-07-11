@@ -64,28 +64,15 @@ const pixelStore = usePixelDiceStore()
 const { pixels, pairError } = storeToRefs(pixelStore)
 const { bluetoothSupported, pairDie, reconnectDie, forgetDie } = pixelStore
 
-// Per-die icon — match the paired Pixel's actual die type to the in-app SVG.
-// Variants of d6 (pipped/fudge) share the d6 icon; d00 (percentile) reuses
-// d10 since we don't have a d100 asset. Unknown falls back to d20.
-import d4Icon from '@/assets/icons/d4.svg'
-import d6Icon from '@/assets/icons/d6.svg'
-import d8Icon from '@/assets/icons/d8.svg'
-import d10Icon from '@/assets/icons/d10.svg'
-import d12Icon from '@/assets/icons/d12.svg'
-import d20Icon from '@/assets/icons/d20.svg'
-const dieTypeIcons: Record<string, string> = {
-  d4: d4Icon,
-  d6: d6Icon,
-  d6pipped: d6Icon,
-  d6fudge: d6Icon,
-  d8: d8Icon,
-  d10: d10Icon,
-  d00: d10Icon,
-  d12: d12Icon,
-  d20: d20Icon
-}
+// Per-die icon — match the paired Pixel's actual die type to the shared
+// faces-keyed icon map. The SDK's die types are strings like 'd6pipped' and
+// 'd6fudge' (parseInt reads their face count through the suffix); 'd00'
+// (percentile) maps to the d100 entry, which reuses the d10 asset. Unknown
+// falls back to d20.
+import { dieIcons } from '@/utils/chatRollDisplay'
 function iconForDieType(dieType: string): string {
-  return dieTypeIcons[dieType] ?? d20Icon
+  if (dieType === 'd00') return dieIcons[100]
+  return dieIcons[Number.parseInt(dieType.slice(1), 10)] ?? dieIcons[20]
 }
 
 // Detail modal — only opened when 2+ dice are paired; with a single die the
@@ -289,15 +276,19 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                       </div>
                     </li>
                     <li class="-mt-4">
-                      <div
+                      <!-- Stays clickable when Bluetooth is unsupported so the
+                           tap still surfaces pairError as feedback. -->
+                      <button
+                        type="button"
                         class="text-lg font-bold"
                         :class="
                           bluetoothSupported ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
                         "
+                        :aria-disabled="!bluetoothSupported"
                         @click="pairDie"
                       >
                         {{ $t('sideMenu.pairPixelDice') }}
-                      </div>
+                      </button>
                       <div v-if="pairError" class="text-sm text-red-700">
                         {{ $t(pairError) }}
                       </div>
@@ -307,9 +298,11 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                          the X rather than replacing it. -->
                       <ul v-if="pixels.length === 1">
                         <li class="flex items-center gap-1">
-                          <img :src="iconForDieType(pixels[0].dieType)" class="h-6 w-6" />
-                          <div
-                            class="grow cursor-pointer"
+                          <img :src="iconForDieType(pixels[0].dieType)" alt="" class="h-6 w-6" />
+                          <button
+                            type="button"
+                            :title="$t('sideMenu.reconnectDie')"
+                            class="grow cursor-pointer text-left"
                             :class="[
                               pixels[0].status === 'disconnected' ? 'line-through' : '',
                               pixels[0].status === 'connecting' ? 'opacity-50' : ''
@@ -323,12 +316,16 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                               ]"
                               >{{ pixels[0].batteryLevel }}%</span
                             >)
-                          </div>
+                          </button>
                           <Spinner v-if="pixels[0].status === 'connecting'" class="h-6 w-6" />
-                          <XMarkIcon
-                            class="w-4 cursor-pointer"
+                          <button
+                            type="button"
+                            class="cursor-pointer"
+                            :aria-label="$t('sideMenu.forgetDie')"
                             @click="forgetDie(pixels[0].systemId)"
-                          />
+                          >
+                            <XMarkIcon class="w-4" aria-hidden="true" />
+                          </button>
                         </li>
                       </ul>
                       <!-- 2+ dice: just icons in a compact strip; clicking any
@@ -338,21 +335,25 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                         v-else-if="pixels.length > 1"
                         class="flex flex-wrap items-center gap-2 pt-1"
                       >
-                        <div
+                        <button
                           v-for="p in pixels"
                           :key="p.systemId"
+                          type="button"
                           class="relative cursor-pointer"
+                          :aria-label="p.name"
                           @click="pixelDiceModal.open()"
                         >
                           <img
                             :src="iconForDieType(p.dieType)"
+                            alt=""
+                            aria-hidden="true"
                             class="h-6 w-6"
                             :class="[
                               p.status === 'disconnected' ? 'opacity-40' : '',
                               p.status === 'connecting' ? 'animate-pulse opacity-60' : ''
                             ]"
                           />
-                        </div>
+                        </button>
                       </div>
                     </li>
                     <li>
@@ -485,9 +486,11 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
     <Modal ref="pixelDiceModal" :title="$t('sideMenu.pixelDice')">
       <ul class="flex flex-col gap-2 py-2">
         <li v-for="p in pixels" :key="p.systemId" class="flex items-center gap-2">
-          <img :src="iconForDieType(p.dieType)" class="h-6 w-6" />
-          <div
-            class="grow cursor-pointer"
+          <img :src="iconForDieType(p.dieType)" alt="" class="h-6 w-6" />
+          <button
+            type="button"
+            :title="$t('sideMenu.reconnectDie')"
+            class="grow cursor-pointer text-left"
             :class="[
               p.status === 'disconnected' ? 'line-through' : '',
               p.status === 'connecting' ? 'opacity-50' : ''
@@ -498,9 +501,16 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
             (<span :class="[p.batteryLevel < 30 ? 'text-red-700' : 'text-green-700']"
               >{{ p.batteryLevel }}%</span
             >)
-          </div>
+          </button>
           <Spinner v-if="p.status === 'connecting'" class="h-6 w-6" />
-          <XMarkIcon class="w-4 cursor-pointer" @click="forgetDie(p.systemId)" />
+          <button
+            type="button"
+            class="cursor-pointer"
+            :aria-label="$t('sideMenu.forgetDie')"
+            @click="forgetDie(p.systemId)"
+          >
+            <XMarkIcon class="w-4" aria-hidden="true" />
+          </button>
         </li>
       </ul>
     </Modal>

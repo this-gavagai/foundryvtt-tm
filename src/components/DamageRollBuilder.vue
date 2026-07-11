@@ -5,20 +5,14 @@ import { useInjectedActor } from '@/composables/injectKeys'
 import { makeDiceResults, parseDamageFormulaDice } from '@/utils/diceFormula'
 import InfoModal from '@/components/InfoModal.vue'
 import Toggle from '@/components/widgets/ToggleWidget.vue'
+import ChipToggle from '@/components/widgets/ChipToggle.vue'
+import ModifierStepper from '@/components/widgets/ModifierStepper.vue'
+import { dieIcons } from '@/utils/chatRollDisplay'
 import type { Roll } from '@/types/roll-types'
 
-import d4Icon from '@/assets/icons/d4.svg'
-import d6Icon from '@/assets/icons/d6.svg'
-import d8Icon from '@/assets/icons/d8.svg'
-import d10Icon from '@/assets/icons/d10.svg'
-import d12Icon from '@/assets/icons/d12.svg'
-
-const dieIcons: Record<string, string> = {
-  d4: d4Icon,
-  d6: d6Icon,
-  d8: d8Icon,
-  d10: d10Icon,
-  d12: d12Icon
+// Shared faces-keyed icon map; die sizes here are 'd4'..'d12' strings.
+function dieIcon(size: string): string {
+  return dieIcons[Number(size.slice(1))]
 }
 
 const { t } = useI18n()
@@ -243,35 +237,43 @@ defineExpose({ open, close })
               <span v-if="group.type !== 'untyped'">{{ group.type }}</span>
               <span v-if="group.persistent" :title="$t('sideMenu.persistent')">●</span>
             </span>
-            <span
+            <button
               v-for="(chip, ci) in group.chips"
               :key="ci + ':' + chip.size + ':' + chip.category"
+              type="button"
+              :title="$t('common.remove')"
               class="inline-flex cursor-pointer items-center gap-1 rounded border border-gray-400 bg-gray-100 px-2 py-1 text-sm whitespace-nowrap text-gray-900 select-none active:bg-gray-300"
               @click="removeChip(gi, ci)"
             >
               <span>{{ chip.count }}{{ chip.size }}</span>
               <span v-if="chip.category === 'precision'" :title="$t('sideMenu.precision')">◆</span>
               <span v-if="chip.category === 'splash'" :title="$t('sideMenu.splash')">✦</span>
-            </span>
+            </button>
             <!-- Flat modifier chip -->
-            <span
+            <button
               v-if="group.flat !== 0"
+              type="button"
+              :title="$t('common.remove')"
               class="inline-flex cursor-pointer items-center rounded border border-gray-400 bg-gray-100 px-2 py-1 text-sm font-medium whitespace-nowrap text-gray-900 tabular-nums select-none active:bg-gray-300"
               @click="clearGroupFlat(group)"
-              >{{ group.flat > 0 ? '+' + group.flat : group.flat }}</span
             >
+              {{ group.flat > 0 ? '+' + group.flat : group.flat }}
+            </button>
           </div>
           <span v-if="!groups.length" class="text-sm text-gray-500 italic">
             {{ $t('sideMenu.damageEmpty') }}
           </span>
-          <span
+          <button
             v-if="groups.length"
+            type="button"
+            data-part="damage-clear-all"
             :title="$t('sideMenu.clear')"
+            :aria-label="$t('sideMenu.clear')"
             class="ml-auto cursor-pointer px-1 text-xl leading-none text-gray-500 select-none hover:text-gray-800 active:text-gray-900"
             @click="clearAll"
           >
             ×
-          </span>
+          </button>
         </div>
 
         <!-- Formula preview -->
@@ -283,15 +285,15 @@ defineExpose({ open, close })
             {{ $t('sideMenu.damageType') }}
           </h4>
           <div data-part="damage-types" class="mt-1 flex flex-wrap gap-1">
-            <span
+            <ChipToggle
               v-for="dt in DAMAGE_TYPES"
               :key="dt"
-              :data-active="activeType === dt ? '' : undefined"
-              class="inline-block cursor-pointer rounded border border-gray-400 bg-gray-100 px-2 py-1 text-xs whitespace-nowrap text-gray-900 capitalize select-none active:bg-gray-300 data-active:border-blue-700 data-active:bg-blue-600 data-active:text-white"
-              @click="activeType = dt"
+              :active="activeType === dt"
+              class="capitalize"
+              @toggle="activeType = dt"
             >
               {{ dt }}
-            </span>
+            </ChipToggle>
           </div>
         </div>
 
@@ -314,15 +316,16 @@ defineExpose({ open, close })
             {{ $t('sideMenu.addDie') }}
           </h4>
           <div data-part="damage-dice" class="mt-1 flex flex-wrap gap-1">
-            <span
+            <button
               v-for="d in DICE"
               :key="d"
+              type="button"
               class="inline-flex cursor-pointer items-center gap-1 rounded border border-gray-400 bg-gray-100 px-2 py-2 text-sm font-medium text-gray-900 select-none active:bg-gray-300"
               @click="addDie(d)"
             >
-              <img :src="dieIcons[d]" :alt="d" class="h-6 w-6" />
+              <img :src="dieIcon(d)" alt="" aria-hidden="true" class="h-6 w-6" />
               <span>+{{ d }}</span>
-            </span>
+            </button>
           </div>
         </div>
 
@@ -331,29 +334,12 @@ defineExpose({ open, close })
           <h4 class="text-xs tracking-wide text-gray-600 uppercase">
             {{ $t('sideMenu.modifier') }}
           </h4>
-          <div data-part="modifier-buttons" class="mt-1 flex flex-wrap items-center gap-1">
-            <span
-              v-for="step in [-5, -1, 1, 5]"
-              :key="step"
-              data-part="modifier-step"
-              class="inline-block cursor-pointer rounded border border-gray-400 bg-gray-100 px-2 py-1 text-xs font-medium whitespace-nowrap text-gray-900 select-none active:bg-gray-300"
-              @click="addFlatModifier(step)"
-              >{{ step > 0 ? '+' + step : step }}</span
-            >
-            <span
-              v-if="currentGroupFlat !== 0"
-              data-part="modifier-value"
-              class="ml-1 min-w-6 text-center text-sm font-medium tabular-nums"
-              >{{ currentGroupFlat > 0 ? '+' + currentGroupFlat : currentGroupFlat }}</span
-            >
-            <span
-              v-if="currentGroupFlat !== 0"
-              data-part="modifier-clear"
-              class="cursor-pointer text-xs select-none"
-              @click="addFlatModifier(-currentGroupFlat)"
-              >✕</span
-            >
-          </div>
+          <ModifierStepper
+            class="mt-1"
+            :value="currentGroupFlat"
+            @step="addFlatModifier"
+            @clear="addFlatModifier(-currentGroupFlat)"
+          />
         </div>
       </div>
     </template>

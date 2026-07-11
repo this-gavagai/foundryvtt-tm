@@ -1,14 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import Modal from './ModalBox.vue'
+import { dieIcons } from '@/utils/chatRollDisplay'
 import type { RequestResolutionArgs } from '@/types/api-types'
-
-import d4Icon from '@/assets/icons/d4.svg'
-import d6Icon from '@/assets/icons/d6.svg'
-import d8Icon from '@/assets/icons/d8.svg'
-import d10Icon from '@/assets/icons/d10.svg'
-import d12Icon from '@/assets/icons/d12.svg'
-import d20Icon from '@/assets/icons/d20.svg'
 
 const modal = ref<InstanceType<typeof Modal>>()
 const result = ref<RequestResolutionArgs | null | undefined>()
@@ -25,24 +19,13 @@ interface DisplayDie {
 
 const rollDice = computed(() => (roll.value?.dice ?? []) as unknown as DisplayDie[])
 
-const dieIcons: Record<number, string> = {
-  4: d4Icon,
-  6: d6Icon,
-  8: d8Icon,
-  10: d10Icon,
-  12: d12Icon,
-  20: d20Icon
-}
-
 function dieIconForFaces(faces: number) {
   return dieIcons[faces]
 }
 
 const singleD20Result = computed(() => {
   if (roll.value?.isSecret) return null
-  const d20Results = rollDice.value
-    .filter((die) => die.faces === 20)
-    .flatMap((die) => die.results)
+  const d20Results = rollDice.value.filter((die) => die.faces === 20).flatMap((die) => die.results)
   return d20Results.length === 1 ? d20Results[0] : null
 })
 

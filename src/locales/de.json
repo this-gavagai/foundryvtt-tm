@@ -328,6 +328,8 @@
     "compendium": "Kompendium",
     "targetingProxy": "Ziel-Stellvertreter",
     "pairPixelDice": "Pixel-Würfel koppeln",
+    "reconnectDie": "Würfel neu verbinden",
+    "forgetDie": "Würfel entfernen",
     "pixelDice": "Pixel-Würfel",
     "language": "Sprache",
     "theme": "Thema",
@@ -367,6 +369,7 @@
   },
   "infoModal": {
     "systemIcon": "PF2e-Systemsymbol",
+    "sendToChat": "In den Chat senden",
     "dieImage": "d{faces}-Bild",
     "clearDicePending": "Klicken, um ausstehende Würfelwürfe zu löschen"
   }

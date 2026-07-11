@@ -290,6 +290,8 @@
     "compendium": "Compendios",
     "targetingProxy": "Proxy de objetivo",
     "pairPixelDice": "Vincular dado Pixel",
+    "reconnectDie": "Reconectar dado",
+    "forgetDie": "Olvidar dado",
     "pixelDice": "Dados Pixel",
     "language": "Idioma",
     "theme": "Tema",
@@ -326,6 +328,7 @@
   },
   "infoModal": {
     "systemIcon": "Icono del sistema de PF2e",
+    "sendToChat": "Enviar al chat",
     "dieImage": "Imagen de d{faces}",
     "clearDicePending": "Haz clic para limpiar las tiradas de dados físicos pendientes"
   }

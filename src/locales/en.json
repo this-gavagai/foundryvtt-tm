@@ -332,6 +332,8 @@
     "changeCharacter": "Change Character",
     "targetingProxy": "Targeting Proxy",
     "pairPixelDice": "Pair Pixel Die",
+    "reconnectDie": "Reconnect die",
+    "forgetDie": "Forget die",
     "pixelDice": "Pixel Dice",
     "language": "Language",
     "theme": "Theme",
@@ -379,6 +381,7 @@
   },
   "infoModal": {
     "systemIcon": "PF2e system icon",
+    "sendToChat": "Send to chat",
     "dieImage": "d{faces} image",
     "clearDicePending": "Click to clear pending physical-die rolls"
   }

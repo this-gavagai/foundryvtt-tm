@@ -373,33 +373,34 @@ body.theme-moonlit {
        / chip box / trait tokens. The base utility classes (bg-gray-100,
        border-gray-400, text-gray-900) sit too bright on the dark panel; tone
        them down to the same chrome used by the face-picker and the
-       strike/spell action buttons. */
+       strike/spell action buttons. The chits are real <button>s (ChipToggle
+       and friends), so the element selectors target buttons. */
     :is([data-component='DamageRollBuilder'], [data-component='RollCheckBuilder']) {
       [data-part='damage-chips'] {
         background-color: oklch(15% 0.018 258);
         border-color: oklch(32% 0.022 258);
       }
-      [data-part='damage-chips'] [data-part='damage-group'] > span,
-      [data-part='damage-types'] > span,
-      [data-part='damage-dice'] > span,
-      [data-part='check-traits'] > span,
+      [data-part='damage-chips'] [data-part='damage-group'] > button,
+      [data-part='damage-types'] > button,
+      [data-part='damage-dice'] > button,
+      [data-part='check-traits'] > button,
       [data-part='modifier-step'] {
         background-color: oklch(22% 0.022 258);
         border-color: oklch(32% 0.022 258);
         color: oklch(82% 0.01 258);
         transition: background-color 120ms;
       }
-      [data-part='damage-chips'] [data-part='damage-group'] > span:hover,
-      [data-part='damage-types'] > span:hover,
-      [data-part='damage-dice'] > span:hover,
-      [data-part='check-traits'] > span:hover,
+      [data-part='damage-chips'] [data-part='damage-group'] > button:hover,
+      [data-part='damage-types'] > button:hover,
+      [data-part='damage-dice'] > button:hover,
+      [data-part='check-traits'] > button:hover,
       [data-part='modifier-step']:hover {
         background-color: oklch(28% 0.025 258);
       }
-      [data-part='damage-chips'] [data-part='damage-group'] > span:active,
-      [data-part='damage-types'] > span:active,
-      [data-part='damage-dice'] > span:active,
-      [data-part='check-traits'] > span:active,
+      [data-part='damage-chips'] [data-part='damage-group'] > button:active,
+      [data-part='damage-types'] > button:active,
+      [data-part='damage-dice'] > button:active,
+      [data-part='check-traits'] > button:active,
       [data-part='modifier-step']:active {
         background-color: oklch(34% 0.028 258);
       }
@@ -413,15 +414,25 @@ body.theme-moonlit {
         color: oklch(68% 0.08 258);
       }
       /* Selected damage type / selected check trait */
-      [data-part='damage-types'] > span[data-active],
-      [data-part='check-traits'] > span[data-active] {
+      [data-part='damage-types'] > button[data-active],
+      [data-part='check-traits'] > button[data-active] {
         background-color: oklch(45% 0.13 255);
         border-color: oklch(50% 0.13 255);
         color: oklch(96% 0.01 255);
       }
-      [data-part='damage-types'] > span[data-active]:hover,
-      [data-part='check-traits'] > span[data-active]:hover {
+      [data-part='damage-types'] > button[data-active]:hover,
+      [data-part='check-traits'] > button[data-active]:hover {
         background-color: oklch(50% 0.13 255);
+      }
+      /* Clear-all × in the chip box: the component's gray-500/gray-800 hover
+         pair darkens on hover, which reads backwards on the dark panel —
+         brighten instead. */
+      [data-part='damage-clear-all'] {
+        color: oklch(55% 0.01 258);
+        &:hover,
+        &:active {
+          color: oklch(78% 0.01 258);
+        }
       }
       /* Flat modifier value and clear button in the modifier row */
       [data-part='modifier-value'] {

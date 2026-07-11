@@ -349,27 +349,27 @@ body.theme-sunny {
         background-color: oklch(97% 0.01 95);
         border-color: var(--color-border);
       }
-      [data-part='damage-chips'] [data-part='damage-group'] > span,
-      [data-part='damage-types'] > span,
-      [data-part='damage-dice'] > span,
-      [data-part='check-traits'] > span,
+      [data-part='damage-chips'] [data-part='damage-group'] > button,
+      [data-part='damage-types'] > button,
+      [data-part='damage-dice'] > button,
+      [data-part='check-traits'] > button,
       [data-part='modifier-step'] {
         background-color: oklch(95% 0.012 95);
         border-color: var(--color-border);
         color: var(--color-text);
         transition: background-color 120ms;
       }
-      [data-part='damage-chips'] [data-part='damage-group'] > span:hover,
-      [data-part='damage-types'] > span:hover,
-      [data-part='damage-dice'] > span:hover,
-      [data-part='check-traits'] > span:hover,
+      [data-part='damage-chips'] [data-part='damage-group'] > button:hover,
+      [data-part='damage-types'] > button:hover,
+      [data-part='damage-dice'] > button:hover,
+      [data-part='check-traits'] > button:hover,
       [data-part='modifier-step']:hover {
         background-color: oklch(91% 0.02 80);
       }
-      [data-part='damage-chips'] [data-part='damage-group'] > span:active,
-      [data-part='damage-types'] > span:active,
-      [data-part='damage-dice'] > span:active,
-      [data-part='check-traits'] > span:active,
+      [data-part='damage-chips'] [data-part='damage-group'] > button:active,
+      [data-part='damage-types'] > button:active,
+      [data-part='damage-dice'] > button:active,
+      [data-part='check-traits'] > button:active,
       [data-part='modifier-step']:active {
         background-color: oklch(87% 0.03 80);
       }
@@ -380,14 +380,14 @@ body.theme-sunny {
       [data-part='damage-chips'] [data-part='damage-group-tag'] {
         color: oklch(55% 0.06 285);
       }
-      [data-part='damage-types'] > span[data-active],
-      [data-part='check-traits'] > span[data-active] {
+      [data-part='damage-types'] > button[data-active],
+      [data-part='check-traits'] > button[data-active] {
         background-color: var(--color-primary);
         border-color: var(--color-primary);
         color: var(--color-on-primary);
       }
-      [data-part='damage-types'] > span[data-active]:hover,
-      [data-part='check-traits'] > span[data-active]:hover {
+      [data-part='damage-types'] > button[data-active]:hover,
+      [data-part='check-traits'] > button[data-active]:hover {
         background-color: var(--color-primary-hover);
       }
       [data-part='modifier-value'] {

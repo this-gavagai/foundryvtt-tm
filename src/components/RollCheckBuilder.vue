@@ -5,6 +5,8 @@ import { useInjectedActor } from '@/composables/injectKeys'
 import { freeRoll } from '@/api/actionRpc'
 import InfoModal from '@/components/InfoModal.vue'
 import Toggle from '@/components/widgets/ToggleWidget.vue'
+import ChipToggle from '@/components/widgets/ChipToggle.vue'
+import ModifierStepper from '@/components/widgets/ModifierStepper.vue'
 import type { Roll } from '@/types/roll-types'
 import type { RequestResolutionArgs } from '@/types/api-types'
 
@@ -226,16 +228,15 @@ defineExpose({ open, close })
           <div v-if="group.rollers.length" class="mt-3">
             <h4 class="text-xs tracking-wide text-gray-600 uppercase">{{ group.label }}</h4>
             <div data-part="check-traits" class="mt-1 flex flex-wrap gap-1">
-              <span
+              <ChipToggle
                 v-for="r in group.rollers"
                 :key="r.slug"
-                :data-active="activeSlug === r.slug ? '' : undefined"
-                class="inline-block cursor-pointer rounded border border-gray-400 bg-gray-100 px-2 py-1 text-xs whitespace-nowrap text-gray-900 select-none active:bg-gray-300 data-active:border-blue-700 data-active:bg-blue-600 data-active:text-white"
+                :active="activeSlug === r.slug"
                 :class="{ italic: r.italic }"
-                @click="toggleStat(r.slug)"
+                @toggle="toggleStat(r.slug)"
               >
                 {{ r.label }}
-              </span>
+              </ChipToggle>
             </div>
           </div>
         </template>
@@ -249,15 +250,15 @@ defineExpose({ open, close })
             {{ $t('rollCheck.traits') }}
           </h4>
           <div data-part="check-traits" class="mt-1 flex flex-wrap gap-1">
-            <span
+            <ChipToggle
               v-for="trait in TRAIT_OPTIONS"
               :key="trait"
-              :data-active="selectedTraits.has(trait) ? '' : undefined"
-              class="inline-block cursor-pointer rounded border border-gray-400 bg-gray-100 px-2 py-1 text-xs whitespace-nowrap text-gray-900 capitalize select-none active:bg-gray-300 data-active:border-blue-700 data-active:bg-blue-600 data-active:text-white"
-              @click="toggleTrait(trait)"
+              :active="selectedTraits.has(trait)"
+              class="capitalize"
+              @toggle="toggleTrait(trait)"
             >
               {{ $t('rollCheck.trait.' + trait) }}
-            </span>
+            </ChipToggle>
           </div>
         </div>
 
@@ -267,29 +268,12 @@ defineExpose({ open, close })
           <h4 class="text-xs tracking-wide text-gray-600 uppercase">
             {{ $t('sideMenu.modifier') }}
           </h4>
-          <div data-part="modifier-buttons" class="mt-1 flex flex-wrap items-center gap-1">
-            <span
-              v-for="step in [-5, -1, 1, 5]"
-              :key="step"
-              data-part="modifier-step"
-              class="inline-block cursor-pointer rounded border border-gray-400 bg-gray-100 px-2 py-1 text-xs font-medium whitespace-nowrap text-gray-900 select-none active:bg-gray-300"
-              @click="flatModifier += step"
-              >{{ step > 0 ? '+' + step : step }}</span
-            >
-            <span
-              v-if="flatModifier !== 0"
-              data-part="modifier-value"
-              class="ml-1 min-w-6 text-center text-sm font-medium tabular-nums"
-              >{{ flatModifier > 0 ? '+' + flatModifier : flatModifier }}</span
-            >
-            <span
-              v-if="flatModifier !== 0"
-              data-part="modifier-clear"
-              class="cursor-pointer text-xs select-none"
-              @click="flatModifier = 0"
-              >✕</span
-            >
-          </div>
+          <ModifierStepper
+            class="mt-1"
+            :value="flatModifier"
+            @step="flatModifier += $event"
+            @clear="flatModifier = 0"
+          />
         </div>
       </div>
     </template>

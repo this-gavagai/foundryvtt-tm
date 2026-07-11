@@ -329,6 +329,8 @@
     "compendium": "Библиотеки",
     "targetingProxy": "Прокси нацеливания",
     "pairPixelDice": "Сопрячь Pixel Die",
+    "reconnectDie": "Переподключить кубик",
+    "forgetDie": "Забыть кубик",
     "pixelDice": "Pixel Dice",
     "language": "Язык",
     "theme": "Тема",
@@ -371,6 +373,7 @@
   },
   "infoModal": {
     "systemIcon": "Значок системы PF2e",
+    "sendToChat": "Отправить в чат",
     "dieImage": "Изображение d{faces}",
     "clearDicePending": "Нажмите, чтобы сбросить ожидающие броски физических костей"
   }

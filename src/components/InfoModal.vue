@@ -144,9 +144,12 @@ defineExpose({ open, close, rollResultModal, isOpen })
                 <slot name="banner" :close="() => dismiss(true)" />
                 <div class="max-h-[70vh] scrollbar-gutter-stable overflow-auto">
                   <div class="flex space-x-2">
-                    <div
+                    <button
                       v-if="canSendToChat"
-                      class="border active:opacity-30"
+                      type="button"
+                      class="cursor-pointer border active:opacity-30"
+                      :aria-label="$t('infoModal.sendToChat')"
+                      :aria-busy="waiting"
                       @click="sendCurrentItemToChat"
                     >
                       <img
@@ -160,7 +163,7 @@ defineExpose({ open, close, rollResultModal, isOpen })
                         class="absolute -mt-9 ml-3 h-6 w-6 transition-opacity"
                         :class="[waiting ? 'opacity-100' : 'opacity-0']"
                       />
-                    </div>
+                    </button>
                     <img
                       v-else-if="props.imageUrl"
                       class="h-12 w-12 border"
