@@ -71,7 +71,7 @@ export function useCharacterSkillActions(
             return rollCheck(
               actor,
               'skillAction',
-              action.slug,
+              { slug: action.slug },
               { d20: [result ?? 0] },
               [],
               {

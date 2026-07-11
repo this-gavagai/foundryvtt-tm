@@ -1,5 +1,6 @@
 import type { ActorPF2e, SaveType, Statistic } from '@7h3laughingman/pf2e-types'
 import { type CheckRollHandler, statisticParams } from './types'
+import { checkSubtypeOf } from './subtype'
 import { withModifierOverrides, type ModifierOverrideMap } from './modifierOverrides'
 
 // PF2e's Statistic API (save/skill/perception/initiative) expects
@@ -19,7 +20,7 @@ function takeOverrides(ctx: Parameters<CheckRollHandler>[0]): ModifierOverrideMa
 }
 
 export const handleSkill: CheckRollHandler = (ctx) => {
-  const slug = ctx.args.checkSubtype
+  const { slug } = checkSubtypeOf(ctx.args, 'skill')
   return withModifierOverrides(
     ctx.actor,
     (a) => (a as ActorPF2e).skills?.[slug] ?? null,
@@ -38,7 +39,7 @@ type SkillActionUseResult = { roll?: unknown }
 type UsableAction = { use?: (options: Record<string, unknown>) => Promise<unknown> }
 
 export const handleSkillAction: CheckRollHandler = (ctx) => {
-  const slug = ctx.args.checkSubtype
+  const { slug } = checkSubtypeOf(ctx.args, 'skillAction')
   const opts = ctx.args.options as {
     statistic?: string
     rollOptions?: string[]
@@ -47,8 +48,9 @@ export const handleSkillAction: CheckRollHandler = (ctx) => {
     rollMode?: string
   }
   const statisticSlug = opts?.statistic ?? ''
-  const registry = (ctx.source.pf2e as { actions?: { get?: (s: string) => UsableAction | undefined } })
-    .actions
+  const registry = (
+    ctx.source.pf2e as { actions?: { get?: (s: string) => UsableAction | undefined } }
+  ).actions
   const action = registry?.get?.(slug)
   if (typeof action?.use !== 'function') return Promise.resolve(null)
   const secret = opts?.messageMode === 'blind' || opts?.rollMode === 'blindroll'
@@ -79,7 +81,7 @@ export const handleSkillAction: CheckRollHandler = (ctx) => {
 }
 
 export const handleSave: CheckRollHandler = (ctx) => {
-  const slug = ctx.args.checkSubtype as SaveType
+  const slug = checkSubtypeOf(ctx.args, 'save').slug as SaveType
   return withModifierOverrides(
     ctx.actor,
     (a) => (a as ActorPF2e).saves?.[slug] ?? null,

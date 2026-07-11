@@ -3,6 +3,7 @@ import type { GetStrikeDamageArgs } from '@/types/api-types'
 import { withBackgroundRoll } from '../backgroundRoll'
 import { getCharacter, getGame, makeAck, makeFakeEvent } from '../utils/foundry'
 import type { StrikeActionRuntime } from '../utils/strikeRuntime'
+import { blastDamageQueryOf } from './checks/subtype'
 import {
   withDamageModifierOverrides,
   discoverDamageDicePrototype,
@@ -15,9 +16,7 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
   const target =
     args.targets.map((t: string) => source.scenes.active?.tokens.get(t))?.[0]?.object ?? null
 
-  const split = args.actionSlug.split(':')
-  const isBlast = split[0] === 'blast'
-  const actionString = isBlast ? split[1] : split[0]
+  const blastQuery = blastDamageQueryOf(args)
 
   const overrides = (args as { modifierOverrides?: ModifierOverrideMap }).modifierOverrides
 
@@ -26,14 +25,13 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
     let critical: Promise<unknown> | null
     let modifiers: Promise<unknown> | null
 
-    if (isBlast) {
-      const [element, damageType, isMelee] = actionString.split(',')
+    if (blastQuery) {
       const blast = new game.pf2e.ElementalBlast(actor)
       type BlastParams = Parameters<typeof blast.damage>[0]
       const blastBase: BlastParams = {
-        element: element as EffectTrait,
-        damageType: damageType as DamageType,
-        melee: isMelee === 'true',
+        element: blastQuery.element as EffectTrait,
+        damageType: blastQuery.damageType as DamageType,
+        melee: blastQuery.isMelee,
         getFormula: true,
         target
       }
@@ -75,7 +73,7 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
         event: makeFakeEvent(source),
         target
       }
-      const baseStrike = actor.system.actions.find((a) => a.slug === actionString) as
+      const baseStrike = actor.system.actions.find((a) => a.slug === args.actionSlug) as
         | StrikeActionRuntime
         | undefined
       const strike =
@@ -97,7 +95,7 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
 
   type DamageModifiers = { options?: { damage?: { modifiers?: unknown[] } } }
   let extractedModifiers: unknown[] | undefined
-  if (isBlast) {
+  if (blastQuery) {
     // modifiers resolved to [...blastCapture] — already a plain array.
     extractedModifiers = results[2] as unknown[] | undefined
   } else {

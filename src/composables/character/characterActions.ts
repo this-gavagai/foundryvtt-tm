@@ -45,9 +45,16 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
     modifierOverrides?: Record<string, boolean>,
     statisticSlug?: string
   ) => {
-    return characterAction(actor, slug, options ?? {}, {
-      d20: [rollResult ?? 0]
-    }, modifierOverrides, statisticSlug)
+    return characterAction(
+      actor,
+      slug,
+      options ?? {},
+      {
+        d20: [rollResult ?? 0]
+      },
+      modifierOverrides,
+      statisticSlug
+    )
   }
   const actions = computed(() =>
     actor.value?.items
@@ -103,14 +110,7 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
     modifiers: computed(() => makeModifiers(actor.value?.system?.initiative?.modifiers)),
     totalModifier: computed(() => actor.value?.system?.initiative?.totalModifier),
     roll: (result: number | undefined, options: object | undefined = {}) => {
-      return rollCheck(
-        actor,
-        'initiative',
-        '',
-        { d20: [result ?? 0] },
-        [],
-        options ?? {}
-      )
+      return rollCheck(actor, 'initiative', undefined, { d20: [result ?? 0] }, [], options ?? {})
     }
   }
 

@@ -53,14 +53,7 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
     computed(() => ({
       ...(makeStat(actor.value?.system?.saves?.[subtype]) as Stat),
       roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
-        rollCheck(
-          actor,
-          'save',
-          subtype,
-          { d20: [result ?? 0] },
-          [],
-          options ?? {}
-        )
+        rollCheck(actor, 'save', { slug: subtype }, { d20: [result ?? 0] }, [], options ?? {})
     }))
 
   const familiar: Familiar = {
@@ -180,14 +173,7 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
     perception: computed(() => ({
       ...(makeStat(actor.value?.system?.perception) as Stat),
       roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
-        rollCheck(
-          actor,
-          'perception',
-          '',
-          { d20: [result ?? 0] },
-          [],
-          options ?? {}
-        )
+        rollCheck(actor, 'perception', undefined, { d20: [result ?? 0] }, [], options ?? {})
     })),
     attack: computed(() => {
       const stat = makeStat(
@@ -198,14 +184,7 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
       return {
         ...stat,
         roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
-          rollCheck(
-            actor,
-            'familiarAttack',
-            '',
-            { d20: [result ?? 0] },
-            [],
-            options ?? {}
-          )
+          rollCheck(actor, 'familiarAttack', undefined, { d20: [result ?? 0] }, [], options ?? {})
       } as Stat
     }),
     skills: computed(() =>
@@ -215,14 +194,7 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
           ...stat,
           rank: stat?.rank ?? 0,
           roll: (result, options = {}) =>
-            rollCheck(
-              actor,
-              'skill',
-              key,
-              { d20: [result ?? 0] },
-              [],
-              options ?? {}
-            )
+            rollCheck(actor, 'skill', { slug: key }, { d20: [result ?? 0] }, [], options ?? {})
         } as Stat
       })
     ),

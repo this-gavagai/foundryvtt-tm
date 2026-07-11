@@ -125,12 +125,52 @@ export interface CheckModifier {
   ignored: boolean
 }
 
+// Typed check-target payloads, keyed by RollCheckArgs.checkType. Replaces the
+// old comma-packed positional strings (e.g. 'longsword,1,' for a strike) that
+// every handler decoded with split(','). The client's rollCheck() is generic
+// over this map, so each call site is checked against its own shape; the
+// module's checkSubtypeOf() narrows by checkType and still decodes the legacy
+// string form sent by pre-protocol-3 apps.
+export interface CheckSubtypeByType {
+  // MAP variant index (0/1/2) + alt-usage index into strike.altUsages.
+  strike: { actionSlug: string; variant: number; altUsage?: number }
+  damage: { actionSlug: string; degree: 'damage' | 'critical'; altUsage?: number }
+  blast: { element: string; damageType: string; variant: number; isMelee: boolean }
+  blastDamage: {
+    element: string
+    damageType: string
+    outcome: 'success' | 'criticalSuccess'
+    isMelee: boolean
+  }
+  skill: { slug: string }
+  skillAction: { slug: string }
+  save: { slug: string }
+  // entryId alone = entry-level attack (the spellcasting-entry modal);
+  // spellId + attackNumber (1/2/3 = MAP 0/-5/-10) for per-spell attack buttons.
+  spellAttack: { entryId: string; spellId?: string; attackNumber?: number }
+  spellDamage: { spellId: string; mapIncreases: 0 | 1 | 2; castingRank?: number }
+  perception: undefined
+  familiarAttack: undefined
+  initiative: undefined
+  flat: undefined
+}
+export type CheckType = keyof CheckSubtypeByType
+export type CheckSubtype = CheckSubtypeByType[CheckType]
+
+// Blast damage-formula lookup target (GET_STRIKE_DAMAGE). Pre-protocol-3 apps
+// packed this into actionSlug as 'blast:element,damageType,isMelee'.
+export interface BlastDamageQuery {
+  element: string
+  damageType: string
+  isMelee: boolean
+}
+
 export interface RollCheckArgs {
   action: typeof TM.ROLL_CHECK
   userId: string
   characterId: string
-  checkType: string
-  checkSubtype: string
+  checkType: CheckType
+  checkSubtype: CheckSubtype
   modifiers: CheckModifier[]
   // Free-form options bag spread into PF2e's StatisticRollParameters by the
   // foundry-side handler. Server-side handlers may also pull out the
@@ -219,10 +259,14 @@ export interface GetStrikeDamageArgs {
   action: typeof TM.GET_STRIKE_DAMAGE
   userId: string
   characterId: string
+  // Strike slug; empty when `blast` is set (blasts have no strike action).
   actionSlug: string
   targets: string[]
   altUsage: number | undefined
   modifierOverrides?: Record<string, boolean>
+  // Blast lookup target. Pre-protocol-3 apps packed this into actionSlug as
+  // 'blast:element,damageType,isMelee' — see blastDamageQueryOf module-side.
+  blast?: BlastDamageQuery
   uuid: string
 }
 export interface GetSpellDamageArgs {

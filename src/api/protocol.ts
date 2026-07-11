@@ -19,7 +19,13 @@ export const MODULE_ID = 'tablemate'
 //   2 — ACK messages may carry an optional `error` string (RequestResolutionArgs):
 //       a thrown Foundry-side handler now answers with an error ack that the app
 //       rejects on, instead of the request hanging until the client timeout.
-export const PROTOCOL_VERSION = 2
+//   3 — ROLL_CHECK's checkSubtype is a typed object (CheckSubtypeByType) instead
+//       of a comma-packed positional string, and GET_STRIKE_DAMAGE carries blasts
+//       in a dedicated `blast` field instead of a 'blast:'-prefixed actionSlug.
+//       The module still decodes both legacy string forms (checkSubtypeOf /
+//       blastDamageQueryOf), so an older app keeps working against a newer
+//       module; the reverse (new app, stale module) fails and shows the banner.
+export const PROTOCOL_VERSION = 3
 
 // Error-ack sentinel: the request carried player-determined dice results while
 // the world's manual-roll policy is 'reject'. The app matches this string

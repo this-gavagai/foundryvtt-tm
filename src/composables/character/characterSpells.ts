@@ -2,7 +2,12 @@ import { computed, type Ref } from 'vue'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { TablemateCharacter } from '@/types/character-types'
 import type { Field, Maybe } from './helpers'
-import { type Spell, type SpellcastingEntry, makeSpell, makeSpellcastingEntry } from './defs/spellDef'
+import {
+  type Spell,
+  type SpellcastingEntry,
+  makeSpell,
+  makeSpellcastingEntry
+} from './defs/spellDef'
 import { type Consumable, makeConsumable } from './defs/consumable'
 import { castSpell, castStaffSpell, consumeItem, getSpellDamage, rollCheck } from '@/api/actionRpc'
 import type { DiceResults } from '@/types/api-types'
@@ -65,7 +70,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
             rollCheck(
               actor,
               'spellAttack',
-              item._id ?? '',
+              { entryId: item._id ?? '' },
               { d20: [result ?? 0] },
               [],
               modifierOverrides ? { modifierOverrides } : {}
@@ -109,7 +114,11 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
           rollCheck(
             actor,
             'spellAttack',
-            `${item.system.location?.value ?? ''},${item._id},${attackNumber}`,
+            {
+              entryId: item.system.location?.value ?? '',
+              spellId: item._id ?? undefined,
+              attackNumber
+            },
             { d20: [result ?? 0] },
             [],
             modifierOverrides ? { modifierOverrides } : {}
@@ -123,7 +132,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
           rollCheck(
             actor,
             'spellDamage',
-            `${item._id},${mapIncreases},${castingRank ?? ''}`,
+            { spellId: item._id ?? '', mapIncreases, castingRank },
             result ?? {},
             [],
             modifierOverrides ? { modifierOverrides } : {}
@@ -149,8 +158,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
         (i): i is ConsumablePF2e<CharacterPF2e> =>
           i.type === 'consumable' &&
           !!(
-            i.system?.traits?.value?.includes('scroll') ||
-            i.system?.traits?.value?.includes('wand')
+            i.system?.traits?.value?.includes('scroll') || i.system?.traits?.value?.includes('wand')
           )
       )
       ?.map((i) => ({
@@ -185,7 +193,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
           rollCheck(
             actor,
             'spellAttack',
-            `${staffEntryId},${i._id},${attackNumber}`,
+            { entryId: staffEntryId, spellId: i._id ?? undefined, attackNumber },
             { d20: [result ?? 0] },
             [],
             modifierOverrides ? { modifierOverrides } : {}
@@ -199,7 +207,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
           rollCheck(
             actor,
             'spellDamage',
-            `${i._id},${mapIncreases},${castingRank ?? ''}`,
+            { spellId: i._id ?? '', mapIncreases, castingRank },
             result ?? {},
             [],
             modifierOverrides ? { modifierOverrides } : {}

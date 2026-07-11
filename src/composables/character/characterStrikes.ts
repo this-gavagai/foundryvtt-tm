@@ -94,7 +94,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
           rollCheck(
             actor,
             'strike',
-            `${action.slug},${variant},${altUsage ?? ''}`,
+            { actionSlug: action.slug ?? '', variant, altUsage },
             { d20: [result ?? 0] },
             [],
             modifierOverrides ? { modifierOverrides } : {}
@@ -104,7 +104,11 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
             rollCheck(
               actor,
               'damage',
-              `${action.slug},${variant ? 'critical' : 'damage'},${altUsage ?? ''}`,
+              {
+                actionSlug: action.slug ?? '',
+                degree: variant ? 'critical' : 'damage',
+                altUsage
+              },
               result ?? {},
               [],
               modifierOverrides ? { modifierOverrides } : {}
@@ -129,12 +133,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
           const ammoData = action?.ammunition as { loaded?: { quantity?: number }[] } | undefined
           if (ammoData) ammoData.loaded = load ? [{ quantity: 1 }] : []
           return weaponId
-            ? setWeaponLoaded(
-                actor,
-                weaponId,
-                load,
-                load ? effectiveAmmoId : null
-              )
+            ? setWeaponLoaded(actor, weaponId, load, load ? effectiveAmmoId : null)
             : Promise.resolve(null)
         },
         setDamageType: (newType) => {
@@ -158,12 +157,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
           } else if (toggles?.versatile) {
             toggles.versatile.selected = selected as DamageType | null
           }
-          pendingToggle = setWeaponDamageType(
-            actor,
-            weaponId,
-            trait,
-            selected
-          )
+          pendingToggle = setWeaponDamageType(actor, weaponId, trait, selected)
           pendingToggle.finally(() => {
             pendingToggle = null
           })
@@ -190,10 +184,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
           // Weapon is loaded — unload so the new ammo selection stays in sync.
           const ammoData = action?.ammunition as { loaded?: { quantity?: number }[] } | undefined
           if (ammoData) ammoData.loaded = []
-          return Promise.all([
-            persistAmmoId,
-            setWeaponLoaded(actor, weaponId, false, null)
-          ])
+          return Promise.all([persistAmmoId, setWeaponLoaded(actor, weaponId, false, null)])
         }
       } as Strike
     })
@@ -204,17 +195,21 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
         ({
           ...blast,
           getDamage: (altUsage, blastOptions, modifierOverrides) =>
-            getStrikeDamage(
-              actor,
-              `blast:${blastOptions?.element},${blastOptions?.damageType},${blastOptions?.isMelee}`,
-              undefined,
-              modifierOverrides
-            ),
+            getStrikeDamage(actor, '', undefined, modifierOverrides, {
+              element: blastOptions?.element ?? '',
+              damageType: blastOptions?.damageType ?? '',
+              isMelee: blastOptions?.isMelee ?? false
+            }),
           doStrike: (variant, altUsage, blastOptions, result, modifierOverrides) =>
             rollCheck(
               actor,
               'blast',
-              `${blastOptions?.element},${blastOptions?.damageType},${variant},${blastOptions?.isMelee}`,
+              {
+                element: blastOptions?.element ?? '',
+                damageType: blastOptions?.damageType ?? '',
+                variant,
+                isMelee: blastOptions?.isMelee ?? false
+              },
               { d20: [result ?? 0] },
               [],
               modifierOverrides ? { modifierOverrides } : {}
@@ -223,7 +218,12 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
             rollCheck(
               actor,
               'blastDamage',
-              `${blastOptions?.element},${blastOptions?.damageType},${variant ? 'criticalSuccess' : 'success'},${blastOptions?.isMelee}`,
+              {
+                element: blastOptions?.element ?? '',
+                damageType: blastOptions?.damageType ?? '',
+                outcome: variant ? 'criticalSuccess' : 'success',
+                isMelee: blastOptions?.isMelee ?? false
+              },
               result ?? {},
               [],
               modifierOverrides ? { modifierOverrides } : {}

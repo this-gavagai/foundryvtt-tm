@@ -4,6 +4,9 @@ import type {
   RequestResolutionArgs,
   DiceResults,
   CheckModifier,
+  CheckSubtypeByType,
+  CheckType,
+  BlastDamageQuery,
   ApplyDamageMode,
   ChatRollRerollMode
 } from '@/types/api-types'
@@ -108,10 +111,14 @@ export const castStaffSpell = (
     rank
   })
 
-export const rollCheck = (
+// Generic over the check type so each call site's subtype payload is checked
+// against its own shape in CheckSubtypeByType (a strike can't be sent with a
+// spell-attack payload). Types without a payload (perception, initiative, …)
+// take undefined.
+export const rollCheck = <K extends CheckType>(
   actor: TablemateActorRef,
-  checkType: string,
-  checkSubtype = '',
+  checkType: K,
+  checkSubtype: CheckSubtypeByType[K],
   diceResults: DiceResults = {},
   modifiers: CheckModifier[] = [],
   options = {},
@@ -155,13 +162,16 @@ export const getStrikeDamage = (
   actor: TablemateActorRef,
   actionSlug: string,
   altUsage: number | undefined = undefined,
-  modifierOverrides?: Record<string, boolean>
+  modifierOverrides?: Record<string, boolean>,
+  // Blast formula lookups pass the blast target here (actionSlug stays '').
+  blast?: BlastDamageQuery
 ) =>
   sendAction(TM.GET_STRIKE_DAMAGE, {
     ...fromActorTargeted(actor),
     actionSlug,
     altUsage,
-    modifierOverrides
+    modifierOverrides,
+    blast
   })
 
 export const getSpellDamage = (

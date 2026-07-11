@@ -127,14 +127,7 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
     computed(() => ({
       ...(makeStat(actor.value?.system?.saves?.[subtype]) as Stat),
       roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
-        rollCheck(
-          actor,
-          'save',
-          subtype,
-          { d20: [result ?? 0] },
-          [],
-          options ?? {}
-        )
+        rollCheck(actor, 'save', { slug: subtype }, { d20: [result ?? 0] }, [], options ?? {})
     }))
   const saves = {
     fortitude: makeSave('fortitude'),
@@ -144,14 +137,7 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
   const perception = computed(() => ({
     ...(makeStat(actor.value?.system?.perception) as Stat),
     roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
-      rollCheck(
-        actor,
-        'perception',
-        '',
-        { d20: [result ?? 0] },
-        [],
-        options ?? {}
-      )
+      rollCheck(actor, 'perception', undefined, { d20: [result ?? 0] }, [], options ?? {})
   }))
 
   const skills = computed(() => {
@@ -163,7 +149,7 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
             rollCheck(
               actor,
               'skill',
-              skill.slug,
+              { slug: skill.slug ?? '' },
               { d20: [result ?? 0] },
               [],
               options ?? {}
@@ -184,14 +170,7 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
           // so the foundry-side 'skill' check handler dispatches them via the
           // same path.
           roll: (result?: number, options: object = {}) =>
-            rollCheck(
-              actor,
-              'skill',
-              slug,
-              { d20: [result ?? 0] },
-              [],
-              options
-            )
+            rollCheck(actor, 'skill', { slug }, { d20: [result ?? 0] }, [], options)
         }
       }) ?? []) as Stat[]
     return lores.length ? [...skills, ...lores] : skills
@@ -248,23 +227,22 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
     ]
   })
 
-  const immunities = computed(() => makeIWRs(actor.value?.system?.attributes?.immunities, actor.value?.iwrLabels))
-  const weaknesses = computed(() => makeIWRs(actor.value?.system?.attributes?.weaknesses, actor.value?.iwrLabels))
-  const resistances = computed(() => makeIWRs(actor.value?.system?.attributes?.resistances, actor.value?.iwrLabels))
+  const immunities = computed(() =>
+    makeIWRs(actor.value?.system?.attributes?.immunities, actor.value?.iwrLabels)
+  )
+  const weaknesses = computed(() =>
+    makeIWRs(actor.value?.system?.attributes?.weaknesses, actor.value?.iwrLabels)
+  )
+  const resistances = computed(() =>
+    makeIWRs(actor.value?.system?.attributes?.resistances, actor.value?.iwrLabels)
+  )
   const spellDC = computed(() => actor.value?.system?.attributes?.spellDC?.value)
 
   const doFlatCheck = (
     rollResult: number | undefined = undefined,
     options: object | undefined = {}
   ) => {
-    return rollCheck(
-      actor,
-      'flat',
-      '',
-      { d20: [rollResult ?? 0] },
-      [],
-      options ?? {}
-    )
+    return rollCheck(actor, 'flat', undefined, { d20: [rollResult ?? 0] }, [], options ?? {})
   }
 
   return {
