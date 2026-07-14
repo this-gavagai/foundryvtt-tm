@@ -250,7 +250,7 @@
     "wandsAndScrolls": "Zauberstäbe und Schriftrollen",
     "selectSpell": "Zauber auswählen",
     "emptySlot": "(leer)",
-    "changePrepared": "Vorbereitete Zauber ändern",
+    "knownSpells": "Bekannte Zauber",
     "confirmRemove": "Entfernen?",
     "filterSpells": "Zauber filtern…",
     "basic": "einfach",

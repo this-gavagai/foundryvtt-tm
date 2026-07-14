@@ -253,7 +253,7 @@
     "wandsAndScrolls": "Wands and Scrolls",
     "selectSpell": "Select a spell",
     "emptySlot": "(empty)",
-    "changePrepared": "Change prepared spells",
+    "knownSpells": "Known Spells",
     "confirmRemove": "Remove?",
     "filterSpells": "Filter spells…",
     "basic": "basic",

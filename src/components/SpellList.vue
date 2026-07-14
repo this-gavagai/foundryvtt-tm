@@ -314,6 +314,17 @@ function setPreparedSpell(spell: Spell) {
     .finally(() => (preparingSpellId.value = null))
 }
 
+// Row tap in the selection dialog: prepare into the slot (slot mode) or show
+// the spell's info card on top of the list (browse mode).
+function pickFromSpellSelection(spell: Spell) {
+  const options = spellSelectionModal.value?.options
+  if (options?.castingRank == null) {
+    openSpellModal(spell._id, { entry: options?.entry, entryId: options?.entryId })
+  } else {
+    setPreparedSpell(spell)
+  }
+}
+
 // Inline two-step removal for the known-spell list: the ✕ arms the row and
 // turns into a "Remove?" chip; only the second tap deletes the spell. Arming a
 // different row (or reopening the dialog) disarms the previous one.
@@ -345,17 +356,25 @@ const staffSpellsByRank = computed(() =>
   }, {})
 )
 
+// The spell-selection dialog serves two modes, told apart by its options:
+// slot mode (castingRank set — opened from a slot, picking prepares into it)
+// shows only the spells castable at that rank; browse mode (no castingRank —
+// opened from the entry modal's "Known Spells") shows the entry's whole known
+// list and picking opens the spell's info card instead.
+const spellSelectionBrowsing = computed(
+  () => spellSelectionModal.value?.options?.castingRank == null
+)
 const selectablePreparedSpells = computed(() => {
   const options = spellSelectionModal.value?.options
-  if (!options?.entryId || options.castingRank == null) return []
+  if (!options?.entryId) return []
   const isCantrip = (i: Spell) => !!i.system.traits?.value?.includes('cantrip')
-  return spells.value?.filter(
-    (i) =>
-      i.system.location?.value === options?.entryId &&
-      (options.castingRank === 0
-        ? isCantrip(i)
-        : !isCantrip(i) && (i.system.level?.value ?? 0) <= options.castingRank)
-  )
+  return spells.value?.filter((i) => {
+    if (i.system.location?.value !== options.entryId) return false
+    if (options.castingRank == null) return true
+    return options.castingRank === 0
+      ? isCantrip(i)
+      : !isCantrip(i) && (i.system.level?.value ?? 0) <= options.castingRank
+  })
 })
 
 const selectablePreparedSpellsByRank = computed(() => {
@@ -395,6 +414,16 @@ function openSpellSelection(info: SpellInfo) {
 
 const spellbook = computed(() => buildSpellbook(spellcastingEntries.value, spells.value))
 const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.value))
+
+// ⋮ menu action on the spellcasting-entry modal: browse the entry's full known
+// spell list. Opens the same dialog the (empty) slots use, but with no slot
+// coordinates — that absence puts it in browse mode (see below).
+function openKnownSpells() {
+  const entry = viewedEntry.value
+  if (!entry) return
+  infoModal.value?.close()
+  openSpellSelection({ entry, entryId: entry._id })
+}
 </script>
 <template>
   <div data-component="SpellList">
@@ -543,14 +572,22 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
             :consumableSpellRollData="viewedConsumableSpellRollData"
           />
         </template>
-        <template
-          #headerActions
-          v-if="isListening && viewedSpellInfo?.entry?.system.prepared?.value === 'prepared'"
-        >
+        <template #headerActions>
           <KebabMenu
+            v-if="
+              isListening &&
+              viewedSpellInfo?.entry?.system.prepared?.value === 'prepared' &&
+              viewedSpellInfo?.castingRank != null
+            "
             :items="[{ id: 'remove', label: $t('common.remove'), danger: true }]"
             :label="$t('common.actions')"
             @select="clearPreparedSpell"
+          />
+          <KebabMenu
+            v-else-if="viewedEntry && !viewedItem && isStrictPrepared(viewedEntry)"
+            :items="[{ id: 'known', label: $t('spells.knownSpells') }]"
+            :label="$t('common.actions')"
+            @select="openKnownSpells"
           />
         </template>
         <template #actionButtons v-if="isListening">
@@ -631,7 +668,10 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
           </template>
         </template>
       </InfoModal>
-      <Modal ref="spellSelectionModal" :title="$t('spells.selectSpell')">
+      <Modal
+        ref="spellSelectionModal"
+        :title="$t(spellSelectionBrowsing ? 'spells.knownSpells' : 'spells.selectSpell')"
+      >
         <input
           v-model="spellSelectionFilter"
           data-part="filter"
@@ -662,7 +702,7 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
                     : 'cursor-pointer hover:bg-gray-100'
                 "
                 v-for="spell in group.spells"
-                @click="setPreparedSpell(spell)"
+                @click="pickFromSpellSelection(spell)"
                 :key="spell._id"
               >
                 <span class="min-w-0 truncate">{{ spell.name }}</span>
@@ -670,7 +710,9 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
                   v-if="preparingSpellId === spell._id || removingSpellId === spell._id"
                   class="ml-2 h-4 w-4 shrink-0"
                 />
-                <span v-else class="flex shrink-0 items-center" @click.stop>
+                <!-- Removal is a spellbook edit, offered only when browsing the
+                     known list from the entry modal — not when filling a slot. -->
+                <span v-else-if="spellSelectionBrowsing" class="flex shrink-0 items-center" @click.stop>
                   <button
                     v-if="confirmingRemoveId === spell._id"
                     type="button"

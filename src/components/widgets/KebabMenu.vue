@@ -10,14 +10,10 @@ import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 // cards) and transformed containing blocks can't clip it — same pattern as
 // DropdownWidget: measure the button and position the panel with fixed
 // coordinates, right edge aligned to the button.
-withDefaults(
-  defineProps<{
-    items: { id: string; label: string; danger?: boolean }[]
-    label: string
-    size?: 'sm' | 'md'
-  }>(),
-  { size: 'md' }
-)
+defineProps<{
+  items: { id: string; label: string; danger?: boolean }[]
+  label: string
+}>()
 
 const emit = defineEmits<{ select: [id: string] }>()
 
@@ -68,7 +64,7 @@ function onButtonClick() {
         :aria-label="label"
         @pointerdown="triggerLightHapticFeedback()"
       >
-        <EllipsisVerticalIcon :class="size === 'sm' ? 'h-5 w-5' : 'h-6 w-6'" aria-hidden="true" />
+        <EllipsisVerticalIcon class="h-6 w-6" aria-hidden="true" />
       </MenuButton>
     </div>
     <!-- `static` keeps MenuItems in the DOM whether the menu is open or not,

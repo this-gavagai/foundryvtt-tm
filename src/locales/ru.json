@@ -251,7 +251,7 @@
     "wandsAndScrolls": "Жезлы и свитки",
     "selectSpell": "Выберите заклинание",
     "emptySlot": "(пусто)",
-    "changePrepared": "Изменить подготовленные заклинания",
+    "knownSpells": "Известные заклинания",
     "confirmRemove": "Убрать?",
     "filterSpells": "Фильтр заклинаний…",
     "basic": "базовый",
