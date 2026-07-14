@@ -31,6 +31,9 @@ import SpellSourceSection from '@/components/SpellSourceSection.vue'
 import SpellDetails from '@/components/SpellDetails.vue'
 import ViewableItem from '@/components/widgets/ViewableItem.vue'
 import SheetSection from '@/components/widgets/SheetSection.vue'
+import KebabMenu from '@/components/widgets/KebabMenu.vue'
+import { XMarkIcon } from '@heroicons/vue/24/outline'
+import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 
 const { t } = useI18n()
 const character = useInjectedCharacter()
@@ -297,7 +300,8 @@ const castDisabled = computed(() => {
 
 const preparingSpellId = ref<string | null>(null)
 function setPreparedSpell(spell: Spell) {
-  if (preparingSpellId.value) return
+  if (preparingSpellId.value || removingSpellId.value) return
+  confirmingRemoveId.value = null
   preparingSpellId.value = spell._id ?? null
   return Promise.resolve(
     entryById(spellSelectionModal.value?.options?.entryId)?.setPrepared?.(
@@ -308,6 +312,20 @@ function setPreparedSpell(spell: Spell) {
   )
     .then(() => spellSelectionModal.value?.close())
     .finally(() => (preparingSpellId.value = null))
+}
+
+// Inline two-step removal for the known-spell list: the ✕ arms the row and
+// turns into a "Remove?" chip; only the second tap deletes the spell. Arming a
+// different row (or reopening the dialog) disarms the previous one.
+const confirmingRemoveId = ref<string | null>(null)
+const removingSpellId = ref<string | null>(null)
+function removeKnownSpell(spell: Spell) {
+  if (removingSpellId.value) return
+  removingSpellId.value = spell._id ?? null
+  return Promise.resolve(spell.delete?.()).finally(() => {
+    removingSpellId.value = null
+    confirmingRemoveId.value = null
+  })
 }
 
 const sortedConsumables = computed(() =>
@@ -371,6 +389,7 @@ const filteredSelectablePreparedSpellsByRank = computed(() => {
 
 function openSpellSelection(info: SpellInfo) {
   spellSelectionFilter.value = ''
+  confirmingRemoveId.value = null
   spellSelectionModal.value?.open(info)
 }
 
@@ -382,7 +401,7 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
     <div v-if="spellcastingEntries?.length === 0" class="px-6 pt-4 pb-8 italic">
       {{ $t('spells.noSpells') }}
     </div>
-    <div v-else class="px-6 pb-8 xl:columns-2">
+    <div v-else class="px-6 pt-4 pb-8 xl:columns-2">
       <!-- Spell Sources -->
       <SpellSourceSection
         v-for="location in spellcastingEntries"
@@ -401,7 +420,7 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
         title-clickable
         @open-entry="openEntryModal(location)"
         @open-spell="openSpellModal"
-        @open-empty="openSpellSelection"
+        @open-slot="openSpellSelection"
         @pick="pickSpellRoll"
       >
         <template #headerCounter>
@@ -524,13 +543,17 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
             :consumableSpellRollData="viewedConsumableSpellRollData"
           />
         </template>
-        <template #actionButtons v-if="isListening">
-          <Button
-            :label="$t('common.remove')"
-            color="red"
-            v-if="viewedSpellInfo?.entry?.system.prepared?.value === 'prepared'"
-            :clicked="clearPreparedSpell"
+        <template
+          #headerActions
+          v-if="isListening && viewedSpellInfo?.entry?.system.prepared?.value === 'prepared'"
+        >
+          <KebabMenu
+            :items="[{ id: 'remove', label: $t('common.remove'), danger: true }]"
+            :label="$t('common.actions')"
+            @select="clearPreparedSpell"
           />
+        </template>
+        <template #actionButtons v-if="isListening">
           <Button
             :label="$t('spells.cast')"
             color="blue"
@@ -634,7 +657,7 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
                 data-part="spell-option"
                 class="flex items-center justify-between rounded px-2 py-1 transition-opacity"
                 :class="
-                  preparingSpellId
+                  preparingSpellId || removingSpellId
                     ? 'pointer-events-none cursor-default opacity-50'
                     : 'cursor-pointer hover:bg-gray-100'
                 "
@@ -642,8 +665,34 @@ const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.
                 @click="setPreparedSpell(spell)"
                 :key="spell._id"
               >
-                <span>{{ spell.name }}</span>
-                <Spinner v-if="preparingSpellId === spell._id" class="ml-2 h-4 w-4" />
+                <span class="min-w-0 truncate">{{ spell.name }}</span>
+                <Spinner
+                  v-if="preparingSpellId === spell._id || removingSpellId === spell._id"
+                  class="ml-2 h-4 w-4 shrink-0"
+                />
+                <span v-else class="flex shrink-0 items-center" @click.stop>
+                  <button
+                    v-if="confirmingRemoveId === spell._id"
+                    type="button"
+                    data-part="remove-spell-confirm"
+                    class="ml-2 rounded bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-600 transition duration-180 ease-out active:scale-[0.90] active:opacity-50 active:duration-60"
+                    @pointerdown="triggerLightHapticFeedback()"
+                    @click="removeKnownSpell(spell)"
+                  >
+                    {{ $t('spells.confirmRemove') }}
+                  </button>
+                  <button
+                    v-else
+                    type="button"
+                    data-part="remove-spell"
+                    class="ml-2 cursor-pointer rounded text-gray-400 transition duration-180 ease-out active:scale-[0.90] active:opacity-50 active:duration-60"
+                    :aria-label="$t('common.remove')"
+                    @pointerdown="triggerLightHapticFeedback()"
+                    @click="confirmingRemoveId = spell._id ?? null"
+                  >
+                    <XMarkIcon class="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </span>
               </li>
             </ul>
           </div>

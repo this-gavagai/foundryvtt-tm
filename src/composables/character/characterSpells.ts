@@ -12,7 +12,7 @@ import { type Consumable, makeConsumable } from './defs/consumable'
 import { castSpell, castStaffSpell, consumeItem, getSpellDamage, rollCheck } from '@/api/actionRpc'
 import type { DiceResults } from '@/types/api-types'
 import { makeModifiers } from './defs/modifier'
-import { updateActor, updateActorItem } from '@/api/documents'
+import { deleteActorItem, updateActor, updateActorItem } from '@/api/documents'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type {
   ConsumablePF2e,
@@ -102,6 +102,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
       ?.filter((i): i is SpellPF2e<CharacterPF2e> => i?.type === 'spell')
       ?.map((item) => ({
         ...makeSpell(item),
+        delete: () => deleteActorItem(actor, item._id!),
         doSpell: (rank: number | undefined, slot: number | undefined) => {
           if (rank === undefined || slot === undefined) return Promise.resolve(null)
           return castSpell(actor, item._id!, rank, slot)

@@ -2,9 +2,12 @@
 import type { Spell, SpellcastingEntry } from '@/composables/character'
 import { isSlotCaster, isStrictPrepared, slotKey, type SpellInfo } from '@/utils/spellcasting'
 
+import { useI18n } from 'vue-i18n'
+
 import CounterWidget from '@/components/widgets/CounterWidget.vue'
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
 import ViewableItem from '@/components/widgets/ViewableItem.vue'
+import KebabMenu from '@/components/widgets/KebabMenu.vue'
 import SheetSection from '@/components/widgets/SheetSection.vue'
 import SpellRollButtons from '@/components/SpellRollButtons.vue'
 
@@ -22,10 +25,12 @@ const props = defineProps<{
   titleClickable?: boolean
 }>()
 
+const { t } = useI18n()
+
 const emit = defineEmits<{
   openEntry: []
   openSpell: [id: string | undefined, info: SpellInfo]
-  openEmpty: [info: SpellInfo]
+  openSlot: [info: SpellInfo]
   pick: [
     spell: Spell,
     entry: SpellcastingEntry | undefined,
@@ -34,6 +39,16 @@ const emit = defineEmits<{
     map: 0 | 1 | 2
   ]
 }>()
+
+// The rank header's ⋮ menu lists every prepared slot — filled or empty — so
+// the "select a spell" dialog can be reopened for any of them (an empty slot
+// is also clickable inline, but a filled one has no other way back in).
+function slotMenuItems(spells: (Spell | undefined)[]): { id: string; label: string }[] {
+  return spells.map((spell, index) => ({
+    id: String(index),
+    label: `${index + 1}. ${spell?.name ?? t('spells.emptySlot')}`
+  }))
+}
 
 // An entry cast carries its slot coordinates; a staff cast only needs the rank.
 function spellInfo(rank: string, index: number): SpellInfo {
@@ -85,6 +100,14 @@ function spellInfo(rank: string, index: number): SpellInfo {
           :title="`${entry.name}: ${$t('spells.rank', { n: rank })}`"
           @change-count="(newTotal) => entry?.setSlotCount?.(Number(rank), newTotal)"
         />
+        <KebabMenu
+          v-if="entry && isStrictPrepared(entry)"
+          class="mr-2"
+          size="sm"
+          :items="slotMenuItems(spells)"
+          :label="$t('spells.changePrepared')"
+          @select="(id) => emit('openSlot', spellInfo(String(rank), Number(id)))"
+        />
       </h4>
       <!-- Spells -->
       <ul class="mb-1 empty:hidden">
@@ -115,9 +138,9 @@ function spellInfo(rank: string, index: number): SpellInfo {
               v-else-if="entry"
               type="button"
               class="cursor-pointer text-gray-500 transition duration-180 ease-out active:scale-[0.97] active:opacity-50 active:duration-60"
-              @click="emit('openEmpty', spellInfo(String(rank), index))"
+              @click="emit('openSlot', spellInfo(String(rank), index))"
             >
-              (empty)
+              {{ $t('spells.emptySlot') }}
             </button>
           </div>
           <!-- col 1 row 2 at narrow; col 2 row 1 at wide -->

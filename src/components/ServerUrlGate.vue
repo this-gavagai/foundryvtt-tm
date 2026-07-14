@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch, useTemplateRef } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useServerStore } from '@/stores/server'
 import { useServerAddressStore } from '@/stores/serverAddress'
+import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 
 const serverAddressStore = useServerAddressStore()
 const serverStore = useServerStore()
@@ -106,7 +107,12 @@ async function handleSubmit() {
 
         <label class="flex flex-col gap-1">
           <span data-part="field-label" class="text-sm">{{ $t('serverUrl.server') }}</span>
-          <select v-model="selected" data-part="server-select" class="rounded border p-2">
+          <select
+            v-model="selected"
+            data-part="server-select"
+            class="rounded border p-2 transition duration-180 ease-out active:scale-[0.97] active:opacity-50 active:duration-60"
+            @pointerdown="triggerLightHapticFeedback()"
+          >
             <option v-for="origin in servers" :key="origin" :value="origin">
               {{ displayName(origin) }}
             </option>
@@ -134,8 +140,9 @@ async function handleSubmit() {
         <button
           type="submit"
           data-part="connect"
-          class="rounded p-2 disabled:opacity-50"
+          class="rounded p-2 transition duration-180 ease-out disabled:opacity-50 active:scale-[0.97] active:opacity-50 active:duration-60"
           :disabled="checking"
+          @pointerdown="!checking && triggerLightHapticFeedback()"
         >
           {{ checking ? $t('serverUrl.checking') : $t('serverUrl.connect') }}
         </button>

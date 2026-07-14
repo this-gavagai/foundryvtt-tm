@@ -285,13 +285,36 @@ body.theme-sunny {
       background-color: oklch(86% 0.024 95);
     }
 
-    [data-part='spell-option']:hover,
-    [data-part='entry-option']:hover {
-      background-color: oklch(94% 0.02 80);
+    /* Hover only on real-pointer devices — touch browsers emulate :hover on
+       the last-touched element, which left rows lit up while scroll-flicking
+       the list. (Tailwind v4 gates its hover: variant the same way.) */
+    @media (hover: hover) {
+      [data-part='spell-option']:hover,
+      [data-part='entry-option']:hover {
+        background-color: oklch(94% 0.02 80);
+      }
     }
     [data-part='spell-option']:active,
     [data-part='entry-option']:active {
       background-color: oklch(90% 0.03 80);
+    }
+
+    /* Known-spell removal: muted ✕ that arms into a red "Remove?" chip —
+       destructive colors mirror the equipment menu's delete treatment. */
+    [data-part='remove-spell'] {
+      color: oklch(62% 0.02 285);
+    }
+    @media (hover: hover) {
+      [data-part='remove-spell']:hover {
+        color: oklch(45% 0.04 285);
+      }
+    }
+    [data-part='remove-spell-confirm'] {
+      color: oklch(48% 0.21 25);
+      background-color: oklch(94% 0.05 25);
+    }
+    [data-part='remove-spell-confirm']:active {
+      background-color: oklch(90% 0.07 25);
     }
 
     [data-part='entry-option'] {
@@ -1435,6 +1458,47 @@ body.theme-sunny {
     [role='option'][aria-selected='true'] svg {
       color: var(--color-proficiency-master);
     }
+  }
+
+  /* --- Kebab (⋮) menu ---
+     Like the dropdown popover, the items panel is teleported to <body>, so
+     these rules live at top level rather than under a component scope. */
+  [data-part='kebab-menu-button'] {
+    color: oklch(62% 0.02 285);
+  }
+  @media (hover: hover) {
+    [data-part='kebab-menu-button']:hover {
+      color: oklch(45% 0.04 285);
+    }
+  }
+
+  [data-part='kebab-menu-items'] {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 0.6rem;
+    color: var(--color-text);
+    box-shadow:
+      0 12px 28px oklch(55% 0.06 280 / 0.18),
+      0 0 0 1px oklch(60% 0.02 285 / 0.06);
+  }
+
+  [data-part='kebab-menu-item'][data-active] {
+    background-color: oklch(94% 0.02 80);
+  }
+  [data-part='kebab-menu-item']:active {
+    background-color: oklch(90% 0.03 80);
+  }
+
+  /* destructive items — mirror the equipment menu's delete treatment */
+  [data-part='kebab-menu-item'][data-danger] {
+    color: oklch(55% 0.2 25);
+  }
+  [data-part='kebab-menu-item'][data-danger][data-active] {
+    background-color: oklch(94% 0.05 25);
+    color: oklch(48% 0.21 25);
+  }
+  [data-part='kebab-menu-item'][data-danger]:active {
+    background-color: oklch(90% 0.07 25);
   }
 
   /* --- Two-column layout depth (desktop) --- */
