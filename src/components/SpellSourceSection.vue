@@ -68,8 +68,10 @@ function spellInfo(rank: string, index: number): SpellInfo {
     <!-- Spell Ranks -->
     <section
       v-for="(spells, rank) in ranks ?? {}"
+      data-part="rank-group"
       class="[section:not(.hidden)~&]:mt-3"
       :class="{ hidden: !spells.length }"
+      :data-empty="!spells.length || undefined"
       :key="'rank' + rank"
     >
       <h4 class="flex justify-between pb-1 align-bottom text-sm italic">
@@ -161,8 +163,10 @@ function spellInfo(rank: string, index: number): SpellInfo {
       <h4 class="mt-3 text-sm italic">{{ $t('spells.spellList') }}</h4>
       <section
         v-for="(spells, rank) in prepList"
+        data-part="rank-group"
         class="[section:not(.hidden)~&]:mt-1"
         :class="{ hidden: !spells.length }"
+        :data-empty="!spells.length || undefined"
         :key="'prep' + rank"
       >
         <h5 class="text-xs text-gray-500 italic">

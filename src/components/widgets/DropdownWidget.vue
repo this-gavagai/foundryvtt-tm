@@ -138,6 +138,8 @@ function onButtonClick() {
           :value="option"
         >
           <div
+            data-part="option-content"
+            :data-active="active || undefined"
             class="relative h-10 cursor-default py-2 pr-4 pl-10 font-bold select-none"
             :class="[
               active ? 'bg-amber-100 text-amber-900' : 'text-gray-900',

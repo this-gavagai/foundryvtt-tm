@@ -224,6 +224,7 @@ defineExpose({ open, close })
             :key="gi"
             data-part="damage-group"
             class="flex flex-wrap items-center gap-1"
+            :data-typed="groupHasTag(group) || undefined"
             :class="
               groupHasTag(group) ? 'rounded-md border border-gray-300 bg-gray-50 px-2 py-0.5' : ''
             "

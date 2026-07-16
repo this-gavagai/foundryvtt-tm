@@ -64,6 +64,7 @@ function handleContentClick(event: MouseEvent) {
             <button
               type="button"
               data-part="chat-name-button"
+              data-tone="primary"
               class="block max-w-full truncate text-left font-semibold text-gray-900"
               @click="emit('selectAuthor')"
             >
@@ -73,6 +74,7 @@ function handleContentClick(event: MouseEvent) {
               v-if="view.showAuthorName"
               type="button"
               data-part="chat-name-button"
+              data-tone="muted"
               class="block max-w-full truncate text-left text-xs text-gray-500"
               @click="emit('selectAuthor')"
             >
@@ -90,7 +92,7 @@ function handleContentClick(event: MouseEvent) {
                 : $t(view.visibilityLabel)
             }}
           </span>
-          <time v-if="view.formattedTime" class="ml-auto text-xs text-gray-500">
+          <time v-if="view.formattedTime" data-tone="muted" class="ml-auto text-xs text-gray-500">
             {{ view.formattedTime }}
           </time>
         </div>
@@ -106,6 +108,7 @@ function handleContentClick(event: MouseEvent) {
     <div
       v-if="view.showContent"
       data-part="chat-content"
+      data-tone="primary"
       class="mt-2 text-sm text-gray-900"
       v-html="view.preparedContent"
       @click="handleContentClick($event)"
@@ -141,7 +144,7 @@ function handleContentClick(event: MouseEvent) {
         "
       />
     </div>
-    <div v-if="view.showEmptyMessage" class="mt-2 text-sm text-gray-500 italic">
+    <div v-if="view.showEmptyMessage" data-tone="muted" class="mt-2 text-sm text-gray-500 italic">
       {{ $t('chat.emptyMessage') }}
     </div>
   </li>

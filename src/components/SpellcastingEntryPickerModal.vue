@@ -59,7 +59,9 @@ defineExpose({ open })
           @click="select(entry._id)"
         >
           <span class="font-medium text-gray-900">{{ entry.name }}</span>
-          <span class="text-xs text-gray-500">{{ entrySubtitle(entry) }}</span>
+          <span data-part="entry-subtitle" class="text-xs text-gray-500">{{
+            entrySubtitle(entry)
+          }}</span>
         </button>
       </template>
       <div class="mt-2 flex justify-end">

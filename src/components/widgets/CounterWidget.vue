@@ -35,6 +35,7 @@ defineExpose({ click, close })
 </script>
 <template>
   <div
+    data-part="counter"
     @click="click"
     @pointerdown="props.editable && triggerLightHapticFeedback()"
     class="cursor-pointer"

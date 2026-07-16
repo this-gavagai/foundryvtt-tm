@@ -1,0 +1,23 @@
+/* ============================================================================
+   "Coolblue" — a variant of moonlit: the muted blue primary sharpened into an
+   icy cyan-blue, and the red tab accent pulled to match, for an all-cool
+   take on the dark theme. Everything else (base structure + the rest of
+   moonlit's palette) is inherited; selecting it applies both classes.
+
+   Variants are token-only by contract: every declaration must be a custom
+   property whose name the parent theme (../moonlit.css) already defines. No
+   ordering machinery is needed — the two-class scope below beats the
+   theme's single-class token block by plain specificity.
+   scripts/check-theme-parity.mjs enforces the contract; if a variant seems
+   to need a *rule* override, that's a sign the parent rule should be
+   consuming a token instead — grow the token there first.
+   ========================================================================== */
+body.theme-moonlit.variant-coolblue {
+  --color-primary: oklch(48% 0.13 225);
+  --color-primary-hover: oklch(54% 0.13 225);
+  --color-primary-active: oklch(60% 0.13 225);
+  --color-on-primary: oklch(97% 0.01 220);
+  --color-focus: oklch(62% 0.13 225);
+  --color-heading: oklch(63% 0.06 230);
+  --tm-tab-accent: var(--color-primary);
+}

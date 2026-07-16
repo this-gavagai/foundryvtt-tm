@@ -1,0 +1,1250 @@
+/* ============================================================================
+   "_core" — the abstract base every theme inherits from. Not a theme itself.
+   ============================================================================
+   The leading underscore on this FILE marks it as a partial: discovery
+   (themes/index.ts) loads it but never lists it in the theme picker — the
+   folder (core/) is just the family namespace. This file names none of its
+   inheritors — containment is the inheritance declaration: a theme living in
+   this folder (moonlit/, sunny/) pulls from the base, and discovery applies
+   the base's marker class (`base-core`, the sole thing the scope below
+   targets) alongside the theme's own class. A theme that wants its own
+   structure lives at the themes root instead. The base "None" look (no theme
+   selected) gets none of this.
+
+   This file holds the sheet's structure (layout, spacing, typography,
+   press/hover behavior), the token wiring, and a restrained neutral default
+   for every token, so an inheriting theme that misses a token degrades
+   gracefully instead of rendering broken. Theme files hold nothing but token
+   overrides and color/shadow/radius rules.
+
+   Precedence is plain CSS: everything theme-related lives in the single
+   `themes` cascade layer, and discovery loads this file FIRST, so the
+   inheriting themes override it by source order at equal specificity.
+   Token-only variants (see moonlit/variants/coolblue.css) override their
+   theme by specificity — their extra class outweighs the theme's single one
+   — so they need no ordering at all.
+
+   The contract (enforced by scripts/check-theme-parity.mjs):
+
+   - Structural rules here may reference tokens — var(--color-*), var(--tm-*)
+     — but never palette literals; every consumed token must have a default
+     in the token block below. Inheriting themes override tokens and add
+     their own palette rules (see moonlit.css / sunny.css).
+   - Selectors (here and in the theme files) may only reference
+     data-component / data-part / data-section hooks, state attributes
+     (data-*, aria-*, role), and semantic elements — never Tailwind utility
+     class names and never anonymous wrapper divs. If a hook is missing, grow
+     it on the component.
+   ========================================================================== */
+@layer themes {
+  body.base-core {
+    /* --- Default palette: light, neutral grays with the app's stock blue
+     primary — a safe default for every token this file consumes, and the
+     documented token contract an inheriting theme overrides. -------------- */
+    --color-divider: oklch(92.8% 0.006 265);
+
+    /* shared surfaces */
+    --color-card: oklch(98.5% 0.002 248);
+    --color-surface: oklch(100% 0 0);
+    --color-border: oklch(87.2% 0.01 258);
+    --color-text: oklch(21% 0.034 265);
+    --color-heading: oklch(44.6% 0.03 257);
+    --color-input: oklch(100% 0 0);
+    --color-divider-strong: oklch(87.2% 0.01 258);
+
+    /* primary action hue — buttons / selections / accents */
+    --color-primary: oklch(54.6% 0.245 263);
+    --color-primary-hover: oklch(48.8% 0.243 264);
+    --color-primary-active: oklch(42.4% 0.199 266);
+    --color-on-primary: oklch(100% 0 0);
+    --color-focus: oklch(62.3% 0.214 260);
+
+    /* destructive treatment (delete menu items, remove-spell chip, …) */
+    --color-danger: oklch(57.7% 0.245 27);
+    --color-danger-hover: oklch(50.5% 0.213 28);
+    --color-danger-surface: oklch(97.1% 0.013 17);
+    --color-danger-surface-active: oklch(93.6% 0.032 18);
+    --color-danger-muted: oklch(80.8% 0.114 20);
+
+    /* muted icon buttons (modal ✕, kebab ⋮) — resting / hover pair */
+    --color-icon-muted: oklch(70.7% 0.022 261);
+    --color-icon-muted-hover: oklch(44.6% 0.03 257);
+
+    /* interactive row/chip surfaces — hover / pressed pair */
+    --color-surface-hover: oklch(96.7% 0.003 265);
+    --color-surface-active: oklch(92.8% 0.006 265);
+
+    --color-scrollbar-thumb: oklch(87.2% 0.01 258);
+    --color-scrollbar-thumb-hover: oklch(70.7% 0.022 261);
+
+    --color-tag: #5e0000; /* Foundry chat-card trait tags */
+
+    /* the app's stock proficiency hues (matching @theme in main.css) */
+    --color-proficiency-untrained: oklch(0% 0 0);
+    --color-proficiency-trained: oklch(62.3% 0.214 260);
+    --color-proficiency-expert: oklch(62.7% 0.265 304);
+    --color-proficiency-master: oklch(79.5% 0.184 86);
+    --color-proficiency-legendary: oklch(63.7% 0.237 25);
+
+    /* flat paper backdrop */
+    --tm-backdrop-color: oklch(96.7% 0.003 265);
+    --tm-panel-color: oklch(96.7% 0.003 265);
+    --tm-backdrop-image: none;
+    --tm-rollable-fallback: oklch(44.6% 0.03 257); /* rollable rule w/o proficiency */
+    --tm-tab-accent: var(--color-primary); /* selected-tab underline */
+
+    /* --- Structure (inherited by every theme in the scope above) ---------- */
+    background-color: var(--tm-backdrop-color);
+    background-image: var(--tm-backdrop-image);
+    background-attachment: var(--tm-backdrop-attachment, scroll);
+    color: var(--color-text);
+
+    /* sidebar toggle press feedback: a quick scale-in that eases back out via
+     the slow resting / fast active transition pair, over the theme's subtle
+     interactive surface. The background is owned here even at rest so the
+     component's bright utility fallbacks (hover:bg-gray-100 /
+     active:bg-gray-300 — the unthemed "None" treatment) never flash through
+     on dark themes. The theme supplies the pressed color. The same
+     [data-part] hook is shared by the mobile header toggle and the desktop
+     tab-bar toggle so both respond identically. */
+    [data-part='sidebar-toggle'] {
+      color: var(--color-text);
+      background-color: transparent;
+      transition:
+        transform 220ms ease,
+        color 220ms ease,
+        background-color 220ms ease;
+
+      &:active {
+        transform: scale(0.9);
+        background-color: var(--color-surface-active);
+        transition-duration: 50ms;
+      }
+    }
+    /* Hover only on real-pointer devices — touch browsers emulate :hover on
+     the last-touched element, which would leave the toggle lit after a tap. */
+    @media (hover: hover) {
+      [data-part='sidebar-toggle']:hover {
+        background-color: var(--color-surface-hover);
+      }
+    }
+
+    /* --- StatBox / FrontPage headings ------------------------------------
+     Uppercase / size / weight live on the components; themes only supply the
+     heading color, so the token binding is shared. */
+    [data-component='StatBox']:not([data-proficiency-level]) [data-part='label'] {
+      color: var(--color-heading);
+    }
+
+    [data-component='IWR'] h3,
+    [data-component='LanguagesKnown'] [data-part='heading'],
+    [data-component='CombatInitiative'] [data-part='heading'],
+    [data-component='MovementSpeed'] [data-part='heading'] {
+      color: var(--color-heading);
+    }
+
+    /* Nudge the Movement Speed heading inward to align over its content — its box
+     is wider than the sibling FrontPage headings, so compensate. */
+    [data-component='MovementSpeed'] [data-part='heading'] {
+      margin-left: 0.7rem;
+    }
+
+    [data-component='FrontPage'] [data-component='StatBox'] [data-part='modifier'] {
+      font-size: 130%;
+    }
+
+    /* --- Proficiency coloring ---
+     Set --proficiency-color on the StatBox root so both the value slot (which
+     has no explicit color class and therefore inherits) and the label (which
+     has an explicit text-* utility class that this layer outranks) pick up
+     the right hue for the current rank. */
+    [data-proficiency-level='0'] {
+      --proficiency-color: var(--color-proficiency-untrained);
+    }
+    [data-proficiency-level='1'] {
+      --proficiency-color: var(--color-proficiency-trained);
+    }
+    [data-proficiency-level='2'] {
+      --proficiency-color: var(--color-proficiency-expert);
+    }
+    [data-proficiency-level='3'] {
+      --proficiency-color: var(--color-proficiency-master);
+    }
+    [data-proficiency-level='4'] {
+      --proficiency-color: var(--color-proficiency-legendary);
+    }
+
+    [data-proficiency-level],
+    [data-proficiency-level] [data-part='label'] {
+      color: var(--proficiency-color, inherit);
+    }
+
+    /* --- Rollable StatBox value -------------------------------------------
+     The component bakes in a dotted underline as the universal rollable
+     affordance; skinned themes swap it for a centered proficiency-hued
+     gradient rule drawn as a ::after on the value slot. */
+    [data-rollable] [data-part='modifier'] {
+      position: relative;
+      text-decoration: none;
+    }
+    [data-rollable] [data-part='modifier']::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 1.75rem;
+      height: 1px;
+      transition:
+        width 220ms ease,
+        height 220ms ease;
+      background: linear-gradient(
+        to right,
+        transparent,
+        var(--proficiency-color, var(--tm-rollable-fallback)),
+        transparent
+      );
+    }
+    [data-component='MovementSpeed'] [data-rollable] [data-part='modifier']::after {
+      display: none;
+    }
+
+    /* --- StatBox click feedback ----------------------------------------
+     The press scale + its slow-resting / fast-active transition pair are
+     baked into the component (so every theme feels the tap). This layer adds
+     the proficiency-hue brighten on the value on press, and blooms the
+     gradient rule wider so the same tap lights up that accent. */
+    [data-component='StatBox'][data-has-details='true'] > div:active [data-part='modifier'] {
+      color: var(--proficiency-color, var(--tm-rollable-fallback));
+      transition-duration: 50ms;
+    }
+    [data-component='StatBox'][data-rollable] > div:active [data-part='modifier']::after {
+      width: 2.5rem;
+      height: 2px;
+      transition:
+        width 50ms ease,
+        height 50ms ease;
+    }
+
+    /* --- Inputs ------------------------------------------ */
+    input {
+      background-color: var(--color-input);
+      border-color: var(--color-border);
+      color: inherit;
+    }
+
+    /* --- Compendium link affordance shared across ParsedDescription and chat
+     cards; the theme supplies the color. --- */
+    :is(
+      [data-component='ParsedDescription'],
+      [data-part='chat-flavor'],
+      [data-part='chat-content']
+    ) {
+      a.content-link {
+        text-decoration: underline;
+        text-decoration-style: dotted;
+        text-underline-offset: 2px;
+        cursor: pointer;
+      }
+    }
+
+    /* --- Choice toggle (carry type / hands selector): selected segment ---- */
+    [data-component='ChoiceWidget'] {
+      button {
+        color: var(--color-text);
+        background-color: transparent;
+      }
+
+      button[data-selected] {
+        background-color: var(--color-primary);
+        color: var(--color-on-primary);
+      }
+
+      button[data-selected]:hover,
+      button:active {
+        background-color: var(--color-primary-hover);
+      }
+    }
+
+    /* --- Modals ------------------------------------------ */
+    /* Headless UI renders DialogPanel as a div with role="dialog" on the outer
+     wrapper, not a native <dialog>. The panel and close button carry data-part
+     hooks; the DialogTitle is just an h3. */
+    [role='dialog'] {
+      h3 {
+        color: var(--color-text);
+      }
+
+      /* Modal close (✕) and the equipment kebab (⋮) share the muted-icon pair. */
+      [data-part='close'],
+      [data-part='equipment-menu-button'] {
+        background-color: transparent;
+        color: var(--color-icon-muted);
+      }
+      [data-part='close']:hover,
+      [data-part='equipment-menu-button']:hover,
+      [data-part='equipment-menu-button'][aria-expanded='true'] {
+        color: var(--color-icon-muted-hover);
+      }
+
+      [data-part='equipment-menu-item'][data-action='delete'] {
+        color: var(--color-danger);
+
+        &[data-active='true']:not(:disabled),
+        &:hover:not(:disabled) {
+          background-color: var(--color-danger-surface);
+          color: var(--color-danger-hover);
+        }
+
+        &:active:not(:disabled) {
+          background-color: var(--color-danger-surface-active);
+        }
+
+        &:disabled {
+          color: var(--color-danger-muted);
+        }
+      }
+
+      /* Label typography (size/weight/uppercase/tracking) lives on the
+       component; themes only recolor it — via the shared token. */
+      [data-part='container-label'] {
+        color: var(--color-heading);
+      }
+
+      [data-part='inventory-mode-toggle'] {
+        transition: background-color 120ms;
+      }
+
+      /* Hover only on real-pointer devices — touch browsers emulate :hover on
+       the last-touched element, which left rows lit up while scroll-flicking
+       the list. (Tailwind v4 gates its hover: variant the same way.) */
+      @media (hover: hover) {
+        [data-part='spell-option']:hover,
+        [data-part='entry-option']:hover {
+          background-color: var(--color-surface-hover);
+        }
+      }
+      [data-part='spell-option']:active,
+      [data-part='entry-option']:active {
+        background-color: var(--color-surface-active);
+      }
+
+      /* Known-spell removal: muted ✕ that arms into a red "Remove?" chip —
+       destructive colors mirror the equipment menu's delete treatment. */
+      [data-part='remove-spell'] {
+        color: var(--color-icon-muted);
+      }
+      @media (hover: hover) {
+        [data-part='remove-spell']:hover {
+          color: var(--color-icon-muted-hover);
+        }
+      }
+      [data-part='remove-spell-confirm'] {
+        color: var(--color-danger-hover);
+        background-color: var(--color-danger-surface);
+      }
+      [data-part='remove-spell-confirm']:active {
+        background-color: var(--color-danger-surface-active);
+      }
+
+      /* Change-character picker rows: hover matches the shared interactive
+       surface; the active-row accent is per-theme (mirrors the active
+       server row). */
+      [data-part='character-option']:hover {
+        background-color: var(--color-surface-hover);
+      }
+
+      [data-part='entry-option'] {
+        border-color: var(--color-border);
+        color: var(--color-text);
+
+        [data-part='entry-subtitle'] {
+          color: var(--color-heading);
+        }
+      }
+
+      [data-component='ChatOverlay'] {
+        header {
+          border-color: var(--color-border);
+        }
+
+        [data-part='chat-message'] [data-tone='primary'] {
+          color: var(--color-text);
+        }
+
+        [data-part='visibility'] {
+          border-radius: 2px;
+          padding: 0.05rem 0.35rem;
+        }
+
+        [data-part='chat-name-button'] {
+          cursor: pointer;
+
+          &:hover {
+            text-decoration: underline;
+            text-decoration-thickness: 1px;
+            text-underline-offset: 2px;
+          }
+        }
+
+        :is([data-part='chat-flavor'], [data-part='chat-content']) {
+          /* Layout for this Foundry-injected HTML lives in the base layer
+           (main.css); themes only reskin colors/surfaces. The tag chips share
+           the token binding. */
+          .tags > .tag,
+          .tags[data-tooltip-class='pf2e'] > .tag {
+            background-color: var(--color-tag);
+            color: white;
+          }
+
+          .card-buttons button {
+            background-color: var(--color-primary);
+            color: var(--color-on-primary);
+
+            &:hover {
+              background-color: var(--color-primary-hover);
+            }
+            &:active {
+              background-color: var(--color-primary-active);
+            }
+          }
+        }
+
+        [data-part='chat-content'] {
+          color: var(--color-text);
+
+          :is(
+            .message-sender,
+            .speaker,
+            .actor-name,
+            .character-name,
+            .card-header,
+            .card-header h1,
+            .card-header h2,
+            .card-header h3,
+            .card-header h4,
+            .card-header .name,
+            .chat-card h1,
+            .chat-card h2,
+            .chat-card h3,
+            .chat-card h4,
+            .title,
+            strong
+          ) {
+            color: var(--color-text);
+          }
+        }
+
+        [data-part='chat-rerolled-label'] {
+          letter-spacing: 0.04em;
+        }
+
+        [data-part='chat-roll-menu-button'] {
+          border: 1px solid transparent;
+
+          &:focus-visible {
+            --tw-ring-color: var(--color-focus);
+          }
+        }
+
+        /* Chat composer */
+        [data-part='chat-composer'] {
+          border-color: var(--color-border);
+          align-items: stretch;
+
+          textarea {
+            background-color: var(--color-input);
+            border-color: var(--color-border);
+            color: var(--color-text);
+          }
+
+          textarea:focus {
+            border-color: var(--color-focus);
+            --tw-ring-color: var(--color-focus);
+          }
+
+          button[type='submit'] {
+            height: auto;
+            background-color: var(--color-primary);
+            color: var(--color-on-primary);
+          }
+
+          button[type='submit']:hover:not(:disabled) {
+            background-color: var(--color-primary-hover);
+          }
+
+          button[type='submit']:active:not(:disabled) {
+            background-color: var(--color-primary-active);
+          }
+
+          [data-part='chat-recipient-button'] {
+            &:focus-visible {
+              --tw-ring-color: var(--color-focus);
+            }
+          }
+        }
+      }
+
+      [data-component='CompendiumBrowserOverlay'] {
+        header {
+          border-color: var(--color-border);
+        }
+
+        /* filter bar divider */
+        > [data-part='panel'] > div {
+          border-color: var(--color-border);
+        }
+
+        [data-part='filter']:focus {
+          border-color: var(--color-focus);
+          --tw-ring-color: var(--color-focus);
+        }
+
+        /* package-group headings */
+        h4 {
+          color: var(--color-heading);
+        }
+
+        [data-part='pack'],
+        [data-part='entry'] {
+          color: var(--color-text);
+          transition: background-color 120ms;
+        }
+        [data-part='pack']:hover,
+        [data-part='entry']:hover {
+          background-color: var(--color-surface-hover);
+        }
+        [data-part='pack']:active,
+        [data-part='entry']:active {
+          background-color: var(--color-surface-active);
+        }
+      }
+    }
+
+    /* --- Section accent colors ---------------------------
+     --section-color drives the gradient underline on each list header.
+     Section slugs are unique across components, so they are mapped once
+     here, grouped by proficiency hue; the hues themselves are theme tokens. */
+    [data-section='attacks'],
+    [data-section='ancestryfeatures'],
+    [data-section='ancestry'],
+    [data-section='xdy_ancestryparagon'],
+    [data-section='bonus'],
+    [data-section='strikes'],
+    [data-section='weapon'],
+    [data-section='divine'] {
+      --section-color: var(--color-proficiency-legendary);
+    }
+
+    [data-section='classDCs'],
+    [data-section='spellcasting'],
+    [data-section='classfeatures'],
+    [data-section='class'],
+    [data-section='reaction'],
+    [data-section='blasts'],
+    [data-section='consumable'],
+    [data-section='arcane'],
+    [data-section='occult'] {
+      --section-color: var(--color-proficiency-expert);
+    }
+
+    [data-section='skills'],
+    [data-section='lore'],
+    [data-section='skill'],
+    [data-section='armor'],
+    [data-section='treasure'],
+    [data-section='primal'],
+    [data-section='staff'],
+    [data-section='master'],
+    [data-section='movement'] {
+      --section-color: var(--color-proficiency-master);
+    }
+
+    [data-section='defenses'],
+    [data-section='identity'],
+    [data-section='abilities'],
+    [data-section='passive'],
+    [data-section='archetype'],
+    [data-section='general'],
+    [data-section='free'],
+    [data-section='shield'],
+    [data-section='equipment'],
+    [data-section='backpack'],
+    [data-section='focus'],
+    [data-section='action'],
+    [data-section='consumables'] {
+      --section-color: var(--color-proficiency-trained);
+    }
+
+    /* Skinned themes keep the responsive auto column-width for the skills list
+     (the base "None" theme uses a fixed two-column split instead). */
+    [data-component='SkillList'] [data-part='skill-columns'] {
+      column-count: auto;
+      column-width: 12rem;
+    }
+
+    /* --- FrontPage section cards: layout only ---------------------------
+     Card styling (glass / paper) comes from the per-theme rule; here we just
+     apply the gutter margin + padding. */
+    [data-component='FrontPage'] > * {
+      margin: 0.75rem 0.75rem;
+      padding: 0.75rem 1rem;
+    }
+    [data-component='FrontPage'] > [data-section='attributes'],
+    [data-component='FrontPage'] > [data-component='MovementSpeed'] {
+      padding: 0.75rem 0.3rem;
+    }
+
+    /* --- FamiliarSheet: backdrop + card spacing mirror the main sheet ----- */
+    [data-component='FamiliarSheet'] {
+      background-color: var(--tm-panel-color);
+      background-image: var(--tm-backdrop-image);
+    }
+
+    [data-component='FamiliarSheet'] [data-part='familiar-detail-label'] {
+      color: var(--color-heading);
+    }
+
+    [data-component='FamiliarSheet'] [data-part='familiar-detail-value'] {
+      color: var(--color-text);
+    }
+
+    [data-component='FamiliarSheet'] > main > [data-component='SkillList'] > div:first-child {
+      padding-inline: 0.75rem;
+    }
+
+    [data-component='FamiliarSheet'] > main > [data-component='FamiliarActionsList'] {
+      padding-inline: 0.75rem;
+    }
+
+    [data-component='FamiliarSheet'] > main > [data-component='SkillList'],
+    [data-component='FamiliarSheet'] > main > [data-component='FamiliarActionsList'] {
+      padding-block: 0;
+    }
+
+    @media (min-width: 360px) {
+      [data-component='FamiliarSheet'] [data-component='SkillList'] [data-section='skills'] ul {
+        columns: 2;
+      }
+    }
+
+    /* --- Attribute score / movement speed dividers --------------------- */
+    [data-section='attributes'] > *,
+    [data-component='MovementSpeed'] [data-part='speeds'] > * {
+      padding-inline: 0.35rem;
+    }
+    [data-section='attributes'] > *:first-child,
+    [data-component='MovementSpeed'] [data-part='speeds'] > *:first-child {
+      padding-left: 0;
+    }
+    [data-section='attributes'] > *:last-child,
+    [data-component='MovementSpeed'] [data-part='speeds'] > *:last-child {
+      padding-right: 0;
+    }
+    /* The fading border-image gradient (the colored part) is per-theme. */
+    [data-section='attributes'] > * + *,
+    [data-component='MovementSpeed'] [data-part='speeds'] > * + * {
+      border-left: 1px solid;
+    }
+
+    /* --- Shared list cards: layout + dividers ---------------------------- */
+    [data-component='SkillList'],
+    [data-component='FeatsList'],
+    [data-component='EquipmentList'],
+    [data-component='ActionsList'],
+    [data-component='StrikeList'],
+    [data-component='FamiliarActionsList'] {
+      section[data-section] {
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.75rem;
+      }
+
+      li {
+        padding-top: 0.35rem;
+        padding-bottom: 0.35rem;
+        border-bottom: 1px solid var(--color-divider);
+      }
+
+      li:last-child {
+        border-bottom: none;
+      }
+    }
+
+    [data-component='EquipmentList'] [data-part='held-items'] li {
+      border-bottom: none;
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+
+    /* Uniform horizontal gutter around the section cards across the list tabs.
+     Each component sets this as a px-6 utility on its own content wrapper;
+     override it to px-3 here so all tabs match the familiar sheet's 0.75rem. */
+    :is(
+        [data-component='SkillList'],
+        [data-component='FeatsList'],
+        [data-component='EquipmentList'],
+        [data-component='SpellList']
+      )
+      > div {
+      padding-inline: 0.75rem;
+    }
+
+    /* The Actions tab is the exception: ActionsPanel wraps StrikeList +
+     ActionsList in one px-6 container (the gutter lives there, not on each
+     list's inner wrapper), so target that shared wrapper directly. */
+    [data-component='ActionsPanel'] {
+      padding-inline: 0.75rem;
+    }
+
+    /* --- Shared section headers (fading accent rule) ---
+     Typography + spacing (size/weight/tracking/padding/margin, no underline)
+     live on the components; this layer supplies the heading color and the
+     fading gradient underline accent, both token-driven. */
+    :is(
+        [data-component='SkillList'],
+        [data-component='FeatsList'],
+        [data-component='EquipmentList'],
+        [data-component='ActionsList'],
+        [data-component='StrikeList'],
+        [data-component='FamiliarActionsList'],
+        [data-component='SpellList']
+      )
+      h3 {
+      color: var(--color-heading);
+      border-bottom: 2px solid;
+      border-image: linear-gradient(
+          to right,
+          var(--section-color, var(--color-divider)),
+          transparent
+        )
+        1;
+    }
+
+    /* The section-header underline ships as an `underline` utility class on the
+     components; skinned themes draw the accent as the gradient border above
+     instead, so suppress the text decoration here (the gradient stays). Covers
+     the SheetSection <h3> and the spell headers' inner title link/span. */
+    :is(
+        [data-component='SkillList'],
+        [data-component='FeatsList'],
+        [data-component='EquipmentList'],
+        [data-component='ActionsList'],
+        [data-component='StrikeList'],
+        [data-component='FamiliarActionsList'],
+        [data-component='SpellList']
+      )
+      :is(h3, h3 *) {
+      text-decoration: none;
+    }
+
+    /* --- SkillList --------------------------------------- */
+    [data-component='SkillList'] {
+      ul {
+        column-gap: 2.5rem;
+      }
+
+      /* Skill name + value share a row via StatBox's `row` layout prop
+       (baked into the component, so the neutral base gets it too). */
+    }
+
+    /* --- FeatsList: sub-feats match regular feat row spacing --- */
+    [data-component='FeatsList'] {
+      [data-part='sub-feat']:has(*) {
+        font-style: italic;
+        padding-top: 0.15rem;
+        padding-bottom: 0.15rem;
+        border-top: 1px solid var(--color-divider);
+      }
+
+      li:has([data-part='sub-feat']:has(*)) {
+        padding-bottom: 0;
+      }
+    }
+
+    /* --- StrikeList -------------------------------------- */
+    [data-component='StrikeList'] {
+      /* remove the trailing gap so the stacked ActionsList doesn't double up on spacing */
+      > div {
+        padding-bottom: 0;
+      }
+      section[data-section]:last-child {
+        margin-bottom: 0;
+      }
+
+      /* tighten the button row — leading-9 adds excess height, mb-1 leaks into li padding */
+      [data-part='strike-buttons'] {
+        line-height: 1;
+        row-gap: 0.2rem;
+      }
+
+      li {
+        padding-top: 0.6rem;
+        padding-bottom: 0.6rem;
+      }
+
+      [data-section='blasts'] li + li {
+        margin-top: 0.75rem;
+      }
+
+      [data-section='blasts'] li > div + div {
+        margin-top: 0.4rem;
+      }
+    }
+
+    /* Shared attack / damage button accents — StrikeList strike row + SpellList
+     inline spell-roll row both use the [data-part='attack'|'damage'] hook.
+     Chip surface + border are per-theme. */
+    :is([data-component='StrikeList'], [data-component='SpellList']) {
+      [data-part='attack'] > span,
+      [data-part='damage'] > span {
+        margin-bottom: 0;
+      }
+
+      /* attack / MAP buttons */
+      [data-part='attack'] > span {
+        color: var(--color-proficiency-trained);
+      }
+
+      /* damage / critical buttons */
+      [data-part='damage'] > span {
+        color: var(--color-proficiency-legendary);
+      }
+
+      [data-part='attack'] > span:hover,
+      [data-part='damage'] > span:hover {
+        background-color: var(--color-surface-hover);
+      }
+
+      [data-part='attack'] > span:active,
+      [data-part='damage'] > span:active {
+        background-color: var(--color-surface-active);
+      }
+    }
+
+    /* --- EquipmentList ----------------------------------- */
+    [data-component='EquipmentList'] {
+      /* Invested-count pill sits inline with the EquipmentBulk bar — match the
+       bar's height (38px) and corner radius (5px) so they read as a single
+       row of equally-weighted controls. `min-width` is sized for the widest
+       label ("Invested: 10 / 10") so the count toggling between single- and
+       double-digit values doesn't shift the bulk-bar width next to it.
+       `tabular-nums` keeps the digit columns themselves stable. */
+      [data-part='invested-count'] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 38px;
+        padding-inline: 1rem;
+        border-radius: 5px;
+        border: 1px solid;
+        color: var(--color-text);
+        font-size: 0.8rem;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+      }
+    }
+
+    /* --- Invested Items modal --------------------------------------------
+     Promote the modal's DialogTitle to the same fading-accent treatment used
+     by section headers in the list cards, with the "trained" hue. Scoped via
+     :has() so only this specific modal picks it up; other modals keep their
+     plain-h3 chrome. The component's wrapper carries data-component, so the
+     :has() lookup is unambiguous. */
+    [role='dialog']:has([data-component='EquipmentInvested']) h3 {
+      font-size: 1.1rem;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: var(--color-heading);
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid;
+      border-image: linear-gradient(to right, var(--color-proficiency-trained), transparent) 1;
+      margin-bottom: 0.6rem;
+    }
+
+    /* Invested rows read at full text color; the faded uninvested color is
+     per-theme. */
+    [data-component='EquipmentInvested'] > li[data-invested='true'] {
+      color: var(--color-text);
+    }
+
+    /* --- EquipmentBulk bar ------------------------------- */
+    [data-component='EquipmentBulk'] {
+      height: 38px;
+      border-radius: 5px;
+      overflow: hidden;
+
+      /* hatch rect is transparent — CSS background gradient shows through */
+      [data-part='hatch-line'] {
+        stroke: transparent;
+      }
+      [data-part='bulk-hatch'] {
+        fill: transparent;
+      }
+
+      /* safe zone is transparent — CSS background gradient shows through */
+      [data-part='bulk-safe'] {
+        fill: transparent;
+      }
+
+      /* safe-zone right-edge divider (stroke color is per-theme) */
+      [data-part='bulk-safe-divider'] {
+        stroke-width: 1;
+        stroke-dasharray: 2 3;
+      }
+
+      /* border (stroke color is per-theme) */
+      [data-part='bulk-border'] {
+        stroke-width: 1;
+      }
+
+      /* labels (fill + weight are per-theme) */
+      [data-part='bulk-label'] {
+        stroke: none;
+        font-size: 11pt;
+        transform: translateY(6px);
+      }
+    }
+
+    /* --- SpellList (two-level hierarchy: source card > rank groups) --- */
+    [data-component='SpellList'] {
+      /* outer card per spell source — card styling comes from the per-theme
+       rule; only layout-specific declarations belong here. */
+      section[data-section] {
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+      }
+
+      /* rank group separator — visible top border between ranks */
+      [data-part='rank-group']:not([data-empty]) + [data-part='rank-group']:not([data-empty]) {
+        margin-top: 0.5rem;
+        padding-top: 0.25rem;
+        border-top: 1px solid var(--color-divider-strong);
+      }
+
+      /* Rank sub-header: typography/spacing on the component; the theme
+       recolors the text, the divider rule is token-driven. */
+      h4 {
+        border-bottom: 1px solid var(--color-divider-strong);
+      }
+
+      /* counter widgets — shift up so the pips align with the header baseline
+       (pip brightness is per-theme) */
+      h3 [data-part='counter'] {
+        bottom: 2px;
+      }
+
+      h4 [data-part='counter'] {
+        bottom: 3px;
+      }
+
+      /* spell items */
+      ul > li {
+        padding-top: 0.3rem;
+        padding-bottom: 0.3rem;
+        border-bottom: 1px solid var(--color-divider);
+      }
+
+      ul > li:last-child {
+        border-bottom: none;
+      }
+    }
+
+    /* --- Dropdown (Listbox) ------------------------------ */
+    /* Collapsed-list button — still rendered inline inside the dropdown
+     wrapper. */
+    [data-part='dropdown'] [aria-haspopup='listbox'] {
+      background-color: var(--color-input);
+      border-color: var(--color-border);
+      color: inherit;
+    }
+
+    /* Popover — teleported to <body>, so it's a sibling of the app root and
+     can't be reached via a descendant selector from [data-part='dropdown'].
+     Target by the marker `data-part='dropdown-options'` instead. */
+    [data-part='dropdown-options'] {
+      border: 1px solid var(--color-border);
+
+      /* default option contents (the active highlight is per-theme) */
+      [data-part='option-content'] {
+        color: var(--color-text);
+      }
+
+      /* check icon on the selected option */
+      [role='option'][aria-selected='true'] svg {
+        color: var(--color-proficiency-master);
+      }
+    }
+
+    /* --- Kebab (⋮) menu ----------------------------------
+     Like the dropdown popover, the items panel is teleported to <body>, so
+     these rules live at top level rather than under a component scope. */
+    [data-part='kebab-menu-button'] {
+      color: var(--color-icon-muted);
+    }
+    @media (hover: hover) {
+      [data-part='kebab-menu-button']:hover {
+        color: var(--color-icon-muted-hover);
+      }
+    }
+
+    [data-part='kebab-menu-items'] {
+      color: var(--color-text);
+    }
+
+    [data-part='kebab-menu-item'][data-active] {
+      background-color: var(--color-surface-hover);
+    }
+    [data-part='kebab-menu-item']:active {
+      background-color: var(--color-surface-active);
+    }
+
+    /* destructive items — mirror the equipment menu's delete treatment */
+    [data-part='kebab-menu-item'][data-danger] {
+      color: var(--color-danger);
+    }
+    [data-part='kebab-menu-item'][data-danger][data-active] {
+      background-color: var(--color-danger-surface);
+      color: var(--color-danger-hover);
+    }
+    [data-part='kebab-menu-item'][data-danger]:active {
+      background-color: var(--color-danger-surface-active);
+    }
+
+    /* --- Two-column layout depth (desktop) --------------- */
+    [data-part='sheet-left'] {
+      position: relative;
+      z-index: 1;
+      border-right-color: transparent;
+    }
+
+    [data-part='sheet-right'] {
+      background-color: var(--tm-panel-color);
+      background-image: var(--tm-backdrop-image);
+      border-left-color: transparent;
+    }
+
+    /* --- Themed scrollbars --------------------------------
+     Every scroll container the themes touch gets the same subtle thin-bar
+     treatment — the default UA scrollbar is a bright bar that clashes with
+     both skins. Firefox uses the scrollbar-* props; WebKit/Blink uses the
+     ::-webkit-scrollbar pseudo-elements. Thumb colors are theme tokens. */
+    [data-part='chat-scroll'],
+    [data-component='CompendiumBrowserOverlay'] [data-part='scroll'],
+    [data-component='FamiliarSheet'] > main,
+    [data-part='dropdown-options'],
+    [data-part='sheet-left'],
+    [data-part='sheet-right'] {
+      scrollbar-width: thin;
+      scrollbar-color: var(--color-scrollbar-thumb) transparent;
+
+      &::-webkit-scrollbar {
+        width: 8px;
+      }
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      &::-webkit-scrollbar-thumb {
+        background-color: var(--color-scrollbar-thumb);
+        border-radius: 4px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+      }
+      &::-webkit-scrollbar-thumb:hover {
+        background-color: var(--color-scrollbar-thumb-hover);
+        background-clip: padding-box;
+      }
+    }
+
+    /* --- Tab bar ----------------------------------------- */
+    [data-part='tab-bar'] {
+      border-top-color: transparent;
+
+      [data-part='tab'] {
+        background-image: none;
+        background-color: transparent;
+      }
+    }
+
+    /* --- Tab selected indicator --------------------------
+     Geometry + motion shared; the accent hue is a theme token. */
+    [data-part='tab'] {
+      &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(to right, transparent, var(--tm-tab-accent), transparent);
+        transform: scaleX(0.2);
+        opacity: 0;
+        transition:
+          transform 250ms ease,
+          opacity 250ms ease;
+      }
+
+      &[data-headlessui-state~='selected']::after {
+        transform: scaleX(1);
+        opacity: 1;
+      }
+    }
+
+    @media (min-width: 768px) {
+      [data-part='tab']::after {
+        top: auto;
+        bottom: 0;
+      }
+    }
+
+    /* Numeric level badge overlaid on the effect icon (colors per-theme) */
+    [data-part='effect-level'] {
+      color: var(--color-text);
+      border-radius: 2px;
+      line-height: 1.2;
+    }
+
+    /* --- Login page -------------------------------------- */
+    [data-component='LoginPage'] {
+      label > span {
+        color: var(--color-heading);
+      }
+
+      select {
+        background-color: var(--color-input);
+        border-color: var(--color-border);
+        color: var(--color-text);
+
+        option {
+          background-color: var(--color-surface);
+          color: var(--color-text);
+        }
+      }
+
+      button[type='submit'] {
+        background-color: var(--color-primary);
+        color: var(--color-on-primary);
+        &:hover:not(:disabled) {
+          background-color: var(--color-primary-hover);
+        }
+      }
+    }
+
+    /* --- No-world message -------------------------------- */
+    [data-component='NoWorldMessage'] {
+      color: var(--color-heading);
+    }
+
+    /* --- Server URL gate --------------------------------- */
+    [data-component='ServerUrlGate'] {
+      [data-part='gate-form'] {
+        background-color: var(--color-surface);
+        border-color: var(--color-border);
+      }
+
+      [data-part='field-label'] {
+        color: var(--color-heading);
+      }
+
+      [data-part='server-select'] {
+        border-color: var(--color-border);
+        color: var(--color-text);
+      }
+
+      input:focus,
+      [data-part='server-select']:focus {
+        border-color: var(--color-focus);
+        --tw-ring-color: var(--color-focus);
+      }
+
+      [data-part='connect'] {
+        background-color: var(--color-primary);
+        color: var(--color-on-primary);
+        transition: background-color 120ms;
+
+        &:hover {
+          background-color: var(--color-primary-hover);
+        }
+        &:active {
+          background-color: var(--color-primary-active);
+        }
+      }
+    }
+
+    /* --- Server sidebar (saved-server drawer) ------------ */
+    [data-component='ServerSidebar'] {
+      [data-part='title'] {
+        color: var(--color-heading);
+      }
+
+      [data-part='section-heading'] {
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      /* A clear rule + extra space splits the active server from the rest. */
+      [data-part='server-section'] + [data-part='server-section'] {
+        margin-top: 0.5rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--color-border);
+      }
+
+      /* The widened left accent edge (border-left-width) lives in the theme
+       files: it must be declared after their `border` shorthand or the
+       shorthand would reset it back to 1px. */
+      [data-part='server-row'] {
+        padding: 0.7rem 0.5rem 0.7rem 0.85rem;
+        transition:
+          background-color 120ms,
+          border-color 120ms;
+      }
+
+      [data-part='server-select'] {
+        color: var(--color-text);
+      }
+      [data-part='server-name'] {
+        color: var(--color-heading);
+        font-weight: 500;
+      }
+      [data-part='server-row'][data-active='true'] [data-part='server-name'] {
+        font-weight: 600;
+      }
+      [data-part='server-user'] {
+        font-size: 0.75rem;
+      }
+      /* A small glowing dot marks the live/connected server in place of a label. */
+      [data-part='server-active-dot'] {
+        width: 0.55rem;
+        height: 0.55rem;
+        border-radius: 999px;
+      }
+
+      [data-part='server-delete'] {
+        transition:
+          background-color 120ms,
+          color 120ms;
+      }
+
+      [data-part='join-new'] {
+        background-color: var(--color-primary);
+        color: var(--color-on-primary);
+        transition: background-color 120ms;
+
+        &:hover {
+          background-color: var(--color-primary-hover);
+        }
+        &:active {
+          background-color: var(--color-primary-active);
+        }
+      }
+    }
+
+    /* --- Cancel button on the connecting spinner --------- */
+    [data-part='cancel-connect'] {
+      color: var(--color-text);
+      transition: background-color 120ms;
+    }
+  }
+}

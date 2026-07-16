@@ -19,9 +19,12 @@ const { activeTheme, setTheme } = useTheme()
 const { showUnreadOnPortrait } = storeToRefs(useSettingsStore())
 const { isNativeMobile } = storeToRefs(useServerAddressStore())
 
+// 'moonlit/coolblue' → "Moonlit · Coolblue"; THEMES order puts variants right
+// after their parent.
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 const themeList = [
   { id: '', name: t('common.none') },
-  ...THEMES.map((id) => ({ id, name: id.charAt(0).toUpperCase() + id.slice(1) }))
+  ...THEMES.map(({ id }) => ({ id, name: id.split('/').map(cap).join(' · ') }))
 ]
 
 const modalRef = ref<InstanceType<typeof ModalBox>>()

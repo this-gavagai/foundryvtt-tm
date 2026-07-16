@@ -82,6 +82,7 @@ function applyDamage(mode: ApplyDamageMode) {
     <div
       v-if="view.rerollSummary?.formula || roll.formula || roll.dice.length"
       data-part="chat-roll-details"
+      data-tone="muted"
       class="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs text-gray-500"
     >
       <span
@@ -103,6 +104,7 @@ function applyDamage(mode: ApplyDamageMode) {
         <template v-if="view.rerollSummary">
           <span
             data-part="chat-roll-die"
+            data-tone="muted"
             class="inline-flex items-center gap-1 leading-none text-gray-500"
           >
             <img :src="d20Icon" class="h-4 w-4 opacity-45" alt="" aria-hidden="true" />
@@ -113,6 +115,7 @@ function applyDamage(mode: ApplyDamageMode) {
           <span data-part="chat-reroll-arrow">-&gt;</span>
           <span
             data-part="chat-roll-die"
+            data-tone="muted"
             class="inline-flex items-center gap-1 leading-none text-gray-500"
           >
             <img :src="d20Icon" class="h-4 w-4 opacity-45" alt="" aria-hidden="true" />
@@ -127,6 +130,7 @@ function applyDamage(mode: ApplyDamageMode) {
               v-for="(result, resultIndex) in die.results"
               :key="resultIndex"
               data-part="chat-roll-die"
+              data-tone="muted"
               class="inline-flex items-center gap-1 leading-none text-gray-500"
               :title="rollDieLabel(die)"
             >
@@ -137,6 +141,7 @@ function applyDamage(mode: ApplyDamageMode) {
           <span
             v-else
             data-part="chat-roll-die"
+            data-tone="muted"
             class="inline-flex items-center leading-none text-gray-500"
             :title="rollDieLabel(die)"
           >
@@ -146,7 +151,7 @@ function applyDamage(mode: ApplyDamageMode) {
       </span>
     </div>
     <div class="mt-2 flex flex-wrap items-baseline gap-1.5">
-      <span class="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+      <span data-tone="muted" class="text-xs font-semibold tracking-wide text-gray-500 uppercase">
         {{ rollKindLabel(roll) }}
       </span>
       <span
@@ -168,6 +173,7 @@ function applyDamage(mode: ApplyDamageMode) {
       <span
         v-if="roll.flavors.length"
         data-part="chat-roll-flavor"
+        data-tone="muted"
         class="min-w-0 text-xs break-words text-gray-500"
       >
         {{ rollFlavorLabel(roll) }}

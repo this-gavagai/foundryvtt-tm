@@ -1,0 +1,958 @@
+/* ============================================================================
+   "Sunny" — a light, playful counterpart to the default theme.
+
+   Where `moonlit` is a dark, glassy, take-itself-seriously fantasy skin, Sunny
+   is bright paper-cream with a peach/sky wash, rounder cards, candy-bright
+   proficiency hues, and a cheerful tangerine primary.
+
+   Inherits from the abstract base (../_core.css) — declared by containment:
+   this folder lives inside core/, so discovery applies base-core alongside
+   this theme's class; this file only defines the palette tokens and the
+   color / shadow / radius rules that make the theme sunny. Selectors here may
+   only reference data-component / data-part / data-section hooks, state
+   attributes, and semantic elements — never Tailwind utility class names.
+   scripts/check-theme-parity.mjs keeps this file's selector set in lockstep
+   with moonlit.css.
+   ========================================================================== */
+@layer themes {
+  body.theme-sunny {
+    --color-divider: oklch(90% 0.02 95);
+    --color-hovered: oklch(94% 0.025 95);
+    --color-selected: oklch(91% 0.04 80);
+    --color-active: oklch(88% 0.05 70);
+
+    /* shared surfaces */
+    --color-card: oklch(99.5% 0.008 95); /* section / list cards, dropdown button */
+    --color-surface: oklch(100% 0 0); /* modals, dropdown popovers */
+    --color-border: oklch(86% 0.03 80); /* modal / dropdown outlines */
+    --color-text: oklch(27% 0.04 285);
+    --color-heading: oklch(56% 0.13 25); /* warm coral headings — cheerful */
+    --color-input: oklch(100% 0 0); /* input / textarea / select fills */
+    --color-divider-strong: oklch(90% 0.015 95); /* spell rank dividers */
+
+    /* playful tangerine primary used for buttons / selections / accents */
+    --color-primary: oklch(70% 0.16 48);
+    --color-primary-hover: oklch(65% 0.17 46);
+    --color-primary-active: oklch(60% 0.18 44);
+    --color-on-primary: oklch(99% 0.02 80);
+    --color-focus: var(--color-primary); /* focus ring + focused borders */
+
+    /* destructive treatment (delete menu items, remove-spell chip, …) */
+    --color-danger: oklch(55% 0.2 25);
+    --color-danger-hover: oklch(48% 0.21 25);
+    --color-danger-surface: oklch(94% 0.05 25);
+    --color-danger-surface-active: oklch(90% 0.07 25);
+    --color-danger-muted: oklch(75% 0.05 25);
+
+    /* muted icon buttons (modal ✕, kebab ⋮) — resting / hover pair */
+    --color-icon-muted: oklch(62% 0.02 285);
+    --color-icon-muted-hover: oklch(45% 0.04 285);
+
+    /* interactive row/chip surfaces — hover / pressed pair */
+    --color-surface-hover: oklch(94% 0.02 80);
+    --color-surface-active: oklch(90% 0.03 80);
+
+    --color-scrollbar-thumb: oklch(82% 0.02 95);
+    --color-scrollbar-thumb-hover: oklch(72% 0.03 95);
+
+    --color-tag: oklch(50% 0.17 25); /* Foundry chat-card trait tags */
+
+    --color-proficiency-untrained: oklch(48% 0.03 285);
+    --color-proficiency-trained: oklch(56% 0.17 235);
+    --color-proficiency-expert: oklch(55% 0.21 315);
+    --color-proficiency-master: oklch(62% 0.16 62);
+    --color-proficiency-legendary: oklch(57% 0.21 24);
+
+    /* backdrop: the same paper-cream wash everywhere */
+    --tm-backdrop-color: oklch(94% 0.022 95);
+    --tm-panel-color: oklch(94% 0.022 95);
+    --tm-backdrop-image:
+      radial-gradient(ellipse 95% 50% at 12% 0%, oklch(93% 0.045 350 / 0.32), transparent),
+      radial-gradient(ellipse 95% 55% at 90% 4%, oklch(94% 0.04 215 / 0.28), transparent);
+    --tm-backdrop-attachment: fixed;
+    --tm-rollable-fallback: oklch(45% 0.03 285); /* rollable rule w/o proficiency */
+    --tm-tab-accent: var(--color-primary); /* selected-tab underline */
+
+    /* base monochrome SVG icons are already dark — they read fine on the light
+     paper background, so unlike the dark theme we don't invert them. Kept as
+     a src match to mirror moonlit (which must catch Foundry-injected HTML). */
+    img[src*='svg'] {
+      filter: none;
+    }
+
+    /* sidebar toggle pressed color — flashes the tangerine primary on tap */
+    [data-part='sidebar-toggle']:active {
+      color: var(--color-primary);
+    }
+
+    /* --- Compendium link color (affordance styling is shared) --- */
+    :is(
+      [data-component='ParsedDescription'],
+      [data-part='chat-flavor'],
+      [data-part='chat-content']
+    ) {
+      a.content-link {
+        color: var(--color-proficiency-trained);
+      }
+    }
+
+    /* --- ButtonWidget "lightgray" variant: soft neutral chip on light bg --- */
+    [data-color='lightgray'] {
+      background-color: oklch(93% 0.012 95);
+      color: var(--color-text);
+    }
+    [data-color='lightgray']:active {
+      background-color: oklch(88% 0.018 95);
+    }
+
+    /* --- ParsedDescription inline roll pills (unselected only) --- */
+    [data-component='ParsedDescription'] label:not(:has(:checked)) {
+      background-color: oklch(93% 0.012 95);
+      color: var(--color-text);
+    }
+
+    /* --- Choice toggle (carry type / hands selector) --- */
+    [data-component='ChoiceWidget'] {
+      background-color: oklch(96% 0.012 95);
+      border-color: var(--color-border);
+
+      button {
+        border-color: var(--color-border);
+      }
+
+      button:not([data-selected]):hover {
+        background-color: oklch(92% 0.02 80);
+      }
+    }
+
+    /* --- Modals --- */
+    [role='dialog'] {
+      [data-part='panel'] {
+        background-color: var(--color-surface);
+        color: var(--color-text);
+        border: 1px solid var(--color-border);
+        border-radius: 0.85rem;
+        box-shadow:
+          inset 0 1px 0 oklch(100% 0 0 / 0.9),
+          0 8px 32px oklch(60% 0.08 30 / 0.18),
+          0 24px 64px oklch(55% 0.06 280 / 0.12);
+      }
+
+      /* Equipment kebab popover (button coloring is shared) */
+      [data-part='equipment-menu-items'] {
+        background-color: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 0.6rem;
+        color: var(--color-text);
+        box-shadow:
+          0 12px 28px oklch(55% 0.06 280 / 0.18),
+          0 0 0 1px oklch(60% 0.02 285 / 0.06);
+      }
+
+      [data-part='inventory-mode-toggle'] {
+        background-color: oklch(94% 0.012 95);
+        color: var(--color-text);
+        border: 1px solid var(--color-border);
+      }
+      [data-part='inventory-mode-toggle']:hover {
+        background-color: oklch(90% 0.018 95);
+      }
+      [data-part='inventory-mode-toggle']:active {
+        background-color: oklch(86% 0.024 95);
+      }
+
+      /* Change-character picker active row: same accent treatment as the
+       active server row (hover comes from the shared surface pair). */
+      [data-part='character-option'][data-active='true'] {
+        background-color: oklch(95% 0.05 60);
+        box-shadow: inset 0 0 0 1px oklch(70% 0.16 48 / 0.25);
+      }
+
+      [data-part='compendium-banner'] {
+        background-color: oklch(93% 0.06 80);
+        border-bottom: 1px solid oklch(86% 0.06 80);
+        color: oklch(45% 0.1 50);
+      }
+
+      /* disabled modifier rows */
+      [data-part='modifier'][data-disabled] {
+        color: oklch(72% 0.02 285);
+      }
+
+      /* manually toggled modifier rows */
+      [data-part='modifier'][data-manual-on] {
+        border-color: oklch(60% 0.17 145);
+        background-color: oklch(60% 0.17 145 / 0.14);
+      }
+      [data-part='modifier'][data-manual-off] {
+        border-color: oklch(58% 0.18 25);
+        background-color: oklch(58% 0.18 25 / 0.12);
+      }
+
+      /* face picker */
+      [data-part='face-picker'] button {
+        background-color: oklch(96% 0.012 95);
+        border-color: var(--color-border);
+        color: var(--color-text);
+        transition: background-color 120ms;
+      }
+      [data-part='face-picker'] button:hover {
+        background-color: oklch(92% 0.02 80);
+      }
+      [data-part='face-picker'] button[data-selected] {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: var(--color-on-primary);
+      }
+      [data-part='face-picker'] button[data-selected]:hover {
+        background-color: var(--color-primary-hover);
+      }
+
+      /* DamageRollBuilder + RollCheckBuilder chits */
+      :is([data-component='DamageRollBuilder'], [data-component='RollCheckBuilder']) {
+        [data-part='damage-chips'] {
+          background-color: oklch(97% 0.01 95);
+          border-color: var(--color-border);
+        }
+        [data-part='damage-chips'] [data-part='damage-group'] > button,
+        [data-part='damage-types'] > button,
+        [data-part='damage-dice'] > button,
+        [data-part='check-traits'] > button,
+        [data-part='modifier-step'] {
+          background-color: oklch(95% 0.012 95);
+          border-color: var(--color-border);
+          color: var(--color-text);
+          transition: background-color 120ms;
+        }
+        [data-part='damage-chips'] [data-part='damage-group'] > button:hover,
+        [data-part='damage-types'] > button:hover,
+        [data-part='damage-dice'] > button:hover,
+        [data-part='check-traits'] > button:hover,
+        [data-part='modifier-step']:hover {
+          background-color: oklch(91% 0.02 80);
+        }
+        [data-part='damage-chips'] [data-part='damage-group'] > button:active,
+        [data-part='damage-types'] > button:active,
+        [data-part='damage-dice'] > button:active,
+        [data-part='check-traits'] > button:active,
+        [data-part='modifier-step']:active {
+          background-color: oklch(87% 0.03 80);
+        }
+        /* Capsule wrapper for each typed damage group */
+        [data-part='damage-chips'] [data-part='damage-group'][data-typed] {
+          background-color: oklch(95% 0.02 80);
+          border-color: oklch(86% 0.04 80);
+        }
+        /* Type name label inside the capsule */
+        [data-part='damage-chips'] [data-part='damage-group-tag'] {
+          color: oklch(55% 0.06 285);
+        }
+        /* Selected damage type / selected check trait */
+        [data-part='damage-types'] > button[data-active],
+        [data-part='check-traits'] > button[data-active] {
+          background-color: var(--color-primary);
+          border-color: var(--color-primary);
+          color: var(--color-on-primary);
+        }
+        [data-part='damage-types'] > button[data-active]:hover,
+        [data-part='check-traits'] > button[data-active]:hover {
+          background-color: var(--color-primary-hover);
+        }
+        /* Clear-all × in the chip box — darkens toward full text on hover,
+         mirroring the modifier-clear pair. */
+        [data-part='damage-clear-all'] {
+          color: oklch(68% 0.02 285);
+          &:hover,
+          &:active {
+            color: oklch(45% 0.04 285);
+          }
+        }
+        /* Flat modifier value and clear button in the modifier row */
+        [data-part='modifier-value'] {
+          color: var(--color-text);
+        }
+        [data-part='modifier-clear'] {
+          color: oklch(68% 0.02 285);
+          &:hover {
+            color: oklch(45% 0.04 285);
+          }
+        }
+      }
+
+      [data-component='ChatOverlay'] {
+        /* Chat message containers */
+        [data-part='chat-message'] {
+          background-color: oklch(99% 0.008 95);
+          border-color: var(--color-border);
+
+          [data-tone='muted'] {
+            color: oklch(58% 0.02 285);
+          }
+        }
+
+        [data-part='chat-message'][data-private='true'] {
+          border-color: oklch(72% 0.13 70);
+        }
+
+        [data-part='visibility'] {
+          background-color: oklch(90% 0.08 75);
+          color: oklch(45% 0.1 60);
+        }
+
+        [data-part='chat-name-button']:hover {
+          color: var(--color-proficiency-trained);
+        }
+
+        /* Foundry-enriched chat card HTML */
+        [data-part='chat-flavor'] {
+          color: oklch(48% 0.02 285);
+        }
+
+        :is([data-part='chat-flavor'], [data-part='chat-content']) {
+          hr {
+            border-color: oklch(90% 0.015 95);
+          }
+
+          .tags > .tag.tag_transparent,
+          .tags[data-tooltip-class='pf2e'] > .tag.tag_transparent {
+            color: var(--color-text);
+          }
+
+          .tags > .tag.tag_untyped,
+          .tags[data-tooltip-class='pf2e'] > .tag.tag_untyped {
+            color: var(--color-text);
+          }
+
+          footer {
+            color: oklch(60% 0.02 285);
+
+            > span + span {
+              border-left-color: oklch(88% 0.015 95);
+            }
+          }
+
+          .card-buttons button {
+            border-color: var(--color-primary);
+          }
+
+          [data-pf2-action] {
+            background-color: oklch(93% 0.012 95);
+            color: var(--color-text);
+
+            &:hover {
+              background-color: oklch(89% 0.018 95);
+            }
+          }
+
+          .critical-success {
+            color: oklch(52% 0.19 145);
+            font-weight: 600;
+          }
+          .success {
+            color: oklch(52% 0.16 250);
+            font-weight: 600;
+          }
+          .failure {
+            color: oklch(56% 0.18 40);
+            font-weight: 600;
+          }
+          .critical-failure {
+            color: oklch(52% 0.22 25);
+            font-weight: 600;
+          }
+        }
+
+        :is([data-part='chat-flavor'], [data-part='chat-content']) {
+          a.inline-roll {
+            background-color: oklch(93% 0.012 95);
+            color: var(--color-text);
+
+            &:hover {
+              background-color: oklch(89% 0.018 95);
+            }
+          }
+        }
+
+        [data-part='chat-content'] {
+          button,
+          .trait,
+          .pf2-tag {
+            background-color: oklch(95% 0.012 95);
+            border-color: var(--color-border);
+            color: var(--color-text);
+          }
+
+          .dice-formula,
+          .dice-total,
+          .roll-total,
+          .damage-total {
+            background-color: oklch(96% 0.014 95);
+            border-color: var(--color-border);
+            color: var(--color-text);
+          }
+        }
+
+        [data-part='chat-roll'] {
+          background-color: oklch(98% 0.01 95);
+          border-color: var(--color-border);
+          color: var(--color-text);
+        }
+
+        [data-part='chat-rerolled-label'] {
+          color: oklch(55% 0.1 70);
+        }
+
+        [data-part='chat-roll-menu-button'] {
+          color: oklch(62% 0.02 285);
+
+          &:hover,
+          &[aria-expanded='true'] {
+            background-color: oklch(94% 0.014 95);
+            border-color: var(--color-border);
+            color: oklch(40% 0.03 285);
+          }
+        }
+
+        [data-part='chat-roll-menu-items'] {
+          background-color: var(--color-surface);
+          border-color: var(--color-border);
+          border-radius: 0.6rem;
+          color: var(--color-text);
+          box-shadow:
+            0 12px 28px oklch(55% 0.06 280 / 0.18),
+            0 0 0 1px oklch(60% 0.02 285 / 0.06);
+        }
+
+        [data-part='chat-roll-menu-item'] {
+          color: var(--color-text);
+
+          &[data-active='true']:not(:disabled),
+          &:hover:not(:disabled) {
+            background-color: oklch(94% 0.014 95);
+            color: oklch(40% 0.03 285);
+          }
+
+          &:active:not(:disabled) {
+            background-color: oklch(90% 0.02 95);
+          }
+
+          &:disabled {
+            color: oklch(75% 0.02 285);
+          }
+        }
+
+        [data-part='chat-roll-menu-item'][data-action='hero-point-reroll'] {
+          color: oklch(55% 0.12 70);
+
+          &[data-active='true']:not(:disabled),
+          &:hover:not(:disabled) {
+            background-color: oklch(93% 0.07 78);
+            color: oklch(48% 0.13 70);
+          }
+        }
+
+        [data-part='chat-roll-flavor'],
+        [data-part='chat-roll-formula'] {
+          color: oklch(55% 0.02 285);
+        }
+
+        [data-part='chat-roll-formula'] {
+          border-color: var(--color-border);
+          background-color: oklch(96% 0.014 95);
+        }
+
+        [data-part='chat-roll-die'] {
+          color: oklch(55% 0.02 285);
+        }
+
+        [data-part='chat-reroll-total'] {
+          color: oklch(40% 0.03 285);
+        }
+
+        [data-part='chat-reroll-arrow'] {
+          color: oklch(68% 0.02 285);
+        }
+
+        [data-part='chat-damage-actions'] {
+          button {
+            background-color: oklch(95% 0.012 95);
+            border-color: var(--color-border);
+            color: var(--color-text);
+          }
+
+          button:hover:not(:disabled) {
+            background-color: oklch(91% 0.018 95);
+          }
+
+          button:active:not(:disabled) {
+            background-color: oklch(87% 0.024 95);
+          }
+
+          button[data-action='damage'] {
+            border-color: oklch(62% 0.14 28);
+            color: oklch(50% 0.17 28);
+          }
+
+          button[data-action='heal'] {
+            border-color: oklch(60% 0.12 155);
+            color: oklch(46% 0.13 155);
+          }
+
+          button[data-action='block'] {
+            border-color: oklch(60% 0.11 245);
+            color: oklch(48% 0.13 245);
+          }
+        }
+
+        [data-part='chat-inline-checks'] {
+          [data-part='chat-inline-check-button'] {
+            background-color: oklch(95% 0.03 250);
+            border-color: oklch(72% 0.1 250);
+            color: oklch(48% 0.13 250);
+
+            img {
+              opacity: 0.7;
+            }
+          }
+
+          [data-part='chat-inline-check-button']:hover {
+            background-color: oklch(91% 0.04 250);
+            border-color: oklch(65% 0.12 250);
+            color: oklch(42% 0.14 250);
+          }
+
+          [data-part='chat-inline-check-button']:active {
+            background-color: oklch(87% 0.05 250);
+          }
+        }
+
+        /* Chat composer */
+        [data-part='chat-composer'] {
+          textarea::placeholder {
+            color: oklch(68% 0.02 285);
+          }
+
+          &[data-private='true'] textarea {
+            background-color: oklch(96% 0.05 75);
+            border-color: oklch(72% 0.13 70);
+            box-shadow: inset 0 0 0 1px oklch(72% 0.13 70 / 0.22);
+          }
+
+          &[data-private='true'] textarea:focus {
+            border-color: oklch(66% 0.14 70);
+            --tw-ring-color: oklch(66% 0.14 70);
+          }
+
+          [data-part='chat-recipient'] {
+            color: oklch(58% 0.02 285);
+          }
+
+          [data-part='chat-recipient-button'] {
+            background-color: oklch(95% 0.012 95);
+            border-color: var(--color-border);
+            color: var(--color-text);
+
+            &:hover,
+            &[aria-expanded='true'] {
+              background-color: oklch(91% 0.018 95);
+              border-color: oklch(78% 0.06 250);
+              color: oklch(40% 0.03 285);
+            }
+          }
+
+          [data-part='chat-recipient-menu'] {
+            background-color: var(--color-surface);
+            border-color: var(--color-border);
+            border-radius: 0.6rem;
+            color: var(--color-text);
+            box-shadow:
+              0 12px 28px oklch(55% 0.06 280 / 0.18),
+              0 0 0 1px oklch(60% 0.02 285 / 0.06);
+
+            [data-part='menu-divider'] {
+              border-color: var(--color-divider);
+            }
+          }
+
+          [data-part='chat-recipient-menu-item'] {
+            color: var(--color-text);
+
+            &:hover,
+            &[data-active] {
+              background-color: oklch(94% 0.014 95);
+              color: oklch(40% 0.03 285);
+            }
+
+            &:active {
+              background-color: oklch(90% 0.02 95);
+            }
+
+            &[aria-pressed='true'] {
+              color: var(--color-proficiency-trained);
+            }
+
+            svg {
+              color: var(--color-proficiency-trained);
+            }
+          }
+
+          [data-part='chat-error'] {
+            color: oklch(55% 0.18 25);
+          }
+        }
+      }
+
+      [data-component='CompendiumBrowserOverlay'] {
+        [data-part='filter']::placeholder {
+          color: oklch(68% 0.02 285);
+        }
+
+        [data-part='pack'],
+        [data-part='entry'] {
+          background-color: oklch(98% 0.01 95);
+          border-color: var(--color-border);
+        }
+
+        [data-part='entry'] [data-part='level'] {
+          color: oklch(55% 0.02 285);
+        }
+        [data-part='entry'] [data-part='rarity'] {
+          color: oklch(62% 0.02 285);
+        }
+
+        [data-part='truncated'] {
+          color: oklch(65% 0.02 285);
+        }
+      }
+    }
+
+    /* --- Shared "paper card" treatment ----------------------------------
+     The dark theme floats translucent glass over a radial glow. Sunny does
+     the playful-light equivalent: bright translucent paper, a gentle blur so
+     the peach/sky wash refracts through, rounder corners, and a soft warm
+     drop shadow instead of a hard black one. */
+    [data-component='FrontPage'] > *,
+    :is(
+        [data-component='SkillList'],
+        [data-component='FeatsList'],
+        [data-component='EquipmentList'],
+        [data-component='ActionsList'],
+        [data-component='StrikeList'],
+        [data-component='FamiliarActionsList']
+      )
+      section[data-section],
+    [data-component='SpellList'] section[data-section] {
+      background-color: oklch(100% 0 0 / 0.62);
+      backdrop-filter: blur(12px) saturate(1.3);
+      -webkit-backdrop-filter: blur(12px) saturate(1.3);
+      border: 1px solid oklch(100% 0 0 / 0.7);
+      border-radius: 0.85rem;
+      box-shadow:
+        inset 0 1px 0 oklch(100% 0 0 / 0.9),
+        0 6px 20px oklch(60% 0.06 40 / 0.12);
+    }
+
+    [data-component='FamiliarStatusBanner'][data-status='special'] {
+      background-color: oklch(100% 0 0 / 0.7);
+      border-bottom: 1px solid oklch(100% 0 0 / 0.7);
+      box-shadow:
+        inset 0 1px 0 oklch(100% 0 0 / 0.9),
+        0 6px 16px oklch(60% 0.06 40 / 0.12);
+    }
+
+    /* --- Attribute score / movement speed divider hue --- */
+    [data-section='attributes'] > * + *,
+    [data-component='MovementSpeed'] [data-part='speeds'] > * + * {
+      border-image: linear-gradient(to bottom, transparent, oklch(82% 0.03 80 / 0.8)) 1;
+    }
+
+    /* --- SkillList --- */
+    [data-component='SkillList'] ul {
+      column-rule: 1px solid oklch(88% 0.02 95);
+    }
+
+    /* Shared attack / damage button chrome — chip surface + border (accent
+     text colors and hover/active fills are shared). */
+    :is([data-component='StrikeList'], [data-component='SpellList']) {
+      [data-part='attack'] > span,
+      [data-part='damage'] > span {
+        background-color: oklch(98% 0.01 95);
+        border-color: var(--color-border);
+      }
+    }
+
+    /* --- EquipmentList: invested-count pill surface --- */
+    [data-component='EquipmentList'] {
+      [data-part='invested-count'] {
+        background-color: oklch(97% 0.012 95);
+        border-color: var(--color-border);
+      }
+      [data-part='invested-count']:hover {
+        background-color: oklch(93% 0.02 80);
+      }
+      [data-part='invested-count']:active {
+        background-color: oklch(89% 0.03 80);
+      }
+    }
+
+    /* Uninvested rows fade back so the active set scans first (invested rows
+     get full text color from the shared layer). */
+    [data-component='EquipmentInvested'] > li[data-invested='false'] {
+      color: oklch(70% 0.02 285);
+    }
+
+    /* --- EquipmentBulk bar --- */
+    [data-component='EquipmentBulk'] {
+      background-color: oklch(95% 0.012 95);
+
+      [data-part='bulk-fill'][data-state='safe'] {
+        fill: oklch(72% 0.16 140);
+      }
+      [data-part='bulk-fill'][data-state='encumbered'] {
+        fill: oklch(78% 0.15 82);
+      }
+      [data-part='bulk-fill'][data-state='over-max'] {
+        fill: oklch(65% 0.18 25);
+      }
+
+      [data-part='bulk-safe-divider'] {
+        stroke: oklch(40% 0.02 285 / 0.45);
+      }
+
+      [data-part='bulk-border'] {
+        stroke: var(--color-border);
+      }
+
+      [data-part='bulk-label'] {
+        fill: oklch(32% 0.03 285);
+        font-weight: 600;
+      }
+    }
+
+    /* --- SpellList: rank header + counter pip colors --- */
+    [data-component='SpellList'] {
+      h4 {
+        color: oklch(55% 0.03 285);
+      }
+
+      h3 [data-part='counter'],
+      h4 [data-part='counter'] {
+        color: oklch(45% 0.03 285);
+      }
+    }
+
+    /* --- Dropdown (Listbox) --- */
+    [data-part='dropdown'] [aria-haspopup='listbox'] {
+      &:disabled,
+      &[data-waiting] {
+        background-color: oklch(95% 0.012 95);
+      }
+
+      /* chevron is the only svg here */
+      svg {
+        color: oklch(62% 0.02 285);
+      }
+    }
+
+    [data-part='dropdown-options'] {
+      background-color: var(--color-surface);
+      border-radius: 0.6rem;
+      box-shadow: 0 8px 24px oklch(55% 0.06 280 / 0.18);
+
+      /* hovered / keyboard-focused option (Headless UI active state) */
+      [data-part='option-content'][data-active] {
+        background-color: oklch(94% 0.02 80);
+      }
+    }
+
+    /* --- Kebab (⋮) menu popover surface --- */
+    [data-part='kebab-menu-items'] {
+      background-color: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 0.6rem;
+      box-shadow:
+        0 12px 28px oklch(55% 0.06 280 / 0.18),
+        0 0 0 1px oklch(60% 0.02 285 / 0.06);
+    }
+
+    /* --- Two-column layout depth (desktop) --- */
+    [data-part='sheet-left'] {
+      box-shadow: 4px 0 16px oklch(60% 0.05 40 / 0.1);
+    }
+
+    /* --- Character header --- */
+    [data-component='CharacterHeader'] {
+      background-color: oklch(100% 0 0 / 0.78);
+      background-image: radial-gradient(
+        ellipse 150% 100% at 50% 0%,
+        oklch(92% 0.07 350 / 0.4),
+        transparent
+      );
+      backdrop-filter: blur(18px) saturate(1.3);
+      -webkit-backdrop-filter: blur(18px) saturate(1.3);
+      border-top-color: transparent;
+      border-bottom-color: transparent;
+      box-shadow:
+        inset 0 -1px 0 oklch(100% 0 0 / 0.7),
+        0 8px 20px oklch(60% 0.05 40 / 0.1);
+    }
+
+    /* --- Tab bar --- */
+    [data-part='tab-bar'] {
+      background-color: oklch(100% 0 0 / 0.78);
+      background-image: radial-gradient(
+        ellipse 150% 100% at 50% 0%,
+        oklch(92% 0.07 215 / 0.4),
+        transparent
+      );
+      backdrop-filter: blur(18px) saturate(1.3);
+      -webkit-backdrop-filter: blur(18px) saturate(1.3);
+      border-bottom-color: var(--color-border);
+      box-shadow:
+        inset 0 1px 0 oklch(100% 0 0 / 0.8),
+        0 8px 20px oklch(60% 0.05 40 / 0.1),
+        0 -12px 24px oklch(60% 0.05 40 / 0.08);
+    }
+
+    /* Numeric level badge overlaid on the effect icon */
+    [data-part='effect-level'] {
+      background-color: oklch(100% 0 0 / 0.92);
+      border: 1px solid var(--color-border);
+    }
+
+    /* --- Login page --- */
+    [data-component='LoginPage'] {
+      form {
+        background-color: var(--color-surface);
+        border-color: var(--color-border);
+        border-radius: 0.85rem;
+        box-shadow:
+          inset 0 1px 0 oklch(100% 0 0 / 0.9),
+          0 8px 32px oklch(60% 0.08 30 / 0.16);
+      }
+
+      select {
+        /* Pin the UA chrome light so a dark-preference host doesn't render the
+         native arrow/option popup dark against the paper surface (moonlit
+         pins the same control dark). */
+        color-scheme: light;
+
+        option:disabled {
+          color: oklch(72% 0.02 285);
+        }
+      }
+
+      [data-part='error'] {
+        color: oklch(55% 0.18 25);
+
+        button {
+          color: oklch(55% 0.02 285);
+          &:hover {
+            color: var(--color-text);
+          }
+        }
+      }
+    }
+
+    /* --- Server URL gate --- */
+    [data-component='ServerUrlGate'] {
+      [data-part='gate-form'] {
+        border-radius: 0.85rem;
+        box-shadow:
+          inset 0 1px 0 oklch(100% 0 0 / 0.9),
+          0 8px 32px oklch(60% 0.08 30 / 0.16);
+      }
+
+      [data-part='server-select'] {
+        background-color: oklch(100% 0 0);
+        /* Pin the UA chrome light so a dark-preference host doesn't render the
+         native arrow/option popup dark against the paper surface (moonlit
+         pins the same control dark). */
+        color-scheme: light;
+      }
+
+      [data-part='error'] {
+        color: oklch(55% 0.18 25);
+      }
+    }
+
+    /* --- Server sidebar (saved-server drawer) --- */
+    [data-component='ServerSidebar'] {
+      [data-part='panel'] {
+        background-color: var(--color-surface);
+        color: var(--color-text);
+        border-left: 1px solid var(--color-border);
+        box-shadow:
+          inset 1px 0 0 oklch(100% 0 0 / 0.9),
+          -8px 0 32px oklch(55% 0.06 280 / 0.16);
+      }
+
+      [data-part='section-heading'] {
+        color: oklch(55% 0.03 285);
+      }
+
+      [data-part='server-row'] {
+        border-radius: 0.6rem;
+        background-color: oklch(98% 0.01 95);
+        border: 1px solid var(--color-border);
+        /* Widened after the shorthand (which would otherwise reset it): the
+         active row recolours this edge as an accent without shifting content. */
+        border-left-width: 3px;
+      }
+      [data-part='server-row'][data-active='true'] {
+        border-color: var(--color-primary);
+        border-left-color: var(--color-primary);
+        background-color: oklch(95% 0.05 60);
+        box-shadow: inset 0 0 0 1px oklch(70% 0.16 48 / 0.25);
+      }
+
+      [data-part='server-icon'] {
+        color: oklch(65% 0.02 285);
+      }
+      /* The active server's leading icon picks up the accent so the connected
+       server reads at a glance, even without a label. */
+      [data-part='server-row'][data-active='true'] [data-part='server-icon'] {
+        color: var(--color-primary-active);
+      }
+      [data-part='server-user'] {
+        /* Kept well below the server name in contrast so it reads as secondary. */
+        color: oklch(60% 0.02 285);
+      }
+      [data-part='server-row'][data-active='true'] [data-part='server-user'] {
+        color: oklch(52% 0.06 50);
+      }
+      [data-part='server-active-dot'] {
+        background-color: oklch(68% 0.18 150);
+        box-shadow: 0 0 0 3px oklch(68% 0.18 150 / 0.2);
+      }
+
+      [data-part='server-delete'] {
+        color: oklch(62% 0.06 25);
+
+        &:hover {
+          background-color: var(--color-danger-surface);
+          color: oklch(48% 0.18 25);
+        }
+        &:active {
+          background-color: var(--color-danger-surface-active);
+        }
+      }
+
+      [data-part='empty'] {
+        color: oklch(65% 0.02 285);
+      }
+    }
+
+    /* --- Cancel button on the connecting spinner --- */
+    [data-part='cancel-connect'] {
+      background-color: oklch(93% 0.012 95);
+
+      &:hover {
+        background-color: oklch(89% 0.018 95);
+      }
+      &:active {
+        background-color: oklch(85% 0.024 95);
+      }
+    }
+  }
+}

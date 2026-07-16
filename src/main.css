@@ -1,7 +1,19 @@
 @import 'tailwindcss';
-@import './themes/moonlit/moonlit.css' layer(themes);
-@import './themes/sunny/sunny.css' layer(themes);
 @plugin '@headlessui/tailwindcss';
+
+/* Themes. All theme CSS shares the single `themes` layer, declared here so
+   its position is fixed (after Tailwind's utilities, below this file's
+   unlayered rules) before any theme rule arrives. The theme files themselves
+   are discovered from the filesystem and loaded by src/themes/index.ts —
+   each wraps its own rules in `@layer themes { … }`, and containment
+   declares inheritance: a theme folder inside a base's folder (a folder
+   holding an underscore-prefixed _<name>.css, e.g. core/_core.css) pulls
+   the base's structure + token defaults, overriding tokens by source order
+   at equal specificity (index.ts loads the base first), while a folder at
+   the themes root is standalone. Token-only variants like
+   core/moonlit/variants/coolblue.css win over their theme by specificity.
+   Adding a theme is creating its folder + file — nothing else to register. */
+@layer themes;
 
 /* Dosis is self-hosted rather than pulled from Google Fonts. As a remote
    @import, it was a render-blocking resource: in the native (capacitor://)

@@ -200,6 +200,7 @@ defineExpose({ infoModal })
       @pointerdown="isClickable && triggerLightHapticFeedback()"
     >
       <div
+        data-part="label"
         :class="[
           proficiencyLevels[props.proficiency ?? 0]?.color,
           row

@@ -47,6 +47,7 @@ const emit = defineEmits<{
             data-part="chat-recipient-menu-item"
             class="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors"
             :class="active ? 'bg-gray-100 text-gray-900' : ''"
+            :data-active="active || undefined"
             @click="emit('selectGroup', target.key)"
           >
             <span class="min-w-0 flex-1 truncate">{{ target.label }}</span>
@@ -57,13 +58,19 @@ const emit = defineEmits<{
             />
           </button>
         </MenuItem>
-        <div v-if="userTargets.length" class="my-1 border-t border-gray-200" aria-hidden="true" />
+        <div
+          v-if="userTargets.length"
+          data-part="menu-divider"
+          class="my-1 border-t border-gray-200"
+          aria-hidden="true"
+        />
         <MenuItem v-for="target in userTargets" :key="target.key" as="div" v-slot="{ active }">
           <button
             type="button"
             data-part="chat-recipient-menu-item"
             class="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors"
             :class="active ? 'bg-gray-100 text-gray-900' : ''"
+            :data-active="active || undefined"
             :aria-pressed="isUserSelected(target.key)"
             @click.prevent.stop="emit('toggleUser', target.key)"
           >
