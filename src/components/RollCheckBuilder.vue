@@ -74,12 +74,12 @@ const flatRollers: Roller[] = doFlatCheck
   ? [
       {
         slug: 'flat-5',
-        label: 'Flat DC 5',
+        label: t('rolls.flatDc', { dc: 5 }),
         execute: (face, opts) => doFlatCheck(face, { ...(opts ?? {}), dc: 5 })
       },
       {
         slug: 'flat-11',
-        label: 'Flat DC 11',
+        label: t('rolls.flatDc', { dc: 11 }),
         execute: (face, opts) => doFlatCheck(face, { ...(opts ?? {}), dc: 11 })
       }
     ]

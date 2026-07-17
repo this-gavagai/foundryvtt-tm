@@ -133,9 +133,10 @@ const checkSlugLabels = computed(() => {
 })
 
 function inlineCheckLabel(check: ActiveRoll): string {
-  const localizedName = (check.slug && checkSlugLabels.value[check.slug]) || check.slug || ''
-  const dcSuffix = check.dc ? ` DC ${check.dc}` : check.against ? ` vs ${check.against}` : ''
-  return `${localizedName} Check${dcSuffix}`
+  const name = (check.slug && checkSlugLabels.value[check.slug]) || check.slug || ''
+  if (check.dc) return t('chat.inlineCheckDc', { name, dc: check.dc })
+  if (check.against) return t('chat.inlineCheckVs', { name, against: check.against })
+  return t('chat.inlineCheck', { name })
 }
 
 function openLocalizedInlineRoll(check: ActiveRoll) {

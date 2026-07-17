@@ -30,7 +30,8 @@
     "level": "Stufe",
     "added": "Hinzugefügt",
     "actions": "Aktionen",
-    "noResults": "Keine Treffer"
+    "noResults": "Keine Treffer",
+    "passive": "Passiv"
   },
   "compendium": {
     "addToCharacter": "Zum Charakter hinzufügen",
@@ -229,18 +230,29 @@
     "investedCount": "Resonanz: {count} / 10",
     "usesLabel": "Benutzungen:",
     "useItem": "Gegenstand benutzen",
+    "containerLabel": "Behälter",
     "partyStash": "Gruppenvorrat",
     "attach": "Anbringen",
     "attachTo": "An {parent} anbringen",
     "attachTitle": "Anbringen an…",
     "detach": "Abnehmen",
+    "transferToParty": "In den Gruppenvorrat verschieben",
+    "transferToIndividual": "In dein Inventar verschieben",
     "carry": {
       "1hand": "1 Hand",
       "2hands": "2 Hände",
       "worn": "Getragen",
       "stowed": "Verstaut",
       "dropped": "Fallen gelassen"
-    }
+    },
+    "equipped": "Gegenstand ausgerüstet ({type})",
+    "notEquipped": "Gegenstand nicht ausgerüstet",
+    "invested": "Gegenstand investiert",
+    "notInvested": "Gegenstand nicht investiert",
+    "quantityShort": "Anz.:",
+    "quantityTitle": "{name} (Anzahl)",
+    "currentBulk": "Aktuelle Last",
+    "maxBulk": "Max."
   },
   "spells": {
     "noSpells": "Dieser Charakter wirkt keine Zauber.",
@@ -322,13 +334,18 @@
     "reroll": "Neu würfeln, neuen behalten",
     "heroPointReroll": "Mit Heldenpunkt neu würfeln",
     "rerollKeepHighest": "Neu würfeln, höheren behalten",
-    "rerollKeepLowest": "Neu würfeln, niedrigeren behalten"
+    "rerollKeepLowest": "Neu würfeln, niedrigeren behalten",
+    "rerolled": "NEU GEWÜRFELT",
+    "inlineCheck": "{name}-Probe",
+    "inlineCheckDc": "{name}-Probe SG {dc}",
+    "inlineCheckVs": "{name}-Probe gegen {against}"
   },
   "sideMenu": {
     "openSidebar": "Seitenleiste öffnen",
     "closeSidebar": "Seitenleiste schließen",
     "chat": "Chat",
     "compendium": "Kompendium",
+    "changeCharacter": "Charakter wechseln",
     "targetingProxy": "Ziel-Stellvertreter",
     "pairPixelDice": "Pixel-Würfel koppeln",
     "reconnectDie": "Würfel neu verbinden",
@@ -339,6 +356,9 @@
     "manualDicePicker": "Manuelle Würfelergebnisse",
     "manualRollsDisabledByGm": "Manuelle und Pixel-Würfelergebnisse wurden von der SL deaktiviert",
     "freeRoll": "Probe würfeln",
+    "freeRollTitle": "Probe (W20)",
+    "secret": "Geheim",
+    "rollD20": "W20 würfeln",
     "damageRoll": "Schaden würfeln",
     "traits": "Merkmale",
     "checkStat": "Würfeln als",
@@ -365,15 +385,39 @@
     "message": "Eine neue Version ist verfügbar.",
     "reload": "Neu laden"
   },
+  "versionMismatch": {
+    "title": "Aktualisierung erforderlich",
+    "message": "Diese App ({appVersion}) ist nicht mit dem verbundenen Foundry-Modul ({moduleVersion}) kompatibel. Aktualisiere beide auf dieselbe Version.",
+    "reload": "Neu laden"
+  },
   "connection": {
     "reconnecting": "Verbindung wird wiederhergestellt…",
     "syncing": "Wird synchronisiert…",
-    "waitingForGm": "Warten auf Spielleiter…"
+    "waitingForGm": "Warten auf Spielleiter…",
+    "down": "Foundry-Server antwortet nicht",
+    "noWorld": "Server erreichbar — Welt nicht aktiv",
+    "noGm": "Welt aktiv — kein SL online",
+    "connected": "Verbunden"
   },
   "infoModal": {
     "systemIcon": "PF2e-Systemsymbol",
     "sendToChat": "In den Chat senden",
     "dieImage": "d{faces}-Bild",
     "clearDicePending": "Klicken, um ausstehende Würfelwürfe zu löschen"
+  },
+  "familiar": {
+    "abilities": "Fähigkeiten",
+    "noAbilities": "Keine Vertrautenfähigkeiten.",
+    "attack": "Angriff",
+    "attackModal": "Vertrautenangriff",
+    "creature": "Kreatur",
+    "attribute": "Attribut",
+    "master": "Meister"
+  },
+  "rolls": {
+    "flatDc": "Feste SG {dc}"
+  },
+  "modifiers": {
+    "outranked": "Von einem höheren Modifikator desselben Typs übertroffen; trägt nicht zum Wurf bei"
   }
 }

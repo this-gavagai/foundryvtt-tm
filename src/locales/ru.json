@@ -30,7 +30,8 @@
     "level": "Уровень",
     "added": "Добавлено",
     "actions": "Действия",
-    "noResults": "Совпадений нет"
+    "noResults": "Совпадений нет",
+    "passive": "Пассивная"
   },
   "compendium": {
     "addToCharacter": "Добавить персонажу",
@@ -235,13 +236,23 @@
     "attachTo": "Прикрепить к {parent}",
     "attachTitle": "Прикрепить к…",
     "detach": "Открепить",
+    "transferToParty": "Переместить в общий запас группы",
+    "transferToIndividual": "Переместить в свой инвентарь",
     "carry": {
       "1hand": "1 рука",
       "2hands": "2 руки",
       "worn": "Надето",
       "stowed": "Убрано",
       "dropped": "Брошено"
-    }
+    },
+    "equipped": "Предмет экипирован ({type})",
+    "notEquipped": "Предмет не экипирован",
+    "invested": "Предмет задействован",
+    "notInvested": "Предмет не задействован",
+    "quantityShort": "Кол-во:",
+    "quantityTitle": "{name} (количество)",
+    "currentBulk": "Текущая ноша",
+    "maxBulk": "Макс."
   },
   "spells": {
     "noSpells": "Этот персонаж не сотворяет заклинания.",
@@ -323,13 +334,18 @@
     "reroll": "Перебросить, оставить новый",
     "heroPointReroll": "Перебросить очком героизма",
     "rerollKeepHighest": "Перебросить, оставить больший",
-    "rerollKeepLowest": "Перебросить, оставить меньший"
+    "rerollKeepLowest": "Перебросить, оставить меньший",
+    "rerolled": "ПЕРЕБРОШЕНО",
+    "inlineCheck": "Проверка: {name}",
+    "inlineCheckDc": "Проверка: {name}, Кл. Сл. {dc}",
+    "inlineCheckVs": "Проверка: {name} против {against}"
   },
   "sideMenu": {
     "openSidebar": "Открыть боковую панель",
     "closeSidebar": "Закрыть боковую панель",
     "chat": "Чат",
     "compendium": "Библиотеки",
+    "changeCharacter": "Сменить персонажа",
     "targetingProxy": "Прокси нацеливания",
     "pairPixelDice": "Сопрячь Pixel Die",
     "reconnectDie": "Переподключить кубик",
@@ -369,15 +385,39 @@
     "message": "Доступна новая версия.",
     "reload": "Перезагрузить"
   },
+  "versionMismatch": {
+    "title": "Требуется обновление",
+    "message": "Это приложение ({appVersion}) несовместимо с подключённым модулем Foundry ({moduleVersion}). Обновите оба до одной версии.",
+    "reload": "Перезагрузить"
+  },
   "connection": {
     "reconnecting": "Переподключение…",
     "syncing": "Синхронизация…",
-    "waitingForGm": "Ожидание ведущего…"
+    "waitingForGm": "Ожидание ведущего…",
+    "down": "Сервер Foundry не отвечает",
+    "noWorld": "Сервер доступен — мир не активен",
+    "noGm": "Мир активен — нет ГМа в сети",
+    "connected": "Подключено"
   },
   "infoModal": {
     "systemIcon": "Значок системы PF2e",
     "sendToChat": "Отправить в чат",
     "dieImage": "Изображение d{faces}",
     "clearDicePending": "Нажмите, чтобы сбросить ожидающие броски физических костей"
+  },
+  "familiar": {
+    "abilities": "Способности",
+    "noAbilities": "У фамильяра нет способностей.",
+    "attack": "Атака",
+    "attackModal": "Атака фамильяра",
+    "creature": "Существо",
+    "attribute": "Характеристика",
+    "master": "Хозяин"
+  },
+  "rolls": {
+    "flatDc": "Фикс. Кл.Сл. {dc}"
+  },
+  "modifiers": {
+    "outranked": "Превзойдён более высоким модификатором того же типа; не будет учтён в броске"
   }
 }

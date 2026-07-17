@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { ActorPF2e } from '@7h3laughingman/pf2e-types'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
 import {
@@ -48,18 +49,19 @@ const { isListening } = storeToRefs(useListenersStore())
 const { world } = storeToRefs(useWorldStore())
 const { worldAuthenticated } = storeToRefs(useFoundryWorldStatusStore())
 
+const { t } = useI18n()
 const connectionState = computed(() => {
   if (!isConnected.value) return 'down'
   if (!worldAuthenticated.value) return 'no-world'
   if (!isListening.value) return 'no-gm'
   return 'ok'
 })
-const connectionTitle: Record<string, string> = {
-  down: 'Foundry server not responding',
-  'no-world': 'Server reachable — world not active',
-  'no-gm': 'World active — no GM online',
-  ok: 'Connected'
-}
+const connectionTitle = computed<Record<string, string>>(() => ({
+  down: t('connection.down'),
+  'no-world': t('connection.noWorld'),
+  'no-gm': t('connection.noGm'),
+  ok: t('connection.connected')
+}))
 const pixelStore = usePixelDiceStore()
 const { pixels, pairError } = storeToRefs(pixelStore)
 const { bluetoothSupported, pairDie, reconnectDie, forgetDie } = pixelStore

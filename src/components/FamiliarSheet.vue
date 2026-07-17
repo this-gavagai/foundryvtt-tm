@@ -45,8 +45,8 @@ const masterName = computed(
       <template #secondary-stat>
         <StatBox
           v-if="familiar.attack.value"
-          heading="Attack"
-          modal-heading="Familiar Attack"
+          :heading="$t('familiar.attack')"
+          :modal-heading="$t('familiar.attackModal')"
           :proficiency="familiar.attack.value?.rank"
           :modifiers="familiar.attack.value?.modifiers"
           :rollAction="familiar.attack.value?.roll"
@@ -70,17 +70,17 @@ const masterName = computed(
       class="grid flex-none grid-cols-2 items-center gap-x-4 gap-y-1 px-4 py-2 text-sm"
     >
       <div v-if="familiar.creature.value">
-        <span data-part="familiar-detail-label">Creature</span>
+        <span data-part="familiar-detail-label">{{ $t('familiar.creature') }}</span>
         <span data-part="familiar-detail-value" class="ml-2">{{ familiar.creature.value }}</span>
       </div>
       <div v-if="familiar.masterAbility.value">
-        <span data-part="familiar-detail-label">Attribute</span>
+        <span data-part="familiar-detail-label">{{ $t('familiar.attribute') }}</span>
         <span data-part="familiar-detail-value" class="ml-2 uppercase">{{
           familiar.masterAbility.value
         }}</span>
       </div>
       <div v-if="masterName || familiar.masterId.value" class="col-span-2">
-        <span data-part="familiar-detail-label">Master</span>
+        <span data-part="familiar-detail-label">{{ $t('familiar.master') }}</span>
         <span data-part="familiar-detail-value" class="ml-2">{{
           masterName ?? familiar.masterId.value
         }}</span>

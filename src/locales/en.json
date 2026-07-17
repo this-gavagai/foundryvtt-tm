@@ -30,7 +30,8 @@
     "level": "Level",
     "added": "Added",
     "actions": "Actions",
-    "noResults": "No matches"
+    "noResults": "No matches",
+    "passive": "Passive"
   },
   "compendium": {
     "addToCharacter": "Add to Character",
@@ -243,7 +244,15 @@
       "worn": "Worn",
       "stowed": "Stowed",
       "dropped": "Dropped"
-    }
+    },
+    "equipped": "Item equipped ({type})",
+    "notEquipped": "Item not equipped",
+    "invested": "Item invested",
+    "notInvested": "Item not invested",
+    "quantityShort": "Qty:",
+    "quantityTitle": "{name} (quantity)",
+    "currentBulk": "Current Bulk",
+    "maxBulk": "Max"
   },
   "spells": {
     "noSpells": "This character does not cast spells.",
@@ -325,7 +334,11 @@
     "reroll": "Reroll, Keep New",
     "heroPointReroll": "Reroll with Hero Point",
     "rerollKeepHighest": "Reroll, Keep Higher",
-    "rerollKeepLowest": "Reroll, Keep Lower"
+    "rerollKeepLowest": "Reroll, Keep Lower",
+    "rerolled": "REROLLED",
+    "inlineCheck": "{name} Check",
+    "inlineCheckDc": "{name} Check DC {dc}",
+    "inlineCheckVs": "{name} Check vs {against}"
   },
   "sideMenu": {
     "openSidebar": "Open sidebar",
@@ -380,12 +393,31 @@
   "connection": {
     "reconnecting": "Reconnecting…",
     "syncing": "Syncing…",
-    "waitingForGm": "Waiting for GM…"
+    "waitingForGm": "Waiting for GM…",
+    "down": "Foundry server not responding",
+    "noWorld": "Server reachable — world not active",
+    "noGm": "World active — no GM online",
+    "connected": "Connected"
   },
   "infoModal": {
     "systemIcon": "PF2e system icon",
     "sendToChat": "Send to chat",
     "dieImage": "d{faces} image",
     "clearDicePending": "Click to clear pending physical-die rolls"
+  },
+  "familiar": {
+    "abilities": "Abilities",
+    "noAbilities": "No familiar abilities.",
+    "attack": "Attack",
+    "attackModal": "Familiar Attack",
+    "creature": "Creature",
+    "attribute": "Attribute",
+    "master": "Master"
+  },
+  "rolls": {
+    "flatDc": "Flat DC {dc}"
+  },
+  "modifiers": {
+    "outranked": "Outranked by a higher same-type modifier; will not contribute to the roll"
   }
 }

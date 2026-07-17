@@ -58,11 +58,7 @@ function toggle(mod: Modifier) {
       :data-manual-on="isManuallyActivated(mod) || undefined"
       :data-manual-off="isManuallyDeactivated(mod) || undefined"
       :data-stacking-loser="isStackingLoser(mod) || undefined"
-      :title="
-        isStackingLoser(mod)
-          ? 'Outranked by a higher same-type modifier; will not contribute to the roll'
-          : undefined
-      "
+      :title="isStackingLoser(mod) ? $t('modifiers.outranked') : undefined"
       class="grid items-center gap-2 rounded-sm border border-transparent px-1 py-0.5"
       :class="[
         gridClass,

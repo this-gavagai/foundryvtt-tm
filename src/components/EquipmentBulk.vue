@@ -55,7 +55,7 @@ const { value: bulkValue } = character.bulk.value
       font-weight="lighter"
       class="fill-gray-900 font-medium"
     >
-      Current Bulk: {{ bulkValue }} / {{ bulkEncumberedAfter }}
+      {{ $t('equipment.currentBulk') }}: {{ bulkValue }} / {{ bulkEncumberedAfter }}
     </text>
     <text
       data-part="bulk-label"
@@ -66,7 +66,7 @@ const { value: bulkValue } = character.bulk.value
       font-weight="lighter"
       class="fill-gray-900 font-medium"
     >
-      Max: {{ bulkMax }}&nbsp;&nbsp;
+      {{ $t('equipment.maxBulk') }}: {{ bulkMax }}&nbsp;&nbsp;
     </text>
   </svg>
 </template>

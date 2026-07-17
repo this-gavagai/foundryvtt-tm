@@ -23,7 +23,9 @@ function viewAction(action: Action) {
 <template>
   <div data-component="FamiliarActionsList" class="px-6 py-4">
     <section data-section="abilities" class="[&:not(:has(li))]:hidden">
-      <h3 class="mb-[0.6rem] pb-2 text-[1.1rem] font-normal tracking-[0.01em]">Abilities</h3>
+      <h3 class="mb-[0.6rem] pb-2 text-[1.1rem] font-normal tracking-[0.01em]">
+        {{ $t('familiar.abilities') }}
+      </h3>
       <ul class="space-y-1">
         <li v-for="action in actions" :key="action._id">
           <ViewableItem scale="firm" class="inline-block" @click="viewAction(action)">
@@ -44,11 +46,11 @@ function viewAction(action: Action) {
       </ul>
     </section>
     <div v-if="actions?.length === 0" class="py-8 text-center text-sm text-gray-500">
-      No familiar abilities.
+      {{ $t('familiar.noAbilities') }}
     </div>
     <DetailInfoModal ref="detailModal" :item="actionViewed" :labels="rollOptionLabels">
       <template #description>
-        <span v-if="actionViewed?.actionType === 'passive'">Passive</span>
+        <span v-if="actionViewed?.actionType === 'passive'">{{ $t('common.passive') }}</span>
       </template>
     </DetailInfoModal>
   </div>

@@ -71,7 +71,7 @@ function applyDamage(mode: ApplyDamageMode) {
       data-part="chat-rerolled-label"
       class="absolute top-2 right-2 text-xs font-semibold tracking-wide uppercase"
     >
-      REROLLED
+      {{ $t('chat.rerolled') }}
     </span>
     <ChatRerollMenu
       v-else-if="actions.canReroll(view.message, roll)"

@@ -59,14 +59,12 @@ const itemWornType = computed(() => {
   return null
 })
 
-const isUnidentified = computed(
-  () => props.item?.system?.identification?.status === 'unidentified'
-)
+const isUnidentified = computed(() => props.item?.system?.identification?.status === 'unidentified')
 
 const backpacks = computed(() => props.inventory?.filter((item) => item.type === 'backpack') ?? [])
 
 const containerList = computed(() => [
-  { id: '', name: 'None' },
+  { id: '', name: t('common.none') },
   ...backpacks.value.map((b) => ({ id: b._id ?? '', name: b.name ?? '' }))
 ])
 
@@ -145,16 +143,19 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
         leave-to-class="opacity-0 max-h-0"
       >
         <div
-          v-if="item?.type !== 'backpack' && !isSubitem && (backpacks.length > 0 || inventoryMode !== undefined)"
+          v-if="
+            item?.type !== 'backpack' &&
+            !isSubitem &&
+            (backpacks.length > 0 || inventoryMode !== undefined)
+          "
           class="mb-2"
         >
           <span
             v-if="backpacks.length > 0"
             data-part="container-label"
             class="mb-1 block text-xs font-medium tracking-wider uppercase"
-            >{{
-            $t('equipment.containerLabel')
-          }}</span>
+            >{{ $t('equipment.containerLabel') }}</span
+          >
           <div class="flex items-center gap-2">
             <DropdownWidget
               v-if="backpacks.length > 0"
@@ -233,8 +234,8 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
           >
             {{
               item?.system?.equipped?.inSlot
-                ? `Item equipped (${capitalize(itemWornType)})`
-                : 'Item not equipped'
+                ? $t('equipment.equipped', { type: capitalize(itemWornType) })
+                : $t('equipment.notEquipped')
             }}
           </span>
         </div>
@@ -256,7 +257,9 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
           class="text-md ml-2 align-middle"
           :class="{ 'text-gray-400': !item?.system.equipped.invested }"
         >
-          {{ item?.system.equipped.invested ? `Item invested` : 'Item not invested' }}
+          {{
+            item?.system.equipped.invested ? $t('equipment.invested') : $t('equipment.notInvested')
+          }}
         </span>
       </div>
     </div>
@@ -275,9 +278,9 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
           class="cursor-pointer"
           @click="quantityModal.open()"
         >
-          Qty: {{ item?.system?.quantity }}
+          {{ $t('equipment.quantityShort') }} {{ item?.system?.quantity }}
         </button>
-        <span v-else>Qty: {{ item?.system?.quantity }}</span>
+        <span v-else>{{ $t('equipment.quantityShort') }} {{ item?.system?.quantity }}</span>
       </div>
       <div
         class="ml-auto flex justify-end gap-1"
@@ -295,7 +298,7 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
       </div>
     </div>
     <Teleport to="#modals">
-      <Modal ref="quantityModal" :title="(item?.name ?? '') + ' (quantity)'">
+      <Modal ref="quantityModal" :title="$t('equipment.quantityTitle', { name: item?.name ?? '' })">
         <div class="flex items-center justify-between py-8 text-3xl">
           <Button
             color="unstyled"
@@ -311,7 +314,10 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
             :value="item?.system?.quantity"
             @change="onQuantityInput"
           />
-          <Button color="unstyled" :clicked="() => changeQuantity((item?.system?.quantity ?? 0) + 1)">
+          <Button
+            color="unstyled"
+            :clicked="() => changeQuantity((item?.system?.quantity ?? 0) + 1)"
+          >
             <PlusCircleIcon class="h-8 w-8" />
           </Button>
         </div>

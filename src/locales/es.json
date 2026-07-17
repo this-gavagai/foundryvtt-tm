@@ -1,6 +1,7 @@
 {
   "settings": {
-    "title": "Configuración"
+    "title": "Configuración",
+    "showUnreadOnPortrait": "Mostrar número de mensajes sin leer en el retrato del personaje"
   },
   "rollCheck": {
     "saves": "Salvaciones",
@@ -27,7 +28,10 @@
     "use": "Usar",
     "roll": "Tirar",
     "level": "Nivel",
-    "added": "Añadido"
+    "added": "Añadido",
+    "actions": "Acciones",
+    "noResults": "Sin coincidencias",
+    "passive": "Pasiva"
   },
   "compendium": {
     "addToCharacter": "Añadir al personaje",
@@ -53,8 +57,31 @@
     "passwordLabel": "Contraseña",
     "error": "Error al iniciar sesión — comprueba tus credenciales.",
     "couldNotLoadUsers": "No se pudo cargar la lista de usuarios.",
+    "noUsersRetry": "Aún no hay usuarios — puede que el mundo todavía esté iniciándose.",
     "retry": "Reintentar",
-    "activeMarker": "(activo)"
+    "activeMarker": "(activo)",
+    "connectingTo": "Iniciando sesión en",
+    "changeServer": "Cambiar servidor"
+  },
+  "serverUrl": {
+    "title": "Servidor de Foundry",
+    "label": "Dirección del servidor",
+    "server": "Servidor",
+    "new": "Nuevo",
+    "connect": "Conectar",
+    "invalid": "Introduce una dirección de servidor de Foundry válida.",
+    "unreachable": "No se pudo contactar con ese servidor por HTTPS ni HTTP. Comprueba la dirección e inténtalo de nuevo.",
+    "checking": "Comprobando…",
+    "connectionError": "No se pudo conectar con ese servidor. Comprueba la dirección e inténtalo de nuevo.",
+    "servers": "Servidores",
+    "active": "Activo",
+    "joinNew": "Unirse a un nuevo servidor",
+    "noServers": "Aún no hay servidores guardados.",
+    "deleteServer": "Eliminar {server}",
+    "cancelConnect": "Cancelar y cambiar de servidor",
+    "notSignedIn": "Sin iniciar sesión",
+    "activeSection": "Servidor activo",
+    "otherServers": "Otros servidores"
   },
   "app": {
     "userDoesNotOwnCharacter": "El usuario no es dueño de este personaje",
@@ -204,13 +231,28 @@
     "usesLabel": "Usos:",
     "useItem": "Usar objeto",
     "containerLabel": "Contenedor",
+    "partyStash": "Alijo del grupo",
+    "attach": "Acoplar",
+    "attachTo": "Acoplar a {parent}",
+    "attachTitle": "Acoplar a…",
+    "detach": "Desacoplar",
+    "transferToParty": "Mover al alijo del grupo",
+    "transferToIndividual": "Mover a tu inventario",
     "carry": {
       "1hand": "1 mano",
       "2hands": "2 manos",
       "worn": "Puesto",
       "stowed": "Guardado",
       "dropped": "Soltado"
-    }
+    },
+    "equipped": "Objeto equipado ({type})",
+    "notEquipped": "Objeto no equipado",
+    "invested": "Objeto invertido",
+    "notInvested": "Objeto no invertido",
+    "quantityShort": "Cant.:",
+    "quantityTitle": "{name} (cantidad)",
+    "currentBulk": "Carga actual",
+    "maxBulk": "Máx."
   },
   "spells": {
     "noSpells": "Este personaje no lanza conjuros.",
@@ -222,6 +264,7 @@
     "emptySlot": "(vacío)",
     "knownSpells": "Conjuros conocidos",
     "confirmRemove": "¿Quitar?",
+    "filterSpells": "Filtrar conjuros…",
     "basic": "básico",
     "ac": "CA",
     "cast": "Lanzar",
@@ -266,8 +309,14 @@
   "chat": {
     "title": "Chat",
     "messageCount": "{count} mensajes",
+    "newMessages": "Mensajes nuevos",
+    "unreadMessages": "{count} mensajes sin leer",
     "noMessages": "No hay mensajes de chat todavía.",
     "emptyMessage": "Mensaje vacío",
+    "to": "Para:",
+    "recipient": "Destinatario del chat",
+    "everyone": "Todos",
+    "gms": "DJ",
     "placeholder": "Escribe un mensaje...",
     "send": "Enviar mensaje",
     "sending": "Enviando...",
@@ -275,6 +324,7 @@
     "actionFailed": "No se pudo completar la acción de chat.",
     "blind": "A ciegas",
     "whisper": "Susurro",
+    "whisperTo": "Susurrar → {names}",
     "damage": "Daño",
     "half": "Mitad",
     "double": "Doble",
@@ -284,13 +334,18 @@
     "reroll": "Repetir tirada, mantener nueva",
     "heroPointReroll": "Repetir tirada con Punto de héroe",
     "rerollKeepHighest": "Repetir tirada, mantener la más alta",
-    "rerollKeepLowest": "Repetir tirada, mantener la más baja"
+    "rerollKeepLowest": "Repetir tirada, mantener la más baja",
+    "rerolled": "RELANZADO",
+    "inlineCheck": "Prueba de {name}",
+    "inlineCheckDc": "Prueba de {name} CD {dc}",
+    "inlineCheckVs": "Prueba de {name} contra {against}"
   },
   "sideMenu": {
     "openSidebar": "Abrir barra lateral",
     "closeSidebar": "Cerrar barra lateral",
     "chat": "Chat",
     "compendium": "Compendios",
+    "changeCharacter": "Cambiar personaje",
     "targetingProxy": "Proxy de objetivo",
     "pairPixelDice": "Vincular dado Pixel",
     "reconnectDie": "Reconectar dado",
@@ -318,6 +373,11 @@
     "damageEmpty": "Toca el tipo de un dado para añadirlo",
     "modifier": "Modificador"
   },
+  "pixel": {
+    "noBluetooth": "Este navegador no admite dados Bluetooth.",
+    "insecureContext": "Los dados Bluetooth necesitan una conexión segura (HTTPS).",
+    "pairFailed": "No se pudo emparejar el dado. Inténtalo de nuevo."
+  },
   "widgets": {
     "toggleSwitch": "Interruptor"
   },
@@ -325,14 +385,39 @@
     "message": "Hay una nueva versión disponible.",
     "reload": "Recargar"
   },
+  "versionMismatch": {
+    "title": "Actualización necesaria",
+    "message": "Esta aplicación ({appVersion}) no es compatible con el módulo de Foundry conectado ({moduleVersion}). Actualiza ambos a la misma versión.",
+    "reload": "Recargar"
+  },
   "connection": {
     "reconnecting": "Reconectando…",
-    "syncing": "Sincronizando…"
+    "syncing": "Sincronizando…",
+    "waitingForGm": "Esperando al DJ…",
+    "down": "El servidor de Foundry no responde",
+    "noWorld": "Servidor accesible — mundo no activo",
+    "noGm": "Mundo activo — ningún DJ conectado",
+    "connected": "Conectado"
   },
   "infoModal": {
     "systemIcon": "Icono del sistema de PF2e",
     "sendToChat": "Enviar al chat",
     "dieImage": "Imagen de d{faces}",
     "clearDicePending": "Haz clic para limpiar las tiradas de dados físicos pendientes"
+  },
+  "familiar": {
+    "abilities": "Habilidades",
+    "noAbilities": "El familiar no tiene habilidades.",
+    "attack": "Ataque",
+    "attackModal": "Ataque del familiar",
+    "creature": "Criatura",
+    "attribute": "Característica",
+    "master": "Amo"
+  },
+  "rolls": {
+    "flatDc": "CD fija {dc}"
+  },
+  "modifiers": {
+    "outranked": "Superado por un modificador del mismo tipo de mayor rango; no contribuirá a la tirada"
   }
 }
