@@ -79,26 +79,26 @@ export function useActorSync(
     // Register the UPDATE_CHARACTER listener first, then send the initial
     // request. Sending before the listener is registered means the GM's
     // response can arrive on the socket with nothing to catch it.
-    setupSocketListenersForActor(characterId, actor, requestCharacterDetails).then((cleanup) => {
-      removeRefresh = cleanup
-      // Also defer until userId is known — an empty userId causes the GM's
-      // ownership check to reject the request as "unowned". On a fresh
-      // post-login load the Foundry session event can arrive after the socket
-      // connects, so userId may still be '' here.
-      const { userId } = storeToRefs(useUserStore())
-      if (userId.value) {
+    // Registration is synchronous, so the cleanup is in hand before any
+    // fast actor switch can unmount this sheet.
+    removeRefresh = setupSocketListenersForActor(characterId, actor, requestCharacterDetails)
+    // Also defer until userId is known — an empty userId causes the GM's
+    // ownership check to reject the request as "unowned". On a fresh
+    // post-login load the Foundry session event can arrive after the socket
+    // connects, so userId may still be '' here.
+    const { userId } = storeToRefs(useUserStore())
+    if (userId.value) {
+      void sendInitialRequest(id)
+    } else {
+      // This watch is created outside Vue's setup scope, so we track it
+      // manually and clean it up in onUnmounted.
+      stopUserIdWatch = watch(userId, (newId) => {
+        if (!newId) return
         void sendInitialRequest(id)
-      } else {
-        // This watch is created outside Vue's setup scope, so we track it
-        // manually and clean it up in onUnmounted.
-        stopUserIdWatch = watch(userId, (newId) => {
-          if (!newId) return
-          void sendInitialRequest(id)
-          stopUserIdWatch?.()
-          stopUserIdWatch = undefined
-        })
-      }
-    })
+        stopUserIdWatch?.()
+        stopUserIdWatch = undefined
+      })
+    }
   })
 
   onUnmounted(() => {

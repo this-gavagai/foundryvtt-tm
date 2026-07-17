@@ -67,13 +67,15 @@ const slideDirection = ref<'left' | 'right'>('left')
 
 watch(
   partyActorId,
-  async (id, _, onCleanup) => {
+  (id, _, onCleanup) => {
     partyActorRef.value = undefined
     if (!id) {
       inventoryMode.value = 'individual'
       return
     }
-    const stopListeners = await setupSocketListenersForActor(id, partyActorRef, () =>
+    // Synchronous registration: onCleanup gets the unsubscriber before any
+    // rapid party-actor change can re-fire this watcher.
+    const stopListeners = setupSocketListenersForActor(id, partyActorRef, () =>
       Promise.resolve(sendCharacterRequest(id))
     )
     sendCharacterRequest(id)

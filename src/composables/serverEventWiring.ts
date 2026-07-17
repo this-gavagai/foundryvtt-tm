@@ -163,13 +163,15 @@ export function setupSocketListenersForWorld(world: Ref<GamePF2e | undefined>) {
 }
 
 // Registers purely against module-level registries (no socket capture), so
-// subscriptions are live immediately and survive socket swaps. Kept async for
-// callers that treat setup as a lifecycle step.
-export async function setupSocketListenersForActor(
+// subscriptions are live immediately and survive socket swaps. Deliberately
+// synchronous: useActorSync must hold the cleanup before a fast actor switch
+// can unmount it — a `.then()`-delivered cleanup lands after onUnmounted has
+// already run, leaking the registrations for the app's lifetime.
+export function setupSocketListenersForActor(
   actorId: string,
   actor: Ref<TablemateActor | undefined>,
   refreshMethod: () => Promise<void>
-): Promise<() => void> {
+): () => void {
   const removeRefresh = addRefresh(actorId, refreshMethod)
 
   // When a GM announces presence, re-fetch any actor still waiting on live

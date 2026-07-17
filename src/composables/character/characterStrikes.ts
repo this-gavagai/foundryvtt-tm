@@ -30,6 +30,13 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
   const recoverWrite = <T>(promise: Promise<T>): Promise<T> =>
     promise.catch((error) => recoverFailedWrite(actor, error))
 
+  // In-flight damage-type toggles, keyed by weapon id, so doDamage can wait
+  // for the toggle ack before rolling. Lives OUTSIDE the strikes computed:
+  // setDamageType's optimistic mutation invalidates that computed, and a
+  // per-closure variable would be reborn as null on the rebuilt strike
+  // objects — defeating the wait exactly when a toggle is in flight.
+  const pendingToggles = new Map<string, Promise<unknown>>()
+
   const strikes = computed(() => {
     return (actor.value?.system?.actions as CharacterStrike[] | undefined)?.map((action) => {
       // Match by slug first; for granted items (e.g. clan dagger from the
@@ -81,10 +88,6 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
           : compatible.length
             ? [...compatible].sort((a, b) => qtyOf(b.id) - qtyOf(a.id))[0].id
             : undefined
-      // Track any in-flight damage-type toggle update so doDamage can wait for
-      // it before firing — prevents the roll from reaching Foundry before the
-      // actor has been re-derived with the new toggle value.
-      let pendingToggle: Promise<unknown> | null = null
       const base = makeStrike(action, weaponItem)
       // The roll/damage methods are keyed on `action.slug` and take the altUsage
       // index as a parameter, so the same set works for the base strike (altUsage
@@ -120,6 +123,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
               [],
               modifierOverrides ? { modifierOverrides } : {}
             )
+          const pendingToggle = weaponId ? pendingToggles.get(weaponId) : undefined
           return pendingToggle ? pendingToggle.then(doRoll) : doRoll()
         }
       } satisfies Partial<Strike>
@@ -164,15 +168,17 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
           } else if (toggles?.versatile) {
             toggles.versatile.selected = selected as DamageType | null
           }
-          pendingToggle = recoverWrite(setWeaponDamageType(actor, weaponId, trait, selected))
+          const toggle = recoverWrite(setWeaponDamageType(actor, weaponId, trait, selected))
+          pendingToggles.set(weaponId, toggle)
           // The clear-on-settle side chain must swallow: the caller (and any
-          // doDamage gated on pendingToggle) already receives the rejection.
-          void pendingToggle
+          // doDamage gated on the pending toggle) already receives the
+          // rejection. Identity check so a newer toggle isn't cleared early.
+          void toggle
             .catch(() => {})
             .finally(() => {
-              pendingToggle = null
+              if (pendingToggles.get(weaponId) === toggle) pendingToggles.delete(weaponId)
             })
-          return pendingToggle
+          return toggle
         },
         changeAmmo: (newId) => {
           const item = actor.value?.items.find<WeaponPF2e<CharacterPF2e>>(
