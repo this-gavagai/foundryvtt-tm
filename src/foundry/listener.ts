@@ -46,6 +46,7 @@ import {
   MODULE_ID
 } from '@/api/protocol'
 import { stampTablemateChatOrigin, tablemateChatOriginUuid } from './utils/foundry'
+import { markRequestSeen, requestAlreadySeen } from './requestDedup'
 import { resolveCapture, type CapturedMessage } from './chatCapture'
 import {
   registerManualRollPolicySetting,
@@ -450,6 +451,16 @@ export function setupListener() {
       return
     }
 
+    // Observe acks from ANY answering client BEFORE the relay gate: they feed
+    // the request-dedup guard, so an ambiguous proxy/fallback election can't
+    // double-execute a request another client already answered. (The gate
+    // would misroute this — an ack's userId is the answerer, not a requester.)
+    if (args.action === TM.ACK) {
+      const uuid = requestUuid(args)
+      if (uuid) markRequestSeen(uuid)
+      return
+    }
+
     if (!iAmProxyOrFallbackGM(args.userId)) return
     logger.info('TM.RECV (listener)', args)
 
@@ -509,6 +520,22 @@ export function setupListener() {
       dispatchChain = dispatchChain.then(
         () =>
           new Promise<void>((advance) => {
+            // Dedup at execution time, not receive time: the queue wait is
+            // exactly the window in which a competing client's ack (proxy vs
+            // fallback GM racing an election) can arrive and mark this uuid.
+            const uuid = requestUuid(args)
+            if (uuid) {
+              if (requestAlreadySeen(uuid)) {
+                logger.warn(
+                  'TABLEMATE: skipping request already answered elsewhere',
+                  args.action,
+                  uuid
+                )
+                advance()
+                return
+              }
+              markRequestSeen(uuid)
+            }
             const timer = globalThis.setTimeout(() => {
               logger.warn(
                 `TABLEMATE: handler still running after ${HANDLER_QUEUE_TIMEOUT_MS}ms; advancing queue`,
