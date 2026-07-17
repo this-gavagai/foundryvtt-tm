@@ -1,7 +1,10 @@
 import type { TablemateActorRef } from '@/types/character-types'
 import type {
+  AcknowledgementArgs,
   ModuleEventArgs,
   RequestResolutionArgs,
+  ResponseByAction,
+  RpcAction,
   DiceResults,
   CheckModifier,
   CheckSubtypeByType,
@@ -58,20 +61,40 @@ export function resolveAck(uuid: string, args: RequestResolutionArgs) {
   }
 }
 
+// Reject every in-flight RPC. Called when the active server changes or is
+// cleared (stores/serverAddress) — no ack can ever arrive from a different
+// world, so without this every pending caller waits out the full 30s
+// timeout, which on a sheet reads as a frozen button. NOT called on
+// same-server socket swaps: acks are uuid-keyed broadcasts that still arrive
+// on the replacement socket, and rejecting them would fake a failure for a
+// mutation that succeeded. Routed through the normal error-ack path so
+// timers are cleared.
+export function rejectAllPending(reason: string) {
+  for (const uuid of Object.keys(ackQueue)) {
+    const entry = ackQueue[uuid]
+    delete ackQueue[uuid]
+    entry({ action: TM.ACK, uuid, userId: '', error: reason })
+  }
+}
+
 // Strongly-typed action dispatcher. Given a TM action constant, infers the
-// matching args interface from the ModuleEventArgs union via `Extract`, so
+// matching args interface from the ModuleEventArgs union via `Extract` (so
 // the payload object is type-checked against the right shape without an
-// explicit `<XArgs>` generic at the call site.
-async function sendAction<K extends ModuleEventArgs['action']>(
+// explicit `<XArgs>` generic at the call site) and resolves with that
+// action's response contract from ResponseByAction.
+async function sendAction<K extends RpcAction>(
   action: K,
   payload: Omit<Extract<ModuleEventArgs, { action: K }>, 'action' | 'userId' | 'uuid'>,
   timeoutMs?: number
-): Promise<RequestResolutionArgs> {
+): Promise<AcknowledgementArgs & ResponseByAction[K]> {
   const uuid = uuidv4()
   const { socket, userId } = await getAuthenticatedSocket()
   const args = { ...payload, action, userId, uuid }
-  return new Promise<RequestResolutionArgs>((resolve, reject) => {
-    pushToAckQueue(uuid, resolve, reject, timeoutMs)
+  return new Promise<AcknowledgementArgs & ResponseByAction[K]>((resolve, reject) => {
+    // The queue stores resolvers for heterogeneous in-flight requests widened
+    // to the any-response shape; the wire delivers what the (same-typed)
+    // Foundry handler returned for this action, so narrowing is sound.
+    pushToAckQueue(uuid, resolve as (args: RequestResolutionArgs) => void, reject, timeoutMs)
     socket.emit(TM.CHANNEL, args)
   })
 }

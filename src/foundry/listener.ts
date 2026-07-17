@@ -1,4 +1,10 @@
-import type { ModuleEventArgs, RequestCharacterDetailsArgs } from '@/types/api-types'
+import type {
+  AcknowledgementArgs,
+  ModuleEventArgs,
+  RequestCharacterDetailsArgs,
+  ResponseByAction,
+  RpcAction
+} from '@/types/api-types'
 import {
   getCharacterDetails,
   foundryRollCheck,
@@ -32,7 +38,13 @@ import {
 import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
 import { logger } from '@/utils/utilities'
-import { TM, TM_ERROR_MANUAL_ROLLS_DISABLED, PROTOCOL_VERSION, MODULE_ID } from '@/api/protocol'
+import {
+  TM,
+  TM_ERROR_MANUAL_ROLLS_DISABLED,
+  TM_ERROR_UNAUTHORIZED,
+  PROTOCOL_VERSION,
+  MODULE_ID
+} from '@/api/protocol'
 import { stampTablemateChatOrigin, tablemateChatOriginUuid } from './utils/foundry'
 import { resolveCapture, type CapturedMessage } from './chatCapture'
 import {
@@ -90,13 +102,14 @@ function checkClientVersion(args: ModuleEventArgs) {
 }
 
 // Map of TM action → Foundry-side handler. Handler args are narrowed via
-// Extract<ModuleEventArgs, { action: K }>, so each handler is type-checked
-// against the matching args interface. Adding a new RPC is one entry here
-// plus the handler definition itself.
+// Extract<ModuleEventArgs, { action: K }>, and the return is pinned to the
+// per-action response contract (ResponseByAction), so both the request and
+// response shapes are type-checked against what the client expects. Adding a
+// new RPC is one entry here, one in ResponseByAction, plus the handler itself.
 type ActionHandlerMap = {
-  [K in ModuleEventArgs['action']]?: (
+  [K in RpcAction]?: (
     args: Extract<ModuleEventArgs, { action: K }>
-  ) => Promise<unknown>
+  ) => Promise<AcknowledgementArgs & ResponseByAction[K]>
 }
 
 const actionHandlers: ActionHandlerMap = {
@@ -148,6 +161,34 @@ type ChatOrigin = { userId: string; uuid?: string; manualRoll?: boolean }
 const chatOriginStack: ChatOrigin[] = []
 let recentChatOrigin: { userId: string; expiresAt: number } | undefined
 let chatOriginStampingRegistered = false
+
+// Handlers that roll dice or create chat messages execute strictly one at a
+// time. Three mechanisms read ambient top-of-stack state while a handler
+// runs — preset dice faces (backgroundRoll), damage modifier overrides
+// (modifierOverrides), and chat attribution (chatOriginStack above) — so two
+// interleaved requests would read each other's context: player B's "random"
+// roll landing on player A's chosen faces, damage toggles applied to the
+// wrong roll, chat messages attributed to the wrong tablet. FIFO latency is
+// fine at tabletop cadence.
+//
+// The chain advances when a task settles OR after HANDLER_QUEUE_TIMEOUT_MS,
+// whichever comes first — a handler that never settles (e.g. a macro
+// awaiting a GM dialog that's never dismissed) degrades to concurrent
+// dispatch with a warning instead of wedging every request in the world.
+// 30s matches the app-side ack timeout, so by the time the queue advances
+// past a hung handler its requester has already given up.
+const HANDLER_QUEUE_TIMEOUT_MS = 30_000
+let dispatchChain: Promise<unknown> = Promise.resolve()
+
+// Read-only handlers: no dice, no chat messages, no ambient roll state.
+// They dispatch concurrently — a multi-second compendium index fetch must
+// not delay a queued attack roll (nor a roll stall delay browsing) — and
+// skip the chat-origin push, since they create no messages to attribute.
+const CONCURRENT_ACTIONS = new Set<string>([
+  TM.GET_COMPENDIUM_ITEM,
+  TM.LIST_COMPENDIA,
+  TM.GET_COMPENDIUM_INDEX
+])
 
 function isCharacterRequest(args: ModuleEventArgs): args is RequestCharacterDetailsArgs {
   return args.action === TM.REQUEST_CHARACTER
@@ -247,19 +288,25 @@ function requestUuid(args: ModuleEventArgs): string | undefined {
   return 'uuid' in args && typeof args.uuid === 'string' ? args.uuid : undefined
 }
 
-// Turn a thrown handler into an error ack so the waiting app rejects its pending
-// request immediately, instead of hanging until the client-side timeout. With
-// no uuid there's nothing to correlate, so we only log.
-function emitHandlerError(args: ModuleEventArgs, error: unknown) {
-  logger.error('TABLEMATE: handler failed', args.action, error)
+// Answer a refused/failed request with an error ack so the waiting app rejects
+// its pending request immediately with a distinguishable cause, instead of
+// hanging until the client-side timeout. With no uuid there's nothing to
+// correlate, so the refusal is log-only.
+function emitErrorAck(args: ModuleEventArgs, error: string) {
   const uuid = requestUuid(args)
   if (!uuid) return
   game.socket.emit(TM.CHANNEL, {
     action: TM.ACK,
     uuid,
-    userId: game.user._id,
-    error: error instanceof Error ? error.message : String(error)
+    userId: game.user._id ?? '',
+    error
   })
+}
+
+// Turn a thrown handler into an error ack.
+function emitHandlerError(args: ModuleEventArgs, error: unknown) {
+  logger.error('TABLEMATE: handler failed', args.action, error)
+  emitErrorAck(args, error instanceof Error ? error.message : String(error))
 }
 
 function handleCharacterRequest(args: RequestCharacterDetailsArgs) {
@@ -417,6 +464,9 @@ export function setupListener() {
 
     if (!authorizeAction(args)) {
       logger.warn('TABLEMATE: unauthorized request rejected', args.action, args.userId)
+      // Answer instead of dropping: a silent drop leaves the app waiting out
+      // its full 30s timeout, indistinguishable from "no GM online".
+      emitErrorAck(args, TM_ERROR_UNAUTHORIZED)
       return
     }
 
@@ -429,30 +479,49 @@ export function setupListener() {
     const policy = presetDice ? manualRollPolicy() : 'allow'
     if (policy === 'reject') {
       logger.warn('TABLEMATE: manual roll rejected by world policy', args.action, args.userId)
-      const uuid = requestUuid(args)
-      if (uuid) {
-        game.socket.emit(TM.CHANNEL, {
-          action: TM.ACK,
-          uuid,
-          userId: game.user._id,
-          error: TM_ERROR_MANUAL_ROLLS_DISABLED
-        })
-      }
+      emitErrorAck(args, TM_ERROR_MANUAL_ROLLS_DISABLED)
       return
     }
 
-    const handler = actionHandlers[args.action] as
-      | ((a: ModuleEventArgs) => Promise<unknown>)
+    const handler = actionHandlers[args.action as RpcAction] as
+      | ((a: ModuleEventArgs) => Promise<AcknowledgementArgs>)
       | undefined
     if (handler) {
+      // Answer the request; never rejects. The terminal catch matters: the
+      // error-ack emit can itself throw (socket torn down mid-reload), and a
+      // rejection escaping here would poison the dispatch chain for good.
+      const respond = (run: Promise<unknown>) =>
+        run
+          .then((result) => game.socket.emit(TM.CHANNEL, result))
+          .catch((error) => emitHandlerError(args, error))
+          .catch((error) => logger.error('TABLEMATE: failed to answer request', args.action, error))
+
+      if (CONCURRENT_ACTIONS.has(args.action)) {
+        void respond(handler(args))
+        return
+      }
+
       const origin: ChatOrigin = {
         userId: args.userId,
         uuid: requestUuid(args),
         manualRoll: policy === 'flag'
       }
-      withChatOrigin(origin, () => handler(args))
-        .then((result) => game.socket.emit(TM.CHANNEL, result))
-        .catch((error) => emitHandlerError(args, error))
+      dispatchChain = dispatchChain.then(
+        () =>
+          new Promise<void>((advance) => {
+            const timer = globalThis.setTimeout(() => {
+              logger.warn(
+                `TABLEMATE: handler still running after ${HANDLER_QUEUE_TIMEOUT_MS}ms; advancing queue`,
+                args.action
+              )
+              advance()
+            }, HANDLER_QUEUE_TIMEOUT_MS)
+            void respond(withChatOrigin(origin, () => handler(args))).finally(() => {
+              globalThis.clearTimeout(timer)
+              advance()
+            })
+          })
+      )
     } else {
       logger.warn('event not caught', args.action, args)
     }

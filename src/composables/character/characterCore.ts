@@ -75,7 +75,8 @@ export function useCharacterCore(actor: Ref<TablemateCharacter | undefined>): Ch
       set: (newValue) => {
         actor.value!.system.details.xp.value = newValue!
         const update = { system: { details: { xp: { value: newValue } } } }
-        updateActor(actor, update)
+        // Fire-and-forget: recovery (refresh + rethrow) happens in updateActor.
+        updateActor(actor, update).catch(() => {})
       }
     }),
     max: computed(() => actor.value?.system?.details?.xp?.max)

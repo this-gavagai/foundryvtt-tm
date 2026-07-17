@@ -1,5 +1,7 @@
 import type { ItemPF2e, RawDamageDice, RawModifier } from '@7h3laughingman/pf2e-types'
-import type { TM } from '@/api/protocol'
+// Value import (not `import type`): TM's literal constants are used as
+// computed property keys in ResponseByAction below.
+import { TM } from '@/api/protocol'
 import type {
   SkillActionData,
   SpellcastingModifierData,
@@ -46,6 +48,12 @@ export interface AcknowledgementArgs {
   action: typeof TM.ACK
   uuid: string
   userId: string
+  // Set by the Foundry side when the handler threw (or the request was
+  // refused — see the TM_ERROR_* sentinels in protocol.ts). When present, the
+  // app-side ack queue rejects the pending request with this message instead
+  // of resolving it, so a failed handler surfaces as a rejected promise
+  // rather than a 30s timeout indistinguishable from "the GM is slow".
+  error?: string
 }
 // World-scoped GM policy for rolls that arrive with player-determined dice
 // faces (manual picker or Pixel dice):
@@ -506,20 +514,73 @@ export interface CompendiumItemData {
   } & Record<string, unknown>
 }
 
-export interface RequestResolutionArgs {
-  action: typeof TM.ACK
-  uuid: string
-  // Set by the Foundry side when the handler threw. When present, the app-side
-  // ack queue rejects the pending request with this message instead of
-  // resolving it, so a failed handler surfaces as a rejected promise rather
-  // than a 30s timeout indistinguishable from "the GM is slow".
-  error?: string
+// Damage-formula preview returned by GET_STRIKE_DAMAGE: display formulas for
+// the normal/critical outcomes plus the modifier list the formula was built
+// from (numeric Modifiers and DamageDice alike), for the override UI.
+export interface StrikeDamagePreview {
+  damage?: string
+  critical?: string
+  modifiers?: (RawModifier | RawDamageDice)[]
+}
+
+// Damage-formula preview returned by GET_SPELL_DAMAGE. `modifiers` comes from
+// the baseline (override-free) computation so the override UI always lists
+// the full set; `formula`/`breakdown` reflect the requested overrides.
+export interface SpellDamagePreview {
+  formula: string | null
+  breakdown: string[]
+  modifiers: (RawModifier | RawDamageDice)[]
+}
+
+// Response payload with no fields beyond the ack itself.
+type PlainAck = object
+
+// Per-action response payload a Foundry handler adds to its ack. The client's
+// sendAction<K> resolves with AcknowledgementArgs & ResponseByAction[K], and
+// the module's ActionHandlerMap pins each handler's return to the same entry
+// — so a renamed or dropped response field fails to compile on both ends
+// instead of drifting silently. Keys are exactly the client-initiated RPC
+// actions; sendAction refuses actions without an entry.
+export interface ResponseByAction {
+  [TM.ROLL_CHECK]: { roll?: RollResult }
+  [TM.CHARACTER_ACTION]: { roll?: RollResult }
+  [TM.FREE_ROLL]: { roll: RollResult }
+  [TM.ROLL_DAMAGE]: { roll?: RollResult }
+  [TM.ROLL_INLINE_CHECK]: { roll?: RollResult }
+  [TM.REROLL_CHAT_ROLL]: { roll?: RollResult }
+  [TM.GET_STRIKE_DAMAGE]: { response: StrikeDamagePreview }
+  [TM.GET_SPELL_DAMAGE]: { response: SpellDamagePreview }
+  [TM.GET_COMPENDIUM_ITEM]: { compendiumItem: CompendiumItemData | null }
+  [TM.LIST_COMPENDIA]: { compendia: CompendiumPackInfo[] }
+  [TM.GET_COMPENDIUM_INDEX]: { compendiumIndex: CompendiumIndexEntry[] }
+  [TM.CAST_SPELL]: PlainAck
+  [TM.CAST_STAFF_SPELL]: PlainAck
+  [TM.CONSUME_ITEM]: PlainAck
+  [TM.SEND_CHAT_MESSAGE]: PlainAck
+  [TM.SEND_ITEM_TO_CHAT]: PlainAck
+  [TM.SEND_COMPENDIUM_ITEM_TO_CHAT]: PlainAck
+  [TM.SET_WEAPON_LOADED]: PlainAck
+  [TM.SET_WEAPON_DAMAGE_TYPE]: PlainAck
+  [TM.ATTACH_ITEM]: PlainAck
+  [TM.DETACH_ITEM]: PlainAck
+  [TM.TOGGLE_KINETIC_AURA]: PlainAck
+  [TM.RUN_MACRO]: PlainAck
+  [TM.RUN_ACTIONABLE]: PlainAck
+  [TM.UPDATE_ACTOR]: PlainAck
+  [TM.ADD_COMPENDIUM_ITEM]: PlainAck
+  [TM.APPLY_DAMAGE]: PlainAck
+}
+
+// The client-initiated RPC actions (everything with a typed response).
+export type RpcAction = keyof ResponseByAction
+
+// Widened "any RPC response" shape used only by the ack-queue plumbing, which
+// stores resolvers for heterogeneous in-flight requests in one map. Call
+// sites never see this type — sendAction narrows per action via
+// ResponseByAction.
+export type RequestResolutionArgs = AcknowledgementArgs & {
   roll?: RollResult
-  response?: {
-    damage?: string
-    critical?: string
-    modifiers?: (RawModifier | RawDamageDice)[]
-  }
+  response?: StrikeDamagePreview | SpellDamagePreview
   compendiumItem?: CompendiumItemData | null
   compendia?: CompendiumPackInfo[]
   compendiumIndex?: CompendiumIndexEntry[]

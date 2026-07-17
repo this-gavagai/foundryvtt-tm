@@ -7,7 +7,7 @@ const props = defineProps<{
   disabled?: boolean
   clicked?: () => void
 }>()
-const { waiting, handleClick, handlePointerDown } = useAsyncClick(
+const { waiting, failed, handleClick, handlePointerDown } = useAsyncClick(
   () => props.clicked?.(),
   () => props.disabled
 )
@@ -15,10 +15,19 @@ const { waiting, handleClick, handlePointerDown } = useAsyncClick(
 const styles = new Map([
   ['unstyled', ['enabled:active:text-gray-500', 'disabled:invisible', 'bg-transparent']],
   ['red', [`bg-red-600`, `enabled:hover:bg-red-500`, `enabled:active:bg-red-400`, 'text-white']],
-  ['green', [`bg-green-600`, `enabled:hover:bg-green-500`, `enabled:active:bg-green-400`, 'text-white']],
-  ['blue', [`bg-blue-600`, `enabled:hover:bg-blue-500`, `enabled:active:bg-blue-400`, 'text-white']],
+  [
+    'green',
+    [`bg-green-600`, `enabled:hover:bg-green-500`, `enabled:active:bg-green-400`, 'text-white']
+  ],
+  [
+    'blue',
+    [`bg-blue-600`, `enabled:hover:bg-blue-500`, `enabled:active:bg-blue-400`, 'text-white']
+  ],
   ['lightgray', [`bg-gray-300`, `enabled:active:bg-gray-200`, 'text-gray-900']],
-  ['gray', [`bg-gray-600`, `enabled:hover:bg-gray-500`, `enabled:active:bg-gray-400`, 'text-white']],
+  [
+    'gray',
+    [`bg-gray-600`, `enabled:hover:bg-gray-500`, `enabled:active:bg-gray-400`, 'text-white']
+  ],
   [undefined, [`bg-gray-500`]]
 ])
 
@@ -30,7 +39,10 @@ defineExpose({ waiting })
     :disabled="props.disabled"
     :data-color="props.color"
     class="inline-flex min-h-10 min-w-16 cursor-pointer items-end justify-center border border-transparent px-4 py-2 font-medium transition-colors focus:outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
-    :class="[{ 'opacity-50': waiting }, ...(styles.get(props.color) ?? ['bg-gray-500'])]"
+    :class="[
+      { 'opacity-50': waiting, 'ring-2 ring-red-500': failed },
+      ...(styles.get(props.color) ?? ['bg-gray-500'])
+    ]"
     @click="handleClick"
     @pointerdown="handlePointerDown"
   >

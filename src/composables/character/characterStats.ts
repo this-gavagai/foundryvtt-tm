@@ -106,7 +106,8 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
           const shieldId = actor.value?.system?.attributes?.shield?.itemId
           actor.value!.system.attributes.shield.hp.value = newValue!
           const update = { system: { hp: { value: newValue } } }
-          updateActorItem(actor, shieldId ?? '', update)
+          // Fire-and-forget: recovery (refresh + rethrow) happens in updateActorItem.
+          updateActorItem(actor, shieldId ?? '', update).catch(() => {})
         }
       }),
       max: computed(() => actor.value?.system?.attributes?.shield?.hp?.max),

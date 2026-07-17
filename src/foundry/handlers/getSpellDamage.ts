@@ -1,5 +1,5 @@
 import type { ActorPF2e, SpellPF2e } from '@7h3laughingman/pf2e-types'
-import type { GetSpellDamageArgs } from '@/types/api-types'
+import type { GetSpellDamageArgs, SpellDamagePreview } from '@/types/api-types'
 import { withBackgroundRoll } from '../backgroundRoll'
 import { getCharacter, getGame, makeAck } from '../utils/foundry'
 import { findSpell } from '../utils/spellLookup'
@@ -44,12 +44,13 @@ export async function foundryGetSpellDamage(args: GetSpellDamageArgs) {
     const baseline = spell && overrides && Object.keys(overrides).length ? await getDamage() : sd
     return { sd, baseline }
   })
-  return {
-    ...makeAck(args),
-    response: {
-      formula: sd?.template?.damage?.roll?.formula ?? null,
-      breakdown: sd?.template?.damage?.breakdown ?? [],
-      modifiers: baseline?.template?.modifiers ?? []
-    }
+  // Typed local so the wire contract's field names/arity stay
+  // compiler-checked; only `modifiers` is asserted — it carries live PF2e
+  // Modifier/DamageDice instances.
+  const response: SpellDamagePreview = {
+    formula: sd?.template?.damage?.roll?.formula ?? null,
+    breakdown: sd?.template?.damage?.breakdown ?? [],
+    modifiers: (baseline?.template?.modifiers ?? []) as SpellDamagePreview['modifiers']
   }
+  return { ...makeAck(args), response }
 }

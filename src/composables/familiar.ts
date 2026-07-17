@@ -75,9 +75,10 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
         set: (newValue) => {
           if (!actor.value || newValue === undefined) return
           actor.value.system.attributes.hp.value = newValue
+          // Fire-and-forget: recovery (refresh + rethrow) happens in updateActor.
           void updateActor(actor, {
             system: { attributes: { hp: { value: newValue } } }
-          })
+          }).catch(() => {})
         }
       }),
       max: computed(() => (actor.value?.system?.attributes?.hp as FamiliarHp | undefined)?.max),
@@ -88,7 +89,7 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
           actor.value.system.attributes.hp.temp = newValue
           void updateActor(actor, {
             system: { attributes: { hp: { temp: newValue } } }
-          })
+          }).catch(() => {})
         }
       }),
       modifiers: computed(() => [])

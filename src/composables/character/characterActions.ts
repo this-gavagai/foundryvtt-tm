@@ -104,7 +104,8 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
       set: (newValue) => {
         actor.value!.system.initiative.statistic = newValue!
         const update = { system: { initiative: { statistic: newValue } } }
-        updateActor(actor, update)
+        // Fire-and-forget: recovery (refresh + rethrow) happens in updateActor.
+        updateActor(actor, update).catch(() => {})
       }
     }),
     modifiers: computed(() => makeModifiers(actor.value?.system?.initiative?.modifiers)),

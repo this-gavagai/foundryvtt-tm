@@ -8,7 +8,7 @@ const props = defineProps<{
   clicked?: () => void
 }>()
 
-const { waiting, handleClick, handlePointerDown } = useAsyncClick(
+const { waiting, failed, handleClick, handlePointerDown } = useAsyncClick(
   () => props.clicked?.(),
   () => props.disabled
 )
@@ -22,10 +22,13 @@ defineExpose({ waiting })
     :aria-label="props.label"
     :disabled="props.disabled"
     class="relative inline-flex cursor-pointer items-center justify-center transition-colors focus:outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
+    :class="{ 'ring-2 ring-red-500': failed }"
     @click="handleClick"
     @pointerdown="handlePointerDown"
   >
-    <span class="inline-flex items-center gap-[inherit]" :class="{ invisible: waiting }"><slot v-bind="{ waiting }" /></span>
+    <span class="inline-flex items-center gap-[inherit]" :class="{ invisible: waiting }"
+      ><slot v-bind="{ waiting }"
+    /></span>
     <span class="absolute" :class="{ invisible: !waiting }"><Spinner class="h-5" /></span>
   </button>
 </template>

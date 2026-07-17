@@ -1,6 +1,7 @@
 import type { Socket } from 'socket.io-client'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type { ModuleEventArgs } from '@/types/api-types'
+import { logger } from '@/utils/utilities'
 import { getSocket } from './internal'
 import { resolveAck } from './actionRpc'
 import { TM } from './protocol'
@@ -105,6 +106,17 @@ export function onSocketSwap(handler: () => void): () => void {
   }
 }
 
+// Isolate every fan-out call: one throwing subscriber must not starve the
+// later-registered handlers for the same event (or blow up inside socket.io's
+// emitter). A throw becomes a logged drop for that handler only.
+function guarded(run: () => void) {
+  try {
+    run()
+  } catch (error) {
+    logger.error('TM-ERROR: socket event handler threw', error)
+  }
+}
+
 let attachedSocket: Socket | null = null
 let tmDispatch: ((args: ModuleEventArgs) => void) | null = null
 let modifyDispatch: ModifyDocumentHandler | null = null
@@ -123,26 +135,40 @@ export async function setupSocketListenersForApp() {
     if (modifyDispatch) attachedSocket.off('modifyDocument', modifyDispatch)
     if (userActivityDispatch) attachedSocket.off('userActivity', userActivityDispatch)
     if (progressDispatch) attachedSocket.off('progress', progressDispatch)
-    socketSwapSubs.forEach((h) => h())
+    // Deliberately NOT flushing the RPC ack queue here: acks are uuid-keyed
+    // broadcasts on the world module channel, so a request emitted before a
+    // same-server reconnect is often still answered on the replacement
+    // socket — rejecting it would show a false failure for a mutation that
+    // succeeded (and invite a double-cast retry). Pending RPCs are flushed
+    // only when the active server actually changes (stores/serverAddress),
+    // where no ack can ever arrive; otherwise the 30s timeout is the backstop.
+    socketSwapSubs.forEach((h) => guarded(h))
   }
 
   tmDispatch = (args: ModuleEventArgs) => {
-    tmSubs.get(args.action)?.forEach((h) => h(args))
+    // Guard the discriminant before dispatch: TM.CHANNEL is a shared module
+    // channel, so a malformed or foreign payload must become a logged drop
+    // here, not undefined behavior in whichever subscriber touches it first.
+    if (typeof (args as { action?: unknown } | undefined)?.action !== 'string') {
+      logger.warn('TM-WARN: dropping malformed module message', args)
+      return
+    }
+    tmSubs.get(args.action)?.forEach((h) => guarded(() => h(args)))
   }
   socket.on(TM.CHANNEL, tmDispatch)
 
   modifyDispatch = (args: DocumentSocketResponse) => {
-    modifySubs.forEach((h) => h(args))
+    modifySubs.forEach((h) => guarded(() => h(args)))
   }
   socket.on('modifyDocument', modifyDispatch)
 
   userActivityDispatch = (user, args) => {
-    userActivitySubs.forEach((h) => h(user, args))
+    userActivitySubs.forEach((h) => guarded(() => h(user, args)))
   }
   socket.on('userActivity', userActivityDispatch)
 
   progressDispatch = () => {
-    progressSubs.forEach((h) => h())
+    progressSubs.forEach((h) => guarded(h))
   }
   socket.on('progress', progressDispatch)
 

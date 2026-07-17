@@ -7,6 +7,7 @@
 // foundry-globals.d.ts for the rationale.
 
 import type { ActorPF2e, GamePF2e } from '@7h3laughingman/pf2e-types'
+import type { RollResult } from '@/types/api-types'
 import { makeFakeEvent } from './foundry'
 
 // Structural shape of an evaluated Foundry Roll instance.
@@ -77,10 +78,7 @@ export async function rollDamageFormulaToMessage(
 // to PF2e instead of hand-rolling it.
 // htmlClosest does an `instanceof Element` check, so target must be a real
 // DOM element, not a plain object.
-export function makeCastRankEvent(
-  source: GamePF2e,
-  castRank: number | undefined
-): PointerEvent {
+export function makeCastRankEvent(source: GamePF2e, castRank: number | undefined): PointerEvent {
   const base = makeFakeEvent(source)
   if (!castRank) return base as unknown as PointerEvent
   const target = document.createElement('span')
@@ -106,7 +104,7 @@ type RollResultShape = {
 export function extractRollPayload(
   rRaw: unknown,
   args: { userId: string; options?: object }
-) {
+): { roll?: RollResult } {
   if (!rRaw) return {}
   const r = rRaw as RollResultShape
   // r[0] handles array-form results (e.g. strike variants); hasOwnProperty
@@ -114,9 +112,7 @@ export function extractRollPayload(
   // for a data wrapper.
   const rollEl = r[0] ?? r
   const actualRoll = (
-    Object.prototype.hasOwnProperty.call(rollEl, 'roll')
-      ? (rollEl as RollResultShape).roll
-      : rollEl
+    Object.prototype.hasOwnProperty.call(rollEl, 'roll') ? (rollEl as RollResultShape).roll : rollEl
   ) as RollResultShape | undefined
   // Secret detection has two paths:
   //   1. Strike/action results carry message.whisper — non-empty recipients
@@ -135,5 +131,14 @@ export function extractRollPayload(
     (r?.[0]?.message?.whisper?.length ?? 0) > 0 && !r?.[0]?.message?.whisper?.includes(args.userId)
   const isSecret = whisperHidden || requestedHidden
   const { formula, result, total, dice } = actualRoll ?? {}
-  return { roll: { formula, result, total, dice, isSecret } }
+  // Typed local so RollResult's field names/arity stay compiler-checked; the
+  // values come off PF2e's untyped roll shapes, so each leaf is asserted.
+  const roll: RollResult = {
+    formula: formula as string,
+    result: result as string,
+    total: total as number,
+    dice: dice as RollResult['dice'],
+    isSecret
+  }
+  return { roll }
 }

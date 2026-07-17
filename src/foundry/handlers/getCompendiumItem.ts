@@ -1,4 +1,4 @@
-import type { GetCompendiumItemArgs } from '@/types/api-types'
+import type { CompendiumItemData, GetCompendiumItemArgs } from '@/types/api-types'
 import { logger } from '@/utils/utilities'
 import { getGame, makeAck } from '../utils/foundry'
 import {
@@ -80,8 +80,14 @@ export async function foundryGetCompendiumItem(args: GetCompendiumItemArgs) {
     obj.system = { ...(obj.system ?? {}), description: { value: journalHtml } }
   }
 
-  return {
-    ...makeAck(args),
-    compendiumItem: { ...obj, source: packLabel }
+  // Typed local so the wire contract's field names stay compiler-checked;
+  // the document serializes with optional-everything, so the required fields
+  // get explicit defaults and only the free-form `system` bag is asserted.
+  const compendiumItem: CompendiumItemData = {
+    ...obj,
+    name: obj.name ?? '',
+    system: (obj.system ?? {}) as CompendiumItemData['system'],
+    source: packLabel
   }
+  return { ...makeAck(args), compendiumItem }
 }

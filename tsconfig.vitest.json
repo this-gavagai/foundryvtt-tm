@@ -1,0 +1,13 @@
+{
+  // Typechecks the spec files (tsconfig.app.json excludes them, so without
+  // this project vue-tsc never sees them and fixtures drift from real types).
+  // Inherits the app include (env.d.ts + src) and re-adds __tests__ by
+  // clearing the exclude; `types` gains vitest's node ambient.
+  "extends": "./tsconfig.app.json",
+  "exclude": ["node_modules"],
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.vitest.tsbuildinfo",
+    "types": ["node"]
+  }
+}

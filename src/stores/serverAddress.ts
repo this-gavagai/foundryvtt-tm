@@ -10,6 +10,7 @@ import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { clearActorSnapshotsForServer } from '@/utils/actorCache'
 import { clearChatCacheForServer } from '@/utils/chatCache'
 import { clearImageCacheForServer } from '@/api/imageCache'
+import { rejectAllPending } from '@/api/actionRpc'
 import { clearLastCharacterId } from '@/utils/utilities'
 
 const ACTIVE_URL_STORAGE_KEY = 'tablemate.serverUrl'
@@ -160,6 +161,11 @@ export const useServerAddressStore = defineStore('serverAddress', () => {
     // full world refresh. Cross-server bleed is prevented because the selection,
     // caches, and world status are all keyed per origin.
     if (switching) {
+      // RPCs pending against the old server can never be answered by the new
+      // one — reject them now instead of letting each time out after 30s.
+      // Same-origin reactivation deliberately does NOT flush: those acks are
+      // uuid-keyed broadcasts that still arrive on the replacement socket.
+      rejectAllPending('server changed')
       useWorldStore().clearWorld()
       useFoundryWorldStatusStore().markWorldPending()
       useCharacterSelectStore().reseedForCurrentServer()
@@ -206,6 +212,8 @@ export const useServerAddressStore = defineStore('serverAddress', () => {
   // Deactivate the current server without forgetting it — returns the app to
   // the ServerUrlGate (e.g. when the user cancels a stuck connection).
   function clearActiveServer() {
+    // No server to answer them anymore — fail pending RPCs immediately.
+    rejectAllPending('server cleared')
     serverUrl.value = isNativeMobile.value ? undefined : new URL(window.location.origin)
     if (isNativeMobile.value) localStorage.removeItem(ACTIVE_URL_STORAGE_KEY)
   }

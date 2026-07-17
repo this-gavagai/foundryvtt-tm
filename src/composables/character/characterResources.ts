@@ -30,7 +30,8 @@ export function useCharacterResources(actor: Ref<CharacterPF2e | undefined>): Ch
       set: (newValue) => {
         actor.value!.system.attributes.hp.value = newValue!
         const update = { system: { attributes: { hp: { value: newValue } } } }
-        updateActor(actor, update)
+        // Fire-and-forget: recovery (refresh + rethrow) happens in updateActor.
+        updateActor(actor, update).catch(() => {})
       }
     }),
     max: computed(() => actor.value?.system?.attributes?.hp?.max),
@@ -39,7 +40,7 @@ export function useCharacterResources(actor: Ref<CharacterPF2e | undefined>): Ch
       set: (newValue) => {
         actor.value!.system.attributes.hp.temp = newValue!
         const update = { system: { attributes: { hp: { temp: newValue } } } }
-        updateActor(actor, update)
+        updateActor(actor, update).catch(() => {})
       }
     }),
     modifiers: computed(() => makeModifiers(actor.value?.system?.attributes?.hp?.modifiers))
@@ -50,7 +51,7 @@ export function useCharacterResources(actor: Ref<CharacterPF2e | undefined>): Ch
       set: (newValue) => {
         actor.value!.system.resources.heroPoints.value = newValue!
         const update = { system: { resources: { heroPoints: { value: newValue } } } }
-        updateActor(actor, update)
+        updateActor(actor, update).catch(() => {})
       }
     }),
     max: computed(() => actor.value?.system?.resources?.heroPoints?.max)
@@ -61,7 +62,7 @@ export function useCharacterResources(actor: Ref<CharacterPF2e | undefined>): Ch
       set: (newValue) => {
         actor.value!.system.resources.focus.value = newValue!
         const update = { system: { resources: { focus: { value: newValue } } } }
-        updateActor(actor, update)
+        updateActor(actor, update).catch(() => {})
       }
     }),
     max: computed(() => actor.value?.system?.resources?.focus?.max)

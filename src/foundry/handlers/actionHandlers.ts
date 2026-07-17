@@ -2,6 +2,7 @@ import type { ActionUseOptions, ActorPF2e, Statistic } from '@7h3laughingman/pf2
 import type {
   CharacterActionArgs,
   FreeRollArgs,
+  RollResult,
   SendItemToChatArgs,
   SendCompendiumItemToChatArgs
 } from '@/types/api-types'
@@ -13,7 +14,7 @@ import {
   getRequestingUser,
   userCanObservePack
 } from '../utils/permissions'
-import type { FoundryRoll } from '../utils/roll'
+import { extractRollPayload, type FoundryRoll } from '../utils/roll'
 import { resolveTarget } from '../utils/target'
 import { withModifierOverrides } from './checks/modifierOverrides'
 
@@ -47,28 +48,20 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
           : null)
     : undefined
 
-  type ActionResult = {
-    message?: { whisper?: string[] }
-    roll?: { formula: unknown; result: unknown; total: unknown; dice: unknown }
-  }
+  // Throw instead of acking a garbage roll: an unresolvable slug (renamed
+  // PF2e action, removed homebrew) means nothing was rolled, and the app
+  // must not open a success modal for it.
+  const action = source.pf2e.actions.get(args.characterAction)
+  if (!action) throw new Error(`unknown character action: ${args.characterAction}`)
 
-  const r = (await withBackgroundRoll(args.diceResults, () =>
-    withModifierOverrides(
-      actor,
-      getStatistic ?? (() => null),
-      args.modifierOverrides,
-      () =>
-        source.pf2e.actions
-          .get(args.characterAction)
-          ?.use(params as unknown as Partial<ActionUseOptions>) as Promise<ActionResult[]>
+  const r = await withBackgroundRoll(args.diceResults, () =>
+    withModifierOverrides(actor, getStatistic ?? (() => null), args.modifierOverrides, () =>
+      action.use(params as unknown as Partial<ActionUseOptions>)
     )
-  )) as ActionResult[] | undefined
+  )
 
   logger.debug(r, args.characterAction)
-  const isSecret =
-    (r?.[0]?.message?.whisper?.length ?? 0) > 0 && !r?.[0]?.message?.whisper?.includes(args.userId)
-  const { formula, result, total, dice } = r?.[0]?.roll ?? {}
-  return { ...makeAck(args), roll: { formula, result, total, dice, isSecret } }
+  return { ...makeAck(args), ...extractRollPayload(r, args) }
 }
 
 // Raw 1d20 roll from the side-menu Check Roll modal's "Roll d20" fallback —
@@ -92,24 +85,24 @@ export async function foundryFreeRoll(args: FreeRollArgs) {
     await r.toMessage({ speaker: { actor: actor._id ?? undefined }, flavor }, { rollMode })
     return r
   })
-  return {
-    ...makeAck(args),
-    roll: {
-      formula: roll.formula,
-      result: String(roll.total),
-      total: roll.total,
-      dice: roll.dice,
-      isSecret: args.secret
-    }
-  } as ReturnType<typeof makeAck> & {
-    roll: { formula: string; result: string; total: number; dice: unknown; isSecret: boolean }
+  // Typed local so field names/arity stay compiler-checked; only `dice` is
+  // asserted — it carries raw Foundry dice terms on the wire.
+  const payload: RollResult = {
+    formula: roll.formula,
+    result: String(roll.total),
+    total: roll.total,
+    dice: roll.dice as unknown as RollResult['dice'],
+    isSecret: args.secret
   }
+  return { ...makeAck(args), roll: payload }
 }
 
 export async function foundrySendItemToChat(args: SendItemToChatArgs) {
   const actor = game.actors.get(args.characterId)
   const item = actor?.items?.get(args.itemId)
-  if (item) await item.toChat()
+  // Throw instead of acking success: nothing was posted to chat.
+  if (!item) throw new Error(`item ${args.itemId} not found on actor ${args.characterId}`)
+  await item.toChat()
   return makeAck(args)
 }
 
@@ -122,8 +115,9 @@ declare const CONFIG: {
 
 export async function foundrySendCompendiumItemToChat(args: SendCompendiumItemToChatArgs) {
   const source = getGame()
-  const actor = source.actors.get(args.characterId)
-  if (!actor) return makeAck(args)
+  // Throw (strict get) instead of acking success on every refused/failed path
+  // below: nothing was posted to chat, and the app must not show a success.
+  const actor = source.actors.get(args.characterId, { strict: true })
 
   // Only post items from a compendium the requesting user may observe — a bare
   // fromUuid would otherwise let a player broadcast any document's contents.
@@ -138,11 +132,11 @@ export async function foundrySendCompendiumItemToChat(args: SendCompendiumItemTo
     !userCanObservePack(pack, user)
   ) {
     logger.warn('TM-SEND-COMPENDIUM-ITEM: not permitted or not a compendium item', args.itemUuid)
-    return makeAck(args)
+    throw new Error(`compendium item not permitted or not a compendium item: ${args.itemUuid}`)
   }
 
   const doc = await fromUuid(args.itemUuid)
-  if (!doc) return makeAck(args)
+  if (!doc) throw new Error(`compendium item could not be resolved: ${args.itemUuid}`)
   // PF2e's toChat() requires an owned item. Create a temporary in-memory item
   // with the character as parent so the ownership check passes without persisting.
   const tempItem = new CONFIG.Item.documentClass(doc.toObject(), { parent: actor })

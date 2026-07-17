@@ -2,6 +2,7 @@
 // modules don't each reach into `parent.game` / `window.game` directly.
 
 import type { CharacterPF2e, GamePF2e } from '@7h3laughingman/pf2e-types'
+import type { AcknowledgementArgs } from '@/types/api-types'
 import { TM } from '@/api/protocol'
 import { logger } from '@/utils/utilities'
 
@@ -13,8 +14,8 @@ export function getCharacter(source: GamePF2e, id: string): CharacterPF2e {
   return source.actors.get(id, { strict: true }) as unknown as CharacterPF2e
 }
 
-export function makeAck(args: { uuid: string }) {
-  return { action: TM.ACK, uuid: args.uuid, userId: game.user._id }
+export function makeAck(args: { uuid: string }): AcknowledgementArgs {
+  return { action: TM.ACK, uuid: args.uuid, userId: game.user._id ?? '' }
 }
 
 export function tablemateChatOriginUserId(message: unknown): string | undefined {

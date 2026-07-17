@@ -84,7 +84,7 @@ export function useCharacterRules(actor: Ref<TablemateCharacter | undefined>): C
             const label = s.label
               ? s.label.includes('{item|')
                 ? s.label.replace(/\{item\|name\}/g, item.name ?? s.label)
-                : labels?.[s.label] ?? s.label
+                : (labels?.[s.label] ?? s.label)
               : undefined
             rollOption?.suboptions.push({ label, value: s.value })
           })

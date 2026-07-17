@@ -33,6 +33,13 @@ export const PROTOCOL_VERSION = 3
 // self-heal its cached policy if it fired before hearing the announcement).
 export const TM_ERROR_MANUAL_ROLLS_DISABLED = 'TM_MANUAL_ROLLS_DISABLED'
 
+// Error-ack sentinel: the requesting user failed the module's authorization
+// check (AUTH_POLICY in foundry/listener.ts) — e.g. they don't own the target
+// actor. Sent instead of silently dropping the request, so the app rejects
+// immediately with a distinguishable cause rather than waiting out the 30s
+// client timeout that would otherwise read the same as "no GM online".
+export const TM_ERROR_UNAUTHORIZED = 'TM_UNAUTHORIZED'
+
 export const TM = {
   // Socket.io channel name. All tablemate messages flow over this channel.
   CHANNEL: 'module.tablemate',

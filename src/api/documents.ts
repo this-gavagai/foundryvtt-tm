@@ -11,6 +11,7 @@ import {
 import { fireRefresh } from './characterSync'
 import { updateActorRemote } from './actionRpc'
 import { useListenersStore } from '@/stores/listenersOnline'
+import { logger } from '@/utils/utilities'
 
 // Foundry document collections that we mutate via the modifyDocument socket.
 // Restricted to the set the app actually touches — typos for unsupported
@@ -115,12 +116,28 @@ export function processChanges(args: DocumentSocketResponse, root: DocumentData[
   }
 }
 
+// Every writable field in the character model mutates the local document
+// optimistically before the write is sent, so a failed write (GM offline,
+// permission denied, timeout) leaves the sheet showing state the server never
+// accepted. Recover by re-requesting server truth (fire the actor's refresh
+// so registered sheets re-fetch), then RE-THROW: callers legitimately depend
+// on observing the failure — EquipmentList's transfer abort, the strike
+// damage-type toggle gate, the button seam's failure flash. Fire-and-forget
+// computed setters swallow the re-throw explicitly at their call sites.
+export function recoverFailedWrite(actor: TablemateActorRef, error: unknown): never {
+  logger.warn('TM-WARN: actor write failed; refreshing from server state', error)
+  fireRefresh(actor.value?._id)
+  throw error
+}
+
 export function updateActor(actor: TablemateActorRef, update: object) {
   if (useListenersStore().isListening) {
-    return updateActorRemote(actor.value!._id!, update).then(() => {
-      fireRefresh(actor.value!._id)
-      return null
-    })
+    return updateActorRemote(actor.value!._id!, update)
+      .then(() => {
+        fireRefresh(actor.value!._id)
+        return null
+      })
+      .catch((error) => recoverFailedWrite(actor, error))
   }
   return modifyDocument(
     {
@@ -138,7 +155,7 @@ export function updateActor(actor: TablemateActorRef, update: object) {
       })
       fireRefresh(actor.value!._id)
     }
-  )
+  ).catch((error) => recoverFailedWrite(actor, error))
 }
 
 export function updateActorItem(
@@ -165,7 +182,7 @@ export function updateActorItem(
       processChanges(r, asDocumentArray(actor.value!.items))
       fireRefresh(actor.value!._id)
     }
-  )
+  ).catch((error) => recoverFailedWrite(actor, error))
 }
 
 export function deleteActorItem(actor: TablemateActorRef, itemId: string) {
@@ -182,7 +199,7 @@ export function deleteActorItem(actor: TablemateActorRef, itemId: string) {
       processChanges(r, asDocumentArray(actor.value!.items))
       fireRefresh(actor.value!._id)
     }
-  )
+  ).catch((error) => recoverFailedWrite(actor, error))
 }
 
 export function updateUserTargetingProxy(userId: string, proxyId: string) {

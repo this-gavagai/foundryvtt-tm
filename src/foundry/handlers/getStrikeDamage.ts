@@ -1,5 +1,5 @@
 import type { DamageType, EffectTrait } from '@7h3laughingman/pf2e-types'
-import type { GetStrikeDamageArgs } from '@/types/api-types'
+import type { GetStrikeDamageArgs, StrikeDamagePreview } from '@/types/api-types'
 import { withBackgroundRoll } from '../backgroundRoll'
 import { getCharacter, getGame, makeAck, makeFakeEvent } from '../utils/foundry'
 import type { StrikeActionRuntime } from '../utils/strikeRuntime'
@@ -106,12 +106,13 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
     extractedModifiers = rawModifiers
   }
 
-  return {
-    ...makeAck(args),
-    response: {
-      damage: results[0],
-      critical: results[1],
-      modifiers: extractedModifiers
-    }
+  // Typed local so the wire contract's field names/arity stay
+  // compiler-checked; the values come off PF2e's untyped damage results, so
+  // each leaf is asserted.
+  const response: StrikeDamagePreview = {
+    damage: results[0] as string | undefined,
+    critical: results[1] as string | undefined,
+    modifiers: extractedModifiers as StrikeDamagePreview['modifiers']
   }
+  return { ...makeAck(args), response }
 }

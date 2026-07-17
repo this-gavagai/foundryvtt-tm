@@ -10,7 +10,7 @@ import {
   setWeaponDamageType,
   toggleKineticAura
 } from '@/api/actionRpc'
-import { updateActorItem } from '@/api/documents'
+import { recoverFailedWrite, updateActorItem } from '@/api/documents'
 import type { CharacterStrike, DamageType, WeaponPF2e } from '@7h3laughingman/pf2e-types'
 
 export interface CharacterStrikes {
@@ -23,6 +23,13 @@ export interface CharacterStrikes {
 }
 
 export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>): CharacterStrikes {
+  // The setters below mutate the local actor optimistically before their RPC
+  // is sent — on failure, re-fetch server truth and re-throw (shared policy
+  // in documents.ts) so doDamage's pendingToggle gate and the button seam's
+  // failure flash still observe the rejection.
+  const recoverWrite = <T>(promise: Promise<T>): Promise<T> =>
+    promise.catch((error) => recoverFailedWrite(actor, error))
+
   const strikes = computed(() => {
     return (actor.value?.system?.actions as CharacterStrike[] | undefined)?.map((action) => {
       // Match by slug first; for granted items (e.g. clan dagger from the
@@ -133,7 +140,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
           const ammoData = action?.ammunition as { loaded?: { quantity?: number }[] } | undefined
           if (ammoData) ammoData.loaded = load ? [{ quantity: 1 }] : []
           return weaponId
-            ? setWeaponLoaded(actor, weaponId, load, load ? effectiveAmmoId : null)
+            ? recoverWrite(setWeaponLoaded(actor, weaponId, load, load ? effectiveAmmoId : null))
             : Promise.resolve(null)
         },
         setDamageType: (newType) => {
@@ -157,10 +164,14 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
           } else if (toggles?.versatile) {
             toggles.versatile.selected = selected as DamageType | null
           }
-          pendingToggle = setWeaponDamageType(actor, weaponId, trait, selected)
-          pendingToggle.finally(() => {
-            pendingToggle = null
-          })
+          pendingToggle = recoverWrite(setWeaponDamageType(actor, weaponId, trait, selected))
+          // The clear-on-settle side chain must swallow: the caller (and any
+          // doDamage gated on pendingToggle) already receives the rejection.
+          void pendingToggle
+            .catch(() => {})
+            .finally(() => {
+              pendingToggle = null
+            })
           return pendingToggle
         },
         changeAmmo: (newId) => {
@@ -184,7 +195,10 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
           // Weapon is loaded — unload so the new ammo selection stays in sync.
           const ammoData = action?.ammunition as { loaded?: { quantity?: number }[] } | undefined
           if (ammoData) ammoData.loaded = []
-          return Promise.all([persistAmmoId, setWeaponLoaded(actor, weaponId, false, null)])
+          return Promise.all([
+            persistAmmoId,
+            recoverWrite(setWeaponLoaded(actor, weaponId, false, null))
+          ])
         }
       } as Strike
     })
@@ -284,7 +298,7 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
         items.push({ system: { slug: 'effect-kinetic-aura' } })
       }
     }
-    return toggleKineticAura(actor)
+    return recoverWrite(toggleKineticAura(actor))
   }
 
   return {

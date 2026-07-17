@@ -54,11 +54,16 @@ export async function foundryCastSpell(args: CastSpellArgs) {
   const spellLocation = locationId
     ? (actor.items.get(locationId) as SpellcastingEntryPF2e<ActorPF2e<null>>)
     : undefined
+  // Throw instead of acking success: a resolvable spell with no castable
+  // entry means the cast never happened, and the app must not show one.
+  if (!spellLocation) {
+    throw new Error(`spell "${item.name}" has no spellcasting entry to cast from`)
+  }
   await withCastTargets(args.targets, () =>
-    spellLocation?.cast(item, {
+    spellLocation.cast(item, {
       rank: args.rank as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10,
       slotId: args.slotId
-    }) ?? Promise.resolve()
+    })
   )
   return makeAck(args)
 }
@@ -76,21 +81,24 @@ export async function foundryCastStaffSpell(args: CastStaffSpellArgs) {
   const spellcasting = actor.spellcasting as typeof actor.spellcasting & Spellcasting
   const entry = spellcasting.get(entryId)
   const spell = spellcasting.collections.get(entryId)?.get(args.spellId)
-  if (entry && spell) {
-    // Pass spontaneous: { entryId: '' } — pf2e-dailies filters spontaneous entries by
-    // entryId, so a blank ID matches nothing, entries.length === 0, and the dialog is
-    // skipped. The cast proceeds straight to the normal charge-deduction path.
-    await withCastTargets(args.targets, () =>
-      (
-        entry as SpellcastingEntryPF2e<ActorPF2e<null>> & {
-          cast: (spell: SpellPF2e<ActorPF2e<null>>, options: object) => Promise<void>
-        }
-      ).cast(spell, {
-        rank: args.rank as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10,
-        spontaneous: { entryId: '' }
-      })
-    )
+  // Throw instead of acking success: an unresolvable staff entry/spell means
+  // the cast never happened, and the app must not show one.
+  if (!entry || !spell) {
+    throw new Error(`staff spell could not be resolved (entry ${entryId}, spell ${args.spellId})`)
   }
+  // Pass spontaneous: { entryId: '' } — pf2e-dailies filters spontaneous entries by
+  // entryId, so a blank ID matches nothing, entries.length === 0, and the dialog is
+  // skipped. The cast proceeds straight to the normal charge-deduction path.
+  await withCastTargets(args.targets, () =>
+    (
+      entry as SpellcastingEntryPF2e<ActorPF2e<null>> & {
+        cast: (spell: SpellPF2e<ActorPF2e<null>>, options: object) => Promise<void>
+      }
+    ).cast(spell, {
+      rank: args.rank as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10,
+      spontaneous: { entryId: '' }
+    })
+  )
   return makeAck(args)
 }
 

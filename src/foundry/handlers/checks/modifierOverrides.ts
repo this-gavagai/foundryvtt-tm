@@ -144,7 +144,12 @@ export async function withRawModifierOverrides<T>(
   try {
     return await doRoll()
   } finally {
-    for (const r of restores) r()
+    // LIFO: the same live Modifier can be captured twice (source actor +
+    // a clone sharing statistic instances), and the second snapshot holds
+    // the already-mutated state (empty predicate, adjustments: []). Forward
+    // order would re-apply that mutated snapshot last, leaving the actor
+    // permanently predicate-less until the next data prep.
+    for (let i = restores.length - 1; i >= 0; i--) restores[i]()
   }
 }
 
@@ -213,7 +218,10 @@ export async function withBlastModifierOverrides<T>(
   try {
     return await doRoll()
   } finally {
-    for (const r of restores) r()
+    // LIFO for the same reason as withRawModifierOverrides: repeated extend()
+    // calls can capture the same modifier twice, and only reverse-order
+    // restore replays the clean snapshot last.
+    for (let i = restores.length - 1; i >= 0; i--) restores[i]()
   }
 }
 
