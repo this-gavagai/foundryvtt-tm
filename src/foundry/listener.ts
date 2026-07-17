@@ -45,7 +45,7 @@ import {
   PROTOCOL_VERSION,
   MODULE_ID
 } from '@/api/protocol'
-import { stampTablemateChatOrigin, tablemateChatOriginUuid } from './utils/foundry'
+import { makeAck, stampTablemateChatOrigin, tablemateChatOriginUuid } from './utils/foundry'
 import { markRequestSeen, requestAlreadySeen } from './requestDedup'
 import { resolveCapture, type CapturedMessage } from './chatCapture'
 import {
@@ -296,12 +296,9 @@ function requestUuid(args: ModuleEventArgs): string | undefined {
 function emitErrorAck(args: ModuleEventArgs, error: string) {
   const uuid = requestUuid(args)
   if (!uuid) return
-  game.socket.emit(TM.CHANNEL, {
-    action: TM.ACK,
-    uuid,
-    userId: game.user._id ?? '',
-    error
-  })
+  // Build the ack through makeAck so error acks and success acks share one
+  // shape (and userId normalization); this only adds the error field.
+  game.socket.emit(TM.CHANNEL, { ...makeAck({ uuid }), error })
 }
 
 // Turn a thrown handler into an error ack.

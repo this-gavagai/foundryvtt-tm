@@ -19,20 +19,9 @@ vi.mock('@/api/internal', async (importOriginal) => {
 import { listCompendia, resolveAck, rejectAllPending } from '@/api/actionRpc'
 import { TM } from '@/api/protocol'
 import type { RequestResolutionArgs } from '@/types/api-types'
+import { flushMicrotasks, lastEmittedUuid as lastUuid } from './socketMock'
 
-// sendAction awaits the (mocked, already-resolved) authenticated socket before
-// emitting, so the emit lands a few microtasks after the call — flush without
-// relying on timers, which some tests fake.
-async function flushMicrotasks(ticks = 5) {
-  for (let i = 0; i < ticks; i++) await Promise.resolve()
-}
-
-function lastEmittedUuid(): string {
-  const call = emit.mock.calls.at(-1)
-  expect(call, 'expected an RPC to have been emitted').toBeDefined()
-  expect(call![0]).toBe(TM.CHANNEL)
-  return (call![1] as { uuid: string }).uuid
-}
+const lastEmittedUuid = () => lastUuid(emit)
 
 function ackFor(uuid: string, extra: Partial<RequestResolutionArgs> = {}): RequestResolutionArgs {
   return { action: TM.ACK, uuid, userId: 'gm-1', ...extra }

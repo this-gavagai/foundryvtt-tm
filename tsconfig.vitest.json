@@ -3,6 +3,13 @@
   // this project vue-tsc never sees them and fixtures drift from real types).
   // Inherits the app include (env.d.ts + src) and re-adds __tests__ by
   // clearing the exclude; `types` gains vitest's node ambient.
+  //
+  // This re-checks the app's src a second time during `vue-tsc --build`. A
+  // specs-only include would avoid that, but this project must be `composite`
+  // (the root solution references it), composite requires every imported file
+  // to come from a listed root or a referenced project, and the app project
+  // it would reference is `noEmit` (Vue base) so it can't be referenced. The
+  // extra pass is the accepted cost of keeping specs in the one build.
   "extends": "./tsconfig.app.json",
   "exclude": ["node_modules"],
   "compilerOptions": {

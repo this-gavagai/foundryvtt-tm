@@ -42,8 +42,9 @@ function pushToAckQueue(
     clearTimeout(timer)
     // A handler that threw on the Foundry side answers with an ack carrying an
     // `error` string; reject so the caller sees the real failure instead of
-    // waiting out the full timeout.
-    if (args.error) {
+    // waiting out the full timeout. Test for presence, not truthiness — an
+    // error whose message stringifies to '' is still a failure, not a success.
+    if (args.error !== undefined) {
       logger.warn(`TM-WARN: request ${uuid} failed: ${args.error}`)
       reject(new Error(args.error))
       return
@@ -70,10 +71,11 @@ export function resolveAck(uuid: string, args: RequestResolutionArgs) {
 // mutation that succeeded. Routed through the normal error-ack path so
 // timers are cleared.
 export function rejectAllPending(reason: string) {
+  // Snapshot the keys first — resolveAck mutates ackQueue as it drains each
+  // entry. Routed through resolveAck (not a manual drain) so any future
+  // bookkeeping added to the single documented drain path applies here too.
   for (const uuid of Object.keys(ackQueue)) {
-    const entry = ackQueue[uuid]
-    delete ackQueue[uuid]
-    entry({ action: TM.ACK, uuid, userId: '', error: reason })
+    resolveAck(uuid, { action: TM.ACK, uuid, userId: '', error: reason })
   }
 }
 

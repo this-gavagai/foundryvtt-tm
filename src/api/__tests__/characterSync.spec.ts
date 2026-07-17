@@ -25,14 +25,13 @@ import { parseActorData, sendCharacterRequest, setCharUnsynced } from '@/api/cha
 import { TM } from '@/api/protocol'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import type { TablemateActor } from '@/types/character-types'
+import { lastEmittedUuid } from './socketMock'
 
 // Register a request so parseActorData's last-request-uuid gate matches, and
 // return that uuid (captured off the emitted REQUEST_CHARACTER payload).
 async function requestUuidFor(actorId: string): Promise<string> {
   await sendCharacterRequest(actorId)
-  const call = emit.mock.calls.at(-1)!
-  expect(call[0]).toBe(TM.CHANNEL)
-  return (call[1] as { uuid: string }).uuid
+  return lastEmittedUuid(emit)
 }
 
 function makePayload(

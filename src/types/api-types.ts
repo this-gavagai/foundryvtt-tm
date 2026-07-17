@@ -574,17 +574,23 @@ export interface ResponseByAction {
 // The client-initiated RPC actions (everything with a typed response).
 export type RpcAction = keyof ResponseByAction
 
-// Widened "any RPC response" shape used only by the ack-queue plumbing, which
-// stores resolvers for heterogeneous in-flight requests in one map. Call
-// sites never see this type — sendAction narrows per action via
-// ResponseByAction.
-export type RequestResolutionArgs = AcknowledgementArgs & {
-  roll?: RollResult
-  response?: StrikeDamagePreview | SpellDamagePreview
-  compendiumItem?: CompendiumItemData | null
-  compendia?: CompendiumPackInfo[]
-  compendiumIndex?: CompendiumIndexEntry[]
+// Every key that appears in any member of a union of object types.
+type KeysOfUnion<U> = U extends unknown ? keyof U : never
+
+// Flatten a union of object types into one object where every key that appears
+// in ANY member is optional and typed as the union of that key's value across
+// the members that carry it (members without the key contribute `never`, which
+// drops out of the union).
+type MergeUnion<U> = {
+  [K in KeysOfUnion<U>]?: U extends unknown ? (K extends keyof U ? U[K] : never) : never
 }
+
+// Widened "any RPC response" bag used only by the ack-queue plumbing, which
+// stores resolvers for heterogeneous in-flight requests in one map. DERIVED
+// from ResponseByAction so it can't drift when a new response field is added
+// — this was a hand-maintained mirror before. Call sites never see it;
+// sendAction narrows per action via ResponseByAction.
+export type RequestResolutionArgs = AcknowledgementArgs & MergeUnion<ResponseByAction[RpcAction]>
 
 export interface ActiveRoll {
   action: 'action' | 'check' | 'damage'
