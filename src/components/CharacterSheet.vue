@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { TablemateActor, TablemateCharacter, TablemateFamiliar } from '@/types/character-types'
 import type { Ref, ComputedRef } from 'vue'
 import { ref, provide, computed, onMounted, watch } from 'vue'
@@ -68,17 +67,14 @@ function changeTab(index: number) {
   setActiveSheetTab(index)
 }
 // base data
-const { world } = storeToRefs(useWorldStore())
+const worldStore = useWorldStore()
 const { userId } = storeToRefs(useUserStore())
 const { sessionReady } = storeToRefs(useServerStore())
 const actor: Ref<TablemateActor | undefined> = ref()
 // The actor as known to the *current* world — authoritative for this session,
 // and the only source we trust for the ownership/access check below.
 const worldActor = computed<TablemateActor | undefined>(
-  () =>
-    world.value?.actors?.find<CharacterPF2e<null>>((a) => a._id == props.characterId) as
-      | TablemateActor
-      | undefined
+  () => worldStore.actorById(props.characterId) as TablemateActor | undefined
 )
 const actorOrWorldActor = computed<TablemateActor | undefined>(
   () => actor.value ?? worldActor.value

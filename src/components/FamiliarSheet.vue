@@ -4,7 +4,6 @@ import { useFamiliar } from '@/composables/familiar'
 import type { TablemateFamiliar } from '@/types/character-types'
 import { actorKey, familiarKey } from '@/composables/injectKeys'
 import { useWorldStore } from '@/stores/world'
-import { storeToRefs } from 'pinia'
 
 import CharacterHeader from '@/components/CharacterHeader.vue'
 import EffectsAndConditions from '@/components/EffectsAndConditions.vue'
@@ -29,10 +28,8 @@ const sideMenu = ref()
 provide(familiarKey, familiar)
 provide(actorKey, familiar)
 
-const { world } = storeToRefs(useWorldStore())
-const masterName = computed(
-  () => world.value?.actors?.find((a) => a._id === familiar.masterId.value)?.name
-)
+const worldStore = useWorldStore()
+const masterName = computed(() => worldStore.actorById(familiar.masterId.value)?.name)
 </script>
 <template>
   <div data-component="FamiliarSheet" class="flex h-full min-h-0 flex-col">

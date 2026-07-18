@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { ActorPF2e } from '@7h3laughingman/pf2e-types'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
 import {
   BookOpenIcon,
@@ -46,7 +45,8 @@ const serverStore = useServerStore()
 const { isConnected } = storeToRefs(serverStore)
 const serverAddressStore = useServerAddressStore()
 const { isListening } = storeToRefs(useListenersStore())
-const { world } = storeToRefs(useWorldStore())
+const worldStore = useWorldStore()
+const { world } = storeToRefs(worldStore)
 const { worldAuthenticated } = storeToRefs(useFoundryWorldStatusStore())
 
 const { t } = useI18n()
@@ -142,7 +142,7 @@ const { characterList, activeCharacterId } = storeToRefs(characterSelectStore)
 const { setActiveCharacterId } = characterSelectStore
 const characterOptions = computed(() =>
   (characterList.value ?? []).flatMap((id) => {
-    const actor = world.value?.actors.find((a: ActorPF2e) => a._id === id)
+    const actor = worldStore.actorById(id)
     return actor ? [actor] : []
   })
 )

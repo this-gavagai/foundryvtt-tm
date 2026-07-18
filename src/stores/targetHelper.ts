@@ -13,7 +13,9 @@ function isTablemateRootUser(user: UserPF2e): boolean {
 }
 
 export const useTargetHelperStore = defineStore('targetHelper', () => {
-  const { world } = storeToRefs(useWorldStore())
+  const worldStore = useWorldStore()
+  const { world } = storeToRefs(worldStore)
+  const { userById } = worldStore
   const userStore = useUserStore()
   const { userId } = storeToRefs(userStore)
   const { getUserId } = userStore
@@ -29,19 +31,16 @@ export const useTargetHelperStore = defineStore('targetHelper', () => {
   )
 
   const storedProxyId = computed(
-    () =>
-      (world.value?.users.find((u) => u._id === userId.value)?.flags?.tablemate?.targeting_proxy as
-        | string
-        | undefined)
+    () => userById(userId.value)?.flags?.tablemate?.targeting_proxy as string | undefined
   )
 
-  const proxyIsSelectable = computed(
-    () => (proxyId: string | undefined) =>
-      !!proxyId && !!world.value?.users.some((u) => u._id === proxyId && !isTablemateRootUser(u))
-  )
+  const proxyIsSelectable = computed(() => (proxyId: string | undefined) => {
+    const user = userById(proxyId)
+    return !!user && !isTablemateRootUser(user)
+  })
 
-  const targetingProxyId = computed(
-    () => [localProxyId.value, storedProxyId.value].find((id) => proxyIsSelectable.value(id))
+  const targetingProxyId = computed(() =>
+    [localProxyId.value, storedProxyId.value].find((id) => proxyIsSelectable.value(id))
   )
 
   function updateProxyId(newId: string): Promise<DocumentSocketResponse | null> {

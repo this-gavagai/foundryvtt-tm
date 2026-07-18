@@ -1,11 +1,12 @@
-import { ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 import { defineStore } from 'pinia'
 import { debounce } from 'lodash-es'
-import type { GamePF2e } from '@7h3laughingman/pf2e-types'
+import type { ActorPF2e, GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
 import { useServerStore } from '@/stores/server'
 import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { markWorldRequestSent } from '@/api/loadPriority'
 import { emitWithTimeout } from '@/api/socketConnection'
+import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
 
 const REFRESH_DEBOUNCE_MS = 2000
 // World payloads can be large and the GM serializes them behind actor
@@ -26,6 +27,37 @@ export const useWorldStore = defineStore('world', () => {
   const messagesRevision = ref(0)
   function bumpMessagesRevision(): void {
     messagesRevision.value++
+  }
+
+  // Indexed lookups. Consumers repeatedly resolve an actor or user by _id
+  // (each mounted CharacterSheet finds its own actor, SideMenu/FamiliarSheet/
+  // EquipmentList/targetHelper find theirs) — and world is a shallowRef
+  // force-triggered on every modifyDocument, so those O(n) scans re-ran across
+  // all consumers on every combat tick. Build the id→doc map once per world
+  // change here and hand out O(1) lookups instead.
+  const actorsById = computed(() => {
+    const map = new Map<string, ActorPF2e>()
+    for (const actor of collectionToArray<ActorPF2e>(
+      world.value?.actors as CollectionLike<ActorPF2e>
+    )) {
+      if (actor._id) map.set(actor._id, actor)
+    }
+    return map
+  })
+  const usersById = computed(() => {
+    const map = new Map<string, UserPF2e>()
+    for (const user of collectionToArray<UserPF2e>(
+      world.value?.users as CollectionLike<UserPF2e>
+    )) {
+      if (user._id) map.set(user._id, user)
+    }
+    return map
+  })
+  function actorById(id: string | null | undefined): ActorPF2e | undefined {
+    return id ? actorsById.value.get(id) : undefined
+  }
+  function userById(id: string | null | undefined): UserPF2e | undefined {
+    return id ? usersById.value.get(id) : undefined
   }
 
   async function sendWorldRequest(): Promise<void> {
@@ -94,6 +126,10 @@ export const useWorldStore = defineStore('world', () => {
     world,
     messagesRevision,
     bumpMessagesRevision,
+    actorsById,
+    usersById,
+    actorById,
+    userById,
     refreshWorld,
     refreshWorldNow,
     clearWorld
