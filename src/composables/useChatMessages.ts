@@ -107,6 +107,55 @@ export interface ChatRerollSummary {
   newDiscarded: boolean
 }
 
+// The parts of a message view that are expensive to build (HTML sanitize +
+// enrich, the reroll DOM parse, the inline-check regex pass) and depend ONLY on
+// the message's own content — not on world/scene/actor state. Memoized (see
+// makeMessageViewMemo) so a combat tick, which force-triggers the world
+// shallowRef and re-runs renderedMessages over the whole visible log, reuses
+// these instead of re-parsing every message's HTML each time.
+export type ExpensiveMessageView = Pick<
+  ChatMessageView,
+  | 'preparedFlavor'
+  | 'preparedContent'
+  | 'showContent'
+  | 'showEmptyMessage'
+  | 'rerollSummary'
+  | 'rolls'
+  | 'inlineChecks'
+>
+
+// Per-message memo keyed by message id, invalidated by a fingerprint of the
+// inputs that actually affect the expensive parts (content, flavor, rolls, and
+// the GM-strip flag). Exported for direct unit testing — the composable that
+// uses it is store-coupled, but the cache logic is pure.
+export function makeMessageViewMemo() {
+  const cache = new Map<string, { fingerprint: string; value: ExpensiveMessageView }>()
+  return {
+    get(
+      id: string | undefined,
+      fingerprint: string,
+      compute: () => ExpensiveMessageView
+    ): ExpensiveMessageView {
+      if (id) {
+        const hit = cache.get(id)
+        if (hit && hit.fingerprint === fingerprint) return hit.value
+      }
+      const value = compute()
+      if (id) cache.set(id, { fingerprint, value })
+      return value
+    },
+    // Drop entries for messages no longer visible (log scrolled or trimmed) so
+    // the cache tracks the visible tail rather than growing without bound.
+    prune(liveIds: Set<string>) {
+      if (cache.size <= liveIds.size) return
+      for (const id of cache.keys()) if (!liveIds.has(id)) cache.delete(id)
+    },
+    get size() {
+      return cache.size
+    }
+  }
+}
+
 export function originActorId(message: ChatMessageData): string | undefined {
   const uuid = message.flags?.pf2e?.origin?.uuid
   if (uuid) return /^Actor\.([^.]+)/.exec(uuid)?.[1]
@@ -281,11 +330,11 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
 
   const actorsById = computed(() => {
     const map = new Map<string, ChatActorData>()
-    collectionToArray<ChatActorData>(
-      world.value?.actors as CollectionLike<ChatActorData>
-    ).forEach((actor) => {
-      if (actor._id) map.set(actor._id, actor)
-    })
+    collectionToArray<ChatActorData>(world.value?.actors as CollectionLike<ChatActorData>).forEach(
+      (actor) => {
+        if (actor._id) map.set(actor._id, actor)
+      }
+    )
     return map
   })
 
@@ -365,14 +414,43 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
     }
   }
 
+  const viewMemo = makeMessageViewMemo()
+
+  // Build (or reuse) the expensive, content-only part of a message view. The
+  // fingerprint covers exactly its inputs — content, flavor, rolls, and the GM
+  // strip flag — so it's rebuilt only when one of those actually changes (a new
+  // message, or an edit like a reroll), not on unrelated world triggers.
+  function expensiveView(message: ChatMessageData): ExpensiveMessageView {
+    const gm = currentUserIsGM.value
+    const fingerprint =
+      `${gm ? 'g' : ''} ${message.flavor ?? ''} ${message.content ?? ''}` +
+      ` ${message.rolls ? JSON.stringify(message.rolls) : ''}`
+    return viewMemo.get(message._id ?? undefined, fingerprint, () => {
+      const rolls = rollSummaries(message.rolls)
+      const rerollSummary = parseRerollSummary(message.content)
+      const showContent = shouldShowMessageContent(message, rolls, rerollSummary)
+      return {
+        rolls,
+        rerollSummary,
+        showContent,
+        showEmptyMessage: !showContent && !rolls.length,
+        preparedFlavor: message.flavor
+          ? prepareChatHtml(message.flavor, { stripGmContent: !gm })
+          : undefined,
+        preparedContent: showContent
+          ? prepareChatHtml(message.content, { stripGmContent: !gm })
+          : undefined,
+        inlineChecks: inlineChecksFromContent(message.content)
+      }
+    })
+  }
+
   function buildChatMessageView(message: ChatMessageData, index: number): ChatMessageView {
-    const rolls = rollSummaries(message.rolls)
-    const rerollSummary = parseRerollSummary(message.content)
-    const showContent = shouldShowMessageContent(message, rolls, rerollSummary)
+    // Cheap, world/actor-dependent parts — recomputed each pass (they must react
+    // to scene/actor/user hydration and actor switches, and are inexpensive).
     const portrait = speakerPortrait(message)
     const author = authorName(message)
     const speaker = speakerName(message, author)
-    const visibility = visibilityLabel(message)
 
     return {
       message,
@@ -381,7 +459,7 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
       authorName: author,
       showAuthorName: !!author && author !== speaker,
       formattedTime: formattedTime(message.timestamp),
-      visibilityLabel: visibility,
+      visibilityLabel: visibilityLabel(message),
       whisperRecipients: whisperRecipientNames(message),
       isOwnActor: messageIsOwnActor(message),
       // Reserve the portrait box from a static signal (the speaker references a
@@ -391,21 +469,16 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
       hasPortrait: !!message.speaker?.token || !!message.speaker?.actor,
       portrait: portrait.src,
       portraitScale: portrait.scale,
-      preparedFlavor: message.flavor
-        ? prepareChatHtml(message.flavor, { stripGmContent: !currentUserIsGM.value })
-        : undefined,
-      preparedContent: showContent
-        ? prepareChatHtml(message.content, { stripGmContent: !currentUserIsGM.value })
-        : undefined,
-      showContent,
-      showEmptyMessage: !showContent && !rolls.length,
-      rerollSummary,
-      rolls,
-      inlineChecks: inlineChecksFromContent(message.content)
+      // Expensive HTML parsing — memoized by content fingerprint.
+      ...expensiveView(message)
     }
   }
 
-  const renderedMessages = computed(() => messages.value.map(buildChatMessageView))
+  const renderedMessages = computed(() => {
+    const views = messages.value.map(buildChatMessageView)
+    viewMemo.prune(new Set(views.map((v) => v.message._id).filter((id): id is string => !!id)))
+    return views
+  })
 
   return {
     messages,
