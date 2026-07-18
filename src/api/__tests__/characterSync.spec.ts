@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ref } from 'vue'
 
 // parseActorData is the merge point for every UPDATE_CHARACTER payload: it
@@ -17,15 +17,13 @@ vi.mock('@/api/internal', async (importOriginal) => {
   }
 })
 vi.mock('@/utils/actorCache', () => ({ saveActorSnapshot: vi.fn() }))
-vi.mock('@/stores/serverAddress', () => ({
-  useServerAddressStore: () => ({ serverUrl: new URL('https://vtt.example.com') })
-}))
 
 import { parseActorData, sendCharacterRequest, setCharUnsynced } from '@/api/characterSync'
 import { TM } from '@/api/protocol'
+import { registerStoreBridge, resetStoreBridgeForTest } from '@/api/storeBridge'
+import { fakeStoreBridge, lastEmittedUuid } from './socketMock'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import type { TablemateActor } from '@/types/character-types'
-import { lastEmittedUuid } from './socketMock'
 
 // Register a request so parseActorData's last-request-uuid gate matches, and
 // return that uuid (captured off the emitted REQUEST_CHARACTER payload).
@@ -68,6 +66,12 @@ const withItems = (items: ItemShape[]) =>
 
 beforeEach(() => {
   emit.mockClear()
+  // No Pinia: the snapshot-save path reads the active server origin through the
+  // injected bridge, so a fake value is all the api layer needs here.
+  registerStoreBridge(fakeStoreBridge())
+})
+afterEach(() => {
+  resetStoreBridgeForTest()
 })
 
 describe('parseActorData gates', () => {

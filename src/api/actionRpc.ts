@@ -13,9 +13,9 @@ import type {
   ApplyDamageMode,
   ChatRollRerollMode
 } from '@/types/api-types'
-import { useTargetHelperStore } from '@/stores/targetHelper'
 import { logger, uuidv4 } from '@/utils/utilities'
 import { getAuthenticatedSocket } from './internal'
+import { requireStoreBridge } from './storeBridge'
 import { TM } from './protocol'
 
 // Pending ack queue: uuid → resolver. Populated when an action RPC is sent,
@@ -107,7 +107,7 @@ async function sendAction<K extends RpcAction>(
 const fromActor = (a: TablemateActorRef) => ({ characterId: a.value!._id! })
 const fromActorTargeted = (a: TablemateActorRef) => ({
   characterId: a.value!._id!,
-  targets: useTargetHelperStore().getTargets()
+  targets: requireStoreBridge().getTargets()
 })
 
 export const castSpell = (

@@ -1,4 +1,6 @@
 import { expect, type Mock } from 'vitest'
+import type { Socket } from 'socket.io-client'
+import type { StoreBridge } from '@/api/storeBridge'
 import { TM } from '@/api/protocol'
 
 // Shared emit-capture helpers for specs that drive the RPC layer. The `emit`
@@ -21,4 +23,21 @@ export function lastEmittedUuid(emit: Mock): string {
   expect(call, 'expected an RPC to have been emitted').toBeDefined()
   expect(call![0]).toBe(TM.CHANNEL)
   return (call![1] as { uuid: string }).uuid
+}
+
+// A fully-synthetic StoreBridge for api-layer tests — the whole point of the
+// bridge is that the api layer needs no Pinia, so tests inject plain values
+// here instead of standing up stores. Override just the fields a test cares
+// about; the rest return inert defaults.
+export function fakeStoreBridge(overrides: Partial<StoreBridge> = {}): StoreBridge {
+  return {
+    getSocket: async () => ({ emit: () => {} }) as unknown as Socket,
+    getUserId: () => 'user-1',
+    sessionReady: () => true,
+    userId: () => 'user-1',
+    getTargets: () => [],
+    isListening: () => false,
+    activeServerOrigin: () => 'https://vtt.example.com',
+    ...overrides
+  }
 }

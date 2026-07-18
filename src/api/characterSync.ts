@@ -5,8 +5,8 @@ import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import { debounce } from 'lodash-es'
 import { uuidv4 } from '@/utils/utilities'
 import { saveActorSnapshot } from '@/utils/actorCache'
-import { useServerAddressStore } from '@/stores/serverAddress'
 import { getAuthenticatedSocket, mergeWithArrayReset, asDocumentArray } from './internal'
+import { requireStoreBridge } from './storeBridge'
 import { TM } from './protocol'
 
 // Per-actor dirty flag and last-sent request UUID — used by parseActorData
@@ -69,7 +69,7 @@ function queueSnapshotSave(actorId: string, actor: Parameters<typeof saveActorSn
   // Capture the origin now, not when the debounce fires: a server switch
   // inside the debounce window would otherwise re-key this (old) server's
   // actor data under the new server's origin.
-  const origin = useServerAddressStore().serverUrl?.origin
+  const origin = requireStoreBridge().activeServerOrigin()
   if (!origin) return
   let save = saveDebouncers.get(actorId)
   if (!save) {

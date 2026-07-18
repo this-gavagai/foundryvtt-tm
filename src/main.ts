@@ -8,6 +8,7 @@ import { i18n } from '@/plugins/i18n'
 import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { initImageCache } from '@/api/imageCache'
+import { installApiStoreBridge } from '@/composables/serverEventWiring'
 
 if (Capacitor.isNativePlatform()) {
   // Marks the build as native so the status-bar-overlay layout rules in
@@ -49,5 +50,10 @@ const app = createApp(App)
 
 app.use(i18n)
 app.use(pinia)
+
+// Inject the api layer's store-lookup bridge before anything mounts, so the
+// first RPC/socket call — whenever and wherever it fires — finds it in place.
+// Only captures lazy getters; no store is touched until Pinia is active.
+installApiStoreBridge()
 
 app.mount('#app')

@@ -5,6 +5,8 @@ import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/ab
 import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import type { TablemateActor } from '@/types/character-types'
 import { useServerStore } from '@/stores/server'
+import { useServerAddressStore } from '@/stores/serverAddress'
+import { useUserStore } from '@/stores/user'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { useVersionCompatStore } from '@/stores/versionCompat'
@@ -29,6 +31,7 @@ import {
 import { addRefresh, fireAllRefresh, fireRefresh, parseActorData } from '@/api/characterSync'
 import { processChanges } from '@/api/documents'
 import { resetLoadPriority } from '@/api/loadPriority'
+import { registerStoreBridge } from '@/api/storeBridge'
 import { TM } from '@/api/protocol'
 
 // The store-facing half of the socket wiring: subscribes to the api layer's
@@ -47,6 +50,24 @@ let appWiringRegistered = false
 
 // Called by useSession before the first connectToServer, so every handler —
 // including the session hooks below — is live before any socket can emit.
+// Inject the store-backed lookups the api layer needs, so api/ imports no Pinia
+// store directly (breaking the api ⇄ store import cycles). Called from main.ts
+// at bootstrap — before any component mounts — so every RPC/socket call finds
+// the bridge in place regardless of component setup order. Registration only
+// captures the getter closures; they call use*Store() lazily (during RPCs,
+// when Pinia is active) and read store refs live, so reactive reads still track.
+export function installApiStoreBridge() {
+  registerStoreBridge({
+    getSocket: (timeoutMs) => useServerStore().getSocket(timeoutMs),
+    getUserId: () => useUserStore().getUserId(),
+    sessionReady: () => useServerStore().sessionReady,
+    userId: () => useUserStore().userId,
+    getTargets: () => useTargetHelperStore().getTargets(),
+    isListening: () => useListenersStore().isListening,
+    activeServerOrigin: () => useServerAddressStore().serverUrl?.origin
+  })
+}
+
 export function registerServerEventWiring() {
   if (appWiringRegistered) return
   appWiringRegistered = true

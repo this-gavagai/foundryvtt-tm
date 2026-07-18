@@ -1,29 +1,31 @@
 import { watch } from 'vue'
 import type { Socket } from 'socket.io-client'
-import { useServerStore } from '@/stores/server'
-import { useUserStore } from '@/stores/user'
+import { requireStoreBridge } from './storeBridge'
 
 // Shared types used by document mutations and socket listeners.
 export type ModifyDocumentUpdate = { _id: string; [key: string]: unknown }
 export type DocumentData = { _id: string | null }
 
-export const getSocket = () => useServerStore().getSocket()
-export const getUserId = () => useUserStore().getUserId()
+// Store access flows through the injected bridge (see storeBridge.ts) so this
+// module — and the api layer above it — never imports Pinia directly.
+export const getSocket = (timeoutMs?: number) => requireStoreBridge().getSocket(timeoutMs)
+export const getUserId = () => requireStoreBridge().getUserId()
 
 const SESSION_TIMEOUT_MS = 15_000
 
 export function waitForAuthenticatedSession(timeoutMs = SESSION_TIMEOUT_MS): Promise<string> {
-  const serverStore = useServerStore()
-  const userStore = useUserStore()
-  if (serverStore.sessionReady && userStore.userId) return Promise.resolve(userStore.userId)
+  const bridge = requireStoreBridge()
+  if (bridge.sessionReady() && bridge.userId()) return Promise.resolve(bridge.userId())
 
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       cleanup()
       reject(new Error('Foundry session not available'))
     }, timeoutMs)
+    // The getters read the underlying store refs, so this watch tracks
+    // sessionReady/userId exactly as the direct store access did.
     const stop = watch(
-      () => [serverStore.sessionReady, userStore.userId] as const,
+      () => [bridge.sessionReady(), bridge.userId()] as const,
       ([sessionReady, userId]) => {
         if (sessionReady && userId) {
           cleanup()

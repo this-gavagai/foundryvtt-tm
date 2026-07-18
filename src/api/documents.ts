@@ -10,7 +10,7 @@ import {
 } from './internal'
 import { fireRefresh } from './characterSync'
 import { updateActorRemote } from './actionRpc'
-import { useListenersStore } from '@/stores/listenersOnline'
+import { requireStoreBridge } from './storeBridge'
 import { logger } from '@/utils/utilities'
 
 // Foundry document collections that we mutate via the modifyDocument socket.
@@ -131,7 +131,7 @@ export function recoverFailedWrite(actor: TablemateActorRef, error: unknown): ne
 }
 
 export function updateActor(actor: TablemateActorRef, update: object) {
-  if (useListenersStore().isListening) {
+  if (requireStoreBridge().isListening()) {
     return updateActorRemote(actor.value!._id!, update)
       .then(() => {
         fireRefresh(actor.value!._id)
