@@ -88,8 +88,7 @@ const isSecret = ref(false)
 const { isListening } = storeToRefs(useListenersStore())
 
 const canOpen = computed(
-  () =>
-    (props?.modifiers || props?.breakdown || props.variants?.length) && !props.preventInfoModal
+  () => (props?.modifiers || props?.breakdown || props.variants?.length) && !props.preventInfoModal
 )
 
 // A StatBox is also interactive when the caller attaches an external click
@@ -100,6 +99,15 @@ const isClickable = computed(() => !!canOpen.value || !!attrs.onClick)
 
 function openIfDetailed() {
   if (canOpen.value) infoModal.value.open()
+}
+
+// Keyboard activation for the interactive box: Enter (keydown) and Space
+// (keyup, scroll suppressed on keydown) fire a real click on the box. That
+// click runs @click="openIfDetailed" AND bubbles to any external onClick the
+// caller attached to the root (HP, hero points), so both interaction paths
+// work from the keyboard exactly as they do from a tap.
+function activate(e: KeyboardEvent) {
+  ;(e.currentTarget as HTMLElement).click()
 }
 
 // Modifier toggling only makes sense for rollable stats — flipping a
@@ -165,7 +173,10 @@ const rolls = computed<Roll[]>(() => {
             ? { messageMode: 'blind' as const, rollMode: 'blindroll' as const }
             : {})
         }
-        return activeRollAction.value!(faces?.[0], Object.keys(options).length ? options : undefined)
+        return activeRollAction.value!(
+          faces?.[0],
+          Object.keys(options).length ? options : undefined
+        )
       }
     }
   ]
@@ -181,7 +192,9 @@ defineExpose({ infoModal })
     :data-rollable="rollAction ? true : undefined"
   >
     <div
-      class="fit-content"
+      class="fit-content rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+      :role="isClickable ? 'button' : undefined"
+      :tabindex="isClickable ? 0 : undefined"
       :class="[
         { 'flex items-baseline justify-between gap-2': row },
         {
@@ -198,13 +211,16 @@ defineExpose({ infoModal })
       ]"
       @click="openIfDetailed"
       @pointerdown="isClickable && triggerLightHapticFeedback()"
+      @keydown.enter.prevent="activate"
+      @keydown.space.prevent
+      @keyup.space.prevent="activate"
     >
       <div
         data-part="label"
         :class="[
           proficiencyLevels[props.proficiency ?? 0]?.color,
           row
-            ? 'flex-1 overflow-hidden text-base text-ellipsis whitespace-nowrap text-left normal-case tracking-[0.02em]'
+            ? 'flex-1 overflow-hidden text-left text-base tracking-[0.02em] text-ellipsis whitespace-nowrap normal-case'
             : 'overflow-visible pb-1 text-center text-[0.65rem] whitespace-nowrap uppercase'
         ]"
       >
@@ -271,7 +287,7 @@ defineExpose({ infoModal })
               <ActionIcons
                 v-if="variant.cost"
                 :actions="variant.cost"
-                class="relative -mb-0.5 mr-1 text-base leading-none"
+                class="relative mr-1 -mb-0.5 text-base leading-none"
               />
               {{ variant.label }}
               <span v-if="variant.modifier !== undefined" class="opacity-70">
