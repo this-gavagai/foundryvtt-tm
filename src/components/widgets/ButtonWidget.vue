@@ -38,9 +38,14 @@ defineExpose({ waiting })
     type="button"
     :disabled="props.disabled"
     :data-color="props.color"
-    class="inline-flex min-h-10 min-w-16 cursor-pointer items-end justify-center border border-transparent px-4 py-2 font-medium transition-colors focus:outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
+    class="inline-flex min-h-10 min-w-16 cursor-pointer items-end justify-center border px-4 py-2 font-medium transition-colors focus:outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
     :class="[
-      { 'opacity-50': waiting, 'ring-2 ring-red-500': failed },
+      // Failure flash: a red border (box-sizing is border-box, so the reserved
+      // transparent border means zero layout shift). Not a `ring` — Tailwind's
+      // ring doesn't compose to box-shadow under this app's CSS reset — nor an
+      // `outline`, which the button's focus:outline-hidden would suppress while
+      // it's focused (which it is, right after the click that failed).
+      { 'opacity-50': waiting, 'border-red-500': failed, 'border-transparent': !failed },
       ...(styles.get(props.color) ?? ['bg-gray-500'])
     ]"
     @click="handleClick"

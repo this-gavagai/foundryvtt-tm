@@ -21,8 +21,8 @@ defineExpose({ waiting })
     type="button"
     :aria-label="props.label"
     :disabled="props.disabled"
-    class="relative inline-flex cursor-pointer items-center justify-center transition-colors focus:outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
-    :class="{ 'ring-2 ring-red-500': failed }"
+    class="relative inline-flex cursor-pointer items-center justify-center border transition-colors focus:outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
+    :class="{ 'border-red-500': failed, 'border-transparent': !failed }"
     @click="handleClick"
     @pointerdown="handlePointerDown"
   >
