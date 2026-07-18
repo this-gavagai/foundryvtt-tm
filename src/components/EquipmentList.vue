@@ -1,25 +1,18 @@
 <script setup lang="ts">
 import type { InventoryItem } from '@/composables/character'
 import type { ActiveRoll } from '@/types/api-types'
-import { useCharacterItems } from '@/composables/character/characterItems'
-import type { TablemateCharacter } from '@/types/character-types'
-import type { ActorPF2e } from '@7h3laughingman/pf2e-types'
 import { nextTick, ref, computed, watch } from 'vue'
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import { EllipsisVerticalIcon } from '@heroicons/vue/24/outline'
 import { printPrice } from '@/utils/formatters'
 import { useTraitLabels } from '@/composables/useTraitLabels'
-import { getPath, logger } from '@/utils/utilities'
+import { getPath } from '@/utils/utilities'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
-import { useWorldStore } from '@/stores/world'
 import { inventoryTypes } from '@/utils/constants'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
-import { setupSocketListenersForActor } from '@/composables/serverEventWiring'
-import { sendCharacterRequest, fireRefresh } from '@/api/characterSync'
-import { modifyDocument, processChanges } from '@/api/documents'
-import { asDocumentArray } from '@/api/internal'
+import { usePartyTransfer } from '@/composables/usePartyTransfer'
 
 import EquipmentInvested from '@/components/EquipmentInvested.vue'
 import EquipmentListItem from '@/components/EquipmentListItem.vue'
@@ -47,54 +40,24 @@ const { inventory, rollOptionLabels, _id, _actor } = character
 
 const { labelFor: rarityLabel } = useTraitLabels()
 const { isListening } = storeToRefs(useListenersStore())
-const { world } = storeToRefs(useWorldStore())
 
-const partyActorId = computed<string | null>(
-  () =>
-    world.value?.actors?.find(
-      (a: ActorPF2e) =>
-        a.type === 'party' &&
-        !!(a.system as { details?: { members?: { uuid: string }[] } })?.details?.members?.some(
-          (m) => m.uuid === `Actor.${_id.value}`
-        )
-    )?._id ?? null
-)
+// The party-inventory transfer protocol (find the party actor, keep its
+// inventory synced, move items with confirmation) lives in its own composable.
+const { partyActorId, partyInventory, transferItem } = usePartyTransfer({
+  characterId: _id,
+  characterActor: _actor,
+  individualInventory: inventory
+})
 
-const partyActorRef = ref<TablemateCharacter | undefined>()
 const inventoryMode = ref<'individual' | 'party'>('individual')
 const showPartyInventory = computed(() => inventoryMode.value === 'party')
 const slideDirection = ref<'left' | 'right'>('left')
 
-watch(
-  partyActorId,
-  (id, _, onCleanup) => {
-    partyActorRef.value = undefined
-    if (!id) {
-      inventoryMode.value = 'individual'
-      return
-    }
-    // Synchronous registration: onCleanup gets the unsubscriber before any
-    // rapid party-actor change can re-fire this watcher.
-    const stopListeners = setupSocketListenersForActor(id, partyActorRef, () =>
-      Promise.resolve(sendCharacterRequest(id))
-    )
-    sendCharacterRequest(id)
-    onCleanup(stopListeners)
-  },
-  { immediate: true }
-)
-
-const partyActorForItems = computed<TablemateCharacter | undefined>(() => {
-  if (!partyActorId.value) return undefined
-  return (
-    partyActorRef.value ??
-    (world.value?.actors?.find(
-      (a: ActorPF2e) => a._id === partyActorId.value
-    ) as unknown as TablemateCharacter)
-  )
+// Leaving a party (or never being in one) returns the view to the individual
+// inventory.
+watch(partyActorId, (id) => {
+  if (!id) inventoryMode.value = 'individual'
 })
-
-const { inventory: partyInventory } = useCharacterItems(partyActorForItems)
 
 const displayInventory = computed<InventoryItem[] | undefined>(() => {
   if (showPartyInventory.value && partyActorId.value) {
@@ -191,111 +154,12 @@ function deleteViewedItem() {
   return itemViewed.value?.delete?.()
 }
 
-// Total quantity of items matching the given one (by name + type) across an
-// inventory. Used to confirm a transfer landed: both a fresh create and a
-// quantity bump on an existing stack raise this total by one.
-function matchingQty(inv: InventoryItem[] | undefined, item: InventoryItem) {
-  return (
-    inv
-      ?.filter((i) => i.name === item.name && i.type === item.type)
-      .reduce((sum, i) => sum + (i.system?.quantity ?? 0), 0) ?? 0
-  )
-}
-
-// Resolve once `check()` becomes true (watching its reactive deps), or false
-// after `timeoutMs`. Inventory writes are confirmed via the broadcast channel
-// (the originating modifyDocument emit isn't reliably acked in relay setups),
-// so we wait for the target inventory to actually reflect the change rather
-// than awaiting the socket ack — which may never arrive.
-function waitForCondition(check: () => boolean, timeoutMs = 10_000): Promise<boolean> {
-  if (check()) return Promise.resolve(true)
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      stop()
-      resolve(false)
-    }, timeoutMs)
-    const stop = watch(check, (ok) => {
-      if (!ok) return
-      clearTimeout(timer)
-      stop()
-      resolve(true)
-    })
-  })
-}
-
+// Thin view-side wrapper over the transfer protocol: supply the viewed item,
+// and close the detail modal when the source copy was fully removed.
 async function moveItemToInventory(targetMode: 'individual' | 'party') {
-  if (!itemViewed.value || !partyActorId.value) return
-
-  const item = itemViewed.value
-  const currentQty = item.system?.quantity ?? 1
-  const targetActorId = targetMode === 'party' ? partyActorId.value : _id.value
-  const targetInventoryRef = targetMode === 'party' ? partyInventory : inventory
-
-  const existing = targetInventoryRef.value?.find(
-    (i: InventoryItem) => i.name === item.name && i.type === item.type
-  )
-
-  // Snapshot the target's matching total before the write so we can detect the
-  // +1 it produces, regardless of whether it created a new stack or bumped one.
-  const beforeQty = matchingQty(targetInventoryRef.value, item)
-
-  let write: Promise<unknown>
-  if (existing) {
-    write = Promise.resolve(existing.changeQty?.((existing.system?.quantity ?? 0) + 1))
-  } else {
-    const raw = JSON.parse(JSON.stringify(item)) as Record<string, unknown>
-    delete raw._id
-    ;(raw.system as Record<string, unknown>).quantity = 1
-    // The backpack the item was stowed in doesn't exist in the target inventory,
-    // so drop the reference rather than carrying a dangling containerId across.
-    delete (raw.system as Record<string, unknown>).containerId
-    write = modifyDocument(
-      {
-        action: 'create',
-        type: 'Item',
-        operation: { parentUuid: `Actor.${targetActorId}`, data: [raw] }
-      },
-      (r) => {
-        // Echo the created item into the local items array the target inventory
-        // computed reads from. Foundry answers only the emitting socket via this
-        // ack (the modifyDocument broadcast goes to *other* clients), so without
-        // the echo the confirmation below would hinge on a GM-answered refresh
-        // round trip — which never comes when no listener client is online.
-        processChanges(
-          r,
-          targetMode === 'party'
-            ? asDocumentArray(partyActorForItems.value?.items)
-            : asDocumentArray(_actor.value?.items)
-        )
-        fireRefresh(targetActorId)
-      }
-    )
-  }
-  // An explicit write failure (permission denial, socket timeout) ends the
-  // transfer as soon as it's known instead of spinning out the full
-  // confirmation timeout. Success still comes from the inventory check below,
-  // not from awaiting the write — the ack may never arrive in relay setups.
-  const writeFailed = new Promise<false>((resolve) =>
-    write.catch((err: unknown) => {
-      logger.error('item transfer write failed', err)
-      resolve(false)
-    })
-  )
-
-  // Only remove the source copy once the target actually reflects the addition,
-  // so a failed/dropped write can't make the item vanish from both inventories.
-  const confirmed = await Promise.race([
-    waitForCondition(() => matchingQty(targetInventoryRef.value, item) >= beforeQty + 1),
-    writeFailed
-  ])
-  if (!confirmed) return
-
-  if (currentQty <= 1) {
-    item.delete?.()
-    infoModal.value.close()
-  } else {
-    item.changeQty?.(currentQty - 1)
-  }
+  if (!itemViewed.value) return
+  const { removed } = await transferItem(itemViewed.value, targetMode)
+  if (removed) infoModal.value.close()
 }
 </script>
 <template>
