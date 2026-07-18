@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import type { SpellcastingEntry, Spell, Consumable } from '@/composables/character'
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
-import type { Modifier } from '@/composables/character'
 import type { Roll } from '@/types/roll-types'
-import type { RequestResolutionArgs } from '@/types/api-types'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
-import { parseDamageFormulaDice, makeDiceResults } from '@/utils/diceFormula'
 import {
   buildSpellbook,
   buildPrepList,
@@ -17,23 +14,19 @@ import {
   isStrictPrepared,
   type SpellInfo
 } from '@/utils/spellcasting'
-import { useModifierOverrides } from '@/composables/useModifierOverrides'
 import { useTraitLabels } from '@/composables/useTraitLabels'
 
 import Button from '@/components/widgets/ButtonWidget.vue'
-import Spinner from '@/components/widgets/SpinnerWidget.vue'
 import CounterWidget from '@/components/widgets/CounterWidget.vue'
-import Modal from '@/components/ModalBox.vue'
 import InfoModal from '@/components/InfoModal.vue'
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
-import ModifierOverrideList from '@/components/ModifierOverrideList.vue'
 import SpellSourceSection from '@/components/SpellSourceSection.vue'
 import SpellDetails from '@/components/SpellDetails.vue'
+import SpellRollModal from '@/components/SpellRollModal.vue'
+import SpellSelectionDialog from '@/components/SpellSelectionDialog.vue'
 import ViewableItem from '@/components/widgets/ViewableItem.vue'
 import SheetSection from '@/components/widgets/SheetSection.vue'
 import KebabMenu from '@/components/widgets/KebabMenu.vue'
-import { XMarkIcon } from '@heroicons/vue/24/outline'
-import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 
 const { t } = useI18n()
 const character = useInjectedCharacter()
@@ -55,8 +48,8 @@ const entryById = (id?: string | null) => spellcastingEntries.value?.find((e) =>
 const { isListening } = storeToRefs(useListenersStore())
 
 const infoModal = ref<InstanceType<typeof InfoModal>>()
-const spellRollModal = ref<InstanceType<typeof InfoModal>>()
-const spellSelectionModal = ref<InstanceType<typeof Modal>>()
+const spellRollModal = ref<InstanceType<typeof SpellRollModal>>()
+const spellSelectionDialog = ref<InstanceType<typeof SpellSelectionDialog>>()
 const description = ref<InstanceType<typeof SpellDetails>>()
 
 type ViewedModal =
@@ -83,36 +76,8 @@ const viewedSpellInfo = computed(() =>
 )
 const viewedInfoEntry = computed(() => entryById(viewedSpellInfo.value?.entryId))
 
-interface SpellRollView {
-  spell: Spell
-  entry?: SpellcastingEntry
-  castingRank?: number
-  phase: 'attack' | 'damage'
-  map: 0 | 1 | 2
-}
-const viewedSpellRoll = ref<SpellRollView | undefined>()
-const spellRollDamageData = ref<
-  { formula?: string | null; breakdown?: string[]; modifiers?: Modifier[] } | undefined
->()
-const spellRollModifiers = computed(() =>
-  viewedSpellRoll.value?.phase === 'attack'
-    ? viewedSpellRoll.value.entry?.spellAttackModifiers
-    : spellRollDamageData.value?.modifiers
-)
-const {
-  modifierOverrides: spellRollModifierOverrides,
-  toggleModifier: toggleSpellRollModifier,
-  effectiveEnabled: spellRollEffectiveEnabled,
-  isManuallyActivated: isSpellRollManuallyActivated,
-  isManuallyDeactivated: isSpellRollManuallyDeactivated,
-  isStackingLoser: isSpellRollStackingLoser
-} = useModifierOverrides(spellRollModifiers)
-
-function spellRollModifierOverridePayload() {
-  const overrides = spellRollModifierOverrides.value
-  return Object.keys(overrides).length ? { ...overrides } : undefined
-}
-
+// Attack/damage roll modal lives in SpellRollModal; opened imperatively when a
+// spell's attack or damage chip is picked (SpellSourceSection @pick).
 function pickSpellRoll(
   spell: Spell,
   entry: SpellcastingEntry | undefined,
@@ -120,83 +85,8 @@ function pickSpellRoll(
   phase: 'attack' | 'damage',
   map: 0 | 1 | 2
 ) {
-  viewedSpellRoll.value = { spell, entry, castingRank, phase, map }
-  spellRollDamageData.value = undefined
-  spellRollModifierOverrides.value = {}
-  spellRollModal.value?.open()
+  spellRollModal.value?.open(spell, entry, castingRank, phase, map)
 }
-
-// Fetch the damage formula whenever the modal enters damage phase. The
-// formula is rank-aware (heightening), so we re-fetch on rank changes too.
-watch([viewedSpellRoll, spellRollModifierOverrides], async ([v]) => {
-  if (!v || v.phase !== 'damage' || !isListening.value) {
-    spellRollDamageData.value = undefined
-    return
-  }
-  const overrides = spellRollModifierOverridePayload()
-  const overrideKey = JSON.stringify(overrides ?? {})
-  const result = (await v.spell.getDamage?.(v.castingRank, overrides)) as
-    | (RequestResolutionArgs & {
-        response?: { formula?: string | null; breakdown?: string[]; modifiers?: Modifier[] }
-      })
-    | null
-  // The fetch is async; if the viewed roll changed while it was in flight,
-  // a stale response must not overwrite the current one.
-  if (
-    viewedSpellRoll.value !== v ||
-    JSON.stringify(spellRollModifierOverridePayload() ?? {}) !== overrideKey
-  )
-    return
-  spellRollDamageData.value = result?.response
-})
-
-const spellRollDamageDice = computed<string[]>(() => {
-  const f = spellRollDamageData.value?.formula
-  return f ? parseDamageFormulaDice(f) : []
-})
-
-function attackNumberForMap(m: 0 | 1 | 2): 1 | 2 | 3 {
-  return (m + 1) as 1 | 2 | 3
-}
-
-const spellRollRolls = computed<Roll[]>(() => {
-  const v = viewedSpellRoll.value
-  if (!v || !isListening.value) return []
-  if (v.phase === 'attack') {
-    const suffix = v.map === 0 ? '' : v.map === 1 ? ' -5' : ' -10'
-    return [
-      {
-        key: 'spell-attack',
-        label: t('spells.attack') + suffix,
-        color: 'blue',
-        dice: ['d20'],
-        armed: true,
-        execute: (faces) =>
-          v.spell.doSpellAttack!(
-            attackNumberForMap(v.map),
-            faces?.[0],
-            spellRollModifierOverridePayload()
-          )
-      }
-    ]
-  }
-  const dice = spellRollDamageDice.value
-  return [
-    {
-      key: 'spell-damage',
-      label: t('spells.damage'),
-      color: 'red',
-      dice: dice.length ? dice : undefined,
-      execute: (faces) =>
-        v.spell.doSpellDamage!(
-          v.map,
-          v.castingRank,
-          faces && dice.length ? makeDiceResults(dice, faces) : undefined,
-          spellRollModifierOverridePayload()
-        )
-    }
-  ]
-})
 
 const inlineRolls = useRollsFromActiveRoll(computed(() => description.value?.activeRoll))
 
@@ -298,47 +188,6 @@ const castDisabled = computed(() => {
   return (entry.system.slots?.[slotKey(rank)]?.value ?? 0) <= 0
 })
 
-const preparingSpellId = ref<string | null>(null)
-function setPreparedSpell(spell: Spell) {
-  if (preparingSpellId.value || removingSpellId.value) return
-  confirmingRemoveId.value = null
-  preparingSpellId.value = spell._id ?? null
-  return Promise.resolve(
-    entryById(spellSelectionModal.value?.options?.entryId)?.setPrepared?.(
-      spellSelectionModal.value?.options?.castingRank,
-      spellSelectionModal.value?.options?.castingSlot,
-      spell._id ?? null
-    )
-  )
-    .then(() => spellSelectionModal.value?.close())
-    .finally(() => (preparingSpellId.value = null))
-}
-
-// Row tap in the selection dialog: prepare into the slot (slot mode) or show
-// the spell's info card on top of the list (browse mode).
-function pickFromSpellSelection(spell: Spell) {
-  const options = spellSelectionModal.value?.options
-  if (options?.castingRank == null) {
-    openSpellModal(spell._id, { entry: options?.entry, entryId: options?.entryId })
-  } else {
-    setPreparedSpell(spell)
-  }
-}
-
-// Inline two-step removal for the known-spell list: the ✕ arms the row and
-// turns into a "Remove?" chip; only the second tap deletes the spell. Arming a
-// different row (or reopening the dialog) disarms the previous one.
-const confirmingRemoveId = ref<string | null>(null)
-const removingSpellId = ref<string | null>(null)
-function removeKnownSpell(spell: Spell) {
-  if (removingSpellId.value) return
-  removingSpellId.value = spell._id ?? null
-  return Promise.resolve(spell.delete?.()).finally(() => {
-    removingSpellId.value = null
-    confirmingRemoveId.value = null
-  })
-}
-
 const sortedConsumables = computed(() =>
   [...(spellConsumables.value ?? [])].sort(
     (a, b) =>
@@ -356,60 +205,11 @@ const staffSpellsByRank = computed(() =>
   }, {})
 )
 
-// The spell-selection dialog serves two modes, told apart by its options:
-// slot mode (castingRank set — opened from a slot, picking prepares into it)
-// shows only the spells castable at that rank; browse mode (no castingRank —
-// opened from the entry modal's "Known Spells") shows the entry's whole known
-// list and picking opens the spell's info card instead.
-const spellSelectionBrowsing = computed(
-  () => spellSelectionModal.value?.options?.castingRank == null
-)
-const selectablePreparedSpells = computed(() => {
-  const options = spellSelectionModal.value?.options
-  if (!options?.entryId) return []
-  const isCantrip = (i: Spell) => !!i.system.traits?.value?.includes('cantrip')
-  return spells.value?.filter((i) => {
-    if (i.system.location?.value !== options.entryId) return false
-    if (options.castingRank == null) return true
-    return options.castingRank === 0
-      ? isCantrip(i)
-      : !isCantrip(i) && (i.system.level?.value ?? 0) <= options.castingRank
-  })
-})
-
-const selectablePreparedSpellsByRank = computed(() => {
-  const grouped = new Map<number, Spell[]>()
-  for (const spell of selectablePreparedSpells.value ?? []) {
-    const rank = spell.system.traits?.value?.includes('cantrip')
-      ? 0
-      : (spell.system.level?.value ?? 0)
-    ;(grouped.get(rank) ?? grouped.set(rank, []).get(rank)!).push(spell)
-  }
-  return [...grouped.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([rank, spells]) => ({
-      rank,
-      spells: [...spells].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
-    }))
-})
-
-// Free-text filter for the "Select a spell" dialog, reset each time it opens.
-const spellSelectionFilter = ref('')
-const filteredSelectablePreparedSpellsByRank = computed(() => {
-  const needle = spellSelectionFilter.value.trim().toLowerCase()
-  if (!needle) return selectablePreparedSpellsByRank.value
-  return selectablePreparedSpellsByRank.value
-    .map((group) => ({
-      rank: group.rank,
-      spells: group.spells.filter((s) => (s.name ?? '').toLowerCase().includes(needle))
-    }))
-    .filter((group) => group.spells.length)
-})
-
+// The dual-mode "select a spell" dialog lives in SpellSelectionDialog. Opened
+// from an empty slot (slot mode — prepares into it) or from the entry modal's
+// "Known Spells" (browse mode — picking opens the spell's info card here).
 function openSpellSelection(info: SpellInfo) {
-  spellSelectionFilter.value = ''
-  confirmingRemoveId.value = null
-  spellSelectionModal.value?.open(info)
+  spellSelectionDialog.value?.open(info)
 }
 
 const spellbook = computed(() => buildSpellbook(spellcastingEntries.value, spells.value))
@@ -491,7 +291,7 @@ function openKnownSpells() {
       <!-- Wands and Scrolls -->
       <SheetSection
         section="consumables"
-        class="pt-4 break-inside-avoid-column [&:not(:has(li))]:hidden"
+        class="break-inside-avoid-column pt-4 [&:not(:has(li))]:hidden"
       >
         <template #header>
           <h3
@@ -606,146 +406,13 @@ function openKnownSpells() {
           />
         </template>
       </InfoModal>
-      <InfoModal
-        ref="spellRollModal"
-        :itemId="viewedSpellRoll?.spell?._id"
-        :imageUrl="viewedSpellRoll?.spell?.img"
-        :traits="viewedSpellRoll?.spell?.system?.traits?.value"
-        :rolls="spellRollRolls"
-        @closing="spellRollModifierOverrides = {}"
-      >
-        <template #title>
-          {{ viewedSpellRoll?.spell?.name }}
-          <ActionIcons
-            v-if="viewedSpellRoll?.spell"
-            class="relative -mt-2 pl-1 text-2xl leading-4"
-            :actions="viewedSpellRoll?.spell?.system?.time?.value"
-          />
-        </template>
-        <template #description>
-          <span v-if="viewedSpellRoll?.phase === 'attack'">
-            {{ $t('spells.spellAttack') }}
-            <span v-if="viewedSpellRoll?.entry?.spellAttackModifier != null">
-              {{ viewedSpellRoll?.entry?.spellAttackModifier >= 0 ? '+' : ''
-              }}{{ viewedSpellRoll?.entry?.spellAttackModifier }}
-            </span>
-            <span v-if="viewedSpellRoll?.map" class="ml-1 text-sm">
-              ({{ viewedSpellRoll.map === 1 ? '-5' : '-10' }})
-            </span>
-          </span>
-          <span v-else-if="viewedSpellRoll?.phase === 'damage'">
-            {{ $t('spells.damage') }}
-            <span v-if="viewedSpellRoll?.castingRank" class="ml-1 text-sm">
-              ({{ $t('spells.rank', { n: viewedSpellRoll.castingRank }) }})
-            </span>
-          </span>
-        </template>
-        <template #body>
-          <ModifierOverrideList
-            :modifiers="spellRollModifiers"
-            :toggleable="viewedSpellRoll?.phase === 'attack' || viewedSpellRoll?.phase === 'damage'"
-            showDamageType
-            :showAll="viewedSpellRoll?.phase === 'damage'"
-            :effectiveEnabled="spellRollEffectiveEnabled"
-            :isManuallyActivated="isSpellRollManuallyActivated"
-            :isManuallyDeactivated="isSpellRollManuallyDeactivated"
-            :isStackingLoser="isSpellRollStackingLoser"
-            :onToggle="toggleSpellRollModifier"
-          />
-          <template v-if="viewedSpellRoll?.phase === 'damage'">
-            <div v-if="spellRollDamageData?.formula" class="font-mono text-sm">
-              {{ spellRollDamageData.formula }}
-            </div>
-            <ul class="mt-2">
-              <li
-                v-for="(line, i) in spellRollDamageData?.breakdown ?? []"
-                class="text-sm"
-                :key="'breakdown_' + i"
-              >
-                {{ line }}
-              </li>
-            </ul>
-          </template>
-        </template>
-      </InfoModal>
-      <Modal
-        ref="spellSelectionModal"
-        :title="$t(spellSelectionBrowsing ? 'spells.knownSpells' : 'spells.selectSpell')"
-      >
-        <input
-          v-model="spellSelectionFilter"
-          data-part="filter"
-          type="search"
-          class="mt-2 block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-hidden"
-          :placeholder="$t('spells.filterSpells')"
-        />
-        <!-- Fixed-height scroll area so the panel height stays constant as the
-             filtered list shrinks, keeping the filter box in a steady position. -->
-        <div class="mt-1 h-[min(70vh,100dvh-11rem)] overflow-y-auto">
-          <div
-            v-for="group in filteredSelectablePreparedSpellsByRank"
-            :key="group.rank"
-            class="mt-3 first:mt-2"
-          >
-            <h4
-              class="mb-1 pb-1 text-[0.7rem] font-semibold tracking-[0.07em] text-gray-400 uppercase"
-            >
-              {{ group.rank === 0 ? $t('spells.cantrips') : $t('spells.rank', { n: group.rank }) }}
-            </h4>
-            <ul>
-              <li
-                data-part="spell-option"
-                class="flex items-center justify-between rounded px-2 py-1 transition-opacity"
-                :class="
-                  preparingSpellId || removingSpellId
-                    ? 'pointer-events-none cursor-default opacity-50'
-                    : 'cursor-pointer hover:bg-gray-100'
-                "
-                v-for="spell in group.spells"
-                @click="pickFromSpellSelection(spell)"
-                :key="spell._id"
-              >
-                <span class="min-w-0 truncate">{{ spell.name }}</span>
-                <Spinner
-                  v-if="preparingSpellId === spell._id || removingSpellId === spell._id"
-                  class="ml-2 h-4 w-4 shrink-0"
-                />
-                <!-- Removal is a spellbook edit, offered only when browsing the
-                     known list from the entry modal — not when filling a slot. -->
-                <span v-else-if="spellSelectionBrowsing" class="flex shrink-0 items-center" @click.stop>
-                  <button
-                    v-if="confirmingRemoveId === spell._id"
-                    type="button"
-                    data-part="remove-spell-confirm"
-                    class="ml-2 rounded bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-600 transition duration-180 ease-out active:scale-[0.90] active:opacity-50 active:duration-60"
-                    @pointerdown="triggerLightHapticFeedback()"
-                    @click="removeKnownSpell(spell)"
-                  >
-                    {{ $t('spells.confirmRemove') }}
-                  </button>
-                  <button
-                    v-else
-                    type="button"
-                    data-part="remove-spell"
-                    class="ml-2 cursor-pointer rounded text-gray-400 transition duration-180 ease-out active:scale-[0.90] active:opacity-50 active:duration-60"
-                    :aria-label="$t('common.remove')"
-                    @pointerdown="triggerLightHapticFeedback()"
-                    @click="confirmingRemoveId = spell._id ?? null"
-                  >
-                    <XMarkIcon class="h-4 w-4" aria-hidden="true" />
-                  </button>
-                </span>
-              </li>
-            </ul>
-          </div>
-          <div
-            v-if="!filteredSelectablePreparedSpellsByRank.length"
-            class="mt-3 px-2 py-1 text-sm text-gray-400 italic"
-          >
-            {{ $t('common.noResults') }}
-          </div>
-        </div>
-      </Modal>
+      <SpellRollModal ref="spellRollModal" />
+      <SpellSelectionDialog
+        ref="spellSelectionDialog"
+        :spells="spells"
+        :entries="spellcastingEntries"
+        @open-spell="openSpellModal"
+      />
     </Teleport>
   </div>
 </template>
