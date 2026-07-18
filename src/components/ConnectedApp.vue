@@ -6,7 +6,6 @@ import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 import { useServerStore } from '@/stores/server'
 import { useServerAddressStore } from '@/stores/serverAddress'
 import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
-import { usePixelDice } from '@/stores/pixelDice'
 import { hasActorSnapshot } from '@/utils/actorCache'
 
 import CharacterSheet from '@/components/CharacterSheet.vue'
@@ -45,7 +44,8 @@ const { reconnecting } = useSession()
 const { urlId, characterList, activeCharacterId } = useCharacterRouting()
 useConnectionRecovery()
 useKeepScreenAwake()
-usePixelDice()
+// Background stores (world refresh, status poll, listener heartbeat, pixel-dice
+// reconnect) are started centrally in registerServerEventWiring (via useSession).
 
 // True once we have a persisted snapshot for the active character, so the
 // initial handshake can paint that cached sheet instead of a full-screen

@@ -37,10 +37,6 @@ export const useListenersStore = defineStore('listenersOnline', () => {
     void pingHeartbeat().catch(() => undefined)
   }
 
-  // Socket heartbeat: ping every 30s to detect listener/GM availability.
-  const heartbeatInterval = setInterval(safePingHeartbeat, 30000)
-  safePingHeartbeat()
-
   // Mobile browsers throttle or pause setInterval when the tab is in the
   // background, so the heartbeat can lapse — leaving isListening stuck on
   // false (and roll buttons hidden) until the next tick. Re-ping immediately
@@ -48,26 +44,41 @@ export const useListenersStore = defineStore('listenersOnline', () => {
   function handleVisibilityChange() {
     if (document.visibilityState === 'visible') safePingHeartbeat()
   }
-  document.addEventListener('visibilitychange', handleVisibilityChange)
 
-  // Re-ping on every fresh session handshake. The visibility ping races the
-  // connection-recovery probe (it can fire ANYBODY_HOME on the stale socket
-  // that recovery is about to replace, then prune the expired listeners), and
-  // a recovery-triggered reconnect refreshes world/character data but never
-  // re-announces GM presence — leaving the PWA "connected to the world but
-  // without a GM" until the next 30s tick. Keying off sessionReady guarantees
-  // a heartbeat on the new socket the moment auth completes, covering every
-  // reconnect path (probe, online, soft reconnect, world-load re-auth).
   const { sessionReady } = storeToRefs(useServerStore())
-  const stopSessionWatch = watch(sessionReady, (ready) => {
-    if (ready) safePingHeartbeat()
-  })
+
+  // Start the presence machinery: a 30s heartbeat, an immediate ping, a
+  // visibility re-ping, and a re-ping on every session handshake. Kept out of
+  // the store setup body (idempotent) so instantiating the store in a test
+  // doesn't emit a socket ping or spawn a 30s interval; the app calls start()
+  // once at bootstrap. Disposal below clears whatever start() created.
+  let heartbeatInterval: ReturnType<typeof setInterval> | undefined
+  let stopSessionWatch: (() => void) | undefined
+  let started = false
+  function start(): void {
+    if (started) return
+    started = true
+    heartbeatInterval = setInterval(safePingHeartbeat, 30000)
+    safePingHeartbeat()
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    // Re-ping on every fresh session handshake. The visibility ping races the
+    // connection-recovery probe (it can fire ANYBODY_HOME on the stale socket
+    // that recovery is about to replace, then prune the expired listeners),
+    // and a recovery-triggered reconnect refreshes world/character data but
+    // never re-announces GM presence — leaving the PWA "connected to the world
+    // but without a GM" until the next 30s tick. Keying off sessionReady
+    // guarantees a heartbeat on the new socket the moment auth completes,
+    // covering every reconnect path (probe, online, soft reconnect, re-auth).
+    stopSessionWatch = watch(sessionReady, (ready) => {
+      if (ready) safePingHeartbeat()
+    })
+  }
 
   onScopeDispose(() => {
-    clearInterval(heartbeatInterval)
+    if (heartbeatInterval) clearInterval(heartbeatInterval)
     document.removeEventListener('visibilitychange', handleVisibilityChange)
-    stopSessionWatch()
+    stopSessionWatch?.()
   })
 
-  return { listenersOnline, isListening, addListener, getListeners }
+  return { listenersOnline, isListening, addListener, getListeners, start }
 })

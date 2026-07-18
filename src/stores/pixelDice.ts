@@ -221,9 +221,16 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
 
   // Fan out the initial reconnect for every saved die. Errors per-die are
   // logged but don't block the others — a single missing/dead die shouldn't
-  // strand the rest.
-  for (const id of systemIds.value) {
-    reconnectDie(id).catch((e) => logger.warn('TM-pixl: initial reconnect failed', id, e))
+  // strand the rest. Kept out of the store setup body (idempotent) so
+  // instantiating the store in a test doesn't reach for Bluetooth; the app
+  // calls start() once at bootstrap.
+  let started = false
+  function start(): void {
+    if (started) return
+    started = true
+    for (const id of systemIds.value) {
+      reconnectDie(id).catch((e) => logger.warn('TM-pixl: initial reconnect failed', id, e))
+    }
   }
 
   return {
@@ -234,8 +241,7 @@ export const usePixelDiceStore = defineStore('pixelDice', () => {
     pairError,
     pairDie,
     reconnectDie,
-    forgetDie
+    forgetDie,
+    start
   }
 })
-
-export const usePixelDice = () => { usePixelDiceStore() }

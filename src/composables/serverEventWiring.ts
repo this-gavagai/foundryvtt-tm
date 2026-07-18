@@ -14,6 +14,7 @@ import { useGmPolicyStore } from '@/stores/gmPolicy'
 import { useSyncStatusStore } from '@/stores/syncStatus'
 import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { useWorldStore } from '@/stores/world'
+import { usePixelDiceStore } from '@/stores/pixelDice'
 import { logger } from '@/utils/utilities'
 import {
   onModifyDocument,
@@ -71,6 +72,17 @@ export function installApiStoreBridge() {
 export function registerServerEventWiring() {
   if (appWiringRegistered) return
   appWiringRegistered = true
+
+  // Start the background stores' side effects here — the one place the
+  // connected app boots — instead of on each store's first use(). Each start()
+  // is idempotent. This is the counterpart to keeping those side effects out of
+  // the store setup bodies: merely using a store (in a test, or a new context)
+  // no longer fires a network request, an 8s poll, a 30s heartbeat, or a
+  // Bluetooth reconnect.
+  useWorldStore().start()
+  useFoundryWorldStatusStore().start()
+  useListenersStore().start()
+  usePixelDiceStore().start()
 
   // Session lifecycle → world orchestration. Inverted through hooks so the
   // server store carries no knowledge of the world store or character sync

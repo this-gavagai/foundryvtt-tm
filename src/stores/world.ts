@@ -112,7 +112,16 @@ export const useWorldStore = defineStore('world', () => {
     trailing: false
   })
   const refreshWorldNow = sendWorldRequest
-  refreshWorld()
+
+  // Kick off the first world fetch. Kept out of the store setup body (and behind
+  // an idempotent guard) so merely using the store — e.g. in a unit test —
+  // doesn't fire a network request; the app calls start() once at bootstrap.
+  let started = false
+  function start(): void {
+    if (started) return
+    started = true
+    refreshWorld()
+  }
 
   // Drop the last-known world so stale actors/ownership from a previous
   // session can't be checked against a new user. Called on a genuine
@@ -132,6 +141,7 @@ export const useWorldStore = defineStore('world', () => {
     userById,
     refreshWorld,
     refreshWorldNow,
-    clearWorld
+    clearWorld,
+    start
   }
 })

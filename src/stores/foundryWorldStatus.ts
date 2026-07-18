@@ -55,15 +55,27 @@ export const useFoundryWorldStatusStore = defineStore('foundryWorldStatus', () =
   // traffic). Immediately marks the world inactive when Foundry reports
   // active:false; triggers a full refresh whenever the status flips up
   // (both `false -> true` and `undefined -> true`).
-  const pollInterval = setInterval(async () => {
-    const running = await fetchWorldStatus()
-    if (running === false && worldLoaded.value !== false) {
-      markWorldInactive()
-    } else if (running === true && worldLoaded.value !== true) {
-      useWorldStore().refreshWorld()
-    }
-  }, POLL_INTERVAL_MS)
-  onScopeDispose(() => clearInterval(pollInterval))
+  //
+  // Started explicitly (idempotent) rather than on first use(), so a unit test
+  // can instantiate the store without spawning an 8s network poll. The
+  // disposal stays scope-bound below, clearing whatever start() created.
+  let pollInterval: ReturnType<typeof setInterval> | undefined
+  let started = false
+  function start(): void {
+    if (started) return
+    started = true
+    pollInterval = setInterval(async () => {
+      const running = await fetchWorldStatus()
+      if (running === false && worldLoaded.value !== false) {
+        markWorldInactive()
+      } else if (running === true && worldLoaded.value !== true) {
+        useWorldStore().refreshWorld()
+      }
+    }, POLL_INTERVAL_MS)
+  }
+  onScopeDispose(() => {
+    if (pollInterval) clearInterval(pollInterval)
+  })
 
   // The world-load 'progress' listener is registered in socketSetup
   // (setupSocketListenersForApp) so it re-attaches on every socket swap.
@@ -75,6 +87,7 @@ export const useFoundryWorldStatusStore = defineStore('foundryWorldStatus', () =
     markWorldLoaded,
     markWorldInactive,
     markWorldPending,
-    setWorldAuthenticated
+    setWorldAuthenticated,
+    start
   }
 })
