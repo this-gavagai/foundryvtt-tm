@@ -24,14 +24,18 @@ const { setActiveCharacterId } = characterSelectStore
       </ListboxButton>
       <ListboxOptions
         data-part="dropdown-options"
-        class="absolute z-50 mt-1 max-h-60 overflow-auto rounded-md border border-gray-200 bg-white py-1 text-base text-gray-900 shadow-lg empty:hidden focus:outline-hidden sm:text-sm"
+        class="absolute z-50 mt-1 max-h-60 overflow-auto rounded-md border border-gray-200 bg-white py-1 text-base shadow-lg empty:hidden focus:outline-hidden sm:text-sm"
       >
         <ListboxOption v-if="!characterList">
-          <div class="relative py-2 pr-4 pl-6 select-none opacity-60">
+          <div
+            data-part="option-content"
+            class="relative py-2 pr-4 pl-6 select-none opacity-60"
+          >
             {{ $t('common.loading') }}
           </div>
         </ListboxOption>
         <ListboxOption
+          v-slot="{ active }"
           v-for="chr in characterList
             .filter((c) => c !== _id)
             .map((c: string) => world?.actors.find((a: ActorPF2e) => a._id === c))"
@@ -42,6 +46,8 @@ const { setActiveCharacterId } = characterSelectStore
         >
           <div
             v-if="chr?.name"
+            data-part="option-content"
+            :data-active="active || undefined"
             class="relative cursor-pointer py-2 pr-4 pl-6 select-none"
           >
             <div class="flex w-full gap-2">
@@ -50,7 +56,10 @@ const { setActiveCharacterId } = characterSelectStore
           </div>
         </ListboxOption>
         <ListboxOption v-if="!world" key="loading">
-          <div class="relative py-2 pr-4 pl-6 select-none">
+          <div
+            data-part="option-content"
+            class="relative py-2 pr-4 pl-6 select-none"
+          >
             <div class="flex w-full gap-2">
               <Spinner class="w-4" />
               <div class="animate-pulse pr-6">{{ $t('common.loading') }}</div>
