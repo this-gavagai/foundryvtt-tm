@@ -36,6 +36,7 @@
     "@capacitor/filesystem": "^8.1.2",
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "^8.4.0",
+    "@capacitor/push-notifications": "^8.1.2",
     "@capacitor/status-bar": "^8.0.2",
     "@headlessui/vue": "^1.7.23",
     "@heroicons/vue": "^2.2.0",

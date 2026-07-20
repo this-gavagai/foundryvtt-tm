@@ -8,6 +8,7 @@ import { i18n } from '@/plugins/i18n'
 import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { initImageCache } from '@/api/imageCache'
+import { initPushNotifications } from '@/api/pushNotifications'
 import { installApiStoreBridge } from '@/composables/serverEventWiring'
 
 if (Capacitor.isNativePlatform()) {
@@ -20,6 +21,10 @@ if (Capacitor.isNativePlatform()) {
   // cached assets serve from disk instead of re-downloading. Failures fall back
   // to lazy population and never block startup.
   void initImageCache()
+
+  // Register for push notifications and log the device token (milestone 1: test
+  // push). No-ops if permission is denied; never blocks startup.
+  void initPushNotifications()
 
   // Let the WebView extend *under* the status bar so the sheet's themed
   // background + gradient flow continuously up through the strip — a seamless
