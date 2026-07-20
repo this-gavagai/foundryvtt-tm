@@ -6,6 +6,7 @@ import { PaperAirplaneIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useInjectedActor } from '@/composables/injectKeys'
 import { useOverlayStack } from '@/composables/useOverlayStack'
 import { useChatStore } from '@/stores/chat'
+import { useServerAddressStore } from '@/stores/serverAddress'
 import { useChatActions, type ChatRerollRequest } from '@/composables/useChatActions'
 import { useChatMessages } from '@/composables/useChatMessages'
 import { useChatScroll } from '@/composables/useChatScroll'
@@ -37,6 +38,7 @@ const { t } = useI18n()
 const { messages, renderedMessages, messageIsOwnActor } = useChatMessages(_id)
 
 const chatStore = useChatStore()
+const { isNativeMobile } = useServerAddressStore()
 
 const { scrollContainer, isAtBottom, onScroll, positionOnOpen, stopOpenSettle, scrollToBottom } =
   useChatScroll({ onAtBottom: () => chatStore.markAllRead() })
@@ -84,6 +86,15 @@ function submitChatMessage() {
   const content = draft.value.trim()
   if (!content) return
   submitMessage(whisperContent(content))
+}
+
+// On the native mobile keyboard there's no modifier key to reach for, so a bare
+// Enter should insert a line break (let the default through) rather than send.
+// On desktop, bare Enter still sends; use Shift+Enter for a line break.
+function onEnterKey(event: KeyboardEvent) {
+  if (isNativeMobile) return
+  event.preventDefault()
+  submitChatMessage()
 }
 
 // Key of the first message that falls below the frozen "new messages" divider,
@@ -327,7 +338,7 @@ defineExpose({ open, close, isOpen })
                     rows="2"
                     :placeholder="$t('chat.placeholder')"
                     :disabled="!_id"
-                    @keydown.enter.exact.prevent="submitChatMessage"
+                    @keydown.enter.exact="onEnterKey"
                     @keydown.meta.enter.prevent="submitChatMessage"
                     @keydown.ctrl.enter.prevent="submitChatMessage"
                   />
