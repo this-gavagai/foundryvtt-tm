@@ -2,8 +2,13 @@ name = "tablemate-push-relay"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
 
+# Device-token store: tok:{worldId}:{userId} -> JSON array of registrations.
+[[kv_namespaces]]
+binding = "TOKENS"
+id = "057c2edb3283480eb120d8ec1171b33f"
+
 # Non-secret config. Secrets (APNS_KEY, APNS_KEY_ID, APNS_TEAM_ID,
-# RELAY_TEST_SECRET) are set with `wrangler secret put` — never commit them.
+# RELAY_TEST_SECRET, WORLD_PUSH_KEY) are set with `wrangler secret put` — never commit them.
 [vars]
 APNS_BUNDLE_ID = "io.github.thisgavagai.tablemate"
 # Default APNs environment for /send when the request omits an "env" override.
