@@ -170,8 +170,21 @@ async function verifyRegToken(token: string, key: string): Promise<{ worldId: st
 
 // ---------------------------------------------------------------------------
 
+// The module and client call the relay from a browser origin (the Foundry page /
+// the app WebView), so browser fetches need CORS. Auth is by bearer token, never
+// cookies, so a wildcard origin is safe here.
+const CORS_HEADERS: Record<string, string> = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'POST, OPTIONS',
+  'access-control-allow-headers': 'authorization, content-type',
+  'access-control-max-age': '86400',
+}
+
 function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } })
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'content-type': 'application/json', ...CORS_HEADERS },
+  })
 }
 
 function tokenKey(worldId: string, userId: string): string {
@@ -245,13 +258,18 @@ async function handleRegister(request: Request, env: Env): Promise<Response> {
     return json({ error: 'unauthorized' }, 401)
   }
 
-  if (!p.deviceToken || !p.platform || !p.env) {
-    return json({ error: 'deviceToken, platform and env are required' }, 400)
+  if (!p.deviceToken || !p.platform) {
+    return json({ error: 'deviceToken and platform are required' }, 400)
   }
+
+  // env is a hint only — the app can't reliably read its aps-environment. Default
+  // to the relay's configured env; /notify self-heals to the correct one on send.
+  const tokenEnv: Registration['env'] =
+    p.env === 'production' || p.env === 'sandbox' ? p.env : env.APNS_ENV === 'production' ? 'production' : 'sandbox'
 
   // Upsert by device token so re-registration refreshes env/platform in place.
   const regs = (await readRegistrations(env, worldId, userId)).filter((r) => r.deviceToken !== p.deviceToken)
-  regs.push({ deviceToken: p.deviceToken, platform: p.platform, env: p.env, updatedAt: Date.now() })
+  regs.push({ deviceToken: p.deviceToken, platform: p.platform, env: tokenEnv, updatedAt: Date.now() })
   await env.TOKENS.put(tokenKey(worldId, userId), JSON.stringify(regs))
   return json({ ok: true, worldId, userId, registrations: regs.length })
 }
@@ -274,18 +292,42 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
   for (const userId of p.recipients) {
     const regs = await readRegistrations(env, p.worldId, userId)
     const survivors: Registration[] = []
+    let mutated = false
     for (const reg of regs) {
       if (reg.platform !== 'ios') {
         results.push({ userId, platform: reg.platform, skipped: 'non-ios not wired yet' })
         survivors.push(reg)
         continue
       }
-      const r = await sendApns(env, reg.deviceToken, p.title, p.body, reg.env)
-      const dead = isDeadToken(r)
-      results.push({ userId, status: r.status, ok: r.status === 200, dead })
-      if (!dead) survivors.push(reg)
+
+      // Try the stored environment; on any failure, retry the other one. The app
+      // can't reliably report its aps-environment and a rebuild can flip it, so
+      // the relay discovers the right one and remembers it. A non-200 never
+      // delivered, so retrying can't double-send.
+      let result = await sendApns(env, reg.deviceToken, p.title, p.body, reg.env)
+      let usedEnv = reg.env
+      if (result.status !== 200) {
+        const other: Registration['env'] = reg.env === 'production' ? 'sandbox' : 'production'
+        const alt = await sendApns(env, reg.deviceToken, p.title, p.body, other)
+        if (alt.status === 200 || (isDeadToken(alt) && !isDeadToken(result))) {
+          result = alt
+          usedEnv = other
+        }
+      }
+
+      const dead = isDeadToken(result)
+      results.push({ userId, status: result.status, ok: result.status === 200, env: usedEnv, dead })
+      if (dead) {
+        mutated = true // drop it
+        continue
+      }
+      if (usedEnv !== reg.env) {
+        reg.env = usedEnv // self-heal the stored environment
+        mutated = true
+      }
+      survivors.push(reg)
     }
-    if (survivors.length !== regs.length) {
+    if (mutated) {
       await env.TOKENS.put(tokenKey(p.worldId, userId), JSON.stringify(survivors))
     }
   }
@@ -295,6 +337,10 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
+
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: CORS_HEADERS })
+    }
 
     if (request.method === 'GET' && url.pathname === '/') {
       return new Response('tablemate-push-relay ok', { status: 200 })
