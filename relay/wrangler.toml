@@ -1,0 +1,16 @@
+name = "tablemate-push-relay"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# Non-secret config. Secrets (APNS_KEY, APNS_KEY_ID, APNS_TEAM_ID,
+# RELAY_TEST_SECRET) are set with `wrangler secret put` — never commit them.
+[vars]
+APNS_BUNDLE_ID = "io.github.thisgavagai.tablemate"
+# Default APNs environment for /send when the request omits an "env" override.
+# A device token is only valid against the environment it was minted in, set by
+# the app's aps-environment entitlement: debug/Xcode builds => sandbox tokens;
+# TestFlight/App Store builds => production tokens. (Production token to sandbox
+# yields BadEnvironmentKeyInToken; sandbox token to production yields
+# BadDeviceToken.) Set to sandbox for the debug-build dev loop; milestone 2 will
+# track each device's environment at registration so both are served at once.
+APNS_ENV = "sandbox"

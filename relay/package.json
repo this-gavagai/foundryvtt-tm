@@ -1,0 +1,16 @@
+{
+  "name": "tablemate-push-relay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Worker that relays push notifications to APNs (and later FCM/Web Push) for Tabula Mensa.",
+  "scripts": {
+    "secrets": "bash scripts/push-secrets.sh",
+    "dev": "wrangler dev --remote",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

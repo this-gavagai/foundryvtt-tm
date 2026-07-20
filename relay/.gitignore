@@ -1,0 +1,6 @@
+node_modules/
+.wrangler/
+.dev.vars
+relay.env
+*.p8
+dist/
