@@ -200,11 +200,19 @@ platform :ios do
     )
     UI.user_error!("Expected IPA build #{next_build_number}, got #{ipa_build_number}") unless ipa_build_number.to_s == next_build_number.to_s
 
+    # Distribute to the external "Beta Group" as well as the internal testers.
+    # External distribution submits the build to Beta App Review, which can't
+    # start until processing finishes — so we can't skip the processing wait
+    # here the way an internal-only upload could. Internal testers ("Team
+    # Rocket") still receive every build automatically regardless of `groups`.
     upload_to_testflight(
       api_key: api_key,
       ipa: ipa_path,
-      changelog: release_tag.empty? ? nil : "TableMate #{release_tag} (build #{next_build_number})",
-      skip_waiting_for_build_processing: true
+      changelog: release_tag.empty? ? "TableMate build #{next_build_number}" : "TableMate #{release_tag} (build #{next_build_number})",
+      distribute_external: true,
+      groups: ["Beta Group"],
+      notify_external_testers: true,
+      skip_waiting_for_build_processing: false
     )
   end
 end
