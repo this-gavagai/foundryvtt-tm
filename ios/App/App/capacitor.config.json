@@ -6,6 +6,7 @@
 		"BluetoothLe",
 		"FilesystemPlugin",
 		"HapticsPlugin",
+		"PushNotificationsPlugin",
 		"StatusBarPlugin"
 	]
 }
