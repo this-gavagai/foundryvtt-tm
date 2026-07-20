@@ -30,6 +30,7 @@ import {
   type DocumentData
 } from '@/api/internal'
 import { addRefresh, fireAllRefresh, fireRefresh, parseActorData } from '@/api/characterSync'
+import { syncPushRegistration } from '@/api/pushNotifications'
 import { processChanges } from '@/api/documents'
 import { resetLoadPriority } from '@/api/loadPriority'
 import { registerStoreBridge } from '@/api/storeBridge'
@@ -102,6 +103,9 @@ export function registerServerEventWiring() {
     onSessionAuthenticated: () => {
       void useWorldStore().refreshWorldNow()
       fireAllRefresh()
+      // Now authenticated as a known user: (re)register this device's push
+      // token with the relay. Fires on reconnects too; the call is idempotent.
+      syncPushRegistration()
     }
   })
 

@@ -53,6 +53,7 @@ import {
   manualRollPolicy,
   hasPresetDiceResults
 } from './manualRollPolicy'
+import { registerPushSettings, foundryRegisterPush } from './pushRegistration'
 
 type GetEvent = { action: 'get' }
 
@@ -140,7 +141,8 @@ const actionHandlers: ActionHandlerMap = {
   [TM.LIST_COMPENDIA]: foundryListCompendia,
   [TM.GET_COMPENDIUM_INDEX]: foundryGetCompendiumIndex,
   [TM.APPLY_DAMAGE]: foundryApplyDamage,
-  [TM.REROLL_CHAT_ROLL]: foundryRerollChatRoll
+  [TM.REROLL_CHAT_ROLL]: foundryRerollChatRoll,
+  [TM.REGISTER_PUSH]: foundryRegisterPush
 }
 
 // Actions that originate from this side (Foundry → browser) — the listener
@@ -188,7 +190,10 @@ let dispatchChain: Promise<unknown> = Promise.resolve()
 const CONCURRENT_ACTIONS = new Set<string>([
   TM.GET_COMPENDIUM_ITEM,
   TM.LIST_COMPENDIA,
-  TM.GET_COMPENDIUM_INDEX
+  TM.GET_COMPENDIUM_INDEX,
+  // Read-only mint: no chat, no world mutation, so it needn't serialize behind
+  // the dispatch chain.
+  TM.REGISTER_PUSH
 ])
 
 function isCharacterRequest(args: ModuleEventArgs): args is RequestCharacterDetailsArgs {
@@ -246,7 +251,9 @@ const AUTH_POLICY: Partial<Record<ModuleEventArgs['action'], AuthRequirement>> =
   [TM.REROLL_CHAT_ROLL]: 'owner',
   [TM.GET_COMPENDIUM_ITEM]: 'world-user',
   [TM.LIST_COMPENDIA]: 'world-user',
-  [TM.GET_COMPENDIUM_INDEX]: 'world-user'
+  [TM.GET_COMPENDIUM_INDEX]: 'world-user',
+  // Any known world user may register their own device for push.
+  [TM.REGISTER_PUSH]: 'world-user'
 }
 
 function userOwnsActor(actor: ActorLike | undefined, userId: string): boolean {
@@ -421,6 +428,7 @@ export function setupListener() {
   // connected apps update their manual/Pixel affordances without waiting for
   // the next presence heartbeat.
   registerManualRollPolicySetting(() => announceSelf())
+  registerPushSettings()
   setupChatOriginStamping()
   announceSelf()
 

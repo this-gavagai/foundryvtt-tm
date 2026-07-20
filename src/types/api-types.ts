@@ -43,6 +43,7 @@ export type ModuleEventArgs =
   | SendCompendiumItemToChatArgs
   | ApplyDamageArgs
   | RerollChatRollArgs
+  | RegisterPushArgs
 
 export interface AcknowledgementArgs {
   action: typeof TM.ACK
@@ -110,6 +111,15 @@ export interface RequestCharacterDetailsArgs {
   actorId: string
   uuid: string
 }
+// No payload beyond the requester's userId: the module derives worldId from
+// game.world.id and binds it to the (self-reported) userId when minting the
+// registration token, so there is nothing for the client to supply.
+export interface RegisterPushArgs {
+  action: typeof TM.REGISTER_PUSH
+  uuid: string
+  userId: string
+}
+
 export interface AnybodyHomeArgs {
   action: typeof TM.ANYBODY_HOME
   userId: string
@@ -569,6 +579,7 @@ export interface ResponseByAction {
   [TM.UPDATE_ACTOR]: PlainAck
   [TM.ADD_COMPENDIUM_ITEM]: PlainAck
   [TM.APPLY_DAMAGE]: PlainAck
+  [TM.REGISTER_PUSH]: { regToken: string; relayUrl: string }
 }
 
 // The client-initiated RPC actions (everything with a typed response).

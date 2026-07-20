@@ -1,34 +1,78 @@
 import { Capacitor } from '@capacitor/core'
 import { PushNotifications } from '@capacitor/push-notifications'
+import { registerPush } from './actionRpc'
+import { logger } from '@/utils/utilities'
 
-// Milestone 1 (test push): request permission, register with APNs/FCM, and log
-// the device token so it can be copied into a manual `curl` against the relay.
-//
-// This is deliberately minimal — it only obtains and logs the token. Binding the
-// token to a Foundry user and POSTing it to the relay's /register endpoint is
-// milestone 2; taps/deep-linking come later. Safe to call unconditionally: it
-// no-ops off native platforms.
+// Push registration (milestone 2). On native launch the app obtains its device
+// token; once it is also authenticated to a Foundry world, it asks the module
+// (over TM.CHANNEL) for a signed reg token + the relay URL, then POSTs its token
+// to the relay's /register. Sends thereafter address the user, so a rotated
+// token is refreshed on the next launch instead of stranding the relay.
+
+let deviceToken: string | null = null
+let sessionAuthenticated = false
+let lastRegisteredToken: string | null = null
+let registering = false
+
+// Called once from the native bootstrap (main.ts). Wires the token listeners,
+// requests permission, and kicks off APNs/FCM registration.
 export async function initPushNotifications(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return
 
-  // The token arrives asynchronously via the 'registration' event, so wire the
-  // listeners before calling register().
   await PushNotifications.addListener('registration', (token) => {
-    // Grep for this line in the Xcode / Android Studio console to copy the token.
-    console.log('[push] device token:', token.value)
+    deviceToken = token.value
+    logger.info('[push] device token:', token.value)
+    void tryRegister()
   })
-
   await PushNotifications.addListener('registrationError', (err) => {
-    console.error('[push] registration error:', JSON.stringify(err))
+    logger.warn('[push] registration error:', JSON.stringify(err))
   })
 
   const perm = await PushNotifications.requestPermissions()
   if (perm.receive !== 'granted') {
-    console.warn('[push] permission not granted:', perm.receive)
+    logger.warn('[push] permission not granted:', perm.receive)
     return
   }
-
-  // Triggers APNs (iOS) / FCM (Android) registration; the token comes back on
-  // the 'registration' listener above.
   await PushNotifications.register()
+}
+
+// Called from serverEventWiring's onSessionAuthenticated hook — i.e. whenever we
+// are connected and authenticated to a world as a known user. Idempotent.
+export function syncPushRegistration(): void {
+  sessionAuthenticated = true
+  void tryRegister()
+}
+
+// Registers only when we have both a device token and an authenticated session,
+// and skips if the current token is already registered. Whichever of the two
+// preconditions arrives second triggers the actual registration.
+async function tryRegister(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return
+  if (!deviceToken || !sessionAuthenticated || registering) return
+  if (lastRegisteredToken === deviceToken) return
+
+  registering = true
+  const token = deviceToken
+  try {
+    // The module derives (worldId, userId) itself and signs them; the userId is
+    // taken from the authenticated socket, so nothing identity-related is sent here.
+    const { regToken, relayUrl } = await registerPush()
+    const res = await fetch(`${relayUrl}/register`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ regToken, deviceToken: token, platform: Capacitor.getPlatform() })
+    })
+    if (!res.ok) {
+      logger.warn('[push] relay /register failed:', res.status, await res.text())
+      return
+    }
+    lastRegisteredToken = token
+    logger.info('[push] registered device with relay')
+  } catch (err) {
+    // No GM online, push not configured on the GM client, or offline — leave it
+    // for the next session handshake to retry.
+    logger.warn('[push] registration skipped:', err instanceof Error ? err.message : String(err))
+  } finally {
+    registering = false
+  }
 }

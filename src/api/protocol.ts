@@ -79,5 +79,9 @@ export const TM = {
   GET_COMPENDIUM_INDEX: 'getCompendiumIndex',
   SEND_COMPENDIUM_ITEM_TO_CHAT: 'sendCompendiumItemToChat',
   APPLY_DAMAGE: 'applyDamage',
-  REROLL_CHAT_ROLL: 'rerollChatRoll'
+  REROLL_CHAT_ROLL: 'rerollChatRoll',
+  // Push registration: the app asks the module (GM's client) for a short-lived,
+  // signed token binding {worldId, userId} plus the relay URL, then registers
+  // its device token with the relay. See foundry/pushRegistration.ts.
+  REGISTER_PUSH: 'registerPush'
 } as const

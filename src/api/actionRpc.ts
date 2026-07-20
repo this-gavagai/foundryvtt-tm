@@ -101,6 +101,13 @@ async function sendAction<K extends RpcAction>(
   })
 }
 
+// Ask the module (the GM's client) to mint a signed push-registration token for
+// the current user and hand back the relay URL. Resolves only if a GM client has
+// push configured; otherwise it rejects (error ack) or times out like any RPC.
+export async function registerPush() {
+  return sendAction(TM.REGISTER_PUSH, {})
+}
+
 // Common payload prefixes. Every action needs characterId; most "interactive"
 // actions also need the current target set. Callers guarantee the actor is
 // loaded (non-null assertions match the old Ref<CharacterPF2e> contract).
