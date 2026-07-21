@@ -53,7 +53,7 @@ import {
   manualRollPolicy,
   hasPresetDiceResults
 } from './manualRollPolicy'
-import { registerPushSettings, foundryRegisterPush } from './pushRegistration'
+import { registerPushSettings, ensureWorldPushIdentity, foundryRegisterPush } from './pushRegistration'
 import { notifyChatMessage } from './pushNotify'
 
 type GetEvent = { action: 'get' }
@@ -433,6 +433,8 @@ export function setupListener() {
   // the next presence heartbeat.
   registerManualRollPolicySetting(() => announceSelf())
   registerPushSettings()
+  // GM-only: generate + provision this world's push identity if enabled.
+  void ensureWorldPushIdentity()
   setupChatOriginStamping()
   announceSelf()
 

@@ -1,63 +1,82 @@
-// Push-registration support on the Foundry (module) side.
+// Push registration + per-world identity on the Foundry (module) side.
 //
-// The relay must never hand a push token to a client that can't prove which
-// Foundry user it is. Foundry's socket can't authenticate the sender, but the
-// module already knows the requester's (self-reported) userId, so the GM's
-// client mints a short-lived HMAC token binding {worldId, userId} with the
-// shared WORLD_PUSH_KEY. The relay verifies that signature on /register.
+// One relay serves every world. Each world auto-generates a random opaque
+// worldPushId and a secret worldKey (world settings — Foundry only lets the GM
+// write world settings) and provisions them to the relay (TOFU). The relay URL
+// is a build constant, so there is nothing per-client to configure; the GM only
+// flips "enable push" (off by default, since chat then leaves the table).
 //
-// The relay URL and key are CLIENT-scoped settings: they live only in the GM's
-// browser and are never synced to players (a world-scoped setting would leak the
-// key to every connected client). Only the elected GM client (the one the
-// listener's iAmProxyOrFallbackGM gate lets through) answers the mint request.
+// The worldKey signs short-lived registration tokens binding {worldPushId,
+// userId}, so the relay can trust a device belongs to a user without being able
+// to verify Foundry sessions itself. The key is readable by world members (like
+// any world setting) but not by outsiders — the same trust boundary Foundry
+// uses. Bodies are a separate GM opt-in, decided in pushNotify.ts.
 
 import { MODULE_ID } from '@/api/protocol'
 import type { AcknowledgementArgs, RegisterPushArgs } from '@/types/api-types'
+import { logger } from '@/utils/utilities'
 import { makeAck } from './utils/foundry'
 
 declare const game: {
   settings: {
     register: (scope: string, key: string, config: object) => void
     get: (scope: string, key: string) => unknown
+    set: (scope: string, key: string, value: unknown) => Promise<unknown>
   }
-  world: { id: string }
+  user?: { isGM?: boolean }
 }
 
-export const PUSH_RELAY_URL_SETTING = 'pushRelayUrl'
-export const PUSH_WORLD_KEY_SETTING = 'pushWorldKey'
+// The single shared relay. Everyone running Tabula Mensa uses this instance.
+export const PUSH_RELAY_URL = 'https://tablemate-push-relay.openinst.workers.dev'
 
-// Reg tokens are valid for five minutes — long enough for the app to finish
-// registering, short enough that a leaked token is useless later.
+export const PUSH_ENABLED_SETTING = 'pushEnabled'
+export const PUSH_INCLUDE_BODY_SETTING = 'pushIncludeBody'
+const PUSH_WORLD_ID_SETTING = 'pushWorldId' // auto-generated, hidden
+const PUSH_WORLD_KEY_SETTING = 'pushWorldKey' // auto-generated, hidden
+
 const REG_TOKEN_TTL_SECONDS = 300
 
-// Raw English strings, matching the registerMenu / manualRollPolicy precedent
-// (the module ships no Foundry lang files).
 export function registerPushSettings() {
-  game.settings.register(MODULE_ID, PUSH_RELAY_URL_SETTING, {
-    name: 'Push relay URL',
+  game.settings.register(MODULE_ID, PUSH_ENABLED_SETTING, {
+    name: 'Enable push notifications',
     hint:
-      'Base URL of the Tablemate push relay, e.g. ' +
-      'https://tablemate-push-relay.<subdomain>.workers.dev . Set this on the GM ' +
-      'browser that stays connected during play. Leave blank to disable push.',
-    scope: 'client',
+      'Send a push notification to connected Tabula Mensa apps when a chat ' +
+      'message arrives. Chat is relayed through the Tabula Mensa push service ' +
+      'and Apple/Google to reach devices — leave off if you would rather no ' +
+      'chat data leave your table.',
+    scope: 'world',
     config: true,
+    type: Boolean,
+    default: false,
+    onChange: () => void ensureWorldPushIdentity()
+  })
+  game.settings.register(MODULE_ID, PUSH_INCLUDE_BODY_SETTING, {
+    name: 'Include message text in push notifications',
+    hint:
+      'When on, notifications show the message text; when off (default), they ' +
+      'show only who sent it. With this off, message text is never sent to the ' +
+      'relay at all.',
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: false
+  })
+  // Auto-generated, not shown in the settings UI.
+  game.settings.register(MODULE_ID, PUSH_WORLD_ID_SETTING, {
+    scope: 'world',
+    config: false,
     type: String,
     default: ''
   })
   game.settings.register(MODULE_ID, PUSH_WORLD_KEY_SETTING, {
-    name: 'Push relay key',
-    hint:
-      "Shared secret (the relay's WORLD_PUSH_KEY) that authorises push sends and " +
-      'signs device registrations. Keep it private — it is stored only in this ' +
-      'browser and never synced to players.',
-    scope: 'client',
-    config: true,
+    scope: 'world',
+    config: false,
     type: String,
     default: ''
   })
 }
 
-function readSetting(key: string): string {
+function readStr(key: string): string {
   try {
     return String(game.settings.get(MODULE_ID, key) ?? '').trim()
   } catch {
@@ -65,13 +84,61 @@ function readSetting(key: string): string {
   }
 }
 
-// The relay URL + shared key, or null if push isn't configured on this client.
-// Shared by the mint handler and the chat-message notify trigger (pushNotify.ts).
-export function readPushConfig(): { relayUrl: string; worldKey: string } | null {
-  const relayUrl = readSetting(PUSH_RELAY_URL_SETTING).replace(/\/+$/, '')
-  const worldKey = readSetting(PUSH_WORLD_KEY_SETTING)
-  if (!relayUrl || !worldKey) return null
-  return { relayUrl, worldKey }
+function readBool(key: string): boolean {
+  try {
+    return game.settings.get(MODULE_ID, key) === true
+  } catch {
+    return false
+  }
+}
+
+function randomKeyHex(): string {
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+export interface PushConfig {
+  relayUrl: string
+  worldId: string
+  worldKey: string
+  includeBody: boolean
+}
+
+// The world's push config, or null if push is disabled or not yet provisioned.
+// Shared by the mint handler and the chat-message notify trigger.
+export function readPushConfig(): PushConfig | null {
+  if (!readBool(PUSH_ENABLED_SETTING)) return null
+  const worldId = readStr(PUSH_WORLD_ID_SETTING)
+  const worldKey = readStr(PUSH_WORLD_KEY_SETTING)
+  if (!worldId || !worldKey) return null
+  return { relayUrl: PUSH_RELAY_URL, worldId, worldKey, includeBody: readBool(PUSH_INCLUDE_BODY_SETTING) }
+}
+
+// GM-only: mint this world's random id + key if absent (world settings are
+// GM-writable only), then provision them to the relay. Idempotent — safe to run
+// on every load and whenever the enable toggle flips.
+export async function ensureWorldPushIdentity(): Promise<void> {
+  if (!game.user?.isGM || !readBool(PUSH_ENABLED_SETTING)) return
+  let worldId = readStr(PUSH_WORLD_ID_SETTING)
+  let worldKey = readStr(PUSH_WORLD_KEY_SETTING)
+  if (!worldId) {
+    worldId = crypto.randomUUID()
+    await game.settings.set(MODULE_ID, PUSH_WORLD_ID_SETTING, worldId)
+  }
+  if (!worldKey) {
+    worldKey = randomKeyHex()
+    await game.settings.set(MODULE_ID, PUSH_WORLD_KEY_SETTING, worldKey)
+  }
+  try {
+    await fetch(`${PUSH_RELAY_URL}/provision`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ worldPushId: worldId, worldKey })
+    })
+  } catch (error) {
+    logger.warn('TABLEMATE: push provision failed', error)
+  }
 }
 
 function base64UrlFromString(input: string): string {
@@ -85,18 +152,12 @@ function base64UrlFromBytes(bytes: ArrayBuffer): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-// Mint base64url(payload).base64url(HMAC-SHA256(payload)) — the exact shape the
-// relay's verifyRegToken() checks (it signs the utf-8 bytes of the payload's
-// base64url string with the raw key bytes).
-async function mintRegToken(
-  payload: { worldId: string; userId: string; exp: number },
-  key: string
-): Promise<string> {
+// base64url(payload).base64url(HMAC-SHA256(payload)) — the shape the relay's
+// verifyRegToken() checks.
+async function mintRegToken(payload: { worldId: string; userId: string; exp: number }, key: string): Promise<string> {
   const enc = new TextEncoder()
   const payloadB64 = base64UrlFromString(JSON.stringify(payload))
-  const cryptoKey = await crypto.subtle.importKey('raw', enc.encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, [
-    'sign'
-  ])
+  const cryptoKey = await crypto.subtle.importKey('raw', enc.encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
   const sig = await crypto.subtle.sign('HMAC', cryptoKey, enc.encode(payloadB64))
   return `${payloadB64}.${base64UrlFromBytes(sig)}`
 }
@@ -106,11 +167,10 @@ export async function foundryRegisterPush(
 ): Promise<AcknowledgementArgs & { regToken: string; relayUrl: string }> {
   const config = readPushConfig()
   if (!config) {
-    // Surfaces to the app as a rejected RPC (error ack) rather than a 30s hang.
-    throw new Error('Tablemate push relay is not configured on the GM client')
+    // Rejected RPC (error ack) rather than a 30s hang — push is off/unprovisioned.
+    throw new Error('Tabula Mensa push is not enabled for this world')
   }
-  const { relayUrl, worldKey } = config
   const exp = Math.floor(Date.now() / 1000) + REG_TOKEN_TTL_SECONDS
-  const regToken = await mintRegToken({ worldId: game.world.id, userId: args.userId, exp }, worldKey)
-  return { ...makeAck(args), regToken, relayUrl }
+  const regToken = await mintRegToken({ worldId: config.worldId, userId: args.userId, exp }, config.worldKey)
+  return { ...makeAck(args), regToken, relayUrl: config.relayUrl }
 }

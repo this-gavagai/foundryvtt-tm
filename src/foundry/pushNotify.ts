@@ -55,6 +55,12 @@ function bodyText(html: string | undefined): string {
   return trimmed.length > 180 ? `${trimmed.slice(0, 179)}…` : trimmed
 }
 
+// Body respects the per-world opt-in: when message text is off (default), the
+// content is never even read/sent — recipients get a sender-only notification.
+function notificationBody(msg: ChatMessageLike, includeBody: boolean): string {
+  return includeBody ? bodyText(msg.content) : 'sent a message'
+}
+
 function isPrimaryGM(): boolean {
   const activeGmId = (game.users as unknown as { activeGM?: { id?: string } | null })?.activeGM?.id
   return !!activeGmId && game.user?.id === activeGmId
@@ -77,10 +83,10 @@ export async function notifyChatMessage(message: unknown): Promise<void> {
       method: 'POST',
       headers: { authorization: `Bearer ${config.worldKey}`, 'content-type': 'application/json' },
       body: JSON.stringify({
-        worldId: game.world.id,
+        worldId: config.worldId,
         recipients,
         title: senderName(msg),
-        body: bodyText(msg.content)
+        body: notificationBody(msg, config.includeBody)
       })
     })
     if (!res.ok) {
