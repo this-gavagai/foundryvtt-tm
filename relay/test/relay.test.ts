@@ -42,6 +42,7 @@ let env: TestEnv
 // Per-URL APNs response, overridable per test (default: success).
 let apnsResponse: (url: string) => { status: number; body: string } = () => ({ status: 200, body: '' })
 let apnsCalls: string[] = []
+let apnsBodies: Array<{ aps?: { badge?: number }; [k: string]: unknown }> = []
 
 beforeEach(() => {
   env = {
@@ -55,11 +56,13 @@ beforeEach(() => {
   }
   apnsResponse = () => ({ status: 200, body: '' })
   apnsCalls = []
+  apnsBodies = []
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (input: RequestInfo | URL) => {
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
       apnsCalls.push(url)
+      if (typeof init?.body === 'string') apnsBodies.push(JSON.parse(init.body))
       const { status, body } = apnsResponse(url)
       return new Response(body, { status, headers: { 'apns-id': 'test-apns-id' } })
     }),
@@ -253,6 +256,31 @@ describe('/notify delivery behaviour', () => {
     )
     expect(res.status).toBe(200)
     expect(apnsCalls.length).toBe(1)
+  })
+})
+
+describe('badge count', () => {
+  async function notify(worldPushId: string, worldKey: string) {
+    return post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+  }
+
+  it('increments aps.badge per notify and resets on re-register', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA')
+
+    await notify(worldPushId, worldKey)
+    await notify(worldPushId, worldKey)
+    expect(apnsBodies.map((b) => b.aps?.badge)).toEqual([1, 2])
+
+    // Re-registering (coming back online) resets the count.
+    await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA')
+    apnsBodies = []
+    await notify(worldPushId, worldKey)
+    expect(apnsBodies[0].aps?.badge).toBe(1)
   })
 })
 

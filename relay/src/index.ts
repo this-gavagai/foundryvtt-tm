@@ -133,12 +133,16 @@ async function sendApns(
   body: string,
   envOverride?: string,
   data?: Record<string, string>,
+  badge?: number,
 ): Promise<ApnsResult> {
   const apnsEnv = envOverride ?? env.APNS_ENV
   const host = apnsEnv === 'production' ? 'https://api.push.apple.com' : 'https://api.sandbox.push.apple.com'
   const jwt = await getApnsJwt(env)
+  // `aps.badge` sets the icon number (iOS applies it even when the app is closed).
   // Custom keys ride alongside `aps`; the app reads them from the notification's
   // data on tap to deep-link to the message (see src/api/pushNotifications.ts).
+  const aps: Record<string, unknown> = { alert: { title, body }, sound: 'default' }
+  if (typeof badge === 'number') aps.badge = badge
   const res = await fetch(`${host}/3/device/${deviceToken}`, {
     method: 'POST',
     headers: {
@@ -148,7 +152,7 @@ async function sendApns(
       'apns-priority': '10',
       'content-type': 'application/json',
     },
-    body: JSON.stringify({ aps: { alert: { title, body }, sound: 'default' }, ...(data ?? {}) }),
+    body: JSON.stringify({ aps, ...(data ?? {}) }),
   })
   return { status: res.status, apnsId: res.headers.get('apns-id'), body: await res.text() }
 }
@@ -214,6 +218,20 @@ function json(data: unknown, status = 200): Response {
 
 function tokenKey(worldPushId: string, userId: string): string {
   return `tok:${worldPushId}:${userId}`
+}
+
+function badgeKey(worldPushId: string, userId: string): string {
+  return `badge:${worldPushId}:${userId}`
+}
+
+// Per-user running notification count for the app-icon badge. Incremented on each
+// notify (iOS shows the absolute number), reset when the user re-registers —
+// i.e. comes back online — which pairs with the app clearing the icon on open.
+async function bumpBadge(env: Env, worldPushId: string, userId: string): Promise<number> {
+  const k = badgeKey(worldPushId, userId)
+  const next = (parseInt((await env.TOKENS.get(k)) || '0', 10) || 0) + 1
+  await env.TOKENS.put(k, String(next), { expirationTtl: STALE_REGISTRATION_MS / 1000 })
+  return next
 }
 
 async function readRegistrations(env: Env, worldPushId: string, userId: string): Promise<Registration[]> {
@@ -314,6 +332,8 @@ async function handleRegister(request: Request, env: Env): Promise<Response> {
   const regs = (await readRegistrations(env, worldPushId, userId)).filter((r) => r.deviceToken !== p.deviceToken)
   regs.push({ deviceToken: p.deviceToken, platform: p.platform, env: tokenEnv, updatedAt: Date.now() })
   await env.TOKENS.put(tokenKey(worldPushId, userId), JSON.stringify(regs))
+  // Coming back online resets the badge count; the app clears the icon locally.
+  await env.TOKENS.delete(badgeKey(worldPushId, userId))
   return json({ ok: true, worldId: worldPushId, userId, registrations: regs.length })
 }
 
@@ -346,6 +366,8 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
     const regs = stored.filter((r) => now - (r.updatedAt ?? 0) < STALE_REGISTRATION_MS)
     const survivors: Registration[] = []
     let mutated = regs.length !== stored.length
+    // One badge increment per notified user (shared across their devices).
+    const badge = regs.length ? await bumpBadge(env, p.worldId, userId) : undefined
     for (const reg of regs) {
       if (reg.platform !== 'ios') {
         results.push({ userId, platform: reg.platform, skipped: 'non-ios not wired yet' })
@@ -353,11 +375,11 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
         continue
       }
       // Try stored env; on failure retry the other and remember what delivers.
-      let result = await sendApns(env, reg.deviceToken, p.title, p.body, reg.env, data)
+      let result = await sendApns(env, reg.deviceToken, p.title, p.body, reg.env, data, badge)
       let usedEnv = reg.env
       if (result.status !== 200) {
         const other: Registration['env'] = reg.env === 'production' ? 'sandbox' : 'production'
-        const alt = await sendApns(env, reg.deviceToken, p.title, p.body, other, data)
+        const alt = await sendApns(env, reg.deviceToken, p.title, p.body, other, data, badge)
         if (alt.status === 200 || (isDeadToken(alt) && !isDeadToken(result))) {
           result = alt
           usedEnv = other
