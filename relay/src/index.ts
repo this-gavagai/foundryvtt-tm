@@ -121,10 +121,19 @@ interface ApnsResult {
   body: string
 }
 
-async function sendApns(env: Env, deviceToken: string, title: string, body: string, envOverride?: string): Promise<ApnsResult> {
+async function sendApns(
+  env: Env,
+  deviceToken: string,
+  title: string,
+  body: string,
+  envOverride?: string,
+  data?: Record<string, string>,
+): Promise<ApnsResult> {
   const apnsEnv = envOverride ?? env.APNS_ENV
   const host = apnsEnv === 'production' ? 'https://api.push.apple.com' : 'https://api.sandbox.push.apple.com'
   const jwt = await getApnsJwt(env)
+  // Custom keys ride alongside `aps`; the app reads them from the notification's
+  // data on tap to deep-link to the message (see src/api/pushNotifications.ts).
   const res = await fetch(`${host}/3/device/${deviceToken}`, {
     method: 'POST',
     headers: {
@@ -134,7 +143,7 @@ async function sendApns(env: Env, deviceToken: string, title: string, body: stri
       'apns-priority': '10',
       'content-type': 'application/json',
     },
-    body: JSON.stringify({ aps: { alert: { title, body }, sound: 'default' } }),
+    body: JSON.stringify({ aps: { alert: { title, body }, sound: 'default' }, ...(data ?? {}) }),
   })
   return { status: res.status, apnsId: res.headers.get('apns-id'), body: await res.text() }
 }
@@ -309,10 +318,12 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
     recipients?: string[]
     title?: string
     body?: string
+    messageId?: string
   } | null
   if (!p?.worldId || !Array.isArray(p.recipients) || !p.title || !p.body) {
     return json({ error: 'worldId, recipients[], title and body are required' }, 400)
   }
+  const data = p.messageId ? { tmMessageId: p.messageId } : undefined
 
   // Authorise against the world's own key.
   const worldKey = await worldKeyOf(env, p.worldId)
@@ -333,11 +344,11 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
         continue
       }
       // Try stored env; on failure retry the other and remember what delivers.
-      let result = await sendApns(env, reg.deviceToken, p.title, p.body, reg.env)
+      let result = await sendApns(env, reg.deviceToken, p.title, p.body, reg.env, data)
       let usedEnv = reg.env
       if (result.status !== 200) {
         const other: Registration['env'] = reg.env === 'production' ? 'sandbox' : 'production'
-        const alt = await sendApns(env, reg.deviceToken, p.title, p.body, other)
+        const alt = await sendApns(env, reg.deviceToken, p.title, p.body, other, data)
         if (alt.status === 200 || (isDeadToken(alt) && !isDeadToken(result))) {
           result = alt
           usedEnv = other
