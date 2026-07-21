@@ -47,6 +47,30 @@ function senderName(msg: ChatMessageLike): string {
   return msg.alias || msg.author?.name || msg.user?.name || 'Tabula Mensa'
 }
 
+// Notification title budget. iOS shows roughly this many characters of a title
+// before truncating (conservative for the default text size). We reserve room so
+// at least the first MIN_SENDER_CHARS of the character name always show, and
+// truncate only the game name to make it fit.
+const TITLE_BUDGET = 30
+const MIN_SENDER_CHARS = 10
+const TITLE_SEPARATOR = ' · '
+
+function worldName(): string {
+  const world = game.world as { title?: string; id?: string } | undefined
+  return world?.title || world?.id || 'Tabula Mensa'
+}
+
+function truncate(value: string, max: number): string {
+  return value.length > max ? `${value.slice(0, Math.max(0, max - 1))}…` : value
+}
+
+// "<game> · <character>", with the game name truncated so the character name
+// always keeps at least MIN_SENDER_CHARS characters within the title budget.
+function notificationTitle(msg: ChatMessageLike): string {
+  const gameMax = Math.max(1, TITLE_BUDGET - TITLE_SEPARATOR.length - MIN_SENDER_CHARS)
+  return `${truncate(worldName(), gameMax)}${TITLE_SEPARATOR}${senderName(msg)}`
+}
+
 // HTML content → a short plain-text line for the notification body.
 function bodyText(html: string | undefined): string {
   const text = new DOMParser().parseFromString(html ?? '', 'text/html').body.textContent ?? ''
@@ -85,7 +109,7 @@ export async function notifyChatMessage(message: unknown): Promise<void> {
       body: JSON.stringify({
         worldId: config.worldId,
         recipients,
-        title: senderName(msg),
+        title: notificationTitle(msg),
         body: notificationBody(msg, config.includeBody)
       })
     })
