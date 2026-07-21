@@ -54,6 +54,7 @@ import {
   hasPresetDiceResults
 } from './manualRollPolicy'
 import { registerPushSettings, foundryRegisterPush } from './pushRegistration'
+import { notifyChatMessage } from './pushNotify'
 
 type GetEvent = { action: 'get' }
 
@@ -408,6 +409,9 @@ function setupChatOriginStamping() {
     if (originUserId) stampTablemateChatOrigin(message, originUserId)
     const uuid = tablemateChatOriginUuid(message)
     if (uuid) resolveCapture(uuid, message as CapturedMessage)
+    // Push the message to everyone who can see it (leader-elected + gated on
+    // push config inside; safe to call on every client).
+    void notifyChatMessage(message)
   })
 }
 

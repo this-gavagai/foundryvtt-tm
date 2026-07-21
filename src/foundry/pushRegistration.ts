@@ -65,6 +65,15 @@ function readSetting(key: string): string {
   }
 }
 
+// The relay URL + shared key, or null if push isn't configured on this client.
+// Shared by the mint handler and the chat-message notify trigger (pushNotify.ts).
+export function readPushConfig(): { relayUrl: string; worldKey: string } | null {
+  const relayUrl = readSetting(PUSH_RELAY_URL_SETTING).replace(/\/+$/, '')
+  const worldKey = readSetting(PUSH_WORLD_KEY_SETTING)
+  if (!relayUrl || !worldKey) return null
+  return { relayUrl, worldKey }
+}
+
 function base64UrlFromString(input: string): string {
   return btoa(input).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
@@ -95,12 +104,12 @@ async function mintRegToken(
 export async function foundryRegisterPush(
   args: RegisterPushArgs
 ): Promise<AcknowledgementArgs & { regToken: string; relayUrl: string }> {
-  const relayUrl = readSetting(PUSH_RELAY_URL_SETTING).replace(/\/+$/, '')
-  const worldKey = readSetting(PUSH_WORLD_KEY_SETTING)
-  if (!relayUrl || !worldKey) {
+  const config = readPushConfig()
+  if (!config) {
     // Surfaces to the app as a rejected RPC (error ack) rather than a 30s hang.
     throw new Error('Tablemate push relay is not configured on the GM client')
   }
+  const { relayUrl, worldKey } = config
   const exp = Math.floor(Date.now() / 1000) + REG_TOKEN_TTL_SECONDS
   const regToken = await mintRegToken({ worldId: game.world.id, userId: args.userId, exp }, worldKey)
   return { ...makeAck(args), regToken, relayUrl }
