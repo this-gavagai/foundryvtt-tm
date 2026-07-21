@@ -31,8 +31,11 @@ export const PUSH_RELAY_URL = 'https://tablemate-push-relay.openinst.workers.dev
 
 export const PUSH_ENABLED_SETTING = 'pushEnabled'
 export const PUSH_INCLUDE_BODY_SETTING = 'pushIncludeBody'
+export const PUSH_SCOPE_SETTING = 'pushScope'
 const PUSH_WORLD_ID_SETTING = 'pushWorldId' // auto-generated, hidden
 const PUSH_WORLD_KEY_SETTING = 'pushWorldKey' // auto-generated, hidden
+
+export type PushScope = 'mentions' | 'all'
 
 const REG_TOKEN_TTL_SECONDS = 300
 
@@ -60,6 +63,18 @@ export function registerPushSettings() {
     config: true,
     type: Boolean,
     default: false
+  })
+  game.settings.register(MODULE_ID, PUSH_SCOPE_SETTING, {
+    name: 'Notify on',
+    hint:
+      'Which messages trigger a push. "Whispers & mentions" (default) notifies a ' +
+      'user only when a message is whispered to them or names their character or ' +
+      'user. "All messages" notifies everyone who can see each message.',
+    scope: 'world',
+    config: true,
+    type: String,
+    choices: { mentions: 'Whispers & mentions', all: 'All messages' },
+    default: 'mentions'
   })
   // Auto-generated, not shown in the settings UI.
   game.settings.register(MODULE_ID, PUSH_WORLD_ID_SETTING, {
@@ -103,6 +118,7 @@ export interface PushConfig {
   worldId: string
   worldKey: string
   includeBody: boolean
+  scope: PushScope
 }
 
 // The world's push config, or null if push is disabled or not yet provisioned.
@@ -112,7 +128,13 @@ export function readPushConfig(): PushConfig | null {
   const worldId = readStr(PUSH_WORLD_ID_SETTING)
   const worldKey = readStr(PUSH_WORLD_KEY_SETTING)
   if (!worldId || !worldKey) return null
-  return { relayUrl: PUSH_RELAY_URL, worldId, worldKey, includeBody: readBool(PUSH_INCLUDE_BODY_SETTING) }
+  return {
+    relayUrl: PUSH_RELAY_URL,
+    worldId,
+    worldKey,
+    includeBody: readBool(PUSH_INCLUDE_BODY_SETTING),
+    scope: readStr(PUSH_SCOPE_SETTING) === 'all' ? 'all' : 'mentions'
+  }
 }
 
 // GM-only: mint this world's random id + key if absent (world settings are

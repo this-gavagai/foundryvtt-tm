@@ -2,12 +2,12 @@
 //
 // Called from the createChatMessage hook, which fires in EVERY connected
 // browser — so we leader-elect on the primary GM (game.users.activeGM) to post
-// exactly once. Recipients are everyone who can see the message (whisper targets
-// if whispered, otherwise all users), minus the author and anyone currently
-// connected (they're already looking at the game). Unattributable/empty system
-// messages are skipped. The relay only pushes to users with a registered device.
+// exactly once. Recipients depend on the world's push scope: whispers always
+// reach their targets; public messages reach everyone ('all') or only users
+// named in the text ('mentions', default). The author and anyone currently
+// connected are excluded, and unattributable/empty system messages are skipped.
 
-import { readPushConfig } from './pushRegistration'
+import { readPushConfig, type PushScope } from './pushRegistration'
 import { logger } from '@/utils/utilities'
 
 // Structural view of the bits of ChatMessage we read; Foundry's types are loose
@@ -44,17 +44,55 @@ function whisperIds(msg: ChatMessageLike): string[] {
   return msg.whisper.map((w) => (typeof w === 'string' ? w : w?.id)).filter((id): id is string => !!id)
 }
 
-function allUserIds(): string[] {
-  const users = game.users as unknown as { contents?: Array<{ id?: string }> } | undefined
-  return users?.contents?.map((u) => u.id).filter((id): id is string => !!id) ?? []
+interface WorldUser {
+  id: string
+  name?: string
+  characterName?: string
 }
 
-// Everyone who can see the message, minus the author and anyone currently
-// connected. Whispered → its targets; public → all users.
-function recipientsFor(msg: ChatMessageLike): string[] {
-  const whisper = whisperIds(msg)
-  const candidates = whisper.length ? whisper : allUserIds()
+function worldUsers(): WorldUser[] {
+  const users = game.users as unknown as
+    | { contents?: Array<{ id?: string; name?: string; character?: { name?: string } | null }> }
+    | undefined
+  return (users?.contents ?? [])
+    .filter((u): u is { id: string; name?: string; character?: { name?: string } | null } => !!u.id)
+    .map((u) => ({ id: u.id, name: u.name, characterName: u.character?.name }))
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// A public message "mentions" a user when their character name or user name
+// appears as a whole word in the text (unicode-aware boundaries so accented
+// fantasy names still match). Short names (<2 chars) are ignored to avoid noise.
+function isMentioned(text: string, user: WorldUser): boolean {
+  return [user.characterName, user.name].some((name) => {
+    const needle = name?.trim()
+    if (!needle || needle.length < 2) return false
+    try {
+      return new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegExp(needle)}([^\\p{L}\\p{N}]|$)`, 'iu').test(text)
+    } catch {
+      return text.toLowerCase().includes(needle.toLowerCase())
+    }
+  })
+}
+
+// Who to notify, minus the author and anyone currently connected. Whispers always
+// reach their targets. For a public message the world scope decides: 'all' →
+// everyone who can see it; 'mentions' → only users named in the text.
+function recipientsFor(msg: ChatMessageLike, scope: PushScope): string[] {
   const author = authorId(msg)
+  const whisper = whisperIds(msg)
+  let candidates: string[]
+  if (whisper.length) {
+    candidates = whisper
+  } else if (scope === 'all') {
+    candidates = worldUsers().map((u) => u.id)
+  } else {
+    const text = plainText(msg.content)
+    candidates = text ? worldUsers().filter((u) => isMentioned(text, u)).map((u) => u.id) : []
+  }
   return [...new Set(candidates)].filter((id) => id && id !== author && !isActiveUser(id))
 }
 
@@ -129,7 +167,7 @@ export async function notifyChatMessage(message: unknown): Promise<void> {
 
     const msg = message as ChatMessageLike
     if (!isNotifiableMessage(msg)) return
-    const recipients = recipientsFor(msg)
+    const recipients = recipientsFor(msg, config.scope)
     if (!recipients.length) return
 
     const res = await fetch(`${config.relayUrl}/notify`, {
