@@ -106,6 +106,44 @@ export function useChatScroll(options: { onAtBottom?: () => void } = {}) {
     })
   }
 
+  // Deep-link: scroll a specific message (by Foundry _id) just below the top
+  // edge. The row may not exist yet on a cold-start open (messages hydrate after
+  // the world arrives), so poll until it appears within a deadline, then re-pin
+  // while late content settles — same idea as positionOnOpen.
+  function scrollToMessage(id: string) {
+    const escape = window.CSS?.escape ?? ((value: string) => value)
+    const selector = `[data-message-id="${escape(id)}"]`
+    const deadline = performance.now() + 15000
+
+    const pin = () => {
+      const el = scrollContainer.value
+      const target = el?.querySelector<HTMLElement>(selector)
+      if (el && target) el.scrollTop = Math.max(0, target.offsetTop - 12)
+      return !!target
+    }
+
+    const attempt = () => {
+      const el = scrollContainer.value
+      if (!el || !el.querySelector(selector)) {
+        if (performance.now() < deadline) window.setTimeout(attempt, 120)
+        return
+      }
+      // Cancel any in-flight open-settle so it doesn't pull us back to the
+      // unread divider, then run our own settle pinned to the target message.
+      stopOpenSettle()
+      pin()
+      const content = el.firstElementChild
+      if (!content) return
+      openSettleObserver = new ResizeObserver(() => pin())
+      openSettleObserver.observe(content)
+      openSettleLoadHandler = () => pin()
+      el.addEventListener('load', openSettleLoadHandler, true)
+      openSettleHardCapTimer = window.setTimeout(stopOpenSettle, 1500)
+    }
+
+    nextTick(attempt)
+  }
+
   function scrollToBottom(smooth = false) {
     nextTick(() => {
       const el = scrollContainer.value
@@ -145,5 +183,5 @@ export function useChatScroll(options: { onAtBottom?: () => void } = {}) {
     stopOpenSettle()
   })
 
-  return { scrollContainer, isAtBottom, onScroll, positionOnOpen, stopOpenSettle, scrollToBottom }
+  return { scrollContainer, isAtBottom, onScroll, positionOnOpen, stopOpenSettle, scrollToBottom, scrollToMessage }
 }

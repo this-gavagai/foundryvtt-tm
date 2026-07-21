@@ -9,6 +9,8 @@ import type { ActiveRoll } from '@/types/api-types'
 const props = defineProps<{
   view: ChatMessageView
   unread: boolean
+  // Briefly ringed after a push-notification tap deep-links to this message.
+  highlighted?: boolean
   // Inline check buttons roll as the active character; without one they hide.
   actorId: string | null | undefined
   inlineCheckLabel: (check: ActiveRoll) => string
@@ -34,8 +36,11 @@ function handleContentClick(event: MouseEvent) {
 <template>
   <li
     data-part="chat-message"
-    class="rounded-md border p-3"
-    :class="unread ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'"
+    class="rounded-md border p-3 transition-shadow"
+    :class="[
+      unread ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50',
+      highlighted ? 'ring-2 ring-amber-400 ring-offset-1' : ''
+    ]"
     :data-message-id="view.message._id ?? undefined"
     :data-message-type="view.message.type"
     :data-private="!!view.visibilityLabel"

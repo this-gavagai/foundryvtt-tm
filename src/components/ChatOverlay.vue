@@ -40,8 +40,14 @@ const { messages, renderedMessages, messageIsOwnActor } = useChatMessages(_id)
 const chatStore = useChatStore()
 const { isNativeMobile } = useServerAddressStore()
 
-const { scrollContainer, isAtBottom, onScroll, positionOnOpen, stopOpenSettle, scrollToBottom } =
+const { scrollContainer, isAtBottom, onScroll, positionOnOpen, stopOpenSettle, scrollToBottom, scrollToMessage } =
   useChatScroll({ onAtBottom: () => chatStore.markAllRead() })
+
+// Deep-link focus (from a push-notification tap): the message to land on when
+// the overlay next opens, and the message to briefly highlight.
+const pendingFocusId = ref<string | null>(null)
+const highlightedId = ref<string | null>(null)
+let highlightTimer: number | undefined
 
 const {
   selectedWhisperMode,
@@ -188,14 +194,45 @@ function close() {
 
 onBeforeUnmount(() => {
   closeLayer()
+  if (highlightTimer) window.clearTimeout(highlightTimer)
 })
 
 watch(
   () => isOpen.value,
   (openNow) => {
-    if (openNow) positionOnOpen()
-    else stopOpenSettle()
+    if (openNow) {
+      // A pending deep-link target overrides the usual "land on unread divider".
+      const focus = pendingFocusId.value
+      pendingFocusId.value = null
+      if (focus) scrollToMessage(focus)
+      else positionOnOpen()
+    } else stopOpenSettle()
   }
+)
+
+// Focus a specific message (deep link): highlight it, and either scroll now (if
+// already open) or open — the isOpen watch scrolls once the panel is up.
+function focusMessage(id: string) {
+  highlightedId.value = id
+  if (highlightTimer) window.clearTimeout(highlightTimer)
+  highlightTimer = window.setTimeout(() => (highlightedId.value = null), 4000)
+  if (isOpen.value) scrollToMessage(id)
+  else {
+    pendingFocusId.value = id
+    open()
+  }
+}
+
+// A push tap sets pendingFocusMessageId on the store; react here. `immediate`
+// covers a cold start where the tap fired before this overlay mounted.
+watch(
+  () => chatStore.pendingFocusMessageId,
+  (id) => {
+    if (!id) return
+    chatStore.consumeFocusMessage()
+    focusMessage(id)
+  },
+  { immediate: true }
 )
 
 watch(
@@ -294,6 +331,7 @@ defineExpose({ open, close, isOpen })
                     <ChatMessageRow
                       :view="view"
                       :unread="chatStore.isUnread(view.message)"
+                      :highlighted="highlightedId === view.message._id"
                       :actor-id="_id"
                       :inline-check-label="inlineCheckLabel"
                       :actions="chatActions"

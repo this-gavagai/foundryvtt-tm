@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core'
 import { PushNotifications } from '@capacitor/push-notifications'
 import { registerPush } from './actionRpc'
+import { useChatStore } from '@/stores/chat'
 import { logger } from '@/utils/utilities'
 
 // Push registration (milestone 2). On native launch the app obtains its device
@@ -26,6 +27,21 @@ export async function initPushNotifications(): Promise<void> {
   })
   await PushNotifications.addListener('registrationError', (err) => {
     logger.warn('[push] registration error:', JSON.stringify(err))
+  })
+
+  // Tapping a notification deep-links to the message. The relay stamps the
+  // ChatMessage id as `tmMessageId` in the payload; hand it to the chat store,
+  // which the chat overlay watches (opens + scrolls to + highlights it). Works
+  // on cold start too — the overlay's watcher is `immediate`, so an intent set
+  // before it mounts is picked up once it does.
+  await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+    const messageId = (action.notification?.data as { tmMessageId?: string } | undefined)?.tmMessageId
+    if (typeof messageId !== 'string' || !messageId) return
+    try {
+      useChatStore().requestFocusMessage(messageId)
+    } catch (err) {
+      logger.warn('[push] could not route notification tap:', err)
+    }
   })
 
   const perm = await PushNotifications.requestPermissions()

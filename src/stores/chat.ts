@@ -217,6 +217,17 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  // Deep-link target: a push-notification tap requests focusing a specific
+  // message. The chat overlay watches this, opens, scrolls to + highlights the
+  // message, then consumes it. Set from non-component code (pushNotifications.ts).
+  const pendingFocusMessageId = ref<string | null>(null)
+  function requestFocusMessage(id: string): void {
+    pendingFocusMessageId.value = id
+  }
+  function consumeFocusMessage(): void {
+    pendingFocusMessageId.value = null
+  }
+
   return {
     cachedMessages,
     lastReadTimestamp,
@@ -225,6 +236,9 @@ export const useChatStore = defineStore('chat', () => {
     hasUnread,
     isUnread,
     beginSession,
-    markAllRead
+    markAllRead,
+    pendingFocusMessageId,
+    requestFocusMessage,
+    consumeFocusMessage
   }
 })

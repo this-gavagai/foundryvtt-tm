@@ -13,12 +13,18 @@ import { logger } from '@/utils/utilities'
 // Structural view of the bits of ChatMessage we read; Foundry's types are loose
 // here and vary by version, so we access defensively.
 interface ChatMessageLike {
+  id?: string
+  _id?: string
   alias?: string
   content?: string
   whisper?: Array<string | { id?: string }>
   author?: { id?: string; _id?: string; name?: string }
   user?: { id?: string; name?: string }
   rolls?: unknown[]
+}
+
+function messageId(msg: ChatMessageLike): string | undefined {
+  return msg.id ?? msg._id
 }
 
 function authorId(msg: ChatMessageLike): string | undefined {
@@ -133,7 +139,8 @@ export async function notifyChatMessage(message: unknown): Promise<void> {
         worldId: config.worldId,
         recipients,
         title: notificationTitle(msg),
-        body: notificationBody(msg, config.includeBody)
+        body: notificationBody(msg, config.includeBody),
+        messageId: messageId(msg)
       })
     })
     if (!res.ok) {
