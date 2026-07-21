@@ -3,9 +3,9 @@
 // Called from the createChatMessage hook, which fires in EVERY connected
 // browser — so we leader-elect on the primary GM (game.users.activeGM) to post
 // exactly once. Recipients are everyone who can see the message (whisper targets
-// if whispered, otherwise all users), minus the author. The relay only pushes to
-// users that actually have a registered device, so sending the full candidate
-// list is fine. Per the product decision, notifications carry sender + body.
+// if whispered, otherwise all users), minus the author and anyone currently
+// connected (they're already looking at the game). Unattributable/empty system
+// messages are skipped. The relay only pushes to users with a registered device.
 
 import { readPushConfig } from './pushRegistration'
 import { logger } from '@/utils/utilities'
@@ -18,10 +18,19 @@ interface ChatMessageLike {
   whisper?: Array<string | { id?: string }>
   author?: { id?: string; _id?: string; name?: string }
   user?: { id?: string; name?: string }
+  rolls?: unknown[]
 }
 
 function authorId(msg: ChatMessageLike): string | undefined {
   return msg.author?.id ?? msg.author?._id ?? msg.user?.id
+}
+
+// A user connected to the world right now is looking at the game, so a push
+// would be redundant. Backgrounding the app drops its socket, which flips the
+// user inactive and makes them eligible again — exactly when a push is wanted.
+function isActiveUser(userId: string): boolean {
+  const users = game.users as unknown as { get?: (id: string) => { active?: boolean } | undefined }
+  return users.get?.(userId)?.active === true
 }
 
 function whisperIds(msg: ChatMessageLike): string[] {
@@ -34,13 +43,13 @@ function allUserIds(): string[] {
   return users?.contents?.map((u) => u.id).filter((id): id is string => !!id) ?? []
 }
 
-// Everyone who can see the message, minus the author. Whispered → its targets;
-// public → all users.
+// Everyone who can see the message, minus the author and anyone currently
+// connected. Whispered → its targets; public → all users.
 function recipientsFor(msg: ChatMessageLike): string[] {
   const whisper = whisperIds(msg)
   const candidates = whisper.length ? whisper : allUserIds()
   const author = authorId(msg)
-  return [...new Set(candidates)].filter((id) => id && id !== author)
+  return [...new Set(candidates)].filter((id) => id && id !== author && !isActiveUser(id))
 }
 
 function senderName(msg: ChatMessageLike): string {
@@ -71,18 +80,31 @@ function notificationTitle(msg: ChatMessageLike): string {
   return `${truncate(worldName(), gameMax)}${TITLE_SEPARATOR}${senderName(msg)}`
 }
 
-// HTML content → a short plain-text line for the notification body.
-function bodyText(html: string | undefined): string {
+// HTML content → collapsed plain text ('' when there's nothing to show).
+function plainText(html: string | undefined): string {
   const text = new DOMParser().parseFromString(html ?? '', 'text/html').body.textContent ?? ''
-  const trimmed = text.replace(/\s+/g, ' ').trim()
-  if (!trimmed) return 'sent a message'
-  return trimmed.length > 180 ? `${trimmed.slice(0, 179)}…` : trimmed
+  return text.replace(/\s+/g, ' ').trim()
+}
+
+// A short plain-text line for the notification body.
+function bodyText(html: string | undefined): string {
+  const text = plainText(html)
+  if (!text) return 'sent a message'
+  return text.length > 180 ? `${text.slice(0, 179)}…` : text
 }
 
 // Body respects the per-world opt-in: when message text is off (default), the
 // content is never even read/sent — recipients get a sender-only notification.
 function notificationBody(msg: ChatMessageLike, includeBody: boolean): string {
   return includeBody ? bodyText(msg.content) : 'sent a message'
+}
+
+// Skip noise: unattributable messages (no author — system/automation output, and
+// we couldn't name a sender anyway) and empty messages carrying neither text nor
+// a roll.
+function isNotifiableMessage(msg: ChatMessageLike): boolean {
+  if (!authorId(msg)) return false
+  return plainText(msg.content).length > 0 || (Array.isArray(msg.rolls) && msg.rolls.length > 0)
 }
 
 function isPrimaryGM(): boolean {
@@ -100,6 +122,7 @@ export async function notifyChatMessage(message: unknown): Promise<void> {
     if (!config) return
 
     const msg = message as ChatMessageLike
+    if (!isNotifiableMessage(msg)) return
     const recipients = recipientsFor(msg)
     if (!recipients.length) return
 
