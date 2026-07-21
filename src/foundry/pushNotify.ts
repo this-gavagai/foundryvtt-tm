@@ -47,35 +47,31 @@ function whisperIds(msg: ChatMessageLike): string[] {
 interface WorldUser {
   id: string
   name?: string
-  characterName?: string
 }
 
 function worldUsers(): WorldUser[] {
-  const users = game.users as unknown as
-    | { contents?: Array<{ id?: string; name?: string; character?: { name?: string } | null }> }
-    | undefined
+  const users = game.users as unknown as { contents?: Array<{ id?: string; name?: string }> } | undefined
   return (users?.contents ?? [])
-    .filter((u): u is { id: string; name?: string; character?: { name?: string } | null } => !!u.id)
-    .map((u) => ({ id: u.id, name: u.name, characterName: u.character?.name }))
+    .filter((u): u is { id: string; name?: string } => !!u.id)
+    .map((u) => ({ id: u.id, name: u.name }))
 }
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-// A public message "mentions" a user when their character name or user name
-// appears as a whole word in the text (unicode-aware boundaries so accented
-// fantasy names still match). Short names (<2 chars) are ignored to avoid noise.
+// A public message "mentions" a user when their Foundry username appears as a
+// whole word in the text — the same identity whispers target (/w [username], see
+// useWhisperTargets.ts). Unicode-aware boundaries so accented names still match;
+// names under 2 chars are skipped to avoid noise.
 function isMentioned(text: string, user: WorldUser): boolean {
-  return [user.characterName, user.name].some((name) => {
-    const needle = name?.trim()
-    if (!needle || needle.length < 2) return false
-    try {
-      return new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegExp(needle)}([^\\p{L}\\p{N}]|$)`, 'iu').test(text)
-    } catch {
-      return text.toLowerCase().includes(needle.toLowerCase())
-    }
-  })
+  const needle = user.name?.trim()
+  if (!needle || needle.length < 2) return false
+  try {
+    return new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegExp(needle)}([^\\p{L}\\p{N}]|$)`, 'iu').test(text)
+  } catch {
+    return text.toLowerCase().includes(needle.toLowerCase())
+  }
 }
 
 // Who to notify, minus the author and anyone currently connected. Whispers always

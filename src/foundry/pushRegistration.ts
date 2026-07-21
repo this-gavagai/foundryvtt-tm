@@ -68,8 +68,8 @@ export function registerPushSettings() {
     name: 'Notify on',
     hint:
       'Which messages trigger a push. "Whispers & mentions" (default) notifies a ' +
-      'user only when a message is whispered to them or names their character or ' +
-      'user. "All messages" notifies everyone who can see each message.',
+      'user only when a message is whispered to them or names their username. ' +
+      '"All messages" notifies everyone who can see each message.',
     scope: 'world',
     config: true,
     type: String,
