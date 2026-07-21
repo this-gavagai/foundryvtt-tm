@@ -224,6 +224,25 @@ describe('/notify delivery behaviour', () => {
     expect(env.TOKENS.store.get(`tok:${worldPushId}:alice`)).toBe('[]')
   })
 
+  it('prunes an abandoned registration (updatedAt older than the stale window)', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA')
+    // Age the stored registration well past the 30-day stale window.
+    const key = `tok:${worldPushId}:alice`
+    const regs = JSON.parse(env.TOKENS.store.get(key)!)
+    regs[0].updatedAt = Date.now() - 40 * 24 * 60 * 60 * 1000
+    env.TOKENS.store.set(key, JSON.stringify(regs))
+
+    apnsCalls = []
+    await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(apnsCalls.length).toBe(0) // never contacted
+    expect(env.TOKENS.store.get(key)).toBe('[]') // and removed
+  })
+
   it('forwards messageId as a custom apns key (via successful send)', async () => {
     const { worldPushId, worldKey } = await provisionWorld()
     await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA')

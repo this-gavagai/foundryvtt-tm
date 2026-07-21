@@ -50,6 +50,11 @@ const NOTIFY_PER_MINUTE = 60
 const PROVISION_PER_MINUTE_PER_IP = 20
 const REGISTER_PER_MINUTE_PER_IP = 30
 
+// The app re-registers (refreshing updatedAt) on every launch, so a registration
+// untouched for this long is an abandoned device (uninstalled without an APNs
+// dead-token signal, or a world the user left) and is pruned lazily on notify.
+const STALE_REGISTRATION_MS = 30 * 24 * 60 * 60 * 1000
+
 // ---------------------------------------------------------------------------
 // base64 / base64url helpers
 
@@ -333,10 +338,14 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
   if (await overLimit(env, `rl:${p.worldId}`, NOTIFY_PER_MINUTE)) return json({ error: 'rate limited' }, 429)
 
   const results: Array<Record<string, unknown>> = []
+  const now = Date.now()
   for (const userId of p.recipients) {
-    const regs = await readRegistrations(env, p.worldId, userId)
+    const stored = await readRegistrations(env, p.worldId, userId)
+    // Drop abandoned registrations before sending; the difference is written back
+    // via the `mutated` flag below.
+    const regs = stored.filter((r) => now - (r.updatedAt ?? 0) < STALE_REGISTRATION_MS)
     const survivors: Registration[] = []
-    let mutated = false
+    let mutated = regs.length !== stored.length
     for (const reg of regs) {
       if (reg.platform !== 'ios') {
         results.push({ userId, platform: reg.platform, skipped: 'non-ios not wired yet' })

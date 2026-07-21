@@ -100,6 +100,23 @@ The `apns.body` field in the JSON response carries Apple's reason on failure:
 
 Watch live logs while testing: `npx wrangler tail`.
 
+## Privacy
+
+Push is **off by default** — a GM enables it per world (Tablemate settings →
+"Enable push notifications"), an informed opt-in because it sends data off the
+table. When enabled, for each chat message the relay receives: the world's opaque
+id, the recipient user ids, the sender's display name, and — **only if the GM also
+enables "Include message text"** — the message body. Device tokens are sent once
+at registration. This data transits the relay (Cloudflare) and Apple/Google in
+order to deliver the notification.
+
+- With "Include message text" **off** (default), message content is never sent to
+  the relay at all — notifications are sender-only.
+- The relay **stores** only device tokens (in KV, keyed by world+user) and short
+  rate-limit counters. It does **not** store notification content. Tokens are
+  pruned when APNs reports them dead, or after 30 days without re-registration.
+- To stop all of it, turn off "Enable push notifications" in the world settings.
+
 ## Abuse controls
 
 The Worker applies coarse per-minute limits in KV: `/notify` per world (60), and
