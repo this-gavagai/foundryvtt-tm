@@ -41,9 +41,14 @@ interface Registration {
   updatedAt: number
 }
 
-// Max /notify calls per world per minute — a coarse abuse backstop. KV is
-// eventually consistent, so this is approximate, which is fine as a ceiling.
+// Coarse per-minute abuse backstops. KV is eventually consistent, so these are
+// approximate ceilings — a determined distributed attacker can exceed them, so
+// pair them with a Cloudflare edge Rate Limiting rule (see README). Legit
+// provision/register happen a handful of times per client, so the per-IP caps
+// are generous for normal use while stopping a single source from hammering.
 const NOTIFY_PER_MINUTE = 60
+const PROVISION_PER_MINUTE_PER_IP = 20
+const REGISTER_PER_MINUTE_PER_IP = 30
 
 // ---------------------------------------------------------------------------
 // base64 / base64url helpers
@@ -212,19 +217,32 @@ function isDeadToken(result: ApnsResult): boolean {
   return result.status === 410 || (result.status === 400 && result.body.includes('BadDeviceToken'))
 }
 
-async function rateLimited(env: Env, worldPushId: string): Promise<boolean> {
+// Increment a per-minute counter under `key` and report whether it's over limit.
+// Approximate (KV eventual consistency) — a coarse ceiling, not a hard guarantee.
+async function overLimit(env: Env, key: string, limit: number): Promise<boolean> {
   const bucket = Math.floor(Date.now() / 60000)
-  const k = `rl:${worldPushId}:${bucket}`
+  const k = `${key}:${bucket}`
   const current = parseInt((await env.TOKENS.get(k)) || '0', 10)
-  if (current >= NOTIFY_PER_MINUTE) return true
+  if (current >= limit) return true
   await env.TOKENS.put(k, String(current + 1), { expirationTtl: 120 })
   return false
+}
+
+// Cloudflare sets CF-Connecting-IP to the real client IP; fall back to a
+// constant so a missing header degrades to a single shared bucket, not no limit.
+function clientIp(request: Request): string {
+  return request.headers.get('CF-Connecting-IP') || 'unknown'
 }
 
 // ---------------------------------------------------------------------------
 // Handlers
 
 async function handleProvision(request: Request, env: Env): Promise<Response> {
+  // /provision is necessarily unauthenticated (TOFU), so per-IP throttle it to
+  // stop a single source from creating unbounded world entries.
+  if (await overLimit(env, `iprl:prov:${clientIp(request)}`, PROVISION_PER_MINUTE_PER_IP)) {
+    return json({ error: 'rate limited' }, 429)
+  }
   const p = (await request.json().catch(() => null)) as { worldPushId?: string; worldKey?: string } | null
   if (!p?.worldPushId || !p.worldKey) return json({ error: 'worldPushId and worldKey are required' }, 400)
 
@@ -240,6 +258,11 @@ async function handleProvision(request: Request, env: Env): Promise<Response> {
 }
 
 async function handleRegister(request: Request, env: Env): Promise<Response> {
+  // Gated by a valid regToken, but per-IP throttle anyway so a source that has
+  // (or self-mints) a world key can't hammer KV writes.
+  if (await overLimit(env, `iprl:reg:${clientIp(request)}`, REGISTER_PER_MINUTE_PER_IP)) {
+    return json({ error: 'rate limited' }, 429)
+  }
   const p = (await request.json().catch(() => null)) as {
     regToken?: string
     worldId?: string
@@ -296,7 +319,7 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
   if (!worldKey || request.headers.get('authorization') !== `Bearer ${worldKey}`) {
     return json({ error: 'unauthorized' }, 401)
   }
-  if (await rateLimited(env, p.worldId)) return json({ error: 'rate limited' }, 429)
+  if (await overLimit(env, `rl:${p.worldId}`, NOTIFY_PER_MINUTE)) return json({ error: 'rate limited' }, 429)
 
   const results: Array<Record<string, unknown>> = []
   for (const userId of p.recipients) {

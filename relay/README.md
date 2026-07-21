@@ -100,6 +100,19 @@ The `apns.body` field in the JSON response carries Apple's reason on failure:
 
 Watch live logs while testing: `npx wrangler tail`.
 
+## Abuse controls
+
+The Worker applies coarse per-minute limits in KV: `/notify` per world (60), and
+per-IP caps on `/provision` (20) and `/register` (30). KV is eventually
+consistent, so these are approximate ceilings — good against a single hammering
+source, but a distributed attacker can exceed them.
+
+For a hard, edge-enforced backstop, add a **Cloudflare Rate Limiting rule** (free
+tier) in the dashboard: Security → WAF → Rate limiting rules → e.g. match
+`http.request.uri.path in {"/provision" "/register" "/notify"}`, 100 requests /
+1 min per client IP, action Block. That enforces at the edge before the Worker
+runs, closing the eventual-consistency gap.
+
 ## Local dev (optional)
 
 `npm run dev` runs `wrangler dev --remote`, which executes on the edge using the
