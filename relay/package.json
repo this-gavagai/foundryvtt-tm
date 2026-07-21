@@ -8,9 +8,11 @@
     "secrets": "bash scripts/push-secrets.sh",
     "dev": "wrangler dev --remote",
     "deploy": "wrangler deploy",
-    "tail": "wrangler tail"
+    "tail": "wrangler tail",
+    "test": "vitest run"
   },
   "devDependencies": {
+    "vitest": "^2.1.0",
     "wrangler": "^4.0.0"
   }
 }
