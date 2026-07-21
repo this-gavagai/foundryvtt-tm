@@ -1,32 +1,37 @@
 // tablemate-push-relay
 //
-// A stateless Cloudflare Worker that relays push notifications to Apple Push
-// Notification service (APNs). It signs a short-lived ES256 JWT with the APNs
-// .p8 auth key and POSTs alerts to APNs over HTTP/2.
+// A stateless, multi-tenant Cloudflare Worker that relays push notifications to
+// APNs for the Tabula Mensa app. One relay + one APNs key serves every Foundry
+// world running the tablemate module.
+//
+// Trust model: each world auto-generates a random opaque worldPushId + secret
+// worldKey (in the module) and provisions them here (TOFU — first writer for a
+// worldPushId wins). Outsiders can't guess a world's random id or read its key
+// (a Foundry world setting), so they can't register or notify for it. Within a
+// world the key is shared among members — the same trust boundary Foundry itself
+// uses. Sends default to sender-only; bodies are a per-world GM opt-in decided
+// module-side, so message text only reaches the relay when the GM turns it on.
 //
 // Endpoints:
-//   POST /send      test push to an explicit device token (milestone 1)
-//   POST /register  store a device token for a (worldId, userId) (milestone 2)
-//   POST /notify    push to everyone registered under (worldId, userId) (m2)
-//
-// FCM/Android and Web Push are later milestones; /notify currently sends APNs
-// only and skips non-ios registrations.
+//   POST /provision  {worldPushId, worldKey}            store a world's key (TOFU)
+//   POST /register   {regToken, deviceToken, platform}  bind a device to a user
+//   POST /notify     {worldId, recipients, title, body} push to a world's users
+//   POST /send       {deviceToken, title, body, env}    admin test (RELAY_TEST_SECRET)
 
 interface KVNamespace {
   get(key: string): Promise<string | null>
-  put(key: string, value: string): Promise<void>
+  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>
   delete(key: string): Promise<void>
 }
 
 export interface Env {
-  APNS_KEY: string // full .p8 contents (PEM, incl. BEGIN/END lines)
-  APNS_KEY_ID: string // 10-char Key ID of the .p8
-  APNS_TEAM_ID: string // 10-char Apple Team ID
-  APNS_BUNDLE_ID: string // e.g. io.github.thisgavagai.tablemate
-  APNS_ENV: string // default 'sandbox' | 'production' when a request omits env
-  RELAY_TEST_SECRET: string // admin bearer for /send and direct /register
-  WORLD_PUSH_KEY: string // shared secret: signs reg tokens, authorises /notify
-  TOKENS: KVNamespace // device-token store
+  APNS_KEY: string
+  APNS_KEY_ID: string
+  APNS_TEAM_ID: string
+  APNS_BUNDLE_ID: string
+  APNS_ENV: string
+  RELAY_TEST_SECRET: string // admin bearer for /send and admin /register
+  TOKENS: KVNamespace
 }
 
 interface Registration {
@@ -35,6 +40,10 @@ interface Registration {
   env: 'sandbox' | 'production'
   updatedAt: number
 }
+
+// Max /notify calls per world per minute — a coarse abuse backstop. KV is
+// eventually consistent, so this is approximate, which is fine as a ceiling.
+const NOTIFY_PER_MINUTE = 60
 
 // ---------------------------------------------------------------------------
 // base64 / base64url helpers
@@ -91,18 +100,11 @@ async function getSigningKey(env: Env): Promise<CryptoKey> {
 async function getApnsJwt(env: Env): Promise<string> {
   const now = Math.floor(Date.now() / 1000)
   if (cachedJwt && now - cachedJwt.iat < 3000) return cachedJwt.token
-
   const header = base64UrlFromString(JSON.stringify({ alg: 'ES256', kid: env.APNS_KEY_ID }))
   const payload = base64UrlFromString(JSON.stringify({ iss: env.APNS_TEAM_ID, iat: now }))
   const signingInput = `${header}.${payload}`
-
   const key = await getSigningKey(env)
-  const signature = await crypto.subtle.sign(
-    { name: 'ECDSA', hash: 'SHA-256' },
-    key,
-    new TextEncoder().encode(signingInput),
-  )
-
+  const signature = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, new TextEncoder().encode(signingInput))
   const token = `${signingInput}.${base64UrlFromBytes(signature)}`
   cachedJwt = { token, iat: now }
   return token
@@ -114,17 +116,10 @@ interface ApnsResult {
   body: string
 }
 
-async function sendApns(
-  env: Env,
-  deviceToken: string,
-  title: string,
-  body: string,
-  envOverride?: string,
-): Promise<ApnsResult> {
+async function sendApns(env: Env, deviceToken: string, title: string, body: string, envOverride?: string): Promise<ApnsResult> {
   const apnsEnv = envOverride ?? env.APNS_ENV
   const host = apnsEnv === 'production' ? 'https://api.push.apple.com' : 'https://api.sandbox.push.apple.com'
   const jwt = await getApnsJwt(env)
-
   const res = await fetch(`${host}/3/device/${deviceToken}`, {
     method: 'POST',
     headers: {
@@ -136,43 +131,57 @@ async function sendApns(
     },
     body: JSON.stringify({ aps: { alert: { title, body }, sound: 'default' } }),
   })
-
   return { status: res.status, apnsId: res.headers.get('apns-id'), body: await res.text() }
 }
 
 // ---------------------------------------------------------------------------
-// Registration-token verification (HMAC-SHA256, minted by the Foundry module)
-//
-// Format: base64url(JSON {worldId, userId, exp}) + "." + base64url(HMAC)
+// Per-world key store + registration tokens
 
-async function verifyRegToken(token: string, key: string): Promise<{ worldId: string; userId: string } | null> {
-  const parts = token.split('.')
-  if (parts.length !== 2) return null
-  const [payloadB64, sigB64] = parts
+interface RegTokenPayload {
+  worldId: string
+  userId: string
+  exp?: number
+}
 
-  const enc = new TextEncoder()
-  const cryptoKey = await crypto.subtle.importKey('raw', enc.encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, [
-    'verify',
-  ])
-  const valid = await crypto.subtle.verify('HMAC', cryptoKey, base64UrlToBytes(sigB64), enc.encode(payloadB64))
-  if (!valid) return null
-
-  let payload: { worldId?: string; userId?: string; exp?: number }
+async function worldKeyOf(env: Env, worldPushId: string): Promise<string | null> {
+  const raw = await env.TOKENS.get(`world:${worldPushId}`)
+  if (!raw) return null
   try {
-    payload = JSON.parse(new TextDecoder().decode(base64UrlToBytes(payloadB64)))
+    return (JSON.parse(raw) as { key?: string }).key ?? null
   } catch {
     return null
   }
-  if (!payload.worldId || !payload.userId) return null
+}
+
+function parseRegTokenPayload(token: string): RegTokenPayload | null {
+  const [payloadB64] = token.split('.')
+  if (!payloadB64) return null
+  try {
+    const p = JSON.parse(new TextDecoder().decode(base64UrlToBytes(payloadB64)))
+    if (!p.worldId || !p.userId) return null
+    return p
+  } catch {
+    return null
+  }
+}
+
+// Verify base64url(payload).base64url(HMAC(payload)) against a world's key.
+async function verifyRegToken(token: string, key: string): Promise<RegTokenPayload | null> {
+  const parts = token.split('.')
+  if (parts.length !== 2) return null
+  const [payloadB64, sigB64] = parts
+  const enc = new TextEncoder()
+  const cryptoKey = await crypto.subtle.importKey('raw', enc.encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify'])
+  const valid = await crypto.subtle.verify('HMAC', cryptoKey, base64UrlToBytes(sigB64), enc.encode(payloadB64))
+  if (!valid) return null
+  const payload = parseRegTokenPayload(token)
+  if (!payload) return null
   if (typeof payload.exp === 'number' && Math.floor(Date.now() / 1000) > payload.exp) return null
-  return { worldId: String(payload.worldId), userId: String(payload.userId) }
+  return payload
 }
 
 // ---------------------------------------------------------------------------
 
-// The module and client call the relay from a browser origin (the Foundry page /
-// the app WebView), so browser fetches need CORS. Auth is by bearer token, never
-// cookies, so a wildcard origin is safe here.
 const CORS_HEADERS: Record<string, string> = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'POST, OPTIONS',
@@ -181,18 +190,15 @@ const CORS_HEADERS: Record<string, string> = {
 }
 
 function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'content-type': 'application/json', ...CORS_HEADERS },
-  })
+  return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', ...CORS_HEADERS } })
 }
 
-function tokenKey(worldId: string, userId: string): string {
-  return `tok:${worldId}:${userId}`
+function tokenKey(worldPushId: string, userId: string): string {
+  return `tok:${worldPushId}:${userId}`
 }
 
-async function readRegistrations(env: Env, worldId: string, userId: string): Promise<Registration[]> {
-  const raw = await env.TOKENS.get(tokenKey(worldId, userId))
+async function readRegistrations(env: Env, worldPushId: string, userId: string): Promise<Registration[]> {
+  const raw = await env.TOKENS.get(tokenKey(worldPushId, userId))
   if (!raw) return []
   try {
     const parsed = JSON.parse(raw)
@@ -202,31 +208,35 @@ async function readRegistrations(env: Env, worldId: string, userId: string): Pro
   }
 }
 
-// A device token is dead when APNs says it's unregistered (410) or invalid
-// (400 BadDeviceToken). Environment mismatches are NOT dead — the app re-registers
-// with its current env on launch, so we leave those in place.
 function isDeadToken(result: ApnsResult): boolean {
   return result.status === 410 || (result.status === 400 && result.body.includes('BadDeviceToken'))
+}
+
+async function rateLimited(env: Env, worldPushId: string): Promise<boolean> {
+  const bucket = Math.floor(Date.now() / 60000)
+  const k = `rl:${worldPushId}:${bucket}`
+  const current = parseInt((await env.TOKENS.get(k)) || '0', 10)
+  if (current >= NOTIFY_PER_MINUTE) return true
+  await env.TOKENS.put(k, String(current + 1), { expirationTtl: 120 })
+  return false
 }
 
 // ---------------------------------------------------------------------------
 // Handlers
 
-async function handleSend(request: Request, env: Env): Promise<Response> {
-  if (request.headers.get('authorization') !== `Bearer ${env.RELAY_TEST_SECRET}`) {
-    return json({ error: 'unauthorized' }, 401)
+async function handleProvision(request: Request, env: Env): Promise<Response> {
+  const p = (await request.json().catch(() => null)) as { worldPushId?: string; worldKey?: string } | null
+  if (!p?.worldPushId || !p.worldKey) return json({ error: 'worldPushId and worldKey are required' }, 400)
+
+  // TOFU: the first writer for a (random, unguessable) worldPushId owns it.
+  // A later request with a different key is rejected, so no one can hijack a
+  // world already claimed. Re-provisioning with the same key is a no-op.
+  const existing = await worldKeyOf(env, p.worldPushId)
+  if (existing && existing !== p.worldKey) return json({ error: 'worldPushId already provisioned' }, 409)
+  if (!existing) {
+    await env.TOKENS.put(`world:${p.worldPushId}`, JSON.stringify({ key: p.worldKey, createdAt: Date.now() }))
   }
-  const p = (await request.json().catch(() => null)) as {
-    deviceToken?: string
-    title?: string
-    body?: string
-    env?: string
-  } | null
-  if (!p?.deviceToken || !p.title || !p.body) {
-    return json({ error: 'deviceToken, title and body are required' }, 400)
-  }
-  const result = await sendApns(env, p.deviceToken, p.title, p.body, p.env)
-  return json({ ok: result.status === 200, apns: result }, result.status === 200 ? 200 : 502)
+  return json({ ok: true })
 }
 
 async function handleRegister(request: Request, env: Env): Promise<Response> {
@@ -240,44 +250,37 @@ async function handleRegister(request: Request, env: Env): Promise<Response> {
   } | null
   if (!p) return json({ error: 'invalid json' }, 400)
 
-  // Identity comes from a module-minted reg token (preferred) or, for testing,
-  // the admin bearer with worldId/userId supplied directly in the body.
-  let worldId: string
+  let worldPushId: string
   let userId: string
   const admin = request.headers.get('authorization') === `Bearer ${env.RELAY_TEST_SECRET}`
-  if (p.regToken && env.WORLD_PUSH_KEY) {
-    const verified = await verifyRegToken(p.regToken, env.WORLD_PUSH_KEY)
+  if (p.regToken) {
+    const claimed = parseRegTokenPayload(p.regToken)
+    if (!claimed) return json({ error: 'invalid regToken' }, 401)
+    const key = await worldKeyOf(env, claimed.worldId)
+    if (!key) return json({ error: 'world not provisioned' }, 401)
+    const verified = await verifyRegToken(p.regToken, key)
     if (!verified) return json({ error: 'invalid regToken' }, 401)
-    worldId = verified.worldId
+    worldPushId = verified.worldId
     userId = verified.userId
   } else if (admin) {
     if (!p.worldId || !p.userId) return json({ error: 'worldId and userId required with admin bearer' }, 400)
-    worldId = p.worldId
+    worldPushId = p.worldId
     userId = p.userId
   } else {
     return json({ error: 'unauthorized' }, 401)
   }
 
-  if (!p.deviceToken || !p.platform) {
-    return json({ error: 'deviceToken and platform are required' }, 400)
-  }
+  if (!p.deviceToken || !p.platform) return json({ error: 'deviceToken and platform are required' }, 400)
 
-  // env is a hint only — the app can't reliably read its aps-environment. Default
-  // to the relay's configured env; /notify self-heals to the correct one on send.
   const tokenEnv: Registration['env'] =
     p.env === 'production' || p.env === 'sandbox' ? p.env : env.APNS_ENV === 'production' ? 'production' : 'sandbox'
-
-  // Upsert by device token so re-registration refreshes env/platform in place.
-  const regs = (await readRegistrations(env, worldId, userId)).filter((r) => r.deviceToken !== p.deviceToken)
+  const regs = (await readRegistrations(env, worldPushId, userId)).filter((r) => r.deviceToken !== p.deviceToken)
   regs.push({ deviceToken: p.deviceToken, platform: p.platform, env: tokenEnv, updatedAt: Date.now() })
-  await env.TOKENS.put(tokenKey(worldId, userId), JSON.stringify(regs))
-  return json({ ok: true, worldId, userId, registrations: regs.length })
+  await env.TOKENS.put(tokenKey(worldPushId, userId), JSON.stringify(regs))
+  return json({ ok: true, worldId: worldPushId, userId, registrations: regs.length })
 }
 
 async function handleNotify(request: Request, env: Env): Promise<Response> {
-  if (!env.WORLD_PUSH_KEY || request.headers.get('authorization') !== `Bearer ${env.WORLD_PUSH_KEY}`) {
-    return json({ error: 'unauthorized' }, 401)
-  }
   const p = (await request.json().catch(() => null)) as {
     worldId?: string
     recipients?: string[]
@@ -287,6 +290,13 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
   if (!p?.worldId || !Array.isArray(p.recipients) || !p.title || !p.body) {
     return json({ error: 'worldId, recipients[], title and body are required' }, 400)
   }
+
+  // Authorise against the world's own key.
+  const worldKey = await worldKeyOf(env, p.worldId)
+  if (!worldKey || request.headers.get('authorization') !== `Bearer ${worldKey}`) {
+    return json({ error: 'unauthorized' }, 401)
+  }
+  if (await rateLimited(env, p.worldId)) return json({ error: 'rate limited' }, 429)
 
   const results: Array<Record<string, unknown>> = []
   for (const userId of p.recipients) {
@@ -299,11 +309,7 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
         survivors.push(reg)
         continue
       }
-
-      // Try the stored environment; on any failure, retry the other one. The app
-      // can't reliably report its aps-environment and a rebuild can flip it, so
-      // the relay discovers the right one and remembers it. A non-200 never
-      // delivered, so retrying can't double-send.
+      // Try stored env; on failure retry the other and remember what delivers.
       let result = await sendApns(env, reg.deviceToken, p.title, p.body, reg.env)
       let usedEnv = reg.env
       if (result.status !== 200) {
@@ -314,47 +320,50 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
           usedEnv = other
         }
       }
-
       const dead = isDeadToken(result)
       results.push({ userId, status: result.status, ok: result.status === 200, env: usedEnv, dead })
       if (dead) {
-        mutated = true // drop it
+        mutated = true
         continue
       }
       if (usedEnv !== reg.env) {
-        reg.env = usedEnv // self-heal the stored environment
+        reg.env = usedEnv
         mutated = true
       }
       survivors.push(reg)
     }
-    if (mutated) {
-      await env.TOKENS.put(tokenKey(p.worldId, userId), JSON.stringify(survivors))
-    }
+    if (mutated) await env.TOKENS.put(tokenKey(p.worldId, userId), JSON.stringify(survivors))
   }
   return json({ ok: true, results })
+}
+
+async function handleSend(request: Request, env: Env): Promise<Response> {
+  if (request.headers.get('authorization') !== `Bearer ${env.RELAY_TEST_SECRET}`) {
+    return json({ error: 'unauthorized' }, 401)
+  }
+  const p = (await request.json().catch(() => null)) as { deviceToken?: string; title?: string; body?: string; env?: string } | null
+  if (!p?.deviceToken || !p.title || !p.body) return json({ error: 'deviceToken, title and body are required' }, 400)
+  const result = await sendApns(env, p.deviceToken, p.title, p.body, p.env)
+  return json({ ok: result.status === 200, apns: result }, result.status === 200 ? 200 : 502)
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
-
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: CORS_HEADERS })
-    }
-
-    if (request.method === 'GET' && url.pathname === '/') {
-      return new Response('tablemate-push-relay ok', { status: 200 })
-    }
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS })
+    if (request.method === 'GET' && url.pathname === '/') return new Response('tablemate-push-relay ok', { status: 200 })
     if (request.method !== 'POST') return json({ error: 'not found' }, 404)
 
     try {
       switch (url.pathname) {
-        case '/send':
-          return await handleSend(request, env)
+        case '/provision':
+          return await handleProvision(request, env)
         case '/register':
           return await handleRegister(request, env)
         case '/notify':
           return await handleNotify(request, env)
+        case '/send':
+          return await handleSend(request, env)
         default:
           return json({ error: 'not found' }, 404)
       }

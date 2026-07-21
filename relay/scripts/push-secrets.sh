@@ -28,7 +28,6 @@ set -a; source "$RELAY_ENV"; set +a
 : "${APNS_KEY_ID:?set APNS_KEY_ID in $RELAY_ENV}"
 : "${APNS_TEAM_ID:?set APNS_TEAM_ID in $RELAY_ENV}"
 : "${RELAY_TEST_SECRET:?set RELAY_TEST_SECRET in $RELAY_ENV}"
-: "${WORLD_PUSH_KEY:?set WORLD_PUSH_KEY in $RELAY_ENV}"
 
 cd "$(dirname "$0")/.."
 
@@ -52,7 +51,6 @@ fi
 printf '%s' "$APNS_KEY_ID"       | npx wrangler secret put APNS_KEY_ID
 printf '%s' "$APNS_TEAM_ID"      | npx wrangler secret put APNS_TEAM_ID
 printf '%s' "$RELAY_TEST_SECRET" | npx wrangler secret put RELAY_TEST_SECRET
-printf '%s' "$WORLD_PUSH_KEY"    | npx wrangler secret put WORLD_PUSH_KEY
 
 echo
 echo "Secrets uploaded. Deploy with: npm run deploy"
