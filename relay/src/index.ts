@@ -143,6 +143,10 @@ async function sendApns(
   // data on tap to deep-link to the message (see src/api/pushNotifications.ts).
   const aps: Record<string, unknown> = { alert: { title, body }, sound: 'default' }
   if (typeof badge === 'number') aps.badge = badge
+  // A portrait URL means the Notification Service Extension has work to do before
+  // the banner shows; mutable-content wakes it. Only set when there's an image, so
+  // portrait-less pushes display immediately without invoking the extension.
+  if (typeof data?.tmPortraitUrl === 'string') aps['mutable-content'] = 1
   const res = await fetch(`${host}/3/device/${deviceToken}`, {
     method: 'POST',
     headers: {
@@ -344,11 +348,20 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
     title?: string
     body?: string
     messageId?: string
+    portraitUrl?: string
   } | null
   if (!p?.worldId || !Array.isArray(p.recipients) || !p.title || !p.body) {
     return json({ error: 'worldId, recipients[], title and body are required' }, 400)
   }
-  const data = p.messageId ? { tmMessageId: p.messageId } : undefined
+  // Custom keys the app/extension read from the notification. tmPortraitUrl, when
+  // present, is an http(s) image the Notification Service Extension downloads and
+  // attaches (see ios/NotificationService); it also flips aps.mutable-content on.
+  const data: Record<string, string> = {}
+  if (p.messageId) data.tmMessageId = p.messageId
+  if (typeof p.portraitUrl === 'string' && /^https?:\/\//i.test(p.portraitUrl)) {
+    data.tmPortraitUrl = p.portraitUrl
+  }
+  const customData = Object.keys(data).length ? data : undefined
 
   // Authorise against the world's own key.
   const worldKey = await worldKeyOf(env, p.worldId)
@@ -375,11 +388,11 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
         continue
       }
       // Try stored env; on failure retry the other and remember what delivers.
-      let result = await sendApns(env, reg.deviceToken, p.title, p.body, reg.env, data, badge)
+      let result = await sendApns(env, reg.deviceToken, p.title, p.body, reg.env, customData, badge)
       let usedEnv = reg.env
       if (result.status !== 200) {
         const other: Registration['env'] = reg.env === 'production' ? 'sandbox' : 'production'
-        const alt = await sendApns(env, reg.deviceToken, p.title, p.body, other, data, badge)
+        const alt = await sendApns(env, reg.deviceToken, p.title, p.body, other, customData, badge)
         if (alt.status === 200 || (isDeadToken(alt) && !isDeadToken(result))) {
           result = alt
           usedEnv = other

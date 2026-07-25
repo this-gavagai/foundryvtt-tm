@@ -20,7 +20,15 @@ interface ChatMessageLike {
   whisper?: Array<string | { id?: string }>
   author?: { id?: string; _id?: string; name?: string }
   user?: { id?: string; name?: string }
+  speaker?: { actor?: string | null }
   rolls?: unknown[]
+}
+
+// The bits of an Actor we read to find its portrait, matching how the app derives
+// one (SideMenu / characterCore): prototype-token art first, then the actor image.
+interface ActorLike {
+  img?: string | null
+  prototypeToken?: { texture?: { src?: string | null } | null } | null
 }
 
 function messageId(msg: ChatMessageLike): string | undefined {
@@ -117,6 +125,26 @@ function senderName(msg: ChatMessageLike): string {
   return msg.alias || msg.author?.name || msg.user?.name || 'Tabula Mensa'
 }
 
+// The speaker's portrait as an absolute http(s) URL, for the notification image
+// (iOS attaches it via the Notification Service Extension). Resolved here in the
+// GM's browser, so relative Foundry paths ("worlds/…") become device-reachable
+// against the world's origin. Non-http art (data:/blob:) is dropped: the phone's
+// extension only fetches over the network, and it would blow the APNs size cap.
+function portraitUrl(msg: ChatMessageLike): string | undefined {
+  const actorId = msg.speaker?.actor
+  if (!actorId) return undefined
+  const actors = game.actors as unknown as { get?: (id: string) => ActorLike | undefined } | undefined
+  const actor = actors?.get?.(actorId)
+  const src = actor?.prototypeToken?.texture?.src ?? actor?.img
+  if (!src) return undefined
+  try {
+    const url = new URL(src, window.location.origin)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : undefined
+  } catch {
+    return undefined
+  }
+}
+
 // Notification title budget. iOS shows roughly this many characters of a title
 // before truncating (conservative for the default text size). We reserve room so
 // at least the first MIN_SENDER_CHARS of the character name always show, and
@@ -195,7 +223,8 @@ export async function notifyChatMessage(message: unknown): Promise<void> {
         recipients,
         title: notificationTitle(msg),
         body: notificationBody(msg, config.includeBody),
-        messageId: messageId(msg)
+        messageId: messageId(msg),
+        portraitUrl: portraitUrl(msg)
       })
     })
     if (!res.ok) {

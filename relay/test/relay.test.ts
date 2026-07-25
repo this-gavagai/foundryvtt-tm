@@ -257,6 +257,40 @@ describe('/notify delivery behaviour', () => {
     expect(res.status).toBe(200)
     expect(apnsCalls.length).toBe(1)
   })
+
+  it('forwards an http(s) portraitUrl and sets mutable-content for the extension', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA')
+    await post(
+      '/notify',
+      {
+        worldId: worldPushId,
+        recipients: ['alice'],
+        title: 't',
+        body: 'b',
+        portraitUrl: 'https://foundry.example/portraits/rogue.webp',
+      },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    const payload = apnsBodies[0] as { aps?: { 'mutable-content'?: number }; tmPortraitUrl?: string }
+    expect(payload.tmPortraitUrl).toBe('https://foundry.example/portraits/rogue.webp')
+    expect(payload.aps?.['mutable-content']).toBe(1)
+  })
+
+  it('omits mutable-content when there is no portrait, and rejects non-http portrait URLs', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA')
+    // A data: URL (or any non-http scheme) is dropped: the extension only fetches
+    // over the network, and it would otherwise bloat the 4KB APNs payload.
+    await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b', portraitUrl: 'data:image/png;base64,AAAA' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    const payload = apnsBodies[0] as { aps?: { 'mutable-content'?: number }; tmPortraitUrl?: string }
+    expect(payload.tmPortraitUrl).toBeUndefined()
+    expect(payload.aps?.['mutable-content']).toBeUndefined()
+  })
 })
 
 describe('badge count', () => {
