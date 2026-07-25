@@ -179,7 +179,11 @@ platform :ios do
         UI.message("App ID #{ext_identifier} already registered")
       else
         UI.message("Registering App ID #{ext_identifier}")
-        Spaceship::ConnectAPI::BundleId.create(name: "Tabula Mensa Notification Service", identifier: ext_identifier)
+        Spaceship::ConnectAPI::BundleId.create(
+          name: "Tabula Mensa Notification Service",
+          identifier: ext_identifier,
+          platform: "IOS"
+        )
       end
 
       get_provisioning_profile(
