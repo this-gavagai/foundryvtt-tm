@@ -82,18 +82,20 @@ async function loadUsers() {
     users.value = data.users
     activeUsers.value = data.activeUsers
     if (data.users.length === 0) {
-      // No users came back. Over a *healthy* socket that means the world is
-      // still booting — waiting (backoff retry below) is the cure, and tearing
-      // the socket down would only thrash. Without a live socket it's the
-      // "stuck" case: ask for a fresh one — exactly what relaunching the app
-      // does — via requestReconnect, which is idempotent and store-serialized
-      // so these retries can't stack teardowns on top of the store's own
-      // repair loops. A still-valid session then bounces us straight into the
-      // app; otherwise the new socket answers getJoinData (or HTTP shows the
-      // real login form) on the next attempt.
+      // No users came back. A socket that connected before the world was ready
+      // is bound server-side to a stale join context: re-emitting getJoinData on
+      // it returns an empty list forever, no matter how long we wait. Only a
+      // *fresh* socket re-runs the join handshake against the now-ready world —
+      // which is exactly what pressing Retry (or relaunching the app) does. So
+      // always ask for a new socket, not just when the current one looks dead;
+      // requestReconnect is idempotent and store-serialized, so these retries
+      // can't stack teardowns on top of the store's own repair loops. A
+      // still-valid session then bounces us straight into the app; otherwise the
+      // new socket answers getJoinData (or HTTP shows the real login form) on the
+      // next attempt.
       logger.debug('TM-DIAG loadUsers: empty user list', { connected: isConnected.value })
       error.value = t('login.noUsersRetry')
-      if (!isConnected.value) void requestReconnect()
+      void requestReconnect()
       scheduleAutoRetry()
       return
     }
