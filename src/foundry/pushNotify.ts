@@ -47,13 +47,21 @@ function whisperIds(msg: ChatMessageLike): string[] {
 interface WorldUser {
   id: string
   name?: string
+  // The user this one is "owned by" (User flag tablemate.belongsTo), if any.
+  belongsTo?: string
+}
+
+type RawWorldUser = {
+  id?: string
+  name?: string
+  flags?: { tablemate?: { belongsTo?: string } }
 }
 
 function worldUsers(): WorldUser[] {
-  const users = game.users as unknown as { contents?: Array<{ id?: string; name?: string }> } | undefined
+  const users = game.users as unknown as { contents?: RawWorldUser[] } | undefined
   return (users?.contents ?? [])
-    .filter((u): u is { id: string; name?: string } => !!u.id)
-    .map((u) => ({ id: u.id, name: u.name }))
+    .filter((u): u is RawWorldUser & { id: string } => !!u.id)
+    .map((u) => ({ id: u.id, name: u.name, belongsTo: u.flags?.tablemate?.belongsTo }))
 }
 
 function escapeRegExp(value: string): string {
@@ -74,22 +82,35 @@ function isMentioned(text: string, user: WorldUser): boolean {
   }
 }
 
+// A companion-app user can be "owned by" a primary Foundry user (User flag
+// tablemate.belongsTo). That app user sees the whispers aimed at its owner — see
+// currentUserIds in useChatVisibility.ts — so it should be pushed for them too.
+// Given the set of direct recipients, return the app users that belong to any of
+// them (one level, matching the display side).
+function ownedByRecipients(recipients: Set<string>, users: WorldUser[]): string[] {
+  return users.filter((u) => u.belongsTo && recipients.has(u.belongsTo)).map((u) => u.id)
+}
+
 // Who to notify, minus the author and anyone currently connected. Whispers always
 // reach their targets. For a public message the world scope decides: 'all' →
-// everyone who can see it; 'mentions' → only users named in the text.
+// everyone who can see it; 'mentions' → only users named in the text. In every
+// case, users owned by a recipient are notified alongside them.
 function recipientsFor(msg: ChatMessageLike, scope: PushScope): string[] {
   const author = authorId(msg)
+  const users = worldUsers()
   const whisper = whisperIds(msg)
   let candidates: string[]
   if (whisper.length) {
     candidates = whisper
   } else if (scope === 'all') {
-    candidates = worldUsers().map((u) => u.id)
+    candidates = users.map((u) => u.id)
   } else {
     const text = plainText(msg.content)
-    candidates = text ? worldUsers().filter((u) => isMentioned(text, u)).map((u) => u.id) : []
+    candidates = text ? users.filter((u) => isMentioned(text, u)).map((u) => u.id) : []
   }
-  return [...new Set(candidates)].filter((id) => id && id !== author && !isActiveUser(id))
+  const recipients = new Set(candidates)
+  for (const id of ownedByRecipients(recipients, users)) recipients.add(id)
+  return [...recipients].filter((id) => id && id !== author && !isActiveUser(id))
 }
 
 function senderName(msg: ChatMessageLike): string {
