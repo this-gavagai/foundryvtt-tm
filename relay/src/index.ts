@@ -39,6 +39,10 @@ interface Registration {
   platform: 'ios' | 'android'
   env: 'sandbox' | 'production'
   updatedAt: number
+  // The Foundry origin this device reaches the world at (e.g. http://192.168.1.5:30001),
+  // sent by the app at register time. Portrait paths are stitched onto this so the
+  // image URL is reachable from THIS device (the GM's own localhost is not).
+  serverBaseUrl?: string
 }
 
 // Coarse per-minute abuse backstops. KV is eventually consistent, so these are
@@ -306,6 +310,7 @@ async function handleRegister(request: Request, env: Env): Promise<Response> {
     deviceToken?: string
     platform?: Registration['platform']
     env?: Registration['env']
+    serverBaseUrl?: string
   } | null
   if (!p) return json({ error: 'invalid json' }, 400)
 
@@ -333,12 +338,29 @@ async function handleRegister(request: Request, env: Env): Promise<Response> {
 
   const tokenEnv: Registration['env'] =
     p.env === 'production' || p.env === 'sandbox' ? p.env : env.APNS_ENV === 'production' ? 'production' : 'sandbox'
+  const serverBaseUrl = typeof p.serverBaseUrl === 'string' && /^https?:\/\//i.test(p.serverBaseUrl) ? p.serverBaseUrl : undefined
   const regs = (await readRegistrations(env, worldPushId, userId)).filter((r) => r.deviceToken !== p.deviceToken)
-  regs.push({ deviceToken: p.deviceToken, platform: p.platform, env: tokenEnv, updatedAt: Date.now() })
+  regs.push({ deviceToken: p.deviceToken, platform: p.platform, env: tokenEnv, updatedAt: Date.now(), serverBaseUrl })
   await env.TOKENS.put(tokenKey(worldPushId, userId), JSON.stringify(regs))
   // Coming back online resets the badge count; the app clears the icon locally.
   await env.TOKENS.delete(badgeKey(worldPushId, userId))
   return json({ ok: true, worldId: worldPushId, userId, registrations: regs.length })
+}
+
+// Resolve the portrait reference the module sent into a URL a specific device can
+// actually reach. The module sends either a Foundry-relative path (needs this
+// device's base prepended) or an already-absolute external art URL (used as-is).
+// Returns undefined when there's nothing usable — no portrait, or a relative path
+// with no known base for this device — so those pushes simply skip the image.
+function portraitFor(portraitUrl: string | undefined, serverBaseUrl: string | undefined): string | undefined {
+  if (!portraitUrl) return undefined
+  if (/^https?:\/\//i.test(portraitUrl)) return portraitUrl
+  if (!serverBaseUrl) return undefined
+  try {
+    return new URL(portraitUrl, serverBaseUrl.replace(/\/?$/, '/')).href
+  } catch {
+    return undefined
+  }
 }
 
 async function handleNotify(request: Request, env: Env): Promise<Response> {
@@ -353,15 +375,11 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
   if (!p?.worldId || !Array.isArray(p.recipients) || !p.title || !p.body) {
     return json({ error: 'worldId, recipients[], title and body are required' }, 400)
   }
-  // Custom keys the app/extension read from the notification. tmPortraitUrl, when
-  // present, is an http(s) image the Notification Service Extension downloads and
-  // attaches (see ios/NotificationService); it also flips aps.mutable-content on.
-  const data: Record<string, string> = {}
-  if (p.messageId) data.tmMessageId = p.messageId
-  if (typeof p.portraitUrl === 'string' && /^https?:\/\//i.test(p.portraitUrl)) {
-    data.tmPortraitUrl = p.portraitUrl
-  }
-  const customData = Object.keys(data).length ? data : undefined
+  // Custom keys the app/extension read from the notification. tmMessageId is the
+  // same for every device; the portrait URL is resolved PER DEVICE below, since it
+  // depends on the address each device reaches the world at (see portraitFor).
+  const baseData: Record<string, string> = {}
+  if (p.messageId) baseData.tmMessageId = p.messageId
 
   // Authorise against the world's own key.
   const worldKey = await worldKeyOf(env, p.worldId)
@@ -387,12 +405,16 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
         survivors.push(reg)
         continue
       }
+      // Resolve the portrait against THIS device's Foundry base, then send.
+      const portrait = portraitFor(p.portraitUrl, reg.serverBaseUrl)
+      const customData = portrait ? { ...baseData, tmPortraitUrl: portrait } : baseData
+      const sendData = Object.keys(customData).length ? customData : undefined
       // Try stored env; on failure retry the other and remember what delivers.
-      let result = await sendApns(env, reg.deviceToken, p.title, p.body, reg.env, customData, badge)
+      let result = await sendApns(env, reg.deviceToken, p.title, p.body, reg.env, sendData, badge)
       let usedEnv = reg.env
       if (result.status !== 200) {
         const other: Registration['env'] = reg.env === 'production' ? 'sandbox' : 'production'
-        const alt = await sendApns(env, reg.deviceToken, p.title, p.body, other, customData, badge)
+        const alt = await sendApns(env, reg.deviceToken, p.title, p.body, other, sendData, badge)
         if (alt.status === 200 || (isDeadToken(alt) && !isDeadToken(result))) {
           result = alt
           usedEnv = other

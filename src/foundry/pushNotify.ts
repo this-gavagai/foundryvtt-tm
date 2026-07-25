@@ -125,11 +125,14 @@ function senderName(msg: ChatMessageLike): string {
   return msg.alias || msg.author?.name || msg.user?.name || 'Tabula Mensa'
 }
 
-// The speaker's portrait as an absolute http(s) URL, for the notification image
-// (iOS attaches it via the Notification Service Extension). Resolved here in the
-// GM's browser, so relative Foundry paths ("worlds/…") become device-reachable
-// against the world's origin. Non-http art (data:/blob:) is dropped: the phone's
-// extension only fetches over the network, and it would blow the APNs size cap.
+// The speaker's portrait for the notification image (iOS attaches it via the
+// Notification Service Extension). Foundry stores art as a path relative to the
+// server root (e.g. "systems/pf2e/icons/.../seelah.webp"); we send it as-is and
+// let the relay stitch it onto the address each device reaches the world at. We
+// deliberately do NOT resolve it against this GM browser's origin — that's the
+// host's own localhost/LAN address, which a recipient's phone cannot reach.
+// Already-absolute external art (http/https) is passed through; data:/blob: art
+// is dropped (a phone extension can't fetch it and it would blow the APNs size).
 function portraitUrl(msg: ChatMessageLike): string | undefined {
   const actorId = msg.speaker?.actor
   if (!actorId) return undefined
@@ -137,12 +140,9 @@ function portraitUrl(msg: ChatMessageLike): string | undefined {
   const actor = actors?.get?.(actorId)
   const src = actor?.prototypeToken?.texture?.src ?? actor?.img
   if (!src) return undefined
-  try {
-    const url = new URL(src, window.location.origin)
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : undefined
-  } catch {
-    return undefined
-  }
+  if (/^https?:\/\//i.test(src)) return src // absolute external art, already reachable
+  if (/^[a-z][a-z0-9+.-]*:/i.test(src)) return undefined // data:/blob:/other scheme
+  return src // server-relative Foundry path; the relay resolves it per device
 }
 
 // Notification title budget. iOS shows roughly this many characters of a title

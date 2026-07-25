@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core'
 import { PushNotifications } from '@capacitor/push-notifications'
 import { registerPush } from './actionRpc'
 import { useChatStore } from '@/stores/chat'
+import { useServerAddressStore } from '@/stores/serverAddress'
 import { logger } from '@/utils/utilities'
 
 // Push registration (milestone 2). On native launch the app obtains its device
@@ -73,10 +74,14 @@ async function tryRegister(): Promise<void> {
     // The module derives (worldId, userId) itself and signs them; the userId is
     // taken from the authenticated socket, so nothing identity-related is sent here.
     const { regToken, relayUrl } = await registerPush()
+    // The origin this device reaches the world at. The relay stitches portrait
+    // paths onto it so notification images resolve to an address the phone can
+    // actually fetch (the GM host's own localhost/LAN origin cannot).
+    const serverBaseUrl = useServerAddressStore().serverUrl?.origin
     const res = await fetch(`${relayUrl}/register`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ regToken, deviceToken: token, platform: Capacitor.getPlatform() })
+      body: JSON.stringify({ regToken, deviceToken: token, platform: Capacitor.getPlatform(), serverBaseUrl })
     })
     if (!res.ok) {
       logger.warn('[push] relay /register failed:', res.status, await res.text())

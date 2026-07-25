@@ -98,8 +98,19 @@ async function provisionWorld(userIp = '1.1.1.1') {
   return { worldPushId, worldKey }
 }
 
-async function registerDevice(worldPushId: string, worldKey: string, userId: string, deviceToken: string) {
-  const res = await post('/register', { regToken: mintToken(worldPushId, userId, worldKey), deviceToken, platform: 'ios' })
+async function registerDevice(
+  worldPushId: string,
+  worldKey: string,
+  userId: string,
+  deviceToken: string,
+  serverBaseUrl?: string,
+) {
+  const res = await post('/register', {
+    regToken: mintToken(worldPushId, userId, worldKey),
+    deviceToken,
+    platform: 'ios',
+    serverBaseUrl,
+  })
   expect(res.status).toBe(200)
   return res
 }
@@ -258,9 +269,9 @@ describe('/notify delivery behaviour', () => {
     expect(apnsCalls.length).toBe(1)
   })
 
-  it('forwards an http(s) portraitUrl and sets mutable-content for the extension', async () => {
+  it('stitches a relative portrait path onto the device’s own server base + sets mutable-content', async () => {
     const { worldPushId, worldKey } = await provisionWorld()
-    await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA')
+    await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA', 'http://192.168.1.5:30001')
     await post(
       '/notify',
       {
@@ -268,23 +279,49 @@ describe('/notify delivery behaviour', () => {
         recipients: ['alice'],
         title: 't',
         body: 'b',
-        portraitUrl: 'https://foundry.example/portraits/rogue.webp',
+        portraitUrl: 'systems/pf2e/icons/iconics/tokens/seelah.webp',
       },
       { authorization: `Bearer ${worldKey}` },
     )
     const payload = apnsBodies[0] as { aps?: { 'mutable-content'?: number }; tmPortraitUrl?: string }
-    expect(payload.tmPortraitUrl).toBe('https://foundry.example/portraits/rogue.webp')
+    expect(payload.tmPortraitUrl).toBe('http://192.168.1.5:30001/systems/pf2e/icons/iconics/tokens/seelah.webp')
     expect(payload.aps?.['mutable-content']).toBe(1)
   })
 
-  it('omits mutable-content when there is no portrait, and rejects non-http portrait URLs', async () => {
+  it('resolves per device: two devices with different bases get different portrait URLs', async () => {
     const { worldPushId, worldKey } = await provisionWorld()
-    await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA')
-    // A data: URL (or any non-http scheme) is dropped: the extension only fetches
-    // over the network, and it would otherwise bloat the 4KB APNs payload.
+    await registerDevice(worldPushId, worldKey, 'alice', 'lanPhone', 'http://192.168.1.5:30001')
+    await registerDevice(worldPushId, worldKey, 'alice', 'tunnelPhone', 'https://foundry.example.com')
     await post(
       '/notify',
-      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b', portraitUrl: 'data:image/png;base64,AAAA' },
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b', portraitUrl: 'worlds/x/art.webp' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    const urls = apnsBodies.map((b) => (b as { tmPortraitUrl?: string }).tmPortraitUrl).sort()
+    expect(urls).toEqual([
+      'http://192.168.1.5:30001/worlds/x/art.webp',
+      'https://foundry.example.com/worlds/x/art.webp',
+    ])
+  })
+
+  it('passes an absolute external portrait URL through unchanged, ignoring the device base', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA', 'http://192.168.1.5:30001')
+    await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b', portraitUrl: 'https://cdn.example/art.png' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    const payload = apnsBodies[0] as { tmPortraitUrl?: string }
+    expect(payload.tmPortraitUrl).toBe('https://cdn.example/art.png')
+  })
+
+  it('omits the portrait (and mutable-content) for a relative path when the device sent no server base', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA') // no serverBaseUrl
+    await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b', portraitUrl: 'systems/pf2e/art.webp' },
       { authorization: `Bearer ${worldKey}` },
     )
     const payload = apnsBodies[0] as { aps?: { 'mutable-content'?: number }; tmPortraitUrl?: string }
