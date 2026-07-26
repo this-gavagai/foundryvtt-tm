@@ -60,16 +60,24 @@
     --color-proficiency-master: oklch(78% 0.18 88);
     --color-proficiency-legendary: oklch(68% 0.22 22);
 
-    /* backdrop: body vs the flat side panels (familiar sheet, sheet-right) */
+    /* backdrop: body vs the flat side panels (familiar sheet, sheet-right).
+     Three offset radial glows imply an atmosphere with depth (a top glow, a
+     cooler glow low-and-right, and a deep vignette at the bottom edge) rather
+     than a single flat wash. The topmost layer is a fine desaturated grain
+     that both adds a premium tactile texture and kills gradient banding across
+     the large flat areas; strength is the SVG rect `opacity` (0.25) — the one
+     knob to dial if it ever reads as noise. All of this sits behind content,
+     so it costs nothing in text contrast. */
     --tm-backdrop-color: oklch(23% 0.018 258);
     --tm-panel-color: oklch(21% 0.018 258);
-    --tm-backdrop-image: radial-gradient(
-      ellipse 150% 45% at 50% 0%,
-      oklch(33% 0.05 270 / 0.5),
-      transparent
-    );
+    --tm-backdrop-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.25'/%3E%3C/svg%3E"),
+      radial-gradient(ellipse 150% 45% at 50% 0%, oklch(33% 0.05 270 / 0.5), transparent),
+      radial-gradient(ellipse 90% 60% at 88% 30%, oklch(34% 0.06 210 / 0.22), transparent),
+      radial-gradient(ellipse 120% 50% at 15% 100%, oklch(28% 0.05 300 / 0.2), transparent);
     --tm-rollable-fallback: oklch(95% 0.005 250); /* rollable rule w/o proficiency */
     --tm-tab-accent: var(--color-proficiency-legendary); /* selected-tab underline */
+    --tm-tab-fill: oklch(68% 0.22 22 / 0.14); /* selected-tab accent wash */
 
     /* Invert monochrome SVG icons for the dark bg. This must stay a src match
      (not a data-* hook): it also has to catch icons inside Foundry-injected
@@ -649,7 +657,14 @@
       )
       section[data-section],
     [data-component='SpellList'] section[data-section] {
-      background-color: oklch(17% 0.022 258 / 0.45);
+      /* Lit from above: a shallow top-lighter → bottom-darker gradient sculpts
+       every card instead of a flat fill. Text sits on the near-uniform middle,
+       so contrast is unchanged; the translucency still lets the body's glow
+       refract through the blur. */
+      background-image: linear-gradient(
+        oklch(20% 0.026 258 / 0.5),
+        oklch(15% 0.02 258 / 0.42)
+      );
       backdrop-filter: blur(14px) saturate(1.4);
       -webkit-backdrop-filter: blur(14px) saturate(1.4);
       border: 1px solid oklch(100% 0 0 / 0.06);
@@ -793,11 +808,11 @@
      bar's glass treatment so the two sticky bars read as one chrome system. */
     [data-component='CharacterHeader'] {
       background-color: oklch(17% 0.022 258 / 0.82);
-      background-image: radial-gradient(
-        ellipse 150% 100% at 50% 0%,
-        oklch(33% 0.05 270 / 0.45),
-        transparent
-      );
+      /* Hero chrome: the top glow plus a cooler off-center glow so the sticky
+       banner reads as a designed surface rather than a flat blurred bar. */
+      background-image:
+        radial-gradient(ellipse 150% 100% at 50% 0%, oklch(35% 0.06 270 / 0.5), transparent),
+        radial-gradient(ellipse 70% 120% at 90% 0%, oklch(34% 0.05 215 / 0.28), transparent);
       backdrop-filter: blur(20px) saturate(1.3);
       -webkit-backdrop-filter: blur(20px) saturate(1.3);
       border-top-color: transparent;
@@ -812,11 +827,9 @@
     /* --- Tab bar ----------------------------------------- */
     [data-part='tab-bar'] {
       background-color: oklch(17% 0.022 258 / 0.82);
-      background-image: radial-gradient(
-        ellipse 150% 100% at 50% 0%,
-        oklch(33% 0.05 270 / 0.45),
-        transparent
-      );
+      background-image:
+        radial-gradient(ellipse 150% 100% at 50% 0%, oklch(35% 0.06 270 / 0.5), transparent),
+        radial-gradient(ellipse 70% 120% at 90% 0%, oklch(34% 0.05 215 / 0.28), transparent);
       backdrop-filter: blur(20px) saturate(1.3);
       -webkit-backdrop-filter: blur(20px) saturate(1.3);
       border-bottom-color: oklch(34% 0.022 258);
@@ -824,6 +837,32 @@
         inset 0 1px 0 oklch(100% 0 0 / 0.08),
         0 8px 20px oklch(0% 0 0 / 0.32),
         0 -12px 24px oklch(0% 0 0 / 0.32);
+    }
+
+    /* Selected tab: a faint accent wash — a tall, narrow plume centred on the
+     indicator edge — gives the selection vertical presence up the middle of
+     the tab. It is the *only* glow on the selection: the underline bar itself
+     stays crisp with no halo of its own, so the two never stack into a visible
+     double arc, and the plume fades all the way out (no hard colour stop) so
+     it reads as one soft bloom rather than a ringed edge. Keeping it narrow
+     also keeps it from spreading into a wide arc/"smile". Geometry / motion
+     live in _core; the indicator sits at the top on mobile and the bottom on
+     desktop, so the plume's origin follows the breakpoint. */
+    [data-part='tab-bar'] [data-part='tab'][data-headlessui-state~='selected'] {
+      background-image: radial-gradient(
+        ellipse 45% 150% at 50% 0%,
+        var(--tm-tab-fill),
+        transparent
+      );
+    }
+    @media (min-width: 768px) {
+      [data-part='tab-bar'] [data-part='tab'][data-headlessui-state~='selected'] {
+        background-image: radial-gradient(
+          ellipse 45% 150% at 50% 100%,
+          var(--tm-tab-fill),
+          transparent
+        );
+      }
     }
 
     /* Numeric level badge overlaid on the effect icon */
@@ -910,7 +949,11 @@
         border-color: var(--color-primary-active);
         border-left-color: oklch(62% 0.15 255);
         background-color: oklch(26% 0.04 258);
-        box-shadow: inset 0 0 0 1px oklch(55% 0.13 255 / 0.2);
+        /* inset ring + a soft outer accent glow so the connected server reads
+         as lit, not merely tinted. */
+        box-shadow:
+          inset 0 0 0 1px oklch(55% 0.13 255 / 0.2),
+          0 0 12px oklch(62% 0.15 255 / 0.22);
       }
 
       [data-part='server-icon'] {

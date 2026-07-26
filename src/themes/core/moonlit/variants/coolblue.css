@@ -20,4 +20,5 @@ body.theme-moonlit.variant-coolblue {
   --color-focus: oklch(62% 0.13 225);
   --color-heading: oklch(63% 0.06 230);
   --tm-tab-accent: var(--color-primary);
+  --tm-tab-fill: oklch(55% 0.13 225 / 0.16);
 }

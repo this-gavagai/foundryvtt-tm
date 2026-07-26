@@ -92,6 +92,7 @@
     --tm-backdrop-image: none;
     --tm-rollable-fallback: oklch(44.6% 0.03 257); /* rollable rule w/o proficiency */
     --tm-tab-accent: var(--color-primary); /* selected-tab underline */
+    --tm-tab-fill: transparent; /* selected-tab wash; skins set an accent tint */
 
     /* --- Structure (inherited by every theme in the scope above) ---------- */
     background-color: var(--tm-backdrop-color);
@@ -670,6 +671,22 @@
       }
     }
 
+    /* These lists flow their rows into balanced CSS columns (SkillList's
+     skills / lore / proficiency blocks, and the Feats and Equipment lists,
+     all use multi-column containers). A per-row border-bottom can't tell where
+     a column breaks: `li:last-child` only clears the DOM-last item, so the row
+     sitting at the foot of a non-final column keeps a dangling divider (e.g.
+     under "Simple Weapons" when it's the last item of column 1). The rows read
+     fine separated by their own padding, so drop the divider for these
+     components and let spacing carry the separation instead. The single-column
+     lists (Actions / Strike / Familiar) keep their dividers, where the
+     `li:last-child` suppression works correctly. */
+    [data-component='SkillList'] li,
+    [data-component='FeatsList'] li,
+    [data-component='EquipmentList'] li {
+      border-bottom: none;
+    }
+
     [data-component='EquipmentList'] [data-part='held-items'] li {
       border-bottom: none;
       padding-top: 0;
@@ -749,11 +766,12 @@
 
     /* --- FeatsList: sub-feats match regular feat row spacing --- */
     [data-component='FeatsList'] {
+      /* Sub-feats stay distinguished by their italic + indentation + spacing;
+       no divider line, to match the border-free rows elsewhere in the list. */
       [data-part='sub-feat']:has(*) {
         font-style: italic;
         padding-top: 0.15rem;
         padding-bottom: 0.15rem;
-        border-top: 1px solid var(--color-divider);
       }
 
       li:has([data-part='sub-feat']:has(*)) {
@@ -938,15 +956,13 @@
         bottom: 3px;
       }
 
-      /* spell items */
+      /* spell items — separated by spacing, not a per-row divider: this list
+       is multi-column (xl:columns-2), where a border-bottom can't tell where a
+       column breaks and would strand a line under the last item of a column
+       (same reasoning as the Skill / Feat / Equipment lists above). */
       ul > li {
         padding-top: 0.3rem;
         padding-bottom: 0.3rem;
-        border-bottom: 1px solid var(--color-divider);
-      }
-
-      ul > li:last-child {
-        border-bottom: none;
       }
     }
 
@@ -1075,7 +1091,7 @@
         top: 0;
         left: 0;
         right: 0;
-        height: 2px;
+        height: 3px;
         background: linear-gradient(to right, transparent, var(--tm-tab-accent), transparent);
         transform: scaleX(0.2);
         opacity: 0;

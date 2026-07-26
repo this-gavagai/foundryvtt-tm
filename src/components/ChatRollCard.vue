@@ -63,7 +63,7 @@ function applyDamage(mode: ApplyDamageMode) {
 <template>
   <div
     data-part="chat-roll"
-    class="relative rounded border border-gray-200 bg-white px-3 py-2 text-sm"
+    class="relative rounded border border-gray-200 bg-white px-3 py-2 text-base"
     :class="messageIsReroll(view.message) ? 'pr-24' : 'pr-10'"
   >
     <span

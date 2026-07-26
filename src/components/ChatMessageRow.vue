@@ -106,7 +106,7 @@ function handleContentClick(event: MouseEvent) {
     <div
       v-if="view.preparedFlavor"
       data-part="chat-flavor"
-      class="mt-2 mb-2 text-sm font-medium text-gray-700"
+      class="mt-2 mb-2 text-base font-medium text-gray-700"
       v-html="view.preparedFlavor"
       @click="emit('contentClick', $event)"
     />
@@ -114,7 +114,7 @@ function handleContentClick(event: MouseEvent) {
       v-if="view.showContent"
       data-part="chat-content"
       data-tone="primary"
-      class="mt-2 text-sm text-gray-900"
+      class="mt-2 text-base text-gray-900"
       v-html="view.preparedContent"
       @click="handleContentClick($event)"
     />
