@@ -26,16 +26,25 @@
     --color-surface: oklch(100% 0 0); /* modals, dropdown popovers */
     --color-border: oklch(86% 0.03 80); /* modal / dropdown outlines */
     --color-text: oklch(27% 0.04 285);
-    --color-heading: oklch(56% 0.13 25); /* warm coral headings — cheerful */
+    /* Muted warm taupe. The old coral (chroma 0.13, hue 25) was a loud outlier
+     that fought the tangerine primary; drop the chroma so headings read as a
+     restrained tint — moonlit's muted-heading voice — keeping only the warmth. */
+    --color-heading: oklch(47% 0.05 55);
     --color-input: oklch(100% 0 0); /* input / textarea / select fills */
     --color-divider-strong: oklch(90% 0.015 95); /* spell rank dividers */
 
-    /* playful tangerine primary used for buttons / selections / accents */
-    --color-primary: oklch(70% 0.16 48);
-    --color-primary-hover: oklch(65% 0.17 46);
-    --color-primary-active: oklch(60% 0.18 44);
-    --color-on-primary: oklch(99% 0.02 80);
-    --color-focus: var(--color-primary); /* focus ring + focused borders */
+    /* Playful tangerine primary — kept bright, but paired with dark espresso
+     text instead of near-white: white-on-tangerine measured ~2.2:1, failing
+     WCAG AA. The dark ink (--color-on-primary) clears AA at every state.
+     Hover brightens and active deepens+saturates; both hold contrast with the
+     dark ink (which a darken-on-press with white text could not). */
+    --color-primary: oklch(72% 0.17 52);
+    --color-primary-hover: oklch(76% 0.17 52);
+    --color-primary-active: oklch(68% 0.185 50);
+    --color-on-primary: oklch(24% 0.07 50);
+    /* Focus = the primary accent deepened so the ring reads on white paper;
+     also drives the selected-tab indicator (--tm-tab-accent below). */
+    --color-focus: oklch(64% 0.19 50);
 
     /* destructive treatment (delete menu items, remove-spell chip, …) */
     --color-danger: oklch(55% 0.2 25);
@@ -43,6 +52,13 @@
     --color-danger-surface: oklch(94% 0.05 25);
     --color-danger-surface-active: oklch(90% 0.07 25);
     --color-danger-muted: oklch(75% 0.05 25);
+
+    /* positive / negative modifier states — semantic sibling of the danger
+     family; -surface is the same hue at a low alpha for the row fill. */
+    --color-success: oklch(60% 0.17 145);
+    --color-success-surface: oklch(60% 0.17 145 / 0.14);
+    --color-warning: oklch(58% 0.18 25);
+    --color-warning-surface: oklch(58% 0.18 25 / 0.12);
 
     /* muted icon buttons (modal ✕, kebab ⋮) — resting / hover pair */
     --color-icon-muted: oklch(62% 0.02 285);
@@ -57,11 +73,14 @@
 
     --color-tag: oklch(50% 0.17 25); /* Foundry chat-card trait tags */
 
+    /* Ranked hues tuned to one envelope (L ~54–57, C ~0.15–0.20) so the set
+     reads as designed; master-gold is pulled down in lightness so it clears
+     contrast on the white paper. Untrained neutral sits outside the envelope. */
     --color-proficiency-untrained: oklch(48% 0.03 285);
-    --color-proficiency-trained: oklch(56% 0.17 235);
-    --color-proficiency-expert: oklch(55% 0.21 315);
-    --color-proficiency-master: oklch(62% 0.16 62);
-    --color-proficiency-legendary: oklch(57% 0.21 24);
+    --color-proficiency-trained: oklch(55% 0.18 235);
+    --color-proficiency-expert: oklch(54% 0.19 315);
+    --color-proficiency-master: oklch(57% 0.15 65);
+    --color-proficiency-legendary: oklch(55% 0.2 24);
 
     /* backdrop: a "dawn" wash with depth — peach top-left, sky top-right, plus
      a warm ground-glow so the bottom doesn't fall cold. The topmost layer is
@@ -78,8 +97,27 @@
       radial-gradient(ellipse 110% 45% at 50% 100%, oklch(95% 0.05 90 / 0.22), transparent);
     --tm-backdrop-attachment: fixed;
     --tm-rollable-fallback: oklch(45% 0.03 285); /* rollable rule w/o proficiency */
-    --tm-tab-accent: var(--color-primary); /* selected-tab underline */
-    --tm-tab-fill: oklch(70% 0.16 48 / 0.14); /* selected-tab accent wash */
+    --tm-tab-accent: var(--color-focus); /* selected-tab underline — the focus accent (see _core) */
+    --tm-tab-fill: oklch(64% 0.19 50 / 0.16); /* selected-tab accent wash (focus hue) */
+
+    /* Elevation scale — resting card / floating menu / modal. Soft, warm-tinted
+     shadows (the light-paper counterpart to moonlit's hard black ones), one
+     definition per step. */
+    --shadow-1:
+      inset 0 1px 0 oklch(100% 0 0 / 0.9),
+      0 6px 20px oklch(60% 0.06 40 / 0.12);
+    --shadow-2:
+      0 12px 28px oklch(55% 0.06 280 / 0.18),
+      0 0 0 1px oklch(60% 0.02 285 / 0.06);
+    --shadow-3:
+      inset 0 1px 0 oklch(100% 0 0 / 0.9),
+      0 8px 32px oklch(60% 0.08 30 / 0.18),
+      0 24px 64px oklch(55% 0.06 280 / 0.12);
+
+    /* Shape scale — sunny is systematically rounder than moonlit. */
+    --radius-sm: 0.5rem;
+    --radius-md: 0.6rem;
+    --radius-lg: 0.85rem;
 
     /* base monochrome SVG icons are already dark — they read fine on the light
      paper background, so unlike the dark theme we don't invert them. Kept as
@@ -139,22 +177,17 @@
         background-color: var(--color-surface);
         color: var(--color-text);
         border: 1px solid var(--color-border);
-        border-radius: 0.85rem;
-        box-shadow:
-          inset 0 1px 0 oklch(100% 0 0 / 0.9),
-          0 8px 32px oklch(60% 0.08 30 / 0.18),
-          0 24px 64px oklch(55% 0.06 280 / 0.12);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-3);
       }
 
       /* Equipment kebab popover (button coloring is shared) */
       [data-part='equipment-menu-items'] {
         background-color: var(--color-surface);
         border: 1px solid var(--color-border);
-        border-radius: 0.6rem;
+        border-radius: var(--radius-md);
         color: var(--color-text);
-        box-shadow:
-          0 12px 28px oklch(55% 0.06 280 / 0.18),
-          0 0 0 1px oklch(60% 0.02 285 / 0.06);
+        box-shadow: var(--shadow-2);
       }
 
       [data-part='inventory-mode-toggle'] {
@@ -189,12 +222,12 @@
 
       /* manually toggled modifier rows */
       [data-part='modifier'][data-manual-on] {
-        border-color: oklch(60% 0.17 145);
-        background-color: oklch(60% 0.17 145 / 0.14);
+        border-color: var(--color-success);
+        background-color: var(--color-success-surface);
       }
       [data-part='modifier'][data-manual-off] {
-        border-color: oklch(58% 0.18 25);
-        background-color: oklch(58% 0.18 25 / 0.12);
+        border-color: var(--color-warning);
+        background-color: var(--color-warning-surface);
       }
 
       /* face picker */
@@ -424,11 +457,9 @@
         [data-part='chat-roll-menu-items'] {
           background-color: var(--color-surface);
           border-color: var(--color-border);
-          border-radius: 0.6rem;
+          border-radius: var(--radius-md);
           color: var(--color-text);
-          box-shadow:
-            0 12px 28px oklch(55% 0.06 280 / 0.18),
-            0 0 0 1px oklch(60% 0.02 285 / 0.06);
+          box-shadow: var(--shadow-2);
         }
 
         [data-part='chat-roll-menu-item'] {
@@ -571,11 +602,9 @@
           [data-part='chat-recipient-menu'] {
             background-color: var(--color-surface);
             border-color: var(--color-border);
-            border-radius: 0.6rem;
+            border-radius: var(--radius-md);
             color: var(--color-text);
-            box-shadow:
-              0 12px 28px oklch(55% 0.06 280 / 0.18),
-              0 0 0 1px oklch(60% 0.02 285 / 0.06);
+            box-shadow: var(--shadow-2);
 
             [data-part='menu-divider'] {
               border-color: var(--color-divider);
@@ -661,10 +690,8 @@
       backdrop-filter: blur(12px) saturate(1.3);
       -webkit-backdrop-filter: blur(12px) saturate(1.3);
       border: 1px solid oklch(100% 0 0 / 0.7);
-      border-radius: 0.85rem;
-      box-shadow:
-        inset 0 1px 0 oklch(100% 0 0 / 0.9),
-        0 6px 20px oklch(60% 0.06 40 / 0.12);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-1);
     }
 
     [data-component='FamiliarStatusBanner'][data-status='special'] {
@@ -771,7 +798,7 @@
 
     [data-part='dropdown-options'] {
       background-color: var(--color-surface);
-      border-radius: 0.6rem;
+      border-radius: var(--radius-md);
       box-shadow: 0 8px 24px oklch(55% 0.06 280 / 0.18);
 
       /* hovered / keyboard-focused option (Headless UI active state) */
@@ -784,10 +811,8 @@
     [data-part='kebab-menu-items'] {
       background-color: var(--color-surface);
       border: 1px solid var(--color-border);
-      border-radius: 0.6rem;
-      box-shadow:
-        0 12px 28px oklch(55% 0.06 280 / 0.18),
-        0 0 0 1px oklch(60% 0.02 285 / 0.06);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-2);
     }
 
     /* --- Two-column layout depth (desktop) --- */
@@ -864,10 +889,8 @@
       form {
         background-color: var(--color-surface);
         border-color: var(--color-border);
-        border-radius: 0.85rem;
-        box-shadow:
-          inset 0 1px 0 oklch(100% 0 0 / 0.9),
-          0 8px 32px oklch(60% 0.08 30 / 0.16);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-3);
       }
 
       select {
@@ -896,10 +919,8 @@
     /* --- Server URL gate --- */
     [data-component='ServerUrlGate'] {
       [data-part='gate-form'] {
-        border-radius: 0.85rem;
-        box-shadow:
-          inset 0 1px 0 oklch(100% 0 0 / 0.9),
-          0 8px 32px oklch(60% 0.08 30 / 0.16);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-3);
       }
 
       [data-part='server-select'] {
@@ -931,7 +952,7 @@
       }
 
       [data-part='server-row'] {
-        border-radius: 0.6rem;
+        border-radius: var(--radius-md);
         background-color: oklch(98% 0.01 95);
         border: 1px solid var(--color-border);
         /* Widened after the shorthand (which would otherwise reset it): the

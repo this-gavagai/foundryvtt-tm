@@ -27,12 +27,16 @@
     --color-input: var(--color-card); /* input / textarea / select fills */
     --color-divider-strong: oklch(35% 0.018 258); /* spell rank dividers */
 
-    /* primary action hue — buttons / selections / accents */
+    /* primary action hue — buttons / selections / accents. Hover/active brighten
+     AND gain a little chroma, so a pressed control reads as lighting up rather
+     than just paling out. */
     --color-primary: oklch(45% 0.13 255);
-    --color-primary-hover: oklch(50% 0.13 255);
-    --color-primary-active: oklch(55% 0.13 255);
+    --color-primary-hover: oklch(50% 0.145 255);
+    --color-primary-active: oklch(55% 0.16 255);
     --color-on-primary: oklch(96% 0.01 255);
-    --color-focus: oklch(58% 0.14 250); /* focus ring + focused borders */
+    /* Focus = the primary accent brightened for attention states; also drives
+     the selected-tab indicator (--tm-tab-accent below). */
+    --color-focus: oklch(62% 0.15 255);
 
     /* destructive treatment (delete menu items, remove-spell chip, …) */
     --color-danger: oklch(70% 0.16 25);
@@ -40,6 +44,14 @@
     --color-danger-surface: oklch(28% 0.06 25);
     --color-danger-surface-active: oklch(33% 0.07 25);
     --color-danger-muted: oklch(52% 0.04 25);
+
+    /* positive / negative modifier states (manually toggled stat modifiers) —
+     a semantic sibling of the danger family; -surface is the same hue at a low
+     alpha for the row fill. */
+    --color-success: oklch(60% 0.17 145);
+    --color-success-surface: oklch(60% 0.17 145 / 0.18);
+    --color-warning: oklch(58% 0.18 25);
+    --color-warning-surface: oklch(58% 0.18 25 / 0.18);
 
     /* muted icon buttons (modal ✕, kebab ⋮) — resting / hover pair */
     --color-icon-muted: oklch(55% 0.01 258);
@@ -54,11 +66,14 @@
 
     --color-tag: #5e0000; /* Foundry chat-card trait tags */
 
+    /* Ranked hues tuned to one perceptual envelope (L ~70–74, C ~0.17–0.205) so
+     the five read as a designed set rather than five raw category colours; the
+     untrained neutral deliberately sits outside it. */
     --color-proficiency-untrained: oklch(90% 0.005 258);
-    --color-proficiency-trained: oklch(68% 0.18 250);
-    --color-proficiency-expert: oklch(70% 0.2 305);
-    --color-proficiency-master: oklch(78% 0.18 88);
-    --color-proficiency-legendary: oklch(68% 0.22 22);
+    --color-proficiency-trained: oklch(70% 0.185 250);
+    --color-proficiency-expert: oklch(71% 0.19 305);
+    --color-proficiency-master: oklch(74% 0.17 88);
+    --color-proficiency-legendary: oklch(70% 0.205 22);
 
     /* backdrop: body vs the flat side panels (familiar sheet, sheet-right).
      Three offset radial glows imply an atmosphere with depth (a top glow, a
@@ -76,8 +91,27 @@
       radial-gradient(ellipse 90% 60% at 88% 30%, oklch(34% 0.06 210 / 0.22), transparent),
       radial-gradient(ellipse 120% 50% at 15% 100%, oklch(28% 0.05 300 / 0.2), transparent);
     --tm-rollable-fallback: oklch(95% 0.005 250); /* rollable rule w/o proficiency */
-    --tm-tab-accent: var(--color-proficiency-legendary); /* selected-tab underline */
-    --tm-tab-fill: oklch(68% 0.22 22 / 0.14); /* selected-tab accent wash */
+    --tm-tab-accent: var(--color-focus); /* selected-tab underline — the focus accent (see _core) */
+    --tm-tab-fill: oklch(62% 0.15 255 / 0.18); /* selected-tab accent wash (focus hue) */
+
+    /* Elevation scale — resting card / floating menu / modal. Hard black
+     shadows with an inset hairline highlight; one definition per step,
+     referenced by every surface at that elevation. */
+    --shadow-1:
+      inset 0 1px 0 oklch(100% 0 0 / 0.06),
+      0 8px 24px oklch(0% 0 0 / 0.25);
+    --shadow-2:
+      0 12px 28px oklch(5% 0.015 258 / 0.55),
+      0 0 0 1px oklch(50% 0.018 258 / 0.12);
+    --shadow-3:
+      inset 0 1px 0 oklch(100% 0 0 / 0.08),
+      0 8px 32px oklch(0% 0 0 / 0.5),
+      0 24px 64px oklch(0% 0 0 / 0.35);
+
+    /* Shape scale — moonlit stays flat and crisp. */
+    --radius-sm: 0.3rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.5rem;
 
     /* Invert monochrome SVG icons for the dark bg. This must stay a src match
      (not a data-* hook): it also has to catch icons inside Foundry-injected
@@ -137,10 +171,7 @@
         background-color: oklch(19% 0.024 258);
         color: var(--color-text);
         border: 1px solid oklch(44% 0.028 258);
-        box-shadow:
-          inset 0 1px 0 oklch(100% 0 0 / 0.08),
-          0 8px 32px oklch(0% 0 0 / 0.5),
-          0 24px 64px oklch(0% 0 0 / 0.35);
+        box-shadow: var(--shadow-3);
       }
 
       /* Equipment kebab popover + items reuse the chat-roll menu surface
@@ -149,9 +180,7 @@
         background-color: var(--color-surface);
         border: 1px solid oklch(38% 0.026 258);
         color: var(--color-text);
-        box-shadow:
-          0 12px 28px oklch(5% 0.015 258 / 0.55),
-          0 0 0 1px oklch(50% 0.018 258 / 0.12);
+        box-shadow: var(--shadow-2);
       }
 
       [data-part='inventory-mode-toggle'] {
@@ -188,12 +217,12 @@
        border. The base "None" theme intentionally has none of this, leaving
        only the green text / red strikethrough from the component. */
       [data-part='modifier'][data-manual-on] {
-        border-color: oklch(60% 0.17 145);
-        background-color: oklch(60% 0.17 145 / 0.18);
+        border-color: var(--color-success);
+        background-color: var(--color-success-surface);
       }
       [data-part='modifier'][data-manual-off] {
-        border-color: oklch(58% 0.18 25);
-        background-color: oklch(58% 0.18 25 / 0.18);
+        border-color: var(--color-warning);
+        background-color: var(--color-warning-surface);
       }
 
       /* face picker: per-die buttons for manually selecting a roll result */
@@ -432,9 +461,7 @@
           background-color: var(--color-surface);
           border-color: oklch(38% 0.026 258);
           color: var(--color-text);
-          box-shadow:
-            0 12px 28px oklch(5% 0.015 258 / 0.55),
-            0 0 0 1px oklch(50% 0.018 258 / 0.12);
+          box-shadow: var(--shadow-2);
         }
 
         [data-part='chat-roll-menu-item'] {
@@ -578,9 +605,7 @@
             background-color: var(--color-surface);
             border-color: oklch(38% 0.026 258);
             color: var(--color-text);
-            box-shadow:
-              0 12px 28px oklch(5% 0.015 258 / 0.55),
-              0 0 0 1px oklch(50% 0.018 258 / 0.12);
+            box-shadow: var(--shadow-2);
 
             [data-part='menu-divider'] {
               border-color: oklch(34% 0.024 258);
@@ -668,10 +693,8 @@
       backdrop-filter: blur(14px) saturate(1.4);
       -webkit-backdrop-filter: blur(14px) saturate(1.4);
       border: 1px solid oklch(100% 0 0 / 0.06);
-      border-radius: 0.5rem;
-      box-shadow:
-        inset 0 1px 0 oklch(100% 0 0 / 0.06),
-        0 8px 24px oklch(0% 0 0 / 0.25);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-1);
     }
 
     [data-component='FamiliarStatusBanner'][data-status='special'] {
@@ -790,9 +813,7 @@
     [data-part='kebab-menu-items'] {
       background-color: var(--color-surface);
       border: 1px solid oklch(38% 0.026 258);
-      box-shadow:
-        0 12px 28px oklch(5% 0.015 258 / 0.55),
-        0 0 0 1px oklch(50% 0.018 258 / 0.12);
+      box-shadow: var(--shadow-2);
     }
 
     /* --- Two-column layout depth (desktop) --------------- */
@@ -904,9 +925,7 @@
     /* --- Server URL gate --------------------------------- */
     [data-component='ServerUrlGate'] {
       [data-part='gate-form'] {
-        box-shadow:
-          inset 0 1px 0 oklch(100% 0 0 / 0.06),
-          0 8px 32px oklch(0% 0 0 / 0.5);
+        box-shadow: var(--shadow-3);
       }
 
       [data-part='server-select'] {
@@ -938,7 +957,7 @@
       }
 
       [data-part='server-row'] {
-        border-radius: 0.5rem;
+        border-radius: var(--radius-md);
         background-color: var(--color-card);
         border: 1px solid oklch(32% 0.022 258);
         /* Widened after the shorthand (which would otherwise reset it): the

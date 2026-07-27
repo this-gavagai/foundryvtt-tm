@@ -39,12 +39,14 @@ const totalWeight = computed(() => {
       <div class="truncate" :class="{ italic: item.type === 'backpack' }">
         {{ item.label ?? item.name }}
       </div>
-      <div class="text-right text-xs font-light">(x{{ item?.system?.quantity }})</div>
+      <div class="text-right text-xs font-normal">(x{{ item?.system?.quantity }})</div>
       <div
+        data-part="item-weight"
         class="text-right text-xs"
         :class="[
-          typeof totalWeight === 'number' ? 'font-semibold' : 'font-light text-gray-600'
+          typeof totalWeight === 'number' ? 'font-semibold' : 'font-normal text-gray-600'
         ]"
+        :data-numeric="typeof totalWeight === 'number'"
       >
         {{ totalWeight }}
       </div>

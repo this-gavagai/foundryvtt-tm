@@ -91,8 +91,20 @@
     --tm-panel-color: oklch(96.7% 0.003 265);
     --tm-backdrop-image: none;
     --tm-rollable-fallback: oklch(44.6% 0.03 257); /* rollable rule w/o proficiency */
-    --tm-tab-accent: var(--color-primary); /* selected-tab underline */
+    /* Selected-tab underline reuses the focus accent, not the raw primary:
+     one rule — "the primary accent, brightened for attention states (focus
+     ring + selected tab)" — so the app's accent, focus ring, and tab
+     indicator all read as one colour. Themes override --color-focus. */
+    --tm-tab-accent: var(--color-focus); /* selected-tab underline */
     --tm-tab-fill: transparent; /* selected-tab wash; skins set an accent tint */
+
+    /* Shape scale — one knob per step so a theme's "roundness" is three
+     values, not a radius re-typed across every card/menu/pill rule. Themes
+     override these (moonlit flatter, sunny rounder); consumed by the base's
+     own pill/bar rules below, so every token is defaulted here. */
+    --radius-sm: 5px; /* pills, meter bar, small chips */
+    --radius-md: 0.5rem; /* menus, popovers, rows, inputs */
+    --radius-lg: 0.5rem; /* section cards, modals */
 
     /* --- Structure (inherited by every theme in the scope above) ---------- */
     background-color: var(--tm-backdrop-color);
@@ -853,12 +865,21 @@
         justify-content: center;
         height: 38px;
         padding-inline: 1rem;
-        border-radius: 5px;
+        border-radius: var(--radius-sm);
         border: 1px solid;
         color: var(--color-text);
         font-size: 0.8rem;
         font-weight: 500;
         font-variant-numeric: tabular-nums;
+      }
+
+      /* Non-numeric weight cell (bulk labels, "—") is secondary info: every
+       skinned theme mutes it via the heading token. The component's bare
+       text-gray-600 utility is the unthemed "None" fallback (fine on its light
+       background); here the token keeps it from sitting too dark on the dark
+       card. The numeric case keeps full text weight/colour from the component. */
+      [data-part='item-weight'][data-numeric='false'] {
+        color: var(--color-heading);
       }
     }
 
@@ -888,7 +909,7 @@
     /* --- EquipmentBulk bar ------------------------------- */
     [data-component='EquipmentBulk'] {
       height: 38px;
-      border-radius: 5px;
+      border-radius: var(--radius-sm);
       overflow: hidden;
 
       /* hatch rect is transparent — CSS background gradient shows through */

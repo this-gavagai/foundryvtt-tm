@@ -97,6 +97,18 @@
     inset: var(--tm-safe-area-top) var(--tm-safe-area-right) 0 var(--tm-safe-area-left);
     width: auto;
     height: auto;
+    /* This is a stat sheet — modifiers, DCs, HP, spell counts everywhere. Force
+       tabular (monospaced) figures so columns of numbers line up on the digit
+       instead of jittering with proportional widths. Dosis's proportional
+       figures are the default; this opts the whole app into its tabular set. */
+    font-variant-numeric: tabular-nums;
+    /* Dosis's regular (400) is a thin "book" weight that reads weak as UI body
+       text, worst on the light (sunny) paper. Lift the inherited base to 450 so
+       unclassed body copy has presence; explicit font-* utilities (medium /
+       semibold on headings, normal where a lighter step is wanted) still win, so
+       deliberate hierarchy is untouched. Dosis is variable (200–800), so 450 is
+       a real interpolated weight, not a synthesized one. */
+    font-weight: 450;
   }
 }
 
