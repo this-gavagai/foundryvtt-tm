@@ -271,8 +271,8 @@ export const rollInlineCheck = (
 export const sendItemToChat = (characterId: string, itemId: string) =>
   sendAction(TM.SEND_ITEM_TO_CHAT, { characterId, itemId })
 
-export const sendChatMessage = (characterId: string, content: string) =>
-  sendAction(TM.SEND_CHAT_MESSAGE, { characterId, content })
+export const sendChatMessage = (characterId: string, content: string, outOfCharacter = false) =>
+  sendAction(TM.SEND_CHAT_MESSAGE, { characterId, content, outOfCharacter })
 
 export const setWeaponLoaded = (
   actor: TablemateActorRef,

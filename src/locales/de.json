@@ -325,6 +325,7 @@
     "blind": "Verdeckt",
     "whisper": "Flüstern",
     "whisperTo": "Flüstern → {names}",
+    "outOfCharacter": "Außerhalb der Rolle",
     "damage": "Schaden",
     "half": "Halb",
     "double": "Doppelt",

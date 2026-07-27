@@ -325,6 +325,7 @@
     "blind": "Blind",
     "whisper": "Whisper",
     "whisperTo": "Whisper → {names}",
+    "outOfCharacter": "Out of character",
     "damage": "Damage",
     "half": "Half",
     "double": "Double",

@@ -26,6 +26,9 @@ import type { Roll } from '@/types/roll-types'
 
 const isOpen = ref(false)
 const chatInput = ref<HTMLTextAreaElement>()
+// When set, the next message speaks as the player (their login user name)
+// rather than in-character as the actor.
+const outOfCharacter = ref(false)
 const { zIndex, openLayer, closeLayer } = useOverlayStack()
 const character = useInjectedActor()
 const { _id, _actor, shield, skills, saves, perception } = character
@@ -91,7 +94,7 @@ const {
 function submitChatMessage() {
   const content = draft.value.trim()
   if (!content) return
-  submitMessage(whisperContent(content))
+  submitMessage(whisperContent(content), { outOfCharacter: outOfCharacter.value })
 }
 
 // On the native mobile keyboard there's no modifier key to reach for, so a bare
@@ -180,6 +183,7 @@ function handleChatContentClick(event: MouseEvent) {
 function open() {
   openLayer()
   selectWhisperGroup(PUBLIC_WHISPER_TARGET)
+  outOfCharacter.value = false
   // Freeze the divider at the current read position before the list paints, so
   // the "new messages" separator marks where the user left off.
   chatStore.beginSession()
@@ -366,8 +370,10 @@ defineExpose({ open, close, isOpen })
                     :selected-label="selectedWhisperLabel"
                     :is-private="selectedWhisperCommandTargets.length > 0"
                     :is-user-selected="userTargetSelected"
+                    :out-of-character="outOfCharacter"
                     @select-group="selectWhisperGroup($event)"
                     @toggle-user="toggleWhisperUser($event)"
+                    @toggle-out-of-character="outOfCharacter = $event"
                   />
                   <textarea
                     ref="chatInput"

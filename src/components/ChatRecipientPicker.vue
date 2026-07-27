@@ -11,11 +11,14 @@ defineProps<{
   // Whether the current selection whispers (drives the private accent color).
   isPrivate: boolean
   isUserSelected: (key: string) => boolean
+  // Speak as the player (their name) instead of in-character as the actor.
+  outOfCharacter: boolean
 }>()
 
 const emit = defineEmits<{
   selectGroup: [key: string]
   toggleUser: [key: string]
+  toggleOutOfCharacter: [value: boolean]
 }>()
 </script>
 
@@ -84,5 +87,17 @@ const emit = defineEmits<{
         </MenuItem>
       </MenuItems>
     </Menu>
+    <label
+      data-part="chat-ooc"
+      class="ml-auto inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap select-none"
+    >
+      <input
+        type="checkbox"
+        class="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        :checked="outOfCharacter"
+        @change="emit('toggleOutOfCharacter', ($event.target as HTMLInputElement).checked)"
+      />
+      <span>{{ $t('chat.outOfCharacter') }}</span>
+    </label>
   </div>
 </template>

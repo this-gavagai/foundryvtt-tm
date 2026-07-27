@@ -307,6 +307,9 @@ export interface SendChatMessageArgs {
   userId: string
   characterId: string
   content: string
+  // When set, the message speaks as the player (their login user's name)
+  // rather than in-character as the actor.
+  outOfCharacter?: boolean
   uuid: string
 }
 export interface SendItemToChatArgs {

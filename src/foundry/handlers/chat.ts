@@ -14,6 +14,7 @@ interface WhisperUser {
   id?: string | null
   name?: string | null
   isGM?: boolean
+  getFlag?: (scope: string, key: string) => unknown
 }
 
 type RerollKeep = 'new' | 'higher' | 'lower'
@@ -100,6 +101,20 @@ function resolveWhisperRecipients(source: GamePF2e, targets: string[]): string[]
   return [...ids]
 }
 
+// The name an out-of-character message speaks as: the requesting user's, unless
+// their Tablemate `belongsTo` flag points at an owning login user (e.g. a
+// sheet-only user attached to a human), in which case that user's name is used.
+function outOfCharacterAlias(source: GamePF2e, userId: string): string | undefined {
+  const users = source.users as { get?: (id: string) => WhisperUser | undefined }
+  const user = users.get?.(userId)
+  const owner = user?.getFlag?.('tablemate', 'belongsTo')
+  if (typeof owner === 'string' && owner) {
+    const ownerUser = users.get?.(owner)
+    if (ownerUser?.name) return ownerUser.name
+  }
+  return user?.name ?? undefined
+}
+
 export async function foundrySendChatMessage(args: SendChatMessageArgs) {
   const source = getGame()
   const actor = source.actors.get(args.characterId, { strict: true })
@@ -108,9 +123,15 @@ export async function foundrySendChatMessage(args: SendChatMessageArgs) {
   const content = formatChatContent(whisper ? whisper.content : args.content)
   if (!content) return makeAck(args)
 
+  // Out-of-character messages speak as the player: keep the actor out of the
+  // speaker so only the human's name shows, falling back to the actor speaker
+  // if the user name can't be resolved.
+  const oocAlias = args.outOfCharacter ? outOfCharacterAlias(source, args.userId) : undefined
+  const speaker = oocAlias ? { alias: oocAlias } : ChatMessage.getSpeaker({ actor })
+
   const data: Record<string, unknown> = {
     author: args.userId,
-    speaker: ChatMessage.getSpeaker({ actor }),
+    speaker,
     content
   }
 

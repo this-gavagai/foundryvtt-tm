@@ -226,7 +226,7 @@ export function useChatActions({
     }
   }
 
-  async function submitMessage(contentOverride?: string) {
+  async function submitMessage(contentOverride?: string, options?: { outOfCharacter?: boolean }) {
     const content = (contentOverride ?? draft.value).trim()
     if (!content || !actorId.value || isSending.value) return
 
@@ -238,7 +238,7 @@ export function useChatActions({
     const previousDraft = draft.value
     draft.value = ''
     try {
-      await sendChatMessage(actorId.value, content)
+      await sendChatMessage(actorId.value, content, options?.outOfCharacter ?? false)
       onMessageSent?.()
     } catch {
       sendError.value = true

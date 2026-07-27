@@ -325,6 +325,7 @@
     "blind": "Вслепую",
     "whisper": "Шёпот",
     "whisperTo": "Шёпот → {names}",
+    "outOfCharacter": "Вне персонажа",
     "damage": "Урон",
     "half": "Половина",
     "double": "Двойной",
