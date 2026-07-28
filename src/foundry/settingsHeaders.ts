@@ -14,7 +14,6 @@
 // will land in front of the wrong setting.
 
 import { MODULE_ID } from '@/api/protocol'
-import { logger } from '@/utils/utilities'
 import {
   MANUAL_ROLL_POLICY_SETTING
 } from './manualRollPolicy'
