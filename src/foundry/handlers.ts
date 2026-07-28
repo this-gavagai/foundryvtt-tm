@@ -22,7 +22,11 @@ export {
   foundrySendItemToChat,
   foundrySendCompendiumItemToChat
 } from './handlers/actionHandlers'
-export { foundryRerollChatRoll, foundrySendChatMessage } from './handlers/chat'
+export {
+  foundryRerollChatRoll,
+  foundrySendChatMessage,
+  foundrySendVoiceMemo
+} from './handlers/chat'
 export { foundryCastSpell, foundryCastStaffSpell, foundryConsumeItem } from './handlers/castSpell'
 export { getCharacterDetails } from './handlers/characterDetails'
 export {

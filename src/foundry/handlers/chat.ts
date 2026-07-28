@@ -1,9 +1,16 @@
-import type { ChatRollRerollMode, RerollChatRollArgs, SendChatMessageArgs } from '@/types/api-types'
+import type {
+  ChatRollRerollMode,
+  RerollChatRollArgs,
+  SendChatMessageArgs,
+  SendVoiceMemoArgs
+} from '@/types/api-types'
 import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import { withBackgroundRoll } from '../backgroundRoll'
 import { registerCapture } from '../chatCapture'
 import { extractRollPayload } from '../utils/roll'
 import { getCharacter, getGame, makeAck } from '../utils/foundry'
+import { voiceMemoEnabled, voiceMemoUploadPath } from '../voiceMemoSetting'
+import { logger } from '@/utils/utilities'
 
 declare const ChatMessage: {
   create: (data: object) => Promise<unknown>
@@ -144,6 +151,210 @@ export async function foundrySendChatMessage(args: SendChatMessageArgs) {
   }
 
   await ChatMessage.create(data)
+  return makeAck(args)
+}
+
+// ── Voice memos ─────────────────────────────────────────────────────────────
+// A recorded clip arrives as a series of SEND_VOICE_MEMO chunks sharing one
+// uploadId (see SendVoiceMemoArgs). We buffer the decoded bytes here until the
+// final chunk lands, then upload the file and post the chat message. Each
+// chunk is its own RPC/ack; the app awaits each before sending the next.
+
+// Drop an incomplete upload if the remaining chunks never arrive (app closed
+// mid-send, GM/proxy handoff, etc.) so a partial recording can't leak memory.
+const VOICE_MEMO_UPLOAD_TTL_MS = 60_000
+
+type VoiceMemoMeta = {
+  characterId: string
+  mimeType: string
+  durationMs: number
+  content?: string
+  outOfCharacter?: boolean
+  whisper?: string[]
+}
+
+type PendingVoiceMemo = {
+  parts: Array<Uint8Array<ArrayBuffer> | undefined>
+  received: number
+  total: number
+  meta: VoiceMemoMeta
+  timer: ReturnType<typeof globalThis.setTimeout>
+}
+
+const pendingVoiceMemos = new Map<string, PendingVoiceMemo>()
+
+// Foundry v13 moved FilePicker under foundry.applications.apps; v11/v12 expose
+// it as a bare global. Resolve whichever exists so the handler works on both.
+type FilePickerLike = {
+  upload: (
+    source: string,
+    path: string,
+    file: File,
+    body?: object,
+    options?: object
+  ) => Promise<{ path?: string } | false>
+  createDirectory: (source: string, target: string, options?: object) => Promise<unknown>
+}
+
+function getFilePicker(): FilePickerLike {
+  const scope = globalThis as {
+    foundry?: { applications?: { apps?: { FilePicker?: FilePickerLike } } }
+    FilePicker?: FilePickerLike
+  }
+  const picker = scope.foundry?.applications?.apps?.FilePicker ?? scope.FilePicker
+  if (!picker) throw new Error('FilePicker is unavailable in this Foundry client')
+  return picker
+}
+
+const AUDIO_EXTENSIONS: Record<string, string> = {
+  'audio/mp4': 'm4a',
+  'audio/aac': 'aac',
+  'audio/webm': 'webm',
+  'audio/ogg': 'ogg',
+  'audio/mpeg': 'mp3',
+  'audio/wav': 'wav'
+}
+
+// Map a possibly-parameterized MIME ('audio/webm;codecs=opus') to a Foundry
+// uploadable audio extension, defaulting to webm for anything unrecognized.
+function audioExtension(mimeType: string): string {
+  const base = mimeType.split(';')[0].trim().toLowerCase()
+  return AUDIO_EXTENSIONS[base] ?? 'webm'
+}
+
+// Return type pinned to Uint8Array<ArrayBuffer> (not the SharedArrayBuffer-
+// inclusive default) so the assembled parts satisfy File's BlobPart[].
+function base64ToBytes(base64: string): Uint8Array<ArrayBuffer> {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(new ArrayBuffer(binary.length))
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return bytes
+}
+
+// FilePicker.createDirectory has no "mkdir -p"; create each level and treat an
+// "already exists" rejection as success. Any other failure (permissions, bad
+// path) is real and propagates so the upload fails loudly.
+async function ensureDirectory(picker: FilePickerLike, source: string, path: string) {
+  let current = ''
+  for (const segment of path.split('/')) {
+    current = current ? `${current}/${segment}` : segment
+    try {
+      await picker.createDirectory(source, current, {})
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (!/exist/i.test(message)) throw error
+    }
+  }
+}
+
+async function finalizeVoiceMemo(args: SendVoiceMemoArgs, pending: PendingVoiceMemo) {
+  const source = getGame()
+  const actor = source.actors.get(pending.meta.characterId, { strict: true })
+
+  // Destination is the GM-configured folder; refuse if it's since been cleared.
+  const dir = voiceMemoUploadPath()
+  if (!dir) throw new Error('Voice memo destination folder is not configured')
+
+  const picker = getFilePicker()
+  await ensureDirectory(picker, 'data', dir)
+
+  // uploadId is a client-minted uuid; strip anything not filename-safe.
+  const safeId = args.uploadId.replace(/[^a-zA-Z0-9_-]/g, '') || 'memo'
+  const filename = `${safeId}.${audioExtension(pending.meta.mimeType)}`
+  const parts = pending.parts as Uint8Array<ArrayBuffer>[]
+  const file = new File(parts, filename, { type: pending.meta.mimeType })
+
+  const result = await picker.upload('data', dir, file, {}, { notify: false })
+  const audioPath = result && result.path
+  if (!audioPath) throw new Error('Voice memo upload returned no path')
+
+  const oocAlias = pending.meta.outOfCharacter
+    ? outOfCharacterAlias(source, args.userId)
+    : undefined
+  const speaker = oocAlias ? { alias: oocAlias } : ChatMessage.getSpeaker({ actor })
+
+  // An <audio> element in the content lets Foundry's own chat log play the memo;
+  // the Tablemate app ignores it (its sanitizer strips <audio>) and renders a
+  // native player from the flag instead. Any caption is escaped and shown above.
+  const caption = pending.meta.content ? formatChatContent(pending.meta.content) : ''
+  const player = `<audio controls preload="metadata" src="${audioPath}"></audio>`
+  const content = caption ? `${caption}<br>${player}` : player
+
+  const data: Record<string, unknown> = {
+    author: args.userId,
+    speaker,
+    content,
+    flags: {
+      tablemate: {
+        audioPath,
+        audioMimeType: pending.meta.mimeType,
+        audioDurationMs: pending.meta.durationMs
+      }
+    }
+  }
+  if (pending.meta.whisper?.length) {
+    // whisper carries the same command targets the text path sends ('gm' /
+    // '[Name]'); resolve them with the shared logic. Mirror the text handler's
+    // leak-guard: scope an unresolved private memo to its author rather than
+    // letting an empty array read as a public message.
+    const recipients = resolveWhisperRecipients(source, pending.meta.whisper)
+    data.whisper = recipients.length ? recipients : [args.userId]
+  }
+
+  await ChatMessage.create(data)
+}
+
+export async function foundrySendVoiceMemo(args: SendVoiceMemoArgs) {
+  // Feature gate: reject the first chunk outright when the world has no
+  // destination configured, so nothing is buffered and the app surfaces the
+  // refusal. The app already hides the mic in this case; this is defense in
+  // depth against a stale or hand-crafted request.
+  if (!voiceMemoEnabled()) throw new Error('Voice memos are not enabled for this world')
+
+  if (!Number.isInteger(args.total) || args.total <= 0) {
+    throw new Error(`Voice memo has invalid chunk count ${args.total}`)
+  }
+  if (!Number.isInteger(args.seq) || args.seq < 0 || args.seq >= args.total) {
+    throw new Error(`Voice memo chunk ${args.seq} out of range for total ${args.total}`)
+  }
+
+  let pending = pendingVoiceMemos.get(args.uploadId)
+  if (!pending) {
+    pending = {
+      parts: new Array<Uint8Array<ArrayBuffer> | undefined>(args.total),
+      received: 0,
+      total: args.total,
+      meta: {
+        characterId: args.characterId,
+        mimeType: args.mimeType,
+        durationMs: args.durationMs,
+        content: args.content,
+        outOfCharacter: args.outOfCharacter,
+        whisper: args.whisper
+      },
+      timer: globalThis.setTimeout(() => {
+        if (pendingVoiceMemos.delete(args.uploadId)) {
+          logger.warn('TABLEMATE: voice memo upload timed out before completion', args.uploadId)
+        }
+      }, VOICE_MEMO_UPLOAD_TTL_MS)
+    }
+    pendingVoiceMemos.set(args.uploadId, pending)
+  }
+
+  // Idempotent on re-sent chunks (an app retry after an ack timeout): only a
+  // slot filled for the first time advances the received count.
+  if (!pending.parts[args.seq]) {
+    pending.parts[args.seq] = base64ToBytes(args.chunkBase64)
+    pending.received += 1
+  }
+
+  if (pending.received < pending.total) return makeAck(args)
+
+  // Final chunk: stop the TTL, drop the buffer, then upload + post. Cleared up
+  // front so a create failure can't strand the entry.
+  globalThis.clearTimeout(pending.timer)
+  pendingVoiceMemos.delete(args.uploadId)
+  await finalizeVoiceMemo(args, pending)
   return makeAck(args)
 }
 

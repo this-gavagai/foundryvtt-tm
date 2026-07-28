@@ -23,6 +23,7 @@ export type ModuleEventArgs =
   | GetStrikeDamageArgs
   | ShareTargetsArgs
   | SendChatMessageArgs
+  | SendVoiceMemoArgs
   | SendItemToChatArgs
   | SetWeaponLoadedArgs
   | SetWeaponDamageTypeArgs
@@ -75,6 +76,10 @@ export interface ListenderOnlineArgs {
   // Manual-roll policy of the announcing world. Optional because a module
   // predating the setting omits it — the app treats undefined as 'allow'.
   manualRollPolicy?: ManualRollPolicy
+  // Additive feature flags the module supports (see CAPABILITY_* in
+  // protocol.ts). Optional/absent on modules predating the handshake; the app
+  // treats a missing capability as unsupported and hides the affordance.
+  capabilities?: string[]
 }
 export interface UpdateCharacterDetailsArgs {
   action: typeof TM.UPDATE_CHARACTER
@@ -310,6 +315,36 @@ export interface SendChatMessageArgs {
   // When set, the message speaks as the player (their login user's name)
   // rather than in-character as the actor.
   outOfCharacter?: boolean
+  uuid: string
+}
+// One chunk of a voice memo. The app slices the recorded audio into raw byte
+// ranges, base64-encodes each independently (so the GM can concatenate the
+// decoded bytes without base64-padding seams), and sends one of these per
+// slice — all sharing `uploadId`, numbered `seq` of `total`. The GM
+// accumulates them and, on the final chunk, uploads the file and creates the
+// chat message. Metadata (mimeType/durationMs/content/outOfCharacter/whisper)
+// is echoed on every chunk; the GM keeps the first chunk's copy.
+export interface SendVoiceMemoArgs {
+  action: typeof TM.SEND_VOICE_MEMO
+  userId: string
+  characterId: string
+  // Client-generated id shared by every chunk of one recording.
+  uploadId: string
+  // 0-based chunk index and total chunk count.
+  seq: number
+  total: number
+  // base64 of this chunk's raw bytes (NOT of a base64 substring).
+  chunkBase64: string
+  // Container MIME type of the whole clip, e.g. 'audio/mp4' or 'audio/webm'.
+  mimeType: string
+  durationMs: number
+  // Optional text caption shown alongside the player.
+  content?: string
+  // Speak as the player rather than in-character (mirrors SendChatMessageArgs).
+  outOfCharacter?: boolean
+  // Whisper command targets for a private memo — the same 'gm' / '[Name]'
+  // tokens the text path sends, resolved server-side; omitted/empty = public.
+  whisper?: string[]
   uuid: string
 }
 export interface SendItemToChatArgs {
@@ -570,6 +605,7 @@ export interface ResponseByAction {
   [TM.CAST_STAFF_SPELL]: PlainAck
   [TM.CONSUME_ITEM]: PlainAck
   [TM.SEND_CHAT_MESSAGE]: PlainAck
+  [TM.SEND_VOICE_MEMO]: PlainAck
   [TM.SEND_ITEM_TO_CHAT]: PlainAck
   [TM.SEND_COMPENDIUM_ITEM_TO_CHAT]: PlainAck
   [TM.SET_WEAPON_LOADED]: PlainAck

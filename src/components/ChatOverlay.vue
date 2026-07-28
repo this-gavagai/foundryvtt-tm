@@ -2,11 +2,19 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
-import { PaperAirplaneIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import {
+  MicrophoneIcon,
+  PaperAirplaneIcon,
+  StopIcon,
+  TrashIcon,
+  XMarkIcon
+} from '@heroicons/vue/24/outline'
 import { useInjectedActor } from '@/composables/injectKeys'
 import { useOverlayStack } from '@/composables/useOverlayStack'
+import { useAudioRecorder, audioRecordingSupported } from '@/composables/useAudioRecorder'
 import { useChatStore } from '@/stores/chat'
 import { useServerAddressStore } from '@/stores/serverAddress'
+import { useVersionCompatStore } from '@/stores/versionCompat'
 import { useChatActions, type ChatRerollRequest } from '@/composables/useChatActions'
 import { useChatMessages } from '@/composables/useChatMessages'
 import { useChatScroll } from '@/composables/useChatScroll'
@@ -88,13 +96,60 @@ const {
   canSend,
   canTriggerRollAction,
   rerollRoll,
-  submitMessage
+  submitMessage,
+  submitVoiceMemo
 } = chatActions
 
 function submitChatMessage() {
   const content = draft.value.trim()
   if (!content) return
   submitMessage(whisperContent(content), { outOfCharacter: outOfCharacter.value })
+}
+
+// ── Voice memos ──────────────────────────────────────────────────────────
+const versionCompat = useVersionCompatStore()
+const {
+  isRecording,
+  canPreview: canPreviewVoice,
+  elapsedMs: recordElapsedMs,
+  errorKind: recordErrorKind,
+  recordedUrl,
+  recordedBlob,
+  mimeType: recordMimeType,
+  maxDurationMs: recordMaxMs,
+  start: startRecording,
+  stop: stopRecording,
+  reset: resetRecording
+} = useAudioRecorder({ maxDurationMs: 300_000 })
+
+// Offer the mic only when this device can actually record (secure context +
+// MediaRecorder) AND the connected module advertises voice-memo support — so
+// an older module never shows an affordance whose RPC it would reject. Device
+// support is static for the session; module support is reactive.
+const voiceDeviceSupported = audioRecordingSupported()
+const canRecordVoice = computed(
+  () => voiceDeviceSupported && versionCompat.supportsVoiceMemo
+)
+
+function formatElapsed(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
+}
+
+async function submitCurrentVoiceMemo() {
+  const blob = recordedBlob.value
+  if (!blob) return
+  const whisper = selectedWhisperCommandTargets.value
+  await submitVoiceMemo(blob, {
+    mimeType: recordMimeType.value,
+    durationMs: Math.round(recordElapsedMs.value),
+    outOfCharacter: outOfCharacter.value,
+    whisper: whisper.length ? whisper : undefined
+  })
+  // Keep the take on failure so the user can retry; clear it once it's sent.
+  if (!sendError.value) resetRecording()
 }
 
 // On the native mobile keyboard there's no modifier key to reach for, so a bare
@@ -358,51 +413,163 @@ defineExpose({ open, close, isOpen })
 
               <form
                 data-part="chat-composer"
-                class="border-divider flex flex-none items-end gap-2 border-t p-3"
+                class="border-divider flex flex-none flex-col border-t p-3"
                 :data-private="selectedWhisperCommandTargets.length ? true : undefined"
                 @submit.prevent="submitChatMessage"
               >
-                <div class="relative min-w-0 flex-1">
-                  <ChatRecipientPicker
-                    :group-targets="whisperGroupTargets"
-                    :user-targets="whisperUserTargets"
-                    :selected-mode="selectedWhisperMode"
-                    :selected-label="selectedWhisperLabel"
-                    :is-private="selectedWhisperCommandTargets.length > 0"
-                    :is-user-selected="userTargetSelected"
-                    :out-of-character="outOfCharacter"
-                    @select-group="selectWhisperGroup($event)"
-                    @toggle-user="toggleWhisperUser($event)"
-                    @toggle-out-of-character="outOfCharacter = $event"
-                  />
-                  <textarea
-                    ref="chatInput"
-                    v-model="draft"
-                    class="block max-h-32 min-h-12 w-full resize-none rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-hidden"
-                    rows="2"
-                    :placeholder="$t('chat.placeholder')"
-                    :disabled="!_id"
-                    @keydown.enter.exact="onEnterKey"
-                    @keydown.meta.enter.prevent="submitChatMessage"
-                    @keydown.ctrl.enter.prevent="submitChatMessage"
-                  />
-                  <p v-if="sendError" data-part="chat-error" class="mt-1 text-xs text-red-700">
-                    {{ $t('chat.sendFailed') }}
-                  </p>
+                <!-- Recipient picker stays put across all three states; only the
+                     input row below it swaps. -->
+                <ChatRecipientPicker
+                  :group-targets="whisperGroupTargets"
+                  :user-targets="whisperUserTargets"
+                  :selected-mode="selectedWhisperMode"
+                  :selected-label="selectedWhisperLabel"
+                  :is-private="selectedWhisperCommandTargets.length > 0"
+                  :is-user-selected="userTargetSelected"
+                  :out-of-character="outOfCharacter"
+                  @select-group="selectWhisperGroup($event)"
+                  @toggle-user="toggleWhisperUser($event)"
+                  @toggle-out-of-character="outOfCharacter = $event"
+                />
+
+                <!-- items-stretch: the action button(s) grow to exactly the input
+                     box's height in every state, so the box and its button read as
+                     one full-height unit regardless of which mode is showing. The
+                     record/preview boxes are pinned to the textarea's rendered
+                     height (2 rows text-sm + py-2 + border = 3.625rem) so switching
+                     modes never changes the composer's height. -->
+                <div class="flex items-stretch gap-2">
+                  <div class="relative min-w-0 flex-1">
+                    <!-- Recording: cancel is tucked inside the box, so only the
+                         stop button sits outside as the single primary action. -->
+                    <div
+                      v-if="isRecording"
+                      data-part="chat-voice-recording"
+                      class="flex min-h-[3.625rem] items-center gap-3 rounded-md border border-red-300 bg-red-50 py-2 pr-1.5 pl-3"
+                    >
+                      <span
+                        class="h-3 w-3 flex-none animate-pulse rounded-full bg-red-600"
+                        aria-hidden="true"
+                      />
+                      <span class="flex-1 text-sm text-gray-900 tabular-nums">
+                        {{ formatElapsed(recordElapsedMs) }} / {{ formatElapsed(recordMaxMs) }}
+                      </span>
+                      <button
+                        type="button"
+                        class="inline-flex h-8 w-8 flex-none items-center justify-center rounded-md text-red-700 transition-colors hover:bg-red-100 active:bg-red-200"
+                        :aria-label="$t('chat.cancelRecording')"
+                        @click="resetRecording"
+                      >
+                        <XMarkIcon class="h-5 w-5" aria-hidden="true" />
+                      </button>
+                    </div>
+
+                    <!-- Recorded take: inline preview player. -->
+                    <div
+                      v-else-if="canPreviewVoice"
+                      data-part="chat-voice-preview"
+                      class="flex min-h-[3.625rem] items-center"
+                    >
+                      <audio
+                        :src="recordedUrl ?? undefined"
+                        controls
+                        preload="metadata"
+                        class="h-10 w-full"
+                      />
+                    </div>
+
+                    <!-- Default text input. -->
+                    <div v-else class="relative">
+                      <textarea
+                        ref="chatInput"
+                        v-model="draft"
+                        class="block max-h-32 min-h-12 w-full resize-none rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-hidden"
+                        rows="2"
+                        :placeholder="$t('chat.placeholder')"
+                        :disabled="!_id"
+                        @keydown.enter.exact="onEnterKey"
+                        @keydown.meta.enter.prevent="submitChatMessage"
+                        @keydown.ctrl.enter.prevent="submitChatMessage"
+                      />
+                      <!-- Mic sits inside the empty composer; it hides as soon as
+                           the user starts typing so it never crowds the text or
+                           claims layout space of its own. -->
+                      <button
+                        v-if="canRecordVoice && !draft.trim()"
+                        type="button"
+                        data-part="chat-record"
+                        class="absolute top-1/2 right-1.5 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                        :disabled="!_id"
+                        :aria-label="$t('chat.recordVoice')"
+                        @click="startRecording"
+                        @mousedown.prevent
+                      >
+                        <MicrophoneIcon class="h-5 w-5" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Right-side action, swapped by state. No fixed height: the
+                       row's items-stretch grows each button to the box height. -->
+                  <button
+                    v-if="isRecording"
+                    type="button"
+                    class="inline-flex w-12 flex-none items-center justify-center rounded-md bg-red-600 text-white transition-colors hover:bg-red-500 active:bg-red-400"
+                    :aria-label="$t('chat.stopRecording')"
+                    @click="stopRecording"
+                  >
+                    <StopIcon class="h-5 w-5" aria-hidden="true" />
+                  </button>
+                  <template v-else-if="canPreviewVoice">
+                    <button
+                      type="button"
+                      class="inline-flex w-12 flex-none items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition-colors hover:bg-gray-100 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                      :disabled="isSending"
+                      :aria-label="$t('chat.discardRecording')"
+                      @click="resetRecording"
+                    >
+                      <TrashIcon class="h-5 w-5" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      class="inline-flex w-12 flex-none items-center justify-center rounded-md bg-blue-600 text-white transition-colors enabled:hover:bg-blue-500 enabled:active:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
+                      :disabled="isSending"
+                      :aria-label="$t('chat.sendVoice')"
+                      @click="submitCurrentVoiceMemo"
+                    >
+                      <span
+                        v-if="isSending"
+                        class="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                      />
+                      <PaperAirplaneIcon v-else class="h-5 w-5" aria-hidden="true" />
+                    </button>
+                  </template>
+                  <button
+                    v-else
+                    type="submit"
+                    class="inline-flex w-12 flex-none items-center justify-center rounded-md bg-blue-600 text-white transition-colors enabled:hover:bg-blue-500 enabled:active:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="!canSend"
+                    :aria-label="$t('chat.send')"
+                    @mousedown.prevent
+                  >
+                    <span
+                      v-if="isSending"
+                      class="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                    />
+                    <PaperAirplaneIcon v-else class="h-5 w-5" aria-hidden="true" />
+                  </button>
                 </div>
-                <button
-                  type="submit"
-                  class="inline-flex h-12 w-12 flex-none items-center justify-center rounded-md bg-blue-600 text-white transition-colors enabled:hover:bg-blue-500 enabled:active:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
-                  :disabled="!canSend"
-                  :aria-label="$t('chat.send')"
-                  @mousedown.prevent
+
+                <p v-if="sendError" data-part="chat-error" class="mt-1 text-xs text-red-700">
+                  {{ recordErrorKind ? $t('chat.micDenied') : $t('chat.sendFailed') }}
+                </p>
+                <p
+                  v-else-if="recordErrorKind"
+                  data-part="chat-voice-error"
+                  class="mt-1 text-xs text-red-700"
                 >
-                  <span
-                    v-if="isSending"
-                    class="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white"
-                  />
-                  <PaperAirplaneIcon v-else class="h-5 w-5" aria-hidden="true" />
-                </button>
+                  {{ $t('chat.micDenied') }}
+                </p>
               </form>
             </DialogPanel>
           </TransitionChild>

@@ -40,6 +40,12 @@ export const TM_ERROR_MANUAL_ROLLS_DISABLED = 'TM_MANUAL_ROLLS_DISABLED'
 // client timeout that would otherwise read the same as "no GM online".
 export const TM_ERROR_UNAUTHORIZED = 'TM_UNAUTHORIZED'
 
+// Optional module capabilities advertised on the LISTENER_ONLINE handshake.
+// Additive features live here rather than behind a PROTOCOL_VERSION bump, so an
+// app talking to an older module simply hides the affordance (no scary version
+// banner). The app gates the voice-memo composer on this being present.
+export const CAPABILITY_VOICE_MEMO = 'voiceMemo'
+
 export const TM = {
   // Socket.io channel name. All tablemate messages flow over this channel.
   CHANNEL: 'module.tablemate',
@@ -60,6 +66,12 @@ export const TM = {
   CONSUME_ITEM: 'consumeItem',
   GET_STRIKE_DAMAGE: 'getStrikeDamage',
   SEND_CHAT_MESSAGE: 'sendChatMessage',
+  // Voice memo: the app records audio and streams it to the GM client in
+  // base64 byte-slices (one RPC per chunk, keyed by a shared uploadId), which
+  // reassembles them, uploads the file via Foundry's FilePicker, and posts a
+  // ChatMessage referencing it. Chunked because a multi-minute clip exceeds
+  // Foundry's per-message socket buffer. See foundry/handlers/chat.ts.
+  SEND_VOICE_MEMO: 'sendVoiceMemo',
   SEND_ITEM_TO_CHAT: 'sendItemToChat',
   SET_WEAPON_LOADED: 'setWeaponLoaded',
   SET_WEAPON_DAMAGE_TYPE: 'setWeaponDamageType',

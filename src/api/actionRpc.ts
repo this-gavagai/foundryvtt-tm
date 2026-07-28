@@ -274,6 +274,23 @@ export const sendItemToChat = (characterId: string, itemId: string) =>
 export const sendChatMessage = (characterId: string, content: string, outOfCharacter = false) =>
   sendAction(TM.SEND_CHAT_MESSAGE, { characterId, content, outOfCharacter })
 
+// Send one chunk of a recorded voice memo. The caller slices the audio, shares
+// a single `uploadId` across the chunks, and awaits each chunk's ack before
+// sending the next (natural ordering + backpressure). Metadata rides on every
+// chunk; the GM reassembles and, on the final chunk, uploads the file and posts
+// the chat message. See SendVoiceMemoArgs and foundry/handlers/chat.ts.
+export const sendVoiceMemo = (
+  characterId: string,
+  chunk: { uploadId: string; seq: number; total: number; chunkBase64: string },
+  meta: {
+    mimeType: string
+    durationMs: number
+    content?: string
+    outOfCharacter?: boolean
+    whisper?: string[]
+  }
+) => sendAction(TM.SEND_VOICE_MEMO, { characterId, ...chunk, ...meta })
+
 export const setWeaponLoaded = (
   actor: TablemateActorRef,
   weaponId: string,

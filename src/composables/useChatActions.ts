@@ -1,8 +1,16 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { TablemateActor } from '@/types/character-types'
-import { applyDamage, consumeItem, rerollChatRoll, sendChatMessage } from '@/api/actionRpc'
+import {
+  applyDamage,
+  consumeItem,
+  rerollChatRoll,
+  sendChatMessage,
+  sendVoiceMemo
+} from '@/api/actionRpc'
 import type { ApplyDamageMode, ChatRollRerollMode } from '@/types/api-types'
+import { uuidv4 } from '@/utils/utilities'
+import { sliceBytesToBase64Chunks } from '@/utils/voiceMemoChunks'
 import type { ChatRollSummary } from '@/utils/chatRollSummary'
 import { messageIsReroll, originItemId, type ChatMessageData } from '@/composables/useChatMessages'
 import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
@@ -250,12 +258,53 @@ export function useChatActions({
     }
   }
 
+  // Send a recorded voice memo: slice the blob into base64 chunks and stream
+  // them to the GM client, which reassembles + uploads + posts the message.
+  // Awaits each chunk's ack before the next (ordering + backpressure); shares
+  // the text composer's isSending/sendError so the UI reflects it uniformly.
+  async function submitVoiceMemo(
+    blob: Blob,
+    meta: {
+      mimeType: string
+      durationMs: number
+      content?: string
+      outOfCharacter?: boolean
+      whisper?: string[]
+    }
+  ) {
+    if (!actorId.value || isSending.value) return
+    if (blob.size === 0) {
+      sendError.value = true
+      return
+    }
+    isSending.value = true
+    sendError.value = false
+    try {
+      const bytes = new Uint8Array(await blob.arrayBuffer())
+      const chunks = sliceBytesToBase64Chunks(bytes)
+      const uploadId = uuidv4()
+      for (let seq = 0; seq < chunks.length; seq++) {
+        await sendVoiceMemo(
+          actorId.value,
+          { uploadId, seq, total: chunks.length, chunkBase64: chunks[seq] },
+          meta
+        )
+      }
+      onMessageSent?.()
+    } catch {
+      sendError.value = true
+    } finally {
+      isSending.value = false
+    }
+  }
+
   return {
     draft,
     isSending,
     sendError,
     actionError,
     canSend,
+    submitVoiceMemo,
     canApplyDamage,
     canReroll,
     isDamageActionPending,

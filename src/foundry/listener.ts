@@ -32,6 +32,7 @@ import {
   foundryListCompendia,
   foundryGetCompendiumIndex,
   foundrySendChatMessage,
+  foundrySendVoiceMemo,
   foundryApplyDamage,
   foundryRerollChatRoll
 } from './handlers'
@@ -43,6 +44,7 @@ import {
   TM_ERROR_MANUAL_ROLLS_DISABLED,
   TM_ERROR_UNAUTHORIZED,
   PROTOCOL_VERSION,
+  CAPABILITY_VOICE_MEMO,
   MODULE_ID
 } from '@/api/protocol'
 import { makeAck, stampTablemateChatOrigin, tablemateChatOriginUuid } from './utils/foundry'
@@ -53,6 +55,7 @@ import {
   manualRollPolicy,
   hasPresetDiceResults
 } from './manualRollPolicy'
+import { registerVoiceMemoSetting, voiceMemoEnabled } from './voiceMemoSetting'
 import { registerPushSettings, ensureWorldPushIdentity, foundryRegisterPush } from './pushRegistration'
 import { notifyChatMessage } from './pushNotify'
 
@@ -122,6 +125,7 @@ const actionHandlers: ActionHandlerMap = {
   [TM.CONSUME_ITEM]: foundryConsumeItem,
   [TM.GET_STRIKE_DAMAGE]: foundryGetStrikeDamage,
   [TM.SEND_CHAT_MESSAGE]: foundrySendChatMessage,
+  [TM.SEND_VOICE_MEMO]: foundrySendVoiceMemo,
   [TM.SEND_ITEM_TO_CHAT]: foundrySendItemToChat,
   [TM.SEND_COMPENDIUM_ITEM_TO_CHAT]: foundrySendCompendiumItemToChat,
   [TM.SET_WEAPON_LOADED]: foundrySetWeaponLoaded,
@@ -234,6 +238,7 @@ const AUTH_POLICY: Partial<Record<ModuleEventArgs['action'], AuthRequirement>> =
   [TM.GET_STRIKE_DAMAGE]: 'owner',
   [TM.GET_SPELL_DAMAGE]: 'owner',
   [TM.SEND_CHAT_MESSAGE]: 'owner',
+  [TM.SEND_VOICE_MEMO]: 'owner',
   [TM.SEND_ITEM_TO_CHAT]: 'owner',
   [TM.SEND_COMPENDIUM_ITEM_TO_CHAT]: 'owner',
   [TM.SET_WEAPON_LOADED]: 'owner',
@@ -432,6 +437,9 @@ export function setupListener() {
   // connected apps update their manual/Pixel affordances without waiting for
   // the next presence heartbeat.
   registerManualRollPolicySetting(() => announceSelf())
+  // Re-announce when the GM sets/clears the voice-memo folder so connected apps
+  // show or hide the mic immediately (the capability rides announceSelf below).
+  registerVoiceMemoSetting(() => announceSelf())
   registerPushSettings()
   // GM-only: generate + provision this world's push identity if enabled.
   void ensureWorldPushIdentity()
@@ -606,7 +614,11 @@ function announceSelf() {
     moduleVersion: moduleVersion(),
     // Piggyback the manual-roll policy so apps can gray out their manual/Pixel
     // affordances proactively; the dispatch gate above stays authoritative.
-    manualRollPolicy: manualRollPolicy()
+    manualRollPolicy: manualRollPolicy(),
+    // Additive feature flags — the app hides features this module can't serve.
+    // Voice memos are advertised only once the GM has configured a destination
+    // folder, so an unconfigured world offers no recording affordance.
+    capabilities: voiceMemoEnabled() ? [CAPABILITY_VOICE_MEMO] : []
   })
 }
 

@@ -111,13 +111,19 @@ function handleContentClick(event: MouseEvent) {
       @click="emit('contentClick', $event)"
     />
     <div
-      v-if="view.showContent"
+      v-if="view.showContent && view.preparedContent"
       data-part="chat-content"
       data-tone="primary"
       class="mt-2 text-base text-gray-900"
       v-html="view.preparedContent"
       @click="handleContentClick($event)"
     />
+    <!-- Native player for an attached voice memo. Rendered as a real element
+         (not via the content v-html) because the chat-HTML sanitizer strips
+         <audio>; the URL is resolved from flags.tablemate in useChatMessages. -->
+    <div v-if="view.audioUrl" data-part="chat-voice-memo" class="mt-2">
+      <audio controls preload="metadata" :src="view.audioUrl" class="w-full" />
+    </div>
     <div
       v-if="view.inlineChecks.length && actorId"
       data-part="chat-inline-checks"

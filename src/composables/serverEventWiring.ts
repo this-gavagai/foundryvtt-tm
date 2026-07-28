@@ -122,7 +122,7 @@ export function registerServerEventWiring() {
     // the app can surface a banner when a stale PWA meets a newer module (or
     // vice versa). A module too old to send `protocol` reads as undefined here,
     // which is correctly treated as a mismatch.
-    useVersionCompatStore().reportModule(args.protocol, args.moduleVersion)
+    useVersionCompatStore().reportModule(args.protocol, args.moduleVersion, args.capabilities)
     // World manual-roll policy rides along on every announcement (including
     // the re-announce the module fires when the GM changes the setting).
     useGmPolicyStore().reportPolicy(args.manualRollPolicy)
