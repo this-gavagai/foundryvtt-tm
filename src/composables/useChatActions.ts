@@ -5,9 +5,20 @@ import {
   applyDamage,
   consumeItem,
   rerollChatRoll,
-  sendChatMessage,
   sendVoiceMemo
 } from '@/api/actionRpc'
+import { modifyDocument } from '@/api/documents'
+import type { DocumentData } from '@/api/internal'
+import { useWorldStore } from '@/stores/world'
+import { useUserStore } from '@/stores/user'
+import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
+import {
+  buildChatMessageCreateData,
+  buildSpeaker,
+  formatChatContent,
+  outOfCharacterAlias,
+  type ChatUserLike
+} from '@/utils/chatMessage'
 import type { ApplyDamageMode, ChatRollRerollMode } from '@/types/api-types'
 import { uuidv4 } from '@/utils/utilities'
 import { sliceBytesToBase64Chunks } from '@/utils/voiceMemoChunks'
@@ -85,6 +96,9 @@ export function useChatActions({
   const pendingDamageActions = ref(new Set<string>())
   const pendingRollActions = ref(new Set<string>())
   const pendingConsumeMessages = ref(new Set<string>())
+
+  const worldStore = useWorldStore()
+  const userStore = useUserStore()
 
   const canSend = computed(
     () => !!actorId.value && draft.value.trim().length > 0 && !isSending.value
@@ -234,7 +248,90 @@ export function useChatActions({
     }
   }
 
-  async function submitMessage(contentOverride?: string, options?: { outOfCharacter?: boolean }) {
+  // Resolve the active scene + this actor's placed token on it, for a faithful
+  // speaker (per-token portrait art). Both are best-effort — the read side
+  // falls back to the actor's own portrait when the token can't be resolved, so
+  // a world payload without scene tokens still posts a valid message.
+  interface SceneLike {
+    _id?: string | null
+    active?: boolean
+    tokens?: unknown
+  }
+  interface TokenLike {
+    _id?: string | null
+    actorId?: string | null
+  }
+  function resolveSpeakerContext(actorIdValue: string): {
+    sceneId?: string
+    tokenId?: string
+  } {
+    const scenes = collectionToArray<SceneLike>(
+      (worldStore.world as { scenes?: unknown } | undefined)?.scenes as CollectionLike<SceneLike>
+    )
+    const active = scenes.find((scene) => scene.active)
+    if (!active) return {}
+    const tokenId = collectionToArray<TokenLike>(active.tokens as CollectionLike<TokenLike>).find(
+      (token) => token.actorId === actorIdValue
+    )?._id
+    return { sceneId: active._id ?? undefined, tokenId: tokenId ?? undefined }
+  }
+
+  // Post a chat message DIRECTLY over the modifyDocument socket, as this app's
+  // own Foundry user, rather than asking the GM proxy to run ChatMessage.create
+  // (the old SEND_CHAT_MESSAGE RPC). Works with no GM client online and skips
+  // the proxy's serialized dispatch, at the cost of building the speaker /
+  // whisper / OOC-alias shaping client-side (see utils/chatMessage.ts). The
+  // created message is echoed to the sender only as the emit ack, so we
+  // self-apply it into world.messages (worldStore.applyChatCreate).
+  async function postChatMessageDirect(
+    content: string,
+    options: { outOfCharacter: boolean; whisperIds: string[]; whisperIntended: boolean }
+  ): Promise<void> {
+    const actorIdValue = actorId.value
+    const userId = userStore.userId
+    if (!actorIdValue || !userId) throw new Error('Cannot send chat: actor or user not ready')
+
+    const users = collectionToArray<ChatUserLike>(
+      (worldStore.world as { users?: unknown } | undefined)?.users as CollectionLike<ChatUserLike>
+    )
+    const oocAlias = options.outOfCharacter ? outOfCharacterAlias(users, userId) : undefined
+    const { sceneId, tokenId } = resolveSpeakerContext(actorIdValue)
+    const speaker = buildSpeaker({
+      outOfCharacter: options.outOfCharacter,
+      actorId: actorIdValue,
+      actorName: actor.value?.name ?? undefined,
+      sceneId,
+      tokenId,
+      oocAlias
+    })
+
+    // Leak-guard: a message aimed at recipients that all resolve away (e.g. the
+    // only selected user left the world) is scoped to the author rather than
+    // posted publicly — mirrors foundrySendChatMessage's empty-whisper handling.
+    const whisperIds =
+      options.whisperIntended && options.whisperIds.length === 0 ? [userId] : options.whisperIds
+
+    const data = buildChatMessageCreateData({
+      userId,
+      speaker,
+      content: formatChatContent(content),
+      whisperIds
+    })
+
+    await modifyDocument(
+      {
+        action: 'create',
+        type: 'ChatMessage',
+        operation: { data: [data as unknown as Record<string, unknown>], render: true }
+      },
+      (r) => worldStore.applyChatCreate(r.result as DocumentData[])
+    )
+  }
+
+  async function submitMessage(
+    contentOverride?: string,
+    options?: { outOfCharacter?: boolean; whisperIds?: string[]; whisperIntended?: boolean }
+  ) {
     const content = (contentOverride ?? draft.value).trim()
     if (!content || !actorId.value || isSending.value) return
 
@@ -246,7 +343,11 @@ export function useChatActions({
     const previousDraft = draft.value
     draft.value = ''
     try {
-      await sendChatMessage(actorId.value, content, options?.outOfCharacter ?? false)
+      await postChatMessageDirect(content, {
+        outOfCharacter: options?.outOfCharacter ?? false,
+        whisperIds: options?.whisperIds ?? [],
+        whisperIntended: options?.whisperIntended ?? false
+      })
       onMessageSent?.()
     } catch {
       sendError.value = true

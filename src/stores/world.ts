@@ -1,4 +1,4 @@
-import { computed, ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef, triggerRef } from 'vue'
 import { defineStore } from 'pinia'
 import { debounce } from 'lodash-es'
 import type { ActorPF2e, GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
@@ -6,6 +6,7 @@ import { useServerStore } from '@/stores/server'
 import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { markWorldRequestSent } from '@/api/loadPriority'
 import { emitWithTimeout } from '@/api/socketConnection'
+import { asDocumentArray, type DocumentData } from '@/api/internal'
 import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
 
 const REFRESH_DEBOUNCE_MS = 2000
@@ -27,6 +28,29 @@ export const useWorldStore = defineStore('world', () => {
   const messagesRevision = ref(0)
   function bumpMessagesRevision(): void {
     messagesRevision.value++
+  }
+
+  // Fold locally-created chat messages into world.messages. A message the app
+  // posts directly (modifyDocument create over the socket) is echoed back to
+  // the creator only as the emit's ack result, NOT as the 'modifyDocument'
+  // broadcast that populates other clients — so the sender must self-apply or
+  // its own message wouldn't appear until the next full world refresh. Keyed by
+  // _id and idempotent, so it's harmless if a broadcast ever does also arrive
+  // (mirrors processChanges' create guard). Bumps the revision + triggers the
+  // shallowRef exactly like the incoming-broadcast path (serverEventWiring).
+  function applyChatCreate(created: DocumentData[]): void {
+    const root = asDocumentArray(world.value?.messages)
+    if (!root) return
+    let changed = false
+    for (const msg of created) {
+      if (msg._id && !root.find((m) => m._id === msg._id)) {
+        root.push(msg)
+        changed = true
+      }
+    }
+    if (!changed) return
+    messagesRevision.value++
+    triggerRef(world)
   }
 
   // Indexed lookups. Consumers repeatedly resolve an actor or user by _id
@@ -135,6 +159,7 @@ export const useWorldStore = defineStore('world', () => {
     world,
     messagesRevision,
     bumpMessagesRevision,
+    applyChatCreate,
     actorsById,
     usersById,
     actorById,

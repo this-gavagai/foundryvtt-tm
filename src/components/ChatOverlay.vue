@@ -15,6 +15,7 @@ import { useAudioRecorder, audioRecordingSupported } from '@/composables/useAudi
 import { useChatStore } from '@/stores/chat'
 import { useServerAddressStore } from '@/stores/serverAddress'
 import { useVersionCompatStore } from '@/stores/versionCompat'
+import { useListenersStore } from '@/stores/listenersOnline'
 import { useChatActions, type ChatRerollRequest } from '@/composables/useChatActions'
 import { useChatMessages } from '@/composables/useChatMessages'
 import { useChatScroll } from '@/composables/useChatScroll'
@@ -65,12 +66,13 @@ const {
   whisperGroupTargets,
   whisperUserTargets,
   selectedWhisperCommandTargets,
+  selectedWhisperRecipientIds,
+  whisperIntended,
   selectedWhisperLabel,
   selectWhisperGroup,
   toggleWhisperUser,
   userTargetSelected,
-  selectWhisperUserFromMessage,
-  whisperContent
+  selectWhisperUserFromMessage
 } = useWhisperTargets()
 
 const chatActions = useChatActions({
@@ -103,11 +105,19 @@ const {
 function submitChatMessage() {
   const content = draft.value.trim()
   if (!content) return
-  submitMessage(whisperContent(content), { outOfCharacter: outOfCharacter.value })
+  // Whisper recipients ride as resolved user ids (the direct modifyDocument
+  // create posts them straight into the message's `whisper` array) rather than
+  // as a `/w …` command string the GM proxy would have re-parsed.
+  submitMessage(content, {
+    outOfCharacter: outOfCharacter.value,
+    whisperIds: selectedWhisperRecipientIds.value,
+    whisperIntended: whisperIntended.value
+  })
 }
 
 // ── Voice memos ──────────────────────────────────────────────────────────
 const versionCompat = useVersionCompatStore()
+const listeners = useListenersStore()
 const {
   isRecording,
   canPreview: canPreviewVoice,
@@ -123,12 +133,16 @@ const {
 } = useAudioRecorder({ maxDurationMs: 300_000 })
 
 // Offer the mic only when this device can actually record (secure context +
-// MediaRecorder) AND the connected module advertises voice-memo support — so
-// an older module never shows an affordance whose RPC it would reject. Device
-// support is static for the session; module support is reactive.
+// MediaRecorder), the connected module advertises voice-memo support (so an
+// older module never shows an affordance whose RPC it would reject), AND a GM
+// listener is currently online. Voice memos have no direct-socket path — the
+// upload + post run entirely on the GM's client (foundry/handlers/chat.ts) —
+// so with no listener there's nothing to receive the recording; hide the mic
+// rather than let the user record into a dead RPC. Device support is static
+// for the session; module support and listener presence are reactive.
 const voiceDeviceSupported = audioRecordingSupported()
 const canRecordVoice = computed(
-  () => voiceDeviceSupported && versionCompat.supportsVoiceMemo
+  () => voiceDeviceSupported && versionCompat.supportsVoiceMemo && listeners.isListening
 )
 
 function formatElapsed(ms: number): string {

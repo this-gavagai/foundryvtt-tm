@@ -59,6 +59,34 @@ export function useWhisperTargets() {
     whisperUserTargets.value.filter((target) => selectedWhisperUserKeys.value.has(target.key))
   )
 
+  // GM (role ≥ 4) user ids, for the "GMs" group target. Read from the raw user
+  // list rather than whisperUserTargets, which drops the current user and any
+  // unnamed user — neither of which should exclude a GM from a `/w gm`.
+  const gmUserIds = computed(() =>
+    collectionToArray<WhisperUserData>(world.value?.users as CollectionLike<WhisperUserData>)
+      .filter((user) => (user.role ?? 0) >= 4)
+      .map((user) => user._id ?? user.id)
+      .filter((id): id is string => !!id)
+  )
+
+  // The current selection resolved to Foundry user ids, for posting a whisper
+  // DIRECTLY (modifyDocument create) instead of encoding a `/w …` command in
+  // the content for the GM proxy to re-parse. Public → [] (a plain message).
+  const selectedWhisperRecipientIds = computed<string[]>(() => {
+    if (selectedWhisperMode.value === GMS_WHISPER_TARGET) return gmUserIds.value
+    if (selectedWhisperMode.value !== 'users') return []
+    return [
+      ...new Set(
+        selectedWhisperUserTargets.value.flatMap((target) => target.userIds ?? [])
+      )
+    ]
+  })
+
+  // Whether the user aimed this message at anyone (vs. a public post) — lets the
+  // caller apply the same leak-guard the GM path uses: an intended-but-empty
+  // recipient set is scoped to the author rather than read as public.
+  const whisperIntended = computed(() => selectedWhisperMode.value !== PUBLIC_WHISPER_TARGET)
+
   const selectedWhisperCommandTargets = computed(() => {
     if (selectedWhisperMode.value === GMS_WHISPER_TARGET) return ['gm']
     if (selectedWhisperMode.value !== 'users') return []
@@ -116,12 +144,6 @@ export function useWhisperTargets() {
     selectedWhisperUserKeys.value = new Set([target.key])
   }
 
-  function whisperContent(content: string): string {
-    const targets = selectedWhisperCommandTargets.value
-    if (!targets.length) return content
-    return `/w ${targets.join(', ')} ${content}`
-  }
-
   // Users can leave the world while a whisper selection is open; prune stale
   // keys and fall back to public when the last selected user disappears.
   watch(whisperUserTargets, (targets) => {
@@ -140,11 +162,12 @@ export function useWhisperTargets() {
     whisperGroupTargets,
     whisperUserTargets,
     selectedWhisperCommandTargets,
+    selectedWhisperRecipientIds,
+    whisperIntended,
     selectedWhisperLabel,
     selectWhisperGroup,
     toggleWhisperUser,
     userTargetSelected,
-    selectWhisperUserFromMessage,
-    whisperContent
+    selectWhisperUserFromMessage
   }
 }
