@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { sanitizeActorUpdate } from '@/foundry/handlers/updateActor'
+import { sanitizeActorUpdate } from '@/utils/actorUpdatePaths'
 
-// The actor-update sanitizer is the module's write-side security boundary:
-// updates run with GM rights, so only the exact paths the app edits may pass.
+// The actor-update sanitizer guards every actor write: the app posts owned-actor
+// updates directly over the socket (api/documents.ts) and the legacy RPC handler
+// applies the same allowlist, so only the exact paths the app edits may pass.
 // The old blocklist checked just the first path segment; these tests pin the
 // allowlist semantics, including the nested/dot-notation equivalence.
 

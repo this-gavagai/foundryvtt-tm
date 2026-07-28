@@ -9,8 +9,7 @@ import {
   type DocumentData
 } from './internal'
 import { fireRefresh } from './characterSync'
-import { updateActorRemote } from './actionRpc'
-import { requireStoreBridge } from './storeBridge'
+import { sanitizeActorUpdate } from '@/utils/actorUpdatePaths'
 import { logger } from '@/utils/utilities'
 
 // Foundry document collections that we mutate via the modifyDocument socket.
@@ -130,14 +129,28 @@ export function recoverFailedWrite(actor: TablemateActorRef, error: unknown): ne
   throw error
 }
 
+// Write the app's owned actor DIRECTLY over the modifyDocument socket, as its
+// own Foundry user, rather than asking the GM proxy to run actor.update (the
+// old UPDATE_ACTOR RPC). Works with no GM online and skips the proxy round-trip.
+// The update is sanitized against the shared allowlist first
+// (utils/actorUpdatePaths.ts) so a buggy over-broad update can't write fields
+// Foundry's owner-permission model would otherwise permit — the same guard the
+// RPC handler applied, now enforced on every write instead of only when a GM
+// was online to run it.
 export function updateActor(actor: TablemateActorRef, update: object) {
-  if (requireStoreBridge().isListening()) {
-    return updateActorRemote(actor.value!._id!, update)
-      .then(() => {
-        fireRefresh(actor.value!._id)
-        return null
-      })
-      .catch((error) => recoverFailedWrite(actor, error))
+  const { clean, dropped } = sanitizeActorUpdate(update as Record<string, unknown>)
+  if (dropped.length) logger.warn('TM-UPDATE-ACTOR: dropped unpermitted paths', dropped)
+  // Nothing left to write means a missing allowlist entry (a new editable field
+  // wasn't registered) — surface it as a failure rather than a silent no-op, so
+  // it's caught in development. Routed through recoverFailedWrite for one refresh
+  // + rethrow path shared with a rejected socket write.
+  if (!Object.keys(clean).length) {
+    return Promise.resolve().then(() =>
+      recoverFailedWrite(
+        actor,
+        new Error(`Actor update contains no permitted fields (dropped: ${dropped.join(', ')})`)
+      )
+    )
   }
   return modifyDocument(
     {
@@ -146,7 +159,7 @@ export function updateActor(actor: TablemateActorRef, update: object) {
       operation: {
         diff: true,
         render: true,
-        updates: [{ _id: actor.value!._id!, ...update }]
+        updates: [{ _id: actor.value!._id!, ...clean }]
       }
     },
     (r) => {

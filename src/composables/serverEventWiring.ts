@@ -65,7 +65,6 @@ export function installApiStoreBridge() {
     sessionReady: () => useServerStore().sessionReady,
     userId: () => useUserStore().userId,
     getTargets: () => useTargetHelperStore().getTargets(),
-    isListening: () => useListenersStore().isListening,
     activeServerOrigin: () => useServerAddressStore().serverUrl?.origin
   })
 }

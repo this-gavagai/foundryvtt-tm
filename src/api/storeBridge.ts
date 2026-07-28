@@ -20,7 +20,6 @@ export interface StoreBridge {
   sessionReady: () => boolean
   userId: () => string
   getTargets: () => string[]
-  isListening: () => boolean
   activeServerOrigin: () => string | undefined
 }
 

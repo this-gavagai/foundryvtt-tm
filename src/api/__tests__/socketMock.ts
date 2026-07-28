@@ -36,7 +36,6 @@ export function fakeStoreBridge(overrides: Partial<StoreBridge> = {}): StoreBrid
     sessionReady: () => true,
     userId: () => 'user-1',
     getTargets: () => [],
-    isListening: () => false,
     activeServerOrigin: () => 'https://vtt.example.com',
     ...overrides
   }

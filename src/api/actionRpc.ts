@@ -374,9 +374,6 @@ export const runActionable = (actor: TablemateActorRef, itemId: string) =>
     itemId
   })
 
-export const updateActorRemote = (actorId: string, update: object) =>
-  sendAction(TM.UPDATE_ACTOR, { actorId, update })
-
 export const getCompendiumItem = (itemUuid: string) =>
   sendAction(TM.GET_COMPENDIUM_ITEM, { itemUuid })
 
