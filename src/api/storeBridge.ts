@@ -21,6 +21,12 @@ export interface StoreBridge {
   userId: () => string
   getTargets: () => string[]
   activeServerOrigin: () => string | undefined
+  // Compendium browsing reads pack metadata (id/label/type/ownership) and the
+  // requesting user's role straight from the already-loaded world payload, so
+  // listing + the observe filter need no socket round-trip. Returned as a plain
+  // array of raw pack metadata (see utils/compendiumData.PackMetadataLike).
+  getWorldPacks: () => unknown[]
+  getUserRole: () => number
 }
 
 let bridge: StoreBridge | undefined

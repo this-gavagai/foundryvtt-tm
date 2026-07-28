@@ -374,9 +374,6 @@ export const runActionable = (actor: TablemateActorRef, itemId: string) =>
     itemId
   })
 
-export const getCompendiumItem = (itemUuid: string) =>
-  sendAction(TM.GET_COMPENDIUM_ITEM, { itemUuid })
-
 export const addCompendiumItem = (
   characterId: string,
   itemUuid: string,
@@ -385,13 +382,6 @@ export const addCompendiumItem = (
 
 export const sendCompendiumItemToChat = (characterId: string, itemUuid: string) =>
   sendAction(TM.SEND_COMPENDIUM_ITEM_TO_CHAT, { characterId, itemUuid })
-
-// Browse support: list all compendium packs the world exposes, and fetch a
-// single pack's index (lightweight entries) for the browser overlay.
-export const listCompendia = () => sendAction(TM.LIST_COMPENDIA, {})
-
-export const getCompendiumIndex = (packId: string) =>
-  sendAction(TM.GET_COMPENDIUM_INDEX, { packId })
 
 export const applyDamage = (
   actor: TablemateActorRef,

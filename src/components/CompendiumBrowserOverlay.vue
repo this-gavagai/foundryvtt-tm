@@ -4,7 +4,7 @@ import { TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle } fro
 import { ArrowLeftIcon, BookOpenIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useIntersectionObserver } from '@vueuse/core'
 import { useOverlayStack } from '@/composables/useOverlayStack'
-import { listCompendia, getCompendiumIndex } from '@/api/actionRpc'
+import { listCompendia, getCompendiumIndex } from '@/api/compendium'
 import { getPath, logger } from '@/utils/utilities'
 import type { CompendiumPackInfo, CompendiumIndexEntry } from '@/types/api-types'
 import CompendiumItemModal from '@/components/CompendiumItemModal.vue'

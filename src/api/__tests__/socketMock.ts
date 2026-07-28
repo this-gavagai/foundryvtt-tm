@@ -37,6 +37,8 @@ export function fakeStoreBridge(overrides: Partial<StoreBridge> = {}): StoreBrid
     userId: () => 'user-1',
     getTargets: () => [],
     activeServerOrigin: () => 'https://vtt.example.com',
+    getWorldPacks: () => [],
+    getUserRole: () => 0,
     ...overrides
   }
 }

@@ -29,6 +29,7 @@ import {
   type ModifyDocumentUpdate,
   type DocumentData
 } from '@/api/internal'
+import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
 import { addRefresh, fireAllRefresh, fireRefresh, parseActorData } from '@/api/characterSync'
 import { syncPushRegistration } from '@/api/pushNotifications'
 import { processChanges } from '@/api/documents'
@@ -65,7 +66,17 @@ export function installApiStoreBridge() {
     sessionReady: () => useServerStore().sessionReady,
     userId: () => useUserStore().userId,
     getTargets: () => useTargetHelperStore().getTargets(),
-    activeServerOrigin: () => useServerAddressStore().serverUrl?.origin
+    activeServerOrigin: () => useServerAddressStore().serverUrl?.origin,
+    getWorldPacks: () =>
+      collectionToArray(
+        (useWorldStore().world as { packs?: unknown } | undefined)?.packs as CollectionLike<unknown>
+      ),
+    getUserRole: () => {
+      const user = useWorldStore().userById(useUserStore().userId) as
+        | { role?: number }
+        | undefined
+      return user?.role ?? 0
+    }
   })
 }
 

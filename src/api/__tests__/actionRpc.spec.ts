@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 // The ack queue is the correlation layer under every RPC: uuid → pending
 // resolver, drained by a matching ack, an error ack, the 30s timeout, or a
 // socket swap (rejectAllPending). These tests pin that lifecycle through the
-// public surface — listCompendia() as a representative sendAction caller,
+// public surface — sendItemToChat() as a representative sendAction caller,
 // resolveAck() standing in for the wire.
 
 const { emit } = vi.hoisted(() => ({ emit: vi.fn() }))
@@ -16,7 +16,7 @@ vi.mock('@/api/internal', async (importOriginal) => {
   }
 })
 
-import { listCompendia, resolveAck, rejectAllPending } from '@/api/actionRpc'
+import { sendItemToChat, resolveAck, rejectAllPending } from '@/api/actionRpc'
 import { TM } from '@/api/protocol'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import { flushMicrotasks, lastEmittedUuid as lastUuid } from './socketMock'
@@ -38,7 +38,7 @@ afterEach(() => {
 
 describe('sendAction ack correlation', () => {
   it('resolves the pending request when its ack arrives', async () => {
-    const pending = listCompendia()
+    const pending = sendItemToChat('actor-1', 'item-1')
     await flushMicrotasks()
     const uuid = lastEmittedUuid()
 
@@ -47,7 +47,7 @@ describe('sendAction ack correlation', () => {
   })
 
   it('rejects when the ack carries an error (thrown Foundry handler)', async () => {
-    const pending = listCompendia()
+    const pending = sendItemToChat('actor-1', 'item-1')
     await flushMicrotasks()
     const uuid = lastEmittedUuid()
 
@@ -56,7 +56,7 @@ describe('sendAction ack correlation', () => {
   })
 
   it('ignores an ack with no matching pending request', async () => {
-    const pending = listCompendia()
+    const pending = sendItemToChat('actor-1', 'item-1')
     await flushMicrotasks()
     const uuid = lastEmittedUuid()
 
@@ -69,7 +69,7 @@ describe('sendAction ack correlation', () => {
 
   it('rejects after the ack timeout instead of hanging forever', async () => {
     vi.useFakeTimers()
-    const pending = listCompendia()
+    const pending = sendItemToChat('actor-1', 'item-1')
     await flushMicrotasks()
     lastEmittedUuid()
 
@@ -80,7 +80,7 @@ describe('sendAction ack correlation', () => {
 
   it('does not time out a request that was already answered', async () => {
     vi.useFakeTimers()
-    const pending = listCompendia()
+    const pending = sendItemToChat('actor-1', 'item-1')
     await flushMicrotasks()
     const uuid = lastEmittedUuid()
 
@@ -92,8 +92,8 @@ describe('sendAction ack correlation', () => {
 
 describe('rejectAllPending (socket swap)', () => {
   it('rejects every in-flight request with the given reason and drains the queue', async () => {
-    const first = listCompendia()
-    const second = listCompendia()
+    const first = sendItemToChat('actor-1', 'item-1')
+    const second = sendItemToChat('actor-1', 'item-1')
     await flushMicrotasks()
     expect(emit).toHaveBeenCalledTimes(2)
     const uuid = lastEmittedUuid()

@@ -1,4 +1,4 @@
-import { getCompendiumItem } from '@/api/actionRpc'
+import { getCompendiumItem } from '@/api/compendium'
 
 // Resolve a compendium document's display name from its UUID, for label-less
 // @UUID[...] links (PF2e omits the label when it equals the document name, and
