@@ -50,7 +50,14 @@ function applyChatOriginDisplay(
   originUserId: string,
   element: HTMLElement
 ) {
-  const originName = game.users.get(originUserId)?.name ?? originUserId
+  // A sheet-only user is attached to a human's primary login user via the
+  // tablemate.belongsTo flag; attribute the message to that human so a proxied
+  // post reads as e.g. "Peter" rather than "Peter's Sheet". Falls back to the
+  // origin user itself when there's no owner.
+  const originUser = game.users.get(originUserId)
+  const ownerId = originUser?.getFlag?.('tablemate', 'belongsTo')
+  const ownerUser = typeof ownerId === 'string' && ownerId ? game.users.get(ownerId) : undefined
+  const originName = ownerUser?.name ?? originUser?.name ?? originUserId
   const header = element.querySelector<HTMLElement>('.message-header')
 
   const sender =

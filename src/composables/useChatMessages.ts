@@ -347,6 +347,29 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
     })
     return names
   })
+
+  // A sheet-only user (e.g. "Peter's Sheet") is attached to a human's primary
+  // login user via the tablemate.belongsTo flag, so chat should read as that
+  // human ("Peter"). Map each user id to its owner id so attribution resolves
+  // through it. Mirrors the same belongsTo lookup in useChatVisibility.
+  const ownerIdByUserId = computed(() => {
+    const owners = new Map<string, string>()
+    users.value.forEach((user) => {
+      const owner = user.flags?.tablemate?.belongsTo
+      if (typeof owner !== 'string' || !owner) return
+      if (user._id) owners.set(user._id, owner)
+      if (user.id) owners.set(user.id, owner)
+    })
+    return owners
+  })
+
+  // Resolve a user id to the display name of its owner (the human login user),
+  // falling back to the user's own name when there's no belongsTo owner.
+  function resolvedUserName(userId: string): string {
+    const ownerId = ownerIdByUserId.value.get(userId)
+    if (ownerId) return userNamesById.value.get(ownerId) ?? userNamesById.value.get(userId) ?? userId
+    return userNamesById.value.get(userId) ?? userId
+  }
   const scenes = computed(() =>
     collectionToArray<ChatSceneData>(world.value?.scenes as CollectionLike<ChatSceneData>)
   )
@@ -380,11 +403,11 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
 
   function authorName(message: ChatMessageData): string {
     const tablemateOrigin = tablemateOriginUserId(message)
-    if (tablemateOrigin) return userNamesById.value.get(tablemateOrigin) ?? tablemateOrigin
+    if (tablemateOrigin) return resolvedUserName(tablemateOrigin)
 
     if (typeof message.author === 'object' && message.author?.name) return message.author.name
     const authorId = typeof message.author === 'string' ? message.author : (message.user ?? '')
-    return userNamesById.value.get(authorId) ?? authorId
+    return authorId ? resolvedUserName(authorId) : authorId
   }
 
   function speakerName(message: ChatMessageData, resolvedAuthor = authorName(message)): string {
