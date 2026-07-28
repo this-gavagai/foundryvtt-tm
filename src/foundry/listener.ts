@@ -56,6 +56,7 @@ import {
   hasPresetDiceResults
 } from './manualRollPolicy'
 import { registerVoiceMemoSetting, voiceMemoEnabled } from './voiceMemoSetting'
+import { registerTranscriptionSetting } from './transcriptionSetting'
 import { registerPushSettings, ensureWorldPushIdentity, foundryRegisterPush } from './pushRegistration'
 import { notifyChatMessage } from './pushNotify'
 
@@ -440,6 +441,10 @@ export function setupListener() {
   // Re-announce when the GM sets/clears the voice-memo folder so connected apps
   // show or hide the mic immediately (the capability rides announceSelf below).
   registerVoiceMemoSetting(() => announceSelf())
+  // Optional AI transcription of voice memos (GM-configured endpoint + key).
+  // No capability handshake: it changes only what the GM's client does after a
+  // memo lands, so connected apps need not know whether it is on.
+  registerTranscriptionSetting()
   registerPushSettings()
   // GM-only: generate + provision this world's push identity if enabled.
   void ensureWorldPushIdentity()

@@ -39,6 +39,10 @@ export interface ChatMessageData {
       audioPath?: string | null
       audioMimeType?: string | null
       audioDurationMs?: number | null
+      // AI transcription of the memo, written GM-side when a transcription
+      // endpoint is configured (see foundry/transcriptionSetting.ts). Absent
+      // when transcription is off or the call failed.
+      transcript?: string | null
     }
     pf2e?: {
       origin?: { uuid?: string | null }
@@ -100,6 +104,8 @@ export interface ChatMessageView {
   // Playable URL of an attached voice memo (resolved from flags.tablemate);
   // undefined for non-audio messages.
   audioUrl?: string
+  // AI transcript of an attached voice memo, if one was produced GM-side.
+  transcript?: string
   showContent: boolean
   showEmptyMessage: boolean
   rerollSummary?: ChatRerollSummary
@@ -265,6 +271,18 @@ function voiceMemoUrl(message: ChatMessageData): string | undefined {
     undefined
   if (!path) return undefined
   return getMediaPath(path)
+}
+
+// Resolve a voice memo's AI transcript from a message's tablemate flags
+// (getFlag-then-nested, like voiceMemoUrl). Empty/whitespace reads as absent.
+function voiceMemoTranscript(message: ChatMessageData): string | undefined {
+  const flagged = message.getFlag?.('tablemate', 'transcript')
+  const text =
+    (typeof flagged === 'string' ? flagged : undefined) ??
+    message.flags?.tablemate?.transcript ??
+    undefined
+  const trimmed = text?.trim()
+  return trimmed ? trimmed : undefined
 }
 
 function formattedTime(timestamp?: number | null): string {
@@ -516,6 +534,7 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
       portrait: portrait.src,
       portraitScale: portrait.scale,
       audioUrl: voiceMemoUrl(message),
+      transcript: voiceMemoTranscript(message),
       // Expensive HTML parsing — memoized by content fingerprint.
       ...expensiveView(message)
     }

@@ -123,6 +123,15 @@ function handleContentClick(event: MouseEvent) {
          <audio>; the URL is resolved from flags.tablemate in useChatMessages. -->
     <div v-if="view.audioUrl" data-part="chat-voice-memo" class="mt-2">
       <audio controls preload="metadata" :src="view.audioUrl" class="w-full" />
+      <!-- AI transcript, when one was produced GM-side. Plain text (never HTML)
+           so a transcript can't inject markup; shown muted beneath the player. -->
+      <p
+        v-if="view.transcript"
+        data-part="chat-voice-memo-transcript"
+        class="mt-1 text-sm italic text-gray-500"
+      >
+        {{ view.transcript }}
+      </p>
     </div>
     <div
       v-if="view.inlineChecks.length && actorId"

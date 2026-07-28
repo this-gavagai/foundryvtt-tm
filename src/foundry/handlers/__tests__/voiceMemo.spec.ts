@@ -23,7 +23,12 @@ vi.mock('@/foundry/utils/foundry', async (importActual) => {
 
 // ChatMessage and FilePicker are bare Foundry globals in the client; stand them
 // up on globalThis so the handler's finalize step can call through them.
-const createMock = vi.fn<(data: Record<string, unknown>) => Promise<object>>(async () => ({}))
+// create returns a document with .update; transcription patches it in place
+// after the memo posts (see attachTranscript in chat.ts).
+const updateMock = vi.fn<(data: Record<string, unknown>) => Promise<object>>(async () => ({}))
+const createMock = vi.fn<(data: Record<string, unknown>) => Promise<object>>(async () => ({
+  update: updateMock
+}))
 const uploadMock = vi.fn<
   (source: string, path: string, file: File, body?: object, options?: object) => Promise<{ path: string }>
 >(async () => ({ path: 'tablemate/voice-memos/test-world/x.m4a' }))
@@ -39,17 +44,46 @@ const browseMock = vi.fn<(source: string, target: string, options?: object) => P
 // The configured upload folder the voice-memo setting reports; individual tests
 // override it (e.g. '' to simulate a world that hasn't enabled the feature).
 let uploadFolder = 'audio/voice-memos'
+// Transcription settings the world reports; off by default (empty endpoint/key)
+// so the base tests never touch the network. Transcription tests fill these in.
+let transcription = { endpoint: '', apiKey: '', model: '' }
+
+// Stand-in for the GM client's fetch to the transcription API. Default resolves
+// to a valid transcript; failure tests override it.
+const fetchMock = vi.fn<typeof fetch>(async () =>
+  new Response(JSON.stringify({ text: 'the goblin attacks' }), { status: 200 })
+)
 
 beforeEach(() => {
   vi.clearAllMocks()
   uploadFolder = 'audio/voice-memos'
+  transcription = { endpoint: '', apiKey: '', model: '' }
   uploadMock.mockResolvedValue({ path: 'tablemate/voice-memos/test-world/x.m4a' })
-  // makeAck (kept real) reads game.user; voiceMemoUploadPath reads
-  // game.settings — both come off the real global, which the handler's mocked
-  // getGame does not cover.
+  fetchMock.mockResolvedValue(
+    new Response(JSON.stringify({ text: 'the goblin attacks' }), { status: 200 })
+  )
+  ;(globalThis as Record<string, unknown>).fetch = fetchMock
+  // makeAck (kept real) reads game.user; voiceMemoUploadPath and
+  // transcriptionConfig read game.settings by key — resolve each from the
+  // per-test state so an unrelated key never masquerades as configured.
   ;(globalThis as Record<string, unknown>).game = {
     user: { _id: 'gm-1' },
-    settings: { get: () => uploadFolder }
+    settings: {
+      get: (_scope: string, key: string) => {
+        switch (key) {
+          case 'voiceMemoPath':
+            return uploadFolder
+          case 'transcriptionEndpoint':
+            return transcription.endpoint
+          case 'transcriptionApiKey':
+            return transcription.apiKey
+          case 'transcriptionModel':
+            return transcription.model
+          default:
+            return ''
+        }
+      }
+    }
   }
   ;(globalThis as Record<string, unknown>).ChatMessage = {
     create: createMock,
@@ -212,5 +246,84 @@ describe('foundrySendVoiceMemo', () => {
     ).rejects.toThrow(/not enabled/)
     expect(uploadMock).not.toHaveBeenCalled()
     expect(createMock).not.toHaveBeenCalled()
+  })
+
+  it('posts the memo without a transcript in the create call (transcript is applied after)', async () => {
+    // Transcript is never part of the initial create — the memo posts instantly
+    // and the transcript is patched in later (see the "configured" test below).
+    transcription = { endpoint: 'https://api.openai.com/v1', apiKey: 'sk-test', model: 'whisper-1' }
+    await foundrySendVoiceMemo(
+      chunkArgs({ uploadId: 'tx-create', seq: 0, total: 1, chunkBase64: bytesToBase64(new Uint8Array([1, 2, 3])) })
+    )
+    const created = createMock.mock.calls[0][0] as {
+      content: string
+      flags: { tablemate: Record<string, unknown> }
+    }
+    expect(created.flags.tablemate).not.toHaveProperty('transcript')
+    expect(created.content).not.toContain('data-tablemate-transcript')
+  })
+
+  it('does not call the transcription API when no endpoint/key is configured', async () => {
+    await foundrySendVoiceMemo(
+      chunkArgs({ uploadId: 'no-tx', seq: 0, total: 1, chunkBase64: bytesToBase64(new Uint8Array([1, 2])) })
+    )
+    // Give any (mistaken) async work a tick to run before asserting the negative.
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(updateMock).not.toHaveBeenCalled()
+  })
+
+  it('transcribes after posting and patches the transcript into the message (flag + content)', async () => {
+    transcription = { endpoint: 'https://api.openai.com/v1', apiKey: 'sk-test', model: 'whisper-1' }
+    await foundrySendVoiceMemo(
+      chunkArgs({ uploadId: 'tx', seq: 0, total: 1, chunkBase64: bytesToBase64(new Uint8Array([1, 2, 3])) })
+    )
+
+    // The update lands asynchronously, after the memo has already posted.
+    await vi.waitFor(() => expect(updateMock).toHaveBeenCalledTimes(1))
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('https://api.openai.com/v1/audio/transcriptions')
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer sk-test')
+    expect(init.method).toBe('POST')
+    expect(init.body).toBeInstanceOf(FormData)
+    expect((init.body as FormData).get('model')).toBe('whisper-1')
+
+    const patch = updateMock.mock.calls[0][0] as {
+      content: string
+      flags: { tablemate: { transcript?: string } }
+    }
+    expect(patch.flags.tablemate.transcript).toBe('the goblin attacks')
+    // Content copy for Foundry's native log, wrapped so the app can strip it.
+    expect(patch.content).toContain('data-tablemate-transcript')
+    expect(patch.content).toContain('the goblin attacks')
+  })
+
+  it('strips a trailing slash from the configured endpoint', async () => {
+    transcription = { endpoint: 'https://api.groq.com/openai/v1/', apiKey: 'gsk', model: 'whisper-large-v3-turbo' }
+    await foundrySendVoiceMemo(
+      chunkArgs({ uploadId: 'tx-slash', seq: 0, total: 1, chunkBase64: bytesToBase64(new Uint8Array([1])) })
+    )
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    const [url] = fetchMock.mock.calls[0] as [string]
+    expect(url).toBe('https://api.groq.com/openai/v1/audio/transcriptions')
+  })
+
+  it('posts the memo and leaves it audio-only when the transcription call fails', async () => {
+    transcription = { endpoint: 'https://api.openai.com/v1', apiKey: 'sk-test', model: 'whisper-1' }
+    fetchMock.mockResolvedValue(new Response('quota exceeded', { status: 429 }))
+
+    const ack = await foundrySendVoiceMemo(
+      chunkArgs({ uploadId: 'tx-fail', seq: 0, total: 1, chunkBase64: bytesToBase64(new Uint8Array([1, 2])) })
+    )
+
+    expect(ack.action).toBe(TM.ACK)
+    expect(uploadMock).toHaveBeenCalledTimes(1) // audio still uploaded
+    expect(createMock).toHaveBeenCalledTimes(1) // message still posted
+    // Let the failed transcription settle, then confirm no patch was applied.
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(updateMock).not.toHaveBeenCalled()
   })
 })

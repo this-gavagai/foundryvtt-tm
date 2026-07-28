@@ -115,6 +115,11 @@ export function sanitizeChatHtml(
     template.content.querySelectorAll('[data-visibility="gm"]').forEach((el) => el.remove())
   }
 
+  // A voice memo's transcript is carried in the content (so Foundry's own chat
+  // log shows it) but the app renders it from flags.tablemate.transcript with
+  // its own styling — strip the content copy here so it never shows twice.
+  template.content.querySelectorAll('[data-tablemate-transcript]').forEach((el) => el.remove())
+
   template.content
     .querySelectorAll('script, style, iframe, object, embed, link, meta')
     .forEach((element) => element.remove())

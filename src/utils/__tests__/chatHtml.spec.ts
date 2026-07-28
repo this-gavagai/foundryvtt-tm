@@ -172,6 +172,14 @@ describe('sanitizeChatHtml — options and edge cases', () => {
     expect(clean(html)).toContain('secret')
   })
 
+  it('strips the voice-memo transcript wrapper (the app renders it from the flag)', () => {
+    const html = '<p>hi</p><div data-tablemate-transcript><em>the goblin attacks</em></div>'
+    const result = clean(html)
+    expect(result).toContain('hi')
+    expect(result).not.toContain('the goblin attacks')
+    expect(result).not.toContain('data-tablemate-transcript')
+  })
+
   it('passes undefined and empty input through', () => {
     expect(sanitizeChatHtml(undefined)).toBeUndefined()
     expect(sanitizeChatHtml('')).toBe('')

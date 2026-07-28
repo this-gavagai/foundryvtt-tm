@@ -10,10 +10,15 @@ import { registerCapture } from '../chatCapture'
 import { extractRollPayload } from '../utils/roll'
 import { getCharacter, getGame, makeAck } from '../utils/foundry'
 import { voiceMemoEnabled, voiceMemoUploadPath } from '../voiceMemoSetting'
+import { transcriptionConfig, transcribeAudioFile, type TranscriptionConfig } from '../transcriptionSetting'
 import { logger } from '@/utils/utilities'
 
+// The created message document, narrowed to the one method we patch it with
+// after an async transcription lands.
+type CreatedChatMessage = { update: (data: object) => Promise<unknown> }
+
 declare const ChatMessage: {
-  create: (data: object) => Promise<unknown>
+  create: (data: object) => Promise<CreatedChatMessage | undefined>
   getSpeaker: (opts: { actor?: unknown }) => unknown
 }
 
@@ -298,12 +303,22 @@ async function finalizeVoiceMemo(args: SendVoiceMemoArgs, pending: PendingVoiceM
   // breaking out of the attribute.
   const caption = pending.meta.content ? formatChatContent(pending.meta.content) : ''
   const player = `<audio controls preload="metadata" src="${escapeHtml(audioPath)}"></audio>`
-  const content = caption ? `${caption}<br>${player}` : player
+
+  // Content builder, optionally with the transcript appended. The transcript
+  // rides in a [data-tablemate-transcript] wrapper so Foundry's own chat log
+  // renders it (italic, under the player) while the Tablemate app strips that
+  // wrapper (see sanitizeChatHtml) and renders the transcript from the flag
+  // with its own styling — shown once on each surface, never twice.
+  const renderContent = (text?: string): string => {
+    const base = caption ? `${caption}<br>${player}` : player
+    if (!text) return base
+    return `${base}<div data-tablemate-transcript><em>${escapeHtml(text)}</em></div>`
+  }
 
   const data: Record<string, unknown> = {
     author: args.userId,
     speaker,
-    content,
+    content: renderContent(),
     flags: {
       tablemate: {
         audioPath,
@@ -321,14 +336,52 @@ async function finalizeVoiceMemo(args: SendVoiceMemoArgs, pending: PendingVoiceM
     data.whisper = recipients.length ? recipients : [args.userId]
   }
 
+  let message: CreatedChatMessage | undefined
   try {
-    await ChatMessage.create(data)
+    message = await ChatMessage.create(data)
   } catch (error) {
     // The file uploaded but the message didn't post: surface the failure to the
     // app, and log the orphaned path so it can be reclaimed (Foundry exposes no
     // reliable file-delete here, so we don't attempt a fragile cleanup).
     logger.warn('TABLEMATE: voice memo uploaded but chat message failed', audioPath, error)
     throw error
+  }
+
+  // AI transcription runs AFTER the memo posts so it appears instantly; on
+  // success we patch the transcript into the already-posted message in place.
+  // Fire-and-forget with its own error handling — it must never block the ack,
+  // and a failed/slow call just leaves the memo audio-only.
+  const tConfig = transcriptionConfig()
+  if (tConfig && message) void attachTranscript(message, file, tConfig, renderContent)
+}
+
+// Transcribe an uploaded memo, then patch the text into its posted message —
+// both the flag (the app renders from it) and the content (Foundry's own chat
+// log renders from it). Best-effort: any failure is logged and the memo stays
+// audio-only. Runs detached from the RPC ack (see finalizeVoiceMemo).
+async function attachTranscript(
+  message: CreatedChatMessage,
+  file: File,
+  config: TranscriptionConfig,
+  renderContent: (text?: string) => string
+): Promise<void> {
+  let transcript: string
+  try {
+    transcript = await transcribeAudioFile(file, config)
+  } catch (error) {
+    logger.warn('TABLEMATE: voice memo transcription failed', error)
+    return
+  }
+  try {
+    // A document update deep-merges, so setting flags.tablemate.transcript keeps
+    // audioPath/mime/duration intact; content is replaced with the transcript-
+    // bearing version.
+    await message.update({
+      content: renderContent(transcript),
+      flags: { tablemate: { transcript } }
+    })
+  } catch (error) {
+    logger.warn('TABLEMATE: voice memo transcript update failed', error)
   }
 }
 
