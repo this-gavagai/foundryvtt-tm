@@ -24,7 +24,11 @@ export function clearLastCharacterId(origin: string): void {
   localStorage.removeItem(lastCharacterIdKey(origin))
 }
 
-export function getPath(path: string) {
+// Resolve a Foundry asset path to something the current runtime can load. On
+// native the server-relative path becomes an absolute remote URL; `cache`
+// decides whether it then flows through the image cache (see getPath vs
+// getMediaPath). On web the path stays relative to the app root.
+function resolveAssetPath(path: string, cache: boolean): string {
   if (!path) return path
   const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(path)?.[1]?.toLowerCase()
 
@@ -33,15 +37,29 @@ export function getPath(path: string) {
     // Non-web schemes (data:, blob:) pass through untouched. Everything else —
     // server-relative paths but also absolute http(s) and protocol-relative
     // URLs (external token art, which the webview otherwise re-downloads every
-    // launch) — resolves to its remote URL, then the native image cache hands
-    // back a local file:// copy when one exists (reactive: a render re-runs
-    // and swaps the src once a background download lands).
+    // launch) — resolves to its remote URL.
     if (scheme && scheme !== 'http' && scheme !== 'https') return path
-    return cachedImageSrc(new URL(path, serverAddressStore.serverUrl).href)
+    const url = new URL(path, serverAddressStore.serverUrl).href
+    // The image cache hands back a local file:// copy when one exists (reactive:
+    // a render re-runs and swaps the src once a background download lands).
+    return cache ? cachedImageSrc(url) : url
   }
 
   if (scheme || path.startsWith('//')) return path
   return '../../' + path
+}
+
+// Image/icon assets: cached on native so the small, oft-reused art doesn't
+// re-download every launch.
+export function getPath(path: string) {
+  return resolveAssetPath(path, true)
+}
+
+// Media assets (audio voice memos): NOT cached. They're large and rarely
+// re-viewed, so routing them through the 300-entry, icon-sized image LRU would
+// evict real icons and bloat disk for no real gain — they stream fine.
+export function getMediaPath(path: string) {
+  return resolveAssetPath(path, false)
 }
 
 // Focus + select-all on the input that fired the event. Used as a click

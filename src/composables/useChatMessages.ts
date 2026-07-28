@@ -2,7 +2,7 @@ import { computed, type Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'
 import { useChatStore } from '@/stores/chat'
-import { getPath } from '@/utils/utilities'
+import { getMediaPath, getPath } from '@/utils/utilities'
 import { prepareChatHtml } from '@/utils/chatHtml'
 import { rollSummaries, type ChatRollSummary, type RollJson } from '@/utils/chatRollSummary'
 import { applyPf2eNotation } from '@/utils/pf2eEnrich'
@@ -97,11 +97,9 @@ export interface ChatMessageView {
   portraitScale: { '--sx': number; '--sy': number }
   preparedFlavor?: string
   preparedContent?: string
-  // Absolute URL of an attached voice memo (resolved from flags.tablemate),
-  // plus its container type and length; undefined for non-audio messages.
+  // Playable URL of an attached voice memo (resolved from flags.tablemate);
+  // undefined for non-audio messages.
   audioUrl?: string
-  audioMimeType?: string
-  audioDurationMs?: number
   showContent: boolean
   showEmptyMessage: boolean
   rerollSummary?: ChatRerollSummary
@@ -256,32 +254,17 @@ function tablemateOriginUserId(message: ChatMessageData): string | undefined {
   )
 }
 
-// Resolve an attached voice memo from a message's tablemate flags. Mirrors the
-// getFlag-then-nested read the origin flag uses, then rewrites the stored
-// world-relative path to an absolute URL the same way portraits are resolved.
-function voiceMemo(
-  message: ChatMessageData
-): { url: string; mimeType?: string; durationMs?: number } | undefined {
+// Resolve an attached voice memo's playable URL from a message's tablemate
+// flags (getFlag-then-nested, like the origin flag). Uses getMediaPath, not
+// getPath, so the clip streams and never enters the icon image cache.
+function voiceMemoUrl(message: ChatMessageData): string | undefined {
   const flaggedPath = message.getFlag?.('tablemate', 'audioPath')
   const path =
     (typeof flaggedPath === 'string' ? flaggedPath : undefined) ??
     message.flags?.tablemate?.audioPath ??
     undefined
   if (!path) return undefined
-
-  const flaggedMime = message.getFlag?.('tablemate', 'audioMimeType')
-  const mimeType =
-    (typeof flaggedMime === 'string' ? flaggedMime : undefined) ??
-    message.flags?.tablemate?.audioMimeType ??
-    undefined
-
-  const flaggedDuration = message.getFlag?.('tablemate', 'audioDurationMs')
-  const durationMs =
-    (typeof flaggedDuration === 'number' ? flaggedDuration : undefined) ??
-    message.flags?.tablemate?.audioDurationMs ??
-    undefined
-
-  return { url: getPath(path), mimeType, durationMs }
+  return getMediaPath(path)
 }
 
 function formattedTime(timestamp?: number | null): string {
@@ -491,7 +474,6 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
     const portrait = speakerPortrait(message)
     const author = authorName(message)
     const speaker = speakerName(message, author)
-    const memo = voiceMemo(message)
 
     return {
       message,
@@ -510,9 +492,7 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
       hasPortrait: !!message.speaker?.token || !!message.speaker?.actor,
       portrait: portrait.src,
       portraitScale: portrait.scale,
-      audioUrl: memo?.url,
-      audioMimeType: memo?.mimeType,
-      audioDurationMs: memo?.durationMs,
+      audioUrl: voiceMemoUrl(message),
       // Expensive HTML parsing — memoized by content fingerprint.
       ...expensiveView(message)
     }

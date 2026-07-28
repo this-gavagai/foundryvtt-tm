@@ -22,6 +22,8 @@ interface ChatMessageLike {
   user?: { id?: string; name?: string }
   speaker?: { actor?: string | null }
   rolls?: unknown[]
+  flags?: { tablemate?: { audioPath?: string | null } }
+  getFlag?: (scope: string, key: string) => unknown
 }
 
 // The bits of an Actor we read to find its portrait, matching how the app derives
@@ -33,6 +35,14 @@ interface ActorLike {
 
 function messageId(msg: ChatMessageLike): string | undefined {
   return msg.id ?? msg._id
+}
+
+// A voice-memo message carries the uploaded clip's path in a tablemate flag
+// (see foundry/handlers/chat.ts). Its content is just the <audio> element and
+// an optional caption, so it needs its own notifiability + body handling.
+function isVoiceMemo(msg: ChatMessageLike): boolean {
+  const flagged = msg.getFlag?.('tablemate', 'audioPath')
+  return !!(typeof flagged === 'string' ? flagged : msg.flags?.tablemate?.audioPath)
 }
 
 function authorId(msg: ChatMessageLike): string | undefined {
@@ -184,15 +194,22 @@ function bodyText(html: string | undefined): string {
 
 // Body respects the per-world opt-in: when message text is off (default), the
 // content is never even read/sent — recipients get a sender-only notification.
+// A voice memo shows a "🎤 Voice message" indicator instead of empty text, with
+// its optional caption appended only when message text is opted in.
 function notificationBody(msg: ChatMessageLike, includeBody: boolean): string {
+  if (isVoiceMemo(msg)) {
+    const caption = includeBody ? plainText(msg.content) : ''
+    return caption ? `🎤 ${caption}` : '🎤 Voice message'
+  }
   return includeBody ? bodyText(msg.content) : 'sent a message'
 }
 
 // Skip noise: unattributable messages (no author — system/automation output, and
 // we couldn't name a sender anyway) and empty messages carrying neither text nor
-// a roll.
+// a roll. A voice memo counts as content even though its text is empty.
 function isNotifiableMessage(msg: ChatMessageLike): boolean {
   if (!authorId(msg)) return false
+  if (isVoiceMemo(msg)) return true
   return plainText(msg.content).length > 0 || (Array.isArray(msg.rolls) && msg.rolls.length > 0)
 }
 

@@ -160,6 +160,11 @@ export async function foundrySendChatMessage(args: SendChatMessageArgs) {
 // final chunk lands, then upload the file and post the chat message. Each
 // chunk is its own RPC/ack; the app awaits each before sending the next.
 
+// Upper bound on chunk count, so a stray/hostile request can't make us allocate
+// a huge buffer array. A 5-minute low-bitrate memo is a handful of 192 KiB
+// chunks; a few thousand is already far beyond any real recording.
+const VOICE_MEMO_MAX_CHUNKS = 4096
+
 // Drop an incomplete upload if the remaining chunks never arrive (app closed
 // mid-send, GM/proxy handoff, etc.) so a partial recording can't leak memory.
 const VOICE_MEMO_UPLOAD_TTL_MS = 60_000
@@ -194,6 +199,7 @@ type FilePickerLike = {
     options?: object
   ) => Promise<{ path?: string } | false>
   createDirectory: (source: string, target: string, options?: object) => Promise<unknown>
+  browse: (source: string, target: string, options?: object) => Promise<unknown>
 }
 
 function getFilePicker(): FilePickerLike {
@@ -231,13 +237,24 @@ function base64ToBytes(base64: string): Uint8Array<ArrayBuffer> {
   return bytes
 }
 
-// FilePicker.createDirectory has no "mkdir -p"; create each level and treat an
-// "already exists" rejection as success. Any other failure (permissions, bad
-// path) is real and propagates so the upload fails loudly.
+// FilePicker.createDirectory has no "mkdir -p", so create each missing level.
+// We check existence with browse() first (it rejects for a missing directory)
+// rather than parsing createDirectory's "already exists" error, whose wording
+// varies across Foundry versions and storage backends. The createDirectory
+// catch remains only as a race guard: two memos creating the same folder at
+// once can both pass the browse check, and the loser must tolerate "exists".
 async function ensureDirectory(picker: FilePickerLike, source: string, path: string) {
   let current = ''
   for (const segment of path.split('/')) {
     current = current ? `${current}/${segment}` : segment
+    let exists = false
+    try {
+      await picker.browse(source, current, {})
+      exists = true
+    } catch {
+      exists = false
+    }
+    if (exists) continue
     try {
       await picker.createDirectory(source, current, {})
     } catch (error) {
@@ -276,8 +293,11 @@ async function finalizeVoiceMemo(args: SendVoiceMemoArgs, pending: PendingVoiceM
   // An <audio> element in the content lets Foundry's own chat log play the memo;
   // the Tablemate app ignores it (its sanitizer strips <audio>) and renders a
   // native player from the flag instead. Any caption is escaped and shown above.
+  // The src is escaped too — the path is server-generated today, but escaping
+  // keeps an unexpected character (e.g. a quote in the configured folder) from
+  // breaking out of the attribute.
   const caption = pending.meta.content ? formatChatContent(pending.meta.content) : ''
-  const player = `<audio controls preload="metadata" src="${audioPath}"></audio>`
+  const player = `<audio controls preload="metadata" src="${escapeHtml(audioPath)}"></audio>`
   const content = caption ? `${caption}<br>${player}` : player
 
   const data: Record<string, unknown> = {
@@ -301,7 +321,15 @@ async function finalizeVoiceMemo(args: SendVoiceMemoArgs, pending: PendingVoiceM
     data.whisper = recipients.length ? recipients : [args.userId]
   }
 
-  await ChatMessage.create(data)
+  try {
+    await ChatMessage.create(data)
+  } catch (error) {
+    // The file uploaded but the message didn't post: surface the failure to the
+    // app, and log the orphaned path so it can be reclaimed (Foundry exposes no
+    // reliable file-delete here, so we don't attempt a fragile cleanup).
+    logger.warn('TABLEMATE: voice memo uploaded but chat message failed', audioPath, error)
+    throw error
+  }
 }
 
 export async function foundrySendVoiceMemo(args: SendVoiceMemoArgs) {
@@ -311,7 +339,7 @@ export async function foundrySendVoiceMemo(args: SendVoiceMemoArgs) {
   // depth against a stale or hand-crafted request.
   if (!voiceMemoEnabled()) throw new Error('Voice memos are not enabled for this world')
 
-  if (!Number.isInteger(args.total) || args.total <= 0) {
+  if (!Number.isInteger(args.total) || args.total <= 0 || args.total > VOICE_MEMO_MAX_CHUNKS) {
     throw new Error(`Voice memo has invalid chunk count ${args.total}`)
   }
   if (!Number.isInteger(args.seq) || args.seq < 0 || args.seq >= args.total) {

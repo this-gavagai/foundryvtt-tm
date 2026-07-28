@@ -38,6 +38,10 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Microphone for recording chat voice memos (WebView MediaRecorder /
+         getUserMedia). Runtime-prompted the first time a player taps record. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <!-- Bluetooth LE for Pixels dice (@capacitor-community/bluetooth-le).
          Legacy permissions only apply through Android 11 (API 30); Android 12+
          uses the runtime BLUETOOTH_SCAN/CONNECT permissions. neverForLocation

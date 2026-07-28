@@ -30,6 +30,11 @@ const uploadMock = vi.fn<
 const createDirectoryMock = vi.fn<(source: string, target: string, options?: object) => Promise<object>>(
   async () => ({})
 )
+// browse resolves → ensureDirectory treats the folder as existing and skips
+// createDirectory (the real first-upload path creates; either is fine here).
+const browseMock = vi.fn<(source: string, target: string, options?: object) => Promise<object>>(
+  async () => ({ dirs: [], files: [] })
+)
 
 // The configured upload folder the voice-memo setting reports; individual tests
 // override it (e.g. '' to simulate a world that hasn't enabled the feature).
@@ -52,7 +57,8 @@ beforeEach(() => {
   }
   ;(globalThis as Record<string, unknown>).FilePicker = {
     upload: uploadMock,
-    createDirectory: createDirectoryMock
+    createDirectory: createDirectoryMock,
+    browse: browseMock
   }
 })
 
@@ -183,6 +189,12 @@ describe('foundrySendVoiceMemo', () => {
   it('rejects a non-positive total', async () => {
     await expect(
       foundrySendVoiceMemo(chunkArgs({ uploadId: 'bad2', seq: 0, total: 0, chunkBase64: 'AA==' }))
+    ).rejects.toThrow(/invalid chunk count/)
+  })
+
+  it('rejects a chunk total above the sanity cap', async () => {
+    await expect(
+      foundrySendVoiceMemo(chunkArgs({ uploadId: 'bad3', seq: 0, total: 100000, chunkBase64: 'AA==' }))
     ).rejects.toThrow(/invalid chunk count/)
   })
 

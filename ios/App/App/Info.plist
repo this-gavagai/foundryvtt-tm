@@ -28,6 +28,8 @@
 	<string>Tabula Mensa uses Bluetooth to connect to your Pixels dice and read your physical rolls.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>Tabula Mensa uses Bluetooth to connect to your Pixels dice and read your physical rolls.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Tabula Mensa uses the microphone so you can record voice memos to send in chat.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
