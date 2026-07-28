@@ -4,6 +4,7 @@ import { TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle } fro
 import { ArrowLeftIcon, BookOpenIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useIntersectionObserver } from '@vueuse/core'
 import { useOverlayStack } from '@/composables/useOverlayStack'
+import { useTraitLabels } from '@/composables/useTraitLabels'
 import { listCompendia, getCompendiumIndex } from '@/api/compendium'
 import { getPath, logger } from '@/utils/utilities'
 import type { CompendiumPackInfo, CompendiumIndexEntry } from '@/types/api-types'
@@ -14,6 +15,11 @@ const renderCount = ref(PAGE_SIZE)
 
 const isOpen = ref(false)
 const { zIndex, openLayer, closeLayer } = useOverlayStack()
+// Rarity slugs are localized against the viewed character's world-locale trait
+// map (SideMenu → CharacterSheet/FamiliarSheet provide the actor), the same
+// path SpellList/DetailInfoModal use. formatTraitLabel falls back to the slug
+// if the map lacks it, so unknown/homebrew rarities still render.
+const { labelFor: rarityLabel } = useTraitLabels()
 const compendiumModal = ref<InstanceType<typeof CompendiumItemModal>>()
 
 const compendia = ref<CompendiumPackInfo[]>([])
@@ -250,7 +256,7 @@ defineExpose({ open, close, isOpen })
                             data-part="rarity"
                             class="flex-none text-xs text-gray-400"
                           >
-                            {{ entry.rarityLabel ?? entry.rarity }}
+                            {{ rarityLabel(entry.rarity) }}
                           </span>
                           <span
                             v-if="entry.level !== undefined"

@@ -117,10 +117,6 @@ interface RawIndexEntry {
   system?: { level?: { value?: number }; traits?: { rarity?: string } }
 }
 
-function capitalize(value: string): string {
-  return value ? value.charAt(0).toUpperCase() + value.slice(1) : value
-}
-
 export function shapeIndexEntries(
   raw: RawIndexEntry[],
   packId: string,
@@ -128,21 +124,16 @@ export function shapeIndexEntries(
 ): CompendiumIndexEntry[] {
   return raw
     .filter((entry) => !!entry._id)
-    .map((entry) => {
-      const rarity = entry.system?.traits?.rarity
-      return {
-        uuid: `Compendium.${packId}.${documentType}.${entry._id}`,
-        name: entry.name ?? '',
-        img: entry.img,
-        type: entry.type,
-        level: entry.system?.level?.value,
-        rarity,
-        // The GM handler localized this world-side; client-side we don't have the
-        // world-locale trait map here, so present a capitalized slug (the browse
-        // row already falls back to the raw slug when this is absent).
-        rarityLabel: rarity ? capitalize(rarity) : undefined
-      }
-    })
+    .map((entry) => ({
+      uuid: `Compendium.${packId}.${documentType}.${entry._id}`,
+      name: entry.name ?? '',
+      img: entry.img,
+      type: entry.type,
+      level: entry.system?.level?.value,
+      // Raw rarity slug — the browse row localizes it against the viewed
+      // character's world-locale trait map (see CompendiumBrowserOverlay).
+      rarity: entry.system?.traits?.rarity
+    }))
     .sort((a, b) => a.name.localeCompare(b.name))
 }
 

@@ -85,8 +85,7 @@ describe('shapeIndexEntries', () => {
     expect(out.map((e) => e.name)).toEqual(['Aardvark', 'Bear'])
     expect(out[0]).toMatchObject({
       uuid: 'Compendium.pf2e.bestiary.Actor.1',
-      rarity: 'rare',
-      rarityLabel: 'Rare'
+      rarity: 'rare'
     })
     expect(out[1]).toMatchObject({ uuid: 'Compendium.pf2e.bestiary.Actor.2', level: 3 })
   })
