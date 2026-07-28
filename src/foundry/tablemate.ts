@@ -1,6 +1,7 @@
 import { setupListener } from './listener'
 import { setupChatOriginDisplay } from './chatOriginDisplay'
 import { setupSpellCardTargeting } from './spellCardTargeting'
+import { setupSettingsHeaders } from './settingsHeaders'
 import { checkSystemCompat } from './systemCompat'
 import { PlayerSelectMenu } from './playerSelectMenu'
 import type { UserSourcePF2e } from '@7h3laughingman/pf2e-types'
@@ -24,6 +25,7 @@ Hooks.on('ready', () => {
   setupListener()
   setupChatOriginDisplay()
   setupSpellCardTargeting()
+  setupSettingsHeaders()
   checkSystemCompat()
 
   logger.info('tablemate hello')
