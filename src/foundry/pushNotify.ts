@@ -8,6 +8,7 @@
 // connected are excluded, and unattributable/empty system messages are skipped.
 
 import { readPushConfig, type PushScope } from './pushRegistration'
+import { transcriptionEnabled } from './transcriptionSetting'
 import { logger } from '@/utils/utilities'
 
 // Structural view of the bits of ChatMessage we read; Foundry's types are loose
@@ -22,7 +23,7 @@ interface ChatMessageLike {
   user?: { id?: string; name?: string }
   speaker?: { actor?: string | null }
   rolls?: unknown[]
-  flags?: { tablemate?: { audioPath?: string | null } }
+  flags?: { tablemate?: { audioPath?: string | null; transcript?: string | null } }
   getFlag?: (scope: string, key: string) => unknown
 }
 
@@ -43,6 +44,15 @@ function messageId(msg: ChatMessageLike): string | undefined {
 function isVoiceMemo(msg: ChatMessageLike): boolean {
   const flagged = msg.getFlag?.('tablemate', 'audioPath')
   return !!(typeof flagged === 'string' ? flagged : msg.flags?.tablemate?.audioPath)
+}
+
+// A voice memo's AI transcript, once it lands (attachTranscript in
+// handlers/chat.ts patches flags.tablemate.transcript onto the posted message),
+// or '' while it's still pending / disabled / failed.
+function voiceTranscript(msg: ChatMessageLike): string {
+  const flagged = msg.getFlag?.('tablemate', 'transcript')
+  const value = typeof flagged === 'string' ? flagged : msg.flags?.tablemate?.transcript
+  return typeof value === 'string' ? value.trim() : ''
 }
 
 function authorId(msg: ChatMessageLike): string | undefined {
@@ -189,17 +199,20 @@ function plainText(html: string | undefined): string {
 function bodyText(html: string | undefined): string {
   const text = plainText(html)
   if (!text) return 'sent a message'
-  return text.length > 180 ? `${text.slice(0, 179)}…` : text
+  return truncate(text, 180)
 }
 
 // Body respects the per-world opt-in: when message text is off (default), the
 // content is never even read/sent — recipients get a sender-only notification.
-// A voice memo shows a "🎤 Voice message" indicator instead of empty text, with
-// its optional caption appended only when message text is opted in.
+// A voice memo shows a "🎤 Voice message" indicator instead of empty text; once
+// its transcript has landed (we briefly wait for it — see waitForTranscript) the
+// spoken text rides alongside that indicator, and any typed caption is used as a
+// fallback until then. All only when message text is opted in.
 function notificationBody(msg: ChatMessageLike, includeBody: boolean): string {
   if (isVoiceMemo(msg)) {
-    const caption = includeBody ? plainText(msg.content) : ''
-    return caption ? `🎤 ${caption}` : '🎤 Voice message'
+    if (!includeBody) return '🎤 Voice message'
+    const text = truncate(voiceTranscript(msg) || plainText(msg.content), 180)
+    return text ? `🎤 ${text}` : '🎤 Voice message'
   }
   return includeBody ? bodyText(msg.content) : 'sent a message'
 }
@@ -218,6 +231,30 @@ function isPrimaryGM(): boolean {
   return !!activeGmId && game.user?.id === activeGmId
 }
 
+// A voice memo posts before its transcription finishes, so its push would
+// otherwise always go out text-less. We hold the push for the transcript to
+// appear — but only briefly: a notification that arrives 5s late is fine, one
+// that never arrives is not. If the endpoint is slow/hung we send the
+// sender-only "voice message" push and let the memo stay audio-only.
+const TRANSCRIPT_WAIT_MS = 5_000
+const TRANSCRIPT_POLL_MS = 200
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => globalThis.setTimeout(resolve, ms))
+}
+
+// Poll the live message document until its transcript flag lands or the wait
+// budget runs out. attachTranscript (handlers/chat.ts) patches the transcript
+// onto this same document — in memory here on the transcribing GM, or via an
+// updateChatMessage broadcast on any other client — so the flag turning up is
+// our signal the body can now carry the spoken text.
+async function waitForTranscript(msg: ChatMessageLike): Promise<void> {
+  const deadline = Date.now() + TRANSCRIPT_WAIT_MS
+  while (!voiceTranscript(msg) && Date.now() < deadline) {
+    await delay(TRANSCRIPT_POLL_MS)
+  }
+}
+
 export async function notifyChatMessage(message: unknown): Promise<void> {
   try {
     // Only the elected primary GM posts, so a message seen by N GM clients
@@ -231,6 +268,14 @@ export async function notifyChatMessage(message: unknown): Promise<void> {
     if (!isNotifiableMessage(msg)) return
     const recipients = recipientsFor(msg, config.scope)
     if (!recipients.length) return
+
+    // Give a transcribable voice memo a moment to gain its transcript so the
+    // push can include the spoken text. Only worth waiting when the body is
+    // opted in (otherwise it's sender-only regardless) and the world actually
+    // transcribes (otherwise no transcript is ever coming).
+    if (isVoiceMemo(msg) && config.includeBody && transcriptionEnabled()) {
+      await waitForTranscript(msg)
+    }
 
     const res = await fetch(`${config.relayUrl}/notify`, {
       method: 'POST',
