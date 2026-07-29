@@ -37,6 +37,7 @@ import ChatMessageRow from '@/components/ChatMessageRow.vue'
 import ChatRecipientPicker from '@/components/ChatRecipientPicker.vue'
 import CompendiumItemModal from '@/components/CompendiumItemModal.vue'
 import InfoModal from '@/components/InfoModal.vue'
+import ConfirmDialog from '@/components/widgets/ConfirmDialog.vue'
 import type { ActiveRoll } from '@/types/api-types'
 import type { Roll } from '@/types/roll-types'
 
@@ -146,6 +147,25 @@ async function submitChatMessage() {
   })
 }
 
+// Grow the composer to fit the message up to the textarea's max-height (past
+// that it scrolls). Runs on input and whenever the draft is set programmatically
+// (edit populate, clear-on-send) or the textarea remounts after a voice/image
+// state. Height is reset to auto first so it can also shrink back.
+//
+// The box's resting (unexpanded) height is captured whenever the draft is empty
+// and applied to the send button, so the button matches the box exactly before
+// it starts expanding — regardless of font metrics — and then stays put as the
+// box grows for a long message.
+const composerRestHeight = ref('')
+function autoGrowComposer() {
+  const el = chatInput.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = `${el.scrollHeight}px`
+  if (!draft.value.trim()) composerRestHeight.value = `${el.offsetHeight}px`
+}
+watch([draft, chatInput], () => nextTick(autoGrowComposer))
+
 // ── Edit / delete own messages ───────────────────────────────────────────────
 // Edit loads the message's text back into the composer (WhatsApp-style); Save
 // routes through submitChatMessage above. Delete is confirmed inline in the row.
@@ -166,8 +186,21 @@ function cancelEdit() {
   draft.value = ''
 }
 
-async function deleteChatMessage(view: ChatMessageView) {
-  const id = view.message._id
+// Delete is confirmed in a modal: the row's request opens the dialog; its
+// confirm performs the delete.
+const deleteDialog = ref<InstanceType<typeof ConfirmDialog>>()
+const pendingDeleteView = ref<ChatMessageView | null>(null)
+
+function requestDeleteMessage(view: ChatMessageView) {
+  if (!view.message._id) return
+  pendingDeleteView.value = view
+  deleteDialog.value?.open()
+}
+
+async function performDeleteMessage() {
+  const view = pendingDeleteView.value
+  pendingDeleteView.value = null
+  const id = view?.message._id
   if (!id) return
   // Leaving edit mode if we're deleting the very message being edited.
   if (editingMessageId.value === id) cancelEdit()
@@ -550,7 +583,7 @@ defineExpose({ open, close, isOpen })
                       @open-inline-check="openLocalizedInlineRoll($event)"
                       @open-reroll="openRerollModal($event)"
                       @edit="startEdit($event)"
-                      @delete="deleteChatMessage($event)"
+                      @delete="requestDeleteMessage($event)"
                     />
                   </template>
                 </ol>
@@ -614,20 +647,20 @@ defineExpose({ open, close, isOpen })
                   @change="onImagePicked"
                 />
 
-                <!-- items-stretch: the action button(s) grow to exactly the input
-                     box's height in every state, so the box and its button read as
-                     one full-height unit regardless of which mode is showing. The
-                     record/preview boxes are pinned to the textarea's rendered
-                     height (2 rows text-sm + py-2 + border = 3.625rem) so switching
-                     modes never changes the composer's height. -->
-                <div class="flex items-stretch gap-2">
+                <!-- items-end so the fixed-height (h-14.5) action button stays put
+                     at the bottom while the textarea auto-grows upward for a long
+                     message. Every mode shares that resting height — the textarea's
+                     min-h and the record/preview boxes' min-h all equal the button
+                     height (3.625rem: 2 rows text-sm + py-2 + border) — so short
+                     content and mode switches never change the composer's height. -->
+                <div class="flex items-end gap-2">
                   <div class="relative min-w-0 flex-1">
                     <!-- Recording: cancel is tucked inside the box, so only the
                          stop button sits outside as the single primary action. -->
                     <div
                       v-if="isRecording"
                       data-part="chat-voice-recording"
-                      class="flex min-h-[3.625rem] items-center gap-3 rounded-md border border-red-300 bg-red-50 py-2 pr-1.5 pl-3"
+                      class="flex min-h-14.5 items-center gap-3 rounded-md border border-red-300 bg-red-50 py-2 pr-1.5 pl-3"
                     >
                       <span
                         class="h-3 w-3 flex-none animate-pulse rounded-full bg-red-600"
@@ -650,7 +683,7 @@ defineExpose({ open, close, isOpen })
                     <div
                       v-else-if="canPreviewVoice"
                       data-part="chat-voice-preview"
-                      class="flex min-h-[3.625rem] items-center"
+                      class="flex min-h-14.5 items-center"
                     >
                       <audio
                         :src="recordedUrl ?? undefined"
@@ -664,7 +697,7 @@ defineExpose({ open, close, isOpen })
                     <div
                       v-else-if="hasImage"
                       data-part="chat-image-preview"
-                      class="flex min-h-[3.625rem] items-center gap-3 rounded-md border border-gray-300 bg-gray-50 p-1.5"
+                      class="flex min-h-14.5 items-center gap-3 rounded-md border border-gray-300 bg-gray-50 p-1.5"
                     >
                       <img
                         v-if="imagePreviewUrl"
@@ -682,10 +715,11 @@ defineExpose({ open, close, isOpen })
                       <textarea
                         ref="chatInput"
                         v-model="draft"
-                        class="block max-h-32 min-h-12 w-full resize-none rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-hidden"
+                        class="block max-h-32 min-h-14.5 w-full resize-none overflow-y-auto rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-hidden"
                         rows="2"
                         :placeholder="$t('chat.placeholder')"
                         :disabled="!_id"
+                        @input="autoGrowComposer"
                         @keydown.enter.exact="onEnterKey"
                         @keydown.meta.enter.prevent="submitChatMessage"
                         @keydown.ctrl.enter.prevent="submitChatMessage"
@@ -735,7 +769,7 @@ defineExpose({ open, close, isOpen })
                   <button
                     v-if="isRecording"
                     type="button"
-                    class="inline-flex w-12 flex-none items-center justify-center rounded-md bg-red-600 text-white transition-colors hover:bg-red-500 active:bg-red-400"
+                    class="inline-flex h-14.5 w-12 flex-none items-center justify-center rounded-md bg-red-600 text-white transition-colors hover:bg-red-500 active:bg-red-400"
                     :aria-label="$t('chat.stopRecording')"
                     @click="stopRecording"
                   >
@@ -744,7 +778,7 @@ defineExpose({ open, close, isOpen })
                   <template v-else-if="canPreviewVoice">
                     <button
                       type="button"
-                      class="inline-flex w-12 flex-none items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition-colors hover:bg-gray-100 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                      class="inline-flex h-14.5 w-12 flex-none items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition-colors hover:bg-gray-100 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
                       :disabled="isSending"
                       :aria-label="$t('chat.discardRecording')"
                       @click="resetRecording"
@@ -753,7 +787,7 @@ defineExpose({ open, close, isOpen })
                     </button>
                     <button
                       type="button"
-                      class="inline-flex w-12 flex-none items-center justify-center rounded-md bg-blue-600 text-white transition-colors enabled:hover:bg-blue-500 enabled:active:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
+                      class="inline-flex h-14.5 w-12 flex-none items-center justify-center rounded-md bg-blue-600 text-white transition-colors enabled:hover:bg-blue-500 enabled:active:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
                       :disabled="isSending"
                       :aria-label="$t('chat.sendVoice')"
                       @click="submitCurrentVoiceMemo"
@@ -768,7 +802,7 @@ defineExpose({ open, close, isOpen })
                   <template v-else-if="hasImage">
                     <button
                       type="button"
-                      class="inline-flex w-12 flex-none items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition-colors hover:bg-gray-100 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                      class="inline-flex h-14.5 w-12 flex-none items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition-colors hover:bg-gray-100 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
                       :disabled="isSending"
                       :aria-label="$t('chat.discardImage')"
                       @click="resetImage"
@@ -777,7 +811,7 @@ defineExpose({ open, close, isOpen })
                     </button>
                     <button
                       type="button"
-                      class="inline-flex w-12 flex-none items-center justify-center rounded-md bg-blue-600 text-white transition-colors enabled:hover:bg-blue-500 enabled:active:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
+                      class="inline-flex h-14.5 w-12 flex-none items-center justify-center rounded-md bg-blue-600 text-white transition-colors enabled:hover:bg-blue-500 enabled:active:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
                       :disabled="isSending"
                       :aria-label="$t('chat.sendImage')"
                       @click="submitCurrentImage"
@@ -792,7 +826,8 @@ defineExpose({ open, close, isOpen })
                   <button
                     v-else
                     type="submit"
-                    class="inline-flex w-12 flex-none items-center justify-center rounded-md bg-blue-600 text-white transition-colors enabled:hover:bg-blue-500 enabled:active:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
+                    class="inline-flex h-14.5 w-12 flex-none items-center justify-center rounded-md bg-blue-600 text-white transition-colors enabled:hover:bg-blue-500 enabled:active:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
+                    :style="composerRestHeight ? { height: composerRestHeight } : undefined"
                     :disabled="!canSend"
                     :aria-label="editingMessageId ? $t('chat.saveEdit') : $t('chat.send')"
                     @mousedown.prevent
@@ -837,6 +872,16 @@ defineExpose({ open, close, isOpen })
       </div>
       <ChatInlineRollModal ref="inlineRollModal" />
       <CompendiumItemModal ref="compendiumModal" />
+      <ConfirmDialog
+        ref="deleteDialog"
+        :title="$t('chat.confirmDelete')"
+        :message="$t('chat.deleteBody')"
+        :confirm-label="$t('common.delete')"
+        :cancel-label="$t('common.cancel')"
+        danger
+        @confirm="performDeleteMessage"
+        @cancel="pendingDeleteView = null"
+      />
       <InfoModal ref="rerollModal" :rolls="rerollModalRolls" @closing="activeReroll = undefined">
         <template #title>
           {{ activeReroll ? $t(rerollLabelKey(activeReroll.mode)) : $t('chat.rollActions') }}

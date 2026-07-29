@@ -342,6 +342,7 @@
     "editingMessage": "Editando mensaje",
     "saveEdit": "Guardar cambios",
     "confirmDelete": "¿Eliminar este mensaje?",
+    "deleteBody": "Esto elimina el mensaje de forma permanente para todos.",
     "manageFailed": "No se pudo actualizar el mensaje.",
     "actionFailed": "No se pudo completar la acción de chat.",
     "blind": "A ciegas",

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import type { ChatMessageView } from '@/composables/useChatMessages'
 import type { ChatActions, ChatRerollRequest } from '@/composables/useChatActions'
 import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
+import { useLongPress } from '@/composables/useLongPress'
 import ChatRollCard from '@/components/ChatRollCard.vue'
 import KebabMenu from '@/components/widgets/KebabMenu.vue'
 import d20Icon from '@/assets/icons/d20.svg'
@@ -68,17 +69,21 @@ const menuItems = computed(() => {
   return items
 })
 
-// Delete is a two-step inline confirm (matching the app's other destructive
-// actions) rather than a modal, so it stays contained in the row.
-const confirmingDelete = ref(false)
+// The overlay owns the composer edit-mode and the delete confirmation modal;
+// the row just relays the chosen action.
 function onMenuSelect(id: string) {
   if (id === 'edit') emit('edit', props.view)
-  else if (id === 'delete') confirmingDelete.value = true
+  else if (id === 'delete') emit('delete', props.view)
 }
-function confirmDelete() {
-  confirmingDelete.value = false
-  emit('delete', props.view)
-}
+
+// Desktop reveals the kebab on hover; touch has no persistent kebab — a
+// long-press on an own message opens the same menu (anchored to the hidden
+// trigger). Gated to manageable messages so others' bubbles keep native
+// press-and-hold (text selection / callout).
+const kebab = ref<InstanceType<typeof KebabMenu>>()
+const longPress = useLongPress(() => kebab.value?.openMenu(), {
+  enabled: () => canManage.value
+})
 
 // Square off the corner on the sender's side through the middle of a run so a
 // group of bubbles reads as one connected column (the WhatsApp/Telegram look).
@@ -176,27 +181,31 @@ function handleContentClick(event: MouseEvent) {
       </div>
     </div>
 
-    <!-- Bubble + manage affordance. The row is capped so long runs don't span
-         the full width; flex-row-reverse keeps the bubble on the outer edge for
-         others so the kebab lands on the inner side for both. -->
+    <!-- Bubble + manage affordance. A relative wrapper, capped so long runs don't
+         span the full width; the kebab is absolutely positioned on the inner side
+         (below) so it never affects the bubble's width. On touch a long-press
+         opens the menu (the kebab stays hidden), and selection/callout is
+         suppressed on own bubbles there so the press doesn't also start a text
+         selection. -->
     <div
-      class="flex max-w-[85%] items-center gap-1"
-      :class="isOwn ? 'flex-row' : 'flex-row-reverse'"
+      class="relative max-w-[85%] min-w-0"
+      :class="
+        canManage
+          ? '[@media(hover:none)]:select-none [@media(hover:none)]:[-webkit-touch-callout:none]'
+          : ''
+      "
     >
-      <!-- Edit/delete kebab (own messages). Hidden until the message is hovered
-           on pointer devices; always shown (subtly) on touch, which has no
-           hover. Its slot is reserved so revealing it never shifts the bubble. -->
-      <div
-        v-if="canManage"
-        data-part="chat-actions"
-        class="flex-none text-gray-400 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
-      >
-        <KebabMenu :items="menuItems" :label="$t('chat.messageActions')" @select="onMenuSelect" />
-      </div>
+      <!-- Long-press handlers live on the bubble (not this wrapper) so the
+           kebab — a sibling below — is outside the click guard; otherwise the
+           guard would swallow the programmatic click that opens the menu. -->
       <div
         data-part="chat-bubble"
         class="max-w-full min-w-0 px-3 py-2 text-gray-900 transition-shadow"
         :class="[bubbleClass, highlighted ? 'ring-2 ring-amber-400 ring-offset-1' : '']"
+        @pointerdown="longPress.onPointerdown"
+        @pointermove="longPress.onPointermove"
+        @pointerup="longPress.onPointerup"
+        @pointercancel="longPress.onPointercancel"
       >
         <div
           v-if="view.preparedFlavor"
@@ -280,22 +289,23 @@ function handleContentClick(event: MouseEvent) {
           {{ $t('chat.emptyMessage') }}
         </div>
       </div>
-    </div>
-
-    <!-- Inline delete confirmation (two-step, no modal). -->
-    <div
-      v-if="confirmingDelete"
-      data-part="chat-delete-confirm"
-      class="mt-1 flex items-center gap-3 px-1 text-xs"
-      :class="isOwn ? 'flex-row-reverse' : ''"
-    >
-      <span class="text-gray-500">{{ $t('chat.confirmDelete') }}</span>
-      <button type="button" class="font-semibold text-red-600" @click="confirmDelete">
-        {{ $t('common.delete') }}
-      </button>
-      <button type="button" class="text-gray-500" @click="confirmingDelete = false">
-        {{ $t('common.cancel') }}
-      </button>
+      <!-- Edit/delete kebab, own messages. Absolutely positioned on the inner
+           side so it never affects the bubble width. Revealed on hover on pointer
+           devices; on touch it stays hidden and inert — a long-press opens the
+           menu, anchored here. -->
+      <div
+        v-if="canManage"
+        data-part="chat-actions"
+        class="pointer-events-none absolute top-1 opacity-0 transition-opacity group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100"
+        :class="isOwn ? 'right-full mr-1' : 'left-full ml-1'"
+      >
+        <KebabMenu
+          ref="kebab"
+          :items="menuItems"
+          :label="$t('chat.messageActions')"
+          @select="onMenuSelect"
+        />
+      </div>
     </div>
 
     <time

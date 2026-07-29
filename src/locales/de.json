@@ -342,6 +342,7 @@
     "editingMessage": "Nachricht wird bearbeitet",
     "saveEdit": "Änderung speichern",
     "confirmDelete": "Diese Nachricht löschen?",
+    "deleteBody": "Dadurch wird die Nachricht für alle dauerhaft gelöscht.",
     "manageFailed": "Die Nachricht konnte nicht aktualisiert werden.",
     "actionFailed": "Chataktion konnte nicht abgeschlossen werden.",
     "blind": "Verdeckt",
