@@ -37,6 +37,38 @@ export class ImagePrepareError extends Error {
   }
 }
 
+// Minimal shape of the parts of a DataTransfer we read — so this is unit-
+// testable without a real clipboard/drag event.
+interface ImageTransferLike {
+  items?: ArrayLike<{ kind: string; type: string; getAsFile: () => File | null }>
+  files?: ArrayLike<File>
+}
+
+// Pull the first image File out of a paste (ClipboardEvent.clipboardData) or a
+// drop (DragEvent.dataTransfer). Prefers `items` (where a pasted screenshot
+// usually lands) and falls back to `files`. Returns null when there's no image —
+// so a normal text paste is left to proceed untouched.
+export function imageFileFromTransfer(data: ImageTransferLike | null | undefined): File | null {
+  if (!data) return null
+  const items = data.items
+  if (items) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const file = item.getAsFile()
+        if (file) return file
+      }
+    }
+  }
+  const files = data.files
+  if (files) {
+    for (let i = 0; i < files.length; i++) {
+      if (files[i].type.startsWith('image/')) return files[i]
+    }
+  }
+  return null
+}
+
 // Preparation needs canvas + object URLs, present in the PWA and both mobile
 // WebViews. Mirrors audioRecordingSupported()'s role for the mic.
 export function imageUploadSupported(): boolean {

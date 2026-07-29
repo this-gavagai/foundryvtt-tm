@@ -14,7 +14,7 @@ import { useInjectedActor } from '@/composables/injectKeys'
 import { useOverlayStack } from '@/composables/useOverlayStack'
 import { useAudioRecorder, audioRecordingSupported } from '@/composables/useAudioRecorder'
 import { useImageAttachment } from '@/composables/useImageAttachment'
-import { imageUploadSupported } from '@/utils/imageUpload'
+import { imageFileFromTransfer, imageUploadSupported } from '@/utils/imageUpload'
 import { useChatStore } from '@/stores/chat'
 import { useServerAddressStore } from '@/stores/serverAddress'
 import { useVersionCompatStore } from '@/stores/versionCompat'
@@ -201,6 +201,18 @@ function onImagePicked(event: Event) {
   const file = input.files?.[0]
   // Clear the input so re-picking the same file still fires change.
   input.value = ''
+  void pickImage(file)
+}
+
+// Paste an image straight into the composer (desktop Cmd/Ctrl+V, or the mobile
+// long-press "Paste"). Works in the browser and both WebViews via the standard
+// paste event. Only intercepts when the clipboard actually holds an image and
+// the feature is available — a normal text paste is left to proceed.
+function onPaste(event: ClipboardEvent) {
+  if (!canAttachImage.value) return
+  const file = imageFileFromTransfer(event.clipboardData)
+  if (!file) return
+  event.preventDefault()
   void pickImage(file)
 }
 
@@ -592,6 +604,7 @@ defineExpose({ open, close, isOpen })
                         @keydown.enter.exact="onEnterKey"
                         @keydown.meta.enter.prevent="submitChatMessage"
                         @keydown.ctrl.enter.prevent="submitChatMessage"
+                        @paste="onPaste"
                       />
                       <!-- Attach + mic sit inside the empty composer; they hide as
                            soon as the user starts typing so they never crowd the
