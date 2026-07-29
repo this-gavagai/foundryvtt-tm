@@ -20,6 +20,11 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- Matches the app target. Export compliance is evaluated per embedded
+	     bundle; without this the whole build lands in "Missing Compliance"
+	     and can't be assigned to TestFlight groups. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<!-- The extension fetches portrait art from the user's self-hosted Foundry,
 	     which is commonly a plain-HTTP LAN address (e.g. http://192.168.x.x:30001).
 	     Unlike the app's WKWebView, URLSession here is subject to ATS, so allow
