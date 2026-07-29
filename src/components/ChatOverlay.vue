@@ -20,7 +20,11 @@ import { useServerAddressStore } from '@/stores/serverAddress'
 import { useVersionCompatStore } from '@/stores/versionCompat'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { useChatActions, type ChatRerollRequest } from '@/composables/useChatActions'
-import { useChatMessages } from '@/composables/useChatMessages'
+import {
+  useChatMessages,
+  chatContentToEditableText,
+  type ChatMessageView
+} from '@/composables/useChatMessages'
 import { useChatScroll } from '@/composables/useChatScroll'
 import { PUBLIC_WHISPER_TARGET, useWhisperTargets } from '@/composables/useWhisperTargets'
 import { rerollLabelKey, rollFormulaLabel, rollKindLabel } from '@/utils/chatRollDisplay'
@@ -55,8 +59,15 @@ const { messages, renderedMessages, messageIsOwnActor } = useChatMessages(_id)
 const chatStore = useChatStore()
 const { isNativeMobile } = useServerAddressStore()
 
-const { scrollContainer, isAtBottom, onScroll, positionOnOpen, stopOpenSettle, scrollToBottom, scrollToMessage } =
-  useChatScroll({ onAtBottom: () => chatStore.markAllRead() })
+const {
+  scrollContainer,
+  isAtBottom,
+  onScroll,
+  positionOnOpen,
+  stopOpenSettle,
+  scrollToBottom,
+  scrollToMessage
+} = useChatScroll({ onAtBottom: () => chatStore.markAllRead() })
 
 // Deep-link focus (from a push-notification tap): the message to land on when
 // the overlay next opens, and the message to briefly highlight.
@@ -103,12 +114,28 @@ const {
   rerollRoll,
   submitMessage,
   submitVoiceMemo,
-  submitImage
+  submitImage,
+  deleteMessage,
+  updateMessageContent
 } = chatActions
 
-function submitChatMessage() {
+async function submitChatMessage() {
   const content = draft.value.trim()
   if (!content) return
+  // Editing an existing message: save the new text rather than posting anew.
+  if (editingMessageId.value) {
+    const id = editingMessageId.value
+    manageError.value = false
+    try {
+      await updateMessageContent(id, content)
+      editingMessageId.value = null
+      draft.value = ''
+      nextTick(() => chatInput.value?.focus())
+    } catch {
+      manageError.value = true
+    }
+    return
+  }
   // Whisper recipients ride as resolved user ids (the direct modifyDocument
   // create posts them straight into the message's `whisper` array) rather than
   // as a `/w …` command string the GM proxy would have re-parsed.
@@ -117,6 +144,39 @@ function submitChatMessage() {
     whisperIds: selectedWhisperRecipientIds.value,
     whisperIntended: whisperIntended.value
   })
+}
+
+// ── Edit / delete own messages ───────────────────────────────────────────────
+// Edit loads the message's text back into the composer (WhatsApp-style); Save
+// routes through submitChatMessage above. Delete is confirmed inline in the row.
+const editingMessageId = ref<string | null>(null)
+const manageError = ref(false)
+
+function startEdit(view: ChatMessageView) {
+  const id = view.message._id
+  if (!id) return
+  editingMessageId.value = id
+  draft.value = chatContentToEditableText(view.message.content)
+  manageError.value = false
+  nextTick(() => chatInput.value?.focus())
+}
+
+function cancelEdit() {
+  editingMessageId.value = null
+  draft.value = ''
+}
+
+async function deleteChatMessage(view: ChatMessageView) {
+  const id = view.message._id
+  if (!id) return
+  // Leaving edit mode if we're deleting the very message being edited.
+  if (editingMessageId.value === id) cancelEdit()
+  manageError.value = false
+  try {
+    await deleteMessage(id)
+  } catch {
+    manageError.value = true
+  }
 }
 
 // ── Voice memos ──────────────────────────────────────────────────────────
@@ -336,6 +396,8 @@ function close() {
   isOpen.value = false
   stopOpenSettle()
   closeLayer()
+  // Drop any in-progress edit so reopening starts clean.
+  if (editingMessageId.value) cancelEdit()
 }
 
 onBeforeUnmount(() => {
@@ -487,6 +549,8 @@ defineExpose({ open, close, isOpen })
                       @content-click="handleChatContentClick($event)"
                       @open-inline-check="openLocalizedInlineRoll($event)"
                       @open-reroll="openRerollModal($event)"
+                      @edit="startEdit($event)"
+                      @delete="deleteChatMessage($event)"
                     />
                   </template>
                 </ol>
@@ -506,9 +570,28 @@ defineExpose({ open, close, isOpen })
                 :data-private="selectedWhisperCommandTargets.length ? true : undefined"
                 @submit.prevent="submitChatMessage"
               >
+                <!-- Editing banner: replaces the recipient picker while editing
+                     an existing message (recipients/OOC can't change on an edit). -->
+                <div
+                  v-if="editingMessageId"
+                  data-part="chat-editing-banner"
+                  class="mb-2 flex items-center gap-2 px-1 text-xs text-gray-500"
+                >
+                  <span class="flex-1">{{ $t('chat.editingMessage') }}</span>
+                  <button
+                    type="button"
+                    class="rounded-md text-gray-400 hover:text-gray-600 focus:outline-hidden"
+                    :aria-label="$t('common.cancel')"
+                    @click="cancelEdit"
+                  >
+                    <XMarkIcon class="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
+
                 <!-- Recipient picker stays put across all three states; only the
                      input row below it swaps. -->
                 <ChatRecipientPicker
+                  v-else
                   :group-targets="whisperGroupTargets"
                   :user-targets="whisperUserTargets"
                   :selected-mode="selectedWhisperMode"
@@ -606,13 +689,17 @@ defineExpose({ open, close, isOpen })
                         @keydown.enter.exact="onEnterKey"
                         @keydown.meta.enter.prevent="submitChatMessage"
                         @keydown.ctrl.enter.prevent="submitChatMessage"
+                        @keydown.esc="editingMessageId && cancelEdit()"
                         @paste="onPaste"
                       />
                       <!-- Attach + mic sit inside the empty composer; they hide as
                            soon as the user starts typing so they never crowd the
-                           text or claim layout space of their own. -->
+                           text or claim layout space of their own. Suppressed while
+                           editing so an emptied draft can't surface them mid-edit. -->
                       <div
-                        v-if="!draft.trim() && (canAttachImage || canRecordVoice)"
+                        v-if="
+                          !editingMessageId && !draft.trim() && (canAttachImage || canRecordVoice)
+                        "
                         class="absolute top-1/2 right-1.5 flex -translate-y-1/2 items-center gap-0.5"
                       >
                         <button
@@ -707,7 +794,7 @@ defineExpose({ open, close, isOpen })
                     type="submit"
                     class="inline-flex w-12 flex-none items-center justify-center rounded-md bg-blue-600 text-white transition-colors enabled:hover:bg-blue-500 enabled:active:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
                     :disabled="!canSend"
-                    :aria-label="$t('chat.send')"
+                    :aria-label="editingMessageId ? $t('chat.saveEdit') : $t('chat.send')"
                     @mousedown.prevent
                   >
                     <span
@@ -734,6 +821,14 @@ defineExpose({ open, close, isOpen })
                   class="mt-1 text-xs text-red-700"
                 >
                   {{ imageErrorMessage }}
+                </p>
+                <p
+                  v-else-if="manageError"
+                  data-part="chat-manage-error"
+                  class="mt-1 text-xs text-red-700"
+                  role="status"
+                >
+                  {{ $t('chat.manageFailed') }}
                 </p>
               </form>
             </DialogPanel>
