@@ -15,6 +15,7 @@ import { useOverlayStack } from '@/composables/useOverlayStack'
 import { useAudioRecorder, audioRecordingSupported } from '@/composables/useAudioRecorder'
 import { useImageAttachment } from '@/composables/useImageAttachment'
 import { imageFileFromTransfer, imageUploadSupported } from '@/utils/imageUpload'
+import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 import { useChatStore } from '@/stores/chat'
 import { useServerAddressStore } from '@/stores/serverAddress'
 import { useVersionCompatStore } from '@/stores/versionCompat'
@@ -163,6 +164,15 @@ function autoGrowComposer() {
   el.style.height = 'auto'
   el.style.height = `${el.scrollHeight}px`
   if (!draft.value.trim()) composerRestHeight.value = `${el.offsetHeight}px`
+}
+
+// One delegated tap-tick for every control in the composer (recipient picker,
+// OOC toggle, mic, attach, send, and the voice/image action buttons) — none of
+// which carry their own haptic — so they all feel responsive without wiring
+// each individually.
+function onComposerPointerdown(event: PointerEvent) {
+  const target = event.target as HTMLElement | null
+  if (target?.closest('button, input[type="checkbox"]')) triggerLightHapticFeedback()
 }
 watch([draft, chatInput], () => nextTick(autoGrowComposer))
 
@@ -537,6 +547,7 @@ defineExpose({ open, close, isOpen })
                   data-part="close"
                   class="ml-auto rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-hidden"
                   type="button"
+                  @pointerdown="triggerLightHapticFeedback()"
                   @click="close"
                 >
                   <span class="sr-only">{{ $t('common.close') }}</span>
@@ -602,6 +613,7 @@ defineExpose({ open, close, isOpen })
                 class="border-divider flex flex-none flex-col border-t p-3"
                 :data-private="selectedWhisperCommandTargets.length ? true : undefined"
                 @submit.prevent="submitChatMessage"
+                @pointerdown="onComposerPointerdown"
               >
                 <!-- Editing banner: replaces the recipient picker while editing
                      an existing message (recipients/OOC can't change on an edit). -->

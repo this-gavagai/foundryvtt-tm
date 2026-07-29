@@ -9,7 +9,10 @@ import {
   TransitionChild
 } from '@headlessui/vue'
 import { useOverlayStack } from '@/composables/useOverlayStack'
-import { triggerDismissHapticFeedback } from '@/composables/useHapticFeedback'
+import {
+  triggerDismissHapticFeedback,
+  triggerLightHapticFeedback
+} from '@/composables/useHapticFeedback'
 
 // Minimal confirmation modal. Renders as a themed [data-part='panel'] inside a
 // [role='dialog'], so it inherits the app's modal surface + text colors on every
@@ -37,6 +40,7 @@ function close() {
   closeLayer()
 }
 function onConfirm() {
+  triggerLightHapticFeedback()
   emit('confirm')
   close()
 }

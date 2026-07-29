@@ -153,6 +153,7 @@ function handleContentClick(event: MouseEvent) {
           data-part="chat-name-button"
           data-tone="primary"
           class="max-w-full min-w-0 truncate text-left text-base font-semibold text-gray-900"
+          @pointerdown="triggerLightHapticFeedback()"
           @click="emit('selectAuthor')"
         >
           {{ view.speakerName }}
@@ -163,6 +164,7 @@ function handleContentClick(event: MouseEvent) {
           data-part="chat-name-button"
           data-tone="muted"
           class="max-w-full min-w-0 truncate text-left text-xs text-gray-500"
+          @pointerdown="triggerLightHapticFeedback()"
           @click="emit('selectAuthor')"
         >
           {{ view.authorName }}
