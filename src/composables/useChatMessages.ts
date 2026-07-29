@@ -104,6 +104,17 @@ export interface ChatMessageView {
   visibilityLabel: string | null
   whisperRecipients: string[]
   isOwnActor: boolean
+  // Authored by this client's user (own posts) — drives right-alignment in the
+  // bubble layout. Distinct from isOwnActor, which is about the message's actor.
+  isOwnMessage: boolean
+  // Stable identity of the displayed sender, for grouping consecutive messages.
+  // Own messages share one key ('me') since they render without a name/portrait.
+  senderKey: string
+  // Grouping flags for the bubble layout, filled in a second pass over the
+  // rendered list: groupStart shows the portrait/name header, groupEnd shows the
+  // timestamp and rounds off the last bubble of a run.
+  groupStart: boolean
+  groupEnd: boolean
   hasPortrait: boolean
   portrait?: string
   portraitScale: { '--sx': number; '--sy': number }
@@ -332,11 +343,42 @@ function messageKey(message: ChatMessageData, index: number): string {
   return message._id ?? `${message.timestamp ?? 'message'}-${index}`
 }
 
+// Consecutive messages within this gap (and otherwise matching) collapse into
+// one visual group — the same 5-minute window most chat apps use.
+const GROUP_GAP_MS = 5 * 60_000
+
+// Whether `b` continues the same visual group as the message `a` directly above
+// it. Same displayed sender, same side (own vs other), same visibility (a
+// whisper never joins a public run), and close together in time.
+function sameGroup(a: ChatMessageView, b: ChatMessageView): boolean {
+  if (a.isOwnMessage !== b.isOwnMessage) return false
+  if (a.senderKey !== b.senderKey) return false
+  if (a.visibilityLabel !== b.visibilityLabel) return false
+  // Distinct whisper audiences don't share a run — the recipient line shown once
+  // at the group's top would otherwise misrepresent the rest.
+  if (a.whisperRecipients.join('|') !== b.whisperRecipients.join('|')) return false
+  const at = a.message.timestamp ?? 0
+  const bt = b.message.timestamp ?? 0
+  return Math.abs(bt - at) <= GROUP_GAP_MS
+}
+
 function plainChatText(content: string): string {
   return content
     .replace(/<[^>]*>/g, '')
     .replace(/&nbsp;/g, ' ')
     .trim()
+}
+
+// Reverse a message's stored HTML back to the plain text the user typed, for
+// populating the composer when editing. Own messages are posted as escaped text
+// with newlines as <br> (see formatChatContent), so undo that: <br> → newline,
+// then textContent both drops any tags and decodes entities.
+export function chatContentToEditableText(content: string | null | undefined): string {
+  if (!content) return ''
+  if (typeof document === 'undefined') return content
+  const template = document.createElement('template')
+  template.innerHTML = content.replace(/<br\s*\/?>/gi, '\n')
+  return (template.content.textContent ?? '').trim()
 }
 
 function inlineChecksFromContent(content: string | null | undefined): ActiveRoll[] {
@@ -377,7 +419,8 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
 
   // Whisper/GM gating is shared with the unread store via useChatVisibility so
   // the overlay and the badge count always agree on what's visible.
-  const { currentUserIsGM, messageVisibleToCurrentUser, visibleMessages } = useChatVisibility()
+  const { currentUserIsGM, messageVisibleToCurrentUser, messageIsFromCurrentUser, visibleMessages } =
+    useChatVisibility()
 
   const users = computed(() =>
     collectionToArray<UserData>(world.value?.users as CollectionLike<UserData>)
@@ -514,8 +557,8 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
   function expensiveView(message: ChatMessageData): ExpensiveMessageView {
     const gm = currentUserIsGM.value
     const fingerprint =
-      `${gm ? 'g' : ''} ${message.flavor ?? ''} ${message.content ?? ''}` +
-      ` ${message.rolls ? JSON.stringify(message.rolls) : ''}`
+      `${gm ? 'g' : ''} ${message.flavor ?? ''} ${message.content ?? ''}` +
+      ` ${message.rolls ? JSON.stringify(message.rolls) : ''}`
     return viewMemo.get(message._id ?? undefined, fingerprint, () => {
       const rolls = rollSummaries(message.rolls)
       const rerollSummary = parseRerollSummary(message.content)
@@ -542,6 +585,7 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
     const portrait = speakerPortrait(message)
     const author = authorName(message)
     const speaker = speakerName(message, author)
+    const isOwnMessage = messageIsFromCurrentUser(message)
 
     return {
       message,
@@ -553,6 +597,15 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
       visibilityLabel: visibilityLabel(message),
       whisperRecipients: whisperRecipientNames(message),
       isOwnActor: messageIsOwnActor(message),
+      isOwnMessage,
+      // Group by the displayed sender identity — the speaker (character alias or
+      // OOC player name) plus author — so posting as one character then another,
+      // or switching in/out of character, starts a fresh group even for your own
+      // messages. (own vs other is enforced separately in sameGroup.)
+      senderKey: `${speaker} ${author}`,
+      // Filled by the grouping pass in renderedMessages.
+      groupStart: true,
+      groupEnd: true,
       // Reserve the portrait box from a static signal (the speaker references a
       // token or an actor) so the row keeps a stable height even before
       // scene/actor data has hydrated to resolve the actual src. Without this the
@@ -572,6 +625,18 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
 
   const renderedMessages = computed(() => {
     const views = messages.value.map(buildChatMessageView)
+    // Second pass: group consecutive messages from the same sender so the bubble
+    // layout shows the portrait/name once at the top of a run and the timestamp
+    // once at its end. A run breaks on a different sender, a switch between
+    // own/other, a change in visibility (whispers never group with public), or a
+    // gap longer than GROUP_GAP_MS.
+    for (let i = 0; i < views.length; i++) {
+      const view = views[i]
+      const prev = views[i - 1]
+      const next = views[i + 1]
+      view.groupStart = !prev || !sameGroup(prev, view)
+      view.groupEnd = !next || !sameGroup(view, next)
+    }
     viewMemo.prune(new Set(views.map((v) => v.message._id).filter((id): id is string => !!id)))
     return views
   })

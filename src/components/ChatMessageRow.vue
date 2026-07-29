@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed } from 'vue'
 import type { ChatMessageView } from '@/composables/useChatMessages'
 import type { ChatActions, ChatRerollRequest } from '@/composables/useChatActions'
 import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
-import { fillUuidLinkLabels } from '@/utils/compendiumNames'
 import ChatRollCard from '@/components/ChatRollCard.vue'
 import d20Icon from '@/assets/icons/d20.svg'
 import type { ActiveRoll } from '@/types/api-types'
@@ -17,6 +16,11 @@ const props = defineProps<{
   actorId: string | null | undefined
   inlineCheckLabel: (check: ActiveRoll) => string
   actions: ChatActions
+  // Grouping (from useChatMessages, possibly overridden at the unread divider):
+  // groupStart shows the portrait/name header; groupEnd shows the timestamp and
+  // rounds off the last bubble of a run.
+  groupStart: boolean
+  groupEnd: boolean
 }>()
 
 const emit = defineEmits<{
@@ -29,47 +33,63 @@ const emit = defineEmits<{
   openReroll: [request: ChatRerollRequest]
 }>()
 
+// Right-aligned, tinted bubble for the current user's own messages; left-aligned
+// for everyone else. Both sides show a portrait + name at the top of a group, so
+// the sender can see which character (or OOC alias) each message was posted as.
+const isOwn = computed(() => props.view.isOwnMessage)
+const showHeader = computed(() => props.groupStart)
+
+// Square off the corner on the sender's side through the middle of a run so a
+// group of bubbles reads as one connected column (the WhatsApp/Telegram look).
+const bubbleClass = computed(() => {
+  const classes = ['rounded-2xl']
+  if (isOwn.value) {
+    if (!props.groupStart) classes.push('rounded-tr-md')
+    if (!props.groupEnd) classes.push('rounded-br-md')
+    classes.push('bg-blue-100')
+  } else {
+    if (!props.groupStart) classes.push('rounded-tl-md')
+    if (!props.groupEnd) classes.push('rounded-bl-md')
+    classes.push('bg-gray-100')
+  }
+  return classes
+})
+
 function handleContentClick(event: MouseEvent) {
   emit('contentClick', event)
   props.actions.handleCardButtonClick(event)
 }
-
-// Label-less @UUID[...] links in message content/flavor render with a "…"
-// placeholder (see pf2eUuidHtml) — resolve the referenced document's name and
-// patch it into the rendered HTML. The prepared HTML is a memoized string the
-// enricher can't fill in itself, so this runs against the DOM: once the row is
-// mounted, then post-flush whenever the message's HTML is re-rendered (an edit,
-// a reroll) and brings the placeholder back.
-const rowRef = ref<HTMLLIElement>()
-function fillLinkLabels() {
-  fillUuidLinkLabels(rowRef.value)
-}
-onMounted(fillLinkLabels)
-watch(() => [props.view.preparedContent, props.view.preparedFlavor], fillLinkLabels, {
-  flush: 'post'
-})
 </script>
 
 <template>
   <li
-    ref="rowRef"
     data-part="chat-message"
-    class="rounded-md border p-3 transition-shadow"
-    :class="[
-      unread ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50',
-      highlighted ? 'ring-2 ring-amber-400 ring-offset-1' : ''
-    ]"
+    class="flex flex-col"
+    :class="[isOwn ? 'items-end' : 'items-start', groupStart ? 'mt-5' : 'mt-0.5']"
     :data-message-id="view.message._id ?? undefined"
     :data-message-type="view.message.type"
     :data-private="!!view.visibilityLabel"
-    :data-own-message="view.isOwnActor"
+    :data-own-message="isOwn"
     :data-unread="unread || undefined"
   >
-    <div class="flex gap-3">
+    <!-- Group header: the token at the screen edge with the character name, user
+         name, and any whisper label stacked beside it — shown once above the
+         first bubble of a group. No side gutter, so the bubbles below use the
+         full width. flex-row-reverse puts the token on the far side for own
+         messages. -->
+    <div
+      v-if="showHeader"
+      class="mb-1.5 flex max-w-full items-center gap-2"
+      :class="isOwn ? 'flex-row-reverse' : ''"
+    >
+      <!-- overflow-visible so a token whose art is scaled past its frame
+           (scaleX/scaleY > 1) spills out of the avatar box rather than being
+           cropped — the usual Foundry large-creature token look. Omitted for
+           out-of-character posts, which have no character token. -->
       <div
         v-if="view.hasPortrait"
         data-part="chat-portrait"
-        class="h-12 w-12 flex-none overflow-hidden overflow-visible rounded"
+        class="h-12 w-12 flex-none overflow-visible rounded"
       >
         <img
           v-if="view.portrait"
@@ -81,126 +101,135 @@ watch(() => [props.view.preparedContent, props.view.preparedFlavor], fillLinkLab
           decoding="async"
         />
       </div>
-      <div class="min-w-0 flex-1">
-        <div class="flex gap-2">
-          <div class="min-w-0 flex-1">
-            <button
-              type="button"
-              data-part="chat-name-button"
-              data-tone="primary"
-              class="block max-w-full truncate text-left font-semibold text-gray-900"
-              @click="emit('selectAuthor')"
-            >
-              {{ view.speakerName }}
-            </button>
-            <button
-              v-if="view.showAuthorName"
-              type="button"
-              data-part="chat-name-button"
-              data-tone="muted"
-              class="block max-w-full truncate text-left text-xs text-gray-500"
-              @click="emit('selectAuthor')"
-            >
-              {{ view.authorName }}
-            </button>
-          </div>
-          <span
-            v-if="view.visibilityLabel"
-            data-part="visibility"
-            class="mt-0.5 self-start text-xs"
-          >
-            {{
-              view.whisperRecipients.length
-                ? $t('chat.whisperTo', { names: view.whisperRecipients.join(', ') })
-                : $t(view.visibilityLabel)
-            }}
-          </span>
-          <time v-if="view.formattedTime" data-tone="muted" class="ml-auto text-xs text-gray-500">
-            {{ view.formattedTime }}
-          </time>
-        </div>
+      <div class="flex min-w-0 flex-col" :class="isOwn ? 'items-end' : 'items-start'">
+        <button
+          type="button"
+          data-part="chat-name-button"
+          data-tone="primary"
+          class="max-w-full min-w-0 truncate text-left text-base font-semibold text-gray-900"
+          @click="emit('selectAuthor')"
+        >
+          {{ view.speakerName }}
+        </button>
+        <button
+          v-if="!isOwn && view.showAuthorName"
+          type="button"
+          data-part="chat-name-button"
+          data-tone="muted"
+          class="max-w-full min-w-0 truncate text-left text-xs text-gray-500"
+          @click="emit('selectAuthor')"
+        >
+          {{ view.authorName }}
+        </button>
+        <span
+          v-if="view.visibilityLabel"
+          data-part="visibility"
+          class="max-w-full truncate text-xs text-gray-400"
+        >
+          {{
+            view.whisperRecipients.length
+              ? $t('chat.whisperTo', { names: view.whisperRecipients.join(', ') })
+              : $t(view.visibilityLabel)
+          }}
+        </span>
       </div>
     </div>
+
+    <!-- Bubble, capped so long runs don't span the full width. -->
     <div
-      v-if="view.preparedFlavor"
-      data-part="chat-flavor"
-      class="mt-2 mb-2 text-base font-medium text-gray-700"
-      v-html="view.preparedFlavor"
-      @click="emit('contentClick', $event)"
-    />
-    <div
-      v-if="view.showContent && view.preparedContent"
-      data-part="chat-content"
-      data-tone="primary"
-      class="mt-2 text-base text-gray-900"
-      v-html="view.preparedContent"
-      @click="handleContentClick($event)"
-    />
-    <!-- Native player for an attached voice memo. Rendered as a real element
-         (not via the content v-html) because the chat-HTML sanitizer strips
-         <audio>; the URL is resolved from flags.tablemate in useChatMessages. -->
-    <div v-if="view.audioUrl" data-part="chat-voice-memo" class="mt-2">
-      <audio controls preload="metadata" :src="view.audioUrl" class="w-full" />
-      <!-- AI transcript, when one was produced GM-side. Plain text (never HTML)
-           so a transcript can't inject markup; shown muted beneath the player. -->
-      <p
-        v-if="view.transcript"
-        data-part="chat-voice-memo-transcript"
-        class="mt-1 text-sm italic text-gray-500"
-      >
-        {{ view.transcript }}
-      </p>
-    </div>
-    <!-- Native image for an attached upload. Rendered as a real element (not via
-         the content v-html) — the content copy rides in a [data-tablemate-image]
-         wrapper the chat-HTML sanitizer strips, and the URL is resolved from
-         flags.tablemate in useChatMessages. Links out to the full-size file. -->
-    <div v-if="view.imageUrl" data-part="chat-image" class="mt-2">
-      <a :href="view.imageUrl" target="_blank" rel="noreferrer" class="inline-block">
-        <img
-          :src="view.imageUrl"
-          :alt="view.speakerName"
-          :width="view.imageWidth"
-          :height="view.imageHeight"
-          class="max-h-80 max-w-full rounded-md object-contain"
-          loading="lazy"
-          decoding="async"
-        />
-      </a>
-    </div>
-    <div
-      v-if="view.inlineChecks.length && actorId"
-      data-part="chat-inline-checks"
-      class="mt-2 flex flex-wrap gap-1.5"
+      data-part="chat-bubble"
+      class="max-w-[85%] min-w-0 px-3 py-2 text-gray-900 transition-shadow"
+      :class="[bubbleClass, highlighted ? 'ring-2 ring-amber-400 ring-offset-1' : '']"
     >
-      <button
-        v-for="(check, checkIndex) in view.inlineChecks"
-        :key="checkIndex"
-        type="button"
-        data-part="chat-inline-check-button"
-        class="inline-flex items-center gap-1.5 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-100 active:bg-blue-200"
-        @pointerdown="triggerLightHapticFeedback()"
-        @click="emit('openInlineCheck', check)"
-      >
-        <img :src="d20Icon" class="h-3.5 w-3.5 flex-none" alt="" aria-hidden="true" />
-        {{ inlineCheckLabel(check) }}
-      </button>
-    </div>
-    <div v-if="view.rolls.length" data-part="chat-rolls" class="mt-2 space-y-2">
-      <ChatRollCard
-        v-for="(roll, rollIndex) in view.rolls"
-        :key="`${view.key}-roll-${rollIndex}`"
-        :view="view"
-        :roll="roll"
-        :roll-index="rollIndex"
-        :actions="actions"
-        @open-reroll="
-          (mode) => emit('openReroll', { message: view.message, roll, rollIndex, mode })
-        "
+      <div
+        v-if="view.preparedFlavor"
+        data-part="chat-flavor"
+        class="mb-1 text-base font-medium text-gray-700"
+        v-html="view.preparedFlavor"
+        @click="emit('contentClick', $event)"
       />
+      <div
+        v-if="view.showContent && view.preparedContent"
+        data-part="chat-content"
+        data-tone="primary"
+        class="text-base wrap-break-word text-gray-900"
+        v-html="view.preparedContent"
+        @click="handleContentClick($event)"
+      />
+      <!-- Native player for an attached voice memo. Rendered as a real element
+           (not via the content v-html) because the chat-HTML sanitizer strips
+           <audio>; the URL is resolved from flags.tablemate in useChatMessages. -->
+      <div v-if="view.audioUrl" data-part="chat-voice-memo" class="mt-2">
+        <audio controls preload="metadata" :src="view.audioUrl" class="w-full" />
+        <!-- AI transcript, when one was produced GM-side. Plain text (never HTML)
+             so a transcript can't inject markup. -->
+        <p
+          v-if="view.transcript"
+          data-part="chat-voice-memo-transcript"
+          class="mt-1 text-sm text-gray-500 italic"
+        >
+          {{ view.transcript }}
+        </p>
+      </div>
+      <!-- Native image for an attached upload. Rendered as a real element (not via
+           the content v-html) — the content copy rides in a [data-tablemate-image]
+           wrapper the chat-HTML sanitizer strips, and the URL is resolved from
+           flags.tablemate in useChatMessages. Links out to the full-size file. -->
+      <div v-if="view.imageUrl" data-part="chat-image" class="mt-2">
+        <a :href="view.imageUrl" target="_blank" rel="noreferrer" class="inline-block">
+          <img
+            :src="view.imageUrl"
+            :alt="view.speakerName"
+            :width="view.imageWidth"
+            :height="view.imageHeight"
+            class="max-h-80 max-w-full rounded-md object-contain"
+            loading="lazy"
+            decoding="async"
+          />
+        </a>
+      </div>
+      <div
+        v-if="view.inlineChecks.length && actorId"
+        data-part="chat-inline-checks"
+        class="mt-2 flex flex-wrap gap-1.5"
+      >
+        <button
+          v-for="(check, checkIndex) in view.inlineChecks"
+          :key="checkIndex"
+          type="button"
+          data-part="chat-inline-check-button"
+          class="inline-flex items-center gap-1.5 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-100 active:bg-blue-200"
+          @pointerdown="triggerLightHapticFeedback()"
+          @click="emit('openInlineCheck', check)"
+        >
+          <img :src="d20Icon" class="h-3.5 w-3.5 flex-none" alt="" aria-hidden="true" />
+          {{ inlineCheckLabel(check) }}
+        </button>
+      </div>
+      <div v-if="view.rolls.length" data-part="chat-rolls" class="mt-2 space-y-2">
+        <ChatRollCard
+          v-for="(roll, rollIndex) in view.rolls"
+          :key="`${view.key}-roll-${rollIndex}`"
+          :view="view"
+          :roll="roll"
+          :roll-index="rollIndex"
+          :actions="actions"
+          @open-reroll="
+            (mode) => emit('openReroll', { message: view.message, roll, rollIndex, mode })
+          "
+        />
+      </div>
+      <div v-if="view.showEmptyMessage" data-tone="muted" class="text-sm text-gray-500 italic">
+        {{ $t('chat.emptyMessage') }}
+      </div>
     </div>
-    <div v-if="view.showEmptyMessage" data-tone="muted" class="mt-2 text-sm text-gray-500 italic">
-      {{ $t('chat.emptyMessage') }}
-    </div>
+
+    <time
+      v-if="groupEnd && view.formattedTime"
+      data-tone="muted"
+      class="mt-0.5 px-1 text-[11px] text-gray-400"
+    >
+      {{ view.formattedTime }}
+    </time>
   </li>
 </template>

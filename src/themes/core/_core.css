@@ -381,6 +381,11 @@
           border-color: var(--color-border);
         }
 
+        /* The first row needs no leading gap — the scroll area pads the top. */
+        [data-part='chat-message']:first-child {
+          margin-top: 0;
+        }
+
         [data-part='chat-message'] [data-tone='primary'] {
           color: var(--color-text);
         }

@@ -53,6 +53,45 @@ export const useWorldStore = defineStore('world', () => {
     triggerRef(world)
   }
 
+  // Fold a locally-issued chat edit into world.messages. Like applyChatCreate,
+  // an update the app makes over the socket comes back only as the ack result,
+  // not the broadcast that reaches other clients, so the editor must self-apply
+  // or its own edit wouldn't show until the next full refresh. Shallow-merges
+  // the changed fields (content) by _id; idempotent if a broadcast also lands.
+  function applyChatUpdate(updated: DocumentData[]): void {
+    const root = asDocumentArray(world.value?.messages)
+    if (!root) return
+    let changed = false
+    for (const change of updated) {
+      const item = change._id ? root.find((m) => m._id === change._id) : undefined
+      if (item) {
+        Object.assign(item, change)
+        changed = true
+      }
+    }
+    if (!changed) return
+    messagesRevision.value++
+    triggerRef(world)
+  }
+
+  // Fold a locally-issued chat delete into world.messages (see applyChatUpdate
+  // for why self-apply is needed). Removes by _id; idempotent.
+  function applyChatDelete(ids: string[]): void {
+    const root = asDocumentArray(world.value?.messages)
+    if (!root) return
+    let changed = false
+    for (const id of ids) {
+      const index = root.findIndex((m) => m._id === id)
+      if (index !== -1) {
+        root.splice(index, 1)
+        changed = true
+      }
+    }
+    if (!changed) return
+    messagesRevision.value++
+    triggerRef(world)
+  }
+
   // Indexed lookups. Consumers repeatedly resolve an actor or user by _id
   // (each mounted CharacterSheet finds its own actor, SideMenu/FamiliarSheet/
   // EquipmentList/targetHelper find theirs) — and world is a shallowRef
@@ -160,6 +199,8 @@ export const useWorldStore = defineStore('world', () => {
     messagesRevision,
     bumpMessagesRevision,
     applyChatCreate,
+    applyChatUpdate,
+    applyChatDelete,
     actorsById,
     usersById,
     actorById,

@@ -321,18 +321,23 @@
       }
 
       [data-component='ChatOverlay'] {
-        /* Chat message containers */
+        /* The row is just layout now; the visible surface is the bubble. */
         [data-part='chat-message'] {
-          background-color: oklch(99% 0.008 95);
-          border-color: var(--color-border);
-
           [data-tone='muted'] {
             color: oklch(58% 0.02 285);
           }
         }
 
-        [data-part='chat-message'][data-private='true'] {
-          border-color: oklch(72% 0.13 70);
+        /* Message bubble: a subtle raised surface on the light panel, with a
+           blue-tinted variant for the current user's own messages (kept parallel
+           to moonlit's bubble reskin). */
+        [data-part='chat-bubble'] {
+          background-color: oklch(95% 0.012 80);
+          color: var(--color-text);
+        }
+
+        [data-part='chat-message'][data-own-message='true'] [data-part='chat-bubble'] {
+          background-color: oklch(92% 0.035 245);
         }
 
         [data-part='visibility'] {

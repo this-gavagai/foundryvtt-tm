@@ -461,14 +461,14 @@ defineExpose({ open, close, isOpen })
                 >
                   {{ $t('chat.noMessages') }}
                 </div>
-                <ol v-else class="flex flex-col gap-3">
+                <ol v-else class="flex flex-col">
                   <template v-for="view in renderedMessages" :key="view.key">
                     <li
                       v-if="view.key === firstUnreadKey"
                       data-part="chat-new-divider"
                       data-first-unread
                       aria-hidden="true"
-                      class="flex items-center gap-2 py-1 text-xs font-semibold tracking-wide text-blue-600 uppercase"
+                      class="mt-3 flex items-center gap-2 py-1 text-xs font-semibold tracking-wide text-blue-600 uppercase"
                     >
                       <span class="h-px flex-1 bg-blue-300" />
                       {{ $t('chat.newMessages') }}
@@ -481,6 +481,8 @@ defineExpose({ open, close, isOpen })
                       :actor-id="_id"
                       :inline-check-label="inlineCheckLabel"
                       :actions="chatActions"
+                      :group-start="view.groupStart || view.key === firstUnreadKey"
+                      :group-end="view.groupEnd"
                       @select-author="selectWhisperUserFromMessage(view)"
                       @content-click="handleChatContentClick($event)"
                       @open-inline-check="openLocalizedInlineRoll($event)"

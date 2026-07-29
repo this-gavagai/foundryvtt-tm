@@ -330,6 +330,33 @@ export function useChatActions({
     )
   }
 
+  // Delete one of the user's own messages directly over the socket. Foundry
+  // authorizes an author deleting their own message; the result is echoed to
+  // the sender only as the ack (like create), so self-apply it. Throws on a
+  // denied/failed write so the caller can surface it.
+  async function deleteMessage(messageId: string): Promise<void> {
+    await modifyDocument(
+      { action: 'delete', type: 'ChatMessage', operation: { ids: [messageId] } },
+      (r) => worldStore.applyChatDelete(r.result as string[])
+    )
+  }
+
+  // Edit the text of one of the user's own messages. Content is shaped exactly
+  // like a fresh post (escaped, newlines → <br>) and self-applied from the ack.
+  async function updateMessageContent(messageId: string, content: string): Promise<void> {
+    await modifyDocument(
+      {
+        action: 'update',
+        type: 'ChatMessage',
+        operation: {
+          updates: [{ _id: messageId, content: formatChatContent(content) }],
+          render: true
+        }
+      },
+      (r) => worldStore.applyChatUpdate(r.result as DocumentData[])
+    )
+  }
+
   async function submitMessage(
     contentOverride?: string,
     options?: { outOfCharacter?: boolean; whisperIds?: string[]; whisperIntended?: boolean }
@@ -452,6 +479,8 @@ export function useChatActions({
     canSend,
     submitVoiceMemo,
     submitImage,
+    deleteMessage,
+    updateMessageContent,
     canApplyDamage,
     canReroll,
     isDamageActionPending,
