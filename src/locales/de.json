@@ -9,7 +9,10 @@
     "flat": "Flach",
     "skills": "Fertigkeiten",
     "lores": "Kenntnisse",
+    "modifiers": "Modifikatoren",
     "traits": "Merkmale",
+    "luck": "Glück & Unglück",
+    "situational": "Situativ",
     "trait": {
       "concentrate": "Konzentration",
       "manipulate": "Manipulieren",

@@ -9,7 +9,10 @@
     "flat": "Flat",
     "skills": "Skills",
     "lores": "Lores",
+    "modifiers": "Modifiers",
     "traits": "Traits",
+    "luck": "Fortune & Misfortune",
+    "situational": "Situational",
     "trait": {
       "concentrate": "Concentrate",
       "manipulate": "Manipulate",

@@ -9,7 +9,10 @@
     "flat": "Plana",
     "skills": "Habilidades",
     "lores": "Saberes",
+    "modifiers": "Modificadores",
     "traits": "Rasgos",
+    "luck": "Fortuna e Infortunio",
+    "situational": "Situacional",
     "trait": {
       "concentrate": "Concentración",
       "manipulate": "Manipulación",

@@ -9,7 +9,10 @@
     "flat": "Чистая",
     "skills": "Навыки",
     "lores": "Знания",
+    "modifiers": "Модификаторы",
     "traits": "Признаки",
+    "luck": "Удача и неудача",
+    "situational": "Ситуативный",
     "trait": {
       "concentrate": "Концентрация",
       "manipulate": "Воздействие",
