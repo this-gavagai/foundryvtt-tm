@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { storeToRefs } from 'pinia'
-import { useListenersStore } from '@/stores/listenersOnline'
 import type { Spell, SpellcastingEntry } from '@/composables/character'
 import RollButton from '@/components/widgets/RollButton.vue'
 
@@ -20,14 +18,11 @@ const emit = defineEmits<{
   ]
 }>()
 
-const { isListening } = storeToRefs(useListenersStore())
-
 const buttonClass = 'px-2 py-1'
 </script>
 <template>
   <div
     v-if="
-      isListening &&
       spell &&
       (spell.system?.traits?.value?.includes('attack') || spell.system?.hasDamage)
     "
