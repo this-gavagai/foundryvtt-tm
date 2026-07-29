@@ -188,12 +188,17 @@ function handleContentClick(event: MouseEvent) {
          suppressed on own bubbles there so the press doesn't also start a text
          selection. -->
     <div
-      class="relative max-w-[85%] min-w-0"
-      :class="
+      class="relative min-w-0"
+      :class="[
+        // A voice memo's <audio> has no intrinsic width, so a shrink-to-fit
+        // bubble would collapse it to just the play button — force those bubbles
+        // to the full bubble width so the player gets its scrubber. Text/other
+        // content still hugs its content up to the same cap.
+        view.audioUrl ? 'w-full max-w-[85%]' : 'max-w-[85%]',
         canManage
           ? '[@media(hover:none)]:select-none [@media(hover:none)]:[-webkit-touch-callout:none]'
           : ''
-      "
+      ]"
     >
       <!-- Long-press handlers live on the bubble (not this wrapper) so the
            kebab — a sibling below — is outside the click guard; otherwise the
