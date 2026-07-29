@@ -24,6 +24,26 @@ export function parseCompendiumUuid(
   return { packId: `${parts[1]}.${parts[2]}`, documentType: parts[3], id: parts[4] }
 }
 
+// ── Actor-embedded item UUID ─────────────────────────────────────────────────
+// Actor.<actorId>.Item.<itemId> — a link to an item that lives on a world actor
+// rather than in a compendium (PF2e Dailies, for instance, links the staff it
+// prepared on the character). Also matches the token-scoped form
+// Scene.<id>.Token.<id>.Actor.<id>.Item.<id> by anchoring on the trailing
+// Actor/Item pair. These resolve from the already-loaded world payload, with no
+// socket round-trip (see api/compendium.ts).
+const EMBEDDED_ITEM_UUID = /(?:^|\.)Actor\.([^.]+)\.Item\.([^.]+)$/
+
+export function parseEmbeddedItemUuid(
+  uuid: string
+): { actorId: string; itemId: string } | undefined {
+  // A pack actor's embedded item (Compendium.<pack>.Actor.<id>.Item.<id>) shares
+  // the trailing shape but lives in a compendium, not the world payload.
+  if (uuid.startsWith('Compendium.')) return undefined
+  const match = EMBEDDED_ITEM_UUID.exec(uuid)
+  if (!match) return undefined
+  return { actorId: match[1], itemId: match[2] }
+}
+
 // ── Observe permission (client-side, cosmetic) ───────────────────────────────
 // The server does NOT enforce compendium read permission, so this only decides
 // which packs appear in the browse list — mirroring what a player sees in

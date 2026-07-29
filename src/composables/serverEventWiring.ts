@@ -76,7 +76,8 @@ export function installApiStoreBridge() {
         | { role?: number }
         | undefined
       return user?.role ?? 0
-    }
+    },
+    getWorldActor: (actorId) => useWorldStore().actorById(actorId)
   })
 }
 

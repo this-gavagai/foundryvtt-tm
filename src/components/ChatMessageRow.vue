@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { onMounted, ref, watch } from 'vue'
 import type { ChatMessageView } from '@/composables/useChatMessages'
 import type { ChatActions, ChatRerollRequest } from '@/composables/useChatActions'
 import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
+import { fillUuidLinkLabels } from '@/utils/compendiumNames'
 import ChatRollCard from '@/components/ChatRollCard.vue'
 import d20Icon from '@/assets/icons/d20.svg'
 import type { ActiveRoll } from '@/types/api-types'
@@ -31,10 +33,26 @@ function handleContentClick(event: MouseEvent) {
   emit('contentClick', event)
   props.actions.handleCardButtonClick(event)
 }
+
+// Label-less @UUID[...] links in message content/flavor render with a "…"
+// placeholder (see pf2eUuidHtml) — resolve the referenced document's name and
+// patch it into the rendered HTML. The prepared HTML is a memoized string the
+// enricher can't fill in itself, so this runs against the DOM: once the row is
+// mounted, then post-flush whenever the message's HTML is re-rendered (an edit,
+// a reroll) and brings the placeholder back.
+const rowRef = ref<HTMLLIElement>()
+function fillLinkLabels() {
+  fillUuidLinkLabels(rowRef.value)
+}
+onMounted(fillLinkLabels)
+watch(() => [props.view.preparedContent, props.view.preparedFlavor], fillLinkLabels, {
+  flush: 'post'
+})
 </script>
 
 <template>
   <li
+    ref="rowRef"
     data-part="chat-message"
     class="rounded-md border p-3 transition-shadow"
     :class="[

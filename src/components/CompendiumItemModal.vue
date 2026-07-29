@@ -8,6 +8,7 @@ import { BookOpenIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 import { addCompendiumItem } from '@/api/actionRpc'
 import { getCompendiumItem } from '@/api/compendium'
+import { parseEmbeddedItemUuid } from '@/utils/compendiumData'
 import { logger } from '@/utils/utilities'
 import { useInjectedActor } from '@/composables/injectKeys'
 import { useTraitLabels } from '@/composables/useTraitLabels'
@@ -34,6 +35,24 @@ const preparedEntries = computed(() =>
   (spellcastingEntries?.value ?? []).filter((e) => isStrictPrepared(e) || isFlexiblePrepared(e))
 )
 
+// An actor-embedded item (Actor.<id>.Item.<id>, e.g. a staff PF2e Dailies
+// prepared on a character) resolves from the world payload rather than a pack —
+// its banner names the owning actor instead of reading "Compendium".
+const embeddedRef = computed(() => parseEmbeddedItemUuid(currentUuid.value))
+const isEmbedded = computed(() => !!embeddedRef.value)
+const sourceLabel = computed(() => (isEmbedded.value ? item.value?.source || '' : 'Compendium'))
+
+// The compendium-scoped RPCs (add-to-character, send-to-chat) refuse a
+// non-compendium uuid by design — a player must not be able to copy or
+// broadcast an arbitrary world document. So an embedded item offers no add
+// button, and only reaches "send to chat" via the native owned-item path, and
+// only when it sits on the character whose sheet is open.
+const ownItemId = computed(() =>
+  embeddedRef.value && embeddedRef.value.actorId === characterId.value
+    ? embeddedRef.value.itemId
+    : undefined
+)
+
 // Journal UUIDs (whole entry or a single page) carry a JournalEntry segment;
 // their body is prose HTML rather than an item stat block, so it gets the
 // journal-content typography hook (see main.css).
@@ -41,7 +60,7 @@ const isJournal = computed(() => /JournalEntry/.test(currentUuid.value))
 
 const ADDABLE_TYPES = new Set(['action', 'effect', 'condition', 'equipment', 'consumable', 'backpack', 'weapon', 'armor', 'shield', 'treasure'])
 const canAdd = computed(() => {
-  if (!item.value) return false
+  if (!item.value || isEmbedded.value) return false
   const type = item.value.type ?? ''
   if (type === 'spell') return preparedEntries.value.length > 0
   return ADDABLE_TYPES.has(type)
@@ -90,15 +109,15 @@ defineExpose({ open })
 </script>
 <template>
   <div data-component="CompendiumItemModalRoot">
-    <InfoModal ref="modal" :imageUrl="item?.img" :itemUuid="currentUuid || undefined" :traits="item?.system?.traits?.value" :rolls="rolls">
+    <InfoModal ref="modal" :imageUrl="item?.img" :itemId="ownItemId" :itemUuid="isEmbedded ? undefined : currentUuid || undefined" :traits="item?.system?.traits?.value" :rolls="rolls">
     <template #banner="{ close }">
       <div
         data-part="compendium-banner"
         class="-mx-6 -mt-6 mb-4 flex items-center gap-2 px-4 py-2 text-sm"
       >
         <BookOpenIcon class="h-4 w-4 shrink-0" />
-        <span class="font-medium">Compendium</span>
-        <span v-if="item?.source" class="opacity-60">· {{ item.source }}</span>
+        <span class="font-medium">{{ sourceLabel }}</span>
+        <span v-if="!isEmbedded && item?.source" class="opacity-60">· {{ item.source }}</span>
         <button type="button" data-part="close" class="ml-auto cursor-pointer" @click="close">
           <XMarkIcon class="h-5 w-5" />
         </button>

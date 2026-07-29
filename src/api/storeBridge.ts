@@ -27,6 +27,9 @@ export interface StoreBridge {
   // array of raw pack metadata (see utils/compendiumData.PackMetadataLike).
   getWorldPacks: () => unknown[]
   getUserRole: () => number
+  // Raw world actor source data by id, for resolving actor-embedded item links
+  // (Actor.<id>.Item.<id>) out of the already-loaded world payload.
+  getWorldActor: (actorId: string) => unknown
 }
 
 let bridge: StoreBridge | undefined

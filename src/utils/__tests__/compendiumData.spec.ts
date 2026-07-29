@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   parseCompendiumUuid,
+  parseEmbeddedItemUuid,
   packObserveLevel,
   isPackVisible,
   listVisiblePacks,
@@ -22,6 +23,28 @@ describe('parseCompendiumUuid', () => {
   it('rejects non-compendium and malformed uuids', () => {
     expect(parseCompendiumUuid('Actor.xyz')).toBeUndefined()
     expect(parseCompendiumUuid('Compendium.pf2e.equipment-srd')).toBeUndefined()
+  })
+})
+
+describe('parseEmbeddedItemUuid', () => {
+  it('splits an actor-embedded item uuid into actor/item ids', () => {
+    expect(parseEmbeddedItemUuid('Actor.hCCJ4opKZGAYxDQi.Item.sbhyq2EEmlvfEK7q')).toEqual({
+      actorId: 'hCCJ4opKZGAYxDQi',
+      itemId: 'sbhyq2EEmlvfEK7q'
+    })
+  })
+
+  it('reads the actor/item pair off a token-scoped uuid', () => {
+    expect(parseEmbeddedItemUuid('Scene.s1.Token.t1.Actor.a1.Item.i1')).toEqual({
+      actorId: 'a1',
+      itemId: 'i1'
+    })
+  })
+
+  it('rejects compendium, bare-actor and trailing-segment uuids', () => {
+    expect(parseEmbeddedItemUuid('Compendium.pf2e.feats-srd.Item.abc123')).toBeUndefined()
+    expect(parseEmbeddedItemUuid('Actor.a1')).toBeUndefined()
+    expect(parseEmbeddedItemUuid('Actor.a1.Item.i1.ActiveEffect.e1')).toBeUndefined()
   })
 })
 

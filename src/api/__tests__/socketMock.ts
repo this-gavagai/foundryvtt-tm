@@ -39,6 +39,7 @@ export function fakeStoreBridge(overrides: Partial<StoreBridge> = {}): StoreBrid
     activeServerOrigin: () => 'https://vtt.example.com',
     getWorldPacks: () => [],
     getUserRole: () => 0,
+    getWorldActor: () => undefined,
     ...overrides
   }
 }

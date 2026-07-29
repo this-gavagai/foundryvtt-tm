@@ -12,6 +12,7 @@ import {
   EXTRA_INDEX_FIELDS,
   listVisiblePacks,
   parseCompendiumUuid,
+  parseEmbeddedItemUuid,
   shapeCompendiumItem,
   shapeIndexEntries,
   type PackMetadataLike
@@ -112,9 +113,31 @@ export async function getCompendiumIndex(
   return { compendiumIndex: shapeIndexEntries(raw as never[], packId, documentType) }
 }
 
+// Resolve an actor-embedded item (Actor.<id>.Item.<id>) from the loaded world
+// payload — world actors ship with their items, so no socket round-trip is
+// needed. Shaped exactly like a compendium hit, with the owning actor's name
+// standing in for the pack label.
+function embeddedItem(actorId: string, itemId: string): CompendiumItemData | null {
+  const actor = requireStoreBridge().getWorldActor(actorId) as
+    | { name?: string; items?: Array<{ _id?: string }> }
+    | undefined
+  const item = actor?.items?.find((candidate) => candidate._id === itemId)
+  if (!item) return null
+  return shapeCompendiumItem(item, actor?.name ?? '')
+}
+
+// Read a linked document by UUID: a compendium entry (over the socket) or an
+// item embedded on a world actor (straight from the world payload).
 export async function getCompendiumItem(
   itemUuid: string
 ): Promise<{ compendiumItem: CompendiumItemData | null }> {
+  const embedded = parseEmbeddedItemUuid(itemUuid)
+  if (embedded) {
+    const compendiumItem = embeddedItem(embedded.actorId, embedded.itemId)
+    if (!compendiumItem) logger.warn('TM-COMPENDIUM: could not resolve actor item', itemUuid)
+    return { compendiumItem }
+  }
+
   const ref = parseCompendiumUuid(itemUuid)
   if (!ref) {
     logger.warn('TM-COMPENDIUM: not a compendium uuid', itemUuid)

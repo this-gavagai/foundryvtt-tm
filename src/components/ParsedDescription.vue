@@ -12,7 +12,7 @@ import {
   pf2eTraitHtml,
   pf2eUuidHtml
 } from '@/utils/pf2eEnrich'
-import { resolveCompendiumName } from '@/utils/compendiumNames'
+import { fillUuidLinkLabels } from '@/utils/compendiumNames'
 import {
   activeRollFromFoundryClickTarget,
   compendiumUuidFromClickTarget
@@ -176,21 +176,6 @@ const parsedText = computed(() => {
   )
 })
 
-// Label-less @UUID[...] links render with a "…" placeholder (see pf2eUuidHtml);
-// resolve the referenced document's name and fill it in once it lands.
-function fillUuidLabels() {
-  formRef.value
-    ?.querySelectorAll<HTMLAnchorElement>('a.content-link[data-uuid][data-uuid-unresolved]')
-    .forEach((anchor) => {
-      const uuid = anchor.dataset.uuid
-      anchor.removeAttribute('data-uuid-unresolved')
-      if (!uuid) return
-      resolveCompendiumName(uuid).then((name) => {
-        if (name) anchor.textContent = name
-      })
-    })
-}
-
 function syncSelectedLabel() {
   const form = formRef.value
   form?.querySelectorAll('label[data-selected]').forEach((label) => {
@@ -226,7 +211,7 @@ function scheduleInitRolls() {
   initTimer = window.setTimeout(() => {
     initTimer = undefined
     initRolls()
-    fillUuidLabels()
+    fillUuidLinkLabels(formRef.value)
   }, 0)
 }
 
