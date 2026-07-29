@@ -91,8 +91,8 @@
       radial-gradient(ellipse 90% 60% at 88% 30%, oklch(34% 0.06 210 / 0.22), transparent),
       radial-gradient(ellipse 120% 50% at 15% 100%, oklch(28% 0.05 300 / 0.2), transparent);
     --tm-rollable-fallback: oklch(95% 0.005 250); /* rollable rule w/o proficiency */
-    --tm-tab-accent: var(--color-focus); /* selected-tab underline — the focus accent (see _core) */
-    --tm-tab-fill: oklch(62% 0.15 255 / 0.18); /* selected-tab accent wash (focus hue) */
+    --tm-tab-accent: var(--color-proficiency-legendary); /* selected-tab underline — moonlit's warm accent */
+    --tm-tab-fill: oklch(68% 0.22 22 / 0.14); /* selected-tab accent wash (legendary hue) */
 
     /* Elevation scale — resting card / floating menu / modal. Hard black
      shadows with an inset hairline highlight; one definition per step,
