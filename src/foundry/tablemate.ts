@@ -1,5 +1,6 @@
 import { setupListener } from './listener'
 import { setupChatOriginDisplay } from './chatOriginDisplay'
+import { setupChatImagePopout } from './chatImagePopout'
 import { setupSpellCardTargeting } from './spellCardTargeting'
 import { setupSettingsHeaders } from './settingsHeaders'
 import { checkSystemCompat } from './systemCompat'
@@ -24,6 +25,7 @@ Hooks.on('init', function () {
 Hooks.on('ready', () => {
   setupListener()
   setupChatOriginDisplay()
+  setupChatImagePopout()
   setupSpellCardTargeting()
   setupSettingsHeaders()
   checkSystemCompat()

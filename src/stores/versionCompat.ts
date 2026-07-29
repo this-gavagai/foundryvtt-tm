@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import { PROTOCOL_VERSION, CAPABILITY_VOICE_MEMO } from '@/api/protocol'
+import { PROTOCOL_VERSION, CAPABILITY_VOICE_MEMO, CAPABILITY_IMAGE_UPLOAD } from '@/api/protocol'
 
 // Tracks whether the connected Foundry module speaks the same wire protocol as
 // this app build. Fed from the LISTENER_ONLINE handler (see api/socketSetup.ts),
@@ -28,6 +28,13 @@ export const useVersionCompatStore = defineStore('versionCompat', () => {
   // than sending an RPC the module would reject.
   const supportsVoiceMemo = computed(() => moduleCapabilities.value.includes(CAPABILITY_VOICE_MEMO))
 
+  // Gate for the composer's image-attach button, mirroring supportsVoiceMemo: a
+  // module too old to advertise the capability (or a world with no configured
+  // upload folder) simply doesn't offer image attachments.
+  const supportsImageUpload = computed(() =>
+    moduleCapabilities.value.includes(CAPABILITY_IMAGE_UPLOAD)
+  )
+
   function reportModule(
     protocol: number | undefined,
     version: string | undefined,
@@ -46,6 +53,7 @@ export const useVersionCompatStore = defineStore('versionCompat', () => {
     moduleVersion,
     moduleCapabilities,
     supportsVoiceMemo,
+    supportsImageUpload,
     isMismatched,
     reportModule
   }

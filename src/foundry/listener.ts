@@ -33,6 +33,7 @@ import {
   foundryGetCompendiumIndex,
   foundrySendChatMessage,
   foundrySendVoiceMemo,
+  foundrySendImage,
   foundryApplyDamage,
   foundryRerollChatRoll
 } from './handlers'
@@ -45,6 +46,7 @@ import {
   TM_ERROR_UNAUTHORIZED,
   PROTOCOL_VERSION,
   CAPABILITY_VOICE_MEMO,
+  CAPABILITY_IMAGE_UPLOAD,
   MODULE_ID
 } from '@/api/protocol'
 import { makeAck, stampTablemateChatOrigin, tablemateChatOriginUuid } from './utils/foundry'
@@ -56,6 +58,7 @@ import {
   hasPresetDiceResults
 } from './manualRollPolicy'
 import { registerVoiceMemoSetting, voiceMemoEnabled } from './voiceMemoSetting'
+import { registerImageUploadSetting, imageUploadEnabled } from './imageUploadSetting'
 import { registerTranscriptionSetting } from './transcriptionSetting'
 import { registerPushSettings, ensureWorldPushIdentity, foundryRegisterPush } from './pushRegistration'
 import { notifyChatMessage } from './pushNotify'
@@ -127,6 +130,7 @@ const actionHandlers: ActionHandlerMap = {
   [TM.GET_STRIKE_DAMAGE]: foundryGetStrikeDamage,
   [TM.SEND_CHAT_MESSAGE]: foundrySendChatMessage,
   [TM.SEND_VOICE_MEMO]: foundrySendVoiceMemo,
+  [TM.SEND_IMAGE]: foundrySendImage,
   [TM.SEND_ITEM_TO_CHAT]: foundrySendItemToChat,
   [TM.SEND_COMPENDIUM_ITEM_TO_CHAT]: foundrySendCompendiumItemToChat,
   [TM.SET_WEAPON_LOADED]: foundrySetWeaponLoaded,
@@ -240,6 +244,7 @@ const AUTH_POLICY: Partial<Record<ModuleEventArgs['action'], AuthRequirement>> =
   [TM.GET_SPELL_DAMAGE]: 'owner',
   [TM.SEND_CHAT_MESSAGE]: 'owner',
   [TM.SEND_VOICE_MEMO]: 'owner',
+  [TM.SEND_IMAGE]: 'owner',
   [TM.SEND_ITEM_TO_CHAT]: 'owner',
   [TM.SEND_COMPENDIUM_ITEM_TO_CHAT]: 'owner',
   [TM.SET_WEAPON_LOADED]: 'owner',
@@ -445,6 +450,9 @@ export function setupListener() {
   // No capability handshake: it changes only what the GM's client does after a
   // memo lands, so connected apps need not know whether it is on.
   registerTranscriptionSetting()
+  // Re-announce when the GM sets/clears the image folder so connected apps show
+  // or hide the attach button immediately (the capability rides announceSelf).
+  registerImageUploadSetting(() => announceSelf())
   registerPushSettings()
   // GM-only: generate + provision this world's push identity if enabled.
   void ensureWorldPushIdentity()
@@ -621,9 +629,12 @@ function announceSelf() {
     // affordances proactively; the dispatch gate above stays authoritative.
     manualRollPolicy: manualRollPolicy(),
     // Additive feature flags — the app hides features this module can't serve.
-    // Voice memos are advertised only once the GM has configured a destination
-    // folder, so an unconfigured world offers no recording affordance.
-    capabilities: voiceMemoEnabled() ? [CAPABILITY_VOICE_MEMO] : []
+    // Each media capability is advertised only once the GM has configured its
+    // destination folder, so an unconfigured world offers no such affordance.
+    capabilities: [
+      ...(voiceMemoEnabled() ? [CAPABILITY_VOICE_MEMO] : []),
+      ...(imageUploadEnabled() ? [CAPABILITY_IMAGE_UPLOAD] : [])
+    ]
   })
 }
 

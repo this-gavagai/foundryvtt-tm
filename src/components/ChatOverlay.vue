@@ -5,6 +5,7 @@ import { TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle } fro
 import {
   MicrophoneIcon,
   PaperAirplaneIcon,
+  PhotoIcon,
   StopIcon,
   TrashIcon,
   XMarkIcon
@@ -12,6 +13,8 @@ import {
 import { useInjectedActor } from '@/composables/injectKeys'
 import { useOverlayStack } from '@/composables/useOverlayStack'
 import { useAudioRecorder, audioRecordingSupported } from '@/composables/useAudioRecorder'
+import { useImageAttachment } from '@/composables/useImageAttachment'
+import { imageUploadSupported } from '@/utils/imageUpload'
 import { useChatStore } from '@/stores/chat'
 import { useServerAddressStore } from '@/stores/serverAddress'
 import { useVersionCompatStore } from '@/stores/versionCompat'
@@ -99,7 +102,8 @@ const {
   canTriggerRollAction,
   rerollRoll,
   submitMessage,
-  submitVoiceMemo
+  submitVoiceMemo,
+  submitImage
 } = chatActions
 
 function submitChatMessage() {
@@ -164,6 +168,63 @@ async function submitCurrentVoiceMemo() {
   })
   // Keep the take on failure so the user can retry; clear it once it's sent.
   if (!sendError.value) resetRecording()
+}
+
+// ── Images ─────────────────────────────────────────────────────────────────
+// Mirrors the voice memo path: a picked image is prepared (downscaled) client-
+// side, previewed inline, then chunk-streamed to the GM on send.
+const {
+  prepared: imagePrepared,
+  previewUrl: imagePreviewUrl,
+  errorKind: imageErrorKind,
+  hasImage,
+  pick: pickImage,
+  reset: resetImage
+} = useImageAttachment()
+const imageInput = ref<HTMLInputElement>()
+
+// Offer the attach button on the same conditions as the mic: this device can
+// prepare an image, the module advertises the capability (a configured folder),
+// and a GM listener is online to receive the upload (there's no direct-socket
+// path — foundry/handlers/chat.ts does the upload + post on the GM's client).
+const imageDeviceSupported = imageUploadSupported()
+const canAttachImage = computed(
+  () => imageDeviceSupported && versionCompat.supportsImageUpload && listeners.isListening
+)
+
+function openImagePicker() {
+  imageInput.value?.click()
+}
+
+function onImagePicked(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  // Clear the input so re-picking the same file still fires change.
+  input.value = ''
+  void pickImage(file)
+}
+
+const imageErrorMessage = computed(() => {
+  switch (imageErrorKind.value) {
+    case 'invalid':
+      return t('chat.imageInvalid')
+    case 'too-large':
+      return t('chat.imageTooLarge')
+    default:
+      return t('chat.imageFailed')
+  }
+})
+
+async function submitCurrentImage() {
+  const image = imagePrepared.value
+  if (!image) return
+  const whisper = selectedWhisperCommandTargets.value
+  await submitImage(image, {
+    outOfCharacter: outOfCharacter.value,
+    whisper: whisper.length ? whisper : undefined
+  })
+  // Keep the selection on failure so the user can retry; clear once it's sent.
+  if (!sendError.value) resetImage()
 }
 
 // On the native mobile keyboard there's no modifier key to reach for, so a bare
@@ -446,6 +507,16 @@ defineExpose({ open, close, isOpen })
                   @toggle-out-of-character="outOfCharacter = $event"
                 />
 
+                <!-- Hidden picker the attach button triggers; accept="image/*"
+                     offers camera + library on mobile. -->
+                <input
+                  ref="imageInput"
+                  type="file"
+                  accept="image/*"
+                  class="hidden"
+                  @change="onImagePicked"
+                />
+
                 <!-- items-stretch: the action button(s) grow to exactly the input
                      box's height in every state, so the box and its button read as
                      one full-height unit regardless of which mode is showing. The
@@ -492,6 +563,23 @@ defineExpose({ open, close, isOpen })
                       />
                     </div>
 
+                    <!-- Picked image: inline thumbnail preview. -->
+                    <div
+                      v-else-if="hasImage"
+                      data-part="chat-image-preview"
+                      class="flex min-h-[3.625rem] items-center gap-3 rounded-md border border-gray-300 bg-gray-50 p-1.5"
+                    >
+                      <img
+                        v-if="imagePreviewUrl"
+                        :src="imagePreviewUrl"
+                        alt=""
+                        class="h-12 w-12 flex-none rounded object-cover"
+                      />
+                      <span class="min-w-0 flex-1 truncate text-sm text-gray-600">
+                        {{ $t('chat.imageReady') }}
+                      </span>
+                    </div>
+
                     <!-- Default text input. -->
                     <div v-else class="relative">
                       <textarea
@@ -505,21 +593,38 @@ defineExpose({ open, close, isOpen })
                         @keydown.meta.enter.prevent="submitChatMessage"
                         @keydown.ctrl.enter.prevent="submitChatMessage"
                       />
-                      <!-- Mic sits inside the empty composer; it hides as soon as
-                           the user starts typing so it never crowds the text or
-                           claims layout space of its own. -->
-                      <button
-                        v-if="canRecordVoice && !draft.trim()"
-                        type="button"
-                        data-part="chat-record"
-                        class="absolute top-1/2 right-1.5 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
-                        :disabled="!_id"
-                        :aria-label="$t('chat.recordVoice')"
-                        @click="startRecording"
-                        @mousedown.prevent
+                      <!-- Attach + mic sit inside the empty composer; they hide as
+                           soon as the user starts typing so they never crowd the
+                           text or claim layout space of their own. -->
+                      <div
+                        v-if="!draft.trim() && (canAttachImage || canRecordVoice)"
+                        class="absolute top-1/2 right-1.5 flex -translate-y-1/2 items-center gap-0.5"
                       >
-                        <MicrophoneIcon class="h-5 w-5" aria-hidden="true" />
-                      </button>
+                        <button
+                          v-if="canAttachImage"
+                          type="button"
+                          data-part="chat-attach-image"
+                          class="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                          :disabled="!_id"
+                          :aria-label="$t('chat.attachImage')"
+                          @click="openImagePicker"
+                          @mousedown.prevent
+                        >
+                          <PhotoIcon class="h-5 w-5" aria-hidden="true" />
+                        </button>
+                        <button
+                          v-if="canRecordVoice"
+                          type="button"
+                          data-part="chat-record"
+                          class="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                          :disabled="!_id"
+                          :aria-label="$t('chat.recordVoice')"
+                          @click="startRecording"
+                          @mousedown.prevent
+                        >
+                          <MicrophoneIcon class="h-5 w-5" aria-hidden="true" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -558,6 +663,30 @@ defineExpose({ open, close, isOpen })
                       <PaperAirplaneIcon v-else class="h-5 w-5" aria-hidden="true" />
                     </button>
                   </template>
+                  <template v-else-if="hasImage">
+                    <button
+                      type="button"
+                      class="inline-flex w-12 flex-none items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition-colors hover:bg-gray-100 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                      :disabled="isSending"
+                      :aria-label="$t('chat.discardImage')"
+                      @click="resetImage"
+                    >
+                      <TrashIcon class="h-5 w-5" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      class="inline-flex w-12 flex-none items-center justify-center rounded-md bg-blue-600 text-white transition-colors enabled:hover:bg-blue-500 enabled:active:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
+                      :disabled="isSending"
+                      :aria-label="$t('chat.sendImage')"
+                      @click="submitCurrentImage"
+                    >
+                      <span
+                        v-if="isSending"
+                        class="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                      />
+                      <PaperAirplaneIcon v-else class="h-5 w-5" aria-hidden="true" />
+                    </button>
+                  </template>
                   <button
                     v-else
                     type="submit"
@@ -583,6 +712,13 @@ defineExpose({ open, close, isOpen })
                   class="mt-1 text-xs text-red-700"
                 >
                   {{ $t('chat.micDenied') }}
+                </p>
+                <p
+                  v-else-if="imageErrorKind"
+                  data-part="chat-image-error"
+                  class="mt-1 text-xs text-red-700"
+                >
+                  {{ imageErrorMessage }}
                 </p>
               </form>
             </DialogPanel>

@@ -133,6 +133,23 @@ function handleContentClick(event: MouseEvent) {
         {{ view.transcript }}
       </p>
     </div>
+    <!-- Native image for an attached upload. Rendered as a real element (not via
+         the content v-html) — the content copy rides in a [data-tablemate-image]
+         wrapper the chat-HTML sanitizer strips, and the URL is resolved from
+         flags.tablemate in useChatMessages. Links out to the full-size file. -->
+    <div v-if="view.imageUrl" data-part="chat-image" class="mt-2">
+      <a :href="view.imageUrl" target="_blank" rel="noreferrer" class="inline-block">
+        <img
+          :src="view.imageUrl"
+          :alt="view.speakerName"
+          :width="view.imageWidth"
+          :height="view.imageHeight"
+          class="max-h-80 max-w-full rounded-md object-contain"
+          loading="lazy"
+          decoding="async"
+        />
+      </a>
+    </div>
     <div
       v-if="view.inlineChecks.length && actorId"
       data-part="chat-inline-checks"

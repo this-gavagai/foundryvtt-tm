@@ -120,6 +120,12 @@ export function sanitizeChatHtml(
   // its own styling — strip the content copy here so it never shows twice.
   template.content.querySelectorAll('[data-tablemate-transcript]').forEach((el) => el.remove())
 
+  // Same pattern for an uploaded image: the content carries an <img> so Foundry's
+  // own chat log renders it, but the app renders a native <img> from
+  // flags.tablemate.imagePath (with its own sizing) — strip the content copy so
+  // it never shows twice.
+  template.content.querySelectorAll('[data-tablemate-image]').forEach((el) => el.remove())
+
   template.content
     .querySelectorAll('script, style, iframe, object, embed, link, meta')
     .forEach((element) => element.remove())

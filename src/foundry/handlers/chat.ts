@@ -2,6 +2,7 @@ import type {
   ChatRollRerollMode,
   RerollChatRollArgs,
   SendChatMessageArgs,
+  SendImageArgs,
   SendVoiceMemoArgs
 } from '@/types/api-types'
 import type { GamePF2e } from '@7h3laughingman/pf2e-types'
@@ -10,7 +11,9 @@ import { registerCapture } from '../chatCapture'
 import { extractRollPayload } from '../utils/roll'
 import { getCharacter, getGame, makeAck } from '../utils/foundry'
 import { voiceMemoEnabled, voiceMemoUploadPath } from '../voiceMemoSetting'
+import { imageUploadEnabled, imageUploadPath } from '../imageUploadSetting'
 import { transcriptionConfig, transcribeAudioFile, type TranscriptionConfig } from '../transcriptionSetting'
+import { makeChunkAccumulator } from './chunkedUpload'
 import { logger } from '@/utils/utilities'
 
 // The created message document, narrowed to the one method we patch it with
@@ -159,22 +162,24 @@ export async function foundrySendChatMessage(args: SendChatMessageArgs) {
   return makeAck(args)
 }
 
-// ── Voice memos ─────────────────────────────────────────────────────────────
-// A recorded clip arrives as a series of SEND_VOICE_MEMO chunks sharing one
-// uploadId (see SendVoiceMemoArgs). We buffer the decoded bytes here until the
-// final chunk lands, then upload the file and post the chat message. Each
-// chunk is its own RPC/ack; the app awaits each before sending the next.
+// ── Chunked media uploads (voice memos + images) ─────────────────────────────
+// A recorded clip / picked image arrives as a series of chunks sharing one
+// uploadId (see SendVoiceMemoArgs / SendImageArgs). The shared accumulator
+// (chunkedUpload.ts) buffers the decoded bytes until the final chunk lands, then
+// runs the feature's finalize below to upload the file and post the chat
+// message. Each chunk is its own RPC/ack; the app awaits each before the next.
 
 // Upper bound on chunk count, so a stray/hostile request can't make us allocate
-// a huge buffer array. A 5-minute low-bitrate memo is a handful of 192 KiB
-// chunks; a few thousand is already far beyond any real recording.
-const VOICE_MEMO_MAX_CHUNKS = 4096
+// a huge buffer array. A 5-minute low-bitrate memo (or a downscaled image) is a
+// handful of 192 KiB chunks; a few thousand is far beyond any real upload.
+const MEDIA_UPLOAD_MAX_CHUNKS = 4096
 
 // Drop an incomplete upload if the remaining chunks never arrive (app closed
-// mid-send, GM/proxy handoff, etc.) so a partial recording can't leak memory.
-const VOICE_MEMO_UPLOAD_TTL_MS = 60_000
+// mid-send, GM/proxy handoff, etc.) so a partial file can't leak memory.
+const MEDIA_UPLOAD_TTL_MS = 60_000
 
 type VoiceMemoMeta = {
+  userId: string
   characterId: string
   mimeType: string
   durationMs: number
@@ -182,16 +187,6 @@ type VoiceMemoMeta = {
   outOfCharacter?: boolean
   whisper?: string[]
 }
-
-type PendingVoiceMemo = {
-  parts: Array<Uint8Array<ArrayBuffer> | undefined>
-  received: number
-  total: number
-  meta: VoiceMemoMeta
-  timer: ReturnType<typeof globalThis.setTimeout>
-}
-
-const pendingVoiceMemos = new Map<string, PendingVoiceMemo>()
 
 // Foundry v13 moved FilePicker under foundry.applications.apps; v11/v12 expose
 // it as a bare global. Resolve whichever exists so the handler works on both.
@@ -233,15 +228,6 @@ function audioExtension(mimeType: string): string {
   return AUDIO_EXTENSIONS[base] ?? 'webm'
 }
 
-// Return type pinned to Uint8Array<ArrayBuffer> (not the SharedArrayBuffer-
-// inclusive default) so the assembled parts satisfy File's BlobPart[].
-function base64ToBytes(base64: string): Uint8Array<ArrayBuffer> {
-  const binary = atob(base64)
-  const bytes = new Uint8Array(new ArrayBuffer(binary.length))
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-  return bytes
-}
-
 // FilePicker.createDirectory has no "mkdir -p", so create each missing level.
 // We check existence with browse() first (it rejects for a missing directory)
 // rather than parsing createDirectory's "already exists" error, whose wording
@@ -269,9 +255,13 @@ async function ensureDirectory(picker: FilePickerLike, source: string, path: str
   }
 }
 
-async function finalizeVoiceMemo(args: SendVoiceMemoArgs, pending: PendingVoiceMemo) {
+async function finalizeVoiceMemo(
+  uploadId: string,
+  parts: Uint8Array<ArrayBuffer>[],
+  meta: VoiceMemoMeta
+) {
   const source = getGame()
-  const actor = source.actors.get(pending.meta.characterId, { strict: true })
+  const actor = source.actors.get(meta.characterId, { strict: true })
 
   // Destination is the GM-configured folder; refuse if it's since been cleared.
   const dir = voiceMemoUploadPath()
@@ -281,18 +271,15 @@ async function finalizeVoiceMemo(args: SendVoiceMemoArgs, pending: PendingVoiceM
   await ensureDirectory(picker, 'data', dir)
 
   // uploadId is a client-minted uuid; strip anything not filename-safe.
-  const safeId = args.uploadId.replace(/[^a-zA-Z0-9_-]/g, '') || 'memo'
-  const filename = `${safeId}.${audioExtension(pending.meta.mimeType)}`
-  const parts = pending.parts as Uint8Array<ArrayBuffer>[]
-  const file = new File(parts, filename, { type: pending.meta.mimeType })
+  const safeId = uploadId.replace(/[^a-zA-Z0-9_-]/g, '') || 'memo'
+  const filename = `${safeId}.${audioExtension(meta.mimeType)}`
+  const file = new File(parts, filename, { type: meta.mimeType })
 
   const result = await picker.upload('data', dir, file, {}, { notify: false })
   const audioPath = result && result.path
   if (!audioPath) throw new Error('Voice memo upload returned no path')
 
-  const oocAlias = pending.meta.outOfCharacter
-    ? outOfCharacterAlias(source, args.userId)
-    : undefined
+  const oocAlias = meta.outOfCharacter ? outOfCharacterAlias(source, meta.userId) : undefined
   const speaker = oocAlias ? { alias: oocAlias } : ChatMessage.getSpeaker({ actor })
 
   // An <audio> element in the content lets Foundry's own chat log play the memo;
@@ -301,7 +288,7 @@ async function finalizeVoiceMemo(args: SendVoiceMemoArgs, pending: PendingVoiceM
   // The src is escaped too — the path is server-generated today, but escaping
   // keeps an unexpected character (e.g. a quote in the configured folder) from
   // breaking out of the attribute.
-  const caption = pending.meta.content ? formatChatContent(pending.meta.content) : ''
+  const caption = meta.content ? formatChatContent(meta.content) : ''
   const player = `<audio controls preload="metadata" src="${escapeHtml(audioPath)}"></audio>`
 
   // Content builder, optionally with the transcript appended. The transcript
@@ -316,24 +303,24 @@ async function finalizeVoiceMemo(args: SendVoiceMemoArgs, pending: PendingVoiceM
   }
 
   const data: Record<string, unknown> = {
-    author: args.userId,
+    author: meta.userId,
     speaker,
     content: renderContent(),
     flags: {
       tablemate: {
         audioPath,
-        audioMimeType: pending.meta.mimeType,
-        audioDurationMs: pending.meta.durationMs
+        audioMimeType: meta.mimeType,
+        audioDurationMs: meta.durationMs
       }
     }
   }
-  if (pending.meta.whisper?.length) {
+  if (meta.whisper?.length) {
     // whisper carries the same command targets the text path sends ('gm' /
     // '[Name]'); resolve them with the shared logic. Mirror the text handler's
     // leak-guard: scope an unresolved private memo to its author rather than
     // letting an empty array read as a public message.
-    const recipients = resolveWhisperRecipients(source, pending.meta.whisper)
-    data.whisper = recipients.length ? recipients : [args.userId]
+    const recipients = resolveWhisperRecipients(source, meta.whisper)
+    data.whisper = recipients.length ? recipients : [meta.userId]
   }
 
   let message: CreatedChatMessage | undefined
@@ -385,6 +372,13 @@ async function attachTranscript(
   }
 }
 
+const voiceMemoAccumulator = makeChunkAccumulator<VoiceMemoMeta>({
+  label: 'Voice memo',
+  maxChunks: MEDIA_UPLOAD_MAX_CHUNKS,
+  ttlMs: MEDIA_UPLOAD_TTL_MS,
+  finalize: finalizeVoiceMemo
+})
+
 export async function foundrySendVoiceMemo(args: SendVoiceMemoArgs) {
   // Feature gate: reject the first chunk outright when the world has no
   // destination configured, so nothing is buffered and the app surfaces the
@@ -392,50 +386,152 @@ export async function foundrySendVoiceMemo(args: SendVoiceMemoArgs) {
   // depth against a stale or hand-crafted request.
   if (!voiceMemoEnabled()) throw new Error('Voice memos are not enabled for this world')
 
-  if (!Number.isInteger(args.total) || args.total <= 0 || args.total > VOICE_MEMO_MAX_CHUNKS) {
-    throw new Error(`Voice memo has invalid chunk count ${args.total}`)
-  }
-  if (!Number.isInteger(args.seq) || args.seq < 0 || args.seq >= args.total) {
-    throw new Error(`Voice memo chunk ${args.seq} out of range for total ${args.total}`)
-  }
-
-  let pending = pendingVoiceMemos.get(args.uploadId)
-  if (!pending) {
-    pending = {
-      parts: new Array<Uint8Array<ArrayBuffer> | undefined>(args.total),
-      received: 0,
-      total: args.total,
-      meta: {
-        characterId: args.characterId,
-        mimeType: args.mimeType,
-        durationMs: args.durationMs,
-        content: args.content,
-        outOfCharacter: args.outOfCharacter,
-        whisper: args.whisper
-      },
-      timer: globalThis.setTimeout(() => {
-        if (pendingVoiceMemos.delete(args.uploadId)) {
-          logger.warn('TABLEMATE: voice memo upload timed out before completion', args.uploadId)
-        }
-      }, VOICE_MEMO_UPLOAD_TTL_MS)
+  await voiceMemoAccumulator.accept(
+    { uploadId: args.uploadId, seq: args.seq, total: args.total, chunkBase64: args.chunkBase64 },
+    {
+      userId: args.userId,
+      characterId: args.characterId,
+      mimeType: args.mimeType,
+      durationMs: args.durationMs,
+      content: args.content,
+      outOfCharacter: args.outOfCharacter,
+      whisper: args.whisper
     }
-    pendingVoiceMemos.set(args.uploadId, pending)
+  )
+  return makeAck(args)
+}
+
+// ── Images ───────────────────────────────────────────────────────────────────
+// An uploaded image arrives as SEND_IMAGE chunks (SendImageArgs), reassembled by
+// the same accumulator as voice memos. On the final chunk we upload the file and
+// post a ChatMessage with an <img> in the content (so Foundry's own chat log
+// shows it) wrapped in a [data-tablemate-image] div the app strips — the app
+// renders its own <img> from flags.tablemate.imagePath. No transcription step.
+
+type ImageMeta = {
+  userId: string
+  characterId: string
+  mimeType: string
+  width?: number
+  height?: number
+  content?: string
+  outOfCharacter?: boolean
+  whisper?: string[]
+}
+
+const IMAGE_EXTENSIONS: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif'
+}
+
+// Map a possibly-parameterized MIME to a Foundry uploadable image extension,
+// defaulting to jpg for anything unrecognized.
+function imageExtension(mimeType: string): string {
+  const base = mimeType.split(';')[0].trim().toLowerCase()
+  return IMAGE_EXTENSIONS[base] ?? 'jpg'
+}
+
+async function finalizeImage(
+  uploadId: string,
+  parts: Uint8Array<ArrayBuffer>[],
+  meta: ImageMeta
+) {
+  const source = getGame()
+  const actor = source.actors.get(meta.characterId, { strict: true })
+
+  // Destination is the GM-configured folder; refuse if it's since been cleared.
+  const dir = imageUploadPath()
+  if (!dir) throw new Error('Image upload destination folder is not configured')
+
+  const picker = getFilePicker()
+  await ensureDirectory(picker, 'data', dir)
+
+  // uploadId is a client-minted uuid; strip anything not filename-safe.
+  const safeId = uploadId.replace(/[^a-zA-Z0-9_-]/g, '') || 'image'
+  const filename = `${safeId}.${imageExtension(meta.mimeType)}`
+  const file = new File(parts, filename, { type: meta.mimeType })
+
+  const result = await picker.upload('data', dir, file, {}, { notify: false })
+  const imagePath = result && result.path
+  if (!imagePath) throw new Error('Image upload returned no path')
+
+  const oocAlias = meta.outOfCharacter ? outOfCharacterAlias(source, meta.userId) : undefined
+  const speaker = oocAlias ? { alias: oocAlias } : ChatMessage.getSpeaker({ actor })
+
+  // width/height attrs give the intrinsic aspect ratio (reflow-free load); the
+  // inline `height:auto` overrides the height presentational hint those
+  // attributes imply, so Foundry's own `max-width:100%` scales the image
+  // proportionally instead of pinning it to a fixed height (which distorted it).
+  // `cursor:pointer` hints the click-to-popout wired in chatImagePopout.ts. The
+  // src is escaped (server-generated today, but this keeps an unexpected
+  // character in the configured folder from breaking out of the attribute).
+  const caption = meta.content ? formatChatContent(meta.content) : ''
+  const dims = meta.width && meta.height ? ` width="${meta.width}" height="${meta.height}"` : ''
+  const img =
+    `<img src="${escapeHtml(imagePath)}"${dims} ` +
+    `style="max-width:100%;height:auto;cursor:pointer;" alt="">`
+  // Wrapped so the app strips the content copy (see sanitizeChatHtml) and renders
+  // its own <img> from the flag, while Foundry's own log shows this one.
+  const imageBlock = `<div data-tablemate-image>${img}</div>`
+  const content = caption ? `${caption}<br>${imageBlock}` : imageBlock
+
+  const data: Record<string, unknown> = {
+    author: meta.userId,
+    speaker,
+    content,
+    flags: {
+      tablemate: {
+        imagePath,
+        imageMimeType: meta.mimeType,
+        ...(meta.width ? { imageWidth: meta.width } : {}),
+        ...(meta.height ? { imageHeight: meta.height } : {})
+      }
+    }
+  }
+  if (meta.whisper?.length) {
+    // Mirror the voice/text leak-guard: scope an unresolved private image to its
+    // author rather than letting an empty array read as a public message.
+    const recipients = resolveWhisperRecipients(source, meta.whisper)
+    data.whisper = recipients.length ? recipients : [meta.userId]
   }
 
-  // Idempotent on re-sent chunks (an app retry after an ack timeout): only a
-  // slot filled for the first time advances the received count.
-  if (!pending.parts[args.seq]) {
-    pending.parts[args.seq] = base64ToBytes(args.chunkBase64)
-    pending.received += 1
+  try {
+    await ChatMessage.create(data)
+  } catch (error) {
+    // The file uploaded but the message didn't post: surface the failure, and log
+    // the orphaned path (Foundry exposes no reliable file-delete here).
+    logger.warn('TABLEMATE: image uploaded but chat message failed', imagePath, error)
+    throw error
   }
+}
 
-  if (pending.received < pending.total) return makeAck(args)
+const imageAccumulator = makeChunkAccumulator<ImageMeta>({
+  label: 'Image',
+  maxChunks: MEDIA_UPLOAD_MAX_CHUNKS,
+  ttlMs: MEDIA_UPLOAD_TTL_MS,
+  finalize: finalizeImage
+})
 
-  // Final chunk: stop the TTL, drop the buffer, then upload + post. Cleared up
-  // front so a create failure can't strand the entry.
-  globalThis.clearTimeout(pending.timer)
-  pendingVoiceMemos.delete(args.uploadId)
-  await finalizeVoiceMemo(args, pending)
+export async function foundrySendImage(args: SendImageArgs) {
+  // Feature gate, mirroring the voice-memo handler: refuse outright when the
+  // world has no image folder configured.
+  if (!imageUploadEnabled()) throw new Error('Image uploads are not enabled for this world')
+
+  await imageAccumulator.accept(
+    { uploadId: args.uploadId, seq: args.seq, total: args.total, chunkBase64: args.chunkBase64 },
+    {
+      userId: args.userId,
+      characterId: args.characterId,
+      mimeType: args.mimeType,
+      width: args.width,
+      height: args.height,
+      content: args.content,
+      outOfCharacter: args.outOfCharacter,
+      whisper: args.whisper
+    }
+  )
   return makeAck(args)
 }
 

@@ -291,6 +291,24 @@ export const sendVoiceMemo = (
   }
 ) => sendAction(TM.SEND_VOICE_MEMO, { characterId, ...chunk, ...meta })
 
+// Send one chunk of a picked image. Mirrors sendVoiceMemo exactly — the caller
+// slices the prepared image bytes, shares one `uploadId` across the chunks, and
+// awaits each chunk's ack before sending the next. The GM reassembles and, on
+// the final chunk, uploads the file and posts the chat message. See
+// SendImageArgs and foundry/handlers/chat.ts.
+export const sendImage = (
+  characterId: string,
+  chunk: { uploadId: string; seq: number; total: number; chunkBase64: string },
+  meta: {
+    mimeType: string
+    width?: number
+    height?: number
+    content?: string
+    outOfCharacter?: boolean
+    whisper?: string[]
+  }
+) => sendAction(TM.SEND_IMAGE, { characterId, ...chunk, ...meta })
+
 export const setWeaponLoaded = (
   actor: TablemateActorRef,
   weaponId: string,

@@ -24,6 +24,7 @@ export type ModuleEventArgs =
   | ShareTargetsArgs
   | SendChatMessageArgs
   | SendVoiceMemoArgs
+  | SendImageArgs
   | SendItemToChatArgs
   | SetWeaponLoadedArgs
   | SetWeaponDamageTypeArgs
@@ -347,6 +348,37 @@ export interface SendVoiceMemoArgs {
   whisper?: string[]
   uuid: string
 }
+// One chunk of an uploaded image. Mirrors SendVoiceMemoArgs exactly (shared
+// chunked-upload mechanism) — the app slices the prepared image bytes into raw
+// byte ranges, base64-encodes each independently, and sends one per slice, all
+// sharing `uploadId`. The GM reassembles and, on the final chunk, uploads the
+// file and creates the chat message. See foundry/handlers/chat.ts.
+export interface SendImageArgs {
+  action: typeof TM.SEND_IMAGE
+  userId: string
+  characterId: string
+  // Client-generated id shared by every chunk of one image.
+  uploadId: string
+  // 0-based chunk index and total chunk count.
+  seq: number
+  total: number
+  // base64 of this chunk's raw bytes (NOT of a base64 substring).
+  chunkBase64: string
+  // MIME type of the (possibly re-encoded) image, e.g. 'image/jpeg'.
+  mimeType: string
+  // Pixel dimensions of the prepared image, so the GM can size the <img> and the
+  // app can reserve space without a reflow. Omitted if they couldn't be read.
+  width?: number
+  height?: number
+  // Optional text caption shown alongside the image.
+  content?: string
+  // Speak as the player rather than in-character (mirrors SendChatMessageArgs).
+  outOfCharacter?: boolean
+  // Whisper command targets for a private image — the same 'gm' / '[Name]'
+  // tokens the text path sends, resolved server-side; omitted/empty = public.
+  whisper?: string[]
+  uuid: string
+}
 export interface SendItemToChatArgs {
   action: typeof TM.SEND_ITEM_TO_CHAT
   userId: string
@@ -606,6 +638,7 @@ export interface ResponseByAction {
   [TM.CONSUME_ITEM]: PlainAck
   [TM.SEND_CHAT_MESSAGE]: PlainAck
   [TM.SEND_VOICE_MEMO]: PlainAck
+  [TM.SEND_IMAGE]: PlainAck
   [TM.SEND_ITEM_TO_CHAT]: PlainAck
   [TM.SEND_COMPENDIUM_ITEM_TO_CHAT]: PlainAck
   [TM.SET_WEAPON_LOADED]: PlainAck

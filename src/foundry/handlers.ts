@@ -25,7 +25,8 @@ export {
 export {
   foundryRerollChatRoll,
   foundrySendChatMessage,
-  foundrySendVoiceMemo
+  foundrySendVoiceMemo,
+  foundrySendImage
 } from './handlers/chat'
 export { foundryCastSpell, foundryCastStaffSpell, foundryConsumeItem } from './handlers/castSpell'
 export { getCharacterDetails } from './handlers/characterDetails'

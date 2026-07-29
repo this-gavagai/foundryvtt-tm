@@ -5,6 +5,7 @@ import {
   applyDamage,
   consumeItem,
   rerollChatRoll,
+  sendImage,
   sendVoiceMemo
 } from '@/api/actionRpc'
 import { modifyDocument } from '@/api/documents'
@@ -22,6 +23,7 @@ import {
 import type { ApplyDamageMode, ChatRollRerollMode } from '@/types/api-types'
 import { uuidv4 } from '@/utils/utilities'
 import { sliceBytesToBase64Chunks } from '@/utils/voiceMemoChunks'
+import type { PreparedImage } from '@/utils/imageUpload'
 import type { ChatRollSummary } from '@/utils/chatRollSummary'
 import { messageIsReroll, originItemId, type ChatMessageData } from '@/composables/useChatMessages'
 import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
@@ -399,6 +401,49 @@ export function useChatActions({
     }
   }
 
+  // Send a prepared image: slice the bytes into base64 chunks and stream them to
+  // the GM client, which reassembles + uploads + posts the message. The image
+  // twin of submitVoiceMemo — same chunking, same shared isSending/sendError.
+  async function submitImage(
+    image: PreparedImage,
+    meta: {
+      content?: string
+      outOfCharacter?: boolean
+      whisper?: string[]
+    } = {}
+  ) {
+    if (!actorId.value || isSending.value) return
+    if (image.bytes.length === 0) {
+      sendError.value = true
+      return
+    }
+    isSending.value = true
+    sendError.value = false
+    try {
+      const chunks = sliceBytesToBase64Chunks(image.bytes)
+      const uploadId = uuidv4()
+      for (let seq = 0; seq < chunks.length; seq++) {
+        await sendImage(
+          actorId.value,
+          { uploadId, seq, total: chunks.length, chunkBase64: chunks[seq] },
+          {
+            mimeType: image.mimeType,
+            width: image.width,
+            height: image.height,
+            content: meta.content,
+            outOfCharacter: meta.outOfCharacter,
+            whisper: meta.whisper
+          }
+        )
+      }
+      onMessageSent?.()
+    } catch {
+      sendError.value = true
+    } finally {
+      isSending.value = false
+    }
+  }
+
   return {
     draft,
     isSending,
@@ -406,6 +451,7 @@ export function useChatActions({
     actionError,
     canSend,
     submitVoiceMemo,
+    submitImage,
     canApplyDamage,
     canReroll,
     isDamageActionPending,

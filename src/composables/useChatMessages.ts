@@ -43,6 +43,14 @@ export interface ChatMessageData {
       // endpoint is configured (see foundry/transcriptionSetting.ts). Absent
       // when transcription is off or the call failed.
       transcript?: string | null
+      // Image attachment: the uploaded image's world-relative path plus its
+      // MIME type and pixel dimensions. Written by foundrySendImage; the row
+      // renders a native <img> from it (the content copy rides in a stripped
+      // [data-tablemate-image] wrapper so it doesn't render twice). See chat.ts.
+      imagePath?: string | null
+      imageMimeType?: string | null
+      imageWidth?: number | null
+      imageHeight?: number | null
     }
     pf2e?: {
       origin?: { uuid?: string | null }
@@ -106,6 +114,12 @@ export interface ChatMessageView {
   audioUrl?: string
   // AI transcript of an attached voice memo, if one was produced GM-side.
   transcript?: string
+  // Displayable URL of an attached image (resolved from flags.tablemate);
+  // undefined for non-image messages. Its pixel dimensions, when known, let the
+  // row reserve space to avoid a reflow as the image loads.
+  imageUrl?: string
+  imageWidth?: number
+  imageHeight?: number
   showContent: boolean
   showEmptyMessage: boolean
   rerollSummary?: ChatRerollSummary
@@ -283,6 +297,19 @@ function voiceMemoTranscript(message: ChatMessageData): string | undefined {
     undefined
   const trimmed = text?.trim()
   return trimmed ? trimmed : undefined
+}
+
+// Resolve an attached image's displayable URL from a message's tablemate flags
+// (getFlag-then-nested, like voiceMemoUrl). Uses getMediaPath, not getPath, so a
+// full-size photo streams and never evicts real icons from the image LRU.
+function imageUrl(message: ChatMessageData): string | undefined {
+  const flaggedPath = message.getFlag?.('tablemate', 'imagePath')
+  const path =
+    (typeof flaggedPath === 'string' ? flaggedPath : undefined) ??
+    message.flags?.tablemate?.imagePath ??
+    undefined
+  if (!path) return undefined
+  return getMediaPath(path)
 }
 
 function formattedTime(timestamp?: number | null): string {
@@ -535,6 +562,9 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
       portraitScale: portrait.scale,
       audioUrl: voiceMemoUrl(message),
       transcript: voiceMemoTranscript(message),
+      imageUrl: imageUrl(message),
+      imageWidth: message.flags?.tablemate?.imageWidth ?? undefined,
+      imageHeight: message.flags?.tablemate?.imageHeight ?? undefined,
       // Expensive HTML parsing — memoized by content fingerprint.
       ...expensiveView(message)
     }

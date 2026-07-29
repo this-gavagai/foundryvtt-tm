@@ -46,6 +46,11 @@ export const TM_ERROR_UNAUTHORIZED = 'TM_UNAUTHORIZED'
 // banner). The app gates the voice-memo composer on this being present.
 export const CAPABILITY_VOICE_MEMO = 'voiceMemo'
 
+// Advertised once the GM has configured an image-upload destination folder.
+// The app gates the composer's image-attach button on this being present, the
+// same way it gates the mic on CAPABILITY_VOICE_MEMO.
+export const CAPABILITY_IMAGE_UPLOAD = 'imageUpload'
+
 export const TM = {
   // Socket.io channel name. All tablemate messages flow over this channel.
   CHANNEL: 'module.tablemate',
@@ -72,6 +77,11 @@ export const TM = {
   // ChatMessage referencing it. Chunked because a multi-minute clip exceeds
   // Foundry's per-message socket buffer. See foundry/handlers/chat.ts.
   SEND_VOICE_MEMO: 'sendVoiceMemo',
+  // Image upload: the app picks (and downscales) an image and streams it to the
+  // GM client in base64 byte-slices — the identical chunked mechanism as
+  // SEND_VOICE_MEMO — which reassembles, uploads via FilePicker, and posts a
+  // ChatMessage referencing it. See foundry/handlers/chat.ts.
+  SEND_IMAGE: 'sendImage',
   SEND_ITEM_TO_CHAT: 'sendItemToChat',
   SET_WEAPON_LOADED: 'setWeaponLoaded',
   SET_WEAPON_DAMAGE_TYPE: 'setWeaponDamageType',

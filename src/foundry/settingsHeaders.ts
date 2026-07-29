@@ -19,6 +19,7 @@ import {
 } from './manualRollPolicy'
 import { VOICE_MEMO_PATH_SETTING } from './voiceMemoSetting'
 import { TRANSCRIPTION_ENDPOINT_SETTING } from './transcriptionSetting'
+import { IMAGE_UPLOAD_PATH_SETTING } from './imageUploadSetting'
 import { PUSH_ENABLED_SETTING } from './pushRegistration'
 
 // title -> the setting key whose form-group the header is inserted before.
@@ -26,6 +27,7 @@ const SECTIONS: Array<{ title: string; beforeKey: string }> = [
   { title: 'Dice rolls', beforeKey: MANUAL_ROLL_POLICY_SETTING },
   { title: 'Voice memos', beforeKey: VOICE_MEMO_PATH_SETTING },
   { title: 'Voice memo transcription', beforeKey: TRANSCRIPTION_ENDPOINT_SETTING },
+  { title: 'Images', beforeKey: IMAGE_UPLOAD_PATH_SETTING },
   { title: 'Push notifications', beforeKey: PUSH_ENABLED_SETTING }
 ]
 
