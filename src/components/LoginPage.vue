@@ -59,6 +59,12 @@ const AUTO_RETRY_BASE_DELAY_MS = 3_000
 const AUTO_RETRY_MAX_DELAY_MS = 15_000
 let autoRetries = 0
 let retryTimer: ReturnType<typeof setTimeout> | undefined
+// True only while a getJoinData call is actually in flight. Distinct from
+// loadingUsers (the "Loading…" display), which is also true while we sit
+// waiting for the socket to come up before the first attempt. The isConnected
+// watch keys off this so it can fire that first load without tripping over the
+// connecting-state display.
+let loadInFlight = false
 
 function cancelAutoRetry() {
   if (retryTimer === undefined) return
@@ -73,9 +79,22 @@ function scheduleAutoRetry() {
 }
 
 async function loadUsers() {
+  if (loadInFlight) return
   cancelAutoRetry()
   loadingUsers.value = true
   error.value = ''
+  // No live socket yet? Don't call getJoinData — in the browser build it's
+  // socket-only, so each attempt would just burn its 3s budget waiting on a
+  // socket that doesn't exist (3s × 3 = the ~9s post-reboot "Loading…" stall)
+  // and never send an emit. The store already owns bringing the socket up
+  // (socket.io's own reconnection + the repair loop), so we stay on "Loading…"
+  // and let the isConnected watch fire the real load the instant it connects.
+  // The Retry button forces a fresh socket for a wedged connection.
+  if (!isConnected.value) {
+    logger.debug('TM-DIAG loadUsers: socket not connected — deferring to isConnected watch')
+    return
+  }
+  loadInFlight = true
   try {
     const data = await getJoinData()
     logger.debug('TM-DIAG loadUsers: getJoinData returned', { users: data.users.length })
@@ -120,6 +139,7 @@ async function loadUsers() {
     void requestReconnect()
     scheduleAutoRetry()
   } finally {
+    loadInFlight = false
     loadingUsers.value = false
   }
 }
@@ -139,13 +159,20 @@ function manualRetry() {
   retryUsers()
 }
 
-onMounted(loadUsers)
+// Only attempt the load on mount if the socket is already up; otherwise stay on
+// "Loading…" and let the isConnected watch below fire it the moment the socket
+// connects (no dead-wait burning the emit budget on a missing socket).
+onMounted(() => {
+  if (isConnected.value) void loadUsers()
+})
 
 // When the socket (re)connects while we're sitting here without a user list,
-// reload immediately instead of waiting out the current backoff — the fresh
-// socket is exactly what the earlier attempts were missing.
+// load immediately — this is both the first-load trigger on a cold start (the
+// socket wasn't up at mount) and the recovery trigger when a fresh socket
+// replaces a stale/pre-world one. Gate on loadInFlight (not loadingUsers) so
+// the connecting-state "Loading…" display doesn't block this first load.
 watch(isConnected, (connected) => {
-  if (!connected || loadingUsers.value || users.value.length > 0) return
+  if (!connected || loadInFlight || users.value.length > 0) return
   retryUsers()
 })
 
