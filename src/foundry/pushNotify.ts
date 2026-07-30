@@ -4,8 +4,9 @@
 // browser — so we leader-elect on the primary GM (game.users.activeGM) to post
 // exactly once. Recipients depend on the world's push scope: whispers always
 // reach their targets; public messages reach everyone ('all') or only users
-// named in the text ('mentions', default). The author and anyone currently
-// connected are excluded, and unattributable/empty system messages are skipped.
+// named in the text ('mentions', default). The author — along with any user they
+// own — and anyone currently connected are excluded, and unattributable/empty
+// system messages are skipped.
 
 import { readPushConfig, type PushScope } from './pushRegistration'
 import { transcriptionEnabled } from './transcriptionSetting'
@@ -119,13 +120,29 @@ function ownedByRecipients(recipients: Set<string>, users: WorldUser[]): string[
   return users.filter((u) => u.belongsTo && recipients.has(u.belongsTo)).map((u) => u.id)
 }
 
-// Who to notify, minus the author and anyone currently connected. Whispers always
-// reach their targets. For a public message the world scope decides: 'all' →
-// everyone who can see it; 'mentions' → only users named in the text. In every
-// case, users owned by a recipient are notified alongside them.
+// Every user id that is "the same person" as the author: their login user, any
+// owner they belong to, and every user owned by that owner (their siblings —
+// e.g. a human's other character app-users). The ownership graph is one level
+// deep on the display side, so resolving to a single root and fanning back out
+// covers it. Whichever end of that pairing sent the message, none of the others
+// should be pushed it — it's their own message.
+function selfIds(author: string | undefined, users: WorldUser[]): Set<string> {
+  if (!author) return new Set()
+  const root = users.find((u) => u.id === author)?.belongsTo || author
+  const self = new Set<string>([author, root])
+  for (const u of users) if (u.belongsTo === root) self.add(u.id)
+  return self
+}
+
+// Who to notify, minus the author (and anything of theirs) and anyone currently
+// connected. Whispers always reach their targets. For a public message the world
+// scope decides: 'all' → everyone who can see it; 'mentions' → only users named
+// in the text. In every case, users owned by a recipient are notified alongside
+// them.
 function recipientsFor(msg: ChatMessageLike, scope: PushScope): string[] {
   const author = authorId(msg)
   const users = worldUsers()
+  const self = selfIds(author, users)
   const whisper = whisperIds(msg)
   let candidates: string[]
   if (whisper.length) {
@@ -138,7 +155,7 @@ function recipientsFor(msg: ChatMessageLike, scope: PushScope): string[] {
   }
   const recipients = new Set(candidates)
   for (const id of ownedByRecipients(recipients, users)) recipients.add(id)
-  return [...recipients].filter((id) => id && id !== author && !isActiveUser(id))
+  return [...recipients].filter((id) => id && !self.has(id) && !isActiveUser(id))
 }
 
 function senderName(msg: ChatMessageLike): string {
