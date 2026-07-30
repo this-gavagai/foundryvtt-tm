@@ -573,6 +573,29 @@
           }
         }
 
+        /* Reaction chips. A reacted-by-me chip (data-mine) takes the same blue
+           accent the inline-check buttons use, so "on" reads consistently; the
+           rest sit on the neutral dark surface. */
+        [data-part='chat-reaction-chip'] {
+          background-color: oklch(26% 0.012 258);
+          border-color: oklch(38% 0.026 258);
+          color: oklch(80% 0.012 258);
+        }
+
+        [data-part='chat-reaction-chip']:hover:not(:disabled) {
+          background-color: oklch(31% 0.016 258);
+        }
+
+        [data-part='chat-reaction-chip'][data-mine] {
+          background-color: oklch(22% 0.026 255);
+          border-color: oklch(46% 0.09 250);
+          color: oklch(84% 0.06 250);
+        }
+
+        [data-part='chat-reaction-chip'][data-mine]:hover:not(:disabled) {
+          background-color: oklch(28% 0.032 250);
+        }
+
         /* Chat composer */
         [data-part='chat-composer'] {
           textarea::placeholder {

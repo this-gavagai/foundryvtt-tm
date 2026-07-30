@@ -299,6 +299,40 @@ function openImagePicker() {
   imageInput.value?.click()
 }
 
+// ── Reactions ──────────────────────────────────────────────────────────────
+// Same gate shape as the media affordances, for the same reason: a reaction
+// writes a flag on another user's message, which only a GM may do, so it runs as
+// an RPC on the GM's client with no direct-socket fallback. Resolved once here
+// and handed to every row as a prop rather than each row subscribing to the
+// store. Existing chips still render when this is false — they're just inert,
+// so a log doesn't visibly lose data when the last GM drops off.
+const reactionsSupported = computed(() => versionCompat.supportsReactions && listeners.isListening)
+
+// Who-reacted sheet, opened by a long-press on a chip. Holds the message id
+// rather than the view object so the list re-resolves from renderedMessages as
+// reactions change while the sheet is open — a view is rebuilt on every world
+// trigger, so a captured one would freeze at its open-time contents.
+const reactionDetailId = ref<string | null>(null)
+const reactionsModal = ref<InstanceType<typeof InfoModal>>()
+const reactionDetail = computed(() =>
+  reactionDetailId.value
+    ? renderedMessages.value.find((view) => view.message._id === reactionDetailId.value)
+    : undefined
+)
+
+function openReactionDetail(view: ChatMessageView) {
+  reactionDetailId.value = view.message._id ?? null
+  if (!reactionDetailId.value) return
+  nextTick(() => reactionsModal.value?.open())
+}
+
+// Toggling from the sheet's rows. Resolved here rather than in the template so
+// the null-check lives in script, not behind a template non-null assertion.
+function toggleDetailReaction(emoji: string) {
+  const message = reactionDetail.value?.message
+  if (message) void chatActions.toggleMessageReaction(message, emoji)
+}
+
 function onImagePicked(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
@@ -589,12 +623,14 @@ defineExpose({ open, close, isOpen })
                       :actions="chatActions"
                       :group-start="view.groupStart || view.key === firstUnreadKey"
                       :group-end="view.groupEnd"
+                      :reactions-supported="reactionsSupported"
                       @select-author="selectWhisperUserFromMessage(view)"
                       @content-click="handleChatContentClick($event)"
                       @open-inline-check="openLocalizedInlineRoll($event)"
                       @open-reroll="openRerollModal($event)"
                       @edit="startEdit($event)"
                       @delete="requestDeleteMessage($event)"
+                      @show-reactions="openReactionDetail($event)"
                     />
                   </template>
                 </ol>
@@ -909,6 +945,31 @@ defineExpose({ open, close, isOpen })
             </span>
           </div>
         </template>
+      </InfoModal>
+      <!-- Who reacted with what. One row per emoji, listing the reactor names the
+           chip's hover tooltip shows on desktop — the same data, reachable by
+           touch. Tapping a row toggles this user's own reaction, so the sheet
+           doubles as a picker for emoji already on the message. -->
+      <InfoModal ref="reactionsModal" @closing="reactionDetailId = null">
+        <template #title>{{ $t('chat.reactionsTitle') }}</template>
+        <ul data-part="chat-reaction-detail" class="mt-2 divide-y divide-gray-100">
+          <li v-for="group in reactionDetail?.reactions ?? []" :key="group.emoji">
+            <button
+              type="button"
+              data-part="chat-reaction-detail-row"
+              :data-mine="group.mine || undefined"
+              :disabled="!reactionsSupported"
+              class="flex w-full items-center gap-3 py-2 text-left disabled:opacity-60"
+              @click="toggleDetailReaction(group.emoji)"
+            >
+              <span class="text-2xl leading-none" aria-hidden="true">{{ group.emoji }}</span>
+              <span class="min-w-0 flex-1 text-sm text-gray-700">{{ group.names.join(', ') }}</span>
+              <span v-if="group.mine" class="flex-none text-xs text-blue-700">
+                {{ $t('chat.reactionMine') }}
+              </span>
+            </button>
+          </li>
+        </ul>
       </InfoModal>
     </Dialog>
   </TransitionRoot>

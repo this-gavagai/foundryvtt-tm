@@ -35,7 +35,8 @@ import {
   foundrySendVoiceMemo,
   foundrySendImage,
   foundryApplyDamage,
-  foundryRerollChatRoll
+  foundryRerollChatRoll,
+  foundryToggleReaction
 } from './handlers'
 import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
@@ -47,6 +48,7 @@ import {
   PROTOCOL_VERSION,
   CAPABILITY_VOICE_MEMO,
   CAPABILITY_IMAGE_UPLOAD,
+  CAPABILITY_REACTIONS,
   MODULE_ID
 } from '@/api/protocol'
 import { makeAck, stampTablemateChatOrigin, tablemateChatOriginUuid } from './utils/foundry'
@@ -152,6 +154,7 @@ const actionHandlers: ActionHandlerMap = {
   [TM.GET_COMPENDIUM_INDEX]: foundryGetCompendiumIndex,
   [TM.APPLY_DAMAGE]: foundryApplyDamage,
   [TM.REROLL_CHAT_ROLL]: foundryRerollChatRoll,
+  [TM.TOGGLE_REACTION]: foundryToggleReaction,
   [TM.REGISTER_PUSH]: foundryRegisterPush
 }
 
@@ -205,6 +208,27 @@ const CONCURRENT_ACTIONS = new Set<string>([
   // the dispatch chain.
   TM.REGISTER_PUSH
 ])
+
+// Actions answered by the FIRST ACTIVE GM instead of the requester's targeting
+// proxy. Two reasons, both specific to reactions:
+//
+//   • Permission. A targeting proxy can be an ordinary player, and Foundry only
+//     lets a message's author or a GM update it. A non-GM proxy would take the
+//     request and then have its write refused by the server.
+//   • Races. A reaction toggle is a read-modify-write on one shared flag. The
+//     dispatch chain below serializes handlers *per client*, so with proxy
+//     routing two players reacting to the same message on two different proxies
+//     could read the same list and one write would clobber the other. Funneling
+//     every reaction through one client makes the chain actually sufficient.
+//
+// Trade-off: no GM online means no reactions, whereas posting a message (a direct
+// socket write) still works. That's inherent — nobody but a GM can write the flag.
+const FIRST_GM_ACTIONS = new Set<string>([TM.TOGGLE_REACTION])
+
+// Which client should answer this request.
+function iAmResponderFor(args: ModuleEventArgs) {
+  return FIRST_GM_ACTIONS.has(args.action) ? iAmFirstGM() : iAmProxyOrFallbackGM(args.userId)
+}
 
 function isCharacterRequest(args: ModuleEventArgs): args is RequestCharacterDetailsArgs {
   return args.action === TM.REQUEST_CHARACTER
@@ -264,6 +288,12 @@ const AUTH_POLICY: Partial<Record<ModuleEventArgs['action'], AuthRequirement>> =
   [TM.GET_COMPENDIUM_ITEM]: 'world-user',
   [TM.LIST_COMPENDIA]: 'world-user',
   [TM.GET_COMPENDIUM_INDEX]: 'world-user',
+  // Reactions belong to the player, not a character, so there's no actor to test
+  // ownership against — anyone logged into the world may react. This is the first
+  // 'world-user' action that WRITES, so the containment lives in the handler
+  // instead: it only ever toggles args.userId's own entry, and only for an emoji
+  // from the shared palette (see handlers/reactions.ts).
+  [TM.TOGGLE_REACTION]: 'world-user',
   // Any known world user may register their own device for push.
   [TM.REGISTER_PUSH]: 'world-user'
 }
@@ -493,7 +523,7 @@ export function setupListener() {
       return
     }
 
-    if (!iAmProxyOrFallbackGM(args.userId)) return
+    if (!iAmResponderFor(args)) return
     logger.info('TM.RECV (listener)', args)
 
     if (args.action === TM.ANYBODY_HOME) {
@@ -633,7 +663,10 @@ function announceSelf() {
     // destination folder, so an unconfigured world offers no such affordance.
     capabilities: [
       ...(voiceMemoEnabled() ? [CAPABILITY_VOICE_MEMO] : []),
-      ...(imageUploadEnabled() ? [CAPABILITY_IMAGE_UPLOAD] : [])
+      ...(imageUploadEnabled() ? [CAPABILITY_IMAGE_UPLOAD] : []),
+      // Unconditional: reactions need no world configuration, so this is purely
+      // a "this module is new enough" signal for the app's affordance gate.
+      CAPABILITY_REACTIONS
     ]
   })
 }

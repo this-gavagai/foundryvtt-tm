@@ -6,8 +6,10 @@ import {
   consumeItem,
   rerollChatRoll,
   sendImage,
-  sendVoiceMemo
+  sendVoiceMemo,
+  toggleReaction as toggleReactionRpc
 } from '@/api/actionRpc'
+import { readReactions, toggleReaction as toggleReactionLocal } from '@/utils/chatReactions'
 import { modifyDocument } from '@/api/documents'
 import type { DocumentData } from '@/api/internal'
 import { useWorldStore } from '@/stores/world'
@@ -98,6 +100,9 @@ export function useChatActions({
   const pendingDamageActions = ref(new Set<string>())
   const pendingRollActions = ref(new Set<string>())
   const pendingConsumeMessages = ref(new Set<string>())
+  // Keyed `${messageId}:${emoji}` — a chip with an in-flight toggle ignores
+  // further taps, so a double-tap can't send two toggles that cancel out.
+  const pendingReactions = ref(new Set<string>())
 
   const worldStore = useWorldStore()
   const userStore = useUserStore()
@@ -357,6 +362,48 @@ export function useChatActions({
     )
   }
 
+  // Toggle this user's emoji reaction on a message.
+  //
+  // Unlike send/edit/delete above, this can't be a direct socket write: Foundry
+  // only lets a message's author (or a GM) update it, and a reaction is a write
+  // to someone else's message. So it goes through the GM client as an RPC, which
+  // means it needs a GM online and takes a round-trip — hence the optimistic
+  // apply, so the chip responds to the tap immediately.
+  //
+  // Three-step: guess locally, send, then write back whatever the GM actually
+  // stored. That last step is not just rollback-on-error — it also settles a
+  // genuine race, since another player may have reacted between our read and the
+  // GM's write, and the authoritative list is what came back.
+  async function toggleMessageReaction(message: ChatMessageData, emoji: string): Promise<void> {
+    const messageId = message._id
+    const userId = userStore.userId
+    if (!messageId || !userId) return
+
+    const key = `${messageId}:${emoji}`
+    if (setHas(pendingReactions, key)) return
+
+    const before = readReactions(message)
+    const optimistic = toggleReactionLocal(before, emoji, userId)
+
+    actionError.value = false
+    setPending(pendingReactions, key, true)
+    worldStore.applyChatReactions(messageId, optimistic)
+    try {
+      const ack = await toggleReactionRpc(messageId, emoji)
+      worldStore.applyChatReactions(messageId, ack.reactions)
+    } catch {
+      // Put the pre-tap list back — no GM online, an error ack, or a timeout.
+      worldStore.applyChatReactions(messageId, before)
+      actionError.value = true
+    } finally {
+      setPending(pendingReactions, key, false)
+    }
+  }
+
+  function isReactionPending(messageId: string | null | undefined, emoji: string): boolean {
+    return !!messageId && setHas(pendingReactions, `${messageId}:${emoji}`)
+  }
+
   async function submitMessage(
     contentOverride?: string,
     options?: { outOfCharacter?: boolean; whisperIds?: string[]; whisperIntended?: boolean }
@@ -481,6 +528,8 @@ export function useChatActions({
     submitImage,
     deleteMessage,
     updateMessageContent,
+    toggleMessageReaction,
+    isReactionPending,
     canApplyDamage,
     canReroll,
     isDamageActionPending,

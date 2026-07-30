@@ -8,6 +8,7 @@ import { markWorldRequestSent } from '@/api/loadPriority'
 import { emitWithTimeout } from '@/api/socketConnection'
 import { asDocumentArray, type DocumentData } from '@/api/internal'
 import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
+import type { ChatReaction } from '@/utils/chatReactions'
 
 const REFRESH_DEBOUNCE_MS = 2000
 // World payloads can be large and the GM serializes them behind actor
@@ -70,6 +71,31 @@ export const useWorldStore = defineStore('world', () => {
       }
     }
     if (!changed) return
+    messagesRevision.value++
+    triggerRef(world)
+  }
+
+  // Write a message's emoji reaction list in place.
+  //
+  // Deliberately NOT applyChatUpdate: that shallow-Object.assigns the change
+  // onto the message, so passing `{flags: {tablemate: {reactions}}}` through it
+  // would replace the whole `flags` object — dropping flags.pf2e (roll context,
+  // origin) and the tablemate voice-memo/image paths the row renders from. This
+  // reaches only the one nested field.
+  //
+  // Used for both halves of the optimistic write in useChatActions.toggleReaction:
+  // the immediate local guess, and the reconcile (or rollback) once the GM
+  // answers. The authoritative broadcast lands via the normal modifyDocument
+  // path, so this only has to cover the window before it arrives.
+  function applyChatReactions(messageId: string, reactions: ChatReaction[]): void {
+    const root = asDocumentArray(world.value?.messages)
+    const message = root?.find((m) => m._id === messageId) as
+      | (DocumentData & { flags?: { tablemate?: { reactions?: ChatReaction[] } } })
+      | undefined
+    if (!message) return
+    message.flags ??= {}
+    message.flags.tablemate ??= {}
+    message.flags.tablemate.reactions = reactions
     messagesRevision.value++
     triggerRef(world)
   }
@@ -200,6 +226,7 @@ export const useWorldStore = defineStore('world', () => {
     bumpMessagesRevision,
     applyChatCreate,
     applyChatUpdate,
+    applyChatReactions,
     applyChatDelete,
     actorsById,
     usersById,

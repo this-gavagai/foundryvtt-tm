@@ -22,8 +22,12 @@ export type TablemateChatMessage = {
     tablemate?: {
       originUserId?: string | null
       targetTokenIds?: string[] | null
+      // Emoji reactions (see utils/chatReactions.ts). Typed loosely here — the
+      // reader normalizes whatever is stored rather than trusting the shape.
+      reactions?: unknown
     }
   }
+  'flags.tablemate.reactions'?: unknown
   'flags.tablemate.targetTokenIds'?: string[] | null
   'flags.tablemate.originUserId'?: string | null
   getFlag?: (scope: string, key: string) => unknown

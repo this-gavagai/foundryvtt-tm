@@ -5,6 +5,7 @@ import type { ChatMessageView } from '@/composables/useChatMessages'
 import type { ChatActions, ChatRerollRequest } from '@/composables/useChatActions'
 import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 import { useLongPress } from '@/composables/useLongPress'
+import { REACTION_EMOJI } from '@/utils/chatReactions'
 import ChatRollCard from '@/components/ChatRollCard.vue'
 import KebabMenu from '@/components/widgets/KebabMenu.vue'
 import d20Icon from '@/assets/icons/d20.svg'
@@ -24,6 +25,10 @@ const props = defineProps<{
   // rounds off the last bubble of a run.
   groupStart: boolean
   groupEnd: boolean
+  // Whether the connected module supports reactions (capability handshake). A
+  // prop rather than a store read: the overlay resolves it once instead of every
+  // row in a long log subscribing to the same store.
+  reactionsSupported: boolean
 }>()
 
 const emit = defineEmits<{
@@ -38,6 +43,9 @@ const emit = defineEmits<{
   // edit-mode and the delete call.
   edit: [view: ChatMessageView]
   delete: [view: ChatMessageView]
+  // Long-press on a reaction chip: show who reacted with what. The overlay owns
+  // the sheet, like the other modals.
+  showReactions: [view: ChatMessageView]
 }>()
 
 const { t } = useI18n()
@@ -52,6 +60,31 @@ const showHeader = computed(() => props.groupStart)
 // posts (no rolls, voice, image, or reroll card — the only kind that can be
 // meaningfully re-typed); delete works on any of the user's own messages.
 const canManage = computed(() => isOwn.value && !!props.view.message._id)
+
+// Reactions apply to ANY message, including other people's — that's the point of
+// them, and it's why the menu affordance below is no longer own-messages-only.
+const canReact = computed(() => props.reactionsSupported && !!props.view.message._id)
+
+// Any reason to offer the menu at all: the reaction palette, the manage items,
+// or both.
+const hasMenu = computed(() => canReact.value || canManage.value)
+
+// The palette, marked with what this user has already reacted with so a tap on a
+// filled pick reads as "remove mine".
+const quickPicks = computed(() => {
+  if (!canReact.value) return []
+  const mine = new Set(props.view.reactions.filter((r) => r.mine).map((r) => r.emoji))
+  return REACTION_EMOJI.map((emoji) => ({
+    value: emoji,
+    label: t('chat.reactWith', { emoji }),
+    active: mine.has(emoji)
+  }))
+})
+
+function toggleReaction(emoji: string) {
+  triggerLightHapticFeedback()
+  void props.actions.toggleMessageReaction(props.view.message, emoji)
+}
 const canEdit = computed(
   () =>
     canManage.value &&
@@ -77,12 +110,29 @@ function onMenuSelect(id: string) {
 }
 
 // Desktop reveals the kebab on hover; touch has no persistent kebab — a
-// long-press on an own message opens the same menu (anchored to the hidden
-// trigger). Gated to manageable messages so others' bubbles keep native
-// press-and-hold (text selection / callout).
+// long-press opens the same menu (anchored to the hidden trigger).
+//
+// This used to be gated to own messages so that others' bubbles kept native
+// press-and-hold (text selection / callout). Reactions apply to every message,
+// so the gesture now has a purpose everywhere and the native callout is
+// suppressed on every bubble — a deliberate trade: one gesture that always does
+// the same thing beats keeping text selection on half the log.
 const kebab = ref<InstanceType<typeof KebabMenu>>()
 const longPress = useLongPress(() => kebab.value?.openMenu(), {
-  enabled: () => canManage.value
+  enabled: () => hasMenu.value
+})
+
+// Long-press a reaction chip to see who reacted with what. Touch-only by
+// construction (useLongPress ignores mouse/pen), which is exactly the gap it
+// fills: on a pointer device the chip's title tooltip already shows the same
+// list on hover, but a tooltip can never render on touch.
+//
+// A separate useLongPress instance from the bubble's — each press records its own
+// target element, and the release-burst suppression is scoped to that element.
+// That's what keeps the lift at the end of a long-press from also firing the
+// chip's click and toggling the reaction the user was only inspecting.
+const reactionLongPress = useLongPress(() => emit('showReactions', props.view), {
+  enabled: () => props.view.reactions.length > 0
 })
 
 // Square off the corner on the sender's side through the middle of a run so a
@@ -197,7 +247,7 @@ function handleContentClick(event: MouseEvent) {
         // to the full bubble width so the player gets its scrubber. Text/other
         // content still hugs its content up to the same cap.
         view.audioUrl ? 'w-full max-w-[85%]' : 'max-w-[85%]',
-        canManage
+        hasMenu
           ? '[@media(hover:none)]:select-none [@media(hover:none)]:[-webkit-touch-callout:none]'
           : ''
       ]"
@@ -296,24 +346,72 @@ function handleContentClick(event: MouseEvent) {
           {{ $t('chat.emptyMessage') }}
         </div>
       </div>
-      <!-- Edit/delete kebab, own messages. Absolutely positioned on the inner
-           side so it never affects the bubble width. Revealed on hover on pointer
-           devices; on touch it stays hidden and inert — a long-press opens the
-           menu, anchored here. -->
+      <!-- Message menu: the reaction palette (any message) plus edit/delete (own
+           messages). Absolutely positioned on the inner side so it never affects
+           the bubble width. Revealed on hover on pointer devices; on touch it
+           stays hidden and inert — a long-press opens the menu, anchored here.
+           The focus-within half of the reveal is scoped to hover-capable devices
+           so it serves keyboard users (Tab to the kebab, see it) without firing
+           on touch: Headless UI restores focus to the trigger when the menu
+           closes, and with no hover state to lose the dots would then stay
+           visible on the row the long-press had just acted on. -->
       <div
-        v-if="canManage"
+        v-if="hasMenu"
         data-part="chat-actions"
-        class="pointer-events-none absolute top-1 opacity-0 transition-opacity group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100"
+        class="pointer-events-none absolute top-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:pointer-events-auto [@media(hover:hover)]:group-focus-within:opacity-100"
         :class="isOwn ? 'right-full mr-1' : 'left-full ml-1'"
       >
         <KebabMenu
           ref="kebab"
           :items="menuItems"
-          :label="$t('chat.messageActions')"
+          :quick-picks="quickPicks"
+          :label="canManage ? $t('chat.messageActions') : $t('chat.addReaction')"
           @select="onMenuSelect"
+          @quick-pick="toggleReaction($event)"
         />
       </div>
     </div>
+
+    <!-- Reaction chips. Outside the bubble wrapper (not inside it) so they don't
+         participate in the group-corner rounding or widen the bubble, and aligned
+         to the sender's side so a run of own messages keeps its right edge. A tap
+         on a chip toggles this user's own reaction of that emoji — the same
+         operation as picking it from the palette; a long-press shows who reacted.
+         Selection/callout is suppressed on touch so the long-press doesn't also
+         start selecting the chip's count text. -->
+    <ul
+      v-if="view.reactions.length"
+      data-part="chat-reactions"
+      class="mt-1 flex max-w-[85%] flex-wrap gap-1 [@media(hover:none)]:select-none [@media(hover:none)]:[-webkit-touch-callout:none]"
+      :class="isOwn ? 'justify-end' : 'justify-start'"
+    >
+      <li v-for="group in view.reactions" :key="group.emoji">
+        <button
+          type="button"
+          data-part="chat-reaction-chip"
+          :data-emoji="group.emoji"
+          :data-mine="group.mine || undefined"
+          :disabled="!canReact || actions.isReactionPending(view.message._id, group.emoji)"
+          class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors disabled:opacity-60"
+          :class="
+            group.mine
+              ? 'border-blue-300 bg-blue-100 font-semibold text-blue-900'
+              : 'border-gray-200 bg-gray-100 text-gray-700'
+          "
+          :aria-label="$t('chat.reactedBy', { emoji: group.emoji, names: group.names.join(', ') })"
+          :title="$t('chat.reactedBy', { emoji: group.emoji, names: group.names.join(', ') })"
+          :aria-pressed="group.mine"
+          @click="toggleReaction(group.emoji)"
+          @pointerdown="reactionLongPress.onPointerdown"
+          @pointermove="reactionLongPress.onPointermove"
+          @pointerup="reactionLongPress.onPointerup"
+          @pointercancel="reactionLongPress.onPointercancel"
+        >
+          <span aria-hidden="true">{{ group.emoji }}</span>
+          <span>{{ group.count }}</span>
+        </button>
+      </li>
+    </ul>
 
     <time
       v-if="groupEnd && view.formattedTime"

@@ -18,12 +18,22 @@ import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 // coordinates. The panel prefers to right-align to the button, but is clamped
 // within the viewport (and flips above the button) so it never lands off-screen
 // — e.g. when the trigger sits far from the right edge on a wide chat bubble.
-defineProps<{
+const props = defineProps<{
   items: { id: string; label: string; danger?: boolean }[]
   label: string
+  // Optional row of single-tap choices rendered above the item list — short
+  // glyph-sized options (the chat reaction palette) where a stacked text list
+  // would be six rows of the same word. `active` marks an already-chosen pick,
+  // whose tap deselects. Each is a real MenuItem, so keyboard navigation and
+  // close-on-select come for free.
+  quickPicks?: { value: string; label: string; active?: boolean }[]
 }>()
 
-const emit = defineEmits<{ select: [id: string] }>()
+const emit = defineEmits<{ select: [id: string]; quickPick: [value: string] }>()
+
+// The panel is a plain menu when there are no quick picks; with both, the row
+// needs a rule between it and the items below.
+const hasQuickPicks = () => !!props.quickPicks?.length
 
 const buttonWrapper = ref<HTMLElement | null>(null)
 const itemsStyle = ref<Record<string, string>>({})
@@ -116,6 +126,29 @@ defineExpose({ openMenu })
         data-part="kebab-menu-items"
         class="max-h-60 w-max max-w-64 min-w-36 overflow-y-auto rounded-md border border-gray-200 bg-white py-1 text-sm shadow-lg ring-1 ring-black/5 focus:outline-hidden"
       >
+        <div
+          v-if="hasQuickPicks()"
+          data-part="kebab-menu-quick-picks"
+          class="flex items-center gap-0.5 px-1.5 py-1"
+          :class="items.length ? 'mb-1 border-b border-gray-200 pb-2' : ''"
+        >
+          <MenuItem v-for="pick in quickPicks" :key="pick.value" v-slot="{ active }">
+            <button
+              type="button"
+              data-part="kebab-menu-quick-pick"
+              class="cursor-pointer rounded-full px-1.5 py-1 text-xl leading-none"
+              :aria-label="pick.label"
+              :title="pick.label"
+              :data-active="active ? true : undefined"
+              :data-selected="pick.active ? true : undefined"
+              :class="[pick.active ? 'bg-blue-100' : '', active ? 'bg-gray-100' : '']"
+              @pointerdown="triggerLightHapticFeedback()"
+              @click="emit('quickPick', pick.value)"
+            >
+              {{ pick.value }}
+            </button>
+          </MenuItem>
+        </div>
         <MenuItem v-for="item in items" :key="item.id" v-slot="{ active }">
           <button
             type="button"

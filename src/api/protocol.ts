@@ -51,6 +51,13 @@ export const CAPABILITY_VOICE_MEMO = 'voiceMemo'
 // same way it gates the mic on CAPABILITY_VOICE_MEMO.
 export const CAPABILITY_IMAGE_UPLOAD = 'imageUpload'
 
+// Emoji reactions on chat messages. Unlike the media capabilities this needs no
+// world configuration, so it's advertised unconditionally — its only job is
+// version detection: a module predating reactions would log 'event not caught'
+// and never answer, leaving the app's tap to time out after 30s. Gating the
+// affordance on the capability hides it instead.
+export const CAPABILITY_REACTIONS = 'reactions'
+
 export const TM = {
   // Socket.io channel name. All tablemate messages flow over this channel.
   CHANNEL: 'module.tablemate',
@@ -102,6 +109,12 @@ export const TM = {
   SEND_COMPENDIUM_ITEM_TO_CHAT: 'sendCompendiumItemToChat',
   APPLY_DAMAGE: 'applyDamage',
   REROLL_CHAT_ROLL: 'rerollChatRoll',
+  // Emoji reaction toggle. Unlike posting/editing/deleting a message — which the
+  // app now does directly over the modifyDocument socket as its own user — a
+  // reaction writes a flag on SOMEONE ELSE'S message, which Foundry only permits
+  // the author or a GM to do. So it has to be an RPC through the GM client. See
+  // foundry/handlers/reactions.ts.
+  TOGGLE_REACTION: 'toggleReaction',
   // Push registration: the app asks the module (GM's client) for a short-lived,
   // signed token binding {worldId, userId} plus the relay URL, then registers
   // its device token with the relay. See foundry/pushRegistration.ts.

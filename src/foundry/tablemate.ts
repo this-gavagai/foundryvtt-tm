@@ -1,5 +1,6 @@
 import { setupListener } from './listener'
 import { setupChatOriginDisplay } from './chatOriginDisplay'
+import { setupReactionDisplay } from './reactionDisplay'
 import { setupChatImagePopout } from './chatImagePopout'
 import { setupSpellCardTargeting } from './spellCardTargeting'
 import { setupSettingsHeaders } from './settingsHeaders'
@@ -25,6 +26,7 @@ Hooks.on('init', function () {
 Hooks.on('ready', () => {
   setupListener()
   setupChatOriginDisplay()
+  setupReactionDisplay()
   setupChatImagePopout()
   setupSpellCardTargeting()
   setupSettingsHeaders()

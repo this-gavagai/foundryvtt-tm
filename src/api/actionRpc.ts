@@ -414,6 +414,13 @@ export const applyDamage = (
     rollIndex
   })
 
+// Toggle this user's emoji reaction on a chat message. No actor: reactions are
+// the player's, so the payload is just the message and the emoji — the GM side
+// derives the reactor from the request's userId. Resolves with the reaction list
+// as stored, so the caller can reconcile its optimistic write.
+export const toggleReaction = (messageId: string, emoji: string) =>
+  sendAction(TM.TOGGLE_REACTION, { messageId, emoji })
+
 export const rerollChatRoll = (
   actor: TablemateActorRef,
   messageId: string,

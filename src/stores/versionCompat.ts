@@ -1,6 +1,11 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import { PROTOCOL_VERSION, CAPABILITY_VOICE_MEMO, CAPABILITY_IMAGE_UPLOAD } from '@/api/protocol'
+import {
+  PROTOCOL_VERSION,
+  CAPABILITY_VOICE_MEMO,
+  CAPABILITY_IMAGE_UPLOAD,
+  CAPABILITY_REACTIONS
+} from '@/api/protocol'
 
 // Tracks whether the connected Foundry module speaks the same wire protocol as
 // this app build. Fed from the LISTENER_ONLINE handler (see api/socketSetup.ts),
@@ -35,6 +40,11 @@ export const useVersionCompatStore = defineStore('versionCompat', () => {
     moduleCapabilities.value.includes(CAPABILITY_IMAGE_UPLOAD)
   )
 
+  // Gate for the chat reaction affordance. A module too old to advertise it has
+  // no TOGGLE_REACTION handler, so the request would go unanswered and the tap
+  // would sit out the full 30s ack timeout — hide the picker instead.
+  const supportsReactions = computed(() => moduleCapabilities.value.includes(CAPABILITY_REACTIONS))
+
   function reportModule(
     protocol: number | undefined,
     version: string | undefined,
@@ -54,6 +64,7 @@ export const useVersionCompatStore = defineStore('versionCompat', () => {
     moduleCapabilities,
     supportsVoiceMemo,
     supportsImageUpload,
+    supportsReactions,
     isMismatched,
     reportModule
   }

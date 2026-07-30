@@ -73,6 +73,9 @@
     /* interactive row/chip surfaces — hover / pressed pair */
     --color-surface-hover: oklch(96.7% 0.003 265);
     --color-surface-active: oklch(92.8% 0.006 265);
+    /* a toggle that is currently ON (a chosen reaction in the chat palette) —
+       tinted toward the primary accent so it reads as selected, not merely hovered */
+    --color-selected: oklch(93.2% 0.032 255);
 
     --color-scrollbar-thumb: oklch(87.2% 0.01 258);
     --color-scrollbar-thumb-hover: oklch(70.7% 0.022 261);
@@ -1039,6 +1042,22 @@
     }
     [data-part='kebab-menu-item']:active {
       background-color: var(--color-surface-active);
+    }
+
+    /* quick-pick row (the chat reaction palette) — glyph buttons above the
+       items, so they take the surface hover/active treatment rather than the
+       item row's, and a token-tinted background when already chosen */
+    [data-part='kebab-menu-quick-picks'] {
+      border-color: var(--color-border);
+    }
+    [data-part='kebab-menu-quick-pick'][data-active] {
+      background-color: var(--color-surface-hover);
+    }
+    [data-part='kebab-menu-quick-pick']:active {
+      background-color: var(--color-surface-active);
+    }
+    [data-part='kebab-menu-quick-pick'][data-selected] {
+      background-color: var(--color-selected);
     }
 
     /* destructive items — mirror the equipment menu's delete treatment */

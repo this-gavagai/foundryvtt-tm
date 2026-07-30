@@ -2,6 +2,7 @@ import type { ItemPF2e, RawDamageDice, RawModifier } from '@7h3laughingman/pf2e-
 // Value import (not `import type`): TM's literal constants are used as
 // computed property keys in ResponseByAction below.
 import { TM } from '@/api/protocol'
+import type { ChatReaction } from '@/utils/chatReactions'
 import type {
   SkillActionData,
   SpellcastingModifierData,
@@ -45,6 +46,7 @@ export type ModuleEventArgs =
   | SendCompendiumItemToChatArgs
   | ApplyDamageArgs
   | RerollChatRollArgs
+  | ToggleReactionArgs
   | RegisterPushArgs
 
 export interface AcknowledgementArgs {
@@ -547,6 +549,22 @@ export interface RerollChatRollArgs {
   rollIndex?: number
 }
 
+// Toggle the requesting user's emoji reaction on a chat message. No
+// characterId: reactions are the player's, not a character's, so this is the one
+// chat action authorized as 'world-user' rather than against actor ownership
+// (see AUTH_POLICY in foundry/listener.ts). The handler derives the reactor from
+// `userId` and never accepts a reaction set from the client, so a client can't
+// react on another user's behalf or clear anyone else's reactions.
+export interface ToggleReactionArgs {
+  action: typeof TM.TOGGLE_REACTION
+  uuid: string
+  userId: string
+  messageId: string
+  // Must be one of REACTION_EMOJI (utils/chatReactions.ts); the handler rejects
+  // anything else rather than storing arbitrary strings in the flag.
+  emoji: string
+}
+
 export interface RollInlineCheckArgs {
   action: typeof TM.ROLL_INLINE_CHECK
   userId: string
@@ -651,6 +669,9 @@ export interface ResponseByAction {
   [TM.UPDATE_ACTOR]: PlainAck
   [TM.ADD_COMPENDIUM_ITEM]: PlainAck
   [TM.APPLY_DAMAGE]: PlainAck
+  // The updated reaction list, so the caller can reconcile its optimistic write
+  // against what the GM actually stored (concurrent taps, a rejected emoji).
+  [TM.TOGGLE_REACTION]: { reactions: ChatReaction[] }
   [TM.REGISTER_PUSH]: { regToken: string; relayUrl: string }
 }
 

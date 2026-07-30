@@ -2,12 +2,19 @@ import { computed, type Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'
 import { useChatStore } from '@/stores/chat'
+import { useUserStore } from '@/stores/user'
 import { getMediaPath, getPath } from '@/utils/utilities'
 import { prepareChatHtml } from '@/utils/chatHtml'
 import { rollSummaries, type ChatRollSummary, type RollJson } from '@/utils/chatRollSummary'
 import { applyPf2eNotation } from '@/utils/pf2eEnrich'
 import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
 import { useChatVisibility, type UserData } from '@/composables/useChatVisibility'
+import {
+  groupReactions,
+  readReactions,
+  type ChatReaction,
+  type ReactionGroup
+} from '@/utils/chatReactions'
 import type { ActiveRoll } from '@/types/api-types'
 
 interface ChatSpeaker {
@@ -51,6 +58,11 @@ export interface ChatMessageData {
       imageMimeType?: string | null
       imageWidth?: number | null
       imageHeight?: number | null
+      // Emoji reactions: a flat list of {emoji, userId} pairs. Written GM-side
+      // by foundryToggleReaction (a player can't update another user's message),
+      // and read through utils/chatReactions.ts. See the shape note there for
+      // why this is an array rather than an emoji → users map.
+      reactions?: ChatReaction[] | null
     }
     pf2e?: {
       origin?: { uuid?: string | null }
@@ -136,6 +148,12 @@ export interface ChatMessageView {
   rerollSummary?: ChatRerollSummary
   rolls: ChatRollSummary[]
   inlineChecks: ActiveRoll[]
+  // One chip per reacted emoji, in palette order. Built in the CHEAP pass, not
+  // the memoized expensive one: the memo's fingerprint covers content/flavor/
+  // rolls only, so a reaction change wouldn't invalidate it and chips would
+  // render stale. Also depends on the user list (reactor names), which the memo
+  // deliberately doesn't track.
+  reactions: ReactionGroup[]
 }
 
 export interface ChatRerollSummary {
@@ -422,6 +440,13 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
   const { currentUserIsGM, messageVisibleToCurrentUser, messageIsFromCurrentUser, visibleMessages } =
     useChatVisibility()
 
+  // Reactions are keyed by the reacting user's own Foundry id, so "did I react"
+  // is an exact match on it — deliberately not the belongsTo-widened
+  // currentUserIds set used for whisper visibility. Treating a linked user's
+  // reaction as mine would show a filled chip whose next tap adds a second
+  // reaction instead of removing the one on screen.
+  const userStore = useUserStore()
+
   const users = computed(() =>
     collectionToArray<UserData>(world.value?.users as CollectionLike<UserData>)
   )
@@ -618,6 +643,12 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
       imageUrl: imageUrl(message),
       imageWidth: message.flags?.tablemate?.imageWidth ?? undefined,
       imageHeight: message.flags?.tablemate?.imageHeight ?? undefined,
+      // Reactor names resolve through resolvedUserName so a reaction sent from a
+      // sheet-only user reads as the human behind it, like message attribution.
+      reactions: groupReactions(readReactions(message), {
+        selfUserId: userStore.userId,
+        nameFor: resolvedUserName
+      }),
       // Expensive HTML parsing — memoized by content fingerprint.
       ...expensiveView(message)
     }
