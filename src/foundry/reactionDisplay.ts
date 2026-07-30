@@ -26,9 +26,13 @@
 // from `init`; only the per-message render hooks can wait for ready.
 //
 // Styling is inline: the module ships no stylesheet Foundry loads (module.json
-// declares only esmodules), the same reason chatOriginDisplay builds its badge
-// with cssText. Colors are chosen to hold up on both the light parchment and the
-// dark Foundry chat themes.
+// declares only esmodules — and the emitted tablemate.css belongs to the
+// sheet-redirect page, which hides the entire UI, so it must NOT be declared as
+// one), the same reason chatOriginDisplay builds its badge with cssText. Colors
+// are chosen to hold up on both the light parchment and the dark Foundry chat
+// themes. The one exception is the context-menu row layout, which can't be done
+// with inline styles because we don't create those elements — see
+// REACTION_MENU_STYLE.
 
 import type { ContextMenuEntry } from '@7h3laughingman/foundry-types/client/applications/ux/context-menu.mjs'
 import { TM } from '@/api/protocol'
@@ -176,11 +180,15 @@ function reactionsAvailable(): boolean {
   return !!(game.users as unknown as { activeGM?: { id?: string } | null })?.activeGM
 }
 
-// v14 renamed ContextMenuEntry#condition to #visible and deprecates the old name.
-// Both are set below so v13 (which reads `condition`) and v14 (which prefers
-// `visible`, and only warns when `condition` appears WITHOUT it) are each happy
-// without a console deprecation. The shipped types predate `visible`.
-type ReactionContextEntry = ContextMenuEntry & { visible?: ContextMenuEntry['condition'] }
+// v14 renamed two ContextMenuEntry fields and deprecates the old names:
+// condition → visible, and name → label. Both spellings of each are set below so
+// v13 (which reads the old names) and v14 (which prefers the new ones, and only
+// warns when it sees an old name WITHOUT its replacement) are each satisfied
+// without a console deprecation. The shipped types predate both new fields.
+type ReactionContextEntry = ContextMenuEntry & {
+  visible?: ContextMenuEntry['condition']
+  label?: string
+}
 
 // One entry per palette emoji, in a group of their own so they read as a block
 // and sort away from Foundry's own entries. Each toggles, so picking an emoji you
@@ -194,6 +202,7 @@ type ReactionContextEntry = ContextMenuEntry & { visible?: ContextMenuEntry['con
 // whether a GM is online right now.
 function reactionContextEntries(): ReactionContextEntry[] {
   return REACTION_EMOJI.map((emoji) => ({
+    label: emoji,
     name: emoji,
     group: 'tm-reactions',
     visible: reactionsAvailable,
@@ -227,6 +236,42 @@ function contextTargetMessageId(target: unknown): string | undefined {
 // module supports v13+, so both are registered; they're version-exclusive, and
 // registerContextEntries guards against a double-add regardless.
 const CONTEXT_HOOKS = ['getChatMessageContextOptions', 'getChatLogEntryContext'] as const
+
+// Lay the palette out as ONE row rather than six stacked menu rows.
+//
+// Purely presentational, and it can be pure CSS because core wraps each entry
+// group in its own element: `<li class="context-group" data-group-id="tm-reactions">
+// <ol>…entries…</ol></li>`. The group id is ours, so the selector can't reach
+// another module's entries or core's own.
+//
+// A <style> tag rather than inline styles because these elements are built by
+// core, not by us — there is nothing of ours to set a style attribute on. Scoped
+// tightly enough that it needs no !important.
+const REACTION_MENU_STYLE_ID = 'tm-reaction-menu-style'
+const REACTION_MENU_STYLE = `
+li.context-group[data-group-id='tm-reactions'] > ol {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.125em;
+}
+li.context-group[data-group-id='tm-reactions'] > ol > li.context-item {
+  flex: 1 0 auto;
+  justify-content: center;
+  text-align: center;
+  padding-inline: 0.35em;
+}
+li.context-group[data-group-id='tm-reactions'] > ol > li.context-item > span {
+  font-size: 1.1em;
+}
+`
+
+function injectReactionMenuStyle(): void {
+  if (document.getElementById(REACTION_MENU_STYLE_ID)) return
+  const style = document.createElement('style')
+  style.id = REACTION_MENU_STYLE_ID
+  style.textContent = REACTION_MENU_STYLE
+  document.head.appendChild(style)
+}
 
 // Exported for direct testing: this is the payload handling that decides whether
 // any reaction entry reaches the menu at all.
@@ -279,6 +324,7 @@ export function setupReactionContextMenu(): void {
   if (reactionContextMenuRegistered) return
   reactionContextMenuRegistered = true
 
+  injectReactionMenuStyle()
   for (const hook of CONTEXT_HOOKS) {
     Hooks.on(hook, (...args: unknown[]) => registerContextEntries(args[args.length - 1]))
   }
