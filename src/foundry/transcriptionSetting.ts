@@ -10,14 +10,14 @@
 // Groq, a local whisper server, …): base URL + bearer key + model name. With no
 // endpoint or key set, transcription is simply skipped and memos post as before.
 //
-// The API key is stored CLIENT-scoped, not world-scoped: Foundry broadcasts
-// world settings to every connected client (a player could read a world-scoped
-// key via game.settings.get), whereas a client-scoped setting lives only in the
-// browser that set it and is never synced. Since transcription runs solely on
-// the GM's client, the key stays on the GM's machine and never reaches players.
-// Its config field is shown to the GM only. The trade-off: it is per-browser, so
-// the GM re-enters it if they host the world from a different machine. Endpoint
-// and model are non-secret, so they stay world-scoped (set once, shareable).
+// The API key is stored WORLD-scoped so it's available on whichever GM client
+// ends up processing a voice memo — the Tablemate listener/proxy can be any GM
+// browser, not necessarily the one that entered the key. Its config field is
+// still gated to the GM, so the key isn't surfaced in the settings UI to
+// players. Trade-off: Foundry syncs world settings to every connected client, so
+// a technically-minded player could read the key via game.settings.get — an
+// accepted risk here, since transcription is a GM-run convenience and the key is
+// easily rotated. Endpoint and model are non-secret and likewise world-scoped.
 
 import { MODULE_ID } from '@/api/protocol'
 
@@ -59,12 +59,13 @@ export function registerTranscriptionSetting() {
   game.settings.register(MODULE_ID, TRANSCRIPTION_API_KEY_SETTING, {
     name: 'Voice memo transcription API key',
     hint:
-      'Bearer key for the transcription endpoint above. Stored only in this ' +
-      'browser (client-scoped) and never sent to players, so set it on the ' +
-      'machine you run the game from. Shown to the GM only.',
-    // Client-scoped so the key never syncs to other clients; visible only to the
-    // GM (registration runs on every client, but the field is hidden elsewhere).
-    scope: 'client',
+      'Bearer key for the transcription endpoint above. Set it once and any GM ' +
+      'client can transcribe. Shown to the GM only — but note world settings ' +
+      'sync to every client, so treat this key as readable by anyone in the world.',
+    // World-scoped so whichever GM client processes a memo has the key (not just
+    // the browser that entered it). config is gated to the GM so the field stays
+    // out of players' settings UI (the value still syncs, per the hint).
+    scope: 'world',
     config: !!game.user?.isGM,
     type: String,
     default: ''

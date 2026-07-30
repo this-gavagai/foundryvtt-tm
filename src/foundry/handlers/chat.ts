@@ -130,6 +130,23 @@ function outOfCharacterAlias(source: GamePF2e, userId: string): string | undefin
   return user?.name ?? undefined
 }
 
+// Build a chat speaker for an actor WITHOUT touching the GM client's canvas.
+// ChatMessage.getSpeaker resolves scene/token from whatever scene the GM
+// happens to have open — which is wrong for a remote player's message (it can
+// pick up the GM's selected token) and is undefined when the GM has no scene
+// loaded. That canvas dependency is also what trips third-party
+// preCreateChatMessage hooks that resolve the token via `canvas.tokens.get(...)`
+// (the "Cannot read properties of undefined (reading 'get')" seen on voice-memo
+// posts). Attributing by actor id + name is canvas-independent and still shows
+// the character — the app falls back to the actor portrait when no token rides
+// on the speaker.
+function actorSpeaker(actor: { id?: string | null; name?: string | null }): {
+  actor?: string
+  alias?: string
+} {
+  return { actor: actor.id ?? undefined, alias: actor.name ?? undefined }
+}
+
 export async function foundrySendChatMessage(args: SendChatMessageArgs) {
   const source = getGame()
   const actor = source.actors.get(args.characterId, { strict: true })
@@ -142,7 +159,7 @@ export async function foundrySendChatMessage(args: SendChatMessageArgs) {
   // speaker so only the human's name shows, falling back to the actor speaker
   // if the user name can't be resolved.
   const oocAlias = args.outOfCharacter ? outOfCharacterAlias(source, args.userId) : undefined
-  const speaker = oocAlias ? { alias: oocAlias } : ChatMessage.getSpeaker({ actor })
+  const speaker = oocAlias ? { alias: oocAlias } : actorSpeaker(actor)
 
   const data: Record<string, unknown> = {
     author: args.userId,
@@ -280,7 +297,7 @@ async function finalizeVoiceMemo(
   if (!audioPath) throw new Error('Voice memo upload returned no path')
 
   const oocAlias = meta.outOfCharacter ? outOfCharacterAlias(source, meta.userId) : undefined
-  const speaker = oocAlias ? { alias: oocAlias } : ChatMessage.getSpeaker({ actor })
+  const speaker = oocAlias ? { alias: oocAlias } : actorSpeaker(actor)
 
   // An <audio> element in the content lets Foundry's own chat log play the memo;
   // the Tablemate app ignores it (its sanitizer strips <audio>) and renders a
@@ -458,7 +475,7 @@ async function finalizeImage(
   if (!imagePath) throw new Error('Image upload returned no path')
 
   const oocAlias = meta.outOfCharacter ? outOfCharacterAlias(source, meta.userId) : undefined
-  const speaker = oocAlias ? { alias: oocAlias } : ChatMessage.getSpeaker({ actor })
+  const speaker = oocAlias ? { alias: oocAlias } : actorSpeaker(actor)
 
   // width/height attrs give the intrinsic aspect ratio (reflow-free load); the
   // inline `height:auto` overrides the height presentational hint those
