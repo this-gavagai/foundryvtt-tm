@@ -17,6 +17,14 @@
 // which would suppress Foundry's native entries — losing "Delete", "Reveal to
 // Everyone", and everything the system and other modules add.
 //
+// TIMING, and it is load-bearing: ChatLog builds its context menu ONCE, in
+// _onFirstRender, and ContextMenu captures that entry array for its lifetime
+// (`this.menuItems = menuItems`) — it never re-asks the application. Core renders
+// the UI (game.mjs initializeUI) BEFORE it fires `ready`, so a module that
+// registers this hook at ready has already missed the only time it fires, and no
+// reaction entries ever appear. setupReactionContextMenu must therefore be called
+// from `init`; only the per-message render hooks can wait for ready.
+//
 // Styling is inline: the module ships no stylesheet Foundry loads (module.json
 // declares only esmodules), the same reason chatOriginDisplay builds its badge
 // with cssText. Colors are chosen to hold up on both the light parchment and the
@@ -39,6 +47,7 @@ import {
 import { foundryToggleReaction } from './handlers/reactions'
 
 let reactionDisplayRegistered = false
+let reactionContextMenuRegistered = false
 
 const CONTAINER_CLASS = 'tm-reactions'
 const CHIP_CLASS = 'tm-reaction-chip'
@@ -167,18 +176,27 @@ function reactionsAvailable(): boolean {
   return !!(game.users as unknown as { activeGM?: { id?: string } | null })?.activeGM
 }
 
+// v14 renamed ContextMenuEntry#condition to #visible and deprecates the old name.
+// Both are set below so v13 (which reads `condition`) and v14 (which prefers
+// `visible`, and only warns when `condition` appears WITHOUT it) are each happy
+// without a console deprecation. The shipped types predate `visible`.
+type ReactionContextEntry = ContextMenuEntry & { visible?: ContextMenuEntry['condition'] }
+
 // One entry per palette emoji, in a group of their own so they read as a block
 // and sort away from Foundry's own entries. Each toggles, so picking an emoji you
 // already gave removes it — the same operation as clicking its chip.
 //
-// The entries are built once per ChatLog render, not per right-click, so they
-// can't show which emoji you've already given on the message under the cursor —
-// only `callback` and `condition` receive the target element. That's what the
-// chips are for; the menu is the entry point, not the state display.
-function reactionContextEntries(): ContextMenuEntry[] {
+// The entry list is built once (see the timing note up top), so it can't show
+// which emoji you've already given on the message under the cursor — only
+// `callback` and the visibility check receive the target element. That's what the
+// chips are for; the menu is the entry point, not the state display. Visibility
+// IS re-evaluated on every open, which is what lets reactionsAvailable() reflect
+// whether a GM is online right now.
+function reactionContextEntries(): ReactionContextEntry[] {
   return REACTION_EMOJI.map((emoji) => ({
     name: emoji,
     group: 'tm-reactions',
+    visible: reactionsAvailable,
     condition: reactionsAvailable,
     callback: (target: unknown) => {
       const id = contextTargetMessageId(target)
@@ -201,13 +219,18 @@ function contextTargetMessageId(target: unknown): string | undefined {
   )
 }
 
-// Foundry v13 renamed the sidebar context hooks (getChatLogEntryContext →
-// getChatMessageContextOptions). The module targets v13+, but both names are
-// registered because they're version-exclusive — whichever the running core
-// fires, the entries land, and neither can double up.
+// v14's ChatLog calls _createContextMenu with hookName 'getChatMessageContextOptions'
+// and parentClassHooks:false, so that exact name fires once, with the entry array
+// as its last argument (verified against core). Core's older ContextMenu.create
+// path instead builds `get<ClassName><hookName>` from a default hookName of
+// 'EntryContext' — i.e. getChatLogEntryContext — which is what v13 used. The
+// module supports v13+, so both are registered; they're version-exclusive, and
+// registerContextEntries guards against a double-add regardless.
 const CONTEXT_HOOKS = ['getChatMessageContextOptions', 'getChatLogEntryContext'] as const
 
-function registerContextEntries(options: unknown): void {
+// Exported for direct testing: this is the payload handling that decides whether
+// any reaction entry reaches the menu at all.
+export function registerContextEntries(options: unknown): void {
   if (!Array.isArray(options)) return
   // Guard against a core that somehow fires both hooks for one menu.
   if (options.some((entry) => (entry as ContextMenuEntry)?.group === 'tm-reactions')) return
@@ -245,12 +268,18 @@ export function setupReactionDisplay(): void {
     if (element) applyReactionDisplay(message, element)
   })
 
-  // Add the palette to the message's own right-click menu — the only way to give
-  // a message its FIRST reaction, now that nothing is rendered until one exists.
+  sweepRenderedMessages()
+  window.requestAnimationFrame(sweepRenderedMessages)
+}
+
+// Registered from `init`, NOT `ready` — see the timing note at the top of this
+// file. By the time `ready` fires, ChatLog has already built its context menu
+// from whatever entries existed then, and it never rebuilds.
+export function setupReactionContextMenu(): void {
+  if (reactionContextMenuRegistered) return
+  reactionContextMenuRegistered = true
+
   for (const hook of CONTEXT_HOOKS) {
     Hooks.on(hook, (...args: unknown[]) => registerContextEntries(args[args.length - 1]))
   }
-
-  sweepRenderedMessages()
-  window.requestAnimationFrame(sweepRenderedMessages)
 }

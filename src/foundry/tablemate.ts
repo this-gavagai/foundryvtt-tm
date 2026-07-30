@@ -1,6 +1,6 @@
 import { setupListener } from './listener'
 import { setupChatOriginDisplay } from './chatOriginDisplay'
-import { setupReactionDisplay } from './reactionDisplay'
+import { setupReactionDisplay, setupReactionContextMenu } from './reactionDisplay'
 import { setupChatImagePopout } from './chatImagePopout'
 import { setupSpellCardTargeting } from './spellCardTargeting'
 import { setupSettingsHeaders } from './settingsHeaders'
@@ -11,6 +11,11 @@ import { logger } from '@/utils/utilities'
 
 console.log('TM tablemate.mjs MODE:', import.meta.env.MODE, 'PROD:', import.meta.env.PROD)
 logger.info('TM initializing...')
+
+// Must run at init, not ready: core renders the sidebar before firing `ready`,
+// and ChatLog builds its right-click menu once during that render. Registering
+// any later misses the only time the hook fires. See reactionDisplay.ts.
+Hooks.on('init', setupReactionContextMenu)
 
 Hooks.on('init', function () {
   const user = game.data.users.find((x: UserSourcePF2e) => x._id === game.userId)
