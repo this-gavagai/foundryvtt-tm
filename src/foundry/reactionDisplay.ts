@@ -6,11 +6,23 @@
 // Without this, a reaction added from a tablet would be invisible to everyone
 // sitting at the actual Foundry client.
 //
+// A message with no reactions renders NOTHING — no chips, no add button. The
+// only entry point for a first reaction is the message's right-click menu, so
+// the log stays exactly as uncluttered as it was before this feature existed.
+// Once a message has reactions, its chips are clickable to toggle your own.
+//
+// The right-click path extends Foundry's OWN context menu (via the
+// _getEntryContextOptions hook) rather than listening for `contextmenu`
+// ourselves. A listener would have to preventDefault to show a custom palette,
+// which would suppress Foundry's native entries — losing "Delete", "Reveal to
+// Everyone", and everything the system and other modules add.
+//
 // Styling is inline: the module ships no stylesheet Foundry loads (module.json
 // declares only esmodules), the same reason chatOriginDisplay builds its badge
 // with cssText. Colors are chosen to hold up on both the light parchment and the
 // dark Foundry chat themes.
 
+import type { ContextMenuEntry } from '@7h3laughingman/foundry-types/client/applications/ux/context-menu.mjs'
 import { TM } from '@/api/protocol'
 import { logger, uuidv4 } from '@/utils/utilities'
 import {
@@ -30,8 +42,6 @@ let reactionDisplayRegistered = false
 
 const CONTAINER_CLASS = 'tm-reactions'
 const CHIP_CLASS = 'tm-reaction-chip'
-const PALETTE_CLASS = 'tm-reaction-palette'
-const OPEN_ATTR = 'data-tm-palette-open'
 
 // The module's shared chat-message shape already covers what's needed here: the
 // id, and the reaction flag in whichever access shape Foundry hands us.
@@ -102,88 +112,106 @@ function buildChip(group: ReactionGroup, onClick: () => void): HTMLElement {
   return chip
 }
 
-function buildPalette(onPick: (emoji: string) => void): HTMLElement {
-  const palette = document.createElement('div')
-  palette.className = PALETTE_CLASS
-  palette.style.cssText = 'display:flex;gap:0.15em;flex-wrap:wrap;'
-  for (const emoji of REACTION_EMOJI) {
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.style.cssText = CHIP_BASE
-    button.title = `React with ${emoji}`
-    button.setAttribute('aria-label', button.title)
-    button.textContent = emoji
-    button.addEventListener('click', (event) => {
-      event.preventDefault()
-      event.stopPropagation()
-      onPick(emoji)
-    })
-    palette.appendChild(button)
-  }
-  return palette
+// Fire a toggle and log a failure — the shared tail of the chip click and the
+// context-menu entries.
+function toggle(id: string, emoji: string): void {
+  void requestToggle(id, emoji).catch((error) =>
+    logger.warn('TABLEMATE: reaction toggle failed', id, emoji, error)
+  )
 }
 
 // Rebuild the reaction row from the message's current flag. Wholesale rather
 // than diffed — the row is a handful of nodes, and rebuilding keeps it
 // idempotent, which matters because this is called from both the render hook and
-// the update hook. The palette's open state is carried across the rebuild so an
-// unrelated message update doesn't snap it shut mid-choice.
+// the update hook.
+//
+// A message with no reactions gets no container at all, so the log looks
+// untouched until someone actually reacts. That's also why removing the last
+// reaction has to delete the leftover container rather than leave an empty one.
 export function applyReactionDisplay(message: ReactableMessage, element: HTMLElement): void {
   const id = messageId(message)
   if (!id) return
 
-  const previous = element.querySelector<HTMLElement>(`.${CONTAINER_CLASS}`)
-  const wasOpen = previous?.getAttribute(OPEN_ATTR) === 'true'
-  previous?.remove()
+  element.querySelector<HTMLElement>(`.${CONTAINER_CLASS}`)?.remove()
 
   const groups = groupReactions(readReactions(message), {
     selfUserId: game.user._id,
     nameFor: userName
   })
+  if (!groups.length) return
 
   const container = document.createElement('div')
   container.className = CONTAINER_CLASS
   container.style.cssText =
     'display:flex;align-items:center;gap:0.25em;flex-wrap:wrap;margin-top:0.35em;'
-  if (wasOpen) container.setAttribute(OPEN_ATTR, 'true')
 
-  const toggle = (emoji: string) => {
-    void requestToggle(id, emoji).catch((error) =>
-      logger.warn('TABLEMATE: reaction toggle failed', id, emoji, error)
-    )
+  for (const group of groups) {
+    container.appendChild(buildChip(group, () => toggle(id, group.emoji)))
   }
-
-  for (const group of groups) container.appendChild(buildChip(group, () => toggle(group.emoji)))
-
-  // The "add" affordance. Rendered after the chips so the row reads
-  // chips-then-plus, and always present so a message with no reactions yet can
-  // still get its first one.
-  const add = document.createElement('button')
-  add.type = 'button'
-  add.style.cssText = CHIP_BASE + 'opacity:0.75;'
-  add.title = 'Add reaction'
-  add.setAttribute('aria-label', add.title)
-  add.textContent = '☺+'
-  const palette = buildPalette((emoji) => {
-    container.setAttribute(OPEN_ATTR, 'false')
-    palette.style.display = 'none'
-    toggle(emoji)
-  })
-  palette.style.display = wasOpen ? 'flex' : 'none'
-  add.addEventListener('click', (event) => {
-    event.preventDefault()
-    event.stopPropagation()
-    const open = palette.style.display === 'none'
-    palette.style.display = open ? 'flex' : 'none'
-    container.setAttribute(OPEN_ATTR, String(open))
-  })
-  container.append(add, palette)
 
   // Append below the message body. `.message-content` is core Foundry's
   // container for the rendered content; fall back to the message element itself
   // on a layout that doesn't have it.
   const host = element.querySelector<HTMLElement>('.message-content') ?? element
   host.appendChild(container)
+}
+
+// ── Right-click menu ───────────────────────────────────────────────────────
+
+// Can this client's reaction actually be serviced? A GM writes the flag itself;
+// anyone else needs a GM online to do it for them (see requestToggle). With no
+// GM connected a player's request would go unanswered, so the entries are hidden
+// rather than offered as a silent no-op.
+function reactionsAvailable(): boolean {
+  if (game.user.isGM) return true
+  return !!(game.users as unknown as { activeGM?: { id?: string } | null })?.activeGM
+}
+
+// One entry per palette emoji, in a group of their own so they read as a block
+// and sort away from Foundry's own entries. Each toggles, so picking an emoji you
+// already gave removes it — the same operation as clicking its chip.
+//
+// The entries are built once per ChatLog render, not per right-click, so they
+// can't show which emoji you've already given on the message under the cursor —
+// only `callback` and `condition` receive the target element. That's what the
+// chips are for; the menu is the entry point, not the state display.
+function reactionContextEntries(): ContextMenuEntry[] {
+  return REACTION_EMOJI.map((emoji) => ({
+    name: emoji,
+    group: 'tm-reactions',
+    condition: reactionsAvailable,
+    callback: (target: unknown) => {
+      const id = contextTargetMessageId(target)
+      if (id) toggle(id, emoji)
+    }
+  }))
+}
+
+// The right-clicked message's id, from whatever the running core hands the
+// callback: v13 passes an HTMLElement, older cores passed a jQuery wrapper, and
+// chatMessageElement normalizes both. Resolved through `closest` as well as a
+// direct dataset read, so a target that arrives as an inner node still finds the
+// message it belongs to.
+function contextTargetMessageId(target: unknown): string | undefined {
+  const element = chatMessageElement(target)
+  if (!element) return undefined
+  return (
+    element.dataset?.messageId ??
+    element.closest<HTMLElement>('[data-message-id]')?.dataset.messageId
+  )
+}
+
+// Foundry v13 renamed the sidebar context hooks (getChatLogEntryContext →
+// getChatMessageContextOptions). The module targets v13+, but both names are
+// registered because they're version-exclusive — whichever the running core
+// fires, the entries land, and neither can double up.
+const CONTEXT_HOOKS = ['getChatMessageContextOptions', 'getChatLogEntryContext'] as const
+
+function registerContextEntries(options: unknown): void {
+  if (!Array.isArray(options)) return
+  // Guard against a core that somehow fires both hooks for one menu.
+  if (options.some((entry) => (entry as ContextMenuEntry)?.group === 'tm-reactions')) return
+  options.push(...reactionContextEntries())
 }
 
 // Messages already in the log when this module's ready-time registration runs
@@ -216,6 +244,12 @@ export function setupReactionDisplay(): void {
     const element = findRenderedChatMessage(message)
     if (element) applyReactionDisplay(message, element)
   })
+
+  // Add the palette to the message's own right-click menu — the only way to give
+  // a message its FIRST reaction, now that nothing is rendered until one exists.
+  for (const hook of CONTEXT_HOOKS) {
+    Hooks.on(hook, (...args: unknown[]) => registerContextEntries(args[args.length - 1]))
+  }
 
   sweepRenderedMessages()
   window.requestAnimationFrame(sweepRenderedMessages)
