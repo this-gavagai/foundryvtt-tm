@@ -296,6 +296,42 @@ async function waitForTranscript(msg: ChatMessageLike): Promise<void> {
   }
 }
 
+// A push is a one-shot: nothing downstream ever retries, so a request lost to a
+// blipped GM wifi, a relay cold-start hiccup or a 5xx meant the notification was
+// gone for good. Retry the transient cases a couple of times over a few seconds.
+//
+// Not retried: 2xx (done), and 4xx other than 429 — a 401 is the wrong world key
+// and a 400 a bad payload, neither of which a second identical request fixes.
+// 429 IS retried, though a retry inside the same minute bucket will usually be
+// shed again; sustained 429 is a volume problem, not a transport one.
+const NOTIFY_RETRY_DELAYS_MS = [2_000, 6_000]
+
+function isRetryableStatus(status: number): boolean {
+  return status === 429 || status >= 500
+}
+
+// POST the notification, retrying transient failures. Returns the final response,
+// or undefined if every attempt threw (offline for the whole window).
+async function postNotify(relayUrl: string, worldKey: string, payload: string): Promise<Response | undefined> {
+  let lastResponse: Response | undefined
+  for (let attempt = 0; ; attempt++) {
+    try {
+      lastResponse = await fetch(`${relayUrl}/notify`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${worldKey}`, 'content-type': 'application/json' },
+        body: payload
+      })
+      if (!isRetryableStatus(lastResponse.status)) return lastResponse
+    } catch (error) {
+      // Network-level failure — no response at all. Retry on the same schedule.
+      lastResponse = undefined
+      logger.debug('TABLEMATE: push notify attempt failed', error)
+    }
+    if (attempt >= NOTIFY_RETRY_DELAYS_MS.length) return lastResponse
+    await delay(NOTIFY_RETRY_DELAYS_MS[attempt])
+  }
+}
+
 export async function notifyChatMessage(message: unknown): Promise<void> {
   try {
     // Only the elected primary GM posts, so a message seen by N GM clients
@@ -318,10 +354,10 @@ export async function notifyChatMessage(message: unknown): Promise<void> {
       await waitForTranscript(msg)
     }
 
-    const res = await fetch(`${config.relayUrl}/notify`, {
-      method: 'POST',
-      headers: { authorization: `Bearer ${config.worldKey}`, 'content-type': 'application/json' },
-      body: JSON.stringify({
+    const res = await postNotify(
+      config.relayUrl,
+      config.worldKey,
+      JSON.stringify({
         worldId: config.worldId,
         recipients: audience.recipients,
         direct: audience.direct,
@@ -330,8 +366,10 @@ export async function notifyChatMessage(message: unknown): Promise<void> {
         messageId: messageId(msg),
         portraitUrl: portraitUrl(msg)
       })
-    })
-    if (!res.ok) {
+    )
+    if (!res) {
+      logger.warn('TABLEMATE: push notify unreachable after retries')
+    } else if (!res.ok) {
       logger.warn('TABLEMATE: push notify failed', res.status, await res.text())
     }
   } catch (error) {

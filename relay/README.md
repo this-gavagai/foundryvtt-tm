@@ -141,6 +141,37 @@ tier) in the dashboard: Security → WAF → Rate limiting rules → e.g. match
 100 requests / 1 min per client IP, action Block. That enforces at the edge
 before the Worker runs, closing the eventual-consistency gap.
 
+## Free-plan limits and how the relay degrades
+
+Two Cloudflare free-plan ceilings shape the delivery path, and both used to fail
+in ways that cost notifications:
+
+- **KV writes (~1,000/day).** Every `/notify` writes a rate-limit counter plus one
+  badge counter per device, so a chatty world on `pushScope: 'all'` can exhaust the
+  allowance in a single session. All such bookkeeping now goes through the `kv*`
+  helpers, which swallow failures: a push still goes out, it just may not move the
+  icon number or enforce the soft rate ceiling. Registration *reads* stay strict —
+  not knowing where to send is a real error, and one that the module retries.
+- **Subrequests (50/request).** Each APNs send is one, and the environment-retry
+  path can double it. `MAX_APNS_SENDS` budgets them at 30, deliberately under the
+  ceiling since KV operations may draw on the same allowance. Direct recipients are
+  delivered as a first wave, so what gets shed past the budget is ambient chat, and
+  shed recipients are reported (`skipped: 'send budget exhausted'`, plus
+  `budgetExhausted: true`) rather than silently dropped.
+
+Recipients are delivered concurrently and each settles independently, so one
+recipient's failure no longer aborts the rest of the list. If *every* recipient
+failed, `/notify` answers **502** so the module's retry can try again — nothing was
+delivered, so a retry cannot double-notify. A partial success stays 200 for the
+same reason.
+
+The module retries a `/notify` that fails transiently (network error, 5xx, 429) up
+to three attempts over ~8s. It does not retry other 4xx: a 401 is the wrong world
+key and a 400 a bad payload, neither of which a second identical request fixes.
+
+If the badge count matters more than living inside the free plan, it belongs in a
+Durable Object — which means the paid plan.
+
 `/unregister` takes no bearer: it needs either a module-minted `regToken` or the
 `(worldId, userId, deviceToken)` triple — a world's random id plus that device's
 own APNs token, both held only by the participating device. It is strictly

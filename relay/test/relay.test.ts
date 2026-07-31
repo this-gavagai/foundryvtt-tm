@@ -7,12 +7,24 @@ import worker from '../src/index'
 // Map-backed KV and a stubbed APNs — no Miniflare required. APNs is the only
 // outbound call, so stubbing global fetch fully isolates these tests.
 
+// KV can fail — the free plan's daily write allowance is finite, and hitting it
+// must degrade rather than break delivery. These let a test make specific keys
+// unwritable/unreadable; both reset in beforeEach.
+let kvFailWrite: (key: string) => boolean = () => false
+let kvFailRead: (key: string) => boolean = () => false
+
 function makeKV() {
   const store = new Map<string, string>()
   return {
     store,
-    get: async (k: string) => store.get(k) ?? null,
-    put: async (k: string, v: string) => void store.set(k, v),
+    get: async (k: string) => {
+      if (kvFailRead(k)) throw new Error(`KV read failed: ${k}`)
+      return store.get(k) ?? null
+    },
+    put: async (k: string, v: string) => {
+      if (kvFailWrite(k)) throw new Error(`KV write failed: ${k}`)
+      store.set(k, v)
+    },
     delete: async (k: string) => void store.delete(k),
   }
 }
@@ -59,6 +71,8 @@ beforeEach(() => {
   apnsCalls = []
   apnsBodies = []
   apnsHeaders = []
+  kvFailWrite = () => false
+  kvFailRead = () => false
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -545,6 +559,146 @@ describe('rate-limit classes', () => {
       { authorization: `Bearer ${worldKey}` },
     )
     expect(res.status).toBe(429)
+  })
+})
+
+describe('durability: bookkeeping never costs a delivery', () => {
+  // Write registrations straight into KV: a device count that matters here would
+  // otherwise trip /register's own per-IP limit.
+  function seedRegistrations(worldPushId: string, userId: string, deviceTokens: string[]) {
+    env.TOKENS.store.set(
+      `tok:${worldPushId}:${userId}`,
+      JSON.stringify(
+        deviceTokens.map((deviceToken) => ({ deviceToken, platform: 'ios', env: 'sandbox', updatedAt: Date.now() })),
+      ),
+    )
+  }
+
+  it('still delivers when the badge counter cannot be written', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    // The daily KV write allowance is spent.
+    kvFailWrite = (k) => k.startsWith('badge:')
+
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], direct: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(200)
+    expect(apnsCalls.length).toBe(1)
+    // Delivered, just without moving the icon number.
+    expect(apnsBodies[0].aps?.badge).toBeUndefined()
+  })
+
+  it('still delivers when the rate-limit counter cannot be written (fails open)', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    kvFailWrite = (k) => k.startsWith('rl:')
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(200)
+    expect(apnsCalls.length).toBe(1)
+  })
+
+  it('still delivers when the write-back of pruned registrations fails', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    // Dead token → the relay wants to prune, but cannot persist that.
+    apnsResponse = () => ({ status: 410, body: '' })
+    kvFailWrite = (k) => k.startsWith('tok:')
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(200)
+    const json = (await res.json()) as { results: Array<{ dead?: boolean }> }
+    expect(json.results[0].dead).toBe(true)
+  })
+
+  it('isolates one recipient’s failure from the rest', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    await registerDevice(worldPushId, worldKey, 'bob', 'devB')
+    // Alice's registration list is unreadable; Bob's is fine.
+    kvFailRead = (k) => k === `tok:${worldPushId}:alice`
+
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice', 'bob'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(200)
+    // Bob still got his push — the old sequential loop would have thrown first.
+    expect(apnsCalls.some((u) => u.includes('devB'))).toBe(true)
+    const json = (await res.json()) as { results: Array<{ userId: string; error?: string; ok?: boolean }> }
+    expect(json.results.find((r) => r.userId === 'alice')?.error).toBeTruthy()
+    expect(json.results.find((r) => r.userId === 'bob')?.ok).toBe(true)
+  })
+
+  it('reports 502 when every recipient failed, so the caller retries', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    kvFailRead = (k) => k.startsWith('tok:')
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    // Nothing was delivered, so a retry cannot double-notify anyone.
+    expect(res.status).toBe(502)
+    expect(apnsCalls.length).toBe(0)
+  })
+
+  it('survives an APNs send that rejects outright', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    await registerDevice(worldPushId, worldKey, 'bob', 'devB')
+    const realFetch = globalThis.fetch as typeof fetch
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      if (url.includes('devA')) throw new Error('connection reset')
+      return realFetch(input, init)
+    })
+
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice', 'bob'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(200)
+    const json = (await res.json()) as { results: Array<{ userId: string; ok?: boolean; status?: number }> }
+    expect(json.results.find((r) => r.userId === 'alice')?.ok).toBe(false)
+    expect(json.results.find((r) => r.userId === 'bob')?.ok).toBe(true)
+  })
+
+  it('caps sends at the subrequest budget and sheds ambient before direct', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    seedRegistrations(worldPushId, 'alice', Array.from({ length: 5 }, (_, i) => `alice-dev${i}`))
+    seedRegistrations(worldPushId, 'bob', Array.from({ length: 40 }, (_, i) => `bob-dev${i}`))
+
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice', 'bob'], direct: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(200)
+    const json = (await res.json()) as {
+      budgetExhausted?: boolean
+      results: Array<{ userId: string; skipped?: string; ok?: boolean }>
+    }
+    // MAX_APNS_SENDS = 30, and the ceiling is respected rather than thrown through.
+    expect(apnsCalls.length).toBe(30)
+    // Alice was whispered to: every one of her devices got it.
+    expect(apnsCalls.filter((u) => u.includes('alice-dev')).length).toBe(5)
+    // Bob's ambient devices took the remainder and the rest are reported, not silent.
+    expect(apnsCalls.filter((u) => u.includes('bob-dev')).length).toBe(25)
+    expect(json.results.filter((r) => r.skipped === 'send budget exhausted').length).toBe(15)
+    expect(json.budgetExhausted).toBe(true)
   })
 })
 

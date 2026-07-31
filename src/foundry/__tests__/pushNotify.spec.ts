@@ -168,6 +168,65 @@ describe('active-user suppression', () => {
   })
 })
 
+describe('delivery retries', () => {
+  // A push is a one-shot — nothing downstream ever re-sends — so a transient
+  // failure used to lose the notification permanently.
+  const notifyCalls = () => fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/notify')).length
+
+  // Retries wait seconds; drive them rather than sleeping through them.
+  async function runWithRetries(msg: Record<string, unknown>) {
+    vi.useFakeTimers()
+    try {
+      const done = notifyChatMessage(msg)
+      await vi.advanceTimersByTimeAsync(30_000)
+      await done
+    } finally {
+      vi.useRealTimers()
+    }
+  }
+
+  it('retries a 5xx and delivers on the retry', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('boom', { status: 503 }))
+    await runWithRetries(message({ whisper: ['bob'] }))
+    expect(notifyCalls()).toBe(2)
+  })
+
+  it('retries a network failure', async () => {
+    fetchMock.mockRejectedValueOnce(new Error('offline'))
+    await runWithRetries(message({ whisper: ['bob'] }))
+    expect(notifyCalls()).toBe(2)
+  })
+
+  it('retries a 429', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('slow down', { status: 429 }))
+    await runWithRetries(message({ whisper: ['bob'] }))
+    expect(notifyCalls()).toBe(2)
+  })
+
+  it('gives up after three attempts rather than retrying forever', async () => {
+    fetchMock.mockResolvedValue(new Response('boom', { status: 503 }))
+    await runWithRetries(message({ whisper: ['bob'] }))
+    expect(notifyCalls()).toBe(3)
+  })
+
+  it('does not retry a 401 — a wrong world key is not transient', async () => {
+    fetchMock.mockResolvedValue(new Response('{"error":"unauthorized"}', { status: 401 }))
+    await runWithRetries(message({ whisper: ['bob'] }))
+    expect(notifyCalls()).toBe(1)
+  })
+
+  it('does not retry a 400', async () => {
+    fetchMock.mockResolvedValue(new Response('{"error":"bad"}', { status: 400 }))
+    await runWithRetries(message({ whisper: ['bob'] }))
+    expect(notifyCalls()).toBe(1)
+  })
+
+  it('sends once when the first attempt succeeds', async () => {
+    await runWithRetries(message({ whisper: ['bob'] }))
+    expect(notifyCalls()).toBe(1)
+  })
+})
+
 describe('leader election and gating', () => {
   it('sends nothing from a client that is not the primary GM', async () => {
     setWorld(
