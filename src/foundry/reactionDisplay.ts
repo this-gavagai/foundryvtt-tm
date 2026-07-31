@@ -101,9 +101,11 @@ function userName(userId: string): string {
   return game.users.get(userId)?.name ?? userId
 }
 
+// user-select:none because a chip is a toggle, not text — a double-click aimed at
+// it would otherwise select "👍 3" instead of just reacting.
 const CHIP_BASE =
   'display:inline-flex;align-items:center;gap:0.2em;padding:0.05em 0.4em;font-size:0.8em;' +
-  'line-height:1.5;border-radius:0.8em;cursor:pointer;white-space:nowrap;' +
+  'line-height:1.5;border-radius:0.8em;cursor:pointer;white-space:nowrap;user-select:none;' +
   'background:rgba(255,255,255,0.9);border:1px solid rgba(0,0,0,0.35);color:#000;'
 
 function buildChip(group: ReactionGroup, onClick: () => void): HTMLElement {
@@ -259,6 +261,7 @@ li.context-group[data-group-id='tm-reactions'] > ol > li.context-item {
   justify-content: center;
   text-align: center;
   padding-inline: 0.35em;
+  user-select: none;
 }
 li.context-group[data-group-id='tm-reactions'] > ol > li.context-item > span {
   font-size: 1.1em;

@@ -952,7 +952,14 @@ defineExpose({ open, close, isOpen })
            doubles as a picker for emoji already on the message. -->
       <InfoModal ref="reactionsModal" @closing="reactionDetailId = null">
         <template #title>{{ $t('chat.reactionsTitle') }}</template>
-        <ul data-part="chat-reaction-detail" class="mt-2 divide-y divide-gray-100">
+        <!-- select-none for the same reason as the kebab panel: this sheet is
+             opened BY a long-press on a chip, so it can appear under a finger
+             that is still down and inherit the selection that press would
+             otherwise start. The rows are toggles, not prose. -->
+        <!-- divide-current keeps the row rules tied to the inherited text colour
+             for the same reason as the labels below: a fixed light gray was a
+             bright line on moonlit's dark panel. -->
+        <ul data-part="chat-reaction-detail" class="mt-2 divide-y divide-current/15 select-none">
           <li v-for="group in reactionDetail?.reactions ?? []" :key="group.emoji">
             <button
               type="button"
@@ -962,9 +969,15 @@ defineExpose({ open, close, isOpen })
               class="flex w-full items-center gap-3 py-2 text-left disabled:opacity-60"
               @click="toggleDetailReaction(group.emoji)"
             >
+              <!-- No hardcoded text colour on either label: the InfoModal panel
+                   sets `color: var(--color-text)` per theme, so inheriting is
+                   readable on the dark panel (moonlit) and the light one (sunny)
+                   alike. A fixed gray-700/blue-700 here was near-invisible on
+                   moonlit. "You" is distinguished by weight and opacity rather
+                   than hue, which needs no per-theme rule to stay legible. -->
               <span class="text-2xl leading-none" aria-hidden="true">{{ group.emoji }}</span>
-              <span class="min-w-0 flex-1 text-sm text-gray-700">{{ group.names.join(', ') }}</span>
-              <span v-if="group.mine" class="flex-none text-xs text-blue-700">
+              <span class="min-w-0 flex-1 text-sm">{{ group.names.join(', ') }}</span>
+              <span v-if="group.mine" class="flex-none text-xs font-semibold opacity-70">
                 {{ $t('chat.reactionMine') }}
               </span>
             </button>

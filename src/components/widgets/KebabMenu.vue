@@ -116,7 +116,16 @@ defineExpose({ openMenu })
     </div>
     <!-- `static` keeps MenuItems in the DOM whether the menu is open or not,
          which gives Teleport stable children to render; `v-show` drives
-         visibility (mirrors DropdownWidget). -->
+         visibility (mirrors DropdownWidget).
+
+         select-none on the whole panel, unconditionally: a menu is actions, not
+         content, so there is never anything here worth selecting. It also closes
+         a specific touch bug — the menu can open UNDER a finger that is still
+         held down (a long-press on a chat bubble opens it at 450ms, while iOS's
+         own press-and-hold selection fires at ~500ms), so without this the
+         gesture that opened the menu goes on to select the label it landed on.
+         The callout suppression stops the same press raising iOS's copy/share
+         bubble over the menu. -->
     <Teleport to="body">
       <MenuItems
         :id="menuId"
@@ -124,7 +133,7 @@ defineExpose({ openMenu })
         v-show="open"
         :style="itemsStyle"
         data-part="kebab-menu-items"
-        class="max-h-60 w-max max-w-64 min-w-36 overflow-y-auto rounded-md border border-gray-200 bg-white py-1 text-sm shadow-lg ring-1 ring-black/5 focus:outline-hidden"
+        class="max-h-60 w-max max-w-64 min-w-36 overflow-y-auto rounded-md border border-gray-200 bg-white py-1 text-sm shadow-lg ring-1 ring-black/5 select-none [-webkit-touch-callout:none] focus:outline-hidden"
       >
         <div
           v-if="hasQuickPicks()"
