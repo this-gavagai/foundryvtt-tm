@@ -5,8 +5,12 @@
 // exactly once. Recipients depend on the world's push scope: whispers always
 // reach their targets; public messages reach everyone ('all') or only users
 // named in the text ('mentions', default). The author — along with any user they
-// own — and anyone currently connected are excluded, and unattributable/empty
-// system messages are skipped.
+// own — is excluded, and unattributable/empty system messages are skipped.
+//
+// The audience is reported to the relay in two classes (see recipientsFor).
+// Messages addressed to you personally are kept clear of ambient table chat:
+// they get their own rate-limit budget, stack as individual banners rather than
+// collapsing, and are never suppressed for being "connected".
 
 import { readPushConfig, type PushScope } from './pushRegistration'
 import { transcriptionEnabled } from './transcriptionSetting'
@@ -134,28 +138,48 @@ function selfIds(author: string | undefined, users: WorldUser[]): Set<string> {
   return self
 }
 
-// Who to notify, minus the author (and anything of theirs) and anyone currently
-// connected. Whispers always reach their targets. For a public message the world
-// scope decides: 'all' → everyone who can see it; 'mentions' → only users named
-// in the text. In every case, users owned by a recipient are notified alongside
-// them.
-function recipientsFor(msg: ChatMessageLike, scope: PushScope): string[] {
+export interface PushAudience {
+  // Everyone to notify — the relay's `recipients`.
+  recipients: string[]
+  // The subset the message is personally addressed to. The relay gives these
+  // their own rate-limit bucket and lets them stack as separate banners, so
+  // ambient table chat can neither starve nor bury them.
+  direct: string[]
+}
+
+// Who to notify, minus the author and anything of theirs, split by class.
+//
+// Direct = whispered to them, or their username named in the text (whatever the
+// scope). Ambient = the rest of the table, and only when the world opted into
+// 'all'; a whisper has no ambient audience. In both cases users owned by a
+// recipient are notified alongside them.
+function recipientsFor(msg: ChatMessageLike, scope: PushScope): PushAudience {
   const author = authorId(msg)
   const users = worldUsers()
   const self = selfIds(author, users)
   const whisper = whisperIds(msg)
-  let candidates: string[]
-  if (whisper.length) {
-    candidates = whisper
-  } else if (scope === 'all') {
-    candidates = users.map((u) => u.id)
-  } else {
+
+  const directSet = new Set<string>(whisper)
+  if (!whisper.length) {
     const text = plainText(msg.content)
-    candidates = text ? users.filter((u) => isMentioned(text, u)).map((u) => u.id) : []
+    if (text) for (const u of users) if (isMentioned(text, u)) directSet.add(u.id)
   }
-  const recipients = new Set(candidates)
-  for (const id of ownedByRecipients(recipients, users)) recipients.add(id)
-  return [...recipients].filter((id) => id && !self.has(id) && !isActiveUser(id))
+  for (const id of ownedByRecipients(directSet, users)) directSet.add(id)
+
+  const ambientSet = new Set<string>()
+  if (!whisper.length && scope === 'all') {
+    for (const u of users) if (!directSet.has(u.id)) ambientSet.add(u.id)
+  }
+
+  // Being `active` only means Foundry has not yet noticed a dropped socket —
+  // detection lags a backgrounded app by tens of seconds — so suppressing on it
+  // silently loses exactly the notifications sent just after someone puts their
+  // phone away. For a message addressed to you personally that trade is wrong:
+  // send it and accept the occasional redundant banner. Ambient chat is noise,
+  // so there the suppression stays.
+  const direct = [...directSet].filter((id) => id && !self.has(id))
+  const ambient = [...ambientSet].filter((id) => id && !self.has(id) && !isActiveUser(id))
+  return { recipients: [...direct, ...ambient], direct }
 }
 
 function senderName(msg: ChatMessageLike): string {
@@ -283,8 +307,8 @@ export async function notifyChatMessage(message: unknown): Promise<void> {
 
     const msg = message as ChatMessageLike
     if (!isNotifiableMessage(msg)) return
-    const recipients = recipientsFor(msg, config.scope)
-    if (!recipients.length) return
+    const audience = recipientsFor(msg, config.scope)
+    if (!audience.recipients.length) return
 
     // Give a transcribable voice memo a moment to gain its transcript so the
     // push can include the spoken text. Only worth waiting when the body is
@@ -299,7 +323,8 @@ export async function notifyChatMessage(message: unknown): Promise<void> {
       headers: { authorization: `Bearer ${config.worldKey}`, 'content-type': 'application/json' },
       body: JSON.stringify({
         worldId: config.worldId,
-        recipients,
+        recipients: audience.recipients,
+        direct: audience.direct,
         title: notificationTitle(msg),
         body: notificationBody(msg, config.includeBody),
         messageId: messageId(msg),

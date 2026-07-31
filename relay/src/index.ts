@@ -16,7 +16,7 @@
 //   POST /provision  {worldPushId, worldKey}            store a world's key (TOFU)
 //   POST /register   {regToken, deviceToken, platform}  bind a device to a user
 //   POST /unregister {worldId, userId, deviceToken}     unbind a device from a user
-//   POST /notify     {worldId, recipients, title, body} push to a world's users
+//   POST /notify     {worldId, recipients, direct, title, body} push to a world's users
 //   POST /send       {deviceToken, title, body, env}    admin test (RELAY_TEST_SECRET)
 
 interface KVNamespace {
@@ -51,9 +51,18 @@ interface Registration {
 // pair them with a Cloudflare edge Rate Limiting rule (see README). Legit
 // provision/register happen a handful of times per client, so the per-IP caps
 // are generous for normal use while stopping a single source from hammering.
-const NOTIFY_PER_MINUTE = 60
+//
+// Direct messages (whispered to you, or naming you) get their OWN bucket, so a
+// combat round's worth of ambient chat cannot exhaust the world's budget and
+// leave the whisper that arrives at second 55 silently dropped. Ambient traffic
+// keeps the original ceiling; the two are independent.
+const AMBIENT_NOTIFY_PER_MINUTE = 60
+const DIRECT_NOTIFY_PER_MINUTE = 60
 const PROVISION_PER_MINUTE_PER_IP = 20
 const REGISTER_PER_MINUTE_PER_IP = 30
+
+// How long an undelivered notification stays worth delivering (apns-expiration).
+const NOTIFICATION_TTL_SECONDS = 60 * 60
 
 // The app re-registers (refreshing updatedAt) on every launch, so a registration
 // untouched for this long is an abandoned device (uninstalled without an APNs
@@ -131,37 +140,49 @@ interface ApnsResult {
   body: string
 }
 
-async function sendApns(
-  env: Env,
-  deviceToken: string,
-  title: string,
-  body: string,
-  envOverride?: string,
-  data?: Record<string, string>,
-  badge?: number,
-): Promise<ApnsResult> {
-  const apnsEnv = envOverride ?? env.APNS_ENV
+interface SendOptions {
+  deviceToken: string
+  title: string
+  body: string
+  envOverride?: string
+  data?: Record<string, string>
+  badge?: number
+  // Set for ambient chat so a new banner REPLACES the previous one for the same
+  // (world, user) instead of stacking. Left unset for direct messages — see
+  // collapseIdFor.
+  collapseId?: string
+}
+
+async function sendApns(env: Env, opts: SendOptions): Promise<ApnsResult> {
+  const apnsEnv = opts.envOverride ?? env.APNS_ENV
   const host = apnsEnv === 'production' ? 'https://api.push.apple.com' : 'https://api.sandbox.push.apple.com'
   const jwt = await getApnsJwt(env)
   // `aps.badge` sets the icon number (iOS applies it even when the app is closed).
   // Custom keys ride alongside `aps`; the app reads them from the notification's
   // data on tap to deep-link to the message (see src/api/pushNotifications.ts).
-  const aps: Record<string, unknown> = { alert: { title, body }, sound: 'default' }
-  if (typeof badge === 'number') aps.badge = badge
+  const aps: Record<string, unknown> = { alert: { title: opts.title, body: opts.body }, sound: 'default' }
+  if (typeof opts.badge === 'number') aps.badge = opts.badge
   // A portrait URL means the Notification Service Extension has work to do before
   // the banner shows; mutable-content wakes it. Only set when there's an image, so
   // portrait-less pushes display immediately without invoking the extension.
-  if (typeof data?.tmPortraitUrl === 'string') aps['mutable-content'] = 1
-  const res = await fetch(`${host}/3/device/${deviceToken}`, {
+  if (typeof opts.data?.tmPortraitUrl === 'string') aps['mutable-content'] = 1
+  const headers: Record<string, string> = {
+    authorization: `bearer ${jwt}`,
+    'apns-topic': env.APNS_BUNDLE_ID,
+    'apns-push-type': 'alert',
+    'apns-priority': '10',
+    // Chat is perishable. Without this header APNs stores an undelivered
+    // notification and keeps retrying, so a phone that was off overnight lights
+    // up with a burst of stale banners the moment it reconnects. Past the
+    // deadline APNs drops it instead.
+    'apns-expiration': String(Math.floor(Date.now() / 1000) + NOTIFICATION_TTL_SECONDS),
+    'content-type': 'application/json',
+  }
+  if (opts.collapseId) headers['apns-collapse-id'] = opts.collapseId
+  const res = await fetch(`${host}/3/device/${opts.deviceToken}`, {
     method: 'POST',
-    headers: {
-      authorization: `bearer ${jwt}`,
-      'apns-topic': env.APNS_BUNDLE_ID,
-      'apns-push-type': 'alert',
-      'apns-priority': '10',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({ aps, ...(data ?? {}) }),
+    headers,
+    body: JSON.stringify({ aps, ...(opts.data ?? {}) }),
   })
   return { status: res.status, apnsId: res.headers.get('apns-id'), body: await res.text() }
 }
@@ -246,6 +267,18 @@ async function bumpBadge(env: Env, deviceToken: string): Promise<number> {
   const next = (parseInt((await env.TOKENS.get(k)) || '0', 10) || 0) + 1
   await env.TOKENS.put(k, String(next), { expirationTtl: STALE_REGISTRATION_MS / 1000 })
   return next
+}
+
+// Ambient chat collapses into a single rolling banner per (world, user): ten
+// table messages replace each other instead of stacking ten notifications, and
+// the badge already carries the count. Direct messages return undefined — each
+// whisper or mention is individually addressed and rare, so they stack, and a
+// later ambient message can never bury one.
+//
+// APNs caps apns-collapse-id at 64 bytes. Both ids are opaque and module-minted,
+// so clamp rather than trust their length.
+function collapseIdFor(worldPushId: string, userId: string, direct: boolean): string | undefined {
+  return direct ? undefined : `${worldPushId}:${userId}`.slice(0, 64)
 }
 
 async function readRegistrations(env: Env, worldPushId: string, userId: string): Promise<Registration[]> {
@@ -427,6 +460,11 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
   const p = (await request.json().catch(() => null)) as {
     worldId?: string
     recipients?: string[]
+    // Subset of `recipients` the message is personally addressed to — whispered
+    // to them or naming them. Optional: a module older than this relay sends only
+    // `recipients`, which then reads as all-ambient, i.e. exactly the previous
+    // behaviour.
+    direct?: string[]
     title?: string
     body?: string
     messageId?: string
@@ -446,11 +484,38 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
   if (!worldKey || request.headers.get('authorization') !== `Bearer ${worldKey}`) {
     return json({ error: 'unauthorized' }, 401)
   }
-  if (await overLimit(env, `rl:${p.worldId}`, NOTIFY_PER_MINUTE)) return json({ error: 'rate limited' }, 429)
+
+  // Split the audience by class and charge each its own bucket, so ambient chat
+  // being over limit never costs a whisper its notification.
+  const directSet = new Set(Array.isArray(p.direct) ? p.direct : [])
+  const direct = p.recipients.filter((id) => directSet.has(id))
+  const ambient = p.recipients.filter((id) => !directSet.has(id))
+  // A request that delivers to nobody is charged as ambient: it still costs the
+  // relay work, so it must not be a free hammer.
+  const chargeAmbient = ambient.length > 0 || direct.length === 0
+  const ambientLimited = chargeAmbient && (await overLimit(env, `rl:${p.worldId}`, AMBIENT_NOTIFY_PER_MINUTE))
+  const directLimited = direct.length > 0 && (await overLimit(env, `rl:direct:${p.worldId}`, DIRECT_NOTIFY_PER_MINUTE))
 
   const results: Array<Record<string, unknown>> = []
+  const targets: string[] = []
+  for (const [list, limited, cls] of [
+    [ambient, ambientLimited, 'ambient'],
+    [direct, directLimited, 'direct'],
+  ] as Array<[string[], boolean, string]>) {
+    if (limited) {
+      // Shedding is reported rather than silent, so a world hitting its ceiling is
+      // visible in the response instead of looking like a successful send.
+      for (const userId of list) results.push({ userId, class: cls, skipped: 'rate limited' })
+    } else {
+      targets.push(...list)
+    }
+  }
+  // Nothing survived the limits — including an over-limit request that addressed
+  // nobody — so this really is a rate-limited request.
+  if (!targets.length && (ambientLimited || directLimited)) return json({ error: 'rate limited' }, 429)
+
   const now = Date.now()
-  for (const userId of p.recipients) {
+  for (const userId of targets) {
     const stored = await readRegistrations(env, p.worldId, userId)
     // Drop abandoned registrations before sending; the difference is written back
     // via the `mutated` flag below.
@@ -470,19 +535,34 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
       // Per device, so a device in several worlds sees one running total rather
       // than each world clobbering the other's number.
       const badge = await bumpBadge(env, reg.deviceToken)
+      const send = {
+        deviceToken: reg.deviceToken,
+        title: p.title,
+        body: p.body,
+        data: sendData,
+        badge,
+        collapseId: collapseIdFor(p.worldId, userId, directSet.has(userId)),
+      }
       // Try stored env; on failure retry the other and remember what delivers.
-      let result = await sendApns(env, reg.deviceToken, p.title, p.body, reg.env, sendData, badge)
+      let result = await sendApns(env, { ...send, envOverride: reg.env })
       let usedEnv = reg.env
       if (result.status !== 200) {
         const other: Registration['env'] = reg.env === 'production' ? 'sandbox' : 'production'
-        const alt = await sendApns(env, reg.deviceToken, p.title, p.body, other, sendData, badge)
+        const alt = await sendApns(env, { ...send, envOverride: other })
         if (alt.status === 200 || (isDeadToken(alt) && !isDeadToken(result))) {
           result = alt
           usedEnv = other
         }
       }
       const dead = isDeadToken(result)
-      results.push({ userId, status: result.status, ok: result.status === 200, env: usedEnv, dead })
+      results.push({
+        userId,
+        class: directSet.has(userId) ? 'direct' : 'ambient',
+        status: result.status,
+        ok: result.status === 200,
+        env: usedEnv,
+        dead,
+      })
       if (dead) {
         mutated = true
         continue
@@ -504,7 +584,12 @@ async function handleSend(request: Request, env: Env): Promise<Response> {
   }
   const p = (await request.json().catch(() => null)) as { deviceToken?: string; title?: string; body?: string; env?: string } | null
   if (!p?.deviceToken || !p.title || !p.body) return json({ error: 'deviceToken, title and body are required' }, 400)
-  const result = await sendApns(env, p.deviceToken, p.title, p.body, p.env)
+  const result = await sendApns(env, {
+    deviceToken: p.deviceToken,
+    title: p.title,
+    body: p.body,
+    envOverride: p.env,
+  })
   return json({ ok: result.status === 200, apns: result }, result.status === 200 ? 200 : 502)
 }
 

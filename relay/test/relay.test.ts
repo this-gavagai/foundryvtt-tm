@@ -43,6 +43,7 @@ let env: TestEnv
 let apnsResponse: (url: string) => { status: number; body: string } = () => ({ status: 200, body: '' })
 let apnsCalls: string[] = []
 let apnsBodies: Array<{ aps?: { badge?: number }; [k: string]: unknown }> = []
+let apnsHeaders: Array<Record<string, string>> = []
 
 beforeEach(() => {
   env = {
@@ -57,11 +58,13 @@ beforeEach(() => {
   apnsResponse = () => ({ status: 200, body: '' })
   apnsCalls = []
   apnsBodies = []
+  apnsHeaders = []
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
       apnsCalls.push(url)
+      apnsHeaders.push((init?.headers ?? {}) as Record<string, string>)
       if (typeof init?.body === 'string') apnsBodies.push(JSON.parse(init.body))
       const { status, body } = apnsResponse(url)
       return new Response(body, { status, headers: { 'apns-id': 'test-apns-id' } })
@@ -408,6 +411,143 @@ describe('/notify delivery behaviour', () => {
   })
 })
 
+describe('coalescing + freshness headers', () => {
+  it('collapses ambient chat per (world, user) but lets direct messages stack', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    await registerDevice(worldPushId, worldKey, 'bob', 'devB')
+
+    await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice', 'bob'], direct: ['bob'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+
+    const collapseFor = (device: string) =>
+      apnsHeaders[apnsCalls.findIndex((u) => u.includes(device))]['apns-collapse-id']
+    // Ambient: a later table message replaces this banner rather than stacking.
+    expect(collapseFor('devA')).toBe(`${worldPushId}:alice`)
+    // Direct: no collapse id, so a whisper is never buried by ambient chat.
+    expect(collapseFor('devB')).toBeUndefined()
+  })
+
+  it('gives each user their own collapse id', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    await registerDevice(worldPushId, worldKey, 'bob', 'devB')
+    await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice', 'bob'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    const ids = apnsHeaders.map((h) => h['apns-collapse-id'])
+    expect(new Set(ids).size).toBe(2)
+    expect(ids.every((id) => id!.length <= 64)).toBe(true)
+  })
+
+  it('clamps an over-long collapse id to the APNs 64-byte limit', async () => {
+    const worldPushId = 'w'.repeat(80)
+    const worldKey = 'k'.repeat(32)
+    await post('/provision', { worldPushId, worldKey }, { 'CF-Connecting-IP': '3.3.3.3' })
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(apnsHeaders[0]['apns-collapse-id']).toHaveLength(64)
+  })
+
+  it('sets apns-expiration about an hour out so stale chat is dropped, not stored', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    const expiration = Number(apnsHeaders[0]['apns-expiration'])
+    const secondsOut = expiration - Math.floor(Date.now() / 1000)
+    expect(secondsOut).toBeGreaterThan(3500)
+    expect(secondsOut).toBeLessThanOrEqual(3600)
+  })
+})
+
+describe('rate-limit classes', () => {
+  // Exhaust one class's bucket for a world.
+  async function exhaust(worldPushId: string, worldKey: string, direct: boolean) {
+    for (let i = 0; i < 60; i++) {
+      await post(
+        '/notify',
+        {
+          worldId: worldPushId,
+          recipients: ['filler'],
+          ...(direct ? { direct: ['filler'] } : {}),
+          title: 't',
+          body: 'b',
+        },
+        { authorization: `Bearer ${worldKey}` },
+      )
+    }
+  }
+
+  it('still delivers a direct message when ambient chat has burned its budget', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    await registerDevice(worldPushId, worldKey, 'bob', 'devB')
+    await exhaust(worldPushId, worldKey, false)
+
+    apnsCalls = []
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice', 'bob'], direct: ['bob'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(200)
+    const json = (await res.json()) as { results: Array<{ userId: string; skipped?: string; ok?: boolean }> }
+    // Bob was whispered to: delivered. Alice was ambient: shed, and reported as such.
+    expect(apnsCalls.some((u) => u.includes('devB'))).toBe(true)
+    expect(apnsCalls.some((u) => u.includes('devA'))).toBe(false)
+    expect(json.results.find((r) => r.userId === 'bob')?.ok).toBe(true)
+    expect(json.results.find((r) => r.userId === 'alice')?.skipped).toBe('rate limited')
+  })
+
+  it('keeps the direct bucket independent of the ambient one', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    await exhaust(worldPushId, worldKey, true)
+
+    // Direct is spent; ambient is untouched and still delivers.
+    apnsCalls = []
+    await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(apnsCalls.some((u) => u.includes('devA'))).toBe(true)
+
+    // A direct send in the same minute is over limit, and nothing survives → 429.
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], direct: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(429)
+  })
+
+  it('treats a payload without `direct` as all-ambient (older module, unchanged behaviour)', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    await exhaust(worldPushId, worldKey, false)
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(429)
+  })
+})
+
 describe('badge count', () => {
   async function notify(worldPushId: string, worldKey: string) {
     return post(
@@ -474,7 +614,7 @@ describe('rate limiting', () => {
     expect(codes.filter((c) => c === 429).length).toBe(2)
   })
 
-  it('caps /notify per world (60/min)', async () => {
+  it('caps ambient /notify per world (60/min)', async () => {
     const { worldPushId, worldKey } = await provisionWorld()
     let limited = 0
     for (let i = 0; i < 62; i++) {

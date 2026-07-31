@@ -121,10 +121,19 @@ order to deliver the notification.
 
 ## Abuse controls
 
-The Worker applies coarse per-minute limits in KV: `/notify` per world (60), and
-per-IP caps on `/provision` (20), `/register` (30) and `/unregister` (30). KV is
-eventually consistent, so these are approximate ceilings — good against a single
-hammering source, but a distributed attacker can exceed them.
+The Worker applies coarse per-minute limits in KV: `/notify` per world — **two
+independent buckets**, ambient (60) and direct (60) — and per-IP caps on
+`/provision` (20), `/register` (30) and `/unregister` (30). KV is eventually
+consistent, so these are approximate ceilings — good against a single hammering
+source, but a distributed attacker can exceed them.
+
+The split matters: a message is "direct" when it was whispered to you or names
+your username (the module marks those recipients in `/notify`'s `direct` field).
+Sharing one bucket meant a combat round's worth of ambient chat on
+`pushScope: 'all'` could exhaust the world's budget and silently drop the whisper
+that arrived at second 55. When only one class is over limit the other still
+delivers, and shed recipients are reported in the response rather than passing as
+a successful send.
 
 For a hard, edge-enforced backstop, add a **Cloudflare Rate Limiting rule** (free
 tier) in the dashboard: Security → WAF → Rate limiting rules → e.g. match
