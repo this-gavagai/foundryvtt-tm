@@ -114,21 +114,29 @@ order to deliver the notification.
   the relay at all — notifications are sender-only.
 - The relay **stores** only device tokens (in KV, keyed by world+user) and short
   rate-limit counters. It does **not** store notification content. Tokens are
-  pruned when APNs reports them dead, or after 30 days without re-registration.
+  pruned when APNs reports them dead, after 30 days without re-registration, or
+  immediately when the app calls `/unregister` (which it does when you remove a
+  server, or register as a different Foundry user on one).
 - To stop all of it, turn off "Enable push notifications" in the world settings.
 
 ## Abuse controls
 
 The Worker applies coarse per-minute limits in KV: `/notify` per world (60), and
-per-IP caps on `/provision` (20) and `/register` (30). KV is eventually
-consistent, so these are approximate ceilings — good against a single hammering
-source, but a distributed attacker can exceed them.
+per-IP caps on `/provision` (20), `/register` (30) and `/unregister` (30). KV is
+eventually consistent, so these are approximate ceilings — good against a single
+hammering source, but a distributed attacker can exceed them.
 
 For a hard, edge-enforced backstop, add a **Cloudflare Rate Limiting rule** (free
 tier) in the dashboard: Security → WAF → Rate limiting rules → e.g. match
-`http.request.uri.path in {"/provision" "/register" "/notify"}`, 100 requests /
-1 min per client IP, action Block. That enforces at the edge before the Worker
-runs, closing the eventual-consistency gap.
+`http.request.uri.path in {"/provision" "/register" "/unregister" "/notify"}`,
+100 requests / 1 min per client IP, action Block. That enforces at the edge
+before the Worker runs, closing the eventual-consistency gap.
+
+`/unregister` takes no bearer: it needs either a module-minted `regToken` or the
+`(worldId, userId, deviceToken)` triple — a world's random id plus that device's
+own APNs token, both held only by the participating device. It is strictly
+subtractive and only ever silences the device whose token is named, so the worst
+a leaked triple buys an attacker is stopping pushes to that one device.
 
 ## Local dev (optional)
 

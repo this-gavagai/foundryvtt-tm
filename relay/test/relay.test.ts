@@ -165,6 +165,84 @@ describe('/register', () => {
   })
 })
 
+describe('/unregister', () => {
+  it('stops delivery to the named device and is idempotent', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA')
+
+    const first = await post('/unregister', { worldId: worldPushId, userId: 'alice', deviceToken: 'devtokenA' })
+    expect(first.status).toBe(200)
+    expect(await first.json()).toMatchObject({ removed: 1, registrations: 0 })
+
+    apnsCalls = []
+    await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(apnsCalls.length).toBe(0)
+
+    // Unregistering again is a no-op success, not an error.
+    const second = await post('/unregister', { worldId: worldPushId, userId: 'alice', deviceToken: 'devtokenA' })
+    expect(second.status).toBe(200)
+    expect(await second.json()).toMatchObject({ removed: 0 })
+  })
+
+  it('accepts a regToken instead of an explicit world/user', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA')
+    const res = await post('/unregister', {
+      regToken: mintToken(worldPushId, 'alice', worldKey),
+      deviceToken: 'devtokenA',
+    })
+    expect(await res.json()).toMatchObject({ removed: 1 })
+  })
+
+  it('rejects a regToken signed with the wrong key', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA')
+    const res = await post('/unregister', {
+      regToken: mintToken(worldPushId, 'alice', 'wrong-key'),
+      deviceToken: 'devtokenA',
+    })
+    expect(res.status).toBe(401)
+    expect(env.TOKENS.store.get(`tok:${worldPushId}:alice`)).toContain('devtokenA')
+  })
+
+  it('leaves the same device registered in other worlds and other devices in this one', async () => {
+    const a = await provisionWorld('1.1.1.1')
+    const b = await provisionWorld('2.2.2.2')
+    await registerDevice(a.worldPushId, a.worldKey, 'alice', 'phone')
+    await registerDevice(b.worldPushId, b.worldKey, 'alice', 'phone')
+    await registerDevice(a.worldPushId, a.worldKey, 'alice', 'tablet')
+
+    // Alice removes world A from her phone only.
+    await post('/unregister', { worldId: a.worldPushId, userId: 'alice', deviceToken: 'phone' })
+
+    apnsCalls = []
+    await post(
+      '/notify',
+      { worldId: a.worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${a.worldKey}` },
+    )
+    expect(apnsCalls.some((u) => u.includes('phone'))).toBe(false)
+    expect(apnsCalls.some((u) => u.includes('tablet'))).toBe(true)
+
+    apnsCalls = []
+    await post(
+      '/notify',
+      { worldId: b.worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${b.worldKey}` },
+    )
+    expect(apnsCalls.some((u) => u.includes('phone'))).toBe(true)
+  })
+
+  it('requires a deviceToken, and a world/user without a regToken', async () => {
+    expect((await post('/unregister', { worldId: 'w', userId: 'alice' })).status).toBe(400)
+    expect((await post('/unregister', { deviceToken: 'd' })).status).toBe(400)
+  })
+})
+
 describe('/notify authorisation + cross-world isolation', () => {
   it('rejects notify with the wrong world key', async () => {
     const { worldPushId } = await provisionWorld()
@@ -352,6 +430,35 @@ describe('badge count', () => {
     apnsBodies = []
     await notify(worldPushId, worldKey)
     expect(apnsBodies[0].aps?.badge).toBe(1)
+  })
+
+  it('counts per device across worlds, so two worlds accumulate one running total', async () => {
+    const a = await provisionWorld('1.1.1.1')
+    const b = await provisionWorld('2.2.2.2')
+    await registerDevice(a.worldPushId, a.worldKey, 'alice', 'phone')
+    await registerDevice(b.worldPushId, b.worldKey, 'alice', 'phone')
+
+    apnsBodies = []
+    await notify(a.worldPushId, a.worldKey)
+    await notify(b.worldPushId, b.worldKey)
+    await notify(a.worldPushId, a.worldKey)
+    // Not [1, 1, 2] — the badge is the number on one icon, not per world.
+    expect(apnsBodies.map((x) => x.aps?.badge)).toEqual([1, 2, 3])
+  })
+
+  it('counts each of a user’s devices separately', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'phone')
+    await notify(worldPushId, worldKey)
+
+    // A second device joins late: its icon starts at 1, the phone keeps counting.
+    await registerDevice(worldPushId, worldKey, 'alice', 'tablet')
+    apnsBodies = []
+    apnsCalls = []
+    await notify(worldPushId, worldKey)
+    const byDevice = new Map(apnsCalls.map((u, i) => [u.includes('tablet') ? 'tablet' : 'phone', apnsBodies[i].aps?.badge]))
+    expect(byDevice.get('phone')).toBe(2)
+    expect(byDevice.get('tablet')).toBe(1)
   })
 })
 

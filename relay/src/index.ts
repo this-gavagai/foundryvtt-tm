@@ -15,6 +15,7 @@
 // Endpoints:
 //   POST /provision  {worldPushId, worldKey}            store a world's key (TOFU)
 //   POST /register   {regToken, deviceToken, platform}  bind a device to a user
+//   POST /unregister {worldId, userId, deviceToken}     unbind a device from a user
 //   POST /notify     {worldId, recipients, title, body} push to a world's users
 //   POST /send       {deviceToken, title, body, env}    admin test (RELAY_TEST_SECRET)
 
@@ -228,15 +229,20 @@ function tokenKey(worldPushId: string, userId: string): string {
   return `tok:${worldPushId}:${userId}`
 }
 
-function badgeKey(worldPushId: string, userId: string): string {
-  return `badge:${worldPushId}:${userId}`
+// Scoped to the DEVICE, not to (world, user): the badge is a single number on one
+// app icon, and a device may be registered in several worlds at once. A per-world
+// counter would make each world's push overwrite the other's number instead of
+// counting up, and would misreport the total the user is about to see.
+function badgeKey(deviceToken: string): string {
+  return `badge:dev:${deviceToken}`
 }
 
-// Per-user running notification count for the app-icon badge. Incremented on each
-// notify (iOS shows the absolute number), reset when the user re-registers —
-// i.e. comes back online — which pairs with the app clearing the icon on open.
-async function bumpBadge(env: Env, worldPushId: string, userId: string): Promise<number> {
-  const k = badgeKey(worldPushId, userId)
+// Per-device running notification count for the app-icon badge. Incremented on
+// each notify (iOS shows the absolute number), reset when the device
+// re-registers — i.e. comes back online — which pairs with the app clearing the
+// icon on open.
+async function bumpBadge(env: Env, deviceToken: string): Promise<number> {
+  const k = badgeKey(deviceToken)
   const next = (parseInt((await env.TOKENS.get(k)) || '0', 10) || 0) + 1
   await env.TOKENS.put(k, String(next), { expirationTtl: STALE_REGISTRATION_MS / 1000 })
   return next
@@ -343,8 +349,62 @@ async function handleRegister(request: Request, env: Env): Promise<Response> {
   regs.push({ deviceToken: p.deviceToken, platform: p.platform, env: tokenEnv, updatedAt: Date.now(), serverBaseUrl })
   await env.TOKENS.put(tokenKey(worldPushId, userId), JSON.stringify(regs))
   // Coming back online resets the badge count; the app clears the icon locally.
-  await env.TOKENS.delete(badgeKey(worldPushId, userId))
+  await env.TOKENS.delete(badgeKey(p.deviceToken))
+  // worldId/userId are echoed so the app can persist what it registered as and
+  // undo it later via /unregister without needing a live Foundry connection.
   return json({ ok: true, worldId: worldPushId, userId, registrations: regs.length })
+}
+
+// Drop one device from one world's user, so a server the user removed from the
+// app stops pushing to them (otherwise it keeps sending until the 30-day stale
+// prune). Deliberately narrow: it only ever removes registrations, and only the
+// exact deviceToken named.
+//
+// Auth: a regToken when the caller still has a live world session, otherwise the
+// (worldId, userId, deviceToken) triple itself — a random unguessable world id
+// plus that device's own APNs token, both secrets held by the participating
+// device. The worst a leaked triple grants is silencing the device that owns the
+// token, which is what the endpoint is for. Per-IP throttled like /register.
+async function handleUnregister(request: Request, env: Env): Promise<Response> {
+  if (await overLimit(env, `iprl:unreg:${clientIp(request)}`, REGISTER_PER_MINUTE_PER_IP)) {
+    return json({ error: 'rate limited' }, 429)
+  }
+  const p = (await request.json().catch(() => null)) as {
+    regToken?: string
+    worldId?: string
+    userId?: string
+    deviceToken?: string
+  } | null
+  if (!p?.deviceToken) return json({ error: 'deviceToken is required' }, 400)
+
+  let worldPushId: string
+  let userId: string
+  if (p.regToken) {
+    const claimed = parseRegTokenPayload(p.regToken)
+    if (!claimed) return json({ error: 'invalid regToken' }, 401)
+    const key = await worldKeyOf(env, claimed.worldId)
+    if (!key) return json({ error: 'world not provisioned' }, 401)
+    const verified = await verifyRegToken(p.regToken, key)
+    if (!verified) return json({ error: 'invalid regToken' }, 401)
+    worldPushId = verified.worldId
+    userId = verified.userId
+  } else if (p.worldId && p.userId) {
+    worldPushId = p.worldId
+    userId = p.userId
+  } else {
+    return json({ error: 'worldId and userId are required without a regToken' }, 400)
+  }
+
+  const stored = await readRegistrations(env, worldPushId, userId)
+  const remaining = stored.filter((r) => r.deviceToken !== p.deviceToken)
+  if (remaining.length !== stored.length) {
+    await env.TOKENS.put(tokenKey(worldPushId, userId), JSON.stringify(remaining))
+    // The device may still be registered elsewhere, but it is going quiet for
+    // this world — clear its badge so a stale count can't linger on the icon.
+    await env.TOKENS.delete(badgeKey(p.deviceToken))
+  }
+  // Idempotent: unregistering something already gone is a success with removed:0.
+  return json({ ok: true, removed: stored.length - remaining.length, registrations: remaining.length })
 }
 
 // Resolve the portrait reference the module sent into a URL a specific device can
@@ -397,8 +457,6 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
     const regs = stored.filter((r) => now - (r.updatedAt ?? 0) < STALE_REGISTRATION_MS)
     const survivors: Registration[] = []
     let mutated = regs.length !== stored.length
-    // One badge increment per notified user (shared across their devices).
-    const badge = regs.length ? await bumpBadge(env, p.worldId, userId) : undefined
     for (const reg of regs) {
       if (reg.platform !== 'ios') {
         results.push({ userId, platform: reg.platform, skipped: 'non-ios not wired yet' })
@@ -409,6 +467,9 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
       const portrait = portraitFor(p.portraitUrl, reg.serverBaseUrl)
       const customData = portrait ? { ...baseData, tmPortraitUrl: portrait } : baseData
       const sendData = Object.keys(customData).length ? customData : undefined
+      // Per device, so a device in several worlds sees one running total rather
+      // than each world clobbering the other's number.
+      const badge = await bumpBadge(env, reg.deviceToken)
       // Try stored env; on failure retry the other and remember what delivers.
       let result = await sendApns(env, reg.deviceToken, p.title, p.body, reg.env, sendData, badge)
       let usedEnv = reg.env
@@ -460,6 +521,8 @@ export default {
           return await handleProvision(request, env)
         case '/register':
           return await handleRegister(request, env)
+        case '/unregister':
+          return await handleUnregister(request, env)
         case '/notify':
           return await handleNotify(request, env)
         case '/send':

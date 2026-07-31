@@ -1,8 +1,10 @@
 import { Capacitor } from '@capacitor/core'
 import { PushNotifications } from '@capacitor/push-notifications'
 import { registerPush } from './actionRpc'
+import { recordPushRegistration } from './pushRegistry'
 import { useChatStore } from '@/stores/chat'
 import { useServerAddressStore } from '@/stores/serverAddress'
+import { useUserStore } from '@/stores/user'
 import { logger } from '@/utils/utilities'
 
 // Push registration (milestone 2). On native launch the app obtains its device
@@ -13,8 +15,22 @@ import { logger } from '@/utils/utilities'
 
 let deviceToken: string | null = null
 let sessionAuthenticated = false
-let lastRegisteredToken: string | null = null
+let lastRegisteredIdentity: string | null = null
 let registering = false
+
+// What a registration is actually *for*: this device, at this server, as this
+// user. Registrations are per (world, user) relay-side, so the device token
+// alone is not enough to tell "already registered" from "needs registering" —
+// keying the skip on the token alone meant switching servers (or re-logging as
+// someone else) silently never registered, since the token never changes.
+// Returns null while any part is unknown.
+function currentIdentity(): string | null {
+  if (!deviceToken || !sessionAuthenticated) return null
+  const origin = useServerAddressStore().serverUrl?.origin
+  const userId = useUserStore().getUserId()
+  if (!origin || !userId) return null
+  return `${origin}|${userId}|${deviceToken}`
+}
 
 // Called once from the native bootstrap (main.ts). Wires the token listeners,
 // requests permission, and kicks off APNs/FCM registration.
@@ -61,23 +77,26 @@ export function syncPushRegistration(): void {
 }
 
 // Registers only when we have both a device token and an authenticated session,
-// and skips if the current token is already registered. Whichever of the two
-// preconditions arrives second triggers the actual registration.
+// and skips if this exact (server, user, token) is already registered. Whichever
+// of the preconditions arrives second triggers the actual registration; a later
+// server switch or re-login changes the identity and so registers again.
 async function tryRegister(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return
   if (!deviceToken || !sessionAuthenticated || registering) return
-  if (lastRegisteredToken === deviceToken) return
+  const identity = currentIdentity()
+  if (!identity || identity === lastRegisteredIdentity) return
 
   registering = true
   const token = deviceToken
+  // The origin this device reaches the world at. The relay stitches portrait
+  // paths onto it so notification images resolve to an address the phone can
+  // actually fetch (the GM host's own localhost/LAN origin cannot). Read once,
+  // up front, so everything below is consistent with the identity we checked.
+  const serverBaseUrl = useServerAddressStore().serverUrl?.origin
   try {
     // The module derives (worldId, userId) itself and signs them; the userId is
     // taken from the authenticated socket, so nothing identity-related is sent here.
     const { regToken, relayUrl } = await registerPush()
-    // The origin this device reaches the world at. The relay stitches portrait
-    // paths onto it so notification images resolve to an address the phone can
-    // actually fetch (the GM host's own localhost/LAN origin cannot).
-    const serverBaseUrl = useServerAddressStore().serverUrl?.origin
     const res = await fetch(`${relayUrl}/register`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -87,7 +106,19 @@ async function tryRegister(): Promise<void> {
       logger.warn('[push] relay /register failed:', res.status, await res.text())
       return
     }
-    lastRegisteredToken = token
+    lastRegisteredIdentity = identity
+    // The relay echoes the (world, user) it filed us under — neither of which we
+    // can derive locally. Persist it against this origin so forgetting the
+    // server can undo the registration later, offline. See pushRegistry.
+    const filed = (await res.json().catch(() => null)) as { worldId?: string; userId?: string } | null
+    if (serverBaseUrl && filed?.worldId && filed.userId) {
+      recordPushRegistration(serverBaseUrl, {
+        relayUrl,
+        worldId: filed.worldId,
+        userId: filed.userId,
+        deviceToken: token
+      })
+    }
     logger.info('[push] registered device with relay')
   } catch (err) {
     // No GM online, push not configured on the GM client, or offline — leave it
@@ -95,5 +126,9 @@ async function tryRegister(): Promise<void> {
     logger.warn('[push] registration skipped:', err instanceof Error ? err.message : String(err))
   } finally {
     registering = false
+    // A switch that landed mid-flight was dropped by the `registering` guard;
+    // pick it up now. Bounded: it only re-runs when the identity genuinely moved
+    // (user action), not on a failed registration for the same identity.
+    if (currentIdentity() !== identity) void tryRegister()
   }
 }
