@@ -285,10 +285,22 @@ function handleContentClick(event: MouseEvent) {
         <div v-if="view.audioUrl" data-part="chat-voice-memo" class="mt-2">
           <audio controls preload="metadata" :src="view.audioUrl" class="w-full" />
           <!-- AI transcript, when one was produced GM-side. Plain text (never HTML)
-             so a transcript can't inject markup. -->
+             so a transcript can't inject markup.
+
+             A data-tone is required for themes to recolor this at all — without
+             one it kept the light-theme gray-500 fallback on the dark themes,
+             where it was too faint to read against the reskinned bubble.
+             Deliberately "primary" rather than the "muted" the byline and
+             timestamp use: muted resolves to L 62% against bubbles at L 26%/33%
+             (~3.6:1 and ~2.7:1, both under AA) — barely better than the gray-500
+             it replaced. It is also the wrong semantics. A transcript IS the
+             content of a voice memo, not a decoration around it, so it takes the
+             full text color and lets italic + the smaller size carry the
+             hierarchy. -->
           <p
             v-if="view.transcript"
             data-part="chat-voice-memo-transcript"
+            data-tone="primary"
             class="mt-1 text-sm text-gray-500 italic"
           >
             {{ view.transcript }}
