@@ -64,7 +64,9 @@
     "retry": "Reintentar",
     "activeMarker": "(activo)",
     "connectingTo": "Iniciando sesión en",
-    "changeServer": "Cambiar servidor"
+    "changeServer": "Cambiar servidor",
+    "signOut": "Cerrar sesión",
+    "signOutHint": "Olvida la contraseña guardada de este servidor para que puedas iniciar sesión como otro usuario."
   },
   "serverUrl": {
     "title": "Servidor de Foundry",

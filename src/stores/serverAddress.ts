@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { Capacitor } from '@capacitor/core'
 import { browserServerTransport } from '@/api/browserServerTransport'
 import { capacitorServerTransport } from '@/api/capacitorServerTransport'
+import { forgetCredential } from '@/api/credentialStore'
 import { forgetLoginUser } from '@/stores/user'
 import { useWorldStore } from '@/stores/world'
 import { useCharacterSelectStore } from '@/stores/characterSelect'
@@ -187,9 +188,9 @@ export const useServerAddressStore = defineStore('serverAddress', () => {
     return normalized
   }
 
-  // Forget a stored server, including its stored session/cookie and all of its
-  // cached data, so re-adding it starts clean (unauthenticated, no stale
-  // characters or chat). If it was the active one, fall back to the gate.
+  // Forget a stored server, including its saved password, session/cookie and
+  // all of its cached data, so re-adding it starts clean (unauthenticated, no
+  // stale characters or chat). If it was the active one, fall back to the gate.
   function removeServer(origin: string) {
     servers.value = servers.value.filter((s) => s !== origin)
     persistServers()
@@ -200,6 +201,7 @@ export const useServerAddressStore = defineStore('serverAddress', () => {
       /* malformed origin — nothing to delete */
     }
     forgetLoginUser(origin)
+    void forgetCredential(origin)
     // Drop this server's per-origin caches so they can't survive a delete +
     // re-add. Best-effort and fire-and-forget — the IDB helpers never reject.
     void clearActorSnapshotsForServer(origin)

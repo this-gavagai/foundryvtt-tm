@@ -3,12 +3,15 @@ import { CapacitorCookies, CapacitorHttp, type HttpResponse } from '@capacitor/c
 import { logger } from '@/utils/utilities'
 
 import {
-  classifyJoinResponse,
+  classifyHomeRedirect,
+  classifyJoinPost,
+  homeUrl,
   JOIN_DATA_TIMEOUT_MS,
   PROBE_TIMEOUT_MS,
   readBrowserSessionCookie,
   SESSION_CHECK_TIMEOUT_MS,
   VERIFY_CREDENTIALS_TIMEOUT_MS,
+  type JoinAttempt,
   type JoinData,
   type JoinUser,
   type ServerTransport
@@ -26,17 +29,6 @@ function sessionStorageKey(serverUrl: URL): string {
 
 function responseDataAsText(response: HttpResponse): string {
   return typeof response.data === 'string' ? response.data : JSON.stringify(response.data ?? '')
-}
-
-function responseDataAsObject(response: HttpResponse): Record<string, unknown> {
-  if (response.data && typeof response.data === 'object') return response.data
-  if (typeof response.data !== 'string') return {}
-  try {
-    const parsed = JSON.parse(response.data)
-    return parsed && typeof parsed === 'object' ? parsed : {}
-  } catch {
-    return {}
-  }
 }
 
 function readHeader(response: HttpResponse, headerName: string): string | undefined {
@@ -67,6 +59,13 @@ function parseJoinPage(html: string): { users: JoinUser[]; activeUsers: string[]
   }
 }
 
+// Fetches the login form's user list over plain HTTP.
+//
+// NOTE: this signs the session out of the world — Foundry's GET /join handler
+// calls sessions.logoutWorld before rendering. That's harmless here (the only
+// caller is the login page, where the user is about to pick a user anyway) but
+// it means this must never be used to *inspect* a session. Use
+// sessionIsAuthenticated for that.
 async function getNativeJoinData(serverUrl: URL): Promise<JoinData> {
   const response = await CapacitorHttp.get({
     url: new URL('/join', serverUrl).href,
@@ -105,8 +104,7 @@ export const capacitorServerTransport: ServerTransport = {
   // predate per-origin storage.
   async readSession(serverUrl: URL): Promise<string | undefined> {
     const stored =
-      localStorage.getItem(sessionStorageKey(serverUrl)) ??
-      localStorage.getItem(LEGACY_SESSION_KEY)
+      localStorage.getItem(sessionStorageKey(serverUrl)) ?? localStorage.getItem(LEGACY_SESSION_KEY)
     if (stored) {
       // Keep the native jar in agreement with the sid we're about to hand the
       // socket, so the websocket handshake's Cookie header can't carry a
@@ -152,17 +150,20 @@ export const capacitorServerTransport: ServerTransport = {
 
   async sessionIsAuthenticated(serverUrl: URL): Promise<boolean | undefined> {
     try {
-      // CapacitorHttp attaches the native jar's cookies and follows redirects;
-      // an authenticated session lands on /game, an anonymous one gets the
-      // join form.
+      // CapacitorHttp attaches the native jar's cookies. Redirects are left
+      // unfollowed so the verdict comes from the Location header alone: it's a
+      // single tiny round-trip, and it guarantees the probe never actually
+      // requests /join (which would sign the session out — see homeUrl).
       const response = await CapacitorHttp.get({
-        url: new URL('/join', serverUrl).href,
+        url: homeUrl(serverUrl).href,
         responseType: 'text',
+        disableRedirects: true,
         connectTimeout: SESSION_CHECK_TIMEOUT_MS,
         readTimeout: SESSION_CHECK_TIMEOUT_MS
       })
-      if (response.status < 200 || response.status >= 300) return undefined
-      return classifyJoinResponse(response.url, responseDataAsText(response))
+      // A platform that followed the redirect anyway still answers correctly
+      // via the final URL.
+      return classifyHomeRedirect(readHeader(response, 'location') ?? response.url, serverUrl)
     } catch {
       return undefined
     }
@@ -181,8 +182,11 @@ export const capacitorServerTransport: ServerTransport = {
     }
   },
 
-  async verifyCredentials(serverUrl: URL, userid: string, password: string): Promise<boolean> {
+  async verifyCredentials(serverUrl: URL, userid: string, password: string): Promise<JoinAttempt> {
     try {
+      // Non-2xx resolves here rather than throwing (both native HTTP handlers
+      // read the error stream into the response), so Foundry's 401 body is
+      // available to tell a bad password from an outage.
       const response = await CapacitorHttp.post({
         url: new URL('/join', serverUrl).href,
         headers: { 'Content-Type': 'application/json' },
@@ -190,13 +194,11 @@ export const capacitorServerTransport: ServerTransport = {
         connectTimeout: VERIFY_CREDENTIALS_TIMEOUT_MS,
         readTimeout: VERIFY_CREDENTIALS_TIMEOUT_MS
       })
-      if (response.status < 200 || response.status >= 300) return false
-      const data = responseDataAsObject(response)
-      if (data?.status !== 'success') return false
-      await persistNativeSession(serverUrl, response)
-      return true
+      const result = classifyJoinPost(response.status, responseDataAsText(response))
+      if (result === 'ok') await persistNativeSession(serverUrl, response)
+      return result
     } catch {
-      return false
+      return 'unavailable'
     }
   }
 }

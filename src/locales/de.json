@@ -64,7 +64,9 @@
     "retry": "Erneut versuchen",
     "activeMarker": "(aktiv)",
     "connectingTo": "Anmeldung bei",
-    "changeServer": "Server wechseln"
+    "changeServer": "Server wechseln",
+    "signOut": "Abmelden",
+    "signOutHint": "Vergisst das gespeicherte Passwort dieses Servers, damit du dich als anderer Benutzer anmelden kannst."
   },
   "serverUrl": {
     "title": "Foundry-Server",

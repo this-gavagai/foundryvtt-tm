@@ -2,11 +2,12 @@
 import { ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
-import { ServerStackIcon } from '@heroicons/vue/24/solid'
+import { ArrowRightStartOnRectangleIcon, ServerStackIcon } from '@heroicons/vue/24/solid'
 import { availableLocales, setLocale } from '@/plugins/i18n'
 import { useTheme, THEMES } from '@/composables/useTheme'
 import { useSettingsStore } from '@/stores/settings'
 import { useServerAddressStore } from '@/stores/serverAddress'
+import { useServerStore } from '@/stores/server'
 import ModalBox from './ModalBox.vue'
 import Dropdown from '@/components/widgets/DropdownWidget.vue'
 import Toggle from '@/components/widgets/ToggleWidget.vue'
@@ -40,6 +41,14 @@ function close() {
 function manageServers() {
   close()
   emit('manageServers')
+}
+
+// Drop the saved password and the live session so the login page comes back —
+// the way to switch to a different Foundry user, which silent re-authentication
+// would otherwise never let you reach.
+function signOut() {
+  close()
+  void useServerStore().signOut()
 }
 
 defineExpose({ open, close })
@@ -82,6 +91,22 @@ defineExpose({ open, close })
             </span>
           </template>
         </Button>
+        <Button
+          class="w-full"
+          color="lightgray"
+          :clicked="signOut"
+          :aria-label="$t('login.signOut')"
+        >
+          <template #default>
+            <span class="inline-flex items-center justify-center gap-1">
+              <ArrowRightStartOnRectangleIcon class="h-5 w-5" aria-hidden="true" />
+              <span class="whitespace-nowrap">{{ $t('login.signOut') }}</span>
+            </span>
+          </template>
+        </Button>
+        <p data-part="sign-out-hint" class="-mt-2 text-sm opacity-70">
+          {{ $t('login.signOutHint') }}
+        </p>
       </template>
     </div>
   </ModalBox>

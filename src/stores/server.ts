@@ -12,6 +12,7 @@ import {
   getServerTransport
 } from '@/api/socketConnection'
 import { createReconnectPolicy } from '@/api/reconnectPolicy'
+import { forgetCredential, readCredential, writeCredential } from '@/api/credentialStore'
 import {
   JOIN_DATA_RETRY_ATTEMPTS,
   JOIN_DATA_TIMEOUT_MS,
@@ -29,6 +30,13 @@ const SESSION_WATCHDOG_TIMEOUT_MS = 8_000
 // repaired with a fresh socket before giving up and showing the login page
 // anyway (so the user is never stranded on a spinner by a pathological server).
 const MAX_STALLED_HANDSHAKE_RETRIES = 3
+// How many times a stored credential is spent re-authenticating before we stop
+// and show the login page. A successful POST /join that still yields an
+// anonymous socket means something structural is wrong (a session Foundry
+// won't honour, a proxy eating the cookie) that retrying can't fix; without a
+// ceiling the app would loop between re-auth and reconnect forever. Reset on
+// every good handshake, so this only bounds *consecutive* failures.
+const MAX_SILENT_REAUTH_ATTEMPTS = 2
 
 // Session lifecycle hooks, registered by the connection wiring
 // (composables/serverEventWiring.ts). Inverting these keeps this store free of
@@ -56,6 +64,11 @@ export const useServerStore = defineStore('server', () => {
   let connectionId = 0
   let sessionWatchdog: ReturnType<typeof setTimeout> | undefined
   let stalledHandshakeRetries = 0
+  let silentReauthAttempts = 0
+  // Deduped so the several triggers that can land on an anonymous session at
+  // once (the session event and the watchdog verdict) share one POST /join
+  // rather than racing two logins against each other.
+  let reauthInFlight: { epoch: number; promise: Promise<boolean> } | undefined
   let lastAttemptOrigin: string | undefined
 
   let sessionHooks: SessionHooks = {}
@@ -114,6 +127,7 @@ export const useServerStore = defineStore('server', () => {
     needsLogin.value = false
     connectionError.value = ''
     stalledHandshakeRetries = 0
+    silentReauthAttempts = 0
     lastAttemptOrigin = undefined
   }
 
@@ -217,15 +231,87 @@ export const useServerStore = defineStore('server', () => {
     return url ? lastLoginUser(url.origin) : ''
   }
 
+  // Spend the stored credential on a fresh session, then reconnect so the new
+  // socket handshakes against it. Returns true when the login page can be kept
+  // off screen — i.e. the user's session is being repaired for them.
+  //
+  // Foundry authenticates the *existing* session cookie, so the sid we already
+  // hold becomes valid in place; no cookie surgery is needed, just a new socket
+  // (the current one is bound server-side to the anonymous session).
+  async function attemptSilentReauth(epoch: number): Promise<boolean> {
+    const url = activeServerUrl()
+    if (!url) return false
+    if (silentReauthAttempts >= MAX_SILENT_REAUTH_ATTEMPTS) {
+      logger.debug('TM-DIAG silent reauth: attempt budget spent')
+      return false
+    }
+    const credential = await readCredential(url.origin)
+    if (!credential) return false
+    if (epoch !== connectionId) return false
+
+    const result = await currentTransport().verifyCredentials(
+      url,
+      credential.userid,
+      credential.password
+    )
+    logger.debug('TM-DIAG silent reauth result', { result, spent: silentReauthAttempts })
+    if (epoch !== connectionId) return false
+
+    if (result === 'rejected') {
+      // Foundry named a terminal credential error: the password was changed,
+      // or the user was deleted or banned. Holding on to it would strand the
+      // app in a silent retry loop the user can never see or fix.
+      await forgetCredential(url.origin)
+      return false
+    }
+    if (result === 'unavailable') {
+      // Server or world isn't in a state to authenticate anyone right now.
+      // Keep the credential — this heals on its own — but show the login page
+      // rather than hiding an outage behind an indefinite spinner. Costs no
+      // budget: nothing was learned, so a later trigger should try again.
+      return false
+    }
+    // Only a *successful* login that still leaves us anonymous is evidence of
+    // something retrying can't fix, so only that spends the budget.
+    silentReauthAttempts += 1
+    void requestReconnect()
+    return true
+  }
+
+  // A confirmed-anonymous session. Try to fix it without the user before
+  // falling back to the login page. Deduped per connection epoch: the session
+  // event and the watchdog verdict can both land on the same dead session, and
+  // they should share one POST /join rather than race two logins.
   function handleAuthFailure() {
-    needsLogin.value = true
+    const epoch = connectionId
+    if (reauthInFlight?.epoch !== epoch) {
+      const promise = attemptSilentReauth(epoch)
+        .catch((e) => {
+          logger.debug('TM-DIAG silent reauth threw', String(e))
+          return false
+        })
+        .finally(() => {
+          if (reauthInFlight?.epoch === epoch) reauthInFlight = undefined
+        })
+      reauthInFlight = { epoch, promise }
+    }
+    void reauthInFlight.promise.then((repaired) => {
+      if (repaired || epoch !== connectionId) return
+      needsLogin.value = true
+    })
   }
 
   async function login(userid: string, password: string, name?: string): Promise<boolean> {
     const url = activeServerUrl()
     if (!url) return false
-    if (!(await currentTransport().verifyCredentials(url, userid, password))) return false
+    if ((await currentTransport().verifyCredentials(url, userid, password)) !== 'ok') return false
     rememberLoginUser(url.origin, userid, name)
+    // Remembered so the next dead session repairs itself. Awaited (it's a fast
+    // keystore write) but never fatal: failing to save the password costs the
+    // convenience, not this login.
+    await writeCredential(url.origin, userid, password)
+    // A password the user just typed is a fresh start for the repair budget.
+    silentReauthAttempts = 0
     try {
       await connectToServer(url)
       needsLogin.value = false
@@ -233,6 +319,26 @@ export const useServerStore = defineStore('server', () => {
       return false
     }
     return true
+  }
+
+  // Forget the active server's saved password and drop back to the login page,
+  // so a different Foundry user can sign in. Without this the login page is
+  // unreachable on a server that works — silent re-auth would always get there
+  // first.
+  //
+  // The stored session has to go too, not just the password: it's still valid,
+  // so the next socket would hand it over and Foundry would answer with an
+  // authenticated session event, clearing needsLogin and undoing the sign-out.
+  // Reconnecting without a sid gets an anonymous session, which then finds no
+  // credential to repair itself with and settles on the login page.
+  async function signOut(): Promise<void> {
+    const url = activeServerUrl()
+    if (!url) return
+    await forgetCredential(url.origin)
+    await Promise.resolve(currentTransport().deleteSession(url)).catch(() => {})
+    silentReauthAttempts = 0
+    needsLogin.value = true
+    void requestReconnect()
   }
 
   // Round-trip a cheap ack-bearing emit with a short timeout. The socket.io
@@ -255,7 +361,12 @@ export const useServerStore = defineStore('server', () => {
   // Foundry-side handshake may have silently stalled (the classic "restart the
   // app and it works" state). Ask the server over plain HTTP whether the
   // stored session is authenticated and route accordingly; only a confirmed
-  // anonymous session goes to the login page directly.
+  // anonymous session goes down the re-auth path.
+  //
+  // That probe used to fetch /join, which Foundry treats as "sign this session
+  // out" — so it manufactured the anonymous verdict it then reported, and every
+  // watchdog timeout meant a trip to the login page. It now asks the home route
+  // instead (see homeUrl), which only redirects.
   async function resolveStalledHandshake(epoch: number, url: URL) {
     logger.debug('TM-INIT: session event did not arrive — probing session over HTTP')
     const authenticated = await currentTransport()
@@ -272,7 +383,8 @@ export const useServerStore = defineStore('server', () => {
       stalledHandshakeRetries += 1
       void requestReconnect()
     } else {
-      // Confirmed anonymous, or fresh sockets keep stalling: show the login
+      // Confirmed anonymous, or fresh sockets keep stalling: re-authenticate
+      // from the saved password if we have one, and fall back to the login
       // page rather than spinning forever. A late session event still wins —
       // its handler clears needsLogin.
       handleAuthFailure()
@@ -337,6 +449,9 @@ export const useServerStore = defineStore('server', () => {
         sessionReady.value = true
         needsLogin.value = false
         stalledHandshakeRetries = 0
+        // The session we have works, so any earlier repair spend is forgiven —
+        // the budget only ever bounds a consecutive run of useless re-auths.
+        silentReauthAttempts = 0
         reconnectPolicy.resetBackoff()
         // Downstream refreshes (world data, character re-sync) fire on every
         // session handshake via the wiring hook — including socket.io's
@@ -369,6 +484,7 @@ export const useServerStore = defineStore('server', () => {
     if (lastAttemptOrigin !== url.origin) {
       needsLogin.value = false
       stalledHandshakeRetries = 0
+      silentReauthAttempts = 0
       reconnectPolicy.resetBackoff()
     }
     lastAttemptOrigin = url.origin
@@ -420,6 +536,7 @@ export const useServerStore = defineStore('server', () => {
     probeConnection,
     getSocket,
     login,
+    signOut,
     getJoinData,
     rememberedLoginUser,
     registerSessionHooks

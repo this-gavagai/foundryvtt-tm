@@ -64,7 +64,9 @@
     "retry": "Повторить",
     "activeMarker": "(активен)",
     "connectingTo": "Вход на",
-    "changeServer": "Сменить сервер"
+    "changeServer": "Сменить сервер",
+    "signOut": "Выйти",
+    "signOutHint": "Забывает сохранённый пароль этого сервера, чтобы вы могли войти под другим пользователем."
   },
   "serverUrl": {
     "title": "Сервер Foundry",

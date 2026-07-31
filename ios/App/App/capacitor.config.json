@@ -3,6 +3,7 @@
 	"appName": "Tabula Mensa",
 	"webDir": "dist",
 	"packageClassList": [
+		"SecureStorage",
 		"BluetoothLe",
 		"FilesystemPlugin",
 		"HapticsPlugin",

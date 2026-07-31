@@ -64,7 +64,9 @@
     "retry": "Retry",
     "activeMarker": "(active)",
     "connectingTo": "Signing in to",
-    "changeServer": "Change server"
+    "changeServer": "Change server",
+    "signOut": "Sign out",
+    "signOutHint": "Forgets this server’s saved password so you can sign in as a different user."
   },
   "serverUrl": {
     "title": "Foundry server",
