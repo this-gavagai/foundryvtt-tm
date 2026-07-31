@@ -1,10 +1,11 @@
 // Push registration + per-world identity on the Foundry (module) side.
 //
-// One relay serves every world. Each world auto-generates a random opaque
-// worldPushId and a secret worldKey (world settings — Foundry only lets the GM
-// write world settings) and provisions them to the relay (TOFU). The relay URL
-// is a build constant, so there is nothing per-client to configure; the GM only
-// flips "enable push" (off by default, since chat then leaves the table).
+// One shared relay serves every world by default, so there is nothing a GM must
+// configure beyond flipping "enable push" (off by default, since chat then leaves
+// the table); a self-hoster can point PUSH_RELAY_URL_SETTING at their own. Each
+// world auto-generates a random opaque worldPushId and a secret worldKey (world
+// settings — Foundry only lets the GM write world settings) and provisions them
+// to the relay (TOFU).
 //
 // The worldKey signs short-lived registration tokens binding {worldPushId,
 // userId}, so the relay can trust a device belongs to a user without being able
@@ -24,6 +25,7 @@ declare const game: {
     set: (scope: string, key: string, value: unknown) => Promise<unknown>
   }
   user?: { isGM?: boolean }
+  world?: { id?: string }
 }
 
 // The single shared relay. Everyone running Tabula Mensa uses this instance.
@@ -32,8 +34,11 @@ export const PUSH_RELAY_URL = 'https://tablemate-push-relay.openinst.workers.dev
 export const PUSH_ENABLED_SETTING = 'pushEnabled'
 export const PUSH_INCLUDE_BODY_SETTING = 'pushIncludeBody'
 export const PUSH_SCOPE_SETTING = 'pushScope'
+export const PUSH_RELAY_URL_SETTING = 'pushRelayUrl'
 const PUSH_WORLD_ID_SETTING = 'pushWorldId' // auto-generated, hidden
 const PUSH_WORLD_KEY_SETTING = 'pushWorldKey' // auto-generated, hidden
+// Which Foundry world the identity above was minted for — see ensureWorldPushIdentity.
+const PUSH_WORLD_ORIGIN_SETTING = 'pushWorldOrigin' // auto-generated, hidden
 
 export type PushScope = 'mentions' | 'all'
 
@@ -68,13 +73,27 @@ export function registerPushSettings() {
     name: 'Notify on',
     hint:
       'Which messages trigger a push. "Whispers & mentions" (default) notifies a ' +
-      'user only when a message is whispered to them or names their username. ' +
-      '"All messages" notifies everyone who can see each message.',
+      'user only when a message is whispered to them or names their username with ' +
+      'an @ (for example "@Alice"). "All messages" notifies everyone who can see ' +
+      'each message.',
     scope: 'world',
     config: true,
     type: String,
     choices: { mentions: 'Whispers & mentions', all: 'All messages' },
     default: 'mentions'
+  })
+  game.settings.register(MODULE_ID, PUSH_RELAY_URL_SETTING, {
+    name: 'Push relay URL',
+    hint:
+      'The service that forwards notifications to Apple/Google. Leave as the ' +
+      'default unless you run your own relay (see the relay/ folder in the ' +
+      'Tabula Mensa repository). Changing this re-provisions the world on the new ' +
+      'relay; devices re-register themselves next time the app comes to the front.',
+    scope: 'world',
+    config: true,
+    type: String,
+    default: PUSH_RELAY_URL,
+    onChange: () => void ensureWorldPushIdentity()
   })
   // Auto-generated, not shown in the settings UI.
   game.settings.register(MODULE_ID, PUSH_WORLD_ID_SETTING, {
@@ -84,6 +103,12 @@ export function registerPushSettings() {
     default: ''
   })
   game.settings.register(MODULE_ID, PUSH_WORLD_KEY_SETTING, {
+    scope: 'world',
+    config: false,
+    type: String,
+    default: ''
+  })
+  game.settings.register(MODULE_ID, PUSH_WORLD_ORIGIN_SETTING, {
     scope: 'world',
     config: false,
     type: String,
@@ -121,6 +146,15 @@ export interface PushConfig {
   scope: PushScope
 }
 
+// The relay this world talks to: the GM's setting when it is a usable http(s)
+// URL, otherwise the shared default. Trailing slashes are trimmed so callers can
+// append paths without doubling up.
+export function relayUrl(): string {
+  const configured = readStr(PUSH_RELAY_URL_SETTING)
+  if (!/^https?:\/\//i.test(configured)) return PUSH_RELAY_URL
+  return configured.replace(/\/+$/, '')
+}
+
 // The world's push config, or null if push is disabled or not yet provisioned.
 // Shared by the mint handler and the chat-message notify trigger.
 export function readPushConfig(): PushConfig | null {
@@ -129,7 +163,7 @@ export function readPushConfig(): PushConfig | null {
   const worldKey = readStr(PUSH_WORLD_KEY_SETTING)
   if (!worldId || !worldKey) return null
   return {
-    relayUrl: PUSH_RELAY_URL,
+    relayUrl: relayUrl(),
     worldId,
     worldKey,
     includeBody: readBool(PUSH_INCLUDE_BODY_SETTING),
@@ -144,6 +178,27 @@ export async function ensureWorldPushIdentity(): Promise<void> {
   if (!game.user?.isGM || !readBool(PUSH_ENABLED_SETTING)) return
   let worldId = readStr(PUSH_WORLD_ID_SETTING)
   let worldKey = readStr(PUSH_WORLD_KEY_SETTING)
+
+  // The identity lives in world settings, so duplicating a world or restoring a
+  // backup into a new one copies it — and then two different worlds notify the
+  // same registrations with the same key, each able to read the other's. Stamp
+  // the Foundry world the identity was minted for and re-mint when it no longer
+  // matches, which makes the copy a tenant of its own.
+  //
+  // Devices then need to re-register against the new id: the app's foreground
+  // heartbeat does that (see pushNotifications.ts), since neither the server
+  // origin nor the user id it keys on changes when a world is duplicated in place.
+  //
+  // An identity minted before this stamp existed has no origin recorded; that is
+  // not a mismatch, so it keeps its id and simply gets stamped below.
+  const currentWorld = String(game.world?.id ?? '')
+  const mintedFor = readStr(PUSH_WORLD_ORIGIN_SETTING)
+  if (worldId && mintedFor && currentWorld && mintedFor !== currentWorld) {
+    logger.info('TABLEMATE: push identity was minted for another world, re-minting')
+    worldId = ''
+    worldKey = ''
+  }
+
   if (!worldId) {
     worldId = crypto.randomUUID()
     await game.settings.set(MODULE_ID, PUSH_WORLD_ID_SETTING, worldId)
@@ -152,8 +207,11 @@ export async function ensureWorldPushIdentity(): Promise<void> {
     worldKey = randomKeyHex()
     await game.settings.set(MODULE_ID, PUSH_WORLD_KEY_SETTING, worldKey)
   }
+  if (currentWorld && mintedFor !== currentWorld) {
+    await game.settings.set(MODULE_ID, PUSH_WORLD_ORIGIN_SETTING, currentWorld)
+  }
   try {
-    await fetch(`${PUSH_RELAY_URL}/provision`, {
+    await fetch(`${relayUrl()}/provision`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ worldPushId: worldId, worldKey })

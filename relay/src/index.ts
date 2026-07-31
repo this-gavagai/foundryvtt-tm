@@ -17,6 +17,7 @@
 //   POST /register   {regToken, deviceToken, platform}  bind a device to a user
 //   POST /unregister {worldId, userId, deviceToken}     unbind a device from a user
 //   POST /notify     {worldId, recipients, direct, title, body} push to a world's users
+//   POST /status     {worldId, userIds}                  GM diagnostic: provisioned? devices?
 //   POST /send       {deviceToken, title, body, env}    admin test (RELAY_TEST_SECRET)
 
 interface KVNamespace {
@@ -528,6 +529,41 @@ async function handleUnregister(request: Request, env: Env): Promise<Response> {
   return json({ ok: true, removed: stored.length - remaining.length, registrations: remaining.length })
 }
 
+// Read-only diagnostic for the GM's settings panel: is this world provisioned
+// here, and which of its users actually have a device registered? Without it a
+// failed /provision is invisible — push simply does nothing, with no signal
+// anywhere. Authorised by the world key, like /notify, and writes nothing beyond
+// its rate-limit counter.
+async function handleStatus(request: Request, env: Env): Promise<Response> {
+  if (await overLimit(env, `iprl:status:${clientIp(request)}`, REGISTER_PER_MINUTE_PER_IP)) {
+    return json({ error: 'rate limited' }, 429)
+  }
+  const p = (await request.json().catch(() => null)) as { worldId?: string; userIds?: string[] } | null
+  if (!p?.worldId) return json({ error: 'worldId is required' }, 400)
+
+  const worldKey = await worldKeyOf(env, p.worldId)
+  // Deliberately the same answer for "no such world" and "wrong key": a 401 here
+  // means "this relay will not accept your world's pushes", which is the only
+  // thing the GM can act on, and it leaks nothing about which worlds exist.
+  if (!worldKey || request.headers.get('authorization') !== `Bearer ${worldKey}`) {
+    return json({ error: 'unauthorized' }, 401)
+  }
+
+  const devices: Record<string, number> = {}
+  const now = Date.now()
+  for (const userId of Array.isArray(p.userIds) ? p.userIds.slice(0, 100) : []) {
+    try {
+      const regs = await readRegistrations(env, p.worldId, userId)
+      // Count only what would actually be pushed, so the panel agrees with reality.
+      const live = regs.filter((r) => now - (r.updatedAt ?? 0) < STALE_REGISTRATION_MS)
+      if (live.length) devices[userId] = live.length
+    } catch {
+      /* unreadable for this user — report the rest rather than failing the check */
+    }
+  }
+  return json({ ok: true, provisioned: true, devices })
+}
+
 // Resolve the portrait reference the module sent into a URL a specific device can
 // actually reach. The module sends either a Foundry-relative path (needs this
 // device's base prepended) or an already-absolute external art URL (used as-is).
@@ -561,11 +597,17 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
   if (!p?.worldId || !Array.isArray(p.recipients) || !p.title || !p.body) {
     return json({ error: 'worldId, recipients[], title and body are required' }, 400)
   }
-  // Custom keys the app/extension read from the notification. tmMessageId is the
-  // same for every device; the portrait URL is resolved PER DEVICE below, since it
-  // depends on the address each device reaches the world at (see portraitFor).
+  // Custom keys the app/extension read from the notification. tmMessageId and
+  // tmWorldId are the same for every device; the portrait URL and the server base
+  // are resolved PER DEVICE below, since both depend on the address each device
+  // reaches the world at (see portraitFor and deliverToUser).
+  //
+  // tmWorldId/tmServerBaseUrl exist so a notification tap can tell WHICH world the
+  // message id belongs to: the app may be pointed at a different server by the
+  // time the user taps, and a message id from another world is meaningless there.
   const baseData: Record<string, string> = {}
   if (p.messageId) baseData.tmMessageId = p.messageId
+  baseData.tmWorldId = p.worldId
 
   // Authorise against the world's own key.
   const worldKey = await worldKeyOf(env, p.worldId)
@@ -685,9 +727,12 @@ async function deliverToUser(
         survivors.push(reg)
         return
       }
-      // Resolve the portrait against THIS device's Foundry base, then send.
+      // Resolve the portrait against THIS device's Foundry base, then send. The
+      // base itself rides along so a tap can re-point the app at the right server.
+      const customData: Record<string, string> = { ...req.baseData }
       const portrait = portraitFor(req.portraitUrl, reg.serverBaseUrl)
-      const customData = portrait ? { ...req.baseData, tmPortraitUrl: portrait } : req.baseData
+      if (portrait) customData.tmPortraitUrl = portrait
+      if (reg.serverBaseUrl) customData.tmServerBaseUrl = reg.serverBaseUrl
       const sendData = Object.keys(customData).length ? customData : undefined
       // Per device, so a device in several worlds sees one running total rather
       // than each world clobbering the other's number.
@@ -774,6 +819,8 @@ export default {
           return await handleUnregister(request, env)
         case '/notify':
           return await handleNotify(request, env)
+        case '/status':
+          return await handleStatus(request, env)
         case '/send':
           return await handleSend(request, env)
         default:

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // Relay registrations are per (world, user), so "have we registered?" is a
 // question about the whole (server, user, device) identity. Keying it on the
@@ -10,10 +10,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const listeners = new Map<string, (arg: unknown) => void>()
 const registerPush = vi.fn()
 const recordPushRegistration = vi.fn()
+const requestFocusMessage = vi.fn()
+const selectServer = vi.fn()
 const permission = { receive: 'granted' }
 
 let currentOrigin: string | undefined = 'https://alpha.example'
 let currentUserId: string | undefined = 'alice'
+let savedServers: string[] = ['https://alpha.example']
 
 vi.mock('@capacitor/core', () => ({
   Capacitor: { isNativePlatform: () => true, getPlatform: () => 'ios' }
@@ -31,13 +34,23 @@ vi.mock('@/api/actionRpc', () => ({ registerPush: () => registerPush() }))
 vi.mock('@/api/pushRegistry', () => ({
   recordPushRegistration: (...args: unknown[]) => recordPushRegistration(...args)
 }))
-vi.mock('@/stores/chat', () => ({ useChatStore: () => ({ requestFocusMessage: vi.fn() }) }))
+vi.mock('@/stores/chat', () => ({
+  useChatStore: () => ({ requestFocusMessage: (...args: unknown[]) => requestFocusMessage(...args) })
+}))
 vi.mock('@/stores/serverAddress', () => ({
-  useServerAddressStore: () => ({ serverUrl: currentOrigin ? new URL(currentOrigin) : undefined })
+  useServerAddressStore: () => ({
+    serverUrl: currentOrigin ? new URL(currentOrigin) : undefined,
+    servers: savedServers,
+    selectServer: (...args: unknown[]) => selectServer(...args)
+  })
 }))
 vi.mock('@/stores/user', () => ({ useUserStore: () => ({ getUserId: () => currentUserId }) }))
 
 let fetchMock: ReturnType<typeof vi.fn>
+// The module wires a document listener; capture it rather than dispatching for
+// real, since jsdom's document outlives each test's module instance and stale
+// handlers would fire alongside the current one.
+const docListeners = new Map<string, () => void>()
 
 async function loadModule() {
   vi.resetModules()
@@ -65,11 +78,21 @@ beforeEach(() => {
   permission.receive = 'granted'
   currentOrigin = 'https://alpha.example'
   currentUserId = 'alice'
+  savedServers = ['https://alpha.example', 'https://beta.example']
   registerPush.mockResolvedValue({ regToken: 'reg.tok', relayUrl: 'https://relay.example' })
   fetchMock = vi.fn(
     async () => new Response(JSON.stringify({ ok: true, worldId: 'world-1', userId: 'alice' }), { status: 200 })
   )
   vi.stubGlobal('fetch', fetchMock)
+  docListeners.clear()
+  vi.spyOn(document, 'addEventListener').mockImplementation((event, handler) => {
+    docListeners.set(String(event), handler as () => void)
+  })
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
 describe('push registration lifecycle', () => {
@@ -179,5 +202,108 @@ describe('push registration lifecycle', () => {
     mod.syncPushRegistration()
     await new Promise((r) => setTimeout(r, 0))
     expect(registerBodies()).toEqual([])
+  })
+})
+
+describe('notification tap routing', () => {
+  // A notification belongs to one world reached at one address, and the app may
+  // be pointed somewhere else by the time it is tapped — a message id from
+  // another world means nothing where it lands.
+  function tap(data: Record<string, string>) {
+    listeners.get('pushNotificationActionPerformed')!({ notification: { data } })
+  }
+
+  it('focuses the message when the push came from the active server', async () => {
+    await bootWithToken()
+    tap({ tmMessageId: 'msg1', tmServerBaseUrl: 'https://alpha.example' })
+    expect(selectServer).not.toHaveBeenCalled()
+    expect(requestFocusMessage).toHaveBeenCalledWith('msg1')
+  })
+
+  it('switches to the server the push came from first', async () => {
+    await bootWithToken()
+    tap({ tmMessageId: 'msg1', tmServerBaseUrl: 'https://beta.example' })
+    expect(selectServer).toHaveBeenCalledWith('https://beta.example')
+    expect(requestFocusMessage).toHaveBeenCalledWith('msg1')
+  })
+
+  it('compares origins rather than raw strings', async () => {
+    await bootWithToken()
+    // Same origin, trailing path: not a different server.
+    tap({ tmMessageId: 'msg1', tmServerBaseUrl: 'https://alpha.example/' })
+    expect(selectServer).not.toHaveBeenCalled()
+    expect(requestFocusMessage).toHaveBeenCalledWith('msg1')
+  })
+
+  it('does not focus a message from a server this device no longer has saved', async () => {
+    await bootWithToken()
+    savedServers = ['https://alpha.example']
+    tap({ tmMessageId: 'msg1', tmServerBaseUrl: 'https://gone.example' })
+    // Focusing would highlight a foreign id in whatever world is open.
+    expect(selectServer).not.toHaveBeenCalled()
+    expect(requestFocusMessage).not.toHaveBeenCalled()
+  })
+
+  it('focuses without switching when the payload names no server (older relay)', async () => {
+    await bootWithToken()
+    tap({ tmMessageId: 'msg1' })
+    expect(selectServer).not.toHaveBeenCalled()
+    expect(requestFocusMessage).toHaveBeenCalledWith('msg1')
+  })
+
+  it('ignores a payload with no message id', async () => {
+    await bootWithToken()
+    tap({ tmServerBaseUrl: 'https://beta.example' })
+    expect(requestFocusMessage).not.toHaveBeenCalled()
+    expect(selectServer).not.toHaveBeenCalled()
+  })
+})
+
+describe('foreground heartbeat', () => {
+  // The relay prunes registrations untouched for 30 days, and re-registration
+  // otherwise only happens when the identity changes — which on a long-lived app
+  // process may be never.
+  function setVisibility(state: 'visible' | 'hidden') {
+    Object.defineProperty(document, 'visibilityState', { value: state, configurable: true })
+    docListeners.get('visibilitychange')?.()
+  }
+
+  // Move the clock past the throttle without touching timers, which vi.waitFor
+  // and the module's own awaits depend on.
+  function advancePastThrottle() {
+    const now = Date.now()
+    vi.spyOn(Date, 'now').mockReturnValue(now + 10 * 60 * 1000)
+  }
+
+  it('re-registers on foreground even though nothing changed', async () => {
+    const mod = await bootWithToken()
+    mod.syncPushRegistration()
+    await vi.waitFor(() => expect(registerBodies().length).toBe(1))
+
+    advancePastThrottle()
+    setVisibility('visible')
+    await vi.waitFor(() => expect(registerBodies().length).toBe(2))
+  })
+
+  it('throttles rapid foregrounds, because each register costs relay writes', async () => {
+    const mod = await bootWithToken()
+    mod.syncPushRegistration()
+    await vi.waitFor(() => expect(registerBodies().length).toBe(1))
+
+    setVisibility('visible')
+    setVisibility('visible')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(registerBodies().length).toBe(1)
+  })
+
+  it('does nothing on going to the background', async () => {
+    const mod = await bootWithToken()
+    mod.syncPushRegistration()
+    await vi.waitFor(() => expect(registerBodies().length).toBe(1))
+
+    advancePastThrottle()
+    setVisibility('hidden')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(registerBodies().length).toBe(1)
   })
 })

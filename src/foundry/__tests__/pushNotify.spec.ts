@@ -75,7 +75,7 @@ describe('audience classification', () => {
   })
 
   it('marks a mentioned user direct on the default scope', async () => {
-    await notifyChatMessage(message({ content: '<p>Bob, look out</p>' }))
+    await notifyChatMessage(message({ content: '<p>@Bob, look out</p>' }))
     expect(payload()).toMatchObject({ recipients: ['bob'], direct: ['bob'] })
   })
 
@@ -86,7 +86,7 @@ describe('audience classification', () => {
 
   it("splits a mention out of the table's ambient audience on scope 'all'", async () => {
     pushConfig.scope = 'all'
-    await notifyChatMessage(message({ content: '<p>Bob, look out</p>' }))
+    await notifyChatMessage(message({ content: '<p>@Bob, look out</p>' }))
     const sent = payload()!
     expect(sent.direct).toEqual(['bob'])
     // Everyone else who can see it is notified too, but as ambient.
@@ -127,6 +127,59 @@ describe('audience classification', () => {
   })
 })
 
+describe('mention matching', () => {
+  async function mentionsOf(content: string, list?: TestUser[]) {
+    if (list) setWorld(list)
+    await notifyChatMessage(message({ content: `<p>${content}</p>` }))
+    return payload()?.direct ?? []
+  }
+
+  it('requires the @ marker, so ordinary table talk does not ping', async () => {
+    // A user named "Bear" used to be notified by every mention of a bear.
+    expect(await mentionsOf('a bear bursts from the trees', [{ id: 'u1', name: 'Bear' }])).toEqual([])
+    expect(await mentionsOf('ask the GM about it', [{ id: 'u1', name: 'GM' }])).toEqual([])
+  })
+
+  it('matches @name at the start, mid-sentence and before punctuation', async () => {
+    const users = [{ id: 'bob', name: 'Bob' }]
+    expect(await mentionsOf('@Bob you are up', users)).toEqual(['bob'])
+    expect(await mentionsOf('hey @Bob look', users)).toEqual(['bob'])
+    expect(await mentionsOf('over to @Bob.', users)).toEqual(['bob'])
+  })
+
+  it('is case-insensitive and matches accented names', async () => {
+    expect(await mentionsOf('go on @renée', [{ id: 'u1', name: 'Renée' }])).toEqual(['u1'])
+  })
+
+  it('does not match a longer name that merely starts the same', async () => {
+    expect(await mentionsOf('@Bobby is up', [{ id: 'bob', name: 'Bob' }])).toEqual([])
+  })
+
+  it('does not treat an email address as a mention', async () => {
+    expect(await mentionsOf('mail me at me@bob.example', [{ id: 'bob', name: 'Bob' }])).toEqual([])
+  })
+
+  it('matches a multi-word username', async () => {
+    expect(await mentionsOf('thanks @Game Master', [{ id: 'gm2', name: 'Game Master' }])).toEqual(['gm2'])
+  })
+
+  it('ignores a one-character username, which would match far too much', async () => {
+    expect(await mentionsOf('rolling a @X now', [{ id: 'u1', name: 'X' }])).toEqual([])
+  })
+
+  it('matches several users in one message', async () => {
+    const found = await mentionsOf('@Bob and @Carol, together', [
+      { id: 'bob', name: 'Bob' },
+      { id: 'carol', name: 'Carol' }
+    ])
+    expect(found.slice().sort()).toEqual(['bob', 'carol'])
+  })
+
+  it('reads through HTML rather than matching markup', async () => {
+    expect(await mentionsOf('<em>@Bob</em> <strong>go</strong>', [{ id: 'bob', name: 'Bob' }])).toEqual(['bob'])
+  })
+})
+
 describe('active-user suppression', () => {
   it('suppresses a connected user from ambient chat', async () => {
     pushConfig.scope = 'all'
@@ -160,7 +213,7 @@ describe('active-user suppression', () => {
       { id: 'bob', name: 'Bob', active: true },
       { id: 'carol', name: 'Carol', active: true }
     ])
-    await notifyChatMessage(message({ content: '<p>Bob, look out</p>' }))
+    await notifyChatMessage(message({ content: '<p>@Bob, look out</p>' }))
     const sent = payload()!
     expect(sent.direct).toEqual(['bob'])
     // Carol is connected and only an ambient recipient, so she is still skipped.

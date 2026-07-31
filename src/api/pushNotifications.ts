@@ -16,7 +16,21 @@ import { logger } from '@/utils/utilities'
 let deviceToken: string | null = null
 let sessionAuthenticated = false
 let lastRegisteredIdentity: string | null = null
+let lastRegisteredAt = 0
 let registering = false
+
+// The relay prunes any registration untouched for 30 days, and re-registration
+// otherwise only happens when the identity changes — which, on a device iOS keeps
+// alive, might be never. Re-register on foreground so liveness stops depending on
+// the app being killed. This also resets the relay's badge counter (a /register
+// clears it), pairing with the icon the app clears locally on becoming active.
+//
+// Throttled, because /register costs KV writes and the free plan's daily
+// allowance is this relay's real ceiling. The trade is visible: reopening the app
+// inside the window leaves the server-side badge count where it was, so the next
+// push can show a number higher than the one just cleared. A write per foreground
+// would fix that and cost more than it is worth.
+const HEARTBEAT_MIN_INTERVAL_MS = 5 * 60 * 1000
 
 // What a registration is actually *for*: this device, at this server, as this
 // user. Registrations are per (world, user) relay-side, so the device token
@@ -30,6 +44,40 @@ function currentIdentity(): string | null {
   const userId = useUserStore().getUserId()
   if (!origin || !userId) return null
   return `${origin}|${userId}|${deviceToken}`
+}
+
+function originOf(value: string | undefined): string | undefined {
+  if (!value) return undefined
+  try {
+    return new URL(value).origin
+  } catch {
+    return undefined
+  }
+}
+
+// A notification belongs to one world, reached at one address. Since the app can
+// be pointed at a different server by the time the user taps, switch to the one
+// the push came from before handing its message id to the chat store — an id from
+// another world would otherwise scroll to nothing (or, worse, to a coincidence).
+//
+// Returns false when the message cannot be shown: the push names a server this
+// device no longer has saved. Tapping then just opens the app, which is the
+// honest outcome — better than focusing a foreign id in whatever world is open.
+// A payload with no server (an older relay) is trusted as-is, preserving the
+// previous single-server behaviour.
+function pointAtNotificationServer(serverBaseUrl: string | undefined): boolean {
+  const wanted = originOf(serverBaseUrl)
+  if (!wanted) return true
+
+  const store = useServerAddressStore()
+  if (originOf(store.serverUrl?.origin) === wanted) return true
+  if (!store.servers.some((saved) => originOf(saved) === wanted)) {
+    logger.warn('[push] notification is for an unknown server, not switching:', wanted)
+    return false
+  }
+  logger.info('[push] notification tap switching server to', wanted)
+  store.selectServer(wanted)
+  return true
 }
 
 // Called once from the native bootstrap (main.ts). Wires the token listeners,
@@ -52,13 +100,25 @@ export async function initPushNotifications(): Promise<void> {
   // on cold start too — the overlay's watcher is `immediate`, so an intent set
   // before it mounts is picked up once it does.
   await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-    const messageId = (action.notification?.data as { tmMessageId?: string } | undefined)?.tmMessageId
+    const data = action.notification?.data as
+      | { tmMessageId?: string; tmServerBaseUrl?: string }
+      | undefined
+    const messageId = data?.tmMessageId
     if (typeof messageId !== 'string' || !messageId) return
     try {
+      if (!pointAtNotificationServer(data?.tmServerBaseUrl)) return
       useChatStore().requestFocusMessage(messageId)
     } catch (err) {
       logger.warn('[push] could not route notification tap:', err)
     }
+  })
+
+  // Foreground heartbeat. `visibilitychange` rather than a native app-state
+  // listener: the WebView fires it when iOS backgrounds/foregrounds the app, so
+  // this needs no extra Capacitor plugin, and a platform that fires it less
+  // reliably simply falls back to the previous cold-launch-only behaviour.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') void heartbeat()
   })
 
   const perm = await PushNotifications.requestPermissions()
@@ -74,6 +134,18 @@ export async function initPushNotifications(): Promise<void> {
 export function syncPushRegistration(): void {
   sessionAuthenticated = true
   void tryRegister()
+}
+
+// Re-register even though nothing about the identity changed, to refresh the
+// relay's liveness timestamp and reset its badge counter. Also the mechanism that
+// picks up a world whose push identity was re-minted underneath us (a duplicated
+// world — see ensureWorldPushIdentity), since that changes neither the origin nor
+// the user id this device registered as.
+async function heartbeat(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return
+  if (Date.now() - lastRegisteredAt < HEARTBEAT_MIN_INTERVAL_MS) return
+  lastRegisteredIdentity = null
+  await tryRegister()
 }
 
 // Registers only when we have both a device token and an authenticated session,
@@ -107,6 +179,7 @@ async function tryRegister(): Promise<void> {
       return
     }
     lastRegisteredIdentity = identity
+    lastRegisteredAt = Date.now()
     // The relay echoes the (world, user) it filed us under — neither of which we
     // can derive locally. Persist it against this origin so forgetting the
     // server can undo the registration later, offline. See pushRegistry.

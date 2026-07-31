@@ -7,6 +7,7 @@ import { setupSettingsHeaders } from './settingsHeaders'
 import { checkSystemCompat } from './systemCompat'
 import { PlayerSelectMenu } from './playerSelectMenu'
 import { GmHandlerMenu, GM_HANDLER_MENU_KEY } from './gmHandlerMenu'
+import { PushStatusMenu, PUSH_STATUS_MENU_KEY } from './pushStatusMenu'
 import type { UserSourcePF2e } from '@7h3laughingman/pf2e-types'
 import { logger } from '@/utils/utilities'
 
@@ -53,6 +54,14 @@ Hooks.on('ready', () => {
     hint: 'Choose which GMs handle requests from Tabula, and in what order. By default any GM can handle them, whoever has the lowest user ID first.',
     type: GmHandlerMenu as ConstructorOf<foundry.applications.api.ApplicationV2>,
     icon: 'fas fa-user-shield',
+    restricted: true
+  })
+  game.settings.registerMenu('tablemate', PUSH_STATUS_MENU_KEY, {
+    name: 'Push notifications',
+    label: 'Check push notification status',
+    hint: 'See whether push notifications are reaching phones — is the world provisioned, is the relay answering, who has a device registered — and send yourself a test notification.',
+    type: PushStatusMenu as ConstructorOf<foundry.applications.api.ApplicationV2>,
+    icon: 'fas fa-bell',
     restricted: true
   })
 })

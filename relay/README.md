@@ -141,6 +141,28 @@ tier) in the dashboard: Security → WAF → Rate limiting rules → e.g. match
 100 requests / 1 min per client IP, action Block. That enforces at the edge
 before the Worker runs, closing the eventual-consistency gap.
 
+## Diagnosing it from Foundry
+
+Every failure in this feature is silent by construction — a failed provision, a
+relay that moved, a world where nobody ever opened the app all look the same from
+the GM's chair: no notifications, no error. So the module ships a panel:
+**Settings → Tabula Mensa → "Check push notification status"** (GM only). It
+reports whether the world is provisioned, whether the relay answers, which users
+have a device registered, and can send the GM a test notification that bypasses
+every recipient rule — if that arrives, the plumbing works and anything still
+missing is a scope/mention rule rather than transport. It also re-runs
+provisioning, so opening it repairs a world whose first attempt failed offline.
+
+Backing that panel is `POST /status` (bearer the world key): read-only, returns
+`{provisioned, devices: {userId: count}}` counting only registrations recent
+enough to still be pushed. A wrong key and an unknown world both answer 401 — the
+only actionable fact is "this relay will not take your world's pushes", and
+distinguishing them would leak which worlds exist.
+
+Self-hosting: the relay URL is a world setting (**Push relay URL**), defaulting to
+the shared instance. Point it at your own deployment and the world re-provisions
+there; devices follow on their next app foreground.
+
 ## Free-plan limits and how the relay degrades
 
 Two Cloudflare free-plan ceilings shape the delivery path, and both used to fail

@@ -101,17 +101,23 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-// A public message "mentions" a user when their Foundry username appears as a
-// whole word in the text — the same identity whispers target (/w [username], see
-// useWhisperTargets.ts). Unicode-aware boundaries so accented names still match;
-// names under 2 chars are skipped to avoid noise.
+// A public message "mentions" a user when the text names their Foundry username
+// prefixed with @ — "@alice". That's the same identity whispers target (/w
+// [username], see useWhisperTargets.ts), and the marker has to be there: matching
+// a bare username pinged anyone called "GM", "Bear" or "Will" every time the word
+// came up in ordinary table talk, which is exactly the noise the default scope is
+// meant to avoid. Whispers are unaffected — they address users directly.
+//
+// Unicode-aware boundaries so accented names still match, and the @ must not be
+// mid-word so an email address can't mention someone. Names under 2 chars are
+// skipped.
 function isMentioned(text: string, user: WorldUser): boolean {
   const needle = user.name?.trim()
   if (!needle || needle.length < 2) return false
   try {
-    return new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegExp(needle)}([^\\p{L}\\p{N}]|$)`, 'iu').test(text)
+    return new RegExp(`(^|[^\\p{L}\\p{N}])@${escapeRegExp(needle)}([^\\p{L}\\p{N}]|$)`, 'iu').test(text)
   } catch {
-    return text.toLowerCase().includes(needle.toLowerCase())
+    return text.toLowerCase().includes(`@${needle.toLowerCase()}`)
   }
 }
 

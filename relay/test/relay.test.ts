@@ -425,6 +425,99 @@ describe('/notify delivery behaviour', () => {
   })
 })
 
+describe('/status (GM diagnostic)', () => {
+  it('reports provisioned plus a live device count per user', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA1')
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA2')
+    await registerDevice(worldPushId, worldKey, 'bob', 'devB')
+
+    const res = await post(
+      '/status',
+      { worldId: worldPushId, userIds: ['alice', 'bob', 'carol'] },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(200)
+    // Carol has no devices, so she is simply absent rather than reported as zero.
+    expect(await res.json()).toEqual({ ok: true, provisioned: true, devices: { alice: 2, bob: 1 } })
+  })
+
+  it('does not count a registration old enough to be pruned', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    const key = `tok:${worldPushId}:alice`
+    const regs = JSON.parse(env.TOKENS.store.get(key)!)
+    regs[0].updatedAt = Date.now() - 40 * 24 * 60 * 60 * 1000
+    env.TOKENS.store.set(key, JSON.stringify(regs))
+
+    const res = await post('/status', { worldId: worldPushId, userIds: ['alice'] }, { authorization: `Bearer ${worldKey}` })
+    expect(await res.json()).toMatchObject({ devices: {} })
+  })
+
+  it('rejects a wrong key and an unknown world identically', async () => {
+    const { worldPushId } = await provisionWorld()
+    expect((await post('/status', { worldId: worldPushId }, { authorization: 'Bearer nope' })).status).toBe(401)
+    expect((await post('/status', { worldId: 'never-provisioned' }, { authorization: 'Bearer nope' })).status).toBe(401)
+  })
+
+  it('requires a worldId', async () => {
+    const { worldKey } = await provisionWorld()
+    expect((await post('/status', {}, { authorization: `Bearer ${worldKey}` })).status).toBe(400)
+  })
+
+  it('writes nothing but its rate-limit counter', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    const before = new Map(env.TOKENS.store)
+    await post('/status', { worldId: worldPushId, userIds: ['alice'] }, { authorization: `Bearer ${worldKey}` })
+    const changed = [...env.TOKENS.store.keys()].filter((k) => env.TOKENS.store.get(k) !== before.get(k))
+    expect(changed.every((k) => k.startsWith('iprl:'))).toBe(true)
+  })
+})
+
+describe('deep-link identity', () => {
+  it('stamps the world id and the device’s own server base', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA', 'http://192.168.1.5:30001')
+    await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b', messageId: 'msg1' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(apnsBodies[0]).toMatchObject({
+      tmMessageId: 'msg1',
+      tmWorldId: worldPushId,
+      tmServerBaseUrl: 'http://192.168.1.5:30001',
+    })
+  })
+
+  it('gives each device the base it registered from', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'lanPhone', 'http://192.168.1.5:30001')
+    await registerDevice(worldPushId, worldKey, 'alice', 'tunnelPhone', 'https://foundry.example.com')
+    await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    const bases = apnsBodies.map((b) => (b as { tmServerBaseUrl?: string }).tmServerBaseUrl).sort()
+    expect(bases).toEqual(['http://192.168.1.5:30001', 'https://foundry.example.com'])
+  })
+
+  it('omits the server base for a device that never sent one', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect((apnsBodies[0] as { tmServerBaseUrl?: string }).tmServerBaseUrl).toBeUndefined()
+    // The world id still rides along, so a tap can at least tell worlds apart.
+    expect((apnsBodies[0] as { tmWorldId?: string }).tmWorldId).toBe(worldPushId)
+  })
+})
+
 describe('coalescing + freshness headers', () => {
   it('collapses ambient chat per (world, user) but lets direct messages stack', async () => {
     const { worldPushId, worldKey } = await provisionWorld()

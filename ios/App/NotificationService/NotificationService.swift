@@ -13,6 +13,22 @@ import MobileCoreServices
 // anything that isn't a real image. If any step fails we deliver the original
 // notification unchanged; the image is a nice-to-have, never a blocker.
 class NotificationService: UNNotificationServiceExtension {
+    // A portrait URL can point at the LAN address the device registered from,
+    // which is unreachable when the phone is off that network. URLSession's
+    // default 60s request timeout outlives the extension's ~30s budget, so every
+    // such push sat invisible until serviceExtensionTimeWillExpire fired — a
+    // half-minute delay on the banner for an image that was never going to load.
+    // Fail fast instead: the portrait is a nice-to-have, the notification is not.
+    private static let portraitTimeout: TimeInterval = 5
+
+    // Ephemeral: an extension has no business persisting cookies or a URL cache.
+    private lazy var session: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = Self.portraitTimeout
+        config.timeoutIntervalForResource = Self.portraitTimeout
+        return URLSession(configuration: config)
+    }()
+
     private var contentHandler: ((UNNotificationContent) -> Void)?
     private var bestAttempt: UNMutableNotificationContent?
     private var downloadTask: URLSessionTask?
@@ -35,7 +51,7 @@ class NotificationService: UNNotificationServiceExtension {
             return
         }
 
-        downloadTask = URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+        downloadTask = session.dataTask(with: url) { [weak self] data, _, _ in
             guard let self = self else { return }
             if let data = data, let attachment = Self.pngAttachment(from: data) {
                 content.attachments = [attachment]

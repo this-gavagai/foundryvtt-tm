@@ -11,11 +11,18 @@ id = "057c2edb3283480eb120d8ec1171b33f"
 # RELAY_TEST_SECRET, WORLD_PUSH_KEY) are set with `wrangler secret put` — never commit them.
 [vars]
 APNS_BUNDLE_ID = "io.github.thisgavagai.tablemate"
-# Default APNs environment for /send when the request omits an "env" override.
+# Default APNs environment: what a newly registered device is assumed to be, and
+# what /send uses when a request omits an "env" override.
+#
 # A device token is only valid against the environment it was minted in, set by
 # the app's aps-environment entitlement: debug/Xcode builds => sandbox tokens;
 # TestFlight/App Store builds => production tokens. (Production token to sandbox
 # yields BadEnvironmentKeyInToken; sandbox token to production yields
-# BadDeviceToken.) Set to sandbox for the debug-build dev loop; milestone 2 will
-# track each device's environment at registration so both are served at once.
-APNS_ENV = "sandbox"
+# BadDeviceToken.) /notify tracks each device's environment and self-heals by
+# retrying the other one, so a wrong default costs an extra APNs round-trip on a
+# device's first push, not a delivery.
+#
+# Production, because every shipped build is a production token and only the
+# handful of debug builds on a dev machine are sandbox — so the rare case is the
+# one that pays for the retry.
+APNS_ENV = "production"

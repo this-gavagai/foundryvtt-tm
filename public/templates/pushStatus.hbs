@@ -1,0 +1,103 @@
+<div class="standard-form" style="padding-bottom: 1rem">
+	<style>
+		.tm-push-hint {
+			margin: 0 0 0.75rem;
+			font-size: var(--font-size-13, 13px);
+			opacity: 0.8;
+		}
+		.tm-push-checks {
+			list-style: none;
+			margin: 0 0 1rem;
+			padding: 0;
+		}
+		.tm-push-check {
+			display: flex;
+			align-items: baseline;
+			gap: 0.5rem;
+			padding: 0.3rem 0.35rem;
+			border-radius: 4px;
+		}
+		/* Theme-neutral tints so the states read in both light and dark themes. */
+		.tm-push-check.tm-push-fail {
+			background: rgba(190, 60, 60, 0.14);
+		}
+		.tm-push-check.tm-push-warn {
+			background: rgba(190, 150, 40, 0.14);
+		}
+		.tm-push-icon {
+			flex: 0 0 1.1rem;
+			text-align: center;
+			opacity: 0.85;
+		}
+		.tm-push-label {
+			flex: 0 0 11rem;
+			font-weight: bold;
+		}
+		.tm-push-detail {
+			flex: 1;
+			overflow-wrap: anywhere;
+		}
+		.tm-push-devices {
+			list-style: none;
+			margin: 0 0 1rem;
+			padding: 0;
+		}
+		.tm-push-devices li {
+			display: flex;
+			justify-content: space-between;
+			gap: 0.5rem;
+			padding: 0.2rem 0.35rem;
+		}
+		.tm-push-devices li:nth-child(odd) {
+			background: rgba(128, 128, 128, 0.08);
+		}
+		.tm-push-sub {
+			margin: 0 0 0.4rem;
+			font-variant: small-caps;
+			font-weight: bold;
+			opacity: 0.8;
+		}
+		.tm-push-buttons {
+			display: flex;
+			gap: 0.5rem;
+		}
+	</style>
+
+	<p class="tm-push-hint">
+		Push notifications leave your table: chat is relayed through the push service below and
+		Apple to reach phones. Everything here is read-only except the test notification.
+	</p>
+
+	<ul class="tm-push-checks">
+		{{#each checks}}
+		<li class="tm-push-check tm-push-{{state}}">
+			<i class="tm-push-icon fas {{icon}}"></i>
+			<span class="tm-push-label">{{label}}</span>
+			<span class="tm-push-detail">{{detail}}</span>
+		</li>
+		{{/each}}
+	</ul>
+
+	{{#if devices.length}}
+	<p class="tm-push-sub">Devices by user</p>
+	<ul class="tm-push-devices">
+		{{#each devices}}
+		<li>
+			<span>{{name}}</span>
+			<span>{{count}}</span>
+		</li>
+		{{/each}}
+	</ul>
+	{{/if}}
+
+	<div class="tm-push-buttons">
+		<button type="button" data-action="recheck">
+			<i class="fas fa-rotate"></i>
+			Check again
+		</button>
+		<button type="button" data-action="sendTest" {{#unless canTest}}disabled{{/unless}}>
+			<i class="fas fa-paper-plane"></i>
+			Send test notification
+		</button>
+	</div>
+</div>
