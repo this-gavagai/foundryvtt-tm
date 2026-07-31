@@ -23,7 +23,7 @@ export function registerImageUploadSetting(onChange: () => void) {
   game.settings.register(MODULE_ID, IMAGE_UPLOAD_PATH_SETTING, {
     name: 'Image upload folder',
     hint:
-      'Data-relative folder where Tablemate saves uploaded chat images ' +
+      'Data-relative folder where Tabula saves uploaded chat images ' +
       '(e.g. "tablemate/images"). Leave blank to disable image uploads ' +
       'entirely — players cannot attach images until a folder is set here.',
     scope: 'world',

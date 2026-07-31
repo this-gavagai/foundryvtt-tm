@@ -1,0 +1,97 @@
+<div class="standard-form" style="padding-bottom: 1rem">
+	<style>
+		.tm-gm-hint {
+			margin: 0 0 0.75rem;
+			font-size: var(--font-size-13, 13px);
+			opacity: 0.8;
+		}
+		.tm-gm-row {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			padding: 0.25rem 0.35rem;
+			border-radius: 4px;
+		}
+		/* Theme-neutral grey so the highlight reads in both light and dark themes. */
+		.tm-gm-row.tm-gm-answering {
+			background: rgba(128, 128, 128, 0.12);
+		}
+		.tm-gm-rank {
+			flex: 0 0 1.5rem;
+			text-align: right;
+			font-weight: bold;
+			opacity: 0.7;
+		}
+		.tm-gm-name {
+			flex: 1;
+			display: flex;
+			align-items: baseline;
+			gap: 0.4rem;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+		.tm-gm-tag {
+			font-size: var(--font-size-11, 11px);
+			font-variant: small-caps;
+			opacity: 0.7;
+		}
+		.tm-gm-row:has(input[type="checkbox"]:not(:checked)) .tm-gm-name {
+			text-decoration: line-through;
+			opacity: 0.6;
+		}
+		.tm-gm-handles {
+			display: flex;
+			align-items: center;
+			gap: 0.3rem;
+			white-space: nowrap;
+		}
+		.tm-gm-move {
+			flex: 0 0 auto;
+			width: 1.75rem;
+		}
+		.tm-gm-empty {
+			font-style: italic;
+			opacity: 0.7;
+		}
+	</style>
+
+	<p class="tm-gm-hint">
+		Requests from Tabula are handled by the highest-priority GM who is online. Reorder with the
+		arrows, and uncheck a GM to stop their client handling requests at all. GMs are ordered by user
+		ID until you set an order here. Nothing is stored until you save.
+	</p>
+
+	{{#each rows}}
+	<div class="tm-gm-row {{#if this.answering}}tm-gm-answering{{/if}}">
+		<span class="tm-gm-rank">{{this.rank}}</span>
+		<span class="tm-gm-name">
+			<span>{{this.name}}</span>
+			<span class="tm-gm-tag">
+				{{#if this.answering}}handling now{{else if this.online}}online{{else}}offline{{/if}}
+			</span>
+		</span>
+		<label class="tm-gm-handles">
+			<input type="checkbox" name="handles.{{this.id}}" data-handles-for="{{this.id}}" {{#if
+				this.handles}}checked{{/if}}>
+			<span>Handles</span>
+		</label>
+		<button type="button" class="tm-gm-move" data-action="moveUp" data-user-id="{{this.id}}"
+			data-tooltip="Higher priority" aria-label="Higher priority" {{#if this.isFirst}}disabled{{/if}}>
+			<i class="fas fa-angle-up"></i>
+		</button>
+		<button type="button" class="tm-gm-move" data-action="moveDown" data-user-id="{{this.id}}"
+			data-tooltip="Lower priority" aria-label="Lower priority" {{#if this.isLast}}disabled{{/if}}>
+			<i class="fas fa-angle-down"></i>
+		</button>
+	</div>
+	{{else}}
+	<p class="tm-gm-empty">This world has no GM users.</p>
+	{{/each}}
+
+	{{#if noHandler}}
+	<p class="notification warning" style="margin-top: 0.75rem">
+		No GM is currently able to handle Tabula requests — every online GM is unchecked.
+	</p>
+	{{/if}}
+</div>

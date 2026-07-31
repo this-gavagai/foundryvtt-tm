@@ -36,7 +36,11 @@ export class PlayerSelectMenu extends HandlebarsApplicationMixin(ApplicationV2) 
       handler: PlayerSelectMenu.updateUserFlags,
       submitOnChange: true,
       closeOnSubmit: false
-    }
+    },
+    // ApplicationV2 defaults to width "auto", which sizes the frame to the widest
+    // user name in the list — one long name and the dialog sprawls. A fixed width
+    // keeps it compact and lets the name column ellipsize instead.
+    position: { width: 400 }
   }
   static PARTS = {
     form: {

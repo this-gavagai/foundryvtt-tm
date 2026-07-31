@@ -1,27 +1,142 @@
-<div class="standard-form" style="padding-bottom: 1rem">
+<div class="standard-form tm-user-select">
 	<style>
-		.tm-belongs-to {
+		/* Self-contained styling so no module stylesheet wiring is required, and
+		   theme-neutral greys so it reads in both Foundry light and dark themes. */
+		.tm-user-select {
+			padding-bottom: 1rem;
+		}
+		.tm-us-hint {
+			margin: 0 0 0.75rem;
+			font-size: var(--font-size-13, 13px);
+			opacity: 0.8;
+		}
+		/* Header and rows share one grid template so the columns line up. Every
+		   track is a fixed or flexible length, never `auto`: the header and each
+		   row are separate grids, so an auto column would size to its own content
+		   and the header labels would drift off their fields. */
+		.tm-us-head,
+		.tm-us-row {
+			display: grid;
+			grid-template-columns: 1fr 3.5rem minmax(7rem, 10rem);
+			align-items: center;
+			gap: 0.5rem;
+		}
+		.tm-us-col-sheet {
+			text-align: center;
+		}
+		.tm-us-head {
+			padding: 0 0.4rem 0.25rem;
+			border-bottom: 1px solid rgba(128, 128, 128, 0.4);
+			font-size: var(--font-size-11, 11px);
+			font-variant: small-caps;
+			font-weight: bold;
+			opacity: 0.75;
+		}
+		.tm-us-list {
+			margin: 0;
+			padding: 0;
+			list-style: none;
+		}
+		.tm-us-row {
+			padding: 0.3rem 0.4rem;
+			border-bottom: 1px solid rgba(128, 128, 128, 0.15);
+		}
+		.tm-us-row:last-child {
+			border-bottom: none;
+		}
+		/* Sheet users are the point of this dialog — mark the enabled ones. Driven
+		   by :has() rather than the render context so the row responds to a click
+		   immediately, without waiting for the submit-on-change re-render. */
+		.tm-us-row:has(.tm-us-toggle input:checked) {
+			background: rgba(128, 128, 128, 0.12);
+		}
+		.tm-us-user {
 			display: flex;
 			align-items: center;
-			gap: 0.35rem;
-			white-space: nowrap;
+			gap: 0.4rem;
+			min-width: 0;
 		}
-		.tm-user-row:has(input[type="checkbox"]:not(:checked)) .tm-belongs-to {
+		/* The user's Foundry colour, as in the player list — a quick visual key
+		   back to who each row is. Falls back to grey for an unset colour. */
+		.tm-us-dot {
+			flex: 0 0 auto;
+			width: 0.6rem;
+			height: 0.6rem;
+			border-radius: 50%;
+			background: rgba(128, 128, 128, 0.5);
+			box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25) inset;
+		}
+		.tm-us-name {
+			overflow: hidden;
+			white-space: nowrap;
+			text-overflow: ellipsis;
+		}
+		.tm-us-tag {
+			flex: 0 0 auto;
+			font-size: var(--font-size-11, 11px);
+			font-variant: small-caps;
+			opacity: 0.6;
+		}
+		/* Bare checkbox — the "Sheet" column header names it, so an inline label
+		   would only repeat itself and widen the dialog. */
+		.tm-us-toggle {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			margin: 0;
+		}
+		.tm-us-owner {
+			min-width: 0;
+		}
+		.tm-us-owner select {
+			width: 100%;
+		}
+		/* "Belongs to" only means anything for a sheet user. Hidden rather than
+		   removed so the grid columns stay aligned down the list. */
+		.tm-us-row:has(.tm-us-toggle input:not(:checked)) .tm-us-owner {
 			visibility: hidden;
 		}
+		.tm-us-empty {
+			margin: 0.5rem 0 0;
+			font-style: italic;
+			opacity: 0.7;
+		}
 	</style>
-	{{#each users}}
-	<div class="tm-user-row" style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.35rem">
-		<label style="flex: 1"><input type="checkbox" name="sheeted.{{this._id}}" {{#if this.sheeted}}checked{{/if}}> {{this.name}}</label>
-		<label class="tm-belongs-to">
-			<span>Belongs to</span>
-			<select name="belongsTo.{{this._id}}">
-				<option value="">— None —</option>
-				{{#each this.belongsToOptions}}
-				<option value="{{this.id}}" {{#if this.selected}}selected{{/if}}>{{this.name}}</option>
-				{{/each}}
-			</select>
-		</label>
+
+	<p class="tm-us-hint">
+		A sheet user loads the Tabula character sheet instead of the standard Foundry environment.
+		Set <strong>Belongs to</strong> to the player's own login user so whispers addressed to them
+		surface in their sheet.
+	</p>
+
+	<div class="tm-us-head">
+		<span>User</span>
+		<span class="tm-us-col-sheet">Sheet</span>
+		<span>Belongs to</span>
 	</div>
-	{{/each}}
+
+	<ul class="tm-us-list">
+		{{#each users}}
+		<li class="tm-us-row">
+			<span class="tm-us-user">
+				<span class="tm-us-dot" style="background: {{this.color}}"></span>
+				<span class="tm-us-name" data-tooltip="{{this.name}}">{{this.name}}</span>
+				{{#if this.active}}<span class="tm-us-tag">online</span>{{/if}}
+			</span>
+			<label class="tm-us-toggle" data-tooltip="Load the Tabula character sheet">
+				<input type="checkbox" name="sheeted.{{this._id}}" {{#if this.sheeted}}checked{{/if}}>
+			</label>
+			<label class="tm-us-owner">
+				<select name="belongsTo.{{this._id}}">
+					<option value="">— None —</option>
+					{{#each this.belongsToOptions}}
+					<option value="{{this.id}}" {{#if this.selected}}selected{{/if}}>{{this.name}}</option>
+					{{/each}}
+				</select>
+			</label>
+		</li>
+		{{else}}
+		<li class="tm-us-empty">This world has no non-GM users to configure.</li>
+		{{/each}}
+	</ul>
 </div>

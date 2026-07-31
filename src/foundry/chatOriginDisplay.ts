@@ -76,7 +76,7 @@ function applyChatOriginDisplay(
   const authorName = message.author?.name
   if (sender && authorName && sender.textContent?.trim() === authorName) {
     sender.textContent = originName
-    sender.title = `${originName} via Tablemate`
+    sender.title = `${originName} via Tabula`
   }
 
   // PF2e appends a `.user` byline (the author's user name) under the sender for
@@ -85,7 +85,7 @@ function applyChatOriginDisplay(
   const pf2eUser = header?.querySelector<HTMLElement>('.user')
   if (pf2eUser && pf2eUser.textContent?.trim() !== originName) {
     pf2eUser.textContent = originName
-    pf2eUser.title = `${originName} via Tablemate`
+    pf2eUser.title = `${originName} via Tabula`
   }
 
   applyManualRollBadge(message, element)

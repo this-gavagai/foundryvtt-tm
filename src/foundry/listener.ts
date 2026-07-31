@@ -59,6 +59,12 @@ import {
   manualRollPolicy,
   hasPresetDiceResults
 } from './manualRollPolicy'
+import {
+  registerGmHandlerSetting,
+  gmHandlerPolicy,
+  gmHandlesRequests,
+  compareGmHandlers
+} from './gmHandlerSetting'
 import { registerVoiceMemoSetting, voiceMemoEnabled } from './voiceMemoSetting'
 import { registerImageUploadSetting, imageUploadEnabled } from './imageUploadSetting'
 import { registerTranscriptionSetting } from './transcriptionSetting'
@@ -101,7 +107,7 @@ function checkClientVersion(args: ModuleEventArgs) {
 
   const appVersion = ('appVersion' in args && args.appVersion) || 'an older version'
   const message =
-    `Tablemate version mismatch: a connected app (${appVersion}) is not compatible ` +
+    `Tabula version mismatch: a connected app (${appVersion}) is not compatible ` +
     `with this module (${moduleVersion() ?? 'unknown'}). Update both to the same ` +
     `release so they can talk to each other.`
   logger.warn('TABLEMATE: ' + message, {
@@ -469,6 +475,11 @@ async function withChatOrigin<T>(origin: ChatOrigin, run: () => Promise<T>): Pro
 
 export function setupListener() {
   logger.info('TABLEMATE: Setting up listener')
+  // Which GMs handle requests, and in what order (edited via the GM Handlers
+  // menu, registered in tablemate.ts). Re-announce on change so the newly
+  // elected handler tells connected apps it is live instead of leaving them to
+  // wait out the next presence heartbeat.
+  registerGmHandlerSetting(() => announceSelf())
   // World policy for player-determined dice results. Re-announce on change so
   // connected apps update their manual/Pixel affordances without waiting for
   // the next presence heartbeat.
@@ -618,13 +629,24 @@ export function setupListener() {
 }
 
 // utility functions
+
+// The elected handler among active GMs: highest priority per the world's GM
+// handler policy (set in the GM Handlers menu), ties broken by lowest _id — the
+// pre-setting rule, and still what an unconfigured world uses for every GM.
+// Opted-out GMs are out of the running entirely, including when they are the
+// ONLY GM online, in which case nobody answers, exactly as if no GM were
+// connected.
+//
+// Every client runs this election locally off the same world setting + the same
+// user.active view, so they agree on the answer; requestDedup.ts covers the
+// handoff window where those views momentarily differ.
 function iAmFirstGM() {
-  return (
-    game.user.isGM &&
-    !game.users
-      .filter((user: UserPF2e) => user.isGM && user.active)
-      .some((other: UserPF2e) => other._id! < game.user._id!)
-  )
+  const me = game.user
+  const policy = gmHandlerPolicy()
+  if (!me.isGM || !gmHandlesRequests(me, policy)) return false
+  return !game.users
+    .filter((user: UserPF2e) => user.isGM && user.active && gmHandlesRequests(user, policy))
+    .some((other: UserPF2e) => compareGmHandlers(other, me, policy) < 0)
 }
 function isTablemateRootUser(user: UserPF2e | undefined) {
   return user?.flags?.tablemate?.character_sheet === 'root'
@@ -635,13 +657,21 @@ function targetingProxyFor(userId: string) {
   return isTablemateRootUser(proxyUser) ? undefined : proxyId
 }
 function iAmProxy(userId: string) {
-  return targetingProxyFor(userId) === game.user._id
+  return targetingProxyFor(userId) === game.user._id && gmHandlesRequests(game.user)
 }
+// A proxy that has been opted out of handling requests counts as offline, so
+// requests aimed at it fall back to the elected GM rather than going unanswered.
+// (The opt-out list holds GMs in practice, but the check is applied to whoever
+// the proxy is — a player listed there is likewise skipped.)
 function proxyIsOnline(userId: string) {
   const proxyId = targetingProxyFor(userId)
   return (
     game.users.filter(
-      (user: UserPF2e) => proxyId === user._id && user.active && !isTablemateRootUser(user)
+      (user: UserPF2e) =>
+        proxyId === user._id &&
+        user.active &&
+        !isTablemateRootUser(user) &&
+        gmHandlesRequests(user)
     ).length > 0
   )
 }

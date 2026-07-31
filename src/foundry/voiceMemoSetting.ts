@@ -22,7 +22,7 @@ export function registerVoiceMemoSetting(onChange: () => void) {
   game.settings.register(MODULE_ID, VOICE_MEMO_PATH_SETTING, {
     name: 'Voice memo upload folder',
     hint:
-      'Data-relative folder where Tablemate saves uploaded voice memos ' +
+      'Data-relative folder where Tabula saves uploaded voice memos ' +
       '(e.g. "tablemate/voice-memos"). Leave blank to disable voice memos ' +
       'entirely — players cannot record until a folder is set here.',
     scope: 'world',

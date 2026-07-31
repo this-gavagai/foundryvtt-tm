@@ -6,6 +6,7 @@ import { setupSpellCardTargeting } from './spellCardTargeting'
 import { setupSettingsHeaders } from './settingsHeaders'
 import { checkSystemCompat } from './systemCompat'
 import { PlayerSelectMenu } from './playerSelectMenu'
+import { GmHandlerMenu, GM_HANDLER_MENU_KEY } from './gmHandlerMenu'
 import type { UserSourcePF2e } from '@7h3laughingman/pf2e-types'
 import { logger } from '@/utils/utilities'
 
@@ -44,6 +45,14 @@ Hooks.on('ready', () => {
     hint: 'Select which users will load the alternate Character Sheet instead of the standard Foundry environment',
     type: PlayerSelectMenu as ConstructorOf<foundry.applications.api.ApplicationV2>,
     icon: 'fas fa-user',
+    restricted: true
+  })
+  game.settings.registerMenu('tablemate', GM_HANDLER_MENU_KEY, {
+    name: 'GM Handlers',
+    label: 'Set GM handler priority',
+    hint: 'Choose which GMs handle requests from Tabula, and in what order. By default any GM can handle them, whoever has the lowest user ID first.',
+    type: GmHandlerMenu as ConstructorOf<foundry.applications.api.ApplicationV2>,
+    icon: 'fas fa-user-shield',
     restricted: true
   })
 })

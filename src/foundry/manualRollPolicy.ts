@@ -22,7 +22,7 @@ export function registerManualRollPolicySetting(onChange: () => void) {
   game.settings.register(MODULE_ID, MANUAL_ROLL_POLICY_SETTING, {
     name: 'Player-supplied dice results',
     hint:
-      'How to handle Tablemate rolls that arrive with the dice results already ' +
+      'How to handle Tabula rolls that arrive with the dice results already ' +
       'determined (manual face picker or Pixel dice): allow them, allow but tag ' +
       'the chat message, or reject the roll so it must be re-sent as a normal roll.',
     scope: 'world',
