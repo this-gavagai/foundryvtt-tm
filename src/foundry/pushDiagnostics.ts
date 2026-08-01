@@ -11,6 +11,7 @@ import {
   relayUrl,
   ensureWorldPushIdentity
 } from './pushRegistration'
+import { lastPushDeliveryIssue } from './pushNotify'
 import { MODULE_ID } from '@/api/protocol'
 import { logger } from '@/utils/utilities'
 
@@ -45,11 +46,13 @@ export interface PushStatus {
 
 const PROBE_TIMEOUT_MS = 8_000
 
-// The relay reads one KV entry per user asked about, and KV operations count
-// against a Worker's 50-subrequest ceiling, so a big world's user list has to be
-// asked for in pieces — each chunk is its own Worker invocation with its own
-// allowance. Kept at the relay's own per-call cap (MAX_STATUS_USERS).
-const STATUS_CHUNK = 30
+// The relay reads one KV entry per user asked about. That is a Cloudflare-service
+// operation, which answers to its own per-invocation ceiling (1,000) rather than
+// to the 50 external subrequests a Worker may make — so the chunk can be far
+// larger than it once was, and any real world now fits in a single call. Kept at
+// the relay's own per-call cap (MAX_STATUS_USERS); anything bigger still chunks,
+// each piece its own invocation with its own allowance.
+const STATUS_CHUNK = 200
 
 // Fetch with a deadline: an unreachable relay should report as unreachable in a
 // few seconds, not hang the dialog until the browser gives up.
@@ -188,6 +191,25 @@ export async function collectPushStatus(): Promise<PushStatus> {
       label: 'Unsupported devices',
       state: 'warn',
       detail: `${unsupported} Android device(s) registered. Android push is not wired up yet, so they receive nothing.`
+    })
+  }
+
+  // Everything above says the plumbing is sound; this says whether messages have
+  // actually been getting through. A rate limit, or a table larger than one relay
+  // invocation can serve, sheds recipients under a 200 — a shortfall no other
+  // check here can see, because it is not a property of the setup.
+  //
+  // Only shown when there is something to show: silence is not evidence of
+  // health, since this knows only what this browser sent since it loaded. Said
+  // plainly, so the absence of the line is not read as an all-clear.
+  const issue = lastPushDeliveryIssue()
+  if (issue) {
+    checks.push({
+      label: 'Recent delivery',
+      state: 'warn',
+      detail:
+        `At ${new Date(issue.at).toLocaleTimeString()}, ${issue.detail}. ` +
+        'Counts only messages this browser sent since it loaded.'
     })
   }
 

@@ -7,6 +7,41 @@ compatibility_date = "2025-01-01"
 binding = "TOKENS"
 id = "057c2edb3283480eb120d8ec1171b33f"
 
+# Per-minute abuse backstops, via the Workers rate-limiting binding (Wrangler
+# >= 4.36). These used to be counters in KV, which made the rate limiter the
+# cheapest way to exhaust the free plan's ~1,000 KV writes/day — the very budget
+# it exists to protect. The binding costs no KV write and no subrequest.
+#
+# The limits live here, not in the Worker, because `simple.period` may only be 10
+# or 60; the matching constants in src/index.ts document them and drive the KV
+# fallback used when a deployment has no binding. Keep the two in step.
+#
+# namespace_id is any positive integer unique to this account.
+[[ratelimits]]
+name = "PROVISION_LIMITER"
+namespace_id = "1001"
+[ratelimits.simple]
+limit = 20
+period = 60
+
+# Shared by /register, /unregister, /status and /notify's FAILED authorisations —
+# all per-IP, all 30/min. Distinct key prefixes keep their buckets apart.
+[[ratelimits]]
+name = "REGISTER_LIMITER"
+namespace_id = "1002"
+[ratelimits.simple]
+limit = 30
+period = 60
+
+# Per world, per class. Ambient and direct keys are separate buckets, so a
+# combat round's ambient chat cannot shed the whisper that arrives at second 55.
+[[ratelimits]]
+name = "NOTIFY_LIMITER"
+namespace_id = "1003"
+[ratelimits.simple]
+limit = 60
+period = 60
+
 # Non-secret config. Secrets (APNS_KEY, APNS_KEY_ID, APNS_TEAM_ID,
 # RELAY_TEST_SECRET, WORLD_PUSH_KEY) are set with `wrangler secret put` — never commit them.
 [vars]

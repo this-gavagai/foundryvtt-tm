@@ -360,6 +360,79 @@ async function postNotify(relayUrl: string, worldKey: string, payload: string): 
   }
 }
 
+// What the relay reports back about a delivery. Note that all of this rides a
+// 200: a partly-delivered message must NOT be retried (whoever did get it would
+// be notified twice), so the relay says "ok" and describes the shortfall in the
+// body instead.
+interface NotifyResult {
+  userId?: string
+  ok?: boolean
+  skipped?: string
+  error?: string
+}
+
+interface NotifyResponseBody {
+  results?: NotifyResult[]
+  budgetExhausted?: boolean
+  droppedRecipients?: number
+}
+
+// Skip reasons that are bookkeeping rather than a lost notification. One phone
+// registered under two of a world's users is deduped down to a single banner,
+// and an Android registration was never going to be delivered to — the status
+// panel already reports those separately as unsupported.
+const BENIGN_SKIPS = new Set(['device already notified', 'non-ios not wired yet'])
+
+// The last delivery that did not fully happen, for the GM status panel to show.
+// Client-local and in-memory: it records what THIS browser sent since it loaded,
+// which is the elected sender's client and so where the knowledge is. Another
+// GM's panel will show nothing, which is why the panel says as much.
+export interface PushDeliveryIssue {
+  at: number
+  detail: string
+}
+
+let lastDeliveryIssue: PushDeliveryIssue | null = null
+
+export function lastPushDeliveryIssue(): PushDeliveryIssue | null {
+  return lastDeliveryIssue
+}
+
+function recordDeliveryIssue(detail: string): void {
+  lastDeliveryIssue = { at: Date.now(), detail }
+  logger.warn('TABLEMATE: push notify degraded —', detail)
+}
+
+// Reduce a relay response to the one sentence a GM could act on, or null when
+// everything the message asked for actually happened.
+//
+// The relay is scrupulous about reporting what it shed — a recipient dropped to
+// a rate limit or to the subrequest budget comes back as `skipped`, with
+// `budgetExhausted` on the envelope — but it reports it under a 200, so a
+// caller that only checks `res.ok` throws all of it away. That is exactly the
+// silence the whole feature is built to avoid: a table too big for one relay
+// invocation looks identical to one where everything arrived.
+function summariseDelivery(body: NotifyResponseBody | null): string | null {
+  if (!body) return null
+  const results = Array.isArray(body.results) ? body.results : []
+  const clauses: string[] = []
+
+  const shed = results.filter((r) => r.skipped && !BENIGN_SKIPS.has(r.skipped))
+  if (shed.length) {
+    const reasons = [...new Set(shed.map((r) => r.skipped as string))].sort()
+    clauses.push(`${shed.length} recipient(s) not notified (${reasons.join(', ')})`)
+  }
+  // `ok` is only set on a result the relay actually tried to send.
+  const failed = results.filter((r) => r.error !== undefined || r.ok === false)
+  if (failed.length) clauses.push(`${failed.length} recipient(s) failed to deliver`)
+  if (body.droppedRecipients) {
+    clauses.push(`${body.droppedRecipients} recipient(s) over the relay's per-message limit`)
+  }
+  if (body.budgetExhausted && !shed.length) clauses.push("the relay's per-message work budget ran out")
+
+  return clauses.length ? clauses.join('; ') : null
+}
+
 export async function notifyChatMessage(message: unknown): Promise<void> {
   try {
     // Only the elected primary GM posts, so a message seen by N GM clients
@@ -396,9 +469,15 @@ export async function notifyChatMessage(message: unknown): Promise<void> {
       })
     )
     if (!res) {
-      logger.warn('TABLEMATE: push notify unreachable after retries')
+      recordDeliveryIssue('the relay could not be reached, after retries')
     } else if (!res.ok) {
-      logger.warn('TABLEMATE: push notify failed', res.status, await res.text())
+      const why = await res.text().catch(() => '')
+      recordDeliveryIssue(`the relay answered ${res.status}${why ? `: ${truncate(why, 200)}` : ''}`)
+    } else {
+      // A 200 can still mean part of the table heard nothing — see
+      // summariseDelivery.
+      const shortfall = summariseDelivery((await res.json().catch(() => null)) as NotifyResponseBody | null)
+      if (shortfall) recordDeliveryIssue(shortfall)
     }
   } catch (error) {
     // Never let a push failure disrupt chat handling.

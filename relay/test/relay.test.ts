@@ -39,9 +39,51 @@ function makeKV() {
   }
 }
 
-// The free plan's hard limit. Exceeding it doesn't degrade — the runtime throws
-// mid-request and the whole notify 500s.
-const SUBREQUEST_CEILING = 50
+// The free plan's hard ceilings — and they are SEPARATE. A Worker invocation may
+// make 50 external subrequests (fetch, i.e. the APNs sends) and, independently,
+// 1,000 operations to Cloudflare services (the KV reads and writes). Exceeding
+// either does not degrade: the runtime throws mid-request and the whole notify
+// 500s, losing every recipient. So tests assert both, apart.
+const EXTERNAL_CEILING = 50
+const KV_OPERATION_CEILING = 1000
+
+function expectUnderCeilings() {
+  expect(apnsCalls.length).toBeLessThanOrEqual(EXTERNAL_CEILING)
+  expect(kvOps).toBeLessThanOrEqual(KV_OPERATION_CEILING)
+}
+
+// Stand-in for the Workers rate-limiting binding: counts calls per key and
+// refuses past `limit`, which is what env.LIMITER.limit({key}) does. Records the
+// keys so a test can prove which bucket a request landed in — the buckets are
+// the whole point of the split, and nothing else makes them observable.
+function makeLimiter(limit: number) {
+  const counts = new Map<string, number>()
+  const keys: string[] = []
+  return {
+    keys,
+    limit: async ({ key }: { key: string }) => {
+      keys.push(key)
+      const next = (counts.get(key) ?? 0) + 1
+      counts.set(key, next)
+      return { success: next <= limit }
+    },
+  }
+}
+
+// Env with the bindings attached, as the deployed Worker has them. The default
+// `env` deliberately has none, so the rest of the suite goes on exercising the
+// KV fallback.
+function withLimiters(limits = { provision: 20, register: 30, notify: 60 }) {
+  const provision = makeLimiter(limits.provision)
+  const register = makeLimiter(limits.register)
+  const notify = makeLimiter(limits.notify)
+  Object.assign(env, {
+    PROVISION_LIMITER: provision,
+    REGISTER_LIMITER: register,
+    NOTIFY_LIMITER: notify,
+  })
+  return { provision, register, notify }
+}
 
 type TestEnv = {
   APNS_KEY: string
@@ -51,6 +93,9 @@ type TestEnv = {
   APNS_ENV: string
   RELAY_TEST_SECRET: string
   TOKENS: ReturnType<typeof makeKV>
+  PROVISION_LIMITER?: ReturnType<typeof makeLimiter>
+  REGISTER_LIMITER?: ReturnType<typeof makeLimiter>
+  NOTIFY_LIMITER?: ReturnType<typeof makeLimiter>
 }
 
 let apnsKeyPem = ''
@@ -105,6 +150,14 @@ afterEach(() => vi.unstubAllGlobals())
 
 const b64url = (s: string) => Buffer.from(s).toString('base64url')
 
+// /register enforces that an APNs token is hex, so tests name a device with a
+// readable label and mint its token from that label's bytes. The label stays
+// legible in the source; the token is shaped like the real thing. devHex() is
+// the unpadded form, for assertions that match a family of seeded devices by
+// prefix (`alice-dev0`, `alice-dev1`, …).
+const devHex = (label: string) => Buffer.from(label).toString('hex')
+const dev = (label: string) => devHex(label).padEnd(64, '0')
+
 function mintToken(worldId: string, userId: string, key: string, exp = Math.floor(Date.now() / 1000) + 300) {
   const payload = b64url(JSON.stringify({ worldId, userId, exp }))
   const sig = createHmac('sha256', key).update(payload).digest('base64url')
@@ -134,12 +187,12 @@ async function registerDevice(
   worldPushId: string,
   worldKey: string,
   userId: string,
-  deviceToken: string,
+  label: string,
   serverBaseUrl?: string,
 ) {
   const res = await post('/register', {
     regToken: mintToken(worldPushId, userId, worldKey),
-    deviceToken,
+    deviceToken: dev(label),
     platform: 'ios',
     serverBaseUrl,
   })
@@ -181,7 +234,7 @@ describe('/register', () => {
   it('accepts a validly-minted reg token and stores the device', async () => {
     const { worldPushId, worldKey } = await provisionWorld()
     await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA')
-    expect(env.TOKENS.store.get(`tok:${worldPushId}:alice`)).toContain('devtokenA')
+    expect(env.TOKENS.store.get(`tok:${worldPushId}:alice`)).toContain(dev('devtokenA'))
   })
 
   it('drops an abandoned registration while it is rewriting the list anyway', async () => {
@@ -196,12 +249,17 @@ describe('/register', () => {
     const stored = JSON.parse(env.TOKENS.store.get(key)!) as Array<{ deviceToken: string }>
     // The replaced phone stops costing a subrequest on every delivery, without
     // waiting for a message to be sent first.
-    expect(stored.map((r) => r.deviceToken)).toEqual(['new-phone'])
+    expect(stored.map((r) => r.deviceToken)).toEqual([dev('new-phone')])
   })
 
   it('rejects a tampered token', async () => {
     const { worldPushId, worldKey } = await provisionWorld()
-    const bad = mintToken(worldPushId, 'alice', worldKey).slice(0, -1) + 'X'
+    const [payload, sig] = mintToken(worldPushId, 'alice', worldKey).split('.')
+    // Flip the FIRST character of the signature, not the last. A 32-byte HMAC is
+    // 43 base64url characters — 258 bits for 256 — so the final character has two
+    // spare bits, and a quarter of the substitutions for it decode to the very
+    // same signature. Tampering there passed or failed on the luck of the draw.
+    const bad = `${payload}.${(sig[0] === 'A' ? 'B' : 'A') + sig.slice(1)}`
     expect((await post('/register', { regToken: bad, deviceToken: 'd', platform: 'ios' })).status).toBe(401)
   })
 
@@ -219,6 +277,119 @@ describe('/register', () => {
   it('rejects with neither a reg token nor the admin bearer', async () => {
     expect((await post('/register', { deviceToken: 'd', platform: 'ios' })).status).toBe(401)
   })
+
+  it('costs no KV write when a re-registration says nothing new', async () => {
+    // The app re-registers on every foreground, and almost every one of those
+    // repeats the last. Writing each made the heartbeat the largest consumer of
+    // an allowance of ~1,000 KV writes per DAY, account-wide — spent refreshing
+    // an updatedAt whose deadline is thirty days out.
+    withLimiters()
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA', 'http://192.168.1.5:30001')
+    const stored = env.TOKENS.store.get(`tok:${worldPushId}:alice`)
+
+    let writes = 0
+    const put = env.TOKENS.put
+    env.TOKENS.put = async (k, v) => {
+      writes++
+      return put(k, v)
+    }
+    const res = await registerDevice(worldPushId, worldKey, 'alice', 'devA', 'http://192.168.1.5:30001')
+
+    expect(writes).toBe(0)
+    // Unchanged on disk, and still reported as registered.
+    expect(env.TOKENS.store.get(`tok:${worldPushId}:alice`)).toBe(stored)
+    expect(await res.json()).toMatchObject({ registrations: 1 })
+  })
+
+  it('writes when anything about the registration actually differs', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA', 'http://192.168.1.5:30001')
+
+    // The player moved to the remote address: the stored base is now wrong, and a
+    // wrong base means portraits resolve to a host this phone cannot reach.
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA', 'https://foundry.example.com')
+    expect(env.TOKENS.store.get(`tok:${worldPushId}:alice`)).toContain('foundry.example.com')
+
+    // A second device is likewise a real change.
+    await registerDevice(worldPushId, worldKey, 'alice', 'devB')
+    const regs = JSON.parse(env.TOKENS.store.get(`tok:${worldPushId}:alice`)!) as Array<{ deviceToken: string }>
+    expect(regs).toHaveLength(2)
+  })
+
+  it('writes again once the registration is old enough to be worth refreshing', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    const key = `tok:${worldPushId}:alice`
+    const regs = JSON.parse(env.TOKENS.store.get(key)!)
+    // Older than the refresh window, but nowhere near the 30-day staleness one.
+    regs[0].updatedAt = Date.now() - 2 * 24 * 60 * 60 * 1000
+    env.TOKENS.store.set(key, JSON.stringify(regs))
+
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    const after = JSON.parse(env.TOKENS.store.get(key)!) as Array<{ updatedAt: number }>
+    expect(Date.now() - after[0].updatedAt).toBeLessThan(1000)
+  })
+
+  it('does not spend a delete clearing a badge that is not there', async () => {
+    // Reads are a hundred times more plentiful than writes on the free plan, and
+    // a delete is a write. After the badge went direct-only there is usually
+    // nothing to clear, so look before writing.
+    const { worldPushId, worldKey } = await provisionWorld()
+    let deletes = 0
+    const del = env.TOKENS.delete
+    env.TOKENS.delete = async (k) => {
+      deletes++
+      return del(k)
+    }
+
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    expect(deletes).toBe(0)
+
+    // With a count actually standing, the delete happens.
+    env.TOKENS.store.set(`badge:dev:${dev('devA')}`, '3')
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    expect(deletes).toBe(1)
+    expect(env.TOKENS.store.get(`badge:dev:${dev('devA')}`)).toBeUndefined()
+  })
+
+  it('rejects a malformed device token', async () => {
+    // The token is interpolated into the APNs request path. Something that is
+    // not a token cannot be delivered to, and — because the fetch throws before
+    // APNs ever answers — is never reported dead, so nothing would prune it.
+    const { worldPushId, worldKey } = await provisionWorld()
+    for (const deviceToken of ['not-hex-at-all', 'abc123', `${dev('devA')}/../../x`, `${dev('devA')}\n`]) {
+      const res = await post('/register', {
+        regToken: mintToken(worldPushId, 'alice', worldKey),
+        deviceToken,
+        platform: 'ios',
+      })
+      expect(res.status).toBe(400)
+    }
+    expect(env.TOKENS.store.get(`tok:${worldPushId}:alice`)).toBeUndefined()
+  })
+
+  it('rejects an unrecognised platform, which decides how the token is checked', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    const res = await post('/register', {
+      regToken: mintToken(worldPushId, 'alice', worldKey),
+      deviceToken: dev('devA'),
+      platform: 'web',
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('accepts a longer hex token than today’s 32 bytes', async () => {
+    // Apple documents the token length as variable and tells you not to hard-code
+    // it, so the check bounds the length generously rather than pinning it.
+    const { worldPushId, worldKey } = await provisionWorld()
+    const res = await post('/register', {
+      regToken: mintToken(worldPushId, 'alice', worldKey),
+      deviceToken: 'ab'.repeat(48),
+      platform: 'ios',
+    })
+    expect(res.status).toBe(200)
+  })
 })
 
 describe('/unregister', () => {
@@ -226,7 +397,7 @@ describe('/unregister', () => {
     const { worldPushId, worldKey } = await provisionWorld()
     await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA')
 
-    const first = await post('/unregister', { worldId: worldPushId, userId: 'alice', deviceToken: 'devtokenA' })
+    const first = await post('/unregister', { worldId: worldPushId, userId: 'alice', deviceToken: dev('devtokenA') })
     expect(first.status).toBe(200)
     expect(await first.json()).toMatchObject({ removed: 1, registrations: 0 })
 
@@ -239,7 +410,7 @@ describe('/unregister', () => {
     expect(apnsCalls.length).toBe(0)
 
     // Unregistering again is a no-op success, not an error.
-    const second = await post('/unregister', { worldId: worldPushId, userId: 'alice', deviceToken: 'devtokenA' })
+    const second = await post('/unregister', { worldId: worldPushId, userId: 'alice', deviceToken: dev('devtokenA') })
     expect(second.status).toBe(200)
     expect(await second.json()).toMatchObject({ removed: 0 })
   })
@@ -249,7 +420,7 @@ describe('/unregister', () => {
     await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA')
     const res = await post('/unregister', {
       regToken: mintToken(worldPushId, 'alice', worldKey),
-      deviceToken: 'devtokenA',
+      deviceToken: dev('devtokenA'),
     })
     expect(await res.json()).toMatchObject({ removed: 1 })
   })
@@ -259,10 +430,10 @@ describe('/unregister', () => {
     await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA')
     const res = await post('/unregister', {
       regToken: mintToken(worldPushId, 'alice', 'wrong-key'),
-      deviceToken: 'devtokenA',
+      deviceToken: dev('devtokenA'),
     })
     expect(res.status).toBe(401)
-    expect(env.TOKENS.store.get(`tok:${worldPushId}:alice`)).toContain('devtokenA')
+    expect(env.TOKENS.store.get(`tok:${worldPushId}:alice`)).toContain(dev('devtokenA'))
   })
 
   it('leaves the same device registered in other worlds and other devices in this one', async () => {
@@ -273,7 +444,7 @@ describe('/unregister', () => {
     await registerDevice(a.worldPushId, a.worldKey, 'alice', 'tablet')
 
     // Alice removes world A from her phone only.
-    await post('/unregister', { worldId: a.worldPushId, userId: 'alice', deviceToken: 'phone' })
+    await post('/unregister', { worldId: a.worldPushId, userId: 'alice', deviceToken: dev('phone') })
 
     apnsCalls = []
     await post(
@@ -281,8 +452,8 @@ describe('/unregister', () => {
       { worldId: a.worldPushId, recipients: ['alice'], title: 't', body: 'b' },
       { authorization: `Bearer ${a.worldKey}` },
     )
-    expect(apnsCalls.some((u) => u.includes('phone'))).toBe(false)
-    expect(apnsCalls.some((u) => u.includes('tablet'))).toBe(true)
+    expect(apnsCalls.some((u) => u.includes(dev('phone')))).toBe(false)
+    expect(apnsCalls.some((u) => u.includes(dev('tablet')))).toBe(true)
 
     apnsCalls = []
     await post(
@@ -290,7 +461,7 @@ describe('/unregister', () => {
       { worldId: b.worldPushId, recipients: ['alice'], title: 't', body: 'b' },
       { authorization: `Bearer ${b.worldKey}` },
     )
-    expect(apnsCalls.some((u) => u.includes('phone'))).toBe(true)
+    expect(apnsCalls.some((u) => u.includes(dev('phone')))).toBe(true)
   })
 
   it('requires a deviceToken, and a world/user without a regToken', async () => {
@@ -336,8 +507,8 @@ describe('/notify authorisation + cross-world isolation', () => {
       { authorization: `Bearer ${a.worldKey}` },
     )
     expect(res.status).toBe(200)
-    expect(apnsCalls.some((u) => u.includes('deviceInA'))).toBe(true)
-    expect(apnsCalls.some((u) => u.includes('deviceInB'))).toBe(false)
+    expect(apnsCalls.some((u) => u.includes(dev('deviceInA')))).toBe(true)
+    expect(apnsCalls.some((u) => u.includes(dev('deviceInB')))).toBe(false)
 
     // Even with A's (valid) key, A cannot address B's namespace — B's key is required.
     const wrong = await post(
@@ -369,6 +540,96 @@ describe('/notify delivery behaviour', () => {
     expect(json.results[0].env).toBe('production')
     // The stored registration's env is healed to production for next time.
     expect(env.TOKENS.store.get(`tok:${worldPushId}:alice`)).toContain('production')
+  })
+
+  it('does not prune a live registration when the stored env answers transiently', async () => {
+    // The regression: APNs throttles or wobbles on the CORRECT environment, the
+    // relay probes the other one, and that one answers BadDeviceToken — because
+    // a token never belongs to both. Reading that as "dead" deleted a perfectly
+    // good registration, and the device (backgrounded, which is the whole point)
+    // would not re-register for hours.
+    for (const transient of [
+      { status: 429, body: JSON.stringify({ reason: 'TooManyRequests' }) },
+      { status: 503, body: JSON.stringify({ reason: 'ServiceUnavailable' }) },
+    ]) {
+      const { worldPushId, worldKey } = await provisionWorld()
+      await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA') // stored env: sandbox
+      apnsResponse = (url) =>
+        url.includes('sandbox') ? transient : { status: 400, body: JSON.stringify({ reason: 'BadDeviceToken' }) }
+
+      apnsCalls = []
+      const res = await post(
+        '/notify',
+        { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+        { authorization: `Bearer ${worldKey}` },
+      )
+      const json = (await res.json()) as { results: Array<{ status: number; dead: boolean; env: string }> }
+      expect(json.results[0]).toMatchObject({ status: transient.status, dead: false, env: 'sandbox' })
+      // A transient answer says nothing about the environment, so the other one
+      // is never probed — and the registration survives untouched.
+      expect(apnsCalls.length).toBe(1)
+      expect(env.TOKENS.store.get(`tok:${worldPushId}:alice`)).toContain(dev('devtokenA'))
+    }
+  })
+
+  it('does not prune a live registration when the stored env is unreachable', async () => {
+    // Same shape, but the send never gets an answer at all (trySendApns reports
+    // status 0). Nothing was learned, so nothing may be concluded.
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA')
+    apnsResponse = (url) => {
+      if (url.includes('sandbox')) throw new Error('connection reset')
+      return { status: 400, body: JSON.stringify({ reason: 'BadDeviceToken' }) }
+    }
+
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    const json = (await res.json()) as { results: Array<{ dead: boolean }> }
+    expect(json.results[0].dead).toBe(false)
+    expect(env.TOKENS.store.get(`tok:${worldPushId}:alice`)).toContain(dev('devtokenA'))
+  })
+
+  it('prunes a token that is dead in the environment it is filed under', async () => {
+    // The genuine case the env retry must still reach: sandbox is the wrong
+    // environment for this token AND the token is dead in production too.
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA')
+    apnsResponse = () => ({ status: 400, body: JSON.stringify({ reason: 'BadDeviceToken' }) })
+
+    await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(apnsCalls.some((u) => u.includes('sandbox'))).toBe(true)
+    expect(apnsCalls.some((u) => !u.includes('sandbox'))).toBe(true)
+    expect(env.TOKENS.store.get(`tok:${worldPushId}:alice`)).toBe('[]')
+  })
+
+  it('skips a stored token it could never send to, without spending a subrequest on it', async () => {
+    // /register rejects these now, but entries written before that check are
+    // still in KV. Sending one throws inside fetch — which is not a verdict APNs
+    // gave, so it never counts as dead — and would cost two subrequests out of
+    // every notify until the 30-day sweep.
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    const key = `tok:${worldPushId}:alice`
+    const regs = JSON.parse(env.TOKENS.store.get(key)!)
+    regs[0].deviceToken = 'not-a-token'
+    env.TOKENS.store.set(key, JSON.stringify(regs))
+
+    apnsCalls = []
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(apnsCalls.length).toBe(0)
+    const json = (await res.json()) as { results: Array<{ skipped?: string }> }
+    expect(json.results[0].skipped).toBe('unusable device token')
   })
 
   it('prunes a dead token (410 in both environments)', async () => {
@@ -504,7 +765,7 @@ describe('/status (GM diagnostic)', () => {
     await registerDevice(worldPushId, worldKey, 'alice', 'devA')
     await post('/register', {
       regToken: mintToken(worldPushId, 'bob', worldKey),
-      deviceToken: 'devB',
+      deviceToken: dev('devB'),
       platform: 'android',
     })
 
@@ -531,14 +792,15 @@ describe('/status (GM diagnostic)', () => {
 
     const res = await post(
       '/status',
-      { worldId: worldPushId, userIds: Array.from({ length: 80 }, (_, i) => `user${i}`) },
+      { worldId: worldPushId, userIds: Array.from({ length: 250 }, (_, i) => `user${i}`) },
       { authorization: `Bearer ${worldKey}` },
     )
     expect(res.status).toBe(200)
-    // One KV read per user, so an unbounded list would blow the same ceiling
-    // /notify faces; the caller chunks instead.
+    // One KV read per user. /status makes no external call, so its ceiling is the
+    // 1,000-operation KV one rather than the 50 sends — but it is still a ceiling,
+    // and the caller chunks past it.
     expect(await res.json()).toMatchObject({ truncated: true, devices: { user0: 1 } })
-    expect(kvOps).toBeLessThanOrEqual(SUBREQUEST_CEILING)
+    expect(kvOps).toBeLessThanOrEqual(KV_OPERATION_CEILING)
   })
 
   it('does not count a registration old enough to be pruned', async () => {
@@ -629,12 +891,78 @@ describe('coalescing + freshness headers', () => {
       { authorization: `Bearer ${worldKey}` },
     )
 
-    const collapseFor = (device: string) =>
-      apnsHeaders[apnsCalls.findIndex((u) => u.includes(device))]['apns-collapse-id']
+    const collapseFor = (label: string) =>
+      apnsHeaders[apnsCalls.findIndex((u) => u.includes(dev(label)))]['apns-collapse-id']
     // Ambient: a later table message replaces this banner rather than stacking.
     expect(collapseFor('devA')).toBe(`${worldPushId}:alice`)
-    // Direct: no collapse id, so a whisper is never buried by ambient chat.
+    // Direct, and this caller named no message: nothing to collapse against, so
+    // no collapse id — a whisper is never buried by ambient chat.
     expect(collapseFor('devB')).toBeUndefined()
+  })
+
+  it('collapses a direct message against itself, so a retried notify is one banner', async () => {
+    // The module re-sends a /notify it got no answer to, and a thrown fetch
+    // cannot tell "never arrived" from "arrived and the response was lost". A
+    // whisper stacks by design, so the re-send used to be a second banner.
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'bob', 'devB')
+    const whisper = {
+      worldId: worldPushId,
+      recipients: ['bob'],
+      direct: ['bob'],
+      title: 't',
+      body: 'b',
+      messageId: 'chatmsg1',
+    }
+
+    await post('/notify', whisper, { authorization: `Bearer ${worldKey}` })
+    await post('/notify', whisper, { authorization: `Bearer ${worldKey}` })
+
+    expect(apnsHeaders.map((h) => h['apns-collapse-id'])).toEqual(['msg:chatmsg1', 'msg:chatmsg1'])
+  })
+
+  it('still stacks two different direct messages', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'bob', 'devB')
+    for (const messageId of ['chatmsg1', 'chatmsg2']) {
+      await post(
+        '/notify',
+        { worldId: worldPushId, recipients: ['bob'], direct: ['bob'], title: 't', body: 'b', messageId },
+        { authorization: `Bearer ${worldKey}` },
+      )
+    }
+    expect(new Set(apnsHeaders.map((h) => h['apns-collapse-id'])).size).toBe(2)
+  })
+
+  it('keeps the ambient collapse id per-recipient even when a message id is named', async () => {
+    // Ambient chat rolls into one banner per user however many messages arrive,
+    // so the message must NOT become its collapse key there.
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b', messageId: 'chatmsg1' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(apnsHeaders[0]['apns-collapse-id']).toBe(`${worldPushId}:alice`)
+  })
+
+  it('clamps a direct collapse id to the APNs 64-byte limit', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'bob', 'devB')
+    await post(
+      '/notify',
+      {
+        worldId: worldPushId,
+        recipients: ['bob'],
+        direct: ['bob'],
+        title: 't',
+        body: 'b',
+        messageId: 'm'.repeat(200),
+      },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(apnsHeaders[0]['apns-collapse-id']).toHaveLength(64)
   })
 
   it('gives each user their own collapse id', async () => {
@@ -679,6 +1007,114 @@ describe('coalescing + freshness headers', () => {
   })
 })
 
+describe('rate limiting via the binding', () => {
+  // The KV counter spent a write on every request it ALLOWED, so a single source
+  // could burn the free plan's ~1,000 writes/day through the rate limiter alone
+  // — the budget the limiter exists to protect — after which /provision and
+  // /register (whose writes must not be swallowed) 500 for every tenant.
+
+  it('writes nothing to KV to enforce a per-IP limit', async () => {
+    const { register } = withLimiters()
+    const { worldPushId, worldKey } = await provisionWorld()
+    const before = new Map(env.TOKENS.store)
+
+    for (let i = 0; i < 5; i++) {
+      await post(
+        '/register',
+        { regToken: mintToken(worldPushId, `user${i}`, worldKey), deviceToken: dev(`d${i}`), platform: 'ios' },
+        { 'CF-Connecting-IP': '9.9.9.9' },
+      )
+    }
+
+    const changed = [...env.TOKENS.store.keys()].filter((k) => env.TOKENS.store.get(k) !== before.get(k))
+    // Registrations were written; not one rate-limit counter was.
+    expect(changed.every((k) => k.startsWith('tok:'))).toBe(true)
+    expect(changed.some((k) => k.startsWith('iprl:'))).toBe(false)
+    expect(register.keys).toHaveLength(5)
+  })
+
+  it('enforces the per-IP ceiling it is given', async () => {
+    withLimiters({ provision: 3, register: 30, notify: 60 })
+    const statuses: number[] = []
+    for (let i = 0; i < 5; i++) {
+      const res = await post(
+        '/provision',
+        { worldPushId: `world-${i}`, worldKey: 'k'.repeat(32) },
+        { 'CF-Connecting-IP': '9.9.9.9' },
+      )
+      statuses.push(res.status)
+    }
+    expect(statuses).toEqual([200, 200, 200, 429, 429])
+  })
+
+  it('keeps ambient and direct in separate buckets', async () => {
+    // Same binding, distinct keys — which is what stops a combat round of
+    // ambient chat shedding the whisper that arrives at second 55.
+    const { notify } = withLimiters()
+    const { worldPushId, worldKey } = await provisionWorld()
+    await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice', 'bob'], direct: ['bob'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(notify.keys).toEqual([`rl:ambient:${worldPushId}`, `rl:direct:${worldPushId}`])
+  })
+
+  it('gives the freed subrequests back to delivery', async () => {
+    // With the KV counters gone, /notify no longer charges its budget four
+    // subrequests before it has delivered anything.
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    await registerDevice(worldPushId, worldKey, 'bob', 'devB')
+    // Both classes present, so both buckets are consulted.
+    const message = { worldId: worldPushId, recipients: ['alice', 'bob'], direct: ['bob'], title: 't', body: 'b' }
+
+    kvOps = 0
+    await post('/notify', message, { authorization: `Bearer ${worldKey}` })
+    const withKvCounters = kvOps
+
+    withLimiters()
+    kvOps = 0
+    await post('/notify', message, { authorization: `Bearer ${worldKey}` })
+    // Two counters, a get and a put each: four KV operations no longer spent.
+    expect(withKvCounters - kvOps).toBe(4)
+  })
+
+  it('fails open if the binding throws, rather than silencing the world', async () => {
+    withLimiters()
+    env.NOTIFY_LIMITER!.limit = async () => {
+      throw new Error('rate limiter unavailable')
+    }
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+
+    apnsCalls = []
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(200)
+    expect(apnsCalls.length).toBe(1)
+  })
+
+  it('falls back to the KV counter when no binding is configured', async () => {
+    // A deployment from an older Wrangler loses the improvement, not the limit.
+    expect(env.PROVISION_LIMITER).toBeUndefined()
+    const statuses: number[] = []
+    for (let i = 0; i < 22; i++) {
+      const res = await post(
+        '/provision',
+        { worldPushId: `world-${i}`, worldKey: 'k'.repeat(32) },
+        { 'CF-Connecting-IP': '8.8.8.8' },
+      )
+      statuses.push(res.status)
+    }
+    expect(statuses.filter((s) => s === 429).length).toBe(2)
+    expect([...env.TOKENS.store.keys()].some((k) => k.startsWith('iprl:prov:'))).toBe(true)
+  })
+})
+
 describe('rate-limit classes', () => {
   // Exhaust one class's bucket for a world.
   async function exhaust(worldPushId: string, worldKey: string, direct: boolean) {
@@ -712,8 +1148,8 @@ describe('rate-limit classes', () => {
     expect(res.status).toBe(200)
     const json = (await res.json()) as { results: Array<{ userId: string; skipped?: string; ok?: boolean }> }
     // Bob was whispered to: delivered. Alice was ambient: shed, and reported as such.
-    expect(apnsCalls.some((u) => u.includes('devB'))).toBe(true)
-    expect(apnsCalls.some((u) => u.includes('devA'))).toBe(false)
+    expect(apnsCalls.some((u) => u.includes(dev('devB')))).toBe(true)
+    expect(apnsCalls.some((u) => u.includes(dev('devA')))).toBe(false)
     expect(json.results.find((r) => r.userId === 'bob')?.ok).toBe(true)
     expect(json.results.find((r) => r.userId === 'alice')?.skipped).toBe('rate limited')
   })
@@ -730,7 +1166,7 @@ describe('rate-limit classes', () => {
       { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
       { authorization: `Bearer ${worldKey}` },
     )
-    expect(apnsCalls.some((u) => u.includes('devA'))).toBe(true)
+    expect(apnsCalls.some((u) => u.includes(dev('devA')))).toBe(true)
 
     // A direct send in the same minute is over limit, and nothing survives → 429.
     const res = await post(
@@ -757,11 +1193,11 @@ describe('rate-limit classes', () => {
 describe('durability: bookkeeping never costs a delivery', () => {
   // Write registrations straight into KV: a device count that matters here would
   // otherwise trip /register's own per-IP limit.
-  function seedRegistrations(worldPushId: string, userId: string, deviceTokens: string[]) {
+  function seedRegistrations(worldPushId: string, userId: string, labels: string[]) {
     env.TOKENS.store.set(
       `tok:${worldPushId}:${userId}`,
       JSON.stringify(
-        deviceTokens.map((deviceToken) => ({ deviceToken, platform: 'ios', env: 'sandbox', updatedAt: Date.now() })),
+        labels.map((label) => ({ deviceToken: dev(label), platform: 'ios', env: 'sandbox', updatedAt: Date.now() })),
       ),
     )
   }
@@ -826,7 +1262,7 @@ describe('durability: bookkeeping never costs a delivery', () => {
     )
     expect(res.status).toBe(200)
     // Bob still got his push — the old sequential loop would have thrown first.
-    expect(apnsCalls.some((u) => u.includes('devB'))).toBe(true)
+    expect(apnsCalls.some((u) => u.includes(dev('devB')))).toBe(true)
     const json = (await res.json()) as { results: Array<{ userId: string; error?: string; ok?: boolean }> }
     expect(json.results.find((r) => r.userId === 'alice')?.error).toBeTruthy()
     expect(json.results.find((r) => r.userId === 'bob')?.ok).toBe(true)
@@ -853,7 +1289,7 @@ describe('durability: bookkeeping never costs a delivery', () => {
     const realFetch = globalThis.fetch as typeof fetch
     vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
-      if (url.includes('devA')) throw new Error('connection reset')
+      if (url.includes(dev('devA'))) throw new Error('connection reset')
       return realFetch(input, init)
     })
 
@@ -868,10 +1304,10 @@ describe('durability: bookkeeping never costs a delivery', () => {
     expect(json.results.find((r) => r.userId === 'bob')?.ok).toBe(true)
   })
 
-  it('caps sends at the subrequest budget and sheds ambient before direct', async () => {
+  it('caps sends at the send budget and sheds ambient before direct', async () => {
     const { worldPushId, worldKey } = await provisionWorld()
     seedRegistrations(worldPushId, 'alice', Array.from({ length: 5 }, (_, i) => `alice-dev${i}`))
-    seedRegistrations(worldPushId, 'bob', Array.from({ length: 40 }, (_, i) => `bob-dev${i}`))
+    seedRegistrations(worldPushId, 'bob', Array.from({ length: 60 }, (_, i) => `bob-dev${i}`))
 
     const res = await post(
       '/notify',
@@ -883,42 +1319,25 @@ describe('durability: bookkeeping never costs a delivery', () => {
       budgetExhausted?: boolean
       results: Array<{ userId: string; skipped?: string; ok?: boolean }>
     }
-    // The ceiling is respected rather than thrown through — and it is the WHOLE
-    // ceiling, KV reads and badge writes included, not just the sends.
-    expect(kvOps + apnsCalls.length).toBeLessThanOrEqual(SUBREQUEST_CEILING)
+    // Both ceilings respected, rather than thrown through.
+    expectUnderCeilings()
     // Alice was whispered to: every one of her devices got it.
-    expect(apnsCalls.filter((u) => u.includes('alice-dev')).length).toBe(5)
+    expect(apnsCalls.filter((u) => u.includes(devHex('alice-dev'))).length).toBe(5)
     // Bob's ambient devices took the remainder, and every one that didn't fit is
     // reported rather than silently dropped.
-    const bobSent = apnsCalls.filter((u) => u.includes('bob-dev')).length
+    const bobSent = apnsCalls.filter((u) => u.includes(devHex('bob-dev'))).length
     expect(bobSent).toBeGreaterThan(0)
-    expect(bobSent).toBeLessThan(40)
-    expect(json.results.filter((r) => r.skipped === 'send budget exhausted').length).toBe(40 - bobSent)
+    expect(bobSent).toBeLessThan(60)
+    expect(json.results.filter((r) => r.skipped === 'send budget exhausted').length).toBe(60 - bobSent)
     expect(json.budgetExhausted).toBe(true)
   })
 
-  it('stays under the subrequest ceiling for an ordinary table, badges and all', async () => {
+  it('serves a table several times larger than the old shared budget allowed', async () => {
+    // Charging KV against the 50 meant roughly four units per device, so a dozen
+    // devices exhausted the allowance and the rest were shed. Only sends are
+    // external, so the real ceiling is the sends.
     const { worldPushId, worldKey } = await provisionWorld()
-    const table = ['alice', 'bob', 'carol', 'dave', 'erin', 'frank']
-    for (const who of table) await registerDevice(worldPushId, worldKey, who, `${who}-phone`)
-    kvOps = 0
-
-    const res = await post(
-      '/notify',
-      { worldId: worldPushId, recipients: table, title: 't', body: 'b' },
-      { authorization: `Bearer ${worldKey}` },
-    )
-    expect(res.status).toBe(200)
-    // Nobody is shed at this size: six phones, six sends, every badge written.
-    expect(apnsCalls.length).toBe(6)
-    expect(apnsBodies.every((b) => typeof b.aps?.badge === 'number')).toBe(true)
-    expect(kvOps + apnsCalls.length).toBeLessThanOrEqual(SUBREQUEST_CEILING)
-    expect((await res.json()) as { budgetExhausted?: boolean }).not.toHaveProperty('budgetExhausted')
-  })
-
-  it('sheds the badge before it sheds a notification', async () => {
-    const { worldPushId, worldKey } = await provisionWorld()
-    seedRegistrations(worldPushId, 'alice', Array.from({ length: 14 }, (_, i) => `alice-dev${i}`))
+    seedRegistrations(worldPushId, 'alice', Array.from({ length: 40 }, (_, i) => `alice-dev${i}`))
 
     const res = await post(
       '/notify',
@@ -926,12 +1345,66 @@ describe('durability: bookkeeping never costs a delivery', () => {
       { authorization: `Bearer ${worldKey}` },
     )
     expect(res.status).toBe(200)
-    // Every device still hears about it...
+    expect(apnsCalls.length).toBe(40)
+    expect(await res.json()).not.toHaveProperty('budgetExhausted')
+    expectUnderCeilings()
+  })
+
+  it('stays well under both ceilings for an ordinary table, badges and all', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    const table = ['alice', 'bob', 'carol', 'dave', 'erin', 'frank']
+    for (const who of table) await registerDevice(worldPushId, worldKey, who, `${who}-phone`)
+    kvOps = 0
+
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: table, direct: table, title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(200)
+    // Nobody is shed at this size: six phones, six sends, every badge written.
+    expect(apnsCalls.length).toBe(6)
+    expect(apnsBodies.every((b) => typeof b.aps?.badge === 'number')).toBe(true)
+    expectUnderCeilings()
+    expect((await res.json()) as { budgetExhausted?: boolean }).not.toHaveProperty('budgetExhausted')
+  })
+
+  it('spends no badge write on ambient chat', async () => {
+    // The badge cost a KV read and write per device per push, against ~1,000
+    // writes a DAY for the whole account — one chatty session on pushScope 'all'
+    // spent the lot, and then a registration or a provision could not be written
+    // for any tenant. Ambient chat is the volume, so ambient chat stops paying.
+    withLimiters()
+    const { worldPushId, worldKey } = await provisionWorld()
+    seedRegistrations(worldPushId, 'alice', Array.from({ length: 14 }, (_, i) => `alice-dev${i}`))
+
+    kvOps = 0
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(200)
+    // Every device still hears about it, and not one badge key was touched.
     expect(apnsCalls.length).toBe(14)
-    // ...but the later ones arrive without an icon number, which is the cheaper wrong.
-    expect(apnsBodies.some((b) => typeof b.aps?.badge === 'number')).toBe(true)
-    expect(apnsBodies.some((b) => b.aps?.badge === undefined)).toBe(true)
-    expect(kvOps + apnsCalls.length).toBeLessThanOrEqual(SUBREQUEST_CEILING)
+    expect(apnsBodies.every((b) => b.aps?.badge === undefined)).toBe(true)
+    expect([...env.TOKENS.store.keys()].some((k) => k.startsWith('badge:'))).toBe(false)
+    // One authorisation read plus one registration read: fourteen devices, two
+    // KV operations.
+    expect(kvOps).toBe(2)
+  })
+
+  it('still badges a direct message to the same devices', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    seedRegistrations(worldPushId, 'alice', Array.from({ length: 14 }, (_, i) => `alice-dev${i}`))
+
+    await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], direct: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(apnsBodies.every((b) => b.aps?.badge === 1)).toBe(true)
+    expectUnderCeilings()
   })
 
   it('caps how many recipients one notify may name, and says how many it dropped', async () => {
@@ -948,7 +1421,62 @@ describe('durability: bookkeeping never costs a delivery', () => {
     )
     expect(res.status).toBe(200)
     expect(await res.json()).toMatchObject({ droppedRecipients: 50 })
-    expect(kvOps + apnsCalls.length).toBeLessThanOrEqual(SUBREQUEST_CEILING)
+    expectUnderCeilings()
+  })
+
+  it('spends nothing on a repeated recipient', async () => {
+    // A duplicate id costs a registration read out of the budget to send
+    // nothing — the device is already in sentTokens — and puts two delivery runs
+    // for one user in flight against each other's write-back.
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+
+    apnsCalls = []
+    kvOps = 0
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice', 'alice', 'alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(apnsCalls.length).toBe(1)
+    const json = (await res.json()) as { results: Array<unknown> }
+    expect(json.results).toHaveLength(1)
+    // One registration read, not three.
+    const withoutDuplicates = kvOps
+    kvOps = 0
+    await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(withoutDuplicates).toBe(kvOps)
+  })
+
+  it('counts unique recipients when reporting what the cap dropped', async () => {
+    // 300 names, one user: nothing was dropped, and saying "100 dropped" would
+    // send the GM looking for a problem that is not there.
+    const { worldPushId, worldKey } = await provisionWorld()
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: Array.from({ length: 300 }, () => 'alice'), title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(await res.json()).not.toHaveProperty('droppedRecipients')
+  })
+
+  it('ignores junk entries in the recipient list', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    apnsCalls = []
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice', '', null, 42], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(200)
+    expect(apnsCalls.length).toBe(1)
+    const json = (await res.json()) as { results: Array<unknown> }
+    expect(json.results).toHaveLength(1)
   })
 })
 
@@ -963,15 +1491,15 @@ describe('write-back does not clobber a concurrent registration', () => {
     // foreground — and the write-back must not erase it.
     let registered = false
     apnsResponse = (url) => {
-      // Once — the dead-token path also retries the other environment, and a
-      // device only registers itself the once.
-      if (url.includes('old-phone') && !registered) {
+      // Guarded, so the device registers itself exactly once however many times
+      // the relay ends up calling APNs for this token.
+      if (url.includes(dev('old-phone')) && !registered) {
         registered = true
         const regs = JSON.parse(env.TOKENS.store.get(key)!)
-        regs.push({ deviceToken: 'new-phone', platform: 'ios', env: 'sandbox', updatedAt: Date.now() })
+        regs.push({ deviceToken: dev('new-phone'), platform: 'ios', env: 'sandbox', updatedAt: Date.now() })
         env.TOKENS.store.set(key, JSON.stringify(regs))
       }
-      return url.includes('old-phone') ? { status: 410, body: 'Unregistered' } : { status: 200, body: '' }
+      return url.includes(dev('old-phone')) ? { status: 410, body: 'Unregistered' } : { status: 200, body: '' }
     }
 
     await post(
@@ -981,7 +1509,7 @@ describe('write-back does not clobber a concurrent registration', () => {
     )
 
     const stored = JSON.parse(env.TOKENS.store.get(key)!) as Array<{ deviceToken: string }>
-    expect(stored.map((r) => r.deviceToken)).toEqual(['new-phone'])
+    expect(stored.map((r) => r.deviceToken)).toEqual([dev('new-phone')])
   })
 })
 
@@ -1032,19 +1560,21 @@ describe('one device, two identities in the same world', () => {
       { authorization: `Bearer ${worldKey}` },
     )
     expect(res.status).toBe(200)
-    expect(apnsCalls.filter((u) => u.includes('shared-phone')).length).toBe(1)
+    expect(apnsCalls.filter((u) => u.includes(dev('shared-phone'))).length).toBe(1)
     const json = (await res.json()) as { results: Array<{ skipped?: string }> }
     expect(json.results.filter((r) => r.skipped === 'device already notified').length).toBe(1)
     // One banner, so one badge increment — not two racing each other to the same key.
-    expect(env.TOKENS.store.get('badge:dev:shared-phone')).toBe('1')
+    expect(env.TOKENS.store.get(`badge:dev:${dev('shared-phone')}`)).toBe('1')
   })
 })
 
 describe('badge count', () => {
+  // Direct, because the badge counts only what is addressed to you — see the
+  // ambient case in the durability block.
   async function notify(worldPushId: string, worldKey: string) {
     return post(
       '/notify',
-      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { worldId: worldPushId, recipients: ['alice'], direct: ['alice'], title: 't', body: 'b' },
       { authorization: `Bearer ${worldKey}` },
     )
   }
@@ -1088,7 +1618,7 @@ describe('badge count', () => {
     apnsBodies = []
     apnsCalls = []
     await notify(worldPushId, worldKey)
-    const byDevice = new Map(apnsCalls.map((u, i) => [u.includes('tablet') ? 'tablet' : 'phone', apnsBodies[i].aps?.badge]))
+    const byDevice = new Map(apnsCalls.map((u, i) => [u.includes(dev('tablet')) ? 'tablet' : 'phone', apnsBodies[i].aps?.badge]))
     expect(byDevice.get('phone')).toBe(2)
     expect(byDevice.get('tablet')).toBe(1)
   })
@@ -1127,7 +1657,24 @@ describe('/send admin endpoint', () => {
   })
 
   it('sends with the admin bearer', async () => {
-    const res = await post('/send', { deviceToken: 'd', title: 't', body: 'b' }, { authorization: 'Bearer test-secret' })
+    const res = await post(
+      '/send',
+      { deviceToken: dev('devA'), title: 't', body: 'b' },
+      { authorization: 'Bearer test-secret' },
+    )
     expect(res.status).toBe(200)
+  })
+
+  it('rejects a malformed token rather than passing it to APNs', async () => {
+    // A token pasted short, or with a stray character, is worth saying so about:
+    // it goes into the APNs request path, and APNs would answer with something
+    // far less obvious than "you typed it wrong".
+    const res = await post(
+      '/send',
+      { deviceToken: 'not-a-token', title: 't', body: 'b' },
+      { authorization: 'Bearer test-secret' },
+    )
+    expect(res.status).toBe(400)
+    expect(apnsCalls.length).toBe(0)
   })
 })

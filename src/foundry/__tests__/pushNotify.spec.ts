@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { notifyChatMessage } from '../pushNotify'
+import { notifyChatMessage, lastPushDeliveryIssue } from '../pushNotify'
 
 // The audience split is what keeps a whisper clear of ambient table chat, so
 // these tests drive notifyChatMessage end to end and assert on the payload the
@@ -312,6 +312,78 @@ describe('delivery retries', () => {
   it('sends once when the first attempt succeeds', async () => {
     await runWithRetries(message({ whisper: ['bob'] }))
     expect(notifyCalls()).toBe(1)
+  })
+})
+
+describe('reporting a shortfall the relay hid under a 200', () => {
+  // The relay must answer 200 when only *part* of a message got through — a
+  // retry would double-notify whoever did hear it — so it describes the
+  // shortfall in the body instead. Nothing surfaced any of it, which meant a
+  // table too big for one relay invocation looked exactly like a healthy one.
+  const relayAnswers = (body: unknown, status = 200) =>
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(body), { status }))
+
+  // The record is module state that outlives a test, so identity-compare it:
+  // recordDeliveryIssue always assigns a fresh object, so "unchanged" means this
+  // delivery reported nothing.
+  async function issueFrom(body: unknown, status = 200) {
+    const before = lastPushDeliveryIssue()
+    relayAnswers(body, status)
+    await notifyChatMessage(message({ whisper: ['bob'] }))
+    const after = lastPushDeliveryIssue()
+    return after === before ? null : after
+  }
+
+  it('reports recipients shed to the subrequest budget', async () => {
+    const issue = await issueFrom({
+      results: [{ userId: 'bob', skipped: 'send budget exhausted' }],
+      budgetExhausted: true
+    })
+    expect(issue?.detail).toContain('1 recipient(s) not notified')
+    expect(issue?.detail).toContain('send budget exhausted')
+  })
+
+  it('reports recipients shed to a rate limit', async () => {
+    const issue = await issueFrom({
+      results: [
+        { userId: 'bob', class: 'ambient', skipped: 'rate limited' },
+        { userId: 'carol', class: 'ambient', skipped: 'rate limited' }
+      ]
+    })
+    expect(issue?.detail).toContain('2 recipient(s) not notified (rate limited)')
+  })
+
+  it('reports a recipient whose send failed', async () => {
+    const issue = await issueFrom({ results: [{ userId: 'bob', status: 400, ok: false }] })
+    expect(issue?.detail).toContain('1 recipient(s) failed to deliver')
+  })
+
+  it('reports recipients dropped for exceeding the per-message limit', async () => {
+    const issue = await issueFrom({ results: [{ userId: 'bob', ok: true }], droppedRecipients: 12 })
+    expect(issue?.detail).toContain("12 recipient(s) over the relay's per-message limit")
+  })
+
+  it('stays quiet about deduping and Android, which cost nobody a notification', async () => {
+    // One phone registered under two of a world's users is deduped to a single
+    // banner; an Android registration was never going to be delivered to. Both
+    // arrive as `skipped`, and neither is a problem to report.
+    const issue = await issueFrom({
+      results: [
+        { userId: 'bob', ok: true },
+        { userId: 'bob-app', skipped: 'device already notified' },
+        { userId: 'carol', platform: 'android', skipped: 'non-ios not wired yet' }
+      ]
+    })
+    expect(issue).toBeNull()
+  })
+
+  it('says nothing when everything was delivered', async () => {
+    expect(await issueFrom({ results: [{ userId: 'bob', status: 200, ok: true }] })).toBeNull()
+  })
+
+  it('reports a relay that refused the message outright', async () => {
+    const issue = await issueFrom({ error: 'unauthorized' }, 401)
+    expect(issue?.detail).toContain('401')
   })
 })
 

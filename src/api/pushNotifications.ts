@@ -25,12 +25,18 @@ let registering = false
 // the app being killed. This also resets the relay's badge counter (a /register
 // clears it), pairing with the icon the app clears locally on becoming active.
 //
-// Throttled, because /register costs KV writes and the free plan's daily
-// allowance is this relay's real ceiling. The trade is visible: reopening the app
-// inside the window leaves the server-side badge count where it was, so the next
-// push can show a number higher than the one just cleared. A write per foreground
-// would fix that and cost more than it is worth.
-const HEARTBEAT_MIN_INTERVAL_MS = 5 * 60 * 1000
+// Throttled, because the free plan's ~1,000 KV writes a DAY — account-wide,
+// shared with every world's registrations — is this relay's real ceiling. The
+// throttle is now the smaller half of that defence: the relay answers a
+// re-registration that says nothing new without writing at all (see
+// handleRegister), so the routine foreground costs reads. What the interval buys
+// is fewer round-trips, not fewer writes.
+//
+// Which is why it stays in minutes rather than hours. The badge count only
+// resets when the app checks in, so a long interval would let the icon
+// over-report whispers the user has already read — and now that the badge counts
+// only direct messages, over-reporting those is exactly the wrong error.
+const HEARTBEAT_MIN_INTERVAL_MS = 15 * 60 * 1000
 
 // What a registration is actually *for*: this device, at this server, as this
 // user. Registrations are per (world, user) relay-side, so the device token

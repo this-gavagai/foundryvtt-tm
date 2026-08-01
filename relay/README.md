@@ -121,14 +121,31 @@ order to deliver the notification.
 
 ## Abuse controls
 
-The Worker applies coarse per-minute limits in KV: `/notify` per world — **two
-independent buckets**, ambient (60) and direct (60) — and per-IP caps on
+The Worker applies coarse per-minute limits through the [Workers rate-limiting
+binding](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/)
+(`[[ratelimits]]` in `wrangler.toml`, Wrangler ≥ 4.36): `/notify` per world —
+**two independent buckets**, ambient (60) and direct (60) — and per-IP caps on
 `/provision` (20), `/register` (30) and `/unregister` (30). `/notify` also
 per-IP-throttles *failed* authorisation (30), which costs a legitimate caller
 nothing: charging every notify a per-IP counter would spend two subrequests per
-message to throttle a caller the world key already excludes. KV is eventually
-consistent, so these are approximate ceilings — good against a single hammering
-source, but a distributed attacker can exceed them.
+message to throttle a caller the world key already excludes.
+
+These were KV counters until recently, and that was backwards. A KV counter
+writes on every request it **allows**, so a single source could spend the free
+plan's ~1,000 KV writes/day through the rate limiter alone, in about a minute —
+the very budget the limiter exists to protect. Once it is gone the writes that
+must *not* be swallowed start failing too: `/provision` and `/register` 500, and
+no device in any tenant can register. The binding costs no KV write and no
+subrequest, which also hands `/notify` back four subrequests per message.
+
+The binding counts per Cloudflare location rather than globally. That is less of
+a downgrade than it sounds — the KV counter was eventually consistent anyway, and
+both an abusive source and the single GM client sending a world's notifications
+land in one location — but it does mean a **distributed** attacker can still
+exceed these ceilings. Closing that gap is the edge rule below, not KV.
+
+If a deployment has no bindings configured (an older Wrangler), the Worker falls
+back to the KV counters: you lose the improvement, not the limit.
 
 The split matters: a message is "direct" when it was whispered to you or names
 your username (the module marks those recipients in `/notify`'s `direct` field).
@@ -138,11 +155,25 @@ that arrived at second 55. When only one class is over limit the other still
 delivers, and shed recipients are reported in the response rather than passing as
 a successful send.
 
-For a hard, edge-enforced backstop, add a **Cloudflare Rate Limiting rule** (free
-tier) in the dashboard: Security → WAF → Rate limiting rules → e.g. match
+`/register` also rejects a malformed device token (APNs tokens must be hex; the
+length is bounded generously, since Apple documents it as variable). The token is
+interpolated into the APNs request path, and something that is not a token can
+never be delivered to — worse, the fetch throws before Apple answers, so it is
+never reported dead and nothing prunes it. Entries stored before this check are
+skipped at delivery time and left to the 30-day sweep.
+
+**Deploying this relay includes adding a Cloudflare Rate Limiting rule** (free
+tier), in the dashboard: Security → WAF → Rate limiting rules → match
 `http.request.uri.path in {"/provision" "/register" "/unregister" "/notify"}`,
-100 requests / 1 min per client IP, action Block. That enforces at the edge
-before the Worker runs, closing the eventual-consistency gap.
+100 requests / 1 min per client IP, action Block.
+
+Treat this as part of the deploy, not an optional hardening step. It is the only
+control here that is enforced *globally* and *before the Worker runs* — every
+in-Worker limit is per-location and only after Cloudflare has already billed you
+an invocation. Without it, a distributed source can spread itself across
+locations, stay under every binding's ceiling, and still burn the account's
+100,000 daily Worker requests. With it, the in-Worker limits are what they are
+meant to be: a cheap second line, not the only one.
 
 ## Diagnosing it from Foundry
 
@@ -175,25 +206,44 @@ there; devices follow on their next app foreground.
 Two Cloudflare free-plan ceilings shape the delivery path, and both used to fail
 in ways that cost notifications:
 
-- **KV writes (~1,000/day).** Every `/notify` writes a rate-limit counter plus one
-  badge counter per device, so a chatty world on `pushScope: 'all'` can exhaust the
-  allowance in a single session. All such bookkeeping now goes through the `kv*`
-  helpers, which swallow failures: a push still goes out, it just may not move the
-  icon number or enforce the soft rate ceiling. Registration *reads* stay strict —
-  not knowing where to send is a real error, and one that the module retries.
-- **Subrequests (50/request).** KV operations count against this alongside
-  `fetch()`, so a `/notify` costs roughly *four* per device — registration read,
-  badge get, badge put, APNs send — not the one its send represents. Budgeting
-  only the sends therefore under-counted by about a factor of four, and a table of
-  a dozen blew the ceiling on bookkeeping alone: the runtime throws mid-loop, the
-  request 500s, and every recipient loses the notification (three times over, once
-  the module's retries have run). So `MAX_SUBREQUESTS` (44) budgets *everything*
-  after authorisation. Degradation is ordered by what costs least to lose: badge
-  writes go first (`BADGE_BUDGET_FLOOR`), then ambient recipients — direct ones are
-  delivered as a first wave — and everything shed is reported (`skipped: 'send
-  budget exhausted'`, plus `budgetExhausted: true`) rather than silently dropped.
-  `/status` faces the same ceiling for the same reason, so it caps the users it
-  will read in one call (`MAX_STATUS_USERS`) and the module asks in chunks.
+- **KV writes (~1,000/day, account-wide, deletes included).** This is the binding
+  constraint on the whole relay, and it is a *daily* quota — no per-invocation
+  budget can see it coming. Two things used to spend it faster than anything else,
+  and both have been dealt with: the per-IP rate-limit counters (now the
+  rate-limiting binding, above) and the badge, which cost a read and a write per
+  device per push until it was made **direct-only**. Ambient chat — the volume —
+  now moves no badge at all, and the count means something better for it: how many
+  people whispered or named you, not how much the table has been talking.
+
+  The remaining writer is `/register`, which the app calls on every foreground.
+  Almost every one of those repeats the last, so a re-registration that changes
+  nothing and is younger than `REGISTRATION_REFRESH_MS` is answered **without a
+  write**, and the badge reset reads before it deletes. The routine heartbeat
+  therefore costs reads (100,000/day) rather than writes.
+
+  Everything discretionary still goes through the `kv*` helpers, which swallow
+  failures: a push goes out even if its bookkeeping cannot be persisted.
+  Registration *reads* stay strict — not knowing where to send is a real error,
+  and one the module retries.
+- **Subrequests — and there are two ceilings, not one.** A free-plan invocation
+  may make **50 external** subrequests (`fetch()`, i.e. the APNs sends) and,
+  separately, **1,000 operations to Cloudflare services** (the KV reads and
+  writes). These were once budgeted as a single pool of 44 on the belief that KV
+  drew on the same 50, which charged about four units per device where only one
+  was external — so a dozen devices spent the allowance on bookkeeping and
+  everyone past them was shed.
+
+  `MAX_APNS_SENDS` (46) now budgets the sends, and `MAX_KV_OPS` (400) bounds the
+  KV side generously — 400 against a limit of 1,000 will not bind for any table,
+  and it exists so that being wrong about a ceiling degrades into a reported shed
+  rather than a mid-loop throw that 500s and loses every recipient (three times
+  over, once the module's retries have run). A single `/notify` now serves a table
+  several times larger than it used to. What is shed is still ambient before
+  direct — direct goes as a first wave — and still reported (`skipped: 'send
+  budget exhausted'`, plus `budgetExhausted: true`) rather than dropped in
+  silence. `/status` makes no external call at all, so it answers to the KV
+  ceiling and reads up to `MAX_STATUS_USERS` (200) per call; the module chunks
+  anything longer.
 
 Recipients are delivered concurrently and each settles independently, so one
 recipient's failure no longer aborts the rest of the list. If *every* recipient
@@ -201,12 +251,44 @@ failed, `/notify` answers **502** so the module's retry can try again — nothin
 delivered, so a retry cannot double-notify. A partial success stays 200 for the
 same reason.
 
+Banners are coalesced by class. Ambient chat collapses into one rolling banner
+per (world, user), so ten table messages replace each other rather than stacking
+ten notifications. Direct messages stack,
+because each is individually addressed, but they collapse *against themselves*:
+their `apns-collapse-id` is the chat message's id, so the module re-sending a
+`/notify` it never got an answer to shows one banner rather than two. (A
+mitigation, not a cure — APNs replaces an undelivered banner, so a duplicate
+still appears if the first was already read and dismissed.) A caller that names
+no `messageId` gets no collapse id, exactly as before.
+
+Repeated recipient ids are deduplicated before anything is spent on them: a
+duplicate would otherwise cost a registration read out of the subrequest budget
+to send nothing, and put two delivery runs for one user in flight against each
+other's write-back. `droppedRecipients` therefore counts *unique* recipients over
+`MAX_RECIPIENTS`, so a payload naming one user 300 times reports one recipient
+and no drops.
+
+A registration stores which APNs environment its token belongs to, and the relay
+self-heals a wrong one: if APNs answers `BadDeviceToken` / `BadEnvironmentKeyInToken`
+it retries the other environment and, on a 200, remembers it. That retry fires
+**only** on those two answers, and only a 200 is adopted. A 429, a 5xx or a
+connection failure says nothing about the environment — and since a live token is
+always `BadDeviceToken` in the environment it *isn't* filed under, probing on a
+transient failure and believing the answer used to prune a perfectly good
+registration. The device would then stay silent until its next app foreground,
+which for a backgrounded phone — the entire audience for push — can be hours.
+
 The module retries a `/notify` that fails transiently (network error, 5xx, 429) up
 to three attempts over ~8s. It does not retry other 4xx: a 401 is the wrong world
 key and a 400 a bad payload, neither of which a second identical request fixes.
 
-If the badge count matters more than living inside the free plan, it belongs in a
-Durable Object — which means the paid plan.
+The badge is approximate by construction, and deliberately so. It counts direct
+messages only; its read-modify-write is not atomic across concurrent notifies;
+KV is eventually consistent; and it resets only when the app next checks in, so
+it can briefly over-report whispers already read. Every one of those is a
+consequence of keeping it inside the free plan. If an exact count ever matters
+more than that, it belongs in a Durable Object — which means the paid plan, where
+the subrequest and KV-write ceilings above stop binding too.
 
 `/unregister` takes no bearer: it needs either a module-minted `regToken` or the
 `(worldId, userId, deviceToken)` triple — a world's random id plus that device's

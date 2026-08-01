@@ -269,10 +269,12 @@ describe('foreground heartbeat', () => {
   }
 
   // Move the clock past the throttle without touching timers, which vi.waitFor
-  // and the module's own awaits depend on.
+  // and the module's own awaits depend on. An hour, so this stays correct if
+  // HEARTBEAT_MIN_INTERVAL_MS is tuned again — the tests below care that the
+  // throttle exists, not what it is set to.
   function advancePastThrottle() {
     const now = Date.now()
-    vi.spyOn(Date, 'now').mockReturnValue(now + 10 * 60 * 1000)
+    vi.spyOn(Date, 'now').mockReturnValue(now + 60 * 60 * 1000)
   }
 
   it('re-registers on foreground even though nothing changed', async () => {
