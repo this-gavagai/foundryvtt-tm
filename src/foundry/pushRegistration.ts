@@ -24,7 +24,8 @@ declare const game: {
     get: (scope: string, key: string) => unknown
     set: (scope: string, key: string, value: unknown) => Promise<unknown>
   }
-  user?: { isGM?: boolean }
+  user?: { id?: string; isGM?: boolean }
+  users?: { activeGM?: { id?: string } | null }
   world?: { id?: string }
 }
 
@@ -171,11 +172,38 @@ export function readPushConfig(): PushConfig | null {
   }
 }
 
+// The one GM client Foundry designates as primary. Used to elect a single writer
+// for the world's push identity, and (in pushNotify) a single sender per message.
+export function isPrimaryGM(): boolean {
+  const activeGmId = game.users?.activeGM?.id
+  return !!activeGmId && game.user?.id === activeGmId
+}
+
+// Coalesces overlapping calls on THIS client: the enable toggle and the relay-URL
+// toggle both fire onChange, and setup runs it too, so without this a single
+// change can have three mints racing each other's awaits.
+let minting: Promise<void> | null = null
+
 // GM-only: mint this world's random id + key if absent (world settings are
 // GM-writable only), then provision them to the relay. Idempotent — safe to run
 // on every load and whenever the enable toggle flips.
-export async function ensureWorldPushIdentity(): Promise<void> {
+//
+// Only the primary GM mints automatically. Two GMs loading the world together
+// would otherwise both read an empty setting, both generate an identity, and
+// both provision it: one becomes an orphan entry on the relay, and any device
+// that registered against the loser in between is stranded. `force` is for the
+// GM explicitly asking (the status panel), where there is no such race.
+export async function ensureWorldPushIdentity(options: { force?: boolean } = {}): Promise<void> {
   if (!game.user?.isGM || !readBool(PUSH_ENABLED_SETTING)) return
+  // Defer only when Foundry has actually designated a primary and it isn't us.
+  // With no designation to read (an unsettled user list), deferring would leave
+  // the world unprovisioned with nothing scheduled to retry it.
+  if (!options.force && game.users?.activeGM && !isPrimaryGM()) return
+  if (!minting) minting = mintAndProvision().finally(() => (minting = null))
+  return minting
+}
+
+async function mintAndProvision(): Promise<void> {
   let worldId = readStr(PUSH_WORLD_ID_SETTING)
   let worldKey = readStr(PUSH_WORLD_KEY_SETTING)
 
@@ -210,14 +238,42 @@ export async function ensureWorldPushIdentity(): Promise<void> {
   if (currentWorld && mintedFor !== currentWorld) {
     await game.settings.set(MODULE_ID, PUSH_WORLD_ORIGIN_SETTING, currentWorld)
   }
+
+  const status = await provision(worldId, worldKey)
+  // 409 means the relay holds a DIFFERENT key for this id — the world settings
+  // and the relay have diverged (a partial restore, a hand-cleared key), and
+  // every /notify under this identity will 401 forever. Nothing can recover the
+  // old key, so the only repair is a new identity. Do it here rather than leave
+  // push permanently and silently dead; devices re-register on their next
+  // foreground heartbeat.
+  if (status === 409) {
+    logger.warn('TABLEMATE: relay holds another key for this push id — minting a fresh identity')
+    worldId = crypto.randomUUID()
+    worldKey = randomKeyHex()
+    await game.settings.set(MODULE_ID, PUSH_WORLD_ID_SETTING, worldId)
+    await game.settings.set(MODULE_ID, PUSH_WORLD_KEY_SETTING, worldKey)
+    await provision(worldId, worldKey)
+  }
+}
+
+// POST the world's identity to the relay. Returns the HTTP status, or 0 if the
+// relay could not be reached at all. A non-OK answer used to be discarded, which
+// is how a world could sit with push "enabled" and provisioning permanently
+// broken while nothing anywhere said so.
+async function provision(worldId: string, worldKey: string): Promise<number> {
   try {
-    await fetch(`${relayUrl()}/provision`, {
+    const res = await fetch(`${relayUrl()}/provision`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ worldPushId: worldId, worldKey })
     })
+    if (!res.ok && res.status !== 409) {
+      logger.warn('TABLEMATE: push provision rejected', res.status, await res.text().catch(() => ''))
+    }
+    return res.status
   } catch (error) {
     logger.warn('TABLEMATE: push provision failed', error)
+    return 0
   }
 }
 

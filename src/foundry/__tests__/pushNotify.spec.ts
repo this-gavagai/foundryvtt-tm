@@ -16,7 +16,19 @@ const pushConfig = {
   scope: 'mentions' as 'mentions' | 'all'
 }
 
-vi.mock('../pushRegistration', () => ({ readPushConfig: () => pushConfig }))
+// isPrimaryGM lives in pushRegistration (one election shared with the identity
+// minting), so the mock reproduces it against the fake world set up below.
+vi.mock('../pushRegistration', () => ({
+  readPushConfig: () => pushConfig,
+  isPrimaryGM: () => {
+    const game = (globalThis as Record<string, unknown>).game as {
+      user?: { id?: string }
+      users?: { activeGM?: { id?: string } | null }
+    }
+    const activeGmId = game?.users?.activeGM?.id
+    return !!activeGmId && game.user?.id === activeGmId
+  }
+}))
 vi.mock('../transcriptionSetting', () => ({ transcriptionEnabled: () => false }))
 
 type TestUser = { id: string; name: string; active?: boolean; belongsTo?: string }
@@ -110,6 +122,29 @@ describe('audience classification', () => {
       { id: 'bob', name: 'Bob' }
     ])
     await notifyChatMessage(message())
+    expect(payload()!.recipients.slice().sort()).toEqual(['bob', 'gm'])
+  })
+
+  it('treats the app user who caused a GM-executed roll as its sender', async () => {
+    pushConfig.scope = 'all'
+    setWorld([
+      { id: 'gm', name: 'GameMaster' },
+      { id: 'alice', name: 'Alice' },
+      { id: 'alice-app', name: 'AliceApp', belongsTo: 'alice' },
+      { id: 'bob', name: 'Bob' }
+    ])
+    // A roll made from Alice's app runs on the GM's client, so PF2e authors the
+    // message as the GM; the listener stamps who actually asked for it.
+    await notifyChatMessage(
+      message({
+        content: '',
+        rolls: [{ total: 18 }],
+        author: { id: 'gm', name: 'GameMaster' },
+        flags: { tablemate: { originUserId: 'alice' } }
+      })
+    )
+    // Alice made the roll, so neither she nor her app-user hears about it — and
+    // the GM, who merely executed it, does.
     expect(payload()!.recipients.slice().sort()).toEqual(['bob', 'gm'])
   })
 
@@ -302,5 +337,37 @@ describe('leader election and gating', () => {
   it('skips a message with neither text nor a roll', async () => {
     await notifyChatMessage(message({ content: '', whisper: ['bob'] }))
     expect(payload()).toBeUndefined()
+  })
+})
+
+describe('notification body', () => {
+  // payload() is typed to the audience fields these tests don't use.
+  function body(): string | undefined {
+    const call = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/notify'))
+    return call ? (JSON.parse((call[1] as RequestInit).body as string) as { body: string }).body : undefined
+  }
+
+  it('summarises a text-less roll instead of saying "sent a message"', async () => {
+    await notifyChatMessage(
+      message({ content: '', rolls: [{ total: 23 }], flavor: '<h4>Athletics Check</h4>', whisper: ['bob'] })
+    )
+    expect(body()).toBe('🎲 Athletics Check: 23')
+  })
+
+  it('falls back to the total when the roll has no flavour', async () => {
+    await notifyChatMessage(message({ content: '', rolls: [{ total: 17 }], whisper: ['bob'] }))
+    expect(body()).toBe('🎲 17')
+  })
+
+  it('says a roll was made without disclosing it when message text is off', async () => {
+    pushConfig.includeBody = false
+    try {
+      await notifyChatMessage(
+        message({ content: '', rolls: [{ total: 23 }], flavor: '<h4>Athletics Check</h4>', whisper: ['bob'] })
+      )
+      expect(body()).toBe('made a roll')
+    } finally {
+      pushConfig.includeBody = true
+    }
   })
 })

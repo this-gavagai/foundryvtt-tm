@@ -136,6 +136,14 @@ export function syncPushRegistration(): void {
   void tryRegister()
 }
 
+// Called when the session's user changes (server switch, or re-login as someone
+// else), before the new user id is committed. Nothing may be registered against
+// the identity we are leaving, and the next onSessionAuthenticated re-arms this.
+export function resetPushSession(): void {
+  sessionAuthenticated = false
+  lastRegisteredIdentity = null
+}
+
 // Re-register even though nothing about the identity changed, to refresh the
 // relay's liveness timestamp and reset its badge counter. Also the mechanism that
 // picks up a world whose push identity was re-minted underneath us (a duplicated

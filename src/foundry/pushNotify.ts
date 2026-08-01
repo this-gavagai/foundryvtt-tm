@@ -12,8 +12,9 @@
 // they get their own rate-limit budget, stack as individual banners rather than
 // collapsing, and are never suppressed for being "connected".
 
-import { readPushConfig, type PushScope } from './pushRegistration'
+import { readPushConfig, isPrimaryGM, type PushScope } from './pushRegistration'
 import { transcriptionEnabled } from './transcriptionSetting'
+import { tablemateChatOriginUserId } from './utils/foundry'
 import { logger } from '@/utils/utilities'
 
 // Structural view of the bits of ChatMessage we read; Foundry's types are loose
@@ -23,6 +24,7 @@ interface ChatMessageLike {
   _id?: string
   alias?: string
   content?: string
+  flavor?: string
   whisper?: Array<string | { id?: string }>
   author?: { id?: string; _id?: string; name?: string }
   user?: { id?: string; name?: string }
@@ -60,8 +62,16 @@ function voiceTranscript(msg: ChatMessageLike): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+// Who this message is FROM, for the purpose of not notifying them about it.
+//
+// Not always the Foundry author: a roll made from the app is executed on the
+// GM's client, so PF2e authors the resulting message as the GM. The listener
+// already stamps the requesting user onto those messages (stampChatOrigin, read
+// by chatOriginDisplay for the same reason), so prefer that stamp — without it
+// the player who rolled is not recognised as the sender and gets pushed their
+// own roll, while the GM is excluded from one they had no part in.
 function authorId(msg: ChatMessageLike): string | undefined {
-  return msg.author?.id ?? msg.author?._id ?? msg.user?.id
+  return tablemateChatOriginUserId(msg) ?? msg.author?.id ?? msg.author?._id ?? msg.user?.id
 }
 
 // A user connected to the world right now is looking at the game, so a push
@@ -242,11 +252,21 @@ function plainText(html: string | undefined): string {
   return text.replace(/\s+/g, ' ').trim()
 }
 
-// A short plain-text line for the notification body.
-function bodyText(html: string | undefined): string {
-  const text = plainText(html)
-  if (!text) return 'sent a message'
-  return truncate(text, 180)
+function hasRoll(msg: ChatMessageLike): boolean {
+  return Array.isArray(msg.rolls) && msg.rolls.length > 0
+}
+
+// A roll can carry no prose at all — an attack, a save, a bare skill check — in
+// which case there is no message text to show and "sent a message" is both true
+// and useless. Fall back to the roll itself: PF2e names the check in the message
+// flavor, and the total is the thing anyone reads a banner for.
+function rollSummary(msg: ChatMessageLike): string {
+  const totals = (Array.isArray(msg.rolls) ? msg.rolls : [])
+    .map((roll) => (roll as { total?: unknown }).total)
+    .filter((total): total is number => typeof total === 'number')
+  if (!totals.length) return ''
+  const flavor = plainText(msg.flavor)
+  return flavor ? `🎲 ${truncate(flavor, 120)}: ${totals.join(', ')}` : `🎲 ${totals.join(', ')}`
 }
 
 // Body respects the per-world opt-in: when message text is off (default), the
@@ -255,13 +275,20 @@ function bodyText(html: string | undefined): string {
 // its transcript has landed (we briefly wait for it — see waitForTranscript) the
 // spoken text rides alongside that indicator, and any typed caption is used as a
 // fallback until then. All only when message text is opted in.
+//
+// "made a roll" is the sender-only wording for a roll: it says no more than the
+// notification's mere existence already does, and beats telling someone their
+// party's fighter "sent a message" when what happened was an attack.
 function notificationBody(msg: ChatMessageLike, includeBody: boolean): string {
   if (isVoiceMemo(msg)) {
     if (!includeBody) return '🎤 Voice message'
     const text = truncate(voiceTranscript(msg) || plainText(msg.content), 180)
     return text ? `🎤 ${text}` : '🎤 Voice message'
   }
-  return includeBody ? bodyText(msg.content) : 'sent a message'
+  if (!includeBody) return hasRoll(msg) ? 'made a roll' : 'sent a message'
+  const text = plainText(msg.content)
+  if (text) return truncate(text, 180)
+  return rollSummary(msg) || 'sent a message'
 }
 
 // Skip noise: unattributable messages (no author — system/automation output, and
@@ -270,12 +297,7 @@ function notificationBody(msg: ChatMessageLike, includeBody: boolean): string {
 function isNotifiableMessage(msg: ChatMessageLike): boolean {
   if (!authorId(msg)) return false
   if (isVoiceMemo(msg)) return true
-  return plainText(msg.content).length > 0 || (Array.isArray(msg.rolls) && msg.rolls.length > 0)
-}
-
-function isPrimaryGM(): boolean {
-  const activeGmId = (game.users as unknown as { activeGM?: { id?: string } | null })?.activeGM?.id
-  return !!activeGmId && game.user?.id === activeGmId
+  return plainText(msg.content).length > 0 || hasRoll(msg)
 }
 
 // A voice memo posts before its transcription finishes, so its push would

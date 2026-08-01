@@ -30,6 +30,7 @@ export interface PushCheck {
 }
 
 export interface PushDeviceCount {
+  userId: string
   name: string
   count: number
 }
@@ -43,6 +44,12 @@ export interface PushStatus {
 }
 
 const PROBE_TIMEOUT_MS = 8_000
+
+// The relay reads one KV entry per user asked about, and KV operations count
+// against a Worker's 50-subrequest ceiling, so a big world's user list has to be
+// asked for in pieces — each chunk is its own Worker invocation with its own
+// allowance. Kept at the relay's own per-call cap (MAX_STATUS_USERS).
+const STATUS_CHUNK = 30
 
 // Fetch with a deadline: an unreachable relay should report as unreachable in a
 // few seconds, not hang the dialog until the browser gives up.
@@ -79,8 +86,11 @@ export async function collectPushStatus(): Promise<PushStatus> {
   if (!enabled) return { checks, devices: [], canTest: false, relayUrl: url }
 
   // Provisioning is a GM-only, idempotent step; running it here means opening this
-  // dialog also repairs a world whose first attempt failed (offline at load).
-  await ensureWorldPushIdentity()
+  // dialog also repairs a world whose first attempt failed (offline at load), or
+  // whose key the relay no longer agrees with. Forced, because the automatic path
+  // is reserved to the primary GM and this is an explicit request from whichever
+  // GM opened the panel.
+  await ensureWorldPushIdentity({ force: true })
 
   const config = readPushConfig()
   if (!config) {
@@ -113,29 +123,41 @@ export async function collectPushStatus(): Promise<PushStatus> {
   }
 
   const names = worldUserNames()
+  const userIds = [...names.keys()]
   let devices: PushDeviceCount[] = []
+  let unsupported = 0
   try {
-    const res = await fetchWithTimeout(`${url}/status`, {
-      method: 'POST',
-      headers: { authorization: `Bearer ${config.worldKey}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ worldId: config.worldId, userIds: [...names.keys()] })
-    })
-    if (res.status === 401) {
-      checks.push({
-        label: 'Relay accepts this world',
-        state: 'fail',
-        detail: 'The relay rejected this world\'s key. Another world may have claimed its id; re-enabling push mints a new one.'
+    const counts: Record<string, number> = {}
+    for (let i = 0; i < Math.max(userIds.length, 1); i += STATUS_CHUNK) {
+      const res = await fetchWithTimeout(`${url}/status`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${config.worldKey}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ worldId: config.worldId, userIds: userIds.slice(i, i + STATUS_CHUNK) })
       })
-      return { checks, devices: [], canTest: false, relayUrl: url }
+      if (res.status === 401) {
+        checks.push({
+          label: 'Relay accepts this world',
+          state: 'fail',
+          // Opening this dialog re-provisions (above), and a key conflict re-mints
+          // the identity, so a 401 surviving all that is not something the GM can
+          // fix by toggling the setting — it means the relay refused the world.
+          detail:
+            "The relay rejected this world's key, and re-provisioning did not repair it. " +
+            'Check the relay URL below, then use Check again.'
+        })
+        return { checks, devices: [], canTest: false, relayUrl: url }
+      }
+      if (!res.ok) {
+        checks.push({ label: 'Relay accepts this world', state: 'fail', detail: `Status check answered ${res.status}` })
+        return { checks, devices: [], canTest: false, relayUrl: url }
+      }
+      const body = (await res.json()) as { devices?: Record<string, number>; unsupported?: number }
+      Object.assign(counts, body.devices ?? {})
+      unsupported += body.unsupported ?? 0
     }
-    if (!res.ok) {
-      checks.push({ label: 'Relay accepts this world', state: 'fail', detail: `Status check answered ${res.status}` })
-      return { checks, devices: [], canTest: false, relayUrl: url }
-    }
-    const body = (await res.json()) as { devices?: Record<string, number> }
     checks.push({ label: 'Relay accepts this world', state: 'ok', detail: 'Provisioned and authorised' })
-    devices = Object.entries(body.devices ?? {})
-      .map(([userId, count]) => ({ name: names.get(userId) ?? userId, count }))
+    devices = Object.entries(counts)
+      .map(([userId, count]) => ({ userId, name: names.get(userId) ?? userId, count }))
       .sort((a, b) => a.name.localeCompare(b.name))
   } catch (err) {
     checks.push({
@@ -157,8 +179,20 @@ export async function collectPushStatus(): Promise<PushStatus> {
         }
   )
 
+  // Registered but undeliverable: the relay stores an Android registration and
+  // never sends to it, so it must not be counted above as a device that will hear
+  // anything — but it should be said out loud, or that player looks registered and
+  // silently is not.
+  if (unsupported > 0) {
+    checks.push({
+      label: 'Unsupported devices',
+      state: 'warn',
+      detail: `${unsupported} Android device(s) registered. Android push is not wired up yet, so they receive nothing.`
+    })
+  }
+
   // A test push addresses the GM's own user, so it needs a device of their own.
-  const mine = game.user?.id ? (names.has(game.user.id) ? devices.find((d) => d.name === names.get(game.user!.id!)) : undefined) : undefined
+  const mine = devices.find((d) => d.userId === game.user?.id)
   checks.push(
     mine
       ? { label: 'Your devices', state: 'ok', detail: `${mine.count} — a test notification can be sent` }

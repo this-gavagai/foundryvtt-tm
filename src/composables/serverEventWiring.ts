@@ -31,7 +31,7 @@ import {
 } from '@/api/internal'
 import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
 import { addRefresh, fireAllRefresh, fireRefresh, parseActorData } from '@/api/characterSync'
-import { syncPushRegistration } from '@/api/pushNotifications'
+import { syncPushRegistration, resetPushSession } from '@/api/pushNotifications'
 import { processChanges } from '@/api/documents'
 import { resetLoadPriority } from '@/api/loadPriority'
 import { registerStoreBridge } from '@/api/storeBridge'
@@ -106,7 +106,13 @@ export function registerServerEventWiring() {
     // check the new user against the old actor's ownership and flash
     // "userDoesNotOwnCharacter" until the fresh world arrives. A same-user
     // reconnect keeps the stale world for a seamless resume.
-    onUserChanged: () => useWorldStore().clearWorld(),
+    onUserChanged: () => {
+      useWorldStore().clearWorld()
+      // The push registration belongs to the user we are leaving; drop the
+      // "already registered" state so the new one registers itself rather than
+      // matching against a stale identity.
+      resetPushSession()
+    },
     // Re-fire downstream refreshes on every session handshake. This covers
     // both initial auth and post-reconnect re-auth — including socket.io's
     // internal soft reconnects, which don't replace the socket ref and
