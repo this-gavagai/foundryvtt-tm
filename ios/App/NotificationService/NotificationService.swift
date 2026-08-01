@@ -1,6 +1,6 @@
 import UserNotifications
 import ImageIO
-import MobileCoreServices
+import UniformTypeIdentifiers
 
 // Notification Service Extension: when the relay sets aps.mutable-content = 1 and
 // includes a `tmPortraitUrl` custom key (see relay/src/index.ts), iOS wakes this
@@ -20,6 +20,18 @@ class NotificationService: UNNotificationServiceExtension {
     // half-minute delay on the banner for an image that was never going to load.
     // Fail fast instead: the portrait is a nice-to-have, the notification is not.
     private static let portraitTimeout: TimeInterval = 5
+
+    // Foundry art is whatever the GM dropped in — token art is routinely 1024px
+    // or larger, and character portraits larger still. A banner thumbnail is a
+    // few hundred points, so decoding at full size only spends the extension's
+    // small memory budget, and re-encoding at full size can push the PNG past the
+    // 10 MB attachment limit, at which point the image is dropped anyway. Decode
+    // straight to a thumbnail instead.
+    private static let portraitMaxPixels = 512
+
+    // Nothing legitimate is this big, and the bytes are already in memory by the
+    // time we see them. Cheap guard against decoding something absurd.
+    private static let portraitMaxBytes = 12 * 1024 * 1024
 
     // Ephemeral: an extension has no business persisting cookies or a URL cache.
     private lazy var session: URLSession = {
@@ -74,13 +86,19 @@ class NotificationService: UNNotificationServiceExtension {
         handler(content)
     }
 
-    // Decode arbitrary image bytes (incl. WebP) and re-encode to a PNG temp file,
-    // then wrap it as a notification attachment. Returns nil if the bytes aren't a
-    // decodable image or the file can't be written.
+    // Decode arbitrary image bytes (incl. WebP) down to a thumbnail and re-encode
+    // to a PNG temp file, then wrap it as a notification attachment. Returns nil
+    // if the bytes aren't a decodable image or the file can't be written.
     private static func pngAttachment(from data: Data) -> UNNotificationAttachment? {
+        guard data.count <= portraitMaxBytes else { return nil }
+        let thumbnailOptions: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: portraitMaxPixels,
+        ]
         guard
             let source = CGImageSourceCreateWithData(data as CFData, nil),
-            let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
+            let image = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbnailOptions as CFDictionary)
         else { return nil }
 
         let dir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
@@ -89,7 +107,7 @@ class NotificationService: UNNotificationServiceExtension {
         let fileURL = dir.appendingPathComponent("portrait.png")
 
         guard
-            let dest = CGImageDestinationCreateWithURL(fileURL as CFURL, kUTTypePNG, 1, nil)
+            let dest = CGImageDestinationCreateWithURL(fileURL as CFURL, UTType.png.identifier as CFString, 1, nil)
         else { return nil }
         CGImageDestinationAddImage(dest, image, nil)
         guard CGImageDestinationFinalize(dest) else { return nil }

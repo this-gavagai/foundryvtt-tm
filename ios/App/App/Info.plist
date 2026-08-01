@@ -30,6 +30,12 @@
 	<string>Tabula Mensa uses Bluetooth to connect to your Pixels dice and read your physical rolls.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Tabula Mensa uses the microphone so you can record voice memos to send in chat.</string>
+	<!-- Foundry is usually self-hosted on the same network as the phone. The
+	     WebView is exempt from local-network privacy, but the notification
+	     extension's URLSession is not, and the grant is per-app: without this
+	     string the portrait fetch has no way to be permitted. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Tabula Mensa connects to the Foundry server on your local network to load your game and its character art.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
