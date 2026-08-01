@@ -13,21 +13,35 @@ import worker from '../src/index'
 let kvFailWrite: (key: string) => boolean = () => false
 let kvFailRead: (key: string) => boolean = () => false
 
+// Every KV operation is a subrequest on Workers, counted against the same
+// per-request ceiling as fetch() — 50 on the free plan. Tally them so tests can
+// assert the whole ceiling, not just the APNs half of it.
+let kvOps = 0
+
 function makeKV() {
   const store = new Map<string, string>()
   return {
     store,
     get: async (k: string) => {
+      kvOps++
       if (kvFailRead(k)) throw new Error(`KV read failed: ${k}`)
       return store.get(k) ?? null
     },
     put: async (k: string, v: string) => {
+      kvOps++
       if (kvFailWrite(k)) throw new Error(`KV write failed: ${k}`)
       store.set(k, v)
     },
-    delete: async (k: string) => void store.delete(k),
+    delete: async (k: string) => {
+      kvOps++
+      store.delete(k)
+    },
   }
 }
+
+// The free plan's hard limit. Exceeding it doesn't degrade — the runtime throws
+// mid-request and the whole notify 500s.
+const SUBREQUEST_CEILING = 50
 
 type TestEnv = {
   APNS_KEY: string
@@ -73,6 +87,7 @@ beforeEach(() => {
   apnsHeaders = []
   kvFailWrite = () => false
   kvFailRead = () => false
+  kvOps = 0
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -138,6 +153,15 @@ describe('CORS', () => {
     expect(res.status).toBe(204)
     expect(res.headers.get('access-control-allow-origin')).toBe('*')
   })
+
+  it('allows the browser to read the health probe', async () => {
+    // The GM's reachability check runs in the Foundry page, which is never the
+    // Worker's origin. Without this header the browser blocks the response and a
+    // healthy relay reports as unreachable — see collectPushStatus.
+    const res = await worker.fetch(new Request('https://relay.test/', { method: 'GET' }), env as never)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('access-control-allow-origin')).toBe('*')
+  })
 })
 
 describe('/provision (TOFU)', () => {
@@ -158,6 +182,21 @@ describe('/register', () => {
     const { worldPushId, worldKey } = await provisionWorld()
     await registerDevice(worldPushId, worldKey, 'alice', 'devtokenA')
     expect(env.TOKENS.store.get(`tok:${worldPushId}:alice`)).toContain('devtokenA')
+  })
+
+  it('drops an abandoned registration while it is rewriting the list anyway', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'old-phone')
+    const key = `tok:${worldPushId}:alice`
+    const regs = JSON.parse(env.TOKENS.store.get(key)!)
+    regs[0].updatedAt = Date.now() - 40 * 24 * 60 * 60 * 1000
+    env.TOKENS.store.set(key, JSON.stringify(regs))
+
+    await registerDevice(worldPushId, worldKey, 'alice', 'new-phone')
+    const stored = JSON.parse(env.TOKENS.store.get(key)!) as Array<{ deviceToken: string }>
+    // The replaced phone stops costing a subrequest on every delivery, without
+    // waiting for a message to be sent first.
+    expect(stored.map((r) => r.deviceToken)).toEqual(['new-phone'])
   })
 
   it('rejects a tampered token', async () => {
@@ -269,6 +308,18 @@ describe('/notify authorisation + cross-world isolation', () => {
       { authorization: 'Bearer not-the-key' },
     )
     expect(res.status).toBe(401)
+  })
+
+  it('throttles a source that keeps guessing world keys', async () => {
+    const { worldPushId } = await provisionWorld()
+    const body = { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' }
+    const headers = { authorization: 'Bearer wrong', 'CF-Connecting-IP': '9.9.9.9' }
+    let last = 0
+    for (let i = 0; i < 40; i++) last = (await post('/notify', body, headers)).status
+    expect(last).toBe(429)
+    // A legitimate caller from another address is unaffected, and never paid for
+    // the counter in the first place.
+    expect((await post('/notify', body, { authorization: 'Bearer wrong' })).status).toBe(401)
   })
 
   it('delivers only to the notified world; a device in another world is never contacted', async () => {
@@ -439,7 +490,55 @@ describe('/status (GM diagnostic)', () => {
     )
     expect(res.status).toBe(200)
     // Carol has no devices, so she is simply absent rather than reported as zero.
-    expect(await res.json()).toEqual({ ok: true, provisioned: true, devices: { alice: 2, bob: 1 } })
+    expect(await res.json()).toEqual({
+      ok: true,
+      provisioned: true,
+      devices: { alice: 2, bob: 1 },
+      unsupported: 0,
+      truncated: false,
+    })
+  })
+
+  it('does not count an Android device as deliverable, but does report it', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+    await post('/register', {
+      regToken: mintToken(worldPushId, 'bob', worldKey),
+      deviceToken: 'devB',
+      platform: 'android',
+    })
+
+    const res = await post(
+      '/status',
+      { worldId: worldPushId, userIds: ['alice', 'bob'] },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    // Bob is absent from `devices`: nothing would reach him, so the panel must not
+    // promise a notification that cannot come.
+    expect(await res.json()).toEqual({
+      ok: true,
+      provisioned: true,
+      devices: { alice: 1 },
+      unsupported: 1,
+      truncated: false,
+    })
+  })
+
+  it('caps the users it will read in one call and says the list was truncated', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'user0', 'dev0')
+    kvOps = 0
+
+    const res = await post(
+      '/status',
+      { worldId: worldPushId, userIds: Array.from({ length: 80 }, (_, i) => `user${i}`) },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(200)
+    // One KV read per user, so an unbounded list would blow the same ceiling
+    // /notify faces; the caller chunks instead.
+    expect(await res.json()).toMatchObject({ truncated: true, devices: { user0: 1 } })
+    expect(kvOps).toBeLessThanOrEqual(SUBREQUEST_CEILING)
   })
 
   it('does not count a registration old enough to be pruned', async () => {
@@ -784,14 +883,160 @@ describe('durability: bookkeeping never costs a delivery', () => {
       budgetExhausted?: boolean
       results: Array<{ userId: string; skipped?: string; ok?: boolean }>
     }
-    // MAX_APNS_SENDS = 30, and the ceiling is respected rather than thrown through.
-    expect(apnsCalls.length).toBe(30)
+    // The ceiling is respected rather than thrown through — and it is the WHOLE
+    // ceiling, KV reads and badge writes included, not just the sends.
+    expect(kvOps + apnsCalls.length).toBeLessThanOrEqual(SUBREQUEST_CEILING)
     // Alice was whispered to: every one of her devices got it.
     expect(apnsCalls.filter((u) => u.includes('alice-dev')).length).toBe(5)
-    // Bob's ambient devices took the remainder and the rest are reported, not silent.
-    expect(apnsCalls.filter((u) => u.includes('bob-dev')).length).toBe(25)
-    expect(json.results.filter((r) => r.skipped === 'send budget exhausted').length).toBe(15)
+    // Bob's ambient devices took the remainder, and every one that didn't fit is
+    // reported rather than silently dropped.
+    const bobSent = apnsCalls.filter((u) => u.includes('bob-dev')).length
+    expect(bobSent).toBeGreaterThan(0)
+    expect(bobSent).toBeLessThan(40)
+    expect(json.results.filter((r) => r.skipped === 'send budget exhausted').length).toBe(40 - bobSent)
     expect(json.budgetExhausted).toBe(true)
+  })
+
+  it('stays under the subrequest ceiling for an ordinary table, badges and all', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    const table = ['alice', 'bob', 'carol', 'dave', 'erin', 'frank']
+    for (const who of table) await registerDevice(worldPushId, worldKey, who, `${who}-phone`)
+    kvOps = 0
+
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: table, title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(200)
+    // Nobody is shed at this size: six phones, six sends, every badge written.
+    expect(apnsCalls.length).toBe(6)
+    expect(apnsBodies.every((b) => typeof b.aps?.badge === 'number')).toBe(true)
+    expect(kvOps + apnsCalls.length).toBeLessThanOrEqual(SUBREQUEST_CEILING)
+    expect((await res.json()) as { budgetExhausted?: boolean }).not.toHaveProperty('budgetExhausted')
+  })
+
+  it('sheds the badge before it sheds a notification', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    seedRegistrations(worldPushId, 'alice', Array.from({ length: 14 }, (_, i) => `alice-dev${i}`))
+
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], direct: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(200)
+    // Every device still hears about it...
+    expect(apnsCalls.length).toBe(14)
+    // ...but the later ones arrive without an icon number, which is the cheaper wrong.
+    expect(apnsBodies.some((b) => typeof b.aps?.badge === 'number')).toBe(true)
+    expect(apnsBodies.some((b) => b.aps?.badge === undefined)).toBe(true)
+    expect(kvOps + apnsCalls.length).toBeLessThanOrEqual(SUBREQUEST_CEILING)
+  })
+
+  it('caps how many recipients one notify may name, and says how many it dropped', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    const res = await post(
+      '/notify',
+      {
+        worldId: worldPushId,
+        recipients: Array.from({ length: 250 }, (_, i) => `user${i}`),
+        title: 't',
+        body: 'b',
+      },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ droppedRecipients: 50 })
+    expect(kvOps + apnsCalls.length).toBeLessThanOrEqual(SUBREQUEST_CEILING)
+  })
+})
+
+describe('write-back does not clobber a concurrent registration', () => {
+  it('keeps a device that registered while the sends were in flight', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'old-phone')
+    const key = `tok:${worldPushId}:alice`
+
+    // 'old-phone' is dead, so this notify will rewrite alice's list. While the
+    // send is in flight, a second device registers — exactly what the app does on
+    // foreground — and the write-back must not erase it.
+    let registered = false
+    apnsResponse = (url) => {
+      // Once — the dead-token path also retries the other environment, and a
+      // device only registers itself the once.
+      if (url.includes('old-phone') && !registered) {
+        registered = true
+        const regs = JSON.parse(env.TOKENS.store.get(key)!)
+        regs.push({ deviceToken: 'new-phone', platform: 'ios', env: 'sandbox', updatedAt: Date.now() })
+        env.TOKENS.store.set(key, JSON.stringify(regs))
+      }
+      return url.includes('old-phone') ? { status: 410, body: 'Unregistered' } : { status: 200, body: '' }
+    }
+
+    await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+
+    const stored = JSON.parse(env.TOKENS.store.get(key)!) as Array<{ deviceToken: string }>
+    expect(stored.map((r) => r.deviceToken)).toEqual(['new-phone'])
+  })
+})
+
+describe('APNs provider token', () => {
+  it('refreshes an expired JWT and retries instead of blacking out the isolate', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerDevice(worldPushId, worldKey, 'alice', 'devA')
+
+    let first = true
+    apnsResponse = () => {
+      if (first) {
+        first = false
+        return { status: 403, body: '{"reason":"ExpiredProviderToken"}' }
+      }
+      return { status: 200, body: '' }
+    }
+
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    const json = (await res.json()) as { results: Array<{ ok?: boolean }> }
+    expect(json.results[0].ok).toBe(true)
+    // The retry carries a freshly signed token, not the rejected one.
+    expect(apnsCalls.length).toBeGreaterThanOrEqual(2)
+    expect(apnsHeaders[1].authorization).not.toBe(apnsHeaders[0].authorization)
+  })
+})
+
+describe('one device, two identities in the same world', () => {
+  it('notifies a shared device once, not once per user', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    // The same phone, registered as a player and as the app-user they own —
+    // both addressed by one whisper.
+    await registerDevice(worldPushId, worldKey, 'alice', 'shared-phone')
+    await registerDevice(worldPushId, worldKey, 'alice-app', 'shared-phone')
+
+    const res = await post(
+      '/notify',
+      {
+        worldId: worldPushId,
+        recipients: ['alice', 'alice-app'],
+        direct: ['alice', 'alice-app'],
+        title: 't',
+        body: 'b',
+      },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(200)
+    expect(apnsCalls.filter((u) => u.includes('shared-phone')).length).toBe(1)
+    const json = (await res.json()) as { results: Array<{ skipped?: string }> }
+    expect(json.results.filter((r) => r.skipped === 'device already notified').length).toBe(1)
+    // One banner, so one badge increment — not two racing each other to the same key.
+    expect(env.TOKENS.store.get('badge:dev:shared-phone')).toBe('1')
   })
 })
 

@@ -123,7 +123,10 @@ order to deliver the notification.
 
 The Worker applies coarse per-minute limits in KV: `/notify` per world — **two
 independent buckets**, ambient (60) and direct (60) — and per-IP caps on
-`/provision` (20), `/register` (30) and `/unregister` (30). KV is eventually
+`/provision` (20), `/register` (30) and `/unregister` (30). `/notify` also
+per-IP-throttles *failed* authorisation (30), which costs a legitimate caller
+nothing: charging every notify a per-IP counter would spend two subrequests per
+message to throttle a caller the world key already excludes. KV is eventually
 consistent, so these are approximate ceilings — good against a single hammering
 source, but a distributed attacker can exceed them.
 
@@ -154,10 +157,14 @@ missing is a scope/mention rule rather than transport. It also re-runs
 provisioning, so opening it repairs a world whose first attempt failed offline.
 
 Backing that panel is `POST /status` (bearer the world key): read-only, returns
-`{provisioned, devices: {userId: count}}` counting only registrations recent
-enough to still be pushed. A wrong key and an unknown world both answer 401 — the
-only actionable fact is "this relay will not take your world's pushes", and
-distinguishing them would leak which worlds exist.
+`{provisioned, devices: {userId: count}, unsupported, truncated}` counting only
+registrations recent enough to still be pushed *and* on a platform the relay can
+actually reach — an Android registration is stored but never delivered to, so it
+is reported as `unsupported` rather than counted as a device that will hear
+something. `truncated` says the user list was longer than one call may read (see
+the subrequest ceiling below); the module chunks and merges. A wrong key and an
+unknown world both answer 401 — the only actionable fact is "this relay will not
+take your world's pushes", and distinguishing them would leak which worlds exist.
 
 Self-hosting: the relay URL is a world setting (**Push relay URL**), defaulting to
 the shared instance. Point it at your own deployment and the world re-provisions
@@ -174,12 +181,19 @@ in ways that cost notifications:
   helpers, which swallow failures: a push still goes out, it just may not move the
   icon number or enforce the soft rate ceiling. Registration *reads* stay strict —
   not knowing where to send is a real error, and one that the module retries.
-- **Subrequests (50/request).** Each APNs send is one, and the environment-retry
-  path can double it. `MAX_APNS_SENDS` budgets them at 30, deliberately under the
-  ceiling since KV operations may draw on the same allowance. Direct recipients are
-  delivered as a first wave, so what gets shed past the budget is ambient chat, and
-  shed recipients are reported (`skipped: 'send budget exhausted'`, plus
-  `budgetExhausted: true`) rather than silently dropped.
+- **Subrequests (50/request).** KV operations count against this alongside
+  `fetch()`, so a `/notify` costs roughly *four* per device — registration read,
+  badge get, badge put, APNs send — not the one its send represents. Budgeting
+  only the sends therefore under-counted by about a factor of four, and a table of
+  a dozen blew the ceiling on bookkeeping alone: the runtime throws mid-loop, the
+  request 500s, and every recipient loses the notification (three times over, once
+  the module's retries have run). So `MAX_SUBREQUESTS` (44) budgets *everything*
+  after authorisation. Degradation is ordered by what costs least to lose: badge
+  writes go first (`BADGE_BUDGET_FLOOR`), then ambient recipients — direct ones are
+  delivered as a first wave — and everything shed is reported (`skipped: 'send
+  budget exhausted'`, plus `budgetExhausted: true`) rather than silently dropped.
+  `/status` faces the same ceiling for the same reason, so it caps the users it
+  will read in one call (`MAX_STATUS_USERS`) and the module asks in chunks.
 
 Recipients are delivered concurrently and each settles independently, so one
 recipient's failure no longer aborts the rest of the list. If *every* recipient

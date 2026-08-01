@@ -17,7 +17,7 @@
 //   POST /register   {regToken, deviceToken, platform}  bind a device to a user
 //   POST /unregister {worldId, userId, deviceToken}     unbind a device from a user
 //   POST /notify     {worldId, recipients, direct, title, body} push to a world's users
-//   POST /status     {worldId, userIds}                  GM diagnostic: provisioned? devices?
+//   POST /status     {worldId, userIds}                 GM diagnostic: provisioned? devices?
 //   POST /send       {deviceToken, title, body, env}    admin test (RELAY_TEST_SECRET)
 
 interface KVNamespace {
@@ -66,15 +66,36 @@ const REGISTER_PER_MINUTE_PER_IP = 30
 const NOTIFICATION_TTL_SECONDS = 60 * 60
 
 // A Worker may only make so many subrequests per request — 50 on the free plan —
-// and every APNs send is one, which the environment-retry path can double. Past
-// the ceiling the runtime throws mid-loop, so a big table would get a random half
-// of its notifications and a 500. Budget the sends explicitly instead and shed
-// the remainder, reporting what was dropped. Recipients are ordered direct-first,
-// so what gets shed is ambient chat.
+// and KV operations draw on that same allowance as fetch() does. A /notify
+// therefore costs about four subrequests per device (registration read, badge
+// get, badge put, APNs send), not the one its send represents, so budgeting only
+// the sends under-counted by roughly a factor of four: a table of a dozen blew
+// the ceiling on bookkeeping alone, the runtime threw mid-loop, and the whole
+// request 500'd — losing every recipient's notification instead of shedding a
+// tail, and then losing them twice more to the caller's retries.
 //
-// Deliberately well under 50: KV operations may draw on the same allowance
-// (the docs have not always been unambiguous about this), so leave headroom.
-const MAX_APNS_SENDS = 30
+// So everything after authorisation is charged against ONE budget, and what gets
+// shed is reported. Recipients are ordered direct-first, so ambient chat is what
+// goes. Held under 50 to leave room for the costs outside the budget (an
+// expired-JWT refresh, the rate-limit counters).
+const MAX_SUBREQUESTS = 44
+
+// Badge bookkeeping (a get and a put per device) is the first thing to go when
+// the allowance runs low: an icon number that lags is a far smaller wrong than a
+// notification that never arrives. Only spend on it while this much of the budget
+// is still free.
+const BADGE_BUDGET_FLOOR = 12
+
+// Ceiling on how many recipients one /notify may name. Far above any real table,
+// and far above what the subrequest budget can serve, so it never shapes
+// delivery — it exists so a malformed or hostile payload cannot make the Worker
+// build an enormous result set for work it was never going to do.
+const MAX_RECIPIENTS = 200
+
+// /status reads one KV entry per user, so it faces the same ceiling as /notify.
+// The module chunks its user list across several calls — each its own Worker
+// invocation with its own allowance — see collectPushStatus in pushDiagnostics.ts.
+const MAX_STATUS_USERS = 30
 
 // The app re-registers (refreshing updatedAt) on every launch, so a registration
 // untouched for this long is an abandoned device (uninstalled without an APNs
@@ -204,7 +225,20 @@ interface SendOptions {
   collapseId?: string
 }
 
+// An expired provider JWT is not a per-device failure: the token is cached for
+// the whole isolate, so every send fails identically until it is thrown away —
+// a clock skew or a rotated key would otherwise blackout pushes for as long as
+// the isolate lives. Drop the cache and try once more.
 async function sendApns(env: Env, opts: SendOptions): Promise<ApnsResult> {
+  const result = await sendApnsOnce(env, opts)
+  if (result.status === 403 && result.body.includes('ExpiredProviderToken')) {
+    cachedJwt = null
+    return await sendApnsOnce(env, opts)
+  }
+  return result
+}
+
+async function sendApnsOnce(env: Env, opts: SendOptions): Promise<ApnsResult> {
   const apnsEnv = opts.envOverride ?? env.APNS_ENV
   const host = apnsEnv === 'production' ? 'https://api.push.apple.com' : 'https://api.sandbox.push.apple.com'
   const jwt = await getApnsJwt(env)
@@ -355,15 +389,26 @@ function isDeadToken(result: ApnsResult): boolean {
   return result.status === 410 || (result.status === 400 && result.body.includes('BadDeviceToken'))
 }
 
-// A fixed allowance of APNs sends for one /notify, drawn down as they dispatch.
-// Concurrency is safe: the runtime is single-threaded, so take() is atomic.
-function sendBudget(limit: number) {
+// A fixed allowance of subrequests for one /notify — KV operations and APNs
+// sends alike — drawn down as work dispatches. Concurrency is safe: the runtime
+// is single-threaded, so take() is atomic.
+//
+// take() is for discretionary work and refuses when the budget cannot cover it;
+// spend() is for costs already incurred (the authorisation read, the rate-limit
+// counters), which are bounded and paid before any fan-out begins.
+function subrequestBudget(limit: number) {
   let left = limit
   return {
-    take(): boolean {
-      if (left <= 0) return false
-      left -= 1
+    take(n = 1): boolean {
+      if (left < n) return false
+      left -= n
       return true
+    },
+    spend(n = 1): void {
+      left = Math.max(0, left - n)
+    },
+    get remaining(): number {
+      return left
     },
     get exhausted(): boolean {
       return left <= 0
@@ -467,8 +512,14 @@ async function handleRegister(request: Request, env: Env): Promise<Response> {
   const tokenEnv: Registration['env'] =
     p.env === 'production' || p.env === 'sandbox' ? p.env : env.APNS_ENV === 'production' ? 'production' : 'sandbox'
   const serverBaseUrl = typeof p.serverBaseUrl === 'string' && /^https?:\/\//i.test(p.serverBaseUrl) ? p.serverBaseUrl : undefined
-  const regs = (await readRegistrations(env, worldPushId, userId)).filter((r) => r.deviceToken !== p.deviceToken)
-  regs.push({ deviceToken: p.deviceToken, platform: p.platform, env: tokenEnv, updatedAt: Date.now(), serverBaseUrl })
+  // Prune here as well as on notify: this write is happening anyway, so a user
+  // whose old phone was replaced need not wait for a message to be sent before
+  // the abandoned entry stops costing a subrequest on every delivery.
+  const now = Date.now()
+  const regs = (await readRegistrations(env, worldPushId, userId)).filter(
+    (r) => r.deviceToken !== p.deviceToken && now - (r.updatedAt ?? 0) < STALE_REGISTRATION_MS,
+  )
+  regs.push({ deviceToken: p.deviceToken, platform: p.platform, env: tokenEnv, updatedAt: now, serverBaseUrl })
   await env.TOKENS.put(tokenKey(worldPushId, userId), JSON.stringify(regs))
   // Coming back online resets the badge count; the app clears the icon locally.
   await kvDelete(env, badgeKey(p.deviceToken))
@@ -551,17 +602,27 @@ async function handleStatus(request: Request, env: Env): Promise<Response> {
 
   const devices: Record<string, number> = {}
   const now = Date.now()
-  for (const userId of Array.isArray(p.userIds) ? p.userIds.slice(0, 100) : []) {
+  // One KV read per user, against the same 50-subrequest ceiling /notify faces,
+  // so the list is capped and the overflow reported rather than 500ing a big
+  // world's diagnostics. The caller chunks; see MAX_STATUS_USERS.
+  const asked = Array.isArray(p.userIds) ? p.userIds : []
+  const checked = asked.slice(0, MAX_STATUS_USERS)
+  let unsupported = 0
+  for (const userId of checked) {
     try {
       const regs = await readRegistrations(env, p.worldId, userId)
-      // Count only what would actually be pushed, so the panel agrees with reality.
+      // Count only what would actually be pushed, so the panel agrees with
+      // reality: an Android registration is stored but never delivered to yet,
+      // and counting it as a device promises a notification that cannot come.
       const live = regs.filter((r) => now - (r.updatedAt ?? 0) < STALE_REGISTRATION_MS)
-      if (live.length) devices[userId] = live.length
+      const deliverable = live.filter((r) => r.platform === 'ios')
+      if (deliverable.length) devices[userId] = deliverable.length
+      unsupported += live.length - deliverable.length
     } catch {
       /* unreadable for this user — report the rest rather than failing the check */
     }
   }
-  return json({ ok: true, provisioned: true, devices })
+  return json({ ok: true, provisioned: true, devices, unsupported, truncated: asked.length > checked.length })
 }
 
 // Resolve the portrait reference the module sent into a URL a specific device can
@@ -609,21 +670,35 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
   if (p.messageId) baseData.tmMessageId = p.messageId
   baseData.tmWorldId = p.worldId
 
+  const budget = subrequestBudget(MAX_SUBREQUESTS)
+
   // Authorise against the world's own key.
+  budget.spend()
   const worldKey = await worldKeyOf(env, p.worldId)
   if (!worldKey || request.headers.get('authorization') !== `Bearer ${worldKey}`) {
+    // Charge only FAILED authorisation to a per-IP bucket. A blanket per-IP limit
+    // here would cost every legitimate message an extra KV round-trip out of the
+    // budget above, to throttle a caller the world key already excludes; this way
+    // a source guessing keys still stops being able to make us write.
+    if (await overLimit(env, `iprl:notifyfail:${clientIp(request)}`, REGISTER_PER_MINUTE_PER_IP)) {
+      return json({ error: 'rate limited' }, 429)
+    }
     return json({ error: 'unauthorized' }, 401)
   }
 
   // Split the audience by class and charge each its own bucket, so ambient chat
   // being over limit never costs a whisper its notification.
+  const named = p.recipients.slice(0, MAX_RECIPIENTS)
+  const droppedRecipients = p.recipients.length - named.length
   const directSet = new Set(Array.isArray(p.direct) ? p.direct : [])
-  const direct = p.recipients.filter((id) => directSet.has(id))
-  const ambient = p.recipients.filter((id) => !directSet.has(id))
+  const direct = named.filter((id) => directSet.has(id))
+  const ambient = named.filter((id) => !directSet.has(id))
   // A request that delivers to nobody is charged as ambient: it still costs the
   // relay work, so it must not be a free hammer.
   const chargeAmbient = ambient.length > 0 || direct.length === 0
+  if (chargeAmbient) budget.spend(2)
   const ambientLimited = chargeAmbient && (await overLimit(env, `rl:${p.worldId}`, AMBIENT_NOTIFY_PER_MINUTE))
+  if (direct.length > 0) budget.spend(2)
   const directLimited = direct.length > 0 && (await overLimit(env, `rl:direct:${p.worldId}`, DIRECT_NOTIFY_PER_MINUTE))
 
   const results: Array<Record<string, unknown>> = []
@@ -649,11 +724,15 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
   // made a table of six a chain of six APNs round-trips. Each settles on its own —
   // one recipient's failure can no longer abort the rest of the list.
   //
-  // Direct goes as its own WAVE rather than merely first in one list: the send
+  // Direct goes as its own WAVE rather than merely first in one list: the
   // budget is drawn down concurrently, so ambient recipients dispatched alongside
   // would race direct ones for it. Two waves keep "ambient is what gets shed"
   // true while still parallelising within each class.
-  const budget = sendBudget(MAX_APNS_SENDS)
+  //
+  // sentTokens spans both waves, so a phone registered under two users of this
+  // world (a player and the app-user they own) is notified once, by whichever
+  // class claimed it first — direct, given the ordering.
+  const sentTokens = new Set<string>()
   const perUser: Array<{ results: Array<Record<string, unknown>>; errored: boolean }> = []
   for (const wave of waves) {
     perUser.push(
@@ -668,6 +747,7 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
             baseData,
             portraitUrl: p.portraitUrl,
             budget,
+            sentTokens,
           }),
         ),
       )),
@@ -682,7 +762,12 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
   if (errored > 0 && errored === perUser.length) {
     return json({ ok: false, results }, 502)
   }
-  return json({ ok: true, results, ...(budget.exhausted ? { budgetExhausted: true } : {}) })
+  return json({
+    ok: true,
+    results,
+    ...(budget.exhausted ? { budgetExhausted: true } : {}),
+    ...(droppedRecipients > 0 ? { droppedRecipients } : {}),
+  })
 }
 
 interface DeliveryRequest {
@@ -693,7 +778,51 @@ interface DeliveryRequest {
   body: string
   baseData: Record<string, string>
   portraitUrl?: string
-  budget: ReturnType<typeof sendBudget>
+  budget: ReturnType<typeof subrequestBudget>
+  // Device tokens already sent to in this request. One phone can hold two
+  // registrations in the same world — a player and the app-user they own, both
+  // notified by the same whisper — and would otherwise get two banners for one
+  // message and race its own badge counter between them.
+  sentTokens: Set<string>
+}
+
+// Persist what this run concluded — dead tokens dropped, self-healed
+// environments recorded, abandoned registrations pruned — WITHOUT clobbering a
+// /register that landed while the sends were in flight. Re-reading costs one
+// subrequest; blind-writing the list we started from cost that device its
+// registration outright, with nothing to re-create it until the app next came to
+// the foreground.
+//
+// An entry whose updatedAt moved underneath us is left exactly as the newer
+// writer left it: that device has just re-registered, so this run's verdict on
+// it — "dead" included — is the stale opinion.
+async function commitRegistrations(
+  env: Env,
+  req: DeliveryRequest,
+  seen: Registration[],
+  dead: Set<string>,
+  envFixes: Map<string, Registration['env']>,
+): Promise<void> {
+  let latest: Registration[]
+  try {
+    latest = await readRegistrations(env, req.worldPushId, req.userId)
+  } catch {
+    return // unreadable — leave the stored list alone rather than guess at it
+  }
+  const seenAt = new Map(seen.map((r) => [r.deviceToken, r.updatedAt ?? 0]))
+  const now = Date.now()
+  const merged: Registration[] = []
+  for (const reg of latest) {
+    if (seenAt.get(reg.deviceToken) !== (reg.updatedAt ?? 0)) {
+      merged.push(reg)
+      continue
+    }
+    if (dead.has(reg.deviceToken)) continue
+    if (now - (reg.updatedAt ?? 0) >= STALE_REGISTRATION_MS) continue
+    const healed = envFixes.get(reg.deviceToken)
+    merged.push(healed ? { ...reg, env: healed } : reg)
+  }
+  await kvPut(env, tokenKey(req.worldPushId, req.userId), JSON.stringify(merged))
 }
 
 // Push one message to every device one recipient has registered. Never throws:
@@ -706,27 +835,41 @@ async function deliverToUser(
   const results: Array<Record<string, unknown>> = []
   const cls = req.direct ? 'direct' : 'ambient'
   try {
+    if (!req.budget.take()) {
+      // Not even the registration read is affordable — say so rather than
+      // reporting this recipient as having no devices.
+      results.push({ userId: req.userId, class: cls, skipped: 'send budget exhausted' })
+      return { results, errored: false }
+    }
     const stored = await readRegistrations(env, req.worldPushId, req.userId)
     const now = Date.now()
     // Drop abandoned registrations before sending; the difference is written back
     // via the `mutated` flag below.
     const regs = stored.filter((r) => now - (r.updatedAt ?? 0) < STALE_REGISTRATION_MS)
-    const survivors: Registration[] = []
+    // This run's verdict per device, applied to the freshest copy of the list at
+    // write-back time (see commitRegistrations).
+    const dead = new Set<string>()
+    const envFixes = new Map<string, Registration['env']>()
     let mutated = regs.length !== stored.length
 
     const sends = regs.map(async (reg) => {
       if (reg.platform !== 'ios') {
         results.push({ userId: req.userId, platform: reg.platform, skipped: 'non-ios not wired yet' })
-        survivors.push(reg)
+        return
+      }
+      // has() and add() sit either side of a synchronous take() with no await
+      // between them, so two concurrent recipients cannot both claim one device.
+      if (req.sentTokens.has(reg.deviceToken)) {
+        results.push({ userId: req.userId, class: cls, skipped: 'device already notified' })
         return
       }
       if (!req.budget.take()) {
         // Out of subrequest allowance — say so instead of quietly delivering less
         // than was asked for.
         results.push({ userId: req.userId, class: cls, skipped: 'send budget exhausted' })
-        survivors.push(reg)
         return
       }
+      req.sentTokens.add(reg.deviceToken)
       // Resolve the portrait against THIS device's Foundry base, then send. The
       // base itself rides along so a tap can re-point the app at the right server.
       const customData: Record<string, string> = { ...req.baseData }
@@ -735,8 +878,12 @@ async function deliverToUser(
       if (reg.serverBaseUrl) customData.tmServerBaseUrl = reg.serverBaseUrl
       const sendData = Object.keys(customData).length ? customData : undefined
       // Per device, so a device in several worlds sees one running total rather
-      // than each world clobbering the other's number.
-      const badge = await bumpBadge(env, reg.deviceToken)
+      // than each world clobbering the other's number. Skipped once the budget
+      // runs low: the notification matters, its icon number does not.
+      const badge =
+        req.budget.remaining >= BADGE_BUDGET_FLOOR && req.budget.take(2)
+          ? await bumpBadge(env, reg.deviceToken)
+          : undefined
       const send = {
         deviceToken: reg.deviceToken,
         title: req.title,
@@ -756,30 +903,31 @@ async function deliverToUser(
           usedEnv = other
         }
       }
-      const dead = isDeadToken(result)
+      const isDead = isDeadToken(result)
       results.push({
         userId: req.userId,
         class: cls,
         status: result.status,
         ok: result.status === 200,
         env: usedEnv,
-        dead,
+        dead: isDead,
       })
-      if (dead) {
+      if (isDead) {
+        dead.add(reg.deviceToken)
         mutated = true
         return
       }
       if (usedEnv !== reg.env) {
-        reg.env = usedEnv
+        envFixes.set(reg.deviceToken, usedEnv)
         mutated = true
       }
-      survivors.push(reg)
     })
     await Promise.all(sends)
 
     // Pruning and env-healing are bookkeeping: the pushes have already gone out,
-    // so a failed write must not turn a delivered notification into an error.
-    if (mutated) await kvPut(env, tokenKey(req.worldPushId, req.userId), JSON.stringify(survivors))
+    // so neither a failed write nor an exhausted budget may turn a delivered
+    // notification into an error.
+    if (mutated && req.budget.take(2)) await commitRegistrations(env, req, stored, dead, envFixes)
     return { results, errored: false }
   } catch (err) {
     results.push({ userId: req.userId, class: cls, error: err instanceof Error ? err.message : String(err) })
@@ -806,7 +954,13 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS })
-    if (request.method === 'GET' && url.pathname === '/') return new Response('tablemate-push-relay ok', { status: 200 })
+    // CORS headers matter here as much as on the POST routes: the GM's reachability
+    // probe runs in the Foundry page, which is always a different origin from the
+    // Worker, so without them the browser blocks the response and a healthy relay
+    // reports as unreachable — in the one panel built to make failures visible.
+    if (request.method === 'GET' && url.pathname === '/') {
+      return new Response('tablemate-push-relay ok', { status: 200, headers: CORS_HEADERS })
+    }
     if (request.method !== 'POST') return json({ error: 'not found' }, 404)
 
     try {
