@@ -80,6 +80,30 @@ function consumeActionKey(message: ChatMessageData): string | undefined {
   return message._id ?? undefined
 }
 
+// What the composer is reporting when a send fails: a plain message that didn't
+// post, or a chunked media upload that didn't finish. Distinguished because they
+// fail for different reasons and read differently to the user — a memo they just
+// recorded is still sitting in the composer to retry.
+export type ChatSendErrorKind = 'send' | 'upload'
+
+// Send one chunk of a media upload, retrying once if the RPC fails.
+//
+// A chunked upload is N sequential RPCs, each awaiting its ack before the next
+// goes out. Without this, ONE ack lost to a momentary socket gap — or arriving
+// after the 30s budget — fails a memo the user has already recorded, and the
+// longer the memo the likelier that is. The GM side is idempotent per
+// (uploadId, seq) and answers a chunk of an upload that already finished with
+// the result it produced, so a re-send either fills the slot that went missing
+// or repeats the outcome; it can't post the same memo twice.
+async function sendChunkWithRetry<T>(send: () => Promise<T>): Promise<T> {
+  try {
+    return await send()
+  } catch (error) {
+    logger.warn('TM-WARN: media upload chunk failed; retrying once', error)
+    return await send()
+  }
+}
+
 export function useChatActions({
   actorId,
   actor,
@@ -99,7 +123,10 @@ export function useChatActions({
 }) {
   const draft = ref('')
   const isSending = ref(false)
-  const sendError = ref(false)
+  // Null when the last send succeeded (or none has run); otherwise which kind of
+  // failure to report. Truthy either way, so `if (sendError)` still reads as
+  // "the send failed".
+  const sendError = ref<ChatSendErrorKind | null>(null)
   const actionError = ref(false)
   const pendingDamageActions = ref(new Set<string>())
   const pendingRollActions = ref(new Set<string>())
@@ -418,7 +445,7 @@ export function useChatActions({
     if (!content || !actorId.value || isSending.value) return
 
     isSending.value = true
-    sendError.value = false
+    sendError.value = null
     // Clear the draft up front so the composer empties immediately and the
     // textarea (which stays enabled during send to keep the iOS keyboard up)
     // never clobbers anything the user types while the request is in flight.
@@ -432,7 +459,7 @@ export function useChatActions({
       })
       onMessageSent?.()
     } catch {
-      sendError.value = true
+      sendError.value = 'send'
       // Restore the failed message so it isn't lost, unless the user has
       // already started typing a replacement.
       if (!draft.value) draft.value = previousDraft
@@ -568,13 +595,14 @@ export function useChatActions({
       whisper?: string[]
     }
   ) {
-    if (!actorId.value || isSending.value) return
+    const characterId = actorId.value
+    if (!characterId || isSending.value) return
     if (blob.size === 0) {
-      sendError.value = true
+      sendError.value = 'upload'
       return
     }
     isSending.value = true
-    sendError.value = false
+    sendError.value = null
     const pendingTranscript = takeVoiceMemoTranscription(blob, meta.mimeType)
     try {
       const bytes = new Uint8Array(await blob.arrayBuffer())
@@ -582,17 +610,19 @@ export function useChatActions({
       const uploadId = uuidv4()
       let posted: { messageId?: string; content?: string } | undefined
       for (let seq = 0; seq < chunks.length; seq++) {
-        posted = await sendVoiceMemo(
-          actorId.value,
-          { uploadId, seq, total: chunks.length, chunkBase64: chunks[seq] },
-          { ...meta, transcriptPending: !!pendingTranscript }
+        posted = await sendChunkWithRetry(() =>
+          sendVoiceMemo(
+            characterId,
+            { uploadId, seq, total: chunks.length, chunkBase64: chunks[seq] },
+            { ...meta, transcriptPending: !!pendingTranscript }
+          )
         )
       }
       // Detached: the composer is done once the memo is posted.
       if (pendingTranscript) void attachVoiceMemoTranscript(posted, pendingTranscript)
       onMessageSent?.()
     } catch {
-      sendError.value = true
+      sendError.value = 'upload'
     } finally {
       isSending.value = false
     }
@@ -674,33 +704,36 @@ export function useChatActions({
       whisper?: string[]
     } = {}
   ) {
-    if (!actorId.value || isSending.value) return
+    const characterId = actorId.value
+    if (!characterId || isSending.value) return
     if (image.bytes.length === 0) {
-      sendError.value = true
+      sendError.value = 'upload'
       return
     }
     isSending.value = true
-    sendError.value = false
+    sendError.value = null
     try {
       const chunks = sliceBytesToBase64Chunks(image.bytes)
       const uploadId = uuidv4()
       for (let seq = 0; seq < chunks.length; seq++) {
-        await sendImage(
-          actorId.value,
-          { uploadId, seq, total: chunks.length, chunkBase64: chunks[seq] },
-          {
-            mimeType: image.mimeType,
-            width: image.width,
-            height: image.height,
-            content: meta.content,
-            outOfCharacter: meta.outOfCharacter,
-            whisper: meta.whisper
-          }
+        await sendChunkWithRetry(() =>
+          sendImage(
+            characterId,
+            { uploadId, seq, total: chunks.length, chunkBase64: chunks[seq] },
+            {
+              mimeType: image.mimeType,
+              width: image.width,
+              height: image.height,
+              content: meta.content,
+              outOfCharacter: meta.outOfCharacter,
+              whisper: meta.whisper
+            }
+          )
         )
       }
       onMessageSent?.()
     } catch {
-      sendError.value = true
+      sendError.value = 'upload'
     } finally {
       isSending.value = false
     }

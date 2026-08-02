@@ -341,6 +341,7 @@
     "send": "Send message",
     "sending": "Sending...",
     "sendFailed": "Could not send message.",
+    "uploadFailed": "The upload didn't finish. Try again.",
     "recordVoice": "Record voice memo",
     "stopRecording": "Stop recording",
     "cancelRecording": "Cancel recording",

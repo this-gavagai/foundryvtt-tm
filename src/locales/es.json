@@ -341,6 +341,7 @@
     "send": "Enviar mensaje",
     "sending": "Enviando...",
     "sendFailed": "No se pudo enviar el mensaje.",
+    "uploadFailed": "La subida no se completó. Inténtalo de nuevo.",
     "recordVoice": "Grabar nota de voz",
     "stopRecording": "Detener grabación",
     "cancelRecording": "Cancelar grabación",

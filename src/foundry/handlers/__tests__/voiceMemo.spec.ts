@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { TM } from '@/api/protocol'
 import type { SendVoiceMemoArgs } from '@/types/api-types'
 
@@ -278,5 +278,89 @@ describe('foundrySendVoiceMemo', () => {
     )
     const created = createMock.mock.calls[0][0] as { flags: { tablemate: Record<string, unknown> } }
     expect(created.flags.tablemate).not.toHaveProperty('transcriptPending')
+  })
+
+  // A minute of audio is several chunks and a five-minute memo is a dozen, each
+  // its own RPC awaiting its own ack. These pin the two halves of surviving that:
+  // a buffer that outlives a slow upload, and an outcome a retried chunk can be
+  // answered with.
+  describe('a long, multi-chunk upload', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('keeps its buffer for as long as chunks keep arriving', async () => {
+      vi.useFakeTimers()
+      // Three chunks, 50s apart: every gap is inside the budget, but the upload
+      // takes 100s in total — which a per-upload deadline would have killed.
+      for (const seq of [0, 1, 2]) {
+        await foundrySendVoiceMemo(
+          chunkArgs({
+            uploadId: 'slow',
+            seq,
+            total: 3,
+            chunkBase64: bytesToBase64(new Uint8Array([seq]))
+          })
+        )
+        if (seq < 2) await vi.advanceTimersByTimeAsync(50_000)
+      }
+      expect(createMock).toHaveBeenCalledTimes(1)
+      const uploadedFile = uploadMock.mock.calls[0][2] as File
+      expect(Array.from(new Uint8Array(await uploadedFile.arrayBuffer()))).toEqual([0, 1, 2])
+    })
+
+    it('refuses the next chunk once the gap budget has run out', async () => {
+      vi.useFakeTimers()
+      await foundrySendVoiceMemo(
+        chunkArgs({ uploadId: 'stalled', seq: 0, total: 2, chunkBase64: bytesToBase64(new Uint8Array([1])) })
+      )
+      await vi.advanceTimersByTimeAsync(61_000)
+      // Answering this with a bare ack would tell the app the memo was on its
+      // way when its first half is already gone.
+      await expect(
+        foundrySendVoiceMemo(
+          chunkArgs({ uploadId: 'stalled', seq: 1, total: 2, chunkBase64: bytesToBase64(new Uint8Array([2])) })
+        )
+      ).rejects.toThrow(/stalled/)
+      expect(createMock).not.toHaveBeenCalled()
+    })
+
+    it('replays the posted message when the sender retries the final chunk', async () => {
+      // The app retries a chunk whose ack it never heard. For the LAST chunk that
+      // ack carries the message id, so the retry has to be answered with the memo
+      // that posted rather than opening a fresh, forever-incomplete upload.
+      const chunks = [0, 1].map((seq) =>
+        chunkArgs({
+          uploadId: 'retry-last',
+          seq,
+          total: 2,
+          chunkBase64: bytesToBase64(new Uint8Array([seq]))
+        })
+      )
+      await foundrySendVoiceMemo(chunks[0])
+      const first = await foundrySendVoiceMemo(chunks[1])
+      const replay = await foundrySendVoiceMemo(chunks[1])
+
+      expect(replay.messageId).toBe(first.messageId)
+      expect(replay.content).toBe(first.content)
+      // And the memo posted once, not twice.
+      expect(createMock).toHaveBeenCalledTimes(1)
+      expect(uploadMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('replays the failure when the sender retries a final chunk that failed', async () => {
+      uploadMock.mockResolvedValueOnce({ path: '' })
+      const args = chunkArgs({
+        uploadId: 'retry-failed',
+        seq: 0,
+        total: 1,
+        chunkBase64: bytesToBase64(new Uint8Array([1]))
+      })
+      await expect(foundrySendVoiceMemo(args)).rejects.toThrow(/returned no path/)
+      // The retry surfaces the same failure instead of acking as if it had worked.
+      await expect(foundrySendVoiceMemo(args)).rejects.toThrow(/returned no path/)
+      expect(uploadMock).toHaveBeenCalledTimes(1)
+      expect(createMock).not.toHaveBeenCalled()
+    })
   })
 })

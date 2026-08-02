@@ -341,6 +341,7 @@
     "send": "Nachricht senden",
     "sending": "Wird gesendet...",
     "sendFailed": "Nachricht konnte nicht gesendet werden.",
+    "uploadFailed": "Der Upload wurde nicht abgeschlossen. Bitte erneut versuchen.",
     "recordVoice": "Sprachnachricht aufnehmen",
     "stopRecording": "Aufnahme beenden",
     "cancelRecording": "Aufnahme abbrechen",

@@ -190,8 +190,11 @@ export async function foundrySendChatMessage(args: SendChatMessageArgs) {
 // handful of 192 KiB chunks; a few thousand is far beyond any real upload.
 const MEDIA_UPLOAD_MAX_CHUNKS = 4096
 
-// Drop an incomplete upload if the remaining chunks never arrive (app closed
-// mid-send, GM/proxy handoff, etc.) so a partial file can't leak memory.
+// How long to wait for the next chunk before giving an upload up (app closed
+// mid-send, GM/proxy handoff, etc.) so a partial file can't leak memory. Per
+// GAP, not per upload: comfortably longer than the app's 30s ack budget for a
+// single chunk, so a slow chunk that is still coming is never mistaken for an
+// app that went away — however many chunks the memo takes.
 const MEDIA_UPLOAD_TTL_MS = 60_000
 
 type VoiceMemoMeta = {

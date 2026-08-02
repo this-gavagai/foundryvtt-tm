@@ -257,6 +257,15 @@ const {
   reset: resetRecording
 } = useAudioRecorder({ maxDurationMs: 300_000 })
 
+// What a failed send says. A denied mic wins over everything (the recording
+// never happened, so nothing could have been sent), and a media upload that
+// didn't finish is named as such: the take is still in the composer, so "try
+// again" is advice the user can act on, unlike for a message that never posted.
+const sendErrorMessage = computed(() => {
+  if (recordErrorKind.value) return t('chat.micDenied')
+  return sendError.value === 'upload' ? t('chat.uploadFailed') : t('chat.sendFailed')
+})
+
 // Transcribe the take the moment the recorder finishes it, not when it is sent:
 // reviewing the take and typing a caption is time the transcription can run in,
 // so the text is usually ready by the time the memo posts. The blob turns null
@@ -997,7 +1006,7 @@ defineExpose({ open, close, isOpen })
                 </div>
 
                 <p v-if="sendError" data-part="chat-error" class="mt-1 text-xs text-red-700">
-                  {{ recordErrorKind ? $t('chat.micDenied') : $t('chat.sendFailed') }}
+                  {{ sendErrorMessage }}
                 </p>
                 <p
                   v-else-if="recordErrorKind"
