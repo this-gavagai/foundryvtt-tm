@@ -106,6 +106,52 @@ describe('staleness', () => {
     expect(store.getTargets().tokenIds).toEqual([])
   })
 
+  it('drops targets when the proxy goes offline', async () => {
+    // Nothing is broadcast when a client disconnects, so the last report we hold
+    // would keep aiming rolls at a selection no one at the table can see.
+    setWorld([{ _id: 'display', name: 'Table TV' }])
+    const store = useTargetHelperStore()
+    await store.updateProxyId('display')
+    store.updateTargets('display', someTargets)
+
+    store.reportUserActivity('display', false)
+    expect(store.getTargets().tokenIds).toEqual([])
+  })
+
+  it('re-asks when the proxy comes back online', async () => {
+    setWorld([{ _id: 'display', name: 'Table TV' }])
+    const store = useTargetHelperStore()
+    await store.updateProxyId('display')
+    requestTargets.mockClear()
+
+    store.reportUserActivity('display', true)
+    expect(requestTargets).toHaveBeenCalledWith('display')
+  })
+
+  it('ignores presence for anyone who is not the proxy', async () => {
+    setWorld([
+      { _id: 'display', name: 'Table TV' },
+      { _id: 'other', name: 'Someone Else' }
+    ])
+    const store = useTargetHelperStore()
+    await store.updateProxyId('display')
+    store.updateTargets('display', someTargets)
+
+    store.reportUserActivity('other', false)
+    expect(store.getTargets()).toEqual(someTargets)
+  })
+
+  it('ignores ordinary activity broadcasts, which carry no presence flag', async () => {
+    // Cursor moves and ruler drags arrive on the same event with no `active`.
+    setWorld([{ _id: 'display', name: 'Table TV' }])
+    const store = useTargetHelperStore()
+    await store.updateProxyId('display')
+    store.updateTargets('display', someTargets)
+
+    store.reportUserActivity('display', undefined)
+    expect(store.getTargets()).toEqual(someTargets)
+  })
+
   it('drops targets on reset (server/user switch)', async () => {
     setWorld([{ _id: 'display', name: 'Table TV' }])
     const store = useTargetHelperStore()
@@ -141,6 +187,39 @@ describe('bootstrap', () => {
 
     expect(store.targetingProxyId).toBe('display')
     expect(requestTargets).toHaveBeenCalledWith('display')
+  })
+
+  it('re-asks when the app returns to the foreground', async () => {
+    // A backgrounded tablet stops receiving the proxy's pushes (iOS suspends the
+    // socket), so whatever it holds on resume is only as fresh as the moment it
+    // went away — and those ids still resolve, so nothing downstream notices.
+    setWorld([{ _id: 'display', name: 'Table TV' }])
+    const store = useTargetHelperStore()
+    store.start()
+    await store.updateProxyId('display')
+    store.updateTargets('display', someTargets)
+    requestTargets.mockClear()
+
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+
+    expect(store.getTargets().tokenIds).toEqual([])
+    expect(requestTargets).toHaveBeenCalledWith('display')
+  })
+
+  it('ignores a visibility change that hides the app', async () => {
+    setWorld([{ _id: 'display', name: 'Table TV' }])
+    const store = useTargetHelperStore()
+    store.start()
+    await store.updateProxyId('display')
+    store.updateTargets('display', someTargets)
+    requestTargets.mockClear()
+
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+
+    expect(store.getTargets()).toEqual(someTargets)
+    expect(requestTargets).not.toHaveBeenCalled()
   })
 
   it('resync clears and re-asks, for recovering from a refused roll', async () => {

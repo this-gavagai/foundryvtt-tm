@@ -73,9 +73,7 @@ export function installApiStoreBridge() {
         (useWorldStore().world as { packs?: unknown } | undefined)?.packs as CollectionLike<unknown>
       ),
     getUserRole: () => {
-      const user = useWorldStore().userById(useUserStore().userId) as
-        | { role?: number }
-        | undefined
+      const user = useWorldStore().userById(useUserStore().userId) as { role?: number } | undefined
       return user?.role ?? 0
     },
     getWorldActor: (actorId) => useWorldStore().actorById(actorId)
@@ -126,6 +124,9 @@ export function registerServerEventWiring() {
     onSessionAuthenticated: () => {
       void useWorldStore().refreshWorldNow()
       fireAllRefresh()
+      // Any gap in the connection is a gap in the proxy's target pushes, so the
+      // mirror can only be trusted as far back as this handshake. Re-ask.
+      useTargetHelperStore().resync()
       // Now authenticated as a known user: (re)register this device's push
       // token with the relay. Fires on reconnects too; the call is idempotent.
       syncPushRegistration()
@@ -219,6 +220,11 @@ export function setupSocketListenersForWorld(world: Ref<GamePF2e | undefined>) {
     // guessing — and as a second writer of the same state it used to race the
     // module's scene-aware report and win by arriving last. The module's
     // SHARE_TARGETS self-report is the only path into the target store now.
+    //
+    // Its PRESENCE flag is another matter: it is the only signal that the client
+    // whose targeting we mirror has gone away, and stale targets from a proxy
+    // that logged out still resolve (see reportUserActivity).
+    useTargetHelperStore().reportUserActivity(user, args.active)
     if (args.active) logger.info('user online', user, args)
   })
 }

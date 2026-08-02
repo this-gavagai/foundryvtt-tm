@@ -91,10 +91,42 @@ export const useTargetHelperStore = defineStore('targetHelper', () => {
   // old proxy / old world, and the new answer may predate us entirely — a tablet
   // that connects mid-session would otherwise show nothing until the proxy
   // happens to re-target.
+  //
+  // Clearing FIRST means a roll fired in the gap before the answer lands is
+  // untargeted rather than aimed at a stale set — the same trade the reset
+  // comment above describes, and cheap now that an untargeted request can no
+  // longer pick up the handling GM's own reticle (see utils/target.ts).
   function resync() {
     reset()
     const proxyId = targetingProxyId.value
     if (proxyId) void requestTargets(proxyId)
+  }
+
+  // A SHARE_TARGETS push only reaches a connected tablet. Every gap in that
+  // connection — socket.io's own reconnects, and above all a mobile app
+  // backgrounded long enough for iOS to suspend its socket — is a window in
+  // which the proxy re-targeted and we never heard, leaving us holding ids that
+  // still resolve. So re-ask on every session handshake and on every return to
+  // the foreground, the way the presence heartbeat already re-pings.
+  function handleVisibilityChange() {
+    if (document.visibilityState === 'visible') resync()
+  }
+
+  // The proxy's client going away does NOT clear its targets: nothing is
+  // broadcast on disconnect, so the last report we hold would keep aiming rolls
+  // at tokens no one at the table can see highlighted any more. Foundry's
+  // userActivity carries the presence flip; targets are the one thing we must
+  // drop when the client that owned them is gone.
+  //
+  // `active` is absent on ordinary activity broadcasts (cursor, ruler), so only
+  // an explicit boolean counts as a presence change.
+  function reportUserActivity(userId: string, active: boolean | undefined) {
+    if (active === undefined) return
+    if (userId !== targetingProxyId.value) return
+    // Coming back: ask rather than wait for its next re-target. It answers with
+    // an empty set if it has none, which is also the right answer.
+    if (active) resync()
+    else reset()
   }
 
   let started = false
@@ -106,9 +138,13 @@ export const useTargetHelperStore = defineStore('targetHelper', () => {
     // world payload lands and names the proxy user, so the first meaningful run
     // is the one that fires when the world arrives.
     stopProxyWatch = watch(targetingProxyId, resync, { immediate: true })
+    document.addEventListener('visibilitychange', handleVisibilityChange)
   }
 
-  onScopeDispose(() => stopProxyWatch?.())
+  onScopeDispose(() => {
+    stopProxyWatch?.()
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
+  })
 
   return {
     targets,
@@ -117,6 +153,7 @@ export const useTargetHelperStore = defineStore('targetHelper', () => {
     targetingProxyId,
     updateProxyId,
     updateTargets,
+    reportUserActivity,
     reset,
     resync,
     start
