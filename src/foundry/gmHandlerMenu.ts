@@ -19,6 +19,7 @@ import {
   compareGmHandlers,
   gmHandlerPolicy,
   gmHandlesRequests,
+  isHandlerCapableClient,
   saveGmHandlerPolicy,
   type GmHandlerPolicy
 } from './gmHandlerSetting'
@@ -45,6 +46,10 @@ declare interface GmHandlerRow {
 }
 declare interface GmHandlerContext {
   rows: GmHandlerRow[]
+  // GMs who are signed in to Tabula instead of Foundry. Not rows — there is
+  // nothing to order or opt out — but naming them explains why a GM the world
+  // has is missing from the list above.
+  sheetGmNames: string[]
   // No online GM will handle requests: every online GM is opted out (or none is
   // connected at all).
   noHandler: boolean
@@ -92,8 +97,17 @@ export class GmHandlerMenu extends HandlebarsApplicationMixin(ApplicationV2) {
   // Pending edits, built on first render and mutated by the ↑/↓ actions.
   #draft: Draft | null = null
 
+  // Only GMs whose client could handle a request: a GM configured as a Tabula
+  // sheet user is redirected into the app and never runs the listener, so the
+  // election skips them (gmHandlerSetting.isHandlerCapableClient) and there is
+  // no priority to give them here. Keeping them out of the list also keeps them
+  // out of the saved order, rather than storing a rank nothing reads.
   static gms(): UserPF2e[] {
-    return game.users.filter((user: UserPF2e) => user.isGM)
+    return game.users.filter((user: UserPF2e) => user.isGM && isHandlerCapableClient(user))
+  }
+
+  static sheetGms(): UserPF2e[] {
+    return game.users.filter((user: UserPF2e) => user.isGM && !isHandlerCapableClient(user))
   }
 
   // Seed the draft from the saved policy: current GMs in election order, with
@@ -159,7 +173,8 @@ export class GmHandlerMenu extends HandlebarsApplicationMixin(ApplicationV2) {
       },
       { type: 'submit', icon: 'fas fa-save', label: 'Save Changes' }
     ]
-    return { rows, noHandler: !answeringFound, buttons }
+    const sheetGmNames = GmHandlerMenu.sheetGms().map((user) => user.name ?? user.id)
+    return { rows, sheetGmNames, noHandler: !answeringFound, buttons }
   }
 
   // One handler for both ↑ and ↓: the direction comes from the action name, so

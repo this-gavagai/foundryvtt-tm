@@ -6,6 +6,7 @@ import {
   gmHandlesRequests,
   compareGmHandlers,
   isElectedHandler,
+  isHandlerCapableClient,
   type GmHandlerPolicy,
   type HandlerUser,
   type ElectableUser
@@ -109,6 +110,32 @@ describe('gmHandlesRequests', () => {
   })
 })
 
+describe('isHandlerCapableClient', () => {
+  // A GM can also be a Tabula sheet user. Their browser is redirected into the
+  // app, so the Foundry client that would run the handler doesn't exist — even
+  // though the user is signed in and looks active to everyone else.
+  const sheetFlag = { tablemate: { character_sheet: 'root' } }
+
+  it('accepts an ordinary GM', () => {
+    expect(isHandlerCapableClient({})).toBe(true)
+    expect(isHandlerCapableClient({ flags: { tablemate: {} } })).toBe(true)
+  })
+
+  it('rejects a sheet user, from source flags or from a document getFlag', () => {
+    expect(isHandlerCapableClient({ flags: sheetFlag })).toBe(false)
+    expect(
+      isHandlerCapableClient({
+        getFlag: (scope: string, key: string) =>
+          scope === 'tablemate' && key === 'character_sheet' ? 'root' : undefined
+      })
+    ).toBe(false)
+  })
+
+  it('treats a missing user as incapable', () => {
+    expect(isHandlerCapableClient(undefined)).toBe(false)
+  })
+})
+
 describe('handler election', () => {
   it('picks the lowest id when unconfigured', () => {
     expect(elect([carol, bob, alice], policy())).toBe(alice)
@@ -167,6 +194,28 @@ describe('handler election', () => {
     ]
     expect(isElectedHandler(users[0], users, policy())).toBe(false)
     expect(isElectedHandler(users[1], users, policy())).toBe(true)
+  })
+
+  it('does not elect a GM who is signed in to Tabula', () => {
+    // The trap this closes: a sheet GM IS active, so before this they won the
+    // election on id order and every request went unanswered — their browser is
+    // running the app, which has no listener in it.
+    const users: ElectableUser[] = [
+      { _id: 'aaa', isGM: true, active: true, flags: { tablemate: { character_sheet: 'root' } } },
+      { _id: 'bbb', isGM: true, active: true }
+    ]
+    expect(isElectedHandler(users[0], users, policy())).toBe(false)
+    expect(isElectedHandler(users[1], users, policy())).toBe(true)
+    // …including when the world explicitly put them first.
+    expect(isElectedHandler(users[0], users, policy(['aaa']))).toBe(false)
+    expect(isElectedHandler(users[1], users, policy(['aaa']))).toBe(true)
+  })
+
+  it('leaves nobody to handle requests when the only online GM is on Tabula', () => {
+    const users: ElectableUser[] = [
+      { _id: 'aaa', isGM: true, active: true, flags: { tablemate: { character_sheet: 'root' } } }
+    ]
+    expect(users.filter((u) => isElectedHandler(u, users, policy()))).toHaveLength(0)
   })
 
   it('takes no requester, so two players are always answered by one client', () => {

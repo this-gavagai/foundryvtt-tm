@@ -54,6 +54,11 @@
 			font-style: italic;
 			opacity: 0.7;
 		}
+		.tm-gm-note {
+			margin: 0.75rem 0 0;
+			font-size: var(--font-size-12, 12px);
+			opacity: 0.8;
+		}
 	</style>
 
 	<p class="tm-gm-hint">
@@ -86,12 +91,23 @@
 		</button>
 	</div>
 	{{else}}
-	<p class="tm-gm-empty">This world has no GM users.</p>
+	<p class="tm-gm-empty">
+		{{#if sheetGmNames}}Every GM in this world is a Tabula sheet user.{{else}}This world has no GM
+		users.{{/if}}
+	</p>
 	{{/each}}
+
+	{{#if sheetGmNames}}
+	<p class="tm-gm-note">
+		Not listed: {{#each sheetGmNames}}{{#unless @first}}, {{/unless}}<strong>{{this}}</strong>{{/each}} —
+		signed in to Tabula rather than Foundry (see User Select), so there is no Foundry client there
+		to handle requests.
+	</p>
+	{{/if}}
 
 	{{#if noHandler}}
 	<p class="notification warning" style="margin-top: 0.75rem">
-		No GM is currently able to handle Tabula requests — every online GM is unchecked.
+		No GM is currently able to handle Tabula requests — no online GM is checked.
 	</p>
 	{{/if}}
 </div>

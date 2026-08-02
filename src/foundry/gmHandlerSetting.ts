@@ -26,6 +26,7 @@
 // set it, and the other GMs would still elect them and then wait forever.
 
 import { MODULE_ID } from '@/api/protocol'
+import { isSheetUser, type SheetFlaggedUser } from './utils/sheetUser'
 
 declare const game: {
   settings: {
@@ -138,9 +139,26 @@ export function gmHandlerRank(
 }
 
 // A candidate for the election, as the listener sees one.
-export interface ElectableUser extends HandlerUser {
+export interface ElectableUser extends HandlerUser, SheetFlaggedUser {
   isGM?: boolean
   active?: boolean
+}
+
+// Is this GM's client the kind of client that can execute a request at all?
+//
+// A sheet user's browser is redirected to the Tabula app at init (tablemate.ts),
+// so it never loads the module's listener — but it IS signed in, so `active` is
+// true and every other client would happily elect it and then wait forever for
+// an ack. A GM given a sheet is therefore out of the election, permanently and
+// on every client, for the same reason a player is: there is nothing there to
+// answer.
+//
+// Deliberately NOT folded into the policy's `ignored` list: this is a fact about
+// how the user is signed in, not a choice the world made about them. Writing it
+// into the policy would leave a stale opt-out behind the day they stop being a
+// sheet user.
+export function isHandlerCapableClient(user: SheetFlaggedUser | undefined): boolean {
+  return !!user && !isSheetUser(user)
 }
 
 // Does `me` win the election among `users`? THE routing decision: every request
@@ -149,8 +167,9 @@ export interface ElectableUser extends HandlerUser {
 // the inputs are world data (the policy) plus user.active, and why there is no
 // requester parameter. Routing cannot depend on who asked.
 //
-// Eligible = an active GM the policy has not opted out. Among those, the
-// comparator decides, and `me` wins by there being nobody ahead.
+// Eligible = an active GM, on a client that can actually handle requests, whom
+// the policy has not opted out. Among those, the comparator decides, and `me`
+// wins by there being nobody ahead.
 export function isElectedHandler(
   me: ElectableUser | undefined,
   users: ElectableUser[],
@@ -161,7 +180,10 @@ export function isElectedHandler(
   // a plain predicate now, and one that answered "yes, you are elected" for an
   // offline GM would be a trap for the next caller.
   const eligible = (user: ElectableUser | undefined): boolean =>
-    !!user?.isGM && user.active === true && gmHandlesRequests(user, policy)
+    !!user?.isGM &&
+    user.active === true &&
+    isHandlerCapableClient(user) &&
+    gmHandlesRequests(user, policy)
 
   if (!eligible(me)) return false
   return !users.filter(eligible).some((other) => compareGmHandlers(other, me!, policy) < 0)

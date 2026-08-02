@@ -1,4 +1,5 @@
-// Cosmetic section headers for Tablemate's block of the Foundry Settings config.
+// Cosmetic section headers (and one button relocation) for Tablemate's block of
+// the Foundry Settings config.
 //
 // Foundry's game.settings.register has no "group" or "header" concept — every
 // setting simply renders in registration order under the module's name. To break
@@ -19,7 +20,8 @@ import {
 } from './manualRollPolicy'
 import { VOICE_MEMO_PATH_SETTING } from './voiceMemoSetting'
 import { IMAGE_UPLOAD_PATH_SETTING } from './imageUploadSetting'
-import { PUSH_ENABLED_SETTING } from './pushRegistration'
+import { PUSH_ENABLED_SETTING, PUSH_RELAY_URL_SETTING } from './pushRegistration'
+import { PUSH_STATUS_MENU_KEY } from './pushStatusMenu'
 
 // title -> the setting key whose form-group the header is inserted before.
 const SECTIONS: Array<{ title: string; beforeKey: string }> = [
@@ -27,6 +29,15 @@ const SECTIONS: Array<{ title: string; beforeKey: string }> = [
   { title: 'Voice memos', beforeKey: VOICE_MEMO_PATH_SETTING },
   { title: 'Images', beforeKey: IMAGE_UPLOAD_PATH_SETTING },
   { title: 'Push notifications', beforeKey: PUSH_ENABLED_SETTING }
+]
+
+// SettingsConfig classifies every registerMenu entry before the plain settings,
+// so a menu button always lands at the top of the module's block no matter when
+// it was registered. That strands the push status check above the "Dice rolls"
+// header, three sections away from the settings it reports on; move it down to
+// the end of its own section.
+const MENU_MOVES: Array<{ menuKey: string; afterKey: string }> = [
+  { menuKey: PUSH_STATUS_MENU_KEY, afterKey: PUSH_RELAY_URL_SETTING }
 ]
 
 // Marker class, used both for styling and to detect a header we already inserted
@@ -71,6 +82,31 @@ function insertHeaders(scope: ParentNode): number {
   return inserted
 }
 
+// Move each menu button's form-group to sit directly after its anchor setting.
+// Menu groups carry a <button data-action="openSubmenu" data-key="module.key">
+// and no named input, so they are found by data-key rather than name. Returns
+// how many groups moved (a group already in place counts, so the caller's
+// document-wide fallback isn't triggered by an idempotent re-render).
+function moveMenus(scope: ParentNode): number {
+  let moved = 0
+  for (const { menuKey, afterKey } of MENU_MOVES) {
+    // Restricted menus are absent for players; the anchor setting is still
+    // there, so a missing button just means there is nothing to move.
+    const menuGroup = scope
+      .querySelector(`[data-key="${MODULE_ID}.${menuKey}"]`)
+      ?.closest('.form-group')
+    const anchor = scope
+      .querySelector(`[name="${MODULE_ID}.${afterKey}"]`)
+      ?.closest('.form-group')
+    if (!menuGroup || !anchor?.parentElement) continue
+
+    moved++
+    if (anchor.nextElementSibling === menuGroup) continue
+    anchor.parentElement.insertBefore(menuGroup, anchor.nextElementSibling)
+  }
+  return moved
+}
+
 export function setupSettingsHeaders() {
   // ApplicationV2 fires renderSettingsConfig as (app, element, context, options)
   // with element being the app's root HTMLElement.
@@ -87,6 +123,7 @@ export function setupSettingsHeaders() {
     // as a belt-and-suspenders (only ever one SettingsConfig is open).
     globalThis.requestAnimationFrame(() => {
       if (insertHeaders(root) === 0) insertHeaders(document)
+      if (moveMenus(root) === 0) moveMenus(document)
     })
   })
 }

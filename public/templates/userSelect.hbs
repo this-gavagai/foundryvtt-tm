@@ -77,6 +77,17 @@
 			font-variant: small-caps;
 			opacity: 0.6;
 		}
+		/* The GM tag carries a consequence (see the note above the list), so it
+		   gets a chip rather than the plain "online" text tag. */
+		.tm-us-tag-gm {
+			padding: 0 0.3rem;
+			border: 1px solid rgba(128, 128, 128, 0.5);
+			border-radius: 0.6em;
+			opacity: 0.8;
+		}
+		.tm-us-gm-note code {
+			font-size: var(--font-size-12, 12px);
+		}
 		/* Bare checkbox — the "Sheet" column header names it, so an inline label
 		   would only repeat itself and widen the dialog. */
 		.tm-us-toggle {
@@ -109,6 +120,13 @@
 		surface in their sheet.
 	</p>
 
+	<p class="tm-us-hint tm-us-gm-note">
+		A <span class="tm-us-tag">gm</span> given a sheet stops handling Tabula requests — their
+		browser is in Tabula, not Foundry — so leave at least one other GM to answer them. To open
+		Foundry as a sheet user anyway (to undo this, say), add
+		<code>?tablemate=off</code> to the world URL.
+	</p>
+
 	<div class="tm-us-head">
 		<span>User</span>
 		<span class="tm-us-col-sheet">Sheet</span>
@@ -121,6 +139,7 @@
 			<span class="tm-us-user">
 				<span class="tm-us-dot" style="background: {{this.color}}"></span>
 				<span class="tm-us-name" data-tooltip="{{this.name}}">{{this.name}}</span>
+				{{#if this.gm}}<span class="tm-us-tag tm-us-tag-gm">gm</span>{{/if}}
 				{{#if this.active}}<span class="tm-us-tag">online</span>{{/if}}
 			</span>
 			<label class="tm-us-toggle" data-tooltip="Load the Tabula character sheet">
@@ -136,7 +155,7 @@
 			</label>
 		</li>
 		{{else}}
-		<li class="tm-us-empty">This world has no non-GM users to configure.</li>
+		<li class="tm-us-empty">This world has no users to configure.</li>
 		{{/each}}
 	</ul>
 </div>

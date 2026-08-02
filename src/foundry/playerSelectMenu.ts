@@ -1,9 +1,16 @@
 // Settings-menu ApplicationV2 for choosing which users load the Tablemate
 // character sheet, and which login user each sheet "belongs to" (so whispers
 // addressed to the human surface in that player's Tablemate sheet).
+//
+// GMs are listed alongside players: a GM who plays a character wants the sheet
+// on their tablet like anyone else, and the same "belongs to" link so their
+// whispers follow them there. The one thing that differs is the cost — a GM in
+// Tabula is not running a Foundry client, so they drop out of the request-handler
+// election (see gmHandlerSetting.isHandlerCapableClient). The template says so.
 
 import type { UserPF2e } from '@7h3laughingman/pf2e-types'
 import type FormDataExtended from '@7h3laughingman/foundry-types/client/applications/ux/form-data-extended.mjs'
+import { isSheetUser } from './utils/sheetUser'
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api
 
@@ -16,6 +23,8 @@ declare interface SheetableUser extends UserPF2e {
   sheeted: boolean
   belongsTo: string
   belongsToOptions: BelongsToOption[]
+  // Drives the row's "gm" tag and its handler warning.
+  gm: boolean
 }
 declare interface PlayerSelectContext {
   users: SheetableUser[]
@@ -51,13 +60,14 @@ export class PlayerSelectMenu extends HandlebarsApplicationMixin(ApplicationV2) 
     }
   }
   async _prepareContext(): Promise<PlayerSelectContext> {
-    const users = game.users.filter((u: UserPF2e) => !u.isGM) as SheetableUser[]
+    const users = game.users.contents as SheetableUser[]
     // "Belongs To" links a sheet user (e.g. "Bob's Sheet") to the human's
     // primary login user (e.g. "Bob"), so whispers addressed to the human
     // surface in that player's Tablemate sheet. Offer every other user as a
     // candidate owner; a sheet should not belong to itself.
     users.forEach((s) => {
-      s.sheeted = s.getFlag('tablemate', 'character_sheet') === 'root'
+      s.sheeted = isSheetUser(s)
+      s.gm = !!s.isGM
       const belongsTo = s.getFlag('tablemate', 'belongsTo')
       s.belongsTo = typeof belongsTo === 'string' ? belongsTo : ''
       s.belongsToOptions = game.users
@@ -87,7 +97,7 @@ export class PlayerSelectMenu extends HandlebarsApplicationMixin(ApplicationV2) 
       else if (field === 'belongsTo') belongsTo[id] = value
     }
 
-    for (const usr of game.users.filter((u: UserPF2e) => !u.isGM)) {
+    for (const usr of game.users.contents as UserPF2e[]) {
       const id = usr.id
 
       if (sheeted[id]) {
