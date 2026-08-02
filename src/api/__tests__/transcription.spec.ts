@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
+  addTranscriptParagraphs,
   audioExtension,
   normalizeEndpoint,
   transcribeAudio,
@@ -71,6 +72,115 @@ describe('transcribeAudioOrNull', () => {
   it('resolves to null on failure so the memo just posts without text', async () => {
     fetchMock.mockRejectedValue(new Error('network down'))
     await expect(transcribeAudioOrNull(new Blob(['x']), 'audio/mp4', config)).resolves.toBeNull()
+  })
+
+  it('runs the paragraph pass on the transcript when one is configured', async () => {
+    const spoken = LONG_TRANSCRIPT
+    fetchMock.mockImplementation(async (input) => {
+      if (String(input).endsWith('/chat/completions')) {
+        return new Response(
+          JSON.stringify({ choices: [{ message: { content: paragraphed(spoken) } }] }),
+          { status: 200 }
+        )
+      }
+      return new Response(JSON.stringify({ text: spoken }), { status: 200 })
+    })
+
+    const text = await transcribeAudioOrNull(new Blob(['x']), 'audio/mp4', {
+      ...config,
+      paragraphModel: 'openai/gpt-oss-20b'
+    })
+
+    expect(text).toBe(paragraphed(spoken))
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the raw transcript when the paragraph pass fails', async () => {
+    fetchMock.mockImplementation(async (input) => {
+      if (String(input).endsWith('/chat/completions')) return new Response('boom', { status: 500 })
+      return new Response(JSON.stringify({ text: LONG_TRANSCRIPT }), { status: 200 })
+    })
+
+    await expect(
+      transcribeAudioOrNull(new Blob(['x']), 'audio/mp4', {
+        ...config,
+        paragraphModel: 'openai/gpt-oss-20b'
+      })
+    ).resolves.toBe(LONG_TRANSCRIPT)
+  })
+})
+
+// Two sentences repeated to clear the length threshold, and the same text with a
+// paragraph break added — the only change the pass is permitted to make.
+const LONG_TRANSCRIPT =
+  `${'The goblin swings and misses. Ezren is still counting his scrolls. '.repeat(6)}`.trim()
+const paragraphed = (text: string) => text.replace('. Ezren', '.\n\nEzren')
+
+describe('addTranscriptParagraphs', () => {
+  function chatResponse(content: string) {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 })
+    )
+  }
+
+  const paragraphConfig = { ...config, paragraphModel: 'openai/gpt-oss-20b' }
+
+  it('posts the transcript to the chat endpoint of the same service', async () => {
+    chatResponse(paragraphed(LONG_TRANSCRIPT))
+    await addTranscriptParagraphs(LONG_TRANSCRIPT, paragraphConfig)
+
+    const [url, init] = lastRequest()
+    expect(url).toBe('https://api.openai.com/v1/chat/completions')
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer sk-test')
+    const body = JSON.parse(init.body as string) as {
+      model: string
+      temperature: number
+      messages: Array<{ role: string; content: string }>
+    }
+    expect(body.model).toBe('openai/gpt-oss-20b')
+    expect(body.temperature).toBe(0)
+    expect(body.messages[1]).toEqual({ role: 'user', content: LONG_TRANSCRIPT })
+  })
+
+  it('keeps the transcript when the model changed the words', async () => {
+    // The failure that matters: a transcript is a record of what someone said,
+    // so a pass that rewrites it is rejected outright rather than posted.
+    chatResponse(LONG_TRANSCRIPT.replace('goblin', 'hobgoblin'))
+    await expect(addTranscriptParagraphs(LONG_TRANSCRIPT, paragraphConfig)).rejects.toThrow(
+      /changed the words/
+    )
+  })
+
+  it('keeps the transcript when the model wrapped it in commentary', async () => {
+    chatResponse(`Here is the formatted text:\n\n${LONG_TRANSCRIPT}`)
+    await expect(addTranscriptParagraphs(LONG_TRANSCRIPT, paragraphConfig)).rejects.toThrow(
+      /changed the words/
+    )
+  })
+
+  it('accepts a reply that only moved whitespace around', async () => {
+    chatResponse(paragraphed(LONG_TRANSCRIPT))
+    await expect(addTranscriptParagraphs(LONG_TRANSCRIPT, paragraphConfig)).resolves.toBe(
+      paragraphed(LONG_TRANSCRIPT)
+    )
+  })
+
+  it('does not call out at all for a short memo', async () => {
+    await expect(addTranscriptParagraphs('Rolling initiative.', paragraphConfig)).resolves.toBe(
+      'Rolling initiative.'
+    )
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('does not call out when no paragraph model is configured', async () => {
+    await expect(addTranscriptParagraphs(LONG_TRANSCRIPT, config)).resolves.toBe(LONG_TRANSCRIPT)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('leaves a transcript that already has paragraphs alone', async () => {
+    const already = paragraphed(LONG_TRANSCRIPT)
+    await expect(addTranscriptParagraphs(already, paragraphConfig)).resolves.toBe(already)
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })
 

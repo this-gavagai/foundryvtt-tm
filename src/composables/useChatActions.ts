@@ -19,7 +19,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { useVersionCompatStore } from '@/stores/versionCompat'
 import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
 import {
-  appendTranscriptContent,
+  withTranscriptContent,
   buildChatMessageCreateData,
   buildSpeaker,
   formatChatContent,
@@ -598,13 +598,36 @@ export function useChatActions({
     }
   }
 
-  // Patch a finished transcription onto the memo it belongs to: the flag the app
-  // renders from, and the content copy Foundry's own chat log renders from.
+  // Write a memo's transcript to its posted message: the flag the app renders
+  // from, and the content copy Foundry's own chat log renders from. `content` is
+  // the message as it stands; the transcript replaces whatever was in its
+  // wrapper, leaving the caption and the <audio> element alone.
   //
   // A direct socket write, not an RPC — we authored the message, and Foundry
   // authorizes an author updating their own. Foundry deep-merges the update, so
   // writing flags.tablemate.transcript leaves audioPath/mime/duration intact
   // (the local self-apply has to do that merge by hand; see applyChatTranscript).
+  async function writeVoiceMemoTranscript(
+    messageId: string,
+    content: string,
+    transcript: string
+  ): Promise<void> {
+    const updated = withTranscriptContent(content, transcript)
+    await modifyDocument(
+      {
+        action: 'update',
+        type: 'ChatMessage',
+        operation: {
+          updates: [{ _id: messageId, content: updated, flags: { tablemate: { transcript } } }],
+          render: true
+        }
+      },
+      () => worldStore.applyChatTranscript(messageId, updated, transcript)
+    )
+  }
+
+  // Patch a finished transcription onto the memo it belongs to, once the upload
+  // has come back with the message it posted as.
   //
   // Best-effort throughout: a failed transcription, an ack that named no message
   // (a module too old to report one), or a rejected update all leave the memo
@@ -620,22 +643,24 @@ export function useChatActions({
       logger.warn('TM-WARN: voice memo transcript dropped — no message id in the ack')
       return
     }
-    const content = appendTranscriptContent(posted?.content ?? '', transcript)
     try {
-      await modifyDocument(
-        {
-          action: 'update',
-          type: 'ChatMessage',
-          operation: {
-            updates: [{ _id: messageId, content, flags: { tablemate: { transcript } } }],
-            render: true
-          }
-        },
-        () => worldStore.applyChatTranscript(messageId, content, transcript)
-      )
+      await writeVoiceMemoTranscript(messageId, posted?.content ?? '', transcript)
     } catch (error) {
       logger.warn('TM-WARN: voice memo transcript update failed', error)
     }
+  }
+
+  // Correct the transcript of a memo already in the log — the same edit
+  // affordance a text message has, except that what is being edited is the
+  // transcript rather than the message body, so the recording itself survives.
+  // Throws on a rejected write, like updateMessageContent, so the composer can
+  // surface the failure instead of pretending the edit stuck.
+  async function updateVoiceMemoTranscript(
+    messageId: string,
+    content: string,
+    transcript: string
+  ): Promise<void> {
+    await writeVoiceMemoTranscript(messageId, content, transcript)
   }
 
   // Send a prepared image: slice the bytes into base64 chunks and stream them to
@@ -696,6 +721,7 @@ export function useChatActions({
     submitImage,
     deleteMessage,
     updateMessageContent,
+    updateVoiceMemoTranscript,
     toggleMessageReaction,
     isReactionPending,
     canApplyDamage,

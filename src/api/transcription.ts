@@ -25,6 +25,10 @@ export interface TranscriptionConfig {
   endpoint: string
   apiKey: string
   model: string
+  // Chat model that breaks a long transcript into paragraphs, or undefined to
+  // leave transcripts as the transcription API returns them. See the paragraph
+  // pass below — it reuses this same endpoint and key.
+  paragraphModel?: string
 }
 
 export const DEFAULT_TRANSCRIPTION_MODEL = 'whisper-1'
@@ -96,18 +100,125 @@ export async function transcribeAudio(
   }
 }
 
-// Transcribe, or resolve to null on any failure. The caller's fallback is
-// always the same — post the memo without text — so every error is a logged
-// null rather than something call sites have to handle individually.
+// ── Paragraphs ───────────────────────────────────────────────────────────────
+// Whisper answers with one unbroken wall of text, which is miserable to read on
+// a phone once a memo runs past a few sentences. Nothing in the transcription
+// call can fix that: OpenAI documents that whisper "doesn't follow instructions
+// like a general-purpose text model", and Groq that its prompts "only guide
+// style and context, not specific actions". Deciding where a paragraph ends is a
+// judgement about meaning, so it takes a model that reads the text.
+//
+// So this is a second call — to the chat-completions endpoint of the SAME
+// service, with the same key, which is why it needs no configuration beyond a
+// model name. It is cheap relative to what it formats (a two-minute memo costs
+// roughly a ninth of its own transcription on Groq's small models) and it runs
+// in the window the user spends reviewing the take, so it usually costs no
+// visible time either.
+//
+// Entirely optional and entirely best-effort: unconfigured, slow, failed, or
+// answering with something that isn't the same words — the raw transcript is
+// what gets used.
+
+// Below this the memo is a sentence or two and needs no breaking up, so the call
+// is skipped outright.
+const PARAGRAPH_MIN_CHARS = 400
+
+// Shorter than the transcription budget: this is an enhancement to text we
+// already have, so a slow model must not hold the transcript hostage.
+const PARAGRAPH_TIMEOUT_MS = 10_000
+
+const PARAGRAPH_SYSTEM_PROMPT =
+  'You add paragraph breaks to a transcript of spoken audio. Insert blank lines ' +
+  'between distinct topics or turns of thought. Reproduce the text otherwise ' +
+  'EXACTLY: never reword, summarise, translate, correct, add, or remove any ' +
+  'word or punctuation mark. Reply with the text alone — no commentary, no ' +
+  'preamble, no quoting, no markdown.'
+
+// The words of a text, for comparing what came back against what went in.
+// Punctuation and whitespace are dropped, so the check ignores exactly what the
+// model is allowed to change (line breaks) and catches everything it is not.
+function wordSignature(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+}
+
+// Break a transcript into paragraphs with a chat model. Returns the original
+// text unchanged on any failure — including the model having altered the words,
+// which is the failure that matters: a transcript is a record of what someone
+// said, and a formatting pass that quietly rewrites it would be far worse than
+// the wall of text it set out to fix.
+export async function addTranscriptParagraphs(
+  transcript: string,
+  config: TranscriptionConfig
+): Promise<string> {
+  const model = config.paragraphModel?.trim()
+  if (!model || transcript.length < PARAGRAPH_MIN_CHARS) return transcript
+  // Already broken up (a transcription API that returns its own line breaks).
+  if (transcript.includes('\n\n')) return transcript
+
+  const controller = new AbortController()
+  const timer = globalThis.setTimeout(() => controller.abort(), PARAGRAPH_TIMEOUT_MS)
+  try {
+    const res = await fetch(`${normalizeEndpoint(config.endpoint)}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model,
+        // Deterministic: the same memo should not paragraph differently on a
+        // retry, and there is nothing here to be creative about.
+        temperature: 0,
+        messages: [
+          { role: 'system', content: PARAGRAPH_SYSTEM_PROMPT },
+          { role: 'user', content: transcript }
+        ]
+      }),
+      signal: controller.signal
+    })
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '')
+      throw new Error(`paragraphs HTTP ${res.status}${detail ? `: ${detail.slice(0, 300)}` : ''}`)
+    }
+    const data = (await res.json()) as {
+      choices?: Array<{ message?: { content?: unknown } }>
+    }
+    const formatted = data.choices?.[0]?.message?.content
+    const text = typeof formatted === 'string' ? formatted.trim() : ''
+    if (!text) throw new Error('paragraph response had no text')
+    if (wordSignature(text) !== wordSignature(transcript)) {
+      throw new Error('paragraph response changed the words; keeping the transcript')
+    }
+    return text
+  } finally {
+    globalThis.clearTimeout(timer)
+  }
+}
+
+// Transcribe, then break the result into paragraphs when a paragraph model is
+// configured, or resolve to null on a failed transcription. The caller's
+// fallback is always the same — post the memo without text — so every error is
+// a logged null rather than something call sites have to handle individually.
+// A failed paragraph pass is not an error at all: the transcript stands.
 export async function transcribeAudioOrNull(
   blob: Blob,
   mimeType: string,
   config: TranscriptionConfig
 ): Promise<string | null> {
+  let transcript: string
   try {
-    return await transcribeAudio(blob, mimeType, config)
+    transcript = await transcribeAudio(blob, mimeType, config)
   } catch (error) {
     logger.warn('TM-WARN: voice memo transcription failed', error)
     return null
+  }
+  try {
+    return await addTranscriptParagraphs(transcript, config)
+  } catch (error) {
+    logger.warn('TM-WARN: voice memo paragraph pass failed; using the raw transcript', error)
+    return transcript
   }
 }

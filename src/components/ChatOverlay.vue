@@ -123,7 +123,8 @@ const {
   voiceMemoTranscribing,
   submitImage,
   deleteMessage,
-  updateMessageContent
+  updateMessageContent,
+  updateVoiceMemoTranscript
 } = chatActions
 
 async function submitChatMessage() {
@@ -132,10 +133,13 @@ async function submitChatMessage() {
   // Editing an existing message: save the new text rather than posting anew.
   if (editingMessageId.value) {
     const id = editingMessageId.value
+    const memoContent = editingMemoContent.value
     manageError.value = false
     try {
-      await updateMessageContent(id, content)
+      if (memoContent !== null) await updateVoiceMemoTranscript(id, memoContent, content)
+      else await updateMessageContent(id, content)
       editingMessageId.value = null
+      editingMemoContent.value = null
       draft.value = ''
       nextTick(() => chatInput.value?.focus())
     } catch {
@@ -187,17 +191,26 @@ watch([draft, chatInput], () => nextTick(autoGrowComposer))
 const editingMessageId = ref<string | null>(null)
 const manageError = ref(false)
 
+// Set while the message being edited is a voice memo, holding the message body
+// as it stands. What's in the composer is then the memo's transcript, not its
+// content: saving rewrites the transcript inside that body so the player (and
+// any caption) survive the edit.
+const editingMemoContent = ref<string | null>(null)
+
 function startEdit(view: ChatMessageView) {
   const id = view.message._id
   if (!id) return
   editingMessageId.value = id
-  draft.value = chatContentToEditableText(view.message.content)
+  const transcript = view.audioUrl ? view.transcript : undefined
+  editingMemoContent.value = transcript ? (view.message.content ?? '') : null
+  draft.value = transcript ?? chatContentToEditableText(view.message.content)
   manageError.value = false
   nextTick(() => chatInput.value?.focus())
 }
 
 function cancelEdit() {
   editingMessageId.value = null
+  editingMemoContent.value = null
   draft.value = ''
 }
 
@@ -713,7 +726,13 @@ defineExpose({ open, close, isOpen })
                   data-part="chat-editing-banner"
                   class="mb-2 flex items-center gap-2 px-1 text-xs text-gray-500"
                 >
-                  <span class="flex-1">{{ $t('chat.editingMessage') }}</span>
+                  <span class="flex-1">
+                    {{
+                      editingMemoContent === null
+                        ? $t('chat.editingMessage')
+                        : $t('chat.editingTranscript')
+                    }}
+                  </span>
                   <button
                     type="button"
                     class="rounded-md text-gray-400 hover:text-gray-600 focus:outline-hidden"
@@ -822,7 +841,7 @@ defineExpose({ open, close, isOpen })
                         v-else-if="voiceMemoTranscript"
                         type="button"
                         data-part="chat-voice-preview-transcript"
-                        class="max-h-16 overflow-y-auto px-1 text-left text-xs text-gray-600 italic"
+                        class="max-h-16 overflow-y-auto px-1 text-left text-xs whitespace-pre-line text-gray-600 italic"
                         :aria-label="$t('chat.editTranscript')"
                         @click="startTranscriptEdit"
                       >

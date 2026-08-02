@@ -48,15 +48,38 @@ export function formatChatContent(content: string): string {
   return escapeHtml(content.trim()).replace(/\n/g, '<br>')
 }
 
-// Append a voice memo's transcript to the content the module rendered for it.
+// Put a voice memo's transcript into the content the module rendered for it,
+// replacing any transcript already there.
 //
 // The transcript rides in a [data-tablemate-transcript] wrapper so Foundry's own
 // chat log shows it (italic, under the player) while the app strips that wrapper
 // (sanitizeChatHtml) and renders the transcript from flags.tablemate.transcript
 // with its own styling — shown once on each surface, never twice.
-export function appendTranscriptContent(content: string, transcript: string): string {
-  return `${content}<div data-tablemate-transcript><em>${escapeHtml(transcript)}</em></div>`
+//
+// Replacing rather than appending is what lets a posted memo's transcript be
+// edited: the wrapper is swapped while the caption and the <audio> element the
+// Foundry-side chat log plays from are carried through untouched.
+export function withTranscriptContent(content: string, transcript: string): string {
+  const base = content.replace(TRANSCRIPT_WRAPPER, '')
+  const text = transcript.trim()
+  if (!text) return base
+  // Paragraph breaks become <br>, the same way formatChatContent carries a typed
+  // message's newlines — the app renders the transcript from the flag and keeps
+  // the breaks as newlines, but Foundry's own log renders this HTML copy.
+  const body = escapeHtml(text).replace(/\n/g, '<br>')
+  return `${base}<div data-tablemate-transcript><em>${body}</em></div>`
 }
+
+// The existing wrapper, cut by pattern rather than by parsing the content into a
+// DOM and re-serializing it: that round-trip rewrites the message body's markup
+// (`controls` becomes `controls=""`, and so on) on every transcript edit, and
+// the rest of the content is the module's to author, not ours to reformat.
+//
+// Safe to match this way because we are the only writer of this wrapper and its
+// text is escaped, so the transcript can never contain the closing tag. The
+// pattern stays tolerant of extra attributes on the div for the same reason a
+// parser would be.
+const TRANSCRIPT_WRAPPER = /<div[^>]*\bdata-tablemate-transcript\b[^>]*>[\s\S]*?<\/div>/g
 
 function findUser(users: ChatUserLike[], userId: string): ChatUserLike | undefined {
   return users.find((u) => u._id === userId || u.id === userId)

@@ -18,6 +18,8 @@ const {
   transcriptionEnabled,
   transcriptionEndpoint,
   transcriptionModel,
+  transcriptionParagraphs,
+  transcriptionParagraphModel,
   transcriptionApiKey,
   transcriptionKeyLoaded
 } = storeToRefs(settings)
@@ -109,6 +111,31 @@ defineExpose({ open, close })
         />
         <span data-part="transcription-hint" class="text-xs opacity-70">
           {{ $t('settings.transcription.modelHint') }}
+        </span>
+      </label>
+      <hr class="opacity-30" />
+      <Toggle
+        :active="transcriptionParagraphs"
+        @changed="(v: boolean) => (transcriptionParagraphs = v)"
+      >
+        <span class="text-lg italic">{{ $t('settings.transcription.paragraphs') }}</span>
+      </Toggle>
+      <p data-part="transcription-hint" class="-mt-2 text-xs opacity-70">
+        {{ $t('settings.transcription.paragraphsHint') }}
+      </p>
+      <label class="flex flex-col gap-1">
+        <span class="text-sm italic">{{ $t('settings.transcription.paragraphModel') }}</span>
+        <input
+          v-model="transcriptionParagraphModel"
+          type="text"
+          autocapitalize="off"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="openai/gpt-oss-20b"
+          class="border-divider rounded border p-2"
+        />
+        <span data-part="transcription-hint" class="text-xs opacity-70">
+          {{ $t('settings.transcription.paragraphModelHint') }}
         </span>
       </label>
     </div>

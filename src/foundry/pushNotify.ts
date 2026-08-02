@@ -64,7 +64,10 @@ function isVoiceMemo(msg: ChatMessageLike): boolean {
 function voiceTranscript(msg: ChatMessageLike): string {
   const flagged = msg.getFlag?.('tablemate', 'transcript')
   const value = typeof flagged === 'string' ? flagged : msg.flags?.tablemate?.transcript
-  return typeof value === 'string' ? value.trim() : ''
+  // Paragraph breaks collapse to spaces: a transcript can carry them (the app's
+  // optional paragraph pass adds them), but a notification banner is a couple of
+  // lines of running text, not a document.
+  return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : ''
 }
 
 // Whether a transcript is actually coming for this memo. Transcription happens

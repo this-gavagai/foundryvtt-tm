@@ -98,9 +98,18 @@ const canEdit = computed(
     !props.view.imageUrl &&
     !props.view.rerollSummary
 )
+
+// A voice memo has no re-typable body, but a transcribed one does have text the
+// sender may want to fix — a misheard name, a word the model guessed at. Edit is
+// offered for that text specifically: the composer loads the transcript, and
+// saving rewrites it in place, leaving the recording itself alone.
+const canEditTranscript = computed(
+  () => canManage.value && !!props.view.audioUrl && !!props.view.transcript
+)
 const menuItems = computed(() => {
   const items: { id: string; label: string; danger?: boolean }[] = []
   if (canEdit.value) items.push({ id: 'edit', label: t('chat.edit') })
+  else if (canEditTranscript.value) items.push({ id: 'edit', label: t('chat.editTranscript') })
   items.push({ id: 'delete', label: t('common.delete'), danger: true })
   return items
 })
@@ -321,7 +330,7 @@ function handleContentClick(event: MouseEvent) {
             v-if="view.transcript"
             data-part="chat-voice-memo-transcript"
             data-tone="primary"
-            class="mt-1 text-sm text-gray-500 italic"
+            class="mt-1 text-sm whitespace-pre-line text-gray-500 italic"
           >
             {{ view.transcript }}
           </p>

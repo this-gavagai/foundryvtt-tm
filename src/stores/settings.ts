@@ -8,6 +8,8 @@ const SHOW_UNREAD_ON_PORTRAIT_KEY = 'tm-show-unread-on-portrait'
 const TRANSCRIPTION_ENABLED_KEY = 'tm-transcription-enabled'
 const TRANSCRIPTION_ENDPOINT_KEY = 'tm-transcription-endpoint'
 const TRANSCRIPTION_MODEL_KEY = 'tm-transcription-model'
+const TRANSCRIPTION_PARAGRAPHS_KEY = 'tm-transcription-paragraphs'
+const TRANSCRIPTION_PARAGRAPH_MODEL_KEY = 'tm-transcription-paragraph-model'
 
 function loadManualDicePicker(): boolean {
   return localStorage.getItem(MANUAL_DICE_PICKER_KEY) === '1'
@@ -57,6 +59,18 @@ export const useSettingsStore = defineStore('settings', () => {
   )
   watch(transcriptionModel, (v) => persistText(TRANSCRIPTION_MODEL_KEY, v.trim()))
 
+  // Optional second pass that breaks a long transcript into paragraphs, using a
+  // chat model on the SAME endpoint and key (see addTranscriptParagraphs).
+  const transcriptionParagraphs = ref(localStorage.getItem(TRANSCRIPTION_PARAGRAPHS_KEY) === '1')
+  watch(transcriptionParagraphs, (v) => persistFlag(TRANSCRIPTION_PARAGRAPHS_KEY, v))
+
+  const transcriptionParagraphModel = ref(
+    localStorage.getItem(TRANSCRIPTION_PARAGRAPH_MODEL_KEY) ?? ''
+  )
+  watch(transcriptionParagraphModel, (v) =>
+    persistText(TRANSCRIPTION_PARAGRAPH_MODEL_KEY, v.trim())
+  )
+
   const transcriptionApiKey = ref('')
   // False until the keystore read lands, so the settings UI can hold the field
   // disabled rather than show an empty box over a key that does exist.
@@ -81,10 +95,14 @@ export const useSettingsStore = defineStore('settings', () => {
     const endpoint = transcriptionEndpoint.value.trim()
     const apiKey = transcriptionApiKey.value.trim()
     if (!endpoint || !apiKey) return null
+    const paragraphModel = transcriptionParagraphModel.value.trim()
     return {
       endpoint,
       apiKey,
-      model: transcriptionModel.value.trim() || DEFAULT_TRANSCRIPTION_MODEL
+      model: transcriptionModel.value.trim() || DEFAULT_TRANSCRIPTION_MODEL,
+      // Undefined unless both switched on and named — the paragraph pass is off
+      // by default and costs a second call, so it never runs by accident.
+      paragraphModel: transcriptionParagraphs.value && paragraphModel ? paragraphModel : undefined
     }
   })
 
@@ -95,6 +113,8 @@ export const useSettingsStore = defineStore('settings', () => {
     transcriptionEnabled,
     transcriptionEndpoint,
     transcriptionModel,
+    transcriptionParagraphs,
+    transcriptionParagraphModel,
     transcriptionApiKey,
     transcriptionKeyLoaded,
     setTranscriptionApiKey,

@@ -11,7 +11,11 @@
       "apiKey": "API key",
       "apiKeyHint": "Sent only to the endpoint above, and kept on this device.",
       "model": "Model",
-      "modelHint": "For example whisper-1 or gpt-4o-mini-transcribe (OpenAI), or whisper-large-v3-turbo (Groq)."
+      "modelHint": "For example whisper-1 or gpt-4o-mini-transcribe (OpenAI), or whisper-large-v3-turbo (Groq).",
+      "paragraphs": "Break long transcripts into paragraphs",
+      "paragraphsHint": "Sends the finished transcript to a chat model — a second, much cheaper request to the same service — which adds paragraph breaks without changing a word. Skipped for short memos, and the plain transcript is kept if anything goes wrong.",
+      "paragraphModel": "Paragraph model",
+      "paragraphModelHint": "A fast chat model on the same endpoint, e.g. openai/gpt-oss-20b or llama-3.1-8b-instant (Groq), or gpt-4o-mini (OpenAI)."
     }
   },
   "rollCheck": {
@@ -355,6 +359,7 @@
     "messageActions": "Message actions",
     "edit": "Edit",
     "editingMessage": "Editing message",
+    "editingTranscript": "Editing transcript",
     "saveEdit": "Save edit",
     "confirmDelete": "Delete this message?",
     "deleteBody": "This permanently deletes the message for everyone.",

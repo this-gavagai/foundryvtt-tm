@@ -11,7 +11,11 @@
       "apiKey": "Ключ API",
       "apiKeyHint": "Отправляется только на указанный выше адрес и хранится на этом устройстве.",
       "model": "Модель",
-      "modelHint": "Например, whisper-1 или gpt-4o-mini-transcribe (OpenAI), либо whisper-large-v3-turbo (Groq)."
+      "modelHint": "Например, whisper-1 или gpt-4o-mini-transcribe (OpenAI), либо whisper-large-v3-turbo (Groq).",
+      "paragraphs": "Разбивать длинные расшифровки на абзацы",
+      "paragraphsHint": "Отправляет готовую расшифровку в чат-модель — второй, намного более дешёвый запрос к тому же сервису, — которая расставляет абзацы, не меняя ни слова. Для коротких сообщений пропускается; при любой ошибке остаётся обычная расшифровка.",
+      "paragraphModel": "Модель для абзацев",
+      "paragraphModelHint": "Быстрая чат-модель на том же адресе, например openai/gpt-oss-20b или llama-3.1-8b-instant (Groq), либо gpt-4o-mini (OpenAI)."
     }
   },
   "rollCheck": {
@@ -355,6 +359,7 @@
     "messageActions": "Действия с сообщением",
     "edit": "Изменить",
     "editingMessage": "Редактирование сообщения",
+    "editingTranscript": "Изменение расшифровки",
     "saveEdit": "Сохранить изменения",
     "confirmDelete": "Удалить это сообщение?",
     "deleteBody": "Сообщение будет навсегда удалено для всех.",

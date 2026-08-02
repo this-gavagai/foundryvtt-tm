@@ -11,7 +11,11 @@
       "apiKey": "API-Schlüssel",
       "apiKeyHint": "Wird nur an den obigen Endpunkt gesendet und bleibt auf diesem Gerät.",
       "model": "Modell",
-      "modelHint": "Zum Beispiel whisper-1 oder gpt-4o-mini-transcribe (OpenAI) bzw. whisper-large-v3-turbo (Groq)."
+      "modelHint": "Zum Beispiel whisper-1 oder gpt-4o-mini-transcribe (OpenAI) bzw. whisper-large-v3-turbo (Groq).",
+      "paragraphs": "Lange Transkripte in Absätze gliedern",
+      "paragraphsHint": "Sendet das fertige Transkript an ein Chat-Modell — eine zweite, deutlich günstigere Anfrage an denselben Dienst —, das Absatzumbrüche einfügt, ohne ein Wort zu ändern. Bei kurzen Nachrichten übersprungen; geht etwas schief, bleibt das einfache Transkript erhalten.",
+      "paragraphModel": "Modell für Absätze",
+      "paragraphModelHint": "Ein schnelles Chat-Modell am selben Endpunkt, z. B. openai/gpt-oss-20b oder llama-3.1-8b-instant (Groq) bzw. gpt-4o-mini (OpenAI)."
     }
   },
   "rollCheck": {
@@ -355,6 +359,7 @@
     "messageActions": "Nachrichtenaktionen",
     "edit": "Bearbeiten",
     "editingMessage": "Nachricht wird bearbeitet",
+    "editingTranscript": "Transkript wird bearbeitet",
     "saveEdit": "Änderung speichern",
     "confirmDelete": "Diese Nachricht löschen?",
     "deleteBody": "Dadurch wird die Nachricht für alle dauerhaft gelöscht.",

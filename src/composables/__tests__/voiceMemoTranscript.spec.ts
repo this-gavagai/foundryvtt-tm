@@ -134,6 +134,42 @@ describe('submitVoiceMemo transcription', () => {
     await vi.waitFor(() => expect(modifyDocument).toHaveBeenCalledTimes(1))
   })
 
+  it('rewrites a posted memo’s transcript in place, leaving the player alone', async () => {
+    const player = '<audio controls preload="metadata" src="audio/memo.m4a"></audio>'
+    const posted = `${player}<div data-tablemate-transcript><em>the goblin attacks</em></div>`
+    const world = useWorldStore()
+    const message = {
+      _id: 'msg-1',
+      content: posted,
+      flags: { tablemate: { audioPath: 'audio/memo.m4a', transcript: 'the goblin attacks' } }
+    }
+    world.world = { messages: [message] } as never
+
+    await makeActions().updateVoiceMemoTranscript('msg-1', posted, 'the hobgoblin attacks')
+
+    const update = (
+      modifyDocument.mock.calls[0][0] as {
+        operation: { updates: Array<Record<string, unknown>> }
+      }
+    ).operation.updates[0]
+    expect(update.flags).toEqual({ tablemate: { transcript: 'the hobgoblin attacks' } })
+    expect(update.content).toBe(
+      `${player}<div data-tablemate-transcript><em>the hobgoblin attacks</em></div>`
+    )
+    // The local copy keeps the memo's own flags, so its player survives the edit.
+    expect(message.flags.tablemate).toEqual({
+      audioPath: 'audio/memo.m4a',
+      transcript: 'the hobgoblin attacks'
+    })
+  })
+
+  it('surfaces a rejected transcript edit rather than swallowing it', async () => {
+    modifyDocument.mockRejectedValueOnce(new Error('permission denied'))
+    await expect(
+      makeActions().updateVoiceMemoTranscript('msg-1', '<audio></audio>', 'nope')
+    ).rejects.toThrow(/permission denied/)
+  })
+
   it('exposes the transcript for the composer to show under the take', async () => {
     await enableTranscription()
     const actions = makeActions()
