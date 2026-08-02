@@ -22,6 +22,17 @@ export async function triggerDismissHapticFeedback() {
   }
 }
 
+// A single firmer thump, matching what iOS plays when a press-and-hold opens a
+// context menu. Fired the moment the hold registers — before the menu animates
+// in — so the gesture confirms itself rather than leaving the finger guessing.
+// Heavier than the Light tap impact on purpose: a long-press is a deliberate,
+// held action and should land differently from a tap.
+export function triggerLongPressHapticFeedback() {
+  if (!Capacitor.isNativePlatform()) return
+
+  void Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {})
+}
+
 // A quick pulsating burst that mimics the feel of a die tumbling and settling:
 // a few rapid light taps followed by a slightly heavier landing impact.
 export function triggerRollHapticFeedback() {

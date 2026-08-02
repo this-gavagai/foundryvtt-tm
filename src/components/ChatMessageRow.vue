@@ -3,7 +3,10 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ChatMessageView } from '@/composables/useChatMessages'
 import type { ChatActions, ChatRerollRequest } from '@/composables/useChatActions'
-import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
+import {
+  triggerLightHapticFeedback,
+  triggerLongPressHapticFeedback
+} from '@/composables/useHapticFeedback'
 import { useLongPress } from '@/composables/useLongPress'
 import { REACTION_EMOJI } from '@/utils/chatReactions'
 import ChatRollCard from '@/components/ChatRollCard.vue'
@@ -117,10 +120,21 @@ function onMenuSelect(id: string) {
 // so the gesture now has a purpose everywhere and the native callout is
 // suppressed on every bubble — a deliberate trade: one gesture that always does
 // the same thing beats keeping text selection on half the log.
+//
+// Both long-presses tick a haptic as they fire: a held gesture has no visible
+// state until the menu or sheet appears, so the thump is the only signal that
+// the hold took. It plays before opening so the confirmation lands at the moment
+// the press registers, not after the animation.
 const kebab = ref<InstanceType<typeof KebabMenu>>()
-const longPress = useLongPress(() => kebab.value?.openMenu(), {
-  enabled: () => hasMenu.value
-})
+const longPress = useLongPress(
+  () => {
+    triggerLongPressHapticFeedback()
+    kebab.value?.openMenu()
+  },
+  {
+    enabled: () => hasMenu.value
+  }
+)
 
 // Long-press a reaction chip to see who reacted with what. Touch-only by
 // construction (useLongPress ignores mouse/pen), which is exactly the gap it
@@ -131,9 +145,15 @@ const longPress = useLongPress(() => kebab.value?.openMenu(), {
 // target element, and the release-burst suppression is scoped to that element.
 // That's what keeps the lift at the end of a long-press from also firing the
 // chip's click and toggling the reaction the user was only inspecting.
-const reactionLongPress = useLongPress(() => emit('showReactions', props.view), {
-  enabled: () => props.view.reactions.length > 0
-})
+const reactionLongPress = useLongPress(
+  () => {
+    triggerLongPressHapticFeedback()
+    emit('showReactions', props.view)
+  },
+  {
+    enabled: () => props.view.reactions.length > 0
+  }
+)
 
 // Square off the corner on the sender's side through the middle of a run so a
 // group of bubbles reads as one connected column (the WhatsApp/Telegram look).
