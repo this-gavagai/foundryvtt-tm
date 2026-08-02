@@ -3,6 +3,7 @@ import { defineStore, storeToRefs } from 'pinia'
 import { useStorage } from '@vueuse/core'
 import { useWorldStore } from '@/stores/world'
 import { useUserStore } from '@/stores/user'
+import { useServerAddressStore } from '@/stores/serverAddress'
 import { updateUserTargetingProxy } from '@/api/documents'
 import { requestTargets } from '@/api/actionRpc'
 import type { MirroredTargets } from '@/types/api-types'
@@ -36,7 +37,28 @@ export const useTargetHelperStore = defineStore('targetHelper', () => {
   const { userId } = storeToRefs(userStore)
   const { getUserId } = userStore
 
-  const localProxyId = useStorage('proxy-id', '')
+  const { serverUrl } = storeToRefs(useServerAddressStore())
+
+  // This device's own choice of proxy, kept per (server, signed-in user).
+  //
+  // It used to be one unscoped 'proxy-id' string, which is wrong on both axes a
+  // tablet actually moves along: a second player signing into the same tablet
+  // inherited the first one's proxy (silently, if that id happens to name a user
+  // of the world they joined), and the value followed the device across servers
+  // into worlds it means nothing in. The scope key confines it to the pairing it
+  // was chosen for; anything else falls through to the user's own stored flag.
+  const localProxyByScope = useStorage<Record<string, string>>('proxy-id-by-scope', {})
+  const localScope = computed(() =>
+    serverUrl.value?.origin && userId.value ? `${serverUrl.value.origin}|${userId.value}` : ''
+  )
+  // undefined = this device has no opinion for the current pairing; '' = it has
+  // one and the answer is "none". The difference matters: a device that cleared
+  // its proxy must not fall back to the stored flag it just tried to clear (the
+  // write can fail — see updateProxyId).
+  const localProxyId = computed(() =>
+    localScope.value ? localProxyByScope.value[localScope.value] : undefined
+  )
+
   const targets = ref<MirroredTargets>(NO_TARGETS)
 
   const userList = computed(
@@ -55,15 +77,23 @@ export const useTargetHelperStore = defineStore('targetHelper', () => {
     return !!user && !isTablemateRootUser(user)
   })
 
-  const targetingProxyId = computed(() =>
-    [localProxyId.value, storedProxyId.value].find((id) => proxyIsSelectable.value(id))
-  )
+  // This device's choice wins where it has one — a tablet may deliberately mirror
+  // a different screen than its user's default (the shared-TV table vs. the
+  // player's own second login). The stored flag is the cross-device default for
+  // everywhere that device hasn't been told otherwise.
+  const targetingProxyId = computed(() => {
+    const chosen = localProxyId.value ?? storedProxyId.value
+    return proxyIsSelectable.value(chosen) ? chosen : undefined
+  })
 
   function updateProxyId(newId: string): Promise<DocumentSocketResponse | null> {
     logger.debug('TM-info: newID incoming', newId)
     if (!world.value) return Promise.resolve(null)
     if (newId && !proxyIsSelectable.value(newId)) return Promise.resolve(null)
-    localProxyId.value = newId
+    // Local first and unconditionally: the flag write is a round-trip that can
+    // fail (a world that denies the update, a dropped socket), and the tap must
+    // still take effect on the device the user tapped.
+    if (localScope.value) localProxyByScope.value[localScope.value] = newId
     return updateUserTargetingProxy(getUserId(), newId)
   }
 

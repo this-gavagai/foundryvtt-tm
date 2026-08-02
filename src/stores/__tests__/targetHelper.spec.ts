@@ -24,9 +24,20 @@ vi.mock('@/stores/world', () => ({
     userById: (id: string | null | undefined) => (id ? usersById.value.get(id) : undefined)
   })
 }))
+const userId = ref('me')
 vi.mock('@/stores/user', () => ({
-  useUserStore: () => ({ userId: ref('me'), getUserId: () => 'me' })
+  useUserStore: () => ({ userId, getUserId: () => userId.value })
 }))
+// The local proxy choice is scoped per (server, user), so the store needs both.
+const serverUrl = ref<URL | undefined>(new URL('https://table.example'))
+vi.mock('@/stores/serverAddress', () => ({
+  useServerAddressStore: () => ({ serverUrl })
+}))
+
+// Same shape the store persists: one entry per `${origin}|${userId}` pairing.
+function seedLocalChoice(scope: string, proxyId: string) {
+  localStorage.setItem('proxy-id-by-scope', JSON.stringify({ [scope]: proxyId }))
+}
 
 import { useTargetHelperStore } from '@/stores/targetHelper'
 
@@ -48,6 +59,8 @@ beforeEach(() => {
   requestTargets.mockClear()
   world.value = undefined
   usersById.value = new Map()
+  userId.value = 'me'
+  serverUrl.value = new URL('https://table.example')
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -84,6 +97,52 @@ describe('mirroring', () => {
 
     store.updateTargets('sheet', someTargets)
     expect(store.getTargets().tokenIds).toEqual([])
+  })
+})
+
+// A tablet is a shared, travelling device: it gets handed to another player and
+// it gets pointed at another server. Its local proxy choice belongs to exactly
+// one (server, user) pairing.
+describe('local choice scoping', () => {
+  const world = [
+    { _id: 'display', name: 'Table TV' },
+    { _id: 'laptop', name: 'My Laptop' }
+  ]
+
+  it('does not hand one user the proxy the previous user picked on this device', () => {
+    seedLocalChoice('https://table.example|someone-else', 'display')
+    setWorld(world)
+    expect(useTargetHelperStore().targetingProxyId).toBeUndefined()
+  })
+
+  it('does not carry a choice to another server', () => {
+    seedLocalChoice('https://other.example|me', 'display')
+    setWorld(world)
+    expect(useTargetHelperStore().targetingProxyId).toBeUndefined()
+  })
+
+  it('applies the choice made for this server and user', () => {
+    seedLocalChoice('https://table.example|me', 'display')
+    setWorld(world)
+    expect(useTargetHelperStore().targetingProxyId).toBe('display')
+  })
+
+  it('falls back to the stored flag where this device has no choice', () => {
+    setWorld(world)
+    usersById.value.set('me', { _id: 'me', flags: { tablemate: { targeting_proxy: 'laptop' } } })
+    expect(useTargetHelperStore().targetingProxyId).toBe('laptop')
+  })
+
+  it('honours an explicit local "none" over the stored flag', async () => {
+    // Clearing must stick even when the flag write fails: the device's own
+    // "none" is a choice, not the absence of one.
+    setWorld(world)
+    usersById.value.set('me', { _id: 'me', flags: { tablemate: { targeting_proxy: 'laptop' } } })
+    const store = useTargetHelperStore()
+    expect(store.targetingProxyId).toBe('laptop')
+
+    await store.updateProxyId('')
+    expect(store.targetingProxyId).toBeUndefined()
   })
 })
 
@@ -176,7 +235,7 @@ describe('bootstrap', () => {
     // exists. Any report arriving in that window used to be dropped with no
     // re-request, leaving the tablet untargeted until the proxy next happened
     // to re-target — up to a full heartbeat later, or indefinitely.
-    localStorage.setItem('proxy-id', 'display')
+    seedLocalChoice('https://table.example|me', 'display')
     const store = useTargetHelperStore()
     store.start()
     expect(store.targetingProxyId).toBeUndefined()

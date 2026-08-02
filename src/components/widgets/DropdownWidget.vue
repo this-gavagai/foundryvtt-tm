@@ -5,6 +5,7 @@ import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headless
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/solid'
 import { useTopOverlayZIndex } from '@/composables/useOverlayStack'
 import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
+import { logger } from '@/utils/utilities'
 interface ListChoice {
   id: string | undefined
   name: string | undefined
@@ -32,8 +33,13 @@ const waiting = ref(false)
 function handleChange(newValue: ListChoice) {
   if (props.changed) {
     waiting.value = true
-    const response = props.changed?.(newValue.id ?? '')
-    Promise.resolve(response).then(() => (waiting.value = false))
+    // `changed` is often async and can reject — a document write the world
+    // denies, a socket that timed out. Settle on `finally`: without it the
+    // rejection is unhandled AND `waiting` never clears, leaving the control
+    // greyed out for the rest of the session with no way back.
+    Promise.resolve(props.changed(newValue.id ?? ''))
+      .catch((error) => logger.warn('dropdown selection failed', error))
+      .finally(() => (waiting.value = false))
   } else {
     emit('change', newValue.id)
   }

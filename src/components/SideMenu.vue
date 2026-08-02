@@ -85,6 +85,11 @@ const targetHelperStore = useTargetHelperStore()
 const { userList, targetingProxyId } = storeToRefs(targetHelperStore)
 const { updateProxyId } = targetHelperStore
 
+// A pickable "none": mirroring someone's targeting has to be undoable, and the
+// widget's own None is only a display fallback for an unmatched id, not an
+// option. Without this entry a mis-tap here was permanent.
+const proxyChoices = computed(() => [{ id: '', name: t('common.none') }, ...(userList.value ?? [])])
+
 const targetProxySelector = ref()
 const sidebarOpen = ref(false)
 
@@ -362,8 +367,8 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                       <div class="text-lg italic">{{ $t('sideMenu.targetingProxy') }}</div>
                       <Dropdown
                         ref="targetProxySelector"
-                        :list="userList ?? []"
-                        :selectedId="world === undefined ? 'loading' : (targetingProxyId ?? '0')"
+                        :list="proxyChoices"
+                        :selectedId="world === undefined ? 'loading' : (targetingProxyId ?? '')"
                         :changed="(newId: string) => updateProxyId(newId)"
                         :disabled="world === undefined"
                       />
