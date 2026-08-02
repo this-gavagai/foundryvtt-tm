@@ -1,23 +1,26 @@
-// World-scoped GM settings for AI transcription of voice memos, plus the
-// client-side call that performs it. When an endpoint + API key are configured
-// the GM's Foundry client transcribes each uploaded memo (see finalizeVoiceMemo
-// in handlers/chat.ts) and stores the text in flags.tablemate.transcript; the
-// app renders it beneath the audio player. Only the GM's client ever holds the
-// key or calls the API — the tablet never does, so there is no per-device key
-// and no CapacitorHttp/CORS path to worry about on the app side.
+// GM settings for AI transcription of voice memos, plus the client-side call
+// that performs it. When an endpoint + API key are configured the GM's Foundry
+// client transcribes each uploaded memo (see finalizeVoiceMemo in
+// handlers/chat.ts) and stores the text in flags.tablemate.transcript; the app
+// renders it beneath the audio player. Only the GM's client ever holds the key
+// or calls the API — the tablet never does, so there is no per-device key and no
+// CapacitorHttp/CORS path to worry about on the app side.
 //
 // The endpoint is any OpenAI-compatible /audio/transcriptions service (OpenAI,
 // Groq, a local whisper server, …): base URL + bearer key + model name. With no
 // endpoint or key set, transcription is simply skipped and memos post as before.
 //
-// The API key is stored WORLD-scoped so it's available on whichever GM client
-// ends up processing a voice memo — the Tablemate listener/proxy can be any GM
-// browser, not necessarily the one that entered the key. Its config field is
-// still gated to the GM, so the key isn't surfaced in the settings UI to
-// players. Trade-off: Foundry syncs world settings to every connected client, so
-// a technically-minded player could read the key via game.settings.get — an
-// accepted risk here, since transcription is a GM-run convenience and the key is
-// easily rotated. Endpoint and model are non-secret and likewise world-scoped.
+// Scope is split deliberately. The endpoint and model are not secret and are
+// WORLD-scoped, so they are configured once for the table. The API key is
+// CLIENT-scoped, because Foundry syncs world settings to every connected client
+// — a world-scoped key is readable by any player via game.settings.get, and a
+// billable API credential is not something to hand out with the login. Its
+// config field is GM-gated as well, so it stays out of players' settings UI
+// entirely.
+//
+// The cost of client scope is that the key lives in one browser's local storage:
+// a GM who transcribes from a second machine pastes it there too, and clearing
+// site data loses it. That is the right trade for a credential.
 
 import { MODULE_ID } from '@/api/protocol'
 
@@ -59,13 +62,14 @@ export function registerTranscriptionSetting() {
   game.settings.register(MODULE_ID, TRANSCRIPTION_API_KEY_SETTING, {
     name: 'Voice memo transcription API key',
     hint:
-      'Bearer key for the transcription endpoint above. Set it once and any GM ' +
-      'client can transcribe. Shown to the GM only — but note world settings ' +
-      'sync to every client, so treat this key as readable by anyone in the world.',
-    // World-scoped so whichever GM client processes a memo has the key (not just
-    // the browser that entered it). config is gated to the GM so the field stays
-    // out of players' settings UI (the value still syncs, per the hint).
-    scope: 'world',
+      'Bearer key for the transcription endpoint above. Stored in THIS browser ' +
+      'only and never synced to other clients, so enter it on whichever GM ' +
+      'browser handles Tabula Mensa requests (and again on any other GM machine ' +
+      'you transcribe from). Leave blank to disable transcription.',
+    // Client-scoped: world settings sync to every connected client, so a
+    // world-scoped key is readable by any player via game.settings.get. config is
+    // GM-gated as well, keeping the field out of players' settings UI.
+    scope: 'client',
     config: !!game.user?.isGM,
     type: String,
     default: ''
@@ -98,9 +102,10 @@ function readStr(key: string): string {
   }
 }
 
-// The world's transcription config, or null when unconfigured (no endpoint or no
-// key) — in which case memos post without a transcript. The endpoint's trailing
-// slash is stripped so joining "/audio/transcriptions" never doubles up.
+// What THIS client can transcribe with, or null when unconfigured (no endpoint,
+// or no key in this browser) — in which case memos post without a transcript.
+// The endpoint's trailing slash is stripped so joining "/audio/transcriptions"
+// never doubles up.
 export function transcriptionConfig(): TranscriptionConfig | null {
   const endpoint = readStr(TRANSCRIPTION_ENDPOINT_SETTING).replace(/\/+$/, '')
   const apiKey = readStr(TRANSCRIPTION_API_KEY_SETTING)
@@ -109,7 +114,14 @@ export function transcriptionConfig(): TranscriptionConfig | null {
   return { endpoint, apiKey, model }
 }
 
-// Whether transcription is enabled for this world.
+// Whether THIS client can transcribe. Since the key is client-scoped, that is
+// not quite the same question as "does this world transcribe": the GM browser
+// handling voice memos and the one elected to send push notifications can be
+// different clients (gmHandlerSetting vs game.users.activeGM). A pushing GM
+// without the key reads false here and so does not hold the notification for a
+// transcript that is in fact coming — the banner says "Voice message" instead of
+// carrying the words. Only in a multi-GM world, and only a nicety lost; the memo
+// still transcribes on the client that has the key.
 export function transcriptionEnabled(): boolean {
   return transcriptionConfig() !== null
 }

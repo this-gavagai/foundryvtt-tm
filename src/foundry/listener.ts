@@ -62,8 +62,7 @@ import {
 import {
   registerGmHandlerSetting,
   gmHandlerPolicy,
-  gmHandlesRequests,
-  compareGmHandlers
+  isElectedHandler
 } from './gmHandlerSetting'
 import { registerVoiceMemoSetting, voiceMemoEnabled } from './voiceMemoSetting'
 import { registerImageUploadSetting, imageUploadEnabled } from './imageUploadSetting'
@@ -215,25 +214,47 @@ const CONCURRENT_ACTIONS = new Set<string>([
   TM.REGISTER_PUSH
 ])
 
-// Actions answered by the FIRST ACTIVE GM instead of the requester's targeting
-// proxy. Two reasons, both specific to reactions:
+// Which client should answer this request: the GM the world elected, always.
 //
-//   • Permission. A targeting proxy can be an ordinary player, and Foundry only
-//     lets a message's author or a GM update it. A non-GM proxy would take the
-//     request and then have its write refused by the server.
-//   • Races. A reaction toggle is a read-modify-write on one shared flag. The
-//     dispatch chain below serializes handlers *per client*, so with proxy
-//     routing two players reacting to the same message on two different proxies
-//     could read the same list and one write would clobber the other. Funneling
-//     every reaction through one client makes the chain actually sufficient.
+// Requests used to route to the requester's *targeting proxy* when they had one,
+// falling back to the elected GM otherwise. That was carried over from an older
+// "shared display" client and does nothing for targeting, because no handler
+// reads the executing client's targets. A player's chosen targets travel in the
+// request as token ids and are resolved against the active scene — world data,
+// identical on every client — and PF2e's own target resolution is driven through
+// an actor Proxy specifically so that no client's `game.user.targets` is ever
+// consulted or mutated. See resolveTarget in utils/target.ts, whose comment names
+// "the GM's (or proxy's) own UI state" as the thing being avoided.
 //
-// Trade-off: no GM online means no reactions, whereas posting a message (a direct
-// socket write) still works. That's inherent — nobody but a GM can write the flag.
-const FIRST_GM_ACTIONS = new Set<string>([TM.TOGGLE_REACTION])
-
-// Which client should answer this request.
-function iAmResponderFor(args: ModuleEventArgs) {
-  return FIRST_GM_ACTIONS.has(args.action) ? iAmFirstGM() : iAmProxyOrFallbackGM(args.userId)
+// So proxy routing bought nothing and cost plenty:
+//
+//   • A proxy may be an ordinary PLAYER — the app lets you pick any non-root
+//     user. Requests then execute on a client with no GM authority: Foundry
+//     refuses a non-author message update (reactions), file uploads want a GM's
+//     permissions (voice memos, images), and the GM-only transcription key
+//     cannot exist there at all, so a memo posts permanently untranscribed with
+//     no error anywhere.
+//   • It is chosen PER REQUESTER, so one table's requests could execute on
+//     several clients at once. The dispatch chain below serializes handlers per
+//     client, which made it insufficient for anything read-modify-write on
+//     shared state: two players reacting to one message through two proxies read
+//     the same list and one write clobbered the other.
+//   • It made "which client ran this" depend on a per-user flag, so the same
+//     action behaved differently for two players at the same table.
+//
+// One elected GM answers everything. The election is the world's GM Handlers
+// policy (gmHandlerSetting.ts), so a table that wants a particular GM to do the
+// work says so once, in one place, for every action.
+//
+// Trade-off: with no GM online, nothing is answered — where a player proxy might
+// once have picked a request up. In practice it would have failed on permissions
+// for most actions anyway, and REQUEST_CHARACTER already required a GM.
+//
+// The targeting proxy itself is untouched: it remains an app-side choice about
+// whose targets a tablet mirrors (see stores/targetHelper.ts), which is the job
+// it actually does.
+function iAmResponderFor(_args: ModuleEventArgs) {
+  return iAmFirstGM()
 }
 
 function isCharacterRequest(args: ModuleEventArgs): args is RequestCharacterDetailsArgs {
@@ -516,18 +537,19 @@ export function setupListener() {
   game.socket.on(TM.CHANNEL, (args: ModuleEventArgs) => {
     if (!args.userId) logger.warn('TM-missing: no userid', args)
 
-    // Character refresh is not target-sensitive. Let the first active GM answer
-    // it before target-proxy routing, otherwise an active-but-unusable proxy can
-    // prevent actor data from ever refreshing.
+    // Character refresh has its own path: it is debounced per actor and answered
+    // by the elected GM (see handleCharacterRequest), rather than going through
+    // the handler table and the serialized dispatch chain below.
     if (isCharacterRequest(args)) {
       handleCharacterRequest(args)
       return
     }
 
     // Observe acks from ANY answering client BEFORE the relay gate: they feed
-    // the request-dedup guard, so an ambiguous proxy/fallback election can't
-    // double-execute a request another client already answered. (The gate
-    // would misroute this — an ack's userId is the answerer, not a requester.)
+    // the request-dedup guard, so two GMs who momentarily both believe they are
+    // the elected one can't double-execute a request the other already
+    // answered. (The gate would drop this on every client but the elected one,
+    // which is exactly the client that does not need to hear it.)
     if (args.action === TM.ACK) {
       const uuid = requestUuid(args)
       if (uuid) markRequestSeen(uuid)
@@ -594,8 +616,8 @@ export function setupListener() {
         () =>
           new Promise<void>((advance) => {
             // Dedup at execution time, not receive time: the queue wait is
-            // exactly the window in which a competing client's ack (proxy vs
-            // fallback GM racing an election) can arrive and mark this uuid.
+            // exactly the window in which a competing client's ack (two GMs
+            // racing an election through a handoff) can arrive and mark this uuid.
             const uuid = requestUuid(args)
             if (uuid) {
               if (requestAlreadySeen(uuid)) {
@@ -641,42 +663,9 @@ export function setupListener() {
 // user.active view, so they agree on the answer; requestDedup.ts covers the
 // handoff window where those views momentarily differ.
 function iAmFirstGM() {
-  const me = game.user
-  const policy = gmHandlerPolicy()
-  if (!me.isGM || !gmHandlesRequests(me, policy)) return false
-  return !game.users
-    .filter((user: UserPF2e) => user.isGM && user.active && gmHandlesRequests(user, policy))
-    .some((other: UserPF2e) => compareGmHandlers(other, me, policy) < 0)
-}
-function isTablemateRootUser(user: UserPF2e | undefined) {
-  return user?.flags?.tablemate?.character_sheet === 'root'
-}
-function targetingProxyFor(userId: string) {
-  const proxyId = game.users.get(userId)?.flags?.tablemate?.targeting_proxy
-  const proxyUser = typeof proxyId === 'string' ? game.users.get(proxyId) : undefined
-  return isTablemateRootUser(proxyUser) ? undefined : proxyId
-}
-function iAmProxy(userId: string) {
-  return targetingProxyFor(userId) === game.user._id && gmHandlesRequests(game.user)
-}
-// A proxy that has been opted out of handling requests counts as offline, so
-// requests aimed at it fall back to the elected GM rather than going unanswered.
-// (The opt-out list holds GMs in practice, but the check is applied to whoever
-// the proxy is — a player listed there is likewise skipped.)
-function proxyIsOnline(userId: string) {
-  const proxyId = targetingProxyFor(userId)
-  return (
-    game.users.filter(
-      (user: UserPF2e) =>
-        proxyId === user._id &&
-        user.active &&
-        !isTablemateRootUser(user) &&
-        gmHandlesRequests(user)
-    ).length > 0
-  )
-}
-function iAmProxyOrFallbackGM(userId: string) {
-  return iAmProxy(userId) || (!proxyIsOnline(userId) && iAmFirstGM())
+  // The election itself lives with the policy it reads, where it is unit-tested
+  // (gmHandlerSetting.spec.ts); this supplies the live world state.
+  return isElectedHandler(game.user, game.users.contents ?? [], gmHandlerPolicy())
 }
 function announceSelf() {
   game.socket.emit(TM.CHANNEL, {

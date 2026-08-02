@@ -137,6 +137,36 @@ export function gmHandlerRank(
   return index === -1 ? policy.order.length : index
 }
 
+// A candidate for the election, as the listener sees one.
+export interface ElectableUser extends HandlerUser {
+  isGM?: boolean
+  active?: boolean
+}
+
+// Does `me` win the election among `users`? THE routing decision: every request
+// from every client is answered by the one user this returns true for, so the
+// answer must be identical on every client from the same inputs — which is why
+// the inputs are world data (the policy) plus user.active, and why there is no
+// requester parameter. Routing cannot depend on who asked.
+//
+// Eligible = an active GM the policy has not opted out. Among those, the
+// comparator decides, and `me` wins by there being nobody ahead.
+export function isElectedHandler(
+  me: ElectableUser | undefined,
+  users: ElectableUser[],
+  policy: GmHandlerPolicy = gmHandlerPolicy()
+): boolean {
+  // One eligibility test, applied to `me` and to every rival alike. The listener
+  // only ever asks about itself, where `active` is necessarily true — but this is
+  // a plain predicate now, and one that answered "yes, you are elected" for an
+  // offline GM would be a trap for the next caller.
+  const eligible = (user: ElectableUser | undefined): boolean =>
+    !!user?.isGM && user.active === true && gmHandlesRequests(user, policy)
+
+  if (!eligible(me)) return false
+  return !users.filter(eligible).some((other) => compareGmHandlers(other, me!, policy) < 0)
+}
+
 // Election order: negative when `a` handles requests before `b`. The single
 // comparison both the listener's election and the menu's display ordering go
 // through.

@@ -39,7 +39,7 @@ export function makeChunkAccumulator<M>(options: {
   // allocate a huge buffer array.
   maxChunks: number
   // Drop an incomplete upload if the remaining chunks never arrive (app closed
-  // mid-send, GM/proxy handoff, etc.) so a partial file can't leak memory.
+  // mid-send, a GM handoff mid-upload, etc.) so a partial file can't leak memory.
   ttlMs: number
   // Runs once, on the final chunk, with the reassembled byte parts in seq order.
   finalize: (uploadId: string, parts: Uint8Array<ArrayBuffer>[], meta: M) => Promise<void>

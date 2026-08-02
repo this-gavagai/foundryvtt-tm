@@ -1,11 +1,11 @@
 // Cross-client idempotency guard for TM requests, keyed by request uuid.
 //
-// Two Foundry clients can both believe they should execute a request during
-// a proxy handoff: iAmProxyOrFallbackGM depends on each client's view of
-// user.active at the instant a message arrives, and while the proxy's
-// disconnect/reconnect propagates, the proxy and the fallback GM can each
-// pass the gate. Executing twice is a real double mutation (spell slots,
-// consumables, applied damage), not just a duplicate chat card.
+// Two Foundry clients can both believe they should execute a request during a
+// GM handoff: iAmFirstGM depends on each client's view of user.active at the
+// instant a message arrives, so while a GM's disconnect propagates, the
+// departing GM and the next one in the election can each pass the gate.
+// Executing twice is a real double mutation (spell slots, consumables, applied
+// damage), not just a duplicate chat card.
 //
 // The guard uses traffic every client already sees: an answered request
 // broadcasts an ACK carrying the request uuid on the module channel, and the

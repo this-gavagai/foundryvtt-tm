@@ -5,7 +5,7 @@ import {
   resetRequestDedupForTest
 } from '@/foundry/requestDedup'
 
-// The dedup guard is what stops an ambiguous proxy/fallback-GM election from
+// The dedup guard is what stops an ambiguous GM election from
 // double-executing a mutation: a client marks a uuid when it starts (or sees
 // another client's ack for) a request, and skips uuids already seen within
 // the TTL. These tests pin the seen/unseen logic and the TTL pruning.

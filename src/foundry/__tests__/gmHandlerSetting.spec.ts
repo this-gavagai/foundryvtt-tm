@@ -5,8 +5,10 @@ import {
   gmHandlerRank,
   gmHandlesRequests,
   compareGmHandlers,
+  isElectedHandler,
   type GmHandlerPolicy,
-  type HandlerUser
+  type HandlerUser,
+  type ElectableUser
 } from '@/foundry/gmHandlerSetting'
 
 // The world's GM handler policy decides which GM client handles a Tablemate
@@ -21,12 +23,12 @@ const carol: HandlerUser = { _id: 'ccc' }
 const policy = (order: string[] = [], ignored: string[] = []): GmHandlerPolicy =>
   normalizeGmHandlerPolicy({ order, ignored })
 
-// The election in listener.ts, expressed against the same comparator: the
-// highest-priority eligible GM among those passed in (i.e. the active ones).
-function elect(users: HandlerUser[], p: GmHandlerPolicy): HandlerUser | undefined {
-  return users
-    .filter((user) => gmHandlesRequests(user, p))
-    .sort((a, b) => compareGmHandlers(a, b, p))[0]
+// THE election listener.ts routes every request through — the real function, not
+// a restatement of it. Callers pass the GMs they consider online; this returns
+// the one that answers, or undefined when nobody does.
+function elect(online: HandlerUser[], p: GmHandlerPolicy): HandlerUser | undefined {
+  const users: ElectableUser[] = online.map((u) => ({ ...u, isGM: true, active: true }))
+  return online.find((me, i) => isElectedHandler(users[i], users, p))
 }
 
 describe('normalizeGmHandlerPolicy', () => {
@@ -134,5 +136,42 @@ describe('handler election', () => {
 
   it('leaves nobody to handle requests when the only online GM is opted out', () => {
     expect(elect([alice], policy([], ['aaa']))).toBeUndefined()
+  })
+
+  it('elects exactly one client, which is what stops a request running twice', () => {
+    const users: ElectableUser[] = [
+      { _id: 'aaa', isGM: true, active: true },
+      { _id: 'bbb', isGM: true, active: true },
+      { _id: 'ccc', isGM: true, active: true }
+    ]
+    expect(users.filter((u) => isElectedHandler(u, users, policy()))).toHaveLength(1)
+    expect(users.filter((u) => isElectedHandler(u, users, policy(['ccc'])))).toHaveLength(1)
+  })
+
+  it('does not elect a player, however the policy is written', () => {
+    // Requests used to route to the requester's targeting proxy, which the app
+    // lets you set to ANY user — so a player's client could be handed work it
+    // has no Foundry permission to do, and no GM-only setting to do it with.
+    const users: ElectableUser[] = [
+      { _id: 'aaa', isGM: false, active: true },
+      { _id: 'bbb', isGM: true, active: true }
+    ]
+    expect(isElectedHandler(users[0], users, policy(['aaa']))).toBe(false)
+    expect(isElectedHandler(users[1], users, policy(['aaa']))).toBe(true)
+  })
+
+  it('ignores an inactive GM who would otherwise win', () => {
+    const users: ElectableUser[] = [
+      { _id: 'aaa', isGM: true, active: false },
+      { _id: 'bbb', isGM: true, active: true }
+    ]
+    expect(isElectedHandler(users[0], users, policy())).toBe(false)
+    expect(isElectedHandler(users[1], users, policy())).toBe(true)
+  })
+
+  it('takes no requester, so two players are always answered by one client', () => {
+    // The signature is the guarantee: there is nothing about who asked for
+    // routing to key on. This pins that the parameter list stays that way.
+    expect(isElectedHandler.length).toBeLessThanOrEqual(3)
   })
 })
