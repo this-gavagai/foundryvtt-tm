@@ -1,7 +1,8 @@
-import type { MacroPF2e, TokenPF2e } from '@7h3laughingman/pf2e-types'
+import type { MacroPF2e } from '@7h3laughingman/pf2e-types'
 import type { RunActionableArgs } from '@/types/api-types'
 import { getGame, makeAck } from '../utils/foundry'
 import { getRequestingUser, userCanRunMacro } from '../utils/permissions'
+import { resolveRequestedTargets } from '../utils/target'
 
 // Run a PF2e-toolbelt "actionable" macro attached to an action/feat item.
 // Matches toolbelt's own useAction() helper (pf2e-toolbelt/scripts/main.js,
@@ -71,12 +72,9 @@ export async function foundryRunActionable(args: RunActionableArgs) {
     throw new Error(`User may not execute macro ${macroUuid}`)
   }
 
-  const tokenDocs = (args.targets ?? [])
-    .map((id) => source.scenes.active?.tokens.get(id))
-    .filter((t): t is NonNullable<typeof t> => !!t)
-  const tokens = tokenDocs
-    .map((t) => t.object as TokenPF2e | null)
-    .filter((t): t is TokenPF2e => !!t)
+  // Toolbelt's macro scope exposes `targets` as the full array, so resolve them
+  // all rather than the first — see runMacro.
+  const { tokens } = resolveRequestedTargets(source, args)
 
   // Skip-dialog event — see the scope-docs above for the eventToRollParams
   // math. Either dialog setting being truthy is enough to flip shiftKey on,

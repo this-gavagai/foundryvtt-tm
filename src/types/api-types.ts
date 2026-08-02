@@ -16,6 +16,7 @@ export type ModuleEventArgs =
   | UpdateCharacterDetailsArgs
   | RequestCharacterDetailsArgs
   | AnybodyHomeArgs
+  | RequestTargetsArgs
   | UpdateActorArgs
   | RollCheckArgs
   | CharacterActionArgs
@@ -207,14 +208,24 @@ export interface RollCheckArgs {
   options: object
   uuid: string
   targets?: string[]
+  targetScene?: string
   item?: ItemPF2e | null
   diceResults: DiceResults
 }
+// `targetScene` accompanies `targets` on every targeted request. Token ids are
+// unique per SCENE, not per world, so a bare id list is only half an address —
+// the module used to guess `scenes.active` at all five resolution sites, which
+// is wrong whenever the targeting client is viewing a scene that isn't the
+// active one (routine during prep, and normal play for a split party). The
+// value is the targeting client's own currently-drawn canvas, carried through
+// from ShareTargetsArgs.sceneId. Optional throughout: a pre-protocol-4 app omits
+// it and the module falls back to the active scene, i.e. the old behaviour.
 export interface CharacterActionArgs {
   action: typeof TM.CHARACTER_ACTION
   userId: string
   characterId: string
   targets: string[]
+  targetScene?: string
   characterAction: string
   diceResults: DiceResults
   options: object
@@ -231,6 +242,7 @@ export interface CastSpellArgs {
   slotId: number
   uuid: string
   targets: string[]
+  targetScene?: string
 }
 export interface FreeRollArgs {
   action: typeof TM.FREE_ROLL
@@ -271,6 +283,7 @@ export interface CastStaffSpellArgs {
   spellId: string
   rank: number
   targets: string[]
+  targetScene?: string
   uuid: string
 }
 export interface ConsumeItemArgs {
@@ -287,7 +300,13 @@ export interface GetStrikeDamageArgs {
   characterId: string
   // Strike slug; empty when `blast` is set (blasts have no strike action).
   actionSlug: string
-  targets: string[]
+  // Deliberately NO targets. A damage preview describes what this weapon or
+  // spell does, not what it does to a particular creature, so it must not shift
+  // as the mirrored target changes. PF2e agrees for the headline numbers: a
+  // `getFormula: true` call sets its roll context's `viewOnly`, which nulls the
+  // target actor outright — the target these requests used to carry only ever
+  // reached the modifiers list. Dropping it makes the whole preview consistent,
+  // and takes it off the path where a stale mirror could refuse it.
   altUsage: number | undefined
   modifierOverrides?: Record<string, boolean>
   // Blast lookup target. Pre-protocol-3 apps packed this into actionSlug as
@@ -301,14 +320,43 @@ export interface GetSpellDamageArgs {
   characterId: string
   spellId: string
   castingRank: number | undefined
-  targets: string[]
+  // No targets — see GetStrikeDamageArgs.
   modifierOverrides?: Record<string, boolean>
   uuid: string
 }
+// One client describing its OWN targeting, pushed whenever it changes and in
+// reply to REQUEST_TARGETS. Not a table-wide map: the whole-table form could
+// only ever be built by re-reading `user.targets` on some other client, which
+// is a set of placed Tokens on THAT client's canvas — so any target outside its
+// currently-drawn scene silently vanished from the report.
 export interface ShareTargetsArgs {
   action: typeof TM.SHARE_TARGETS
-  targets: Record<string, string[]>
+  // The user whose targeting this describes — always the sender's own id.
   userId: string
+  // The scene those token ids live on: the sender's currently-drawn canvas.
+  // Null when the sender has no canvas up (no scene viewed), in which case
+  // `targets` is necessarily empty.
+  sceneId: string | null
+  targets: string[]
+}
+
+// What the app currently mirrors from its targeting proxy. Kept as one value so
+// the ids and the scene they belong to are always read together — pairing an id
+// list with a scene from a different update would resolve to the wrong tokens,
+// or to none. Lives here rather than in the store so the api layer can name it
+// without importing Pinia (see api/storeBridge.ts).
+export interface MirroredTargets {
+  sceneId: string | null
+  tokenIds: string[]
+}
+
+export interface RequestTargetsArgs {
+  action: typeof TM.REQUEST_TARGETS
+  userId: string
+  // Whose targeting the asker wants. Every client checks this against its own
+  // id and only the named one answers, so a table of tablets mirroring one
+  // display doesn't provoke a reply from every other client.
+  proxyId: string
 }
 export interface SendChatMessageArgs {
   action: typeof TM.SEND_CHAT_MESSAGE
@@ -445,6 +493,7 @@ export interface RunActionableArgs {
   // own useAction(actor, action) helper provides.
   itemId: string
   targets: string[]
+  targetScene?: string
   uuid: string
 }
 
@@ -456,11 +505,12 @@ export interface RunMacroArgs {
   // 'Macro.abc123' or 'Compendium.pf2e.action-macros.Macro.xyz').
   // Resolved server-side via fromUuidSync.
   macroUuid: string
-  // Target token IDs on the active scene — resolved to Token objects and
-  // passed in the macro's execution scope as `token` (first) and `targets`
-  // (all). Macros that reference game.user.targets directly will see the
-  // GM's UI state instead and won't pick these up.
+  // Target token IDs on `targetScene` — resolved to Token objects and passed in
+  // the macro's execution scope as `token` (first) and `targets` (all). Macros
+  // that reference game.user.targets directly will see the GM's UI state instead
+  // and won't pick these up.
   targets: string[]
+  targetScene?: string
   uuid: string
 }
 
@@ -588,6 +638,7 @@ export interface RollInlineCheckArgs {
   secret: boolean
   diceResults: DiceResults
   targets: string[]
+  targetScene?: string
   uuid: string
 }
 

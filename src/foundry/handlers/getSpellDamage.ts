@@ -8,7 +8,8 @@ import { withDamageModifierOverrides, type ModifierOverrideMap } from './checks/
 export async function foundryGetSpellDamage(args: GetSpellDamageArgs) {
   const source = getGame()
   const actor = getCharacter(source, args.characterId)
-  const targetTokenDoc = args.targets?.map((t) => source.scenes.active?.tokens.get(t))[0] ?? null
+  // No target — a damage preview describes the spell, not a victim, so it must
+  // not shift as the mirrored target changes. See GetStrikeDamageArgs.
   const baseSpell = findSpell(actor, args.spellId)
   // getDamage reads `this.rank` (which honours system.location.heightenedLevel),
   // so we ask PF2e for a heightened variant via loadVariant. Per the PF2e source
@@ -22,7 +23,6 @@ export async function foundryGetSpellDamage(args: GetSpellDamageArgs) {
         | undefined) ?? baseSpell)
     : baseSpell
   type SpellGetDamageOpts = {
-    target?: typeof targetTokenDoc
     skipDialog?: boolean
     rollMode?: 'roll' | 'publicroll' | 'gmroll' | 'blindroll' | 'selfroll'
   }
@@ -35,7 +35,6 @@ export async function foundryGetSpellDamage(args: GetSpellDamageArgs) {
   const overrides = (args as { modifierOverrides?: ModifierOverrideMap }).modifierOverrides
   const getDamage = () =>
     (spell!.getDamage as unknown as SpellGetDamage)({
-      target: targetTokenDoc,
       skipDialog: true,
       rollMode: 'blindroll'
     })

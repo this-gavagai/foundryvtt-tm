@@ -7,6 +7,7 @@ import type {
   TokenPF2e
 } from '@7h3laughingman/pf2e-types'
 import type { RollCheckArgs } from '@/types/api-types'
+import type { ResolvedTarget } from '@/foundry/utils/target'
 
 // Context every roll-check handler receives. The orchestrator (foundryRollCheck)
 // builds this once per request; each handler reads what it needs.
@@ -28,7 +29,15 @@ export type CheckRollContext = {
   // intercepts getActiveTokens on the player's chosen target actor and
   // returns the right token — without touching game.user.targets, which on
   // the GM machine is the GM's own UI state, not the calling player's.
+  //
+  // Same object as `targets.actorProxy`; kept as its own field because most
+  // handlers want only this.
   targetActorProxy: ActorPF2e | null
+  // The full resolution result — every target the player selected, not just the
+  // first. PF2e's check API takes a single `target`, so attack/save handlers
+  // still use the first; this is here so the rest are available to handlers that
+  // can use them (and so the count is inspectable rather than lost at the wire).
+  targets: ResolvedTarget
 }
 
 export type CheckRollHandler = (ctx: CheckRollContext) => unknown

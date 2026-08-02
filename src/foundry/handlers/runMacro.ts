@@ -1,7 +1,8 @@
-import type { MacroPF2e, TokenPF2e } from '@7h3laughingman/pf2e-types'
+import type { MacroPF2e } from '@7h3laughingman/pf2e-types'
 import type { RunMacroArgs } from '@/types/api-types'
 import { getGame, makeAck } from '../utils/foundry'
 import { getRequestingUser, userCanRunMacro } from '../utils/permissions'
+import { resolveRequestedTargets } from '../utils/target'
 
 // Run an arbitrary macro by UUID. Scope follows Foundry's canonical shape:
 // `{ actor, token, targets, ...rest }`. _executeScript destructures `actor`
@@ -23,12 +24,9 @@ export async function foundryRunMacro(args: RunMacroArgs) {
   const source = getGame()
   const actor = source.actors.get(args.characterId, { strict: true })
 
-  const tokenDocs = (args.targets ?? [])
-    .map((id) => source.scenes.active?.tokens.get(id))
-    .filter((t): t is NonNullable<typeof t> => !!t)
-  const tokens = tokenDocs
-    .map((t) => t.object as TokenPF2e | null)
-    .filter((t): t is TokenPF2e => !!t)
+  // Macros are one of the two paths that can genuinely use every target, so
+  // they get the whole resolved list — not just the first.
+  const { tokens } = resolveRequestedTargets(source, args)
 
   // Failures throw: the dispatch's central catch turns them into error acks,
   // so the app rejects instead of believing a failed macro ran.

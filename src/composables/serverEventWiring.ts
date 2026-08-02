@@ -66,6 +66,7 @@ export function installApiStoreBridge() {
     sessionReady: () => useServerStore().sessionReady,
     userId: () => useUserStore().userId,
     getTargets: () => useTargetHelperStore().getTargets(),
+    resyncTargets: () => useTargetHelperStore().resync(),
     activeServerOrigin: () => useServerAddressStore().serverUrl?.origin,
     getWorldPacks: () =>
       collectionToArray(
@@ -95,6 +96,7 @@ export function registerServerEventWiring() {
   useFoundryWorldStatusStore().start()
   useListenersStore().start()
   usePixelDiceStore().start()
+  useTargetHelperStore().start()
 
   // Session lifecycle → world orchestration. Inverted through hooks so the
   // server store carries no knowledge of the world store or character sync
@@ -108,6 +110,10 @@ export function registerServerEventWiring() {
     // reconnect keeps the stale world for a seamless resume.
     onUserChanged: () => {
       useWorldStore().clearWorld()
+      // Mirrored targets belong to one proxy in one world. Carrying them across
+      // a server/user switch would leave the sheet holding token ids that
+      // resolve to nothing — or, worse, to something.
+      useTargetHelperStore().reset()
       // The push registration belongs to the user we are leaving; drop the
       // "already registered" state so the new one registers itself rather than
       // matching against a stale identity.
@@ -126,11 +132,13 @@ export function registerServerEventWiring() {
     }
   })
 
+  // A client reporting its OWN targeting — the single source for mirrored
+  // targets. The store drops it unless the sender is this tablet's proxy.
   onTmAction(TM.SHARE_TARGETS, (args) => {
-    const { updateTargets } = useTargetHelperStore()
-    Object.entries(args.targets).forEach(([userId, targets]) =>
-      updateTargets(userId, targets as string[])
-    )
+    useTargetHelperStore().updateTargets(args.userId, {
+      sceneId: args.sceneId ?? null,
+      tokenIds: args.targets ?? []
+    })
   })
 
   onTmAction(TM.LISTENER_ONLINE, (args) => {
@@ -206,13 +214,12 @@ export function setupSocketListenersForWorld(world: Ref<GamePF2e | undefined>) {
 
   worldUserActivityUnsub?.()
   worldUserActivityUnsub = onUserActivity((user, args) => {
-    if (args.targets) {
-      logger.info('user event', user, args)
-      const { updateTargets } = useTargetHelperStore()
-      updateTargets(user, args.targets)
-    } else if (args.active) {
-      logger.info('user online', user, args)
-    }
+    // Deliberately NOT a targeting source. Core's userActivity carries target
+    // ids without the scene they belong to, so it can only be resolved by
+    // guessing — and as a second writer of the same state it used to race the
+    // module's scene-aware report and win by arriving last. The module's
+    // SHARE_TARGETS self-report is the only path into the target store now.
+    if (args.active) logger.info('user online', user, args)
   })
 }
 

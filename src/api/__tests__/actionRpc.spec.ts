@@ -17,9 +17,10 @@ vi.mock('@/api/internal', async (importOriginal) => {
 })
 
 import { sendItemToChat, resolveAck, rejectAllPending } from '@/api/actionRpc'
-import { TM } from '@/api/protocol'
+import { TM, TM_ERROR_TARGET_UNRESOLVED } from '@/api/protocol'
+import { registerStoreBridge, resetStoreBridgeForTest } from '@/api/storeBridge'
 import type { RequestResolutionArgs } from '@/types/api-types'
-import { flushMicrotasks, lastEmittedUuid as lastUuid } from './socketMock'
+import { fakeStoreBridge, flushMicrotasks, lastEmittedUuid as lastUuid } from './socketMock'
 
 const lastEmittedUuid = () => lastUuid(emit)
 
@@ -87,6 +88,50 @@ describe('sendAction ack correlation', () => {
     resolveAck(uuid, ackFor(uuid, { compendia: [] }))
     vi.advanceTimersByTime(60_000)
     await expect(pending).resolves.toMatchObject({ uuid })
+  })
+})
+
+describe('stale-target refusal', () => {
+  // The module refuses a request whose targets it cannot find rather than
+  // rolling untargeted. The app treats that as "my mirror of the proxy's
+  // targeting is out of date" and resyncs at this one boundary, so every
+  // targeted RPC — damage previews as much as rolls — recovers.
+  it('resyncs the mirrored targets when the module reports them unresolvable', async () => {
+    const resyncTargets = vi.fn()
+    registerStoreBridge(fakeStoreBridge({ resyncTargets }))
+    const pending = sendItemToChat('actor-1', 'item-1')
+    await flushMicrotasks()
+    const uuid = lastEmittedUuid()
+
+    resolveAck(uuid, ackFor(uuid, { error: TM_ERROR_TARGET_UNRESOLVED }))
+    await expect(pending).rejects.toThrow(TM_ERROR_TARGET_UNRESOLVED)
+    expect(resyncTargets).toHaveBeenCalledTimes(1)
+    resetStoreBridgeForTest()
+  })
+
+  it('leaves the mirror alone for any other failure', async () => {
+    const resyncTargets = vi.fn()
+    registerStoreBridge(fakeStoreBridge({ resyncTargets }))
+    const pending = sendItemToChat('actor-1', 'item-1')
+    await flushMicrotasks()
+    const uuid = lastEmittedUuid()
+
+    resolveAck(uuid, ackFor(uuid, { error: 'handler exploded' }))
+    await expect(pending).rejects.toThrow('handler exploded')
+    expect(resyncTargets).not.toHaveBeenCalled()
+    resetStoreBridgeForTest()
+  })
+
+  it('still rejects the caller when no bridge is registered to resync', async () => {
+    // The resync is best-effort; a throw escaping the ack callback would strand
+    // the caller until the 30s timeout.
+    resetStoreBridgeForTest()
+    const pending = sendItemToChat('actor-1', 'item-1')
+    await flushMicrotasks()
+    const uuid = lastEmittedUuid()
+
+    resolveAck(uuid, ackFor(uuid, { error: TM_ERROR_TARGET_UNRESOLVED }))
+    await expect(pending).rejects.toThrow(TM_ERROR_TARGET_UNRESOLVED)
   })
 })
 

@@ -90,6 +90,8 @@ export function useInfoModalRolls({
       if (error instanceof Error && error.message === TM_ERROR_MANUAL_ROLLS_DISABLED) {
         gmPolicy.reportPolicy('reject')
       }
+      // A TM_ERROR_TARGET_UNRESOLVED refusal needs no handling here: the ack
+      // queue resyncs the mirror for every targeted RPC, previews included.
       onRollError(error)
     }
   }

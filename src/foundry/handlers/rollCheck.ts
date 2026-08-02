@@ -2,7 +2,7 @@ import type { RollCheckArgs } from '@/types/api-types'
 import { withBackgroundRoll } from '../backgroundRoll'
 import { extractRollPayload } from '../utils/roll'
 import { getCharacter, getGame, makeAck, makeFakeEvent } from '../utils/foundry'
-import { resolveTarget } from '../utils/target'
+import { resolveRequestedTargets } from '../utils/target'
 import { handleBlast, handleBlastDamage } from './checks/blast'
 import { handleFlat } from './checks/flat'
 import { handleSpellAttack, handleSpellDamage } from './checks/spellCheckHandlers'
@@ -50,15 +50,24 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       ]
     : args.modifiers
   const modifiers = rawModifiers.map((m) => new source.pf2e.Modifier(m))
-  const { token, actorProxy: targetActorProxy } = resolveTarget(source, args.targets)
+  // Resolved once for the whole request: handlers that need the full set (rather
+  // than PF2e's single `target`) read it off ctx.targets instead of re-deriving.
+  const resolvedTargets = resolveRequestedTargets(source, args)
   const params = {
     modifiers,
-    target: token,
+    target: resolvedTargets.token,
     skipDialog: true,
     event: makeFakeEvent(source) as PointerEvent,
     identifier: 'tm_background'
   }
-  const ctx: CheckRollContext = { source, actor, args, params, targetActorProxy }
+  const ctx: CheckRollContext = {
+    source,
+    actor,
+    args,
+    params,
+    targetActorProxy: resolvedTargets.actorProxy,
+    targets: resolvedTargets
+  }
 
   const rRaw = await withBackgroundRoll(args.diceResults, () =>
     Promise.resolve(CHECK_ROLL_HANDLERS[args.checkType]?.(ctx))

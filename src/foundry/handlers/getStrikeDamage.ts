@@ -13,8 +13,20 @@ import {
 export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
   const source = getGame()
   const actor = getCharacter(source, args.characterId)
-  const target =
-    args.targets.map((t: string) => source.scenes.active?.tokens.get(t))?.[0]?.object ?? null
+  // No target, by design: a damage preview describes the weapon, not a victim,
+  // so it must not shift as the mirrored target changes.
+  //
+  // The formula calls below were already target-blind — PF2e builds their roll
+  // context with `viewOnly: params.getFormula ?? false`, and viewOnly nulls the
+  // target actor outright. Only the modifiers call (which can't pass getFormula:
+  // it needs the full damage object, not a formula string) ever saw a target.
+  //
+  // Caveat worth knowing: PF2e documents `target` as "pulled from
+  // game.users.targets if not provided", so that one call now falls back to
+  // whatever the handling GM has selected. That is not the player's target and
+  // never was reliable, but it is not literally "no target" either — closing it
+  // needs a stand-in token PF2e will accept, which is not worth the fragility
+  // for a breakdown panel.
 
   const blastQuery = blastDamageQueryOf(args)
 
@@ -32,8 +44,7 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
         element: blastQuery.element as EffectTrait,
         damageType: blastQuery.damageType as DamageType,
         melee: blastQuery.isMelee,
-        getFormula: true,
-        target
+        getFormula: true
       }
       // Capture numeric Modifier instances encountered during the formula call as
       // a side effect of the hooked Modifier.prototype.test. Blast dice can't be
@@ -64,14 +75,13 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
         return [...bySlug.values()]
       })
     } else {
-      const baseDamageOptions = { getFormula: true, target }
+      const baseDamageOptions = { getFormula: true }
       const baseModifierOptions = {
         context: { rollMode: 'blindroll' },
         rollMode: 'blindroll',
         createMessage: false,
         skipDialog: true,
-        event: makeFakeEvent(source),
-        target
+        event: makeFakeEvent(source)
       }
       const baseStrike = actor.system.actions.find((a) => a.slug === args.actionSlug) as
         | StrikeActionRuntime

@@ -15,7 +15,7 @@ import {
   userCanObservePack
 } from '../utils/permissions'
 import { extractRollPayload, type FoundryRoll } from '../utils/roll'
-import { resolveTarget } from '../utils/target'
+import { resolveRequestedTargets } from '../utils/target'
 import { withModifierOverrides } from './checks/modifierOverrides'
 
 // Narrowed shadow over the ambient Roll global from foundry-types. The
@@ -31,7 +31,7 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
   // token via getActiveTokens() rather than reading game.user.targets, which
   // on the handler machine reflects the GM's (or proxy's) own UI state.
   // tricky code: https://github.com/foundryvtt/pf2e/blob/2eaef272f3e17f340eba1b7f2dc82e857d8d296e/src/module/actor/actions/single-check.ts#L160
-  const { token, actorProxy } = resolveTarget(source, args.targets)
+  const { token, actorProxy } = resolveRequestedTargets(source, args)
   const params = {
     ...args.options,
     actors: actor,

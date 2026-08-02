@@ -22,6 +22,7 @@ export type TablemateChatMessage = {
     tablemate?: {
       originUserId?: string | null
       targetTokenIds?: string[] | null
+      targetSceneId?: string | null
       // Emoji reactions (see utils/chatReactions.ts). Typed loosely here — the
       // reader normalizes whatever is stored rather than trusting the shape.
       reactions?: unknown
@@ -29,10 +30,15 @@ export type TablemateChatMessage = {
   }
   'flags.tablemate.reactions'?: unknown
   'flags.tablemate.targetTokenIds'?: string[] | null
+  'flags.tablemate.targetSceneId'?: string | null
   'flags.tablemate.originUserId'?: string | null
   getFlag?: (scope: string, key: string) => unknown
 }
 
+// A card is Tablemate-targeted when this returns a NON-EMPTY list. There is
+// deliberately no "has the flag" variant: an empty list must read as "not
+// targeted", or a no-target cast would hijack the card's buttons for every
+// viewer — including a GM using their own Foundry targeting on it.
 export function tablemateTargetTokenIds(message: TablemateChatMessage): string[] {
   const flagged = message.getFlag?.('tablemate', 'targetTokenIds')
   const value =
@@ -43,12 +49,15 @@ export function tablemateTargetTokenIds(message: TablemateChatMessage): string[]
   return value.filter((id): id is string => typeof id === 'string' && id.length > 0)
 }
 
-export function hasTablemateTargetTokenIds(message: TablemateChatMessage): boolean {
-  return (
-    Array.isArray(message.getFlag?.('tablemate', 'targetTokenIds')) ||
-    Array.isArray(message.flags?.tablemate?.targetTokenIds) ||
-    Array.isArray(message['flags.tablemate.targetTokenIds'])
-  )
+// The scene those token ids live on. Absent on cards stamped before protocol 4,
+// where the resolver falls back to the active scene as it always did.
+export function tablemateTargetSceneId(message: TablemateChatMessage): string | undefined {
+  const flagged = message.getFlag?.('tablemate', 'targetSceneId')
+  const value =
+    (typeof flagged === 'string' ? flagged : undefined) ??
+    message.flags?.tablemate?.targetSceneId ??
+    message['flags.tablemate.targetSceneId']
+  return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
 export function chatMessageElement(html: unknown): HTMLElement | undefined {

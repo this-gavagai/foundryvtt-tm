@@ -7,11 +7,11 @@ import { logger } from '@/utils/utilities'
 import {
   chatMessageElement,
   findRenderedChatMessage,
-  hasTablemateTargetTokenIds,
+  tablemateTargetSceneId,
   tablemateTargetTokenIds,
   type TablemateChatMessage
 } from './utils/chatMessage'
-import { noFallbackTargetActor, resolveTarget } from './utils/target'
+import { noFallbackTargetActor, resolveTargets } from './utils/target'
 import { rollSpellDamageWithTarget } from './utils/spellTargeting'
 
 let spellCardTargetingRegistered = false
@@ -56,8 +56,18 @@ async function handleTargetedSpellCardClick(
   if (!spell) return
 
   const targetTokenIds = tablemateTargetTokenIds(message)
+  // Re-checked at click time, not just at render: a card with no targets must
+  // behave like any other card, leaving the clicker's own Foundry targeting
+  // alone.
+  if (!targetTokenIds.length) return
 
-  const { actorProxy, tokenDoc } = resolveTarget(game as GamePF2e, targetTokenIds)
+  // Non-throwing resolve: whoever clicked (often the GM, not the requester) gets
+  // the no-target proxy rather than an exception, which is the honest answer for
+  // "the player aimed at something that isn't here any more".
+  const { actorProxy, tokenDoc } = resolveTargets(game as GamePF2e, {
+    targets: targetTokenIds,
+    targetScene: tablemateTargetSceneId(message)
+  })
 
   event.preventDefault()
   event.stopImmediatePropagation()
@@ -80,7 +90,9 @@ export function setupSpellCardTargeting() {
   spellCardTargetingRegistered = true
 
   Hooks.on('renderChatMessageHTML', (message: TablemateChatMessage, html: unknown) => {
-    if (!hasTablemateTargetTokenIds(message)) return
+    // Non-empty only — see tablemateTargetTokenIds. A cast with no targets
+    // produces an ordinary card that nobody intercepts.
+    if (!tablemateTargetTokenIds(message).length) return
     const element = chatMessageElement(html) ?? findRenderedChatMessage(message)
     if (!element) return
 

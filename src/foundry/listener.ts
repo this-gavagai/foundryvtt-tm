@@ -38,7 +38,7 @@ import {
   foundryRerollChatRoll,
   foundryToggleReaction
 } from './handlers'
-import type { GamePF2e, UserPF2e } from '@7h3laughingman/pf2e-types'
+import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
 import { logger } from '@/utils/utilities'
 import {
@@ -80,6 +80,10 @@ declare const Hooks: {
 declare const ui: {
   notifications?: { error: (message: string, options?: object) => void }
 }
+// The drawn canvas. Only needed for `scene.id` — the scene our own targets are
+// on. Undefined on a client with no scene up (e.g. a GM sitting on the world
+// setup screen), which is why sceneId is nullable on the wire.
+declare const canvas: { scene?: { id?: string } | null } | undefined
 
 // Running module release, read from the manifest Foundry parsed at load.
 function moduleVersion(): string | undefined {
@@ -519,6 +523,9 @@ export function setupListener() {
   // GM-only: generate + provision this world's push identity if enabled.
   void ensureWorldPushIdentity()
   setupChatOriginStamping()
+  // Runs on every client, not just the elected GM: each reports its own
+  // targeting so mirroring tablets get it from the one place that knows it.
+  setupTargetReporting()
   announceSelf()
 
   game.socket.onAnyOutgoing((event: string, ...args: ModuleEventArgs[] | GetEvent[]) => {
@@ -556,13 +563,24 @@ export function setupListener() {
       return
     }
 
+    // Answered BEFORE the responder gate, and by whichever client the request
+    // names rather than by the elected GM. A user's targets are placed Tokens on
+    // that user's own canvas, so only their client can report them without loss
+    // — the GM's copy is a reconstruction limited to whatever scene the GM has
+    // drawn. Read-only: it describes this client, never changes it. No
+    // authorization gate for the same reason core Foundry has none — target
+    // selection is already broadcast to every client via userActivity.
+    if (args.action === TM.REQUEST_TARGETS) {
+      if (args.proxyId === game.user._id) broadcastOwnTargets()
+      return
+    }
+
     if (!iAmResponderFor(args)) return
     logger.info('TM.RECV (listener)', args)
 
     if (args.action === TM.ANYBODY_HOME) {
       checkClientVersion(args)
       announceSelf()
-      broadcastTargets()
       return
     }
 
@@ -690,14 +708,48 @@ function announceSelf() {
   })
 }
 
-function broadcastTargets() {
-  const targets = game.users.reduce((acc: Record<string, string[]>, user: UserPF2e) => {
-    acc[user._id ?? 0] = Array.from(user.targets.map((t: { id: string }) => t.id))
-    return acc
-  }, {})
+// Report THIS client's own targeting to the table.
+//
+// Only the targeting client can do this without loss. `user.targets` is a
+// UserTargets extends Set<Token> — placed Token objects, which exist only for
+// the scene that client currently has drawn. The previous implementation had the
+// elected GM enumerate every user's targets and broadcast the lot, so any target
+// outside the GM's viewed canvas silently read as absent; because it fired on
+// every tablet's 30s presence heartbeat, that reconstruction periodically
+// overwrote correct, live target data with an empty set.
+//
+// The scene id travels with the ids because token ids are unique per scene, not
+// per world. `canvas.scene` is the authoritative answer to "which scene are
+// these ids on" — it is the same canvas the Token objects came from.
+function broadcastOwnTargets() {
   game.socket.emit(TM.CHANNEL, {
     action: TM.SHARE_TARGETS,
-    targets: targets,
-    userId: game.user._id
+    userId: game.user._id,
+    sceneId: canvas?.scene?.id ?? null,
+    // UserTargets exposes `.ids` for exactly this.
+    targets: game.user.targets.ids
   })
+}
+
+// Foundry fires `targetToken` once per token, so a drag-select of five tokens
+// fires five times; core itself coalesces the socket broadcast the same way.
+// Trailing-edge debounce so we send the settled selection, once.
+const TARGET_BROADCAST_DEBOUNCE_MS = 50
+const broadcastOwnTargetsSoon = debounce(broadcastOwnTargets, TARGET_BROADCAST_DEBOUNCE_MS)
+
+function setupTargetReporting() {
+  // Fires on EVERY client, for every user's target change — including remote
+  // ones this client learned about over the wire. Report only our own, or a
+  // table of N clients would answer each change N times, and the copies made on
+  // other canvases are exactly the lossy reconstruction this replaces.
+  Hooks.on('targetToken', (...args: unknown[]) => {
+    const user = args[0] as { id?: string } | undefined
+    if (user?.id !== game.user.id) return
+    broadcastOwnTargetsSoon()
+  })
+
+  // Changing scene rebuilds the canvas and drops every placed Token, so our
+  // targets are now empty (or belong to a different scene). Say so rather than
+  // leaving mirroring tablets holding ids for a scene we've left.
+  Hooks.on('canvasReady', () => broadcastOwnTargetsSoon())
 }

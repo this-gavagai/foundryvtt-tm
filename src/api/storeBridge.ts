@@ -1,4 +1,5 @@
 import type { Socket } from 'socket.io-client'
+import type { MirroredTargets } from '@/types/api-types'
 
 // The narrow set of store-backed lookups the api layer needs, injected at app
 // bootstrap (composables/serverEventWiring.ts registers the real, Pinia-backed
@@ -19,7 +20,14 @@ export interface StoreBridge {
   getUserId: () => string
   sessionReady: () => boolean
   userId: () => string
-  getTargets: () => string[]
+  // Targets mirrored from the user's targeting proxy, WITH the scene they were
+  // picked on — token ids alone are ambiguous across scenes. See
+  // stores/targetHelper.ts.
+  getTargets: () => MirroredTargets
+  // Drop the mirrored targets and re-ask the proxy for them. Called when the
+  // module refuses a request as TM_ERROR_TARGET_UNRESOLVED, which means our copy
+  // no longer matches the world.
+  resyncTargets: () => void
   activeServerOrigin: () => string | undefined
   // Compendium browsing reads pack metadata (id/label/type/ownership) and the
   // requesting user's role straight from the already-loaded world payload, so

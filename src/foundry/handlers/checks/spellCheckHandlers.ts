@@ -1,6 +1,6 @@
 import { findSpell } from '@/foundry/utils/spellLookup'
 import { makeCastRankEvent } from '@/foundry/utils/roll'
-import { noFallbackTargetActor, resolveTarget } from '@/foundry/utils/target'
+import { noFallbackTargetActor } from '@/foundry/utils/target'
 import { rollSpellDamageWithTarget } from '@/foundry/utils/spellTargeting'
 import { type CheckRollContext, type CheckRollHandler, statisticParams } from './types'
 import { checkSubtypeOf } from './subtype'
@@ -43,14 +43,13 @@ export const handleSpellAttack: CheckRollHandler = (ctx) => {
 // target carries [data-cast-rank=<rank>]; SpellPF2e.rollDamage reads it via
 // htmlClosest and runs its own loadVariant + heightening dispatch — no hand-
 // rolled heightening required on our side.
-export const handleSpellDamage: CheckRollHandler = ({ source, actor, args }) => {
+export const handleSpellDamage: CheckRollHandler = ({ source, actor, args, targets }) => {
   const { spellId, mapIncreases, castingRank } = checkSubtypeOf(args, 'spellDamage')
   const baseSpell = findSpell(actor, spellId)
   const overrides = (args.options as { modifierOverrides?: ModifierOverrideMap })?.modifierOverrides
   const spell = castingRank
     ? ((baseSpell?.loadVariant({ castRank: castingRank }) as typeof baseSpell) ?? baseSpell)
     : baseSpell
-  const { tokenDoc } = resolveTarget(source, args.targets)
   return withDamageModifierOverrides(
     overrides,
     async () =>
@@ -59,7 +58,7 @@ export const handleSpellDamage: CheckRollHandler = ({ source, actor, args }) => 
             spell,
             makeCastRankEvent(source, castingRank),
             mapIncreases,
-            tokenDoc
+            targets.tokenDoc
           )
         : null) ?? null
   )

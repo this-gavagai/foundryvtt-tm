@@ -16,7 +16,7 @@ import type {
 import { logger, uuidv4 } from '@/utils/utilities'
 import { getAuthenticatedSocket } from './internal'
 import { requireStoreBridge } from './storeBridge'
-import { TM } from './protocol'
+import { TM, TM_ERROR_TARGET_UNRESOLVED } from './protocol'
 
 // Pending ack queue: uuid → resolver. Populated when an action RPC is sent,
 // drained either by resolveAck() when the server acknowledges or by the
@@ -46,6 +46,22 @@ function pushToAckQueue(
     // error whose message stringifies to '' is still a failure, not a success.
     if (args.error !== undefined) {
       logger.warn(`TM-WARN: request ${uuid} failed: ${args.error}`)
+      // The module refused because none of the targets we named exist on the
+      // scene we named — our mirror of the proxy's targeting is stale. Drop it
+      // and re-ask here, at the one boundary every targeted RPC passes through,
+      // so damage previews recover as well as rolls. The request itself still
+      // rejects: silently retrying untargeted would reinstate exactly the
+      // wrong-result-that-looks-right this refusal exists to prevent.
+      // Guarded: this runs inside resolveAck's callback, before it drains the
+      // queue entry, so anything thrown here would leave the caller's promise
+      // pending until the 30s timeout instead of rejecting now.
+      if (args.error === TM_ERROR_TARGET_UNRESOLVED) {
+        try {
+          requireStoreBridge().resyncTargets()
+        } catch (bridgeError) {
+          logger.debug('TM: could not resync targets after refusal', bridgeError)
+        }
+      }
       reject(new Error(args.error))
       return
     }
@@ -108,14 +124,36 @@ export async function registerPush() {
   return sendAction(TM.REGISTER_PUSH, {})
 }
 
+// Ask the named proxy's client to report its current targeting. Fire-and-forget
+// (no ack): the answer comes back as an unsolicited SHARE_TARGETS, the same
+// message shape the proxy pushes when it re-targets, so there is one code path
+// on the receiving side. Failure to emit is not worth surfacing — the proxy's
+// next target change re-syncs us anyway.
+export async function requestTargets(proxyId: string) {
+  try {
+    const { socket, userId } = await getAuthenticatedSocket()
+    socket.emit(TM.CHANNEL, { action: TM.REQUEST_TARGETS, userId, proxyId })
+  } catch (error) {
+    logger.debug('TM: could not request proxy targets', error)
+  }
+}
+
 // Common payload prefixes. Every action needs characterId; most "interactive"
 // actions also need the current target set. Callers guarantee the actor is
 // loaded (non-null assertions match the old Ref<CharacterPF2e> contract).
 const fromActor = (a: TablemateActorRef) => ({ characterId: a.value!._id! })
-const fromActorTargeted = (a: TablemateActorRef) => ({
-  characterId: a.value!._id!,
-  targets: requireStoreBridge().getTargets()
-})
+// `targetScene` rides along with `targets` so the module resolves the ids
+// against the scene they were actually picked on. Both come from one read of
+// the mirrored state, so an id list can never be paired with a scene from a
+// different update.
+const fromActorTargeted = (a: TablemateActorRef) => {
+  const { sceneId, tokenIds } = requireStoreBridge().getTargets()
+  return {
+    characterId: a.value!._id!,
+    targets: tokenIds,
+    ...(sceneId ? { targetScene: sceneId } : {})
+  }
+}
 
 export const castSpell = (
   actor: TablemateActorRef,
@@ -198,8 +236,10 @@ export const getStrikeDamage = (
   // Blast formula lookups pass the blast target here (actionSlug stays '').
   blast?: BlastDamageQuery
 ) =>
+  // Untargeted: a damage preview describes the weapon, not a victim. See
+  // GetStrikeDamageArgs.
   sendAction(TM.GET_STRIKE_DAMAGE, {
-    ...fromActorTargeted(actor),
+    ...fromActor(actor),
     actionSlug,
     altUsage,
     modifierOverrides,
@@ -212,8 +252,9 @@ export const getSpellDamage = (
   castingRank: number | undefined = undefined,
   modifierOverrides?: Record<string, boolean>
 ) =>
+  // Untargeted, as with strike damage — see GetStrikeDamageArgs.
   sendAction(TM.GET_SPELL_DAMAGE, {
-    ...fromActorTargeted(actor),
+    ...fromActor(actor),
     spellId,
     castingRank,
     modifierOverrides
