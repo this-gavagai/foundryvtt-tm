@@ -666,6 +666,15 @@
           [data-part='chat-error'] {
             color: oklch(68% 0.16 25);
           }
+
+          /* Transcript under a recorded take, in all three of its forms (the
+           "transcribing" line, the tap-to-correct text, the editor). The
+           utility default is gray-600, which is a light-theme secondary and
+           reads as barely-there against this composer — lift it to a legible
+           secondary here, still clearly below the composer's own text. */
+          [data-part='chat-voice-preview-transcript'] {
+            color: oklch(72% 0.012 258);
+          }
         }
       }
 

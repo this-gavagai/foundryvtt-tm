@@ -664,6 +664,13 @@
           [data-part='chat-error'] {
             color: oklch(55% 0.18 25);
           }
+
+          /* Transcript under a recorded take (see moonlit's note). This palette
+           is light, so it stays where the utility default already put it — a
+           muted secondary in the skin's own hue rather than a neutral gray. */
+          [data-part='chat-voice-preview-transcript'] {
+            color: oklch(52% 0.02 285);
+          }
         }
       }
 

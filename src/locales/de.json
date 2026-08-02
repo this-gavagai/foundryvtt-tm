@@ -1,7 +1,18 @@
 {
   "settings": {
     "title": "Einstellungen",
-    "showUnreadOnPortrait": "Anzahl ungelesener Nachrichten auf Charakterporträt anzeigen"
+    "showUnreadOnPortrait": "Anzahl ungelesener Nachrichten auf Charakterporträt anzeigen",
+    "transcription": {
+      "title": "Transkription von Sprachnachrichten",
+      "description": "Sprachnachrichten, die du auf diesem Gerät aufnimmst, können automatisch transkribiert werden; der Text wird zusammen mit der Nachricht für alle sichtbar gepostet. Die Transkription läuft auf diesem Gerät, daher wird jedes Gerät einzeln eingerichtet.",
+      "enable": "Meine Sprachnachrichten transkribieren",
+      "endpoint": "API-Endpunkt",
+      "endpointHint": "Basis-URL eines OpenAI-kompatiblen Transkriptionsdienstes, z. B. https://api.openai.com/v1 oder https://api.groq.com/openai/v1.",
+      "apiKey": "API-Schlüssel",
+      "apiKeyHint": "Wird nur an den obigen Endpunkt gesendet und bleibt auf diesem Gerät.",
+      "model": "Modell",
+      "modelHint": "Zum Beispiel whisper-1 oder gpt-4o-mini-transcribe (OpenAI) bzw. whisper-large-v3-turbo (Groq)."
+    }
   },
   "rollCheck": {
     "saves": "Rettungswürfe",
@@ -331,6 +342,8 @@
     "cancelRecording": "Aufnahme abbrechen",
     "discardRecording": "Aufnahme verwerfen",
     "sendVoice": "Sprachnachricht senden",
+    "transcribing": "Wird transkribiert …",
+    "editTranscript": "Transkript bearbeiten",
     "micDenied": "Kein Zugriff auf das Mikrofon. Überprüfe die Berechtigungen.",
     "attachImage": "Bild anhängen",
     "sendImage": "Bild senden",

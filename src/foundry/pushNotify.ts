@@ -13,7 +13,6 @@
 // collapsing, and are never suppressed for being "connected".
 
 import { readPushConfig, isPrimaryGM, type PushScope } from './pushRegistration'
-import { transcriptionEnabled } from './transcriptionSetting'
 import { tablemateChatOriginUserId } from './utils/foundry'
 import { logger } from '@/utils/utilities'
 
@@ -30,7 +29,13 @@ interface ChatMessageLike {
   user?: { id?: string; name?: string }
   speaker?: { actor?: string | null }
   rolls?: unknown[]
-  flags?: { tablemate?: { audioPath?: string | null; transcript?: string | null } }
+  flags?: {
+    tablemate?: {
+      audioPath?: string | null
+      transcript?: string | null
+      transcriptPending?: boolean | null
+    }
+  }
   getFlag?: (scope: string, key: string) => unknown
 }
 
@@ -53,13 +58,23 @@ function isVoiceMemo(msg: ChatMessageLike): boolean {
   return !!(typeof flagged === 'string' ? flagged : msg.flags?.tablemate?.audioPath)
 }
 
-// A voice memo's AI transcript, once it lands (attachTranscript in
-// handlers/chat.ts patches flags.tablemate.transcript onto the posted message),
-// or '' while it's still pending / disabled / failed.
+// A voice memo's AI transcript, once it lands (the sending app patches
+// flags.tablemate.transcript onto the posted message once its transcription
+// call returns), or '' while it's still pending / disabled / failed.
 function voiceTranscript(msg: ChatMessageLike): string {
   const flagged = msg.getFlag?.('tablemate', 'transcript')
   const value = typeof flagged === 'string' ? flagged : msg.flags?.tablemate?.transcript
   return typeof value === 'string' ? value.trim() : ''
+}
+
+// Whether a transcript is actually coming for this memo. Transcription happens
+// on the app that recorded the memo, using that device's own endpoint + key
+// (see api/transcription.ts), so this client cannot answer the question from any
+// setting of its own — the sender declares it per memo instead, and the module
+// stores the declaration as a flag when the message is created.
+function transcriptPending(msg: ChatMessageLike): boolean {
+  const flagged = msg.getFlag?.('tablemate', 'transcriptPending')
+  return !!(typeof flagged === 'boolean' ? flagged : msg.flags?.tablemate?.transcriptPending)
 }
 
 // Who this message is FROM, for the purpose of not notifying them about it.
@@ -313,10 +328,9 @@ function delay(ms: number): Promise<void> {
 }
 
 // Poll the live message document until its transcript flag lands or the wait
-// budget runs out. attachTranscript (handlers/chat.ts) patches the transcript
-// onto this same document — in memory here on the transcribing GM, or via an
-// updateChatMessage broadcast on any other client — so the flag turning up is
-// our signal the body can now carry the spoken text.
+// budget runs out. The sending app patches the transcript onto this same
+// document, which reaches this client as an updateChatMessage broadcast — so the
+// flag turning up is our signal the body can now carry the spoken text.
 async function waitForTranscript(msg: ChatMessageLike): Promise<void> {
   const deadline = Date.now() + TRANSCRIPT_WAIT_MS
   while (!voiceTranscript(msg) && Date.now() < deadline) {
@@ -449,9 +463,9 @@ export async function notifyChatMessage(message: unknown): Promise<void> {
 
     // Give a transcribable voice memo a moment to gain its transcript so the
     // push can include the spoken text. Only worth waiting when the body is
-    // opted in (otherwise it's sender-only regardless) and the world actually
-    // transcribes (otherwise no transcript is ever coming).
-    if (isVoiceMemo(msg) && config.includeBody && transcriptionEnabled()) {
+    // opted in (otherwise it's sender-only regardless) and the sender said it is
+    // transcribing (otherwise no transcript is ever coming).
+    if (isVoiceMemo(msg) && config.includeBody && transcriptPending(msg)) {
       await waitForTranscript(msg)
     }
 

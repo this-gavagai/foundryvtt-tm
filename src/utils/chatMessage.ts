@@ -48,6 +48,16 @@ export function formatChatContent(content: string): string {
   return escapeHtml(content.trim()).replace(/\n/g, '<br>')
 }
 
+// Append a voice memo's transcript to the content the module rendered for it.
+//
+// The transcript rides in a [data-tablemate-transcript] wrapper so Foundry's own
+// chat log shows it (italic, under the player) while the app strips that wrapper
+// (sanitizeChatHtml) and renders the transcript from flags.tablemate.transcript
+// with its own styling — shown once on each surface, never twice.
+export function appendTranscriptContent(content: string, transcript: string): string {
+  return `${content}<div data-tablemate-transcript><em>${escapeHtml(transcript)}</em></div>`
+}
+
 function findUser(users: ChatUserLike[], userId: string): ChatUserLike | undefined {
   return users.find((u) => u._id === userId || u.id === userId)
 }

@@ -75,6 +75,15 @@ export const CAPABILITY_VOICE_MEMO = 'voiceMemo'
 // same way it gates the mic on CAPABILITY_VOICE_MEMO.
 export const CAPABILITY_IMAGE_UPLOAD = 'imageUpload'
 
+// Voice memo transcripts written by the SENDING app. Transcription runs on the
+// device that recorded the memo (api/transcription.ts), which needs the module
+// to report the posted message in the final chunk's ack so the app can patch the
+// text onto it. Advertised unconditionally — it needs no world configuration.
+// Its job is to tell the app whether that ack will name a message at all, so a
+// device with a key configured doesn't spend a billable API call on a transcript
+// an older module would leave it nowhere to put.
+export const CAPABILITY_VOICE_MEMO_TRANSCRIPT = 'voiceMemoTranscript'
+
 // Emoji reactions on chat messages. Unlike the media capabilities this needs no
 // world configuration, so it's advertised unconditionally — its only job is
 // version detection: a module predating reactions would log 'event not caught'

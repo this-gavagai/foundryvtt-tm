@@ -29,7 +29,6 @@ vi.mock('../pushRegistration', () => ({
     return !!activeGmId && game.user?.id === activeGmId
   }
 }))
-vi.mock('../transcriptionSetting', () => ({ transcriptionEnabled: () => false }))
 
 type TestUser = { id: string; name: string; active?: boolean; belongsTo?: string }
 
@@ -441,5 +440,32 @@ describe('notification body', () => {
     } finally {
       pushConfig.includeBody = true
     }
+  })
+
+  it('carries a voice memo’s transcript once the sender has patched it on', async () => {
+    await notifyChatMessage(
+      message({
+        content: '',
+        whisper: ['bob'],
+        flags: { tablemate: { audioPath: 'audio/memo.m4a', transcript: 'the goblin attacks' } }
+      })
+    )
+    expect(body()).toBe('🎤 the goblin attacks')
+  })
+
+  // Transcription runs on the sending app now, so this client cannot know from
+  // any setting of its own whether text is coming. Without the sender's
+  // transcriptPending flag there is nothing to wait for, and the notification
+  // must go out at once rather than burning the 5s transcript budget.
+  it('sends a memo’s notification immediately when no transcript is pending', async () => {
+    const sent = notifyChatMessage(
+      message({
+        content: '',
+        whisper: ['bob'],
+        flags: { tablemate: { audioPath: 'audio/memo.m4a' } }
+      })
+    )
+    await vi.waitFor(() => expect(body()).toBe('🎤 Voice message'))
+    await sent
   })
 })

@@ -32,7 +32,7 @@ function base64ToBytes(base64: string): Uint8Array<ArrayBuffer> {
   return bytes
 }
 
-export function makeChunkAccumulator<M>(options: {
+export function makeChunkAccumulator<M, R = void>(options: {
   // Human-readable noun for error messages ('Voice memo', 'Image').
   label: string
   // Upper bound on chunk count, so a stray/hostile request can't make us
@@ -42,15 +42,17 @@ export function makeChunkAccumulator<M>(options: {
   // mid-send, a GM handoff mid-upload, etc.) so a partial file can't leak memory.
   ttlMs: number
   // Runs once, on the final chunk, with the reassembled byte parts in seq order.
-  finalize: (uploadId: string, parts: Uint8Array<ArrayBuffer>[], meta: M) => Promise<void>
+  // Whatever it returns is handed back to the caller of the final chunk, which
+  // is how the voice-memo path reports the posted message id in its ack.
+  finalize: (uploadId: string, parts: Uint8Array<ArrayBuffer>[], meta: M) => Promise<R>
 }) {
   const pending = new Map<string, PendingUpload<M>>()
 
-  // Buffer one chunk. Returns true when this chunk completed the upload (finalize
-  // has run), false while more chunks are still expected. Idempotent on a re-sent
-  // chunk — only a slot filled for the first time advances the received count.
-  // `meta` is kept from the first chunk that opens the entry.
-  async function accept(chunk: UploadChunk, meta: M): Promise<boolean> {
+  // Buffer one chunk. Returns finalize's result when this chunk completed the
+  // upload, undefined while more chunks are still expected. Idempotent on a
+  // re-sent chunk — only a slot filled for the first time advances the received
+  // count. `meta` is kept from the first chunk that opens the entry.
+  async function accept(chunk: UploadChunk, meta: M): Promise<R | undefined> {
     if (!Number.isInteger(chunk.total) || chunk.total <= 0 || chunk.total > options.maxChunks) {
       throw new Error(`${options.label} has invalid chunk count ${chunk.total}`)
     }
@@ -82,14 +84,17 @@ export function makeChunkAccumulator<M>(options: {
       entry.received += 1
     }
 
-    if (entry.received < entry.total) return false
+    if (entry.received < entry.total) return undefined
 
     // Final chunk: stop the TTL, drop the buffer, then finalize. Cleared up front
     // so a finalize failure can't strand the entry.
     globalThis.clearTimeout(entry.timer)
     pending.delete(chunk.uploadId)
-    await options.finalize(chunk.uploadId, entry.parts as Uint8Array<ArrayBuffer>[], entry.meta)
-    return true
+    return await options.finalize(
+      chunk.uploadId,
+      entry.parts as Uint8Array<ArrayBuffer>[],
+      entry.meta
+    )
   }
 
   return { accept }

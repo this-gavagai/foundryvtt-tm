@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import {
   PROTOCOL_VERSION,
   CAPABILITY_VOICE_MEMO,
+  CAPABILITY_VOICE_MEMO_TRANSCRIPT,
   CAPABILITY_IMAGE_UPLOAD,
   CAPABILITY_REACTIONS
 } from '@/api/protocol'
@@ -32,6 +33,13 @@ export const useVersionCompatStore = defineStore('versionCompat', () => {
   // capability simply doesn't offer it, so the app hides the affordance rather
   // than sending an RPC the module would reject.
   const supportsVoiceMemo = computed(() => moduleCapabilities.value.includes(CAPABILITY_VOICE_MEMO))
+
+  // Gate for transcribing a memo at all: an older module acks the upload without
+  // naming the message it posted, leaving the app nowhere to put the text — so
+  // it must not spend a (billable) transcription call on one.
+  const supportsVoiceMemoTranscript = computed(() =>
+    moduleCapabilities.value.includes(CAPABILITY_VOICE_MEMO_TRANSCRIPT)
+  )
 
   // Gate for the composer's image-attach button, mirroring supportsVoiceMemo: a
   // module too old to advertise the capability (or a world with no configured
@@ -63,6 +71,7 @@ export const useVersionCompatStore = defineStore('versionCompat', () => {
     moduleVersion,
     moduleCapabilities,
     supportsVoiceMemo,
+    supportsVoiceMemoTranscript,
     supportsImageUpload,
     supportsReactions,
     isMismatched,

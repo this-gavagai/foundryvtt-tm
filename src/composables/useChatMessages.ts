@@ -46,9 +46,9 @@ export interface ChatMessageData {
       audioPath?: string | null
       audioMimeType?: string | null
       audioDurationMs?: number | null
-      // AI transcription of the memo, written GM-side when a transcription
-      // endpoint is configured (see foundry/transcriptionSetting.ts). Absent
-      // when transcription is off or the call failed.
+      // AI transcription of the memo, patched on by the app that recorded it
+      // when that device has transcription configured (see api/transcription.ts).
+      // Absent when transcription is off there, or the call failed.
       transcript?: string | null
       // Image attachment: the uploaded image's world-relative path plus its
       // MIME type and pixel dimensions. Written by foundrySendImage; the row

@@ -1,7 +1,18 @@
 {
   "settings": {
     "title": "Settings",
-    "showUnreadOnPortrait": "Show unread message count on character portrait"
+    "showUnreadOnPortrait": "Show unread message count on character portrait",
+    "transcription": {
+      "title": "Voice memo transcription",
+      "description": "Voice memos you record on this device can be transcribed automatically, and the text posts with the memo for everyone to read. Transcription happens on this device, so each device is configured separately.",
+      "enable": "Transcribe my voice memos",
+      "endpoint": "API endpoint",
+      "endpointHint": "Base URL of an OpenAI-compatible transcription service, e.g. https://api.openai.com/v1 or https://api.groq.com/openai/v1.",
+      "apiKey": "API key",
+      "apiKeyHint": "Sent only to the endpoint above, and kept on this device.",
+      "model": "Model",
+      "modelHint": "For example whisper-1 or gpt-4o-mini-transcribe (OpenAI), or whisper-large-v3-turbo (Groq)."
+    }
   },
   "rollCheck": {
     "saves": "Saves",
@@ -331,6 +342,8 @@
     "cancelRecording": "Cancel recording",
     "discardRecording": "Discard recording",
     "sendVoice": "Send voice memo",
+    "transcribing": "Transcribing…",
+    "editTranscript": "Edit transcript",
     "micDenied": "Microphone access is unavailable. Check your permissions.",
     "attachImage": "Attach image",
     "sendImage": "Send image",

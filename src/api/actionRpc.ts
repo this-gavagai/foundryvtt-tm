@@ -329,6 +329,9 @@ export const sendVoiceMemo = (
     content?: string
     outOfCharacter?: boolean
     whisper?: string[]
+    // Tells the module a transcript is coming for this memo, so its push
+    // notifier holds the notification briefly (see api/transcription.ts).
+    transcriptPending?: boolean
   }
 ) => sendAction(TM.SEND_VOICE_MEMO, { characterId, ...chunk, ...meta })
 

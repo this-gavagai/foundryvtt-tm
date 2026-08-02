@@ -12,13 +12,12 @@ import { extractRollPayload } from '../utils/roll'
 import { getCharacter, getGame, makeAck } from '../utils/foundry'
 import { voiceMemoEnabled, voiceMemoUploadPath } from '../voiceMemoSetting'
 import { imageUploadEnabled, imageUploadPath } from '../imageUploadSetting'
-import { transcriptionConfig, transcribeAudioFile, type TranscriptionConfig } from '../transcriptionSetting'
 import { makeChunkAccumulator } from './chunkedUpload'
 import { logger } from '@/utils/utilities'
 
-// The created message document, narrowed to the one method we patch it with
-// after an async transcription lands.
-type CreatedChatMessage = { update: (data: object) => Promise<unknown> }
+// The created message document, narrowed to the id we hand back to the sender
+// (which patches its own transcript onto the message; see below).
+type CreatedChatMessage = { id?: string | null; _id?: string | null }
 
 declare const ChatMessage: {
   create: (data: object) => Promise<CreatedChatMessage | undefined>
@@ -203,7 +202,15 @@ type VoiceMemoMeta = {
   content?: string
   outOfCharacter?: boolean
   whisper?: string[]
+  transcriptPending?: boolean
 }
+
+// What the final chunk's ack reports back to the sending app: the message the
+// memo was posted as, and the content the module rendered for it. The app is
+// the message's author, so it patches its own transcript onto that message
+// directly over the socket once its transcription call returns — the module
+// does no transcribing of its own (see api/transcription.ts on the app side).
+type VoiceMemoResult = { messageId?: string; content?: string }
 
 // Foundry v13 moved FilePicker under foundry.applications.apps; v11/v12 expose
 // it as a bare global. Resolve whichever exists so the handler works on both.
@@ -276,7 +283,7 @@ async function finalizeVoiceMemo(
   uploadId: string,
   parts: Uint8Array<ArrayBuffer>[],
   meta: VoiceMemoMeta
-) {
+): Promise<VoiceMemoResult> {
   const source = getGame()
   const actor = source.actors.get(meta.characterId, { strict: true })
 
@@ -308,26 +315,21 @@ async function finalizeVoiceMemo(
   const caption = meta.content ? formatChatContent(meta.content) : ''
   const player = `<audio controls preload="metadata" src="${escapeHtml(audioPath)}"></audio>`
 
-  // Content builder, optionally with the transcript appended. The transcript
-  // rides in a [data-tablemate-transcript] wrapper so Foundry's own chat log
-  // renders it (italic, under the player) while the Tablemate app strips that
-  // wrapper (see sanitizeChatHtml) and renders the transcript from the flag
-  // with its own styling — shown once on each surface, never twice.
-  const renderContent = (text?: string): string => {
-    const base = caption ? `${caption}<br>${player}` : player
-    if (!text) return base
-    return `${base}<div data-tablemate-transcript><em>${escapeHtml(text)}</em></div>`
-  }
+  const content = caption ? `${caption}<br>${player}` : player
 
   const data: Record<string, unknown> = {
     author: meta.userId,
     speaker,
-    content: renderContent(),
+    content,
     flags: {
       tablemate: {
         audioPath,
         audioMimeType: meta.mimeType,
-        audioDurationMs: meta.durationMs
+        audioDurationMs: meta.durationMs,
+        // Set when the sending app is transcribing this memo and will patch the
+        // text on shortly. Read only by the push notifier, which holds a memo's
+        // notification briefly so it can carry the spoken words (pushNotify.ts).
+        ...(meta.transcriptPending ? { transcriptPending: true } : {})
       }
     }
   }
@@ -351,45 +353,13 @@ async function finalizeVoiceMemo(
     throw error
   }
 
-  // AI transcription runs AFTER the memo posts so it appears instantly; on
-  // success we patch the transcript into the already-posted message in place.
-  // Fire-and-forget with its own error handling — it must never block the ack,
-  // and a failed/slow call just leaves the memo audio-only.
-  const tConfig = transcriptionConfig()
-  if (tConfig && message) void attachTranscript(message, file, tConfig, renderContent)
+  // Hand the posted message back so the sender can patch its transcript onto it
+  // (see VoiceMemoResult). `id` is the live document's accessor; `_id` covers a
+  // plain-object stand-in.
+  return { messageId: message?.id ?? message?._id ?? undefined, content }
 }
 
-// Transcribe an uploaded memo, then patch the text into its posted message —
-// both the flag (the app renders from it) and the content (Foundry's own chat
-// log renders from it). Best-effort: any failure is logged and the memo stays
-// audio-only. Runs detached from the RPC ack (see finalizeVoiceMemo).
-async function attachTranscript(
-  message: CreatedChatMessage,
-  file: File,
-  config: TranscriptionConfig,
-  renderContent: (text?: string) => string
-): Promise<void> {
-  let transcript: string
-  try {
-    transcript = await transcribeAudioFile(file, config)
-  } catch (error) {
-    logger.warn('TABLEMATE: voice memo transcription failed', error)
-    return
-  }
-  try {
-    // A document update deep-merges, so setting flags.tablemate.transcript keeps
-    // audioPath/mime/duration intact; content is replaced with the transcript-
-    // bearing version.
-    await message.update({
-      content: renderContent(transcript),
-      flags: { tablemate: { transcript } }
-    })
-  } catch (error) {
-    logger.warn('TABLEMATE: voice memo transcript update failed', error)
-  }
-}
-
-const voiceMemoAccumulator = makeChunkAccumulator<VoiceMemoMeta>({
+const voiceMemoAccumulator = makeChunkAccumulator<VoiceMemoMeta, VoiceMemoResult>({
   label: 'Voice memo',
   maxChunks: MEDIA_UPLOAD_MAX_CHUNKS,
   ttlMs: MEDIA_UPLOAD_TTL_MS,
@@ -403,7 +373,7 @@ export async function foundrySendVoiceMemo(args: SendVoiceMemoArgs) {
   // depth against a stale or hand-crafted request.
   if (!voiceMemoEnabled()) throw new Error('Voice memos are not enabled for this world')
 
-  await voiceMemoAccumulator.accept(
+  const posted = await voiceMemoAccumulator.accept(
     { uploadId: args.uploadId, seq: args.seq, total: args.total, chunkBase64: args.chunkBase64 },
     {
       userId: args.userId,
@@ -412,10 +382,12 @@ export async function foundrySendVoiceMemo(args: SendVoiceMemoArgs) {
       durationMs: args.durationMs,
       content: args.content,
       outOfCharacter: args.outOfCharacter,
-      whisper: args.whisper
+      whisper: args.whisper,
+      transcriptPending: args.transcriptPending
     }
   )
-  return makeAck(args)
+  // Only the final chunk has a posted message to report; the rest ack bare.
+  return { ...makeAck(args), ...posted }
 }
 
 // ── Images ───────────────────────────────────────────────────────────────────
@@ -423,7 +395,7 @@ export async function foundrySendVoiceMemo(args: SendVoiceMemoArgs) {
 // the same accumulator as voice memos. On the final chunk we upload the file and
 // post a ChatMessage with an <img> in the content (so Foundry's own chat log
 // shows it) wrapped in a [data-tablemate-image] div the app strips — the app
-// renders its own <img> from flags.tablemate.imagePath. No transcription step.
+// renders its own <img> from flags.tablemate.imagePath.
 
 type ImageMeta = {
   userId: string

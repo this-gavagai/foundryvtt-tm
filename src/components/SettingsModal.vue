@@ -2,13 +2,18 @@
 import { ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
-import { ArrowRightStartOnRectangleIcon, ServerStackIcon } from '@heroicons/vue/24/solid'
+import {
+  ArrowRightStartOnRectangleIcon,
+  MicrophoneIcon,
+  ServerStackIcon
+} from '@heroicons/vue/24/solid'
 import { availableLocales, setLocale } from '@/plugins/i18n'
 import { useTheme, THEMES } from '@/composables/useTheme'
 import { useSettingsStore } from '@/stores/settings'
 import { useServerAddressStore } from '@/stores/serverAddress'
 import { useServerStore } from '@/stores/server'
 import ModalBox from './ModalBox.vue'
+import TranscriptionSettingsModal from './TranscriptionSettingsModal.vue'
 import Dropdown from '@/components/widgets/DropdownWidget.vue'
 import Toggle from '@/components/widgets/ToggleWidget.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
@@ -34,6 +39,13 @@ function open() {
 }
 function close() {
   modalRef.value?.close()
+}
+
+// Submenu, stacked over this modal rather than replacing it (teleported out of
+// the dialog's subtree below), so dismissing it returns to the settings list.
+const transcriptionModal = ref<InstanceType<typeof TranscriptionSettingsModal>>()
+function openTranscriptionSettings() {
+  transcriptionModal.value?.open()
 }
 
 // Hand off to the SideMenu-owned server drawer; close ourselves first so the
@@ -76,6 +88,20 @@ defineExpose({ open, close })
       <Toggle :active="showUnreadOnPortrait" @changed="(v: boolean) => (showUnreadOnPortrait = v)">
         <span class="text-lg italic">{{ $t('settings.showUnreadOnPortrait') }}</span>
       </Toggle>
+      <hr class="opacity-30" />
+      <Button
+        class="w-full"
+        color="lightgray"
+        :clicked="openTranscriptionSettings"
+        :aria-label="$t('settings.transcription.title')"
+      >
+        <template #default>
+          <span class="inline-flex items-center justify-center gap-1">
+            <MicrophoneIcon class="h-5 w-5" aria-hidden="true" />
+            <span class="whitespace-nowrap">{{ $t('settings.transcription.title') }}</span>
+          </span>
+        </template>
+      </Button>
       <template v-if="isNativeMobile">
         <hr class="opacity-30" />
         <Button
@@ -109,5 +135,11 @@ defineExpose({ open, close })
         </p>
       </template>
     </div>
+    <!-- Teleported out of this dialog's DOM (the nesting pattern InfoModal uses
+         for its own sub-modal) so the submenu stacks over the settings list
+         instead of rendering inside its panel. Dismissing it returns here. -->
+    <Teleport to="#modals">
+      <TranscriptionSettingsModal ref="transcriptionModal" />
+    </Teleport>
   </ModalBox>
 </template>

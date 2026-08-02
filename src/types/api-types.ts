@@ -396,6 +396,12 @@ export interface SendVoiceMemoArgs {
   // Whisper command targets for a private memo — the same 'gm' / '[Name]'
   // tokens the text path sends, resolved server-side; omitted/empty = public.
   whisper?: string[]
+  // The sending app transcribes its own memos (see api/transcription.ts) and
+  // patches the text onto the posted message a moment later. This flag says a
+  // transcript is on its way, and is stored on the message so the push notifier
+  // knows to hold the notification briefly for it — the module itself no longer
+  // has any transcription configuration to consult.
+  transcriptPending?: boolean
   uuid: string
 }
 // One chunk of an uploaded image. Mirrors SendVoiceMemoArgs exactly (shared
@@ -706,7 +712,11 @@ export interface ResponseByAction {
   [TM.CAST_STAFF_SPELL]: PlainAck
   [TM.CONSUME_ITEM]: PlainAck
   [TM.SEND_CHAT_MESSAGE]: PlainAck
-  [TM.SEND_VOICE_MEMO]: PlainAck
+  // The final chunk's ack reports the message the memo was posted as, so the
+  // sender can patch its transcript onto it once transcription finishes (it is
+  // the message's author, so it can write that update itself over the socket).
+  // Intermediate chunks ack with neither field.
+  [TM.SEND_VOICE_MEMO]: { messageId?: string; content?: string }
   [TM.SEND_IMAGE]: PlainAck
   [TM.SEND_ITEM_TO_CHAT]: PlainAck
   [TM.SEND_COMPENDIUM_ITEM_TO_CHAT]: PlainAck

@@ -1,7 +1,18 @@
 {
   "settings": {
     "title": "Configuración",
-    "showUnreadOnPortrait": "Mostrar número de mensajes sin leer en el retrato del personaje"
+    "showUnreadOnPortrait": "Mostrar número de mensajes sin leer en el retrato del personaje",
+    "transcription": {
+      "title": "Transcripción de notas de voz",
+      "description": "Las notas de voz que grabes en este dispositivo pueden transcribirse automáticamente, y el texto se publica junto con la nota para que todos lo lean. La transcripción se hace en este dispositivo, así que cada dispositivo se configura por separado.",
+      "enable": "Transcribir mis notas de voz",
+      "endpoint": "Punto de acceso de la API",
+      "endpointHint": "URL base de un servicio de transcripción compatible con OpenAI, p. ej. https://api.openai.com/v1 o https://api.groq.com/openai/v1.",
+      "apiKey": "Clave de API",
+      "apiKeyHint": "Solo se envía al punto de acceso indicado arriba y se guarda en este dispositivo.",
+      "model": "Modelo",
+      "modelHint": "Por ejemplo whisper-1 o gpt-4o-mini-transcribe (OpenAI), o whisper-large-v3-turbo (Groq)."
+    }
   },
   "rollCheck": {
     "saves": "Salvaciones",
@@ -331,6 +342,8 @@
     "cancelRecording": "Cancelar grabación",
     "discardRecording": "Descartar grabación",
     "sendVoice": "Enviar nota de voz",
+    "transcribing": "Transcribiendo…",
+    "editTranscript": "Editar transcripción",
     "micDenied": "No se puede acceder al micrófono. Comprueba los permisos.",
     "attachImage": "Adjuntar imagen",
     "sendImage": "Enviar imagen",

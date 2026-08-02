@@ -100,6 +100,27 @@ export const useWorldStore = defineStore('world', () => {
     triggerRef(world)
   }
 
+  // Write a voice memo's transcript (and the content copy that carries it into
+  // Foundry's own chat log) in place, once the sending device's transcription
+  // call returns — see attachVoiceMemoTranscript in useChatActions.
+  //
+  // Nested-write for the same reason as applyChatReactions: routing this through
+  // applyChatUpdate would Object.assign the whole `flags` object over the
+  // message and drop audioPath, i.e. the memo's own player.
+  function applyChatTranscript(messageId: string, content: string, transcript: string): void {
+    const root = asDocumentArray(world.value?.messages)
+    const message = root?.find((m) => m._id === messageId) as
+      | (DocumentData & { content?: string; flags?: { tablemate?: { transcript?: string } } })
+      | undefined
+    if (!message) return
+    message.content = content
+    message.flags ??= {}
+    message.flags.tablemate ??= {}
+    message.flags.tablemate.transcript = transcript
+    messagesRevision.value++
+    triggerRef(world)
+  }
+
   // Fold a locally-issued chat delete into world.messages (see applyChatUpdate
   // for why self-apply is needed). Removes by _id; idempotent.
   function applyChatDelete(ids: string[]): void {
@@ -227,6 +248,7 @@ export const useWorldStore = defineStore('world', () => {
     applyChatCreate,
     applyChatUpdate,
     applyChatReactions,
+    applyChatTranscript,
     applyChatDelete,
     actorsById,
     usersById,

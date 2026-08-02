@@ -11,11 +11,15 @@ import {
 } from '@/api/actionRpc'
 import { readReactions, toggleReaction as toggleReactionLocal } from '@/utils/chatReactions'
 import { modifyDocument } from '@/api/documents'
+import { transcribeAudioOrNull, type TranscriptionConfig } from '@/api/transcription'
 import type { DocumentData } from '@/api/internal'
 import { useWorldStore } from '@/stores/world'
 import { useUserStore } from '@/stores/user'
+import { useSettingsStore } from '@/stores/settings'
+import { useVersionCompatStore } from '@/stores/versionCompat'
 import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
 import {
+  appendTranscriptContent,
   buildChatMessageCreateData,
   buildSpeaker,
   formatChatContent,
@@ -23,7 +27,7 @@ import {
   type ChatUserLike
 } from '@/utils/chatMessage'
 import type { ApplyDamageMode, ChatRollRerollMode } from '@/types/api-types'
-import { uuidv4 } from '@/utils/utilities'
+import { logger, uuidv4 } from '@/utils/utilities'
 import { sliceBytesToBase64Chunks } from '@/utils/voiceMemoChunks'
 import type { PreparedImage } from '@/utils/imageUpload'
 import type { ChatRollSummary } from '@/utils/chatRollSummary'
@@ -106,6 +110,8 @@ export function useChatActions({
 
   const worldStore = useWorldStore()
   const userStore = useUserStore()
+  const settingsStore = useSettingsStore()
+  const versionCompat = useVersionCompatStore()
 
   const canSend = computed(
     () => !!actorId.value && draft.value.trim().length > 0 && !isSending.value
@@ -435,10 +441,123 @@ export function useChatActions({
     }
   }
 
+  // ── Voice memo transcription ───────────────────────────────────────────────
+  // Transcription of the take sitting in the composer, started as soon as the
+  // recording finished rather than on send: the user then spends a few seconds
+  // reviewing the take and typing a caption, which is time the transcription
+  // gets for free, so the text is usually already in hand when they hit send.
+  //
+  // The transcription belonging to that take: still out, or settled on a text —
+  // which the user may have corrected, or cleared to drop the transcript
+  // altogether. Keyed by the blob so a result can never be attached to a
+  // different take.
+  type MemoTranscription =
+    | { blob: Blob; running: true; text: Promise<string | null> }
+    | { blob: Blob; running: false; text: string | null }
+  let memoTranscription: MemoTranscription | null = null
+
+  // What the composer shows beneath the take it is previewing: the transcript
+  // once it lands, and whether one is still on its way. Both are cleared when
+  // the take is discarded or replaced. A failed transcription reads as neither
+  // — nothing is shown, and the memo simply posts without text.
+  const voiceMemoTranscript = ref<string | null>(null)
+  const voiceMemoTranscribing = ref(false)
+
+  // What this device can transcribe with right now, or null when it doesn't.
+  // Also null against a module too old to name the message it posted a memo as,
+  // since the text would then have nowhere to go — not worth a billable call.
+  function memoTranscriptionConfig(): TranscriptionConfig | null {
+    if (!versionCompat.supportsVoiceMemoTranscript) return null
+    return settingsStore.transcriptionConfig
+  }
+
+  // Start transcribing a finished recording. Called by the composer the moment
+  // the recorder produces its blob; a no-op on a device that doesn't transcribe,
+  // and idempotent for a take already under way.
+  //
+  // The cost of starting here rather than on send is a discarded take's
+  // transcription, which is paid for and thrown away. That is the trade for
+  // having the text ready when the memo posts.
+  function beginVoiceMemoTranscription(blob: Blob, mimeType: string): void {
+    const config = memoTranscriptionConfig()
+    if (!config) {
+      discardVoiceMemoTranscription()
+      return
+    }
+    if (memoTranscription?.blob === blob) return
+    const started: MemoTranscription = {
+      blob,
+      running: true,
+      text: transcribeAudioOrNull(blob, mimeType, config)
+    }
+    memoTranscription = started
+    voiceMemoTranscript.value = null
+    voiceMemoTranscribing.value = true
+    void started.text.then((text) => {
+      // Ignore a result the composer has moved on from — a retake, a discard, or
+      // a correction typed while the call was still out. None of those texts
+      // belong under the take now on screen.
+      if (memoTranscription !== started) return
+      memoTranscription = { blob, running: false, text }
+      voiceMemoTranscript.value = text
+      voiceMemoTranscribing.value = false
+    })
+  }
+
+  // Replace the transcript with the user's correction of it — the composer lets
+  // them tap the text and fix a misheard name before the memo goes out. An empty
+  // correction means "no transcript": the memo posts audio-only, which is also
+  // how a transcription the user doesn't want sent gets deleted.
+  function setVoiceMemoTranscript(text: string): void {
+    const corrected = text.trim() || null
+    voiceMemoTranscript.value = corrected
+    voiceMemoTranscribing.value = false
+    // Settling the entry also detaches an in-flight call (begin's handler checks
+    // identity), so a slow transcription can't land on top of the correction.
+    if (memoTranscription) {
+      memoTranscription = { blob: memoTranscription.blob, running: false, text: corrected }
+    }
+  }
+
+  // Forget the transcription — the take was discarded or re-recorded, so its text
+  // belongs to nothing now. Any in-flight request is left to resolve into the
+  // void; it is already paid for, and nothing waits on it.
+  function discardVoiceMemoTranscription(): void {
+    memoTranscription = null
+    voiceMemoTranscript.value = null
+    voiceMemoTranscribing.value = false
+  }
+
+  // The transcription to attach to the memo now being sent.
+  //
+  // Text the user can see under the take is what gets sent — including their
+  // correction of it, and including the empty result of deleting it. A call
+  // still in flight has shown them nothing to judge, so it is subject to the
+  // transcription setting as it stands now. A take that never went through
+  // beginVoiceMemoTranscription still transcribes, just from here.
+  //
+  // The entry is deliberately left in place: a send that fails keeps the take for
+  // a retry, and that retry should reuse this call rather than pay for a second
+  // one. It is cleared when the take itself goes away.
+  function takeVoiceMemoTranscription(blob: Blob, mimeType: string): Promise<string | null> | null {
+    const current = memoTranscription
+    if (current?.blob === blob) {
+      if (!current.running) return current.text === null ? null : Promise.resolve(current.text)
+      return memoTranscriptionConfig() ? current.text : null
+    }
+    const config = memoTranscriptionConfig()
+    if (!config) return null
+    return transcribeAudioOrNull(blob, mimeType, config)
+  }
+
   // Send a recorded voice memo: slice the blob into base64 chunks and stream
   // them to the GM client, which reassembles + uploads + posts the message.
   // Awaits each chunk's ack before the next (ordering + backpressure); shares
   // the text composer's isSending/sendError so the UI reflects it uniformly.
+  //
+  // The transcription is never awaited here — it has usually been running since
+  // the recording stopped, and whenever it lands it is patched onto the posted
+  // message. The memo posts at upload speed either way.
   async function submitVoiceMemo(
     blob: Blob,
     meta: {
@@ -456,22 +575,66 @@ export function useChatActions({
     }
     isSending.value = true
     sendError.value = false
+    const pendingTranscript = takeVoiceMemoTranscription(blob, meta.mimeType)
     try {
       const bytes = new Uint8Array(await blob.arrayBuffer())
       const chunks = sliceBytesToBase64Chunks(bytes)
       const uploadId = uuidv4()
+      let posted: { messageId?: string; content?: string } | undefined
       for (let seq = 0; seq < chunks.length; seq++) {
-        await sendVoiceMemo(
+        posted = await sendVoiceMemo(
           actorId.value,
           { uploadId, seq, total: chunks.length, chunkBase64: chunks[seq] },
-          meta
+          { ...meta, transcriptPending: !!pendingTranscript }
         )
       }
+      // Detached: the composer is done once the memo is posted.
+      if (pendingTranscript) void attachVoiceMemoTranscript(posted, pendingTranscript)
       onMessageSent?.()
     } catch {
       sendError.value = true
     } finally {
       isSending.value = false
+    }
+  }
+
+  // Patch a finished transcription onto the memo it belongs to: the flag the app
+  // renders from, and the content copy Foundry's own chat log renders from.
+  //
+  // A direct socket write, not an RPC — we authored the message, and Foundry
+  // authorizes an author updating their own. Foundry deep-merges the update, so
+  // writing flags.tablemate.transcript leaves audioPath/mime/duration intact
+  // (the local self-apply has to do that merge by hand; see applyChatTranscript).
+  //
+  // Best-effort throughout: a failed transcription, an ack that named no message
+  // (a module too old to report one), or a rejected update all leave the memo
+  // audio-only, which is exactly what an unconfigured device gets.
+  async function attachVoiceMemoTranscript(
+    posted: { messageId?: string; content?: string } | undefined,
+    pendingTranscript: Promise<string | null>
+  ): Promise<void> {
+    const transcript = await pendingTranscript
+    if (!transcript) return
+    const messageId = posted?.messageId
+    if (!messageId) {
+      logger.warn('TM-WARN: voice memo transcript dropped — no message id in the ack')
+      return
+    }
+    const content = appendTranscriptContent(posted?.content ?? '', transcript)
+    try {
+      await modifyDocument(
+        {
+          action: 'update',
+          type: 'ChatMessage',
+          operation: {
+            updates: [{ _id: messageId, content, flags: { tablemate: { transcript } } }],
+            render: true
+          }
+        },
+        () => worldStore.applyChatTranscript(messageId, content, transcript)
+      )
+    } catch (error) {
+      logger.warn('TM-WARN: voice memo transcript update failed', error)
     }
   }
 
@@ -525,6 +688,11 @@ export function useChatActions({
     actionError,
     canSend,
     submitVoiceMemo,
+    beginVoiceMemoTranscription,
+    discardVoiceMemoTranscription,
+    setVoiceMemoTranscript,
+    voiceMemoTranscript,
+    voiceMemoTranscribing,
     submitImage,
     deleteMessage,
     updateMessageContent,

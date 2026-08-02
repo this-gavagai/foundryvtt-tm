@@ -47,6 +47,7 @@ import {
   TM_ERROR_UNAUTHORIZED,
   PROTOCOL_VERSION,
   CAPABILITY_VOICE_MEMO,
+  CAPABILITY_VOICE_MEMO_TRANSCRIPT,
   CAPABILITY_IMAGE_UPLOAD,
   CAPABILITY_REACTIONS,
   MODULE_ID
@@ -66,7 +67,6 @@ import {
 } from './gmHandlerSetting'
 import { registerVoiceMemoSetting, voiceMemoEnabled } from './voiceMemoSetting'
 import { registerImageUploadSetting, imageUploadEnabled } from './imageUploadSetting'
-import { registerTranscriptionSetting } from './transcriptionSetting'
 import { registerPushSettings, ensureWorldPushIdentity, foundryRegisterPush } from './pushRegistration'
 import { notifyChatMessage } from './pushNotify'
 
@@ -234,10 +234,9 @@ const CONCURRENT_ACTIONS = new Set<string>([
 //
 //   • A proxy may be an ordinary PLAYER — the app lets you pick any non-root
 //     user. Requests then execute on a client with no GM authority: Foundry
-//     refuses a non-author message update (reactions), file uploads want a GM's
-//     permissions (voice memos, images), and the GM-only transcription key
-//     cannot exist there at all, so a memo posts permanently untranscribed with
-//     no error anywhere.
+//     refuses a non-author message update (reactions), and file uploads want a
+//     GM's permissions (voice memos, images) — so those requests fail on a
+//     player proxy with no error anywhere useful.
 //   • It is chosen PER REQUESTER, so one table's requests could execute on
 //     several clients at once. The dispatch chain below serializes handlers per
 //     client, which made it insufficient for anything read-modify-write on
@@ -512,10 +511,6 @@ export function setupListener() {
   // Re-announce when the GM sets/clears the voice-memo folder so connected apps
   // show or hide the mic immediately (the capability rides announceSelf below).
   registerVoiceMemoSetting(() => announceSelf())
-  // Optional AI transcription of voice memos (GM-configured endpoint + key).
-  // No capability handshake: it changes only what the GM's client does after a
-  // memo lands, so connected apps need not know whether it is on.
-  registerTranscriptionSetting()
   // Re-announce when the GM sets/clears the image folder so connected apps show
   // or hide the attach button immediately (the capability rides announceSelf).
   registerImageUploadSetting(() => announceSelf())
@@ -703,7 +698,11 @@ function announceSelf() {
       ...(imageUploadEnabled() ? [CAPABILITY_IMAGE_UPLOAD] : []),
       // Unconditional: reactions need no world configuration, so this is purely
       // a "this module is new enough" signal for the app's affordance gate.
-      CAPABILITY_REACTIONS
+      CAPABILITY_REACTIONS,
+      // Likewise unconditional — it says this module reports the posted message
+      // on a voice memo's final chunk, which is what lets the sending app patch
+      // its own transcript onto the memo.
+      CAPABILITY_VOICE_MEMO_TRANSCRIPT
     ]
   })
 }

@@ -116,6 +116,11 @@ const {
   rerollRoll,
   submitMessage,
   submitVoiceMemo,
+  beginVoiceMemoTranscription,
+  discardVoiceMemoTranscription,
+  setVoiceMemoTranscript,
+  voiceMemoTranscript,
+  voiceMemoTranscribing,
   submitImage,
   deleteMessage,
   updateMessageContent
@@ -238,6 +243,56 @@ const {
   stop: stopRecording,
   reset: resetRecording
 } = useAudioRecorder({ maxDurationMs: 300_000 })
+
+// Transcribe the take the moment the recorder finishes it, not when it is sent:
+// reviewing the take and typing a caption is time the transcription can run in,
+// so the text is usually ready by the time the memo posts. The blob turns null
+// again when the take is discarded or a new recording starts, which drops the
+// pending transcription with it.
+watch(recordedBlob, (blob) => {
+  if (blob) beginVoiceMemoTranscription(blob, recordMimeType.value)
+  else discardVoiceMemoTranscription()
+})
+
+// Tap the transcript to correct it before the memo goes out — a misheard name is
+// the common case, and fixing it here beats editing the posted message. Edits
+// are held locally until committed so an in-progress correction isn't seen as
+// the transcript; committing an empty box deletes the transcript entirely.
+const editingTranscript = ref(false)
+const transcriptInput = ref<HTMLTextAreaElement>()
+const transcriptDraft = ref('')
+
+function startTranscriptEdit() {
+  if (!voiceMemoTranscript.value) return
+  transcriptDraft.value = voiceMemoTranscript.value
+  editingTranscript.value = true
+  nextTick(() => transcriptInput.value?.focus())
+}
+
+function commitTranscriptEdit() {
+  if (!editingTranscript.value) return
+  editingTranscript.value = false
+  setVoiceMemoTranscript(transcriptDraft.value)
+}
+
+// Mirrors the composer's own Enter handling: on mobile the return key types a
+// newline (the blur when the user taps away commits), on desktop it commits.
+function onTranscriptEnterKey(event: KeyboardEvent) {
+  if (isNativeMobile) return
+  event.preventDefault()
+  commitTranscriptEdit()
+}
+
+// Escape abandons the edit; the transcript keeps whatever it had.
+function cancelTranscriptEdit() {
+  editingTranscript.value = false
+}
+
+// A discarded take (or a new recording) takes the open editor with it, so a
+// correction can't be committed onto a transcript that no longer exists.
+watch(voiceMemoTranscript, (text) => {
+  if (!text) editingTranscript.value = false
+})
 
 // Offer the mic only when this device can actually record (secure context +
 // MediaRecorder), the connected module advertises voice-memo support (so an
@@ -727,11 +782,17 @@ defineExpose({ open, close, isOpen })
                       </button>
                     </div>
 
-                    <!-- Recorded take: inline preview player. -->
+                    <!-- Recorded take: inline preview player, with the memo's
+                         transcript under it once transcription lands (it runs
+                         from the moment recording stops, so it usually beats the
+                         send). Scrolls rather than growing the composer without
+                         bound for a long memo. Nothing is shown when this device
+                         doesn't transcribe, or when the call failed — the memo
+                         posts audio-only and says so by staying quiet. -->
                     <div
                       v-else-if="canPreviewVoice"
                       data-part="chat-voice-preview"
-                      class="flex min-h-14.5 items-center"
+                      class="flex min-h-14.5 flex-col justify-center gap-1"
                     >
                       <audio
                         :src="recordedUrl ?? undefined"
@@ -739,6 +800,34 @@ defineExpose({ open, close, isOpen })
                         preload="metadata"
                         class="h-10 w-full"
                       />
+                      <p
+                        v-if="voiceMemoTranscribing"
+                        data-part="chat-voice-preview-transcript"
+                        class="px-1 text-xs text-gray-600 italic"
+                      >
+                        {{ $t('chat.transcribing') }}
+                      </p>
+                      <textarea
+                        v-else-if="editingTranscript"
+                        ref="transcriptInput"
+                        v-model="transcriptDraft"
+                        data-part="chat-voice-preview-transcript"
+                        rows="2"
+                        class="max-h-16 w-full resize-none overflow-y-auto rounded-md border border-gray-300 bg-white px-1 text-xs text-gray-600 italic focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-hidden"
+                        @blur="commitTranscriptEdit"
+                        @keydown.enter.exact="onTranscriptEnterKey"
+                        @keydown.esc="cancelTranscriptEdit"
+                      />
+                      <button
+                        v-else-if="voiceMemoTranscript"
+                        type="button"
+                        data-part="chat-voice-preview-transcript"
+                        class="max-h-16 overflow-y-auto px-1 text-left text-xs text-gray-600 italic"
+                        :aria-label="$t('chat.editTranscript')"
+                        @click="startTranscriptEdit"
+                      >
+                        {{ voiceMemoTranscript }}
+                      </button>
                     </div>
 
                     <!-- Picked image: inline thumbnail preview. -->
