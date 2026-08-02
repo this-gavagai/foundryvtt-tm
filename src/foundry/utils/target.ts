@@ -57,6 +57,20 @@ function noFallbackTokenDocumentList(): TokenDoc[] {
   return tokenDocs
 }
 
+// A stand-in to pass as PF2e's `target` when the player targeted NOTHING.
+//
+// Passing null instead is not the same thing: PF2e treats a missing target as
+// "look it up yourself" and resolves it from `game.user.targets` — which on the
+// handling client is the GM's own reticle, not the player's choice. So an
+// untargeted tablet roll picked up whatever creature the GM happened to be
+// pointing at, complete with its AC/DC comparison and target-derived modifiers.
+// A stand-in that resolves to no token stops the lookup at the door.
+//
+// It contributes nothing of its own: no tokens (so nothing to target), no roll
+// options (PF2e feeds a target actor through getSelfRollOptions('target')), and
+// level 0 — PF2e compares the target's level against an incapacitation effect's
+// level, and the roller's real level there would earn a degree-of-success
+// adjustment for a target that does not exist.
 export function noFallbackTargetActor(actor: ActorPF2e): ActorPF2e {
   return new Proxy(actor, {
     get(obj: ActorPF2e, prop: string | symbol) {
@@ -65,6 +79,7 @@ export function noFallbackTargetActor(actor: ActorPF2e): ActorPF2e {
           document ? noFallbackTokenDocumentList() : []
       }
       if (prop === 'getSelfRollOptions') return () => []
+      if (prop === 'level') return 0
 
       const val = (obj as ActorPF2e & Record<string | symbol, unknown>)[prop]
       return typeof val === 'function' ? (val as (...a: unknown[]) => unknown).bind(obj) : val
@@ -129,6 +144,87 @@ export function resolveTargets(source: GamePF2e, request: TargetRequest): Resolv
       : null
 
   return { tokenDocs, tokens, tokenDoc, token, actorProxy, requested: ids.length, unresolved }
+}
+
+// Refuse a request whose target resolved as a document but not as a PLACED
+// Token. Some PF2e entry points (AttackRollParams.target — strikes, their damage
+// rolls, elemental blasts) take a Token object rather than an actor, and a Token
+// object exists only for the scene its client currently has drawn. So when the
+// elected GM is looking at another scene, the player's target resolves to a
+// document we cannot pass anywhere: the attack would roll with no target at all
+// (or, worse, with the GM's own — see noFallbackTargetActor).
+//
+// Refusing costs a targeted strike while the GM is off-scene, and a retry keeps
+// failing until they navigate back — which is information the table needs. The
+// alternative is an attack card that looks complete and compares against the
+// wrong creature, which is the whole reason TM_ERROR_TARGET_UNRESOLVED exists.
+export function requirePlaceableTarget(resolved: ResolvedTarget): ResolvedTarget {
+  if (resolved.requested > 0 && !resolved.token) {
+    logger.warn(
+      'TABLEMATE: targets resolved as documents but not as placed tokens — is this client viewing that scene?'
+    )
+    throw new Error(TM_ERROR_TARGET_UNRESOLVED)
+  }
+  return resolved
+}
+
+// Run `run()` with `game.user.targets` presenting the PLAYER's targets (or
+// nothing) in place of this client's own selection.
+//
+// The safety net behind noFallbackTargetActor, for everything that reads
+// `game.user.targets` directly whatever we pass as a `target` param: PF2e's
+// strike context builder, its action-macro helper, and its inline-check listener
+// all do. Hand it the resolved placeables and those paths target what the player
+// targeted; hand it nothing and they target nothing, instead of inheriting the
+// handling GM's reticle.
+//
+// The real UserTargets is never touched: we swap the PROPERTY for a fresh
+// instance of the same class and put the original descriptor back in `finally`.
+// Membership is written through Set.prototype.add so UserTargets#add can't
+// refresh a reticle. Nothing is broadcast and nothing is drawn, so the client's
+// UI never changes — this is not a write to the user's targeting, which the app
+// must never do.
+//
+// The one race: a target the user clicks during the roll lands in the stand-in
+// and is dropped. Rolls are sub-second and dispatch is serialized, so that costs
+// at most a re-click; clobbering their selection on restore would be worse.
+export async function withMirroredTargets<T>(
+  source: GamePF2e,
+  tokens: TokenPF2e[],
+  run: () => Promise<T>
+): Promise<T> {
+  const user = source.user as unknown as object
+  const descriptor = Object.getOwnPropertyDescriptor(user, 'targets')
+  const held = descriptor?.value as { constructor?: new (user: unknown) => unknown } | undefined
+  // Only swap what we can put back exactly as we found it: a configurable own
+  // value property whose class we can instantiate empty. Anything else (a
+  // prototype getter, a frozen property, a Foundry refactor) means we roll
+  // unshielded rather than risk leaving this client's targeting broken.
+  if (!descriptor || !descriptor.configurable || typeof held?.constructor !== 'function') {
+    logger.debug('TABLEMATE: cannot isolate this client targeting; rolling unshielded')
+    return run()
+  }
+  let standIn: unknown
+  try {
+    standIn = new held.constructor(user)
+    for (const token of tokens) Set.prototype.add.call(standIn as Set<TokenPF2e>, token)
+  } catch (error) {
+    logger.debug('TABLEMATE: could not build a stand-in target set', error)
+    return run()
+  }
+
+  Object.defineProperty(user, 'targets', { ...descriptor, value: standIn })
+  try {
+    return await run()
+  } finally {
+    Object.defineProperty(user, 'targets', descriptor)
+  }
+}
+
+// The empty case: nothing the player targeted, so nothing this client's own
+// selection may substitute for it.
+export function withoutAmbientTargets<T>(source: GamePF2e, run: () => Promise<T>): Promise<T> {
+  return withMirroredTargets(source, [], run)
 }
 
 // Resolve for an RPC handler, refusing the request when the player targeted

@@ -3,6 +3,7 @@ import { withBackgroundRoll } from '../backgroundRoll'
 import { registerCapture } from '../chatCapture'
 import { getGame, makeAck } from '../utils/foundry'
 import { extractRollPayload } from '../utils/roll'
+import { resolveTargets, withMirroredTargets } from '../utils/target'
 
 // Inline @Check route. Builds a synthetic PF2e inline-check anchor (matching
 // the dataset shape produced by TextEditorPF2e.#createSingleCheck) and lets
@@ -75,33 +76,47 @@ export async function foundryRollInlineCheck(args: RollInlineCheckArgs) {
   const actor = source.actors.get(args.characterId, { strict: true })
   const item = args.itemId ? actor.items.get(args.itemId) : null
 
-  const message = await withBackgroundRoll(args.diceResults, async () => {
-    const anchor = buildAnchor(args, item?.uuid)
-    document.body.appendChild(anchor)
+  // This route hands the whole roll to PF2e's own listener, which resolves the
+  // target from `game.user.targets` — so unlike every other targeted handler
+  // there is no `target` param to pass. The player's targets were sent and then
+  // silently ignored, and the roll took its DC from the handling GM's reticle
+  // instead (`against:reflex` and friends). Present them on the way in instead.
+  //
+  // Deliberately the non-throwing resolve: an inline check is as often about a
+  // flat DC as about a creature (`@Check[athletics|dc:20]` clicked while some
+  // unrelated token is mirrored), so a target we cannot place means "roll it
+  // untargeted" here, not "refuse the roll".
+  const targeted = resolveTargets(source, args)
 
-    // PF2e's listener doesn't return the ChatMessage; capture it by request
-    // uuid (see rollDamage.ts / chatCapture.ts). The capture's timeout guards
-    // against the click resolving no message.
-    const capture = registerCapture(args.uuid)
+  const message = await withBackgroundRoll(args.diceResults, () =>
+    withMirroredTargets(source, targeted.tokens, async () => {
+      const anchor = buildAnchor(args, item?.uuid)
+      document.body.appendChild(anchor)
 
-    // ctrlKey flips the roll to blindroll via PF2e's eventToRollParams; shiftKey
-    // honours the user's dialog setting (suppressing the GM-side roll dialog
-    // since the tablet user can't interact with it).
-    const event = new PointerEvent('click', {
-      bubbles: true,
-      cancelable: true,
-      shiftKey: !!source.user.settings['showDamageDialogs'],
-      ctrlKey: args.secret
+      // PF2e's listener doesn't return the ChatMessage; capture it by request
+      // uuid (see rollDamage.ts / chatCapture.ts). The capture's timeout guards
+      // against the click resolving no message.
+      const capture = registerCapture(args.uuid)
+
+      // ctrlKey flips the roll to blindroll via PF2e's eventToRollParams; shiftKey
+      // honours the user's dialog setting (suppressing the GM-side roll dialog
+      // since the tablet user can't interact with it).
+      const event = new PointerEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        shiftKey: !!source.user.settings['showDamageDialogs'],
+        ctrlKey: args.secret
+      })
+      anchor.dispatchEvent(event)
+
+      try {
+        return await capture
+      } finally {
+        // Anchor's job is done — remove it once PF2e has read the dataset.
+        anchor.remove()
+      }
     })
-    anchor.dispatchEvent(event)
-
-    try {
-      return await capture
-    } finally {
-      // Anchor's job is done — remove it once PF2e has read the dataset.
-      anchor.remove()
-    }
-  })
+  )
 
   const rollMode = args.secret ? 'blindroll' : 'publicroll'
   return {

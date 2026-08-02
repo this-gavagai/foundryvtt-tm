@@ -2,7 +2,11 @@ import type { RollCheckArgs } from '@/types/api-types'
 import { withBackgroundRoll } from '../backgroundRoll'
 import { extractRollPayload } from '../utils/roll'
 import { getCharacter, getGame, makeAck, makeFakeEvent } from '../utils/foundry'
-import { resolveRequestedTargets } from '../utils/target'
+import {
+  requirePlaceableTarget,
+  resolveRequestedTargets,
+  withoutAmbientTargets
+} from '../utils/target'
 import { handleBlast, handleBlastDamage } from './checks/blast'
 import { handleFlat } from './checks/flat'
 import { handleSpellAttack, handleSpellDamage } from './checks/spellCheckHandlers'
@@ -35,6 +39,11 @@ const CHECK_ROLL_HANDLERS: Record<string, CheckRollHandler> = {
   flat: handleFlat
 }
 
+// Check kinds whose PF2e entry point takes a placed Token as its `target`
+// (AttackRollParams) rather than an actor, so a resolved token DOCUMENT is not
+// enough for them. See requirePlaceableTarget.
+const PLACEABLE_TARGET_CHECKS = new Set(['strike', 'damage', 'blast', 'blastDamage'])
+
 export async function foundryRollCheck(args: RollCheckArgs) {
   const source = getGame()
   // https://github.com/foundryvtt/pf2e/blob/68988e12fbec7ea8359b9bee9b0c43eb6964ca3f/src/module/system/statistic/statistic.ts#L617
@@ -53,6 +62,7 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   // Resolved once for the whole request: handlers that need the full set (rather
   // than PF2e's single `target`) read it off ctx.targets instead of re-deriving.
   const resolvedTargets = resolveRequestedTargets(source, args)
+  if (PLACEABLE_TARGET_CHECKS.has(args.checkType)) requirePlaceableTarget(resolvedTargets)
   const params = {
     modifiers,
     target: resolvedTargets.token,
@@ -69,8 +79,13 @@ export async function foundryRollCheck(args: RollCheckArgs) {
     targets: resolvedTargets
   }
 
+  const runHandler = () => Promise.resolve(CHECK_ROLL_HANDLERS[args.checkType]?.(ctx))
+  // A request that named no targets must not pick up the handling client's own
+  // reticle. statisticParams covers the paths that take an actor; this covers the
+  // rest — PF2e's strike context builder and its action-macro helper read
+  // `game.user.targets` directly, whatever we pass as `target`.
   const rRaw = await withBackgroundRoll(args.diceResults, () =>
-    Promise.resolve(CHECK_ROLL_HANDLERS[args.checkType]?.(ctx))
+    resolvedTargets.requested === 0 ? withoutAmbientTargets(source, runHandler) : runHandler()
   )
   return { ...makeAck(args), ...extractRollPayload(rRaw, args) }
 }

@@ -1,8 +1,7 @@
 import { findSpell } from '@/foundry/utils/spellLookup'
 import { makeCastRankEvent } from '@/foundry/utils/roll'
-import { noFallbackTargetActor } from '@/foundry/utils/target'
 import { rollSpellDamageWithTarget } from '@/foundry/utils/spellTargeting'
-import { type CheckRollContext, type CheckRollHandler, statisticParams } from './types'
+import { type CheckRollHandler, statisticParams } from './types'
 import { checkSubtypeOf } from './subtype'
 import {
   withDamageModifierOverrides,
@@ -13,18 +12,14 @@ import {
 // Subtype carries entryId alone (entry-level attack from the entry modal) or
 // entryId + spellId + attackNumber for the per-spell attack buttons in the
 // spell info modal (attackNumber 1/2/3 = MAP 0/-5/-10).
-function spellAttackParams(ctx: CheckRollContext) {
-  return {
-    ...statisticParams(ctx),
-    target: ctx.targetActorProxy ?? noFallbackTargetActor(ctx.actor)
-  }
-}
-
+//
+// The no-target stand-in this path used to apply itself now lives in
+// statisticParams, which every statistic-based check goes through.
 export const handleSpellAttack: CheckRollHandler = (ctx) => {
   const { entryId, spellId, attackNumber } = checkSubtypeOf(ctx.args, 'spellAttack')
   const overrides = (ctx.args.options as { modifierOverrides?: ModifierOverrideMap })
     ?.modifierOverrides
-  const rollParams = spellAttackParams(ctx)
+  const rollParams = statisticParams(ctx)
   return withModifierOverrides(
     ctx.actor,
     (actor) => (entryId ? actor.spellcasting?.get(entryId)?.statistic : null),

@@ -7,7 +7,7 @@ import type {
   TokenPF2e
 } from '@7h3laughingman/pf2e-types'
 import type { RollCheckArgs } from '@/types/api-types'
-import type { ResolvedTarget } from '@/foundry/utils/target'
+import { noFallbackTargetActor, type ResolvedTarget } from '@/foundry/utils/target'
 
 // Context every roll-check handler receives. The orchestrator (foundryRollCheck)
 // builds this once per request; each handler reads what it needs.
@@ -46,10 +46,14 @@ export type CheckRollHandler = (ctx: CheckRollContext) => unknown
 // params.target with the actor proxy so getActiveTokens returns the player's
 // chosen token. See CheckRollContext.targetActorProxy for the cross-user
 // rationale (game.user.targets is the GM's UI on the handler side).
+//
+// `target` is always set, never left null: PF2e reads an absent target from
+// `game.user.targets`, so a player who targeted nothing would inherit the
+// handling GM's reticle. See noFallbackTargetActor.
 export function statisticParams(ctx: CheckRollContext): StatisticRollParameters {
   return {
     ...ctx.args.options,
     ...ctx.params,
-    ...(ctx.targetActorProxy ? { target: ctx.targetActorProxy } : {})
+    target: ctx.targetActorProxy ?? noFallbackTargetActor(ctx.actor)
   } as StatisticRollParameters
 }
