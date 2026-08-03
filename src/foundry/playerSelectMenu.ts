@@ -48,8 +48,10 @@ export class PlayerSelectMenu extends HandlebarsApplicationMixin(ApplicationV2) 
     },
     // ApplicationV2 defaults to width "auto", which sizes the frame to the widest
     // user name in the list — one long name and the dialog sprawls. A fixed width
-    // keeps it compact and lets the name column ellipsize instead.
-    position: { width: 400 }
+    // keeps it bounded and lets the name column ellipsize instead. 520 matches the
+    // GM handler menu and leaves the name column room enough that ordinary names
+    // are not truncated after a few characters.
+    position: { width: 520 }
   }
   static PARTS = {
     form: {
