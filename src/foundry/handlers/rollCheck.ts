@@ -44,6 +44,31 @@ const CHECK_ROLL_HANDLERS: Record<string, CheckRollHandler> = {
 // enough for them. See requirePlaceableTarget.
 const PLACEABLE_TARGET_CHECKS = new Set(['strike', 'damage', 'blast', 'blastDamage'])
 
+// Check kinds that resolve their target from `game.user.targets` no matter what
+// we pass, so an UNTARGETED request has to run with this client's own selection
+// hidden or it borrows the handling GM's reticle (withoutAmbientTargets).
+//
+// Deliberately a short list rather than "everything untargeted". A statistic
+// check — skill, save, perception, initiative, familiar attack, spell attack —
+// always receives an actor through statisticParams (the no-target stand-in when
+// the player chose nothing), and PF2e reads the ambient Set only when that param
+// is absent: `(args.target?.getActiveTokens() ?? [...game.user.targets]).find()`.
+// The stand-in returns an empty array there, which is not nullish, so the
+// fallback never runs. Shielding those too was harmless in itself but put a
+// global property swap around nearly every roll — and this client may be a
+// targeting proxy, whose reports must describe the screen (see ownTargetIds).
+const NEEDS_AMBIENT_SHIELD = new Set([
+  // Strikes and blasts: PF2e builds the roll context with
+  // `target: { token: game.user.targets.first() ?? null }`, ignoring params.
+  ...PLACEABLE_TARGET_CHECKS,
+  // Skill actions go through ActionMacroHelpers, which falls back to
+  // `ActionMacroHelpers.target()` — a direct read of the ambient Set.
+  'skillAction',
+  // SpellPF2e#rollDamage picks its target token out of the ambient Set itself;
+  // the injected `target` (utils/spellTargeting.ts) only reaches getDamage.
+  'spellDamage'
+])
+
 export async function foundryRollCheck(args: RollCheckArgs) {
   const source = getGame()
   // https://github.com/foundryvtt/pf2e/blob/68988e12fbec7ea8359b9bee9b0c43eb6964ca3f/src/module/system/statistic/statistic.ts#L617
@@ -81,11 +106,12 @@ export async function foundryRollCheck(args: RollCheckArgs) {
 
   const runHandler = () => Promise.resolve(CHECK_ROLL_HANDLERS[args.checkType]?.(ctx))
   // A request that named no targets must not pick up the handling client's own
-  // reticle. statisticParams covers the paths that take an actor; this covers the
-  // rest — PF2e's strike context builder and its action-macro helper read
-  // `game.user.targets` directly, whatever we pass as `target`.
+  // reticle. statisticParams covers every path that accepts an actor; the shield
+  // covers the few that don't — see NEEDS_AMBIENT_SHIELD.
   const rRaw = await withBackgroundRoll(args.diceResults, () =>
-    resolvedTargets.requested === 0 ? withoutAmbientTargets(source, runHandler) : runHandler()
+    resolvedTargets.requested === 0 && NEEDS_AMBIENT_SHIELD.has(args.checkType)
+      ? withoutAmbientTargets(source, runHandler)
+      : runHandler()
   )
   return { ...makeAck(args), ...extractRollPayload(rRaw, args) }
 }

@@ -168,15 +168,39 @@ export function requirePlaceableTarget(resolved: ResolvedTarget): ResolvedTarget
   return resolved
 }
 
+type TargetSetLike = { ids: string[] }
+
+// This client's OWN target set while a swap is in place: the object displaced
+// from `user.targets`, which is the selection actually drawn on this canvas.
+// Null the rest of the time, when the property itself is the answer.
+let displacedTargets: TargetSetLike | null = null
+
+// The ids this client is really targeting, swap or no swap.
+//
+// Anything that REPORTS this client's targeting must read it through here.
+// `user.targets` is the stand-in for the duration of a roll, so a report built
+// straight off the property describes the stand-in — and a client that is both
+// the elected handler and somebody's targeting proxy would tell every mirroring
+// tablet that it is targeting the roller's target, or (on an untargeted roll)
+// nothing at all, while its own reticle sits unchanged on screen. That report
+// then outlives the roll: nothing re-broadcasts until the next re-target.
+// See listener.broadcastOwnTargets, the one caller.
+export function ownTargetIds(source: GamePF2e): string[] {
+  const set = displacedTargets ?? (source.user.targets as unknown as TargetSetLike | undefined)
+  return set?.ids ?? []
+}
+
 // Run `run()` with `game.user.targets` presenting the PLAYER's targets (or
 // nothing) in place of this client's own selection.
 //
-// The safety net behind noFallbackTargetActor, for everything that reads
-// `game.user.targets` directly whatever we pass as a `target` param: PF2e's
-// strike context builder, its action-macro helper, and its inline-check listener
-// all do. Hand it the resolved placeables and those paths target what the player
-// targeted; hand it nothing and they target nothing, instead of inheriting the
-// handling GM's reticle.
+// The safety net behind noFallbackTargetActor, for the PF2e entry points that
+// resolve a target from `game.user.targets` whatever we pass as a `target`
+// param — strikes and blasts, the action-macro helper, spell damage, and the
+// inline-check listener. Hand it the resolved placeables and those paths target
+// what the player targeted; hand it nothing and they target nothing, instead of
+// inheriting the handling GM's reticle. rollCheck names the check kinds that
+// need it (NEEDS_AMBIENT_SHIELD); everything else passes an explicit target and
+// runs unswapped.
 //
 // The real UserTargets is never touched: we swap the PROPERTY for a fresh
 // instance of the same class and put the original descriptor back in `finally`.
@@ -213,11 +237,19 @@ export async function withMirroredTargets<T>(
     return run()
   }
 
+  // Only the OUTERMOST swap holds this client's real set — a nested one would
+  // displace the outer stand-in, and publishing that is the bug ownTargetIds
+  // exists to prevent. Dispatch is serialized, so nesting means one handler
+  // calling another; the guard makes it harmless rather than relying on that.
+  const outermost = !displacedTargets
+  if (outermost) displacedTargets = held as unknown as TargetSetLike
+
   Object.defineProperty(user, 'targets', { ...descriptor, value: standIn })
   try {
     return await run()
   } finally {
     Object.defineProperty(user, 'targets', descriptor)
+    if (outermost) displacedTargets = null
   }
 }
 

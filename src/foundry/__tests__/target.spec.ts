@@ -6,7 +6,8 @@ import {
   requirePlaceableTarget,
   withMirroredTargets,
   withoutAmbientTargets,
-  noFallbackTargetActor
+  noFallbackTargetActor,
+  ownTargetIds
 } from '@/foundry/utils/target'
 import { TM_ERROR_TARGET_UNRESOLVED } from '@/api/protocol'
 
@@ -68,6 +69,11 @@ class FakeUserTargets extends Set<TokenPF2e> {
   override add(token: TokenPF2e): this {
     FakeUserTargets.reticleRefreshes++
     return super.add(token)
+  }
+  // Foundry's UserTargets exposes this for reporting; broadcastOwnTargets reads
+  // it (through ownTargetIds).
+  get ids(): string[] {
+    return Array.from(this).map((token) => (token as unknown as { name: string }).name)
   }
 }
 
@@ -258,6 +264,58 @@ describe('mirroring targets onto the handling client', () => {
       })
     ).rejects.toThrow('roll blew up')
     expect(game.user.targets).toBe(held)
+  })
+
+  // What this client tells mirroring tablets it is targeting. The swap above
+  // makes `game.user.targets` lie for the duration of a roll, and the client
+  // answering the roll is very often the proxy those tablets read — so every
+  // report has to come from the real set, not the stand-in.
+  it('reports this client own targets, not the stand-in, during a roll', async () => {
+    const game = makeGameWithTargets('gm-reticle')
+    const { tokens } = resolveTargets(game, { targets: ['tok-1'], targetScene: 'scene-a' })
+    let reportedDuringRoll: string[] = []
+    await withMirroredTargets(game, tokens, async () => {
+      reportedDuringRoll = ownTargetIds(game)
+    })
+    expect(reportedDuringRoll).toEqual(['gm-reticle'])
+  })
+
+  it('reports an empty own selection during an untargeted roll, not the empty stand-in', async () => {
+    const game = makeGameWithTargets()
+    let reportedDuringRoll: string[] = ['unset']
+    await withoutAmbientTargets(game, async () => {
+      reportedDuringRoll = ownTargetIds(game)
+    })
+    expect(reportedDuringRoll).toEqual([])
+  })
+
+  it('reports the live property once the swap is over', async () => {
+    const game = makeGameWithTargets('gm-reticle')
+    await withoutAmbientTargets(game, async () => undefined)
+    expect(ownTargetIds(game)).toEqual(['gm-reticle'])
+  })
+
+  it('keeps reporting the real set through a nested swap', async () => {
+    const game = makeGameWithTargets('gm-reticle')
+    const { tokens } = resolveTargets(game, { targets: ['tok-1'], targetScene: 'scene-a' })
+    let reportedInside: string[] = []
+    await withoutAmbientTargets(game, () =>
+      withMirroredTargets(game, tokens, async () => {
+        reportedInside = ownTargetIds(game)
+      })
+    )
+    expect(reportedInside).toEqual(['gm-reticle'])
+    expect(ownTargetIds(game)).toEqual(['gm-reticle'])
+  })
+
+  it('reports the real set again after a roll that threw', async () => {
+    const game = makeGameWithTargets('gm-reticle')
+    await expect(
+      withoutAmbientTargets(game, async () => {
+        throw new Error('roll blew up')
+      })
+    ).rejects.toThrow('roll blew up')
+    expect(ownTargetIds(game)).toEqual(['gm-reticle'])
   })
 
   it('rolls unshielded rather than break targeting it cannot put back', async () => {

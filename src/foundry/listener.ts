@@ -54,6 +54,7 @@ import {
 } from '@/api/protocol'
 import { makeAck, stampTablemateChatOrigin, tablemateChatOriginUuid } from './utils/foundry'
 import { markRequestSeen, requestAlreadySeen } from './requestDedup'
+import { ownTargetIds } from './utils/target'
 import { resolveCapture, type CapturedMessage } from './chatCapture'
 import {
   registerManualRollPolicySetting,
@@ -720,13 +721,19 @@ function announceSelf() {
 // The scene id travels with the ids because token ids are unique per scene, not
 // per world. `canvas.scene` is the authoritative answer to "which scene are
 // these ids on" — it is the same canvas the Token objects came from.
+//
+// Read through ownTargetIds, never `game.user.targets` directly: while this
+// client is answering a targeted request that property is a stand-in presenting
+// the ROLLER's targets (utils/target.ts), and this client may well be the
+// proxy those tablets are mirroring. Reporting the stand-in tells them the
+// screen shows something it doesn't, and nothing corrects it until the next
+// re-target.
 function broadcastOwnTargets() {
   game.socket.emit(TM.CHANNEL, {
     action: TM.SHARE_TARGETS,
     userId: game.user._id,
     sceneId: canvas?.scene?.id ?? null,
-    // UserTargets exposes `.ids` for exactly this.
-    targets: game.user.targets.ids
+    targets: ownTargetIds(game)
   })
 }
 
