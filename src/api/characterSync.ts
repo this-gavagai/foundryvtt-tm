@@ -86,6 +86,15 @@ function queueSnapshotSave(actorId: string, actor: Parameters<typeof saveActorSn
   save(actorId, actor, origin)
 }
 
+// Abandon every queued snapshot write. Called when a server's cached character
+// data is being deleted (sign-out, forgetting the server): each pending save
+// captured its origin at queue time, so a trailing write landing after the
+// purge would re-create exactly the snapshot we just deleted.
+export function cancelPendingSnapshotSaves(): void {
+  for (const save of saveDebouncers.values()) save.cancel()
+  saveDebouncers.clear()
+}
+
 export async function sendCharacterRequest(actorId: string): Promise<void> {
   const { socket, userId } = await getAuthenticatedSocket()
   const uuid = uuidv4()

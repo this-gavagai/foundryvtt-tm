@@ -18,8 +18,9 @@ export function setLastCharacterId(id: string): void {
   localStorage.setItem(lastCharacterIdKey(), id)
 }
 
-// Forget a server's remembered character. Called when the server is removed so
-// a re-add doesn't auto-select a character left over from the deleted one.
+// Forget a server's remembered character. Called on sign-out and on removing
+// the server, so neither the next login nor a re-add auto-selects a character
+// left over from the user before.
 export function clearLastCharacterId(origin: string): void {
   localStorage.removeItem(lastCharacterIdKey(origin))
 }

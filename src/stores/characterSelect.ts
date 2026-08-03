@@ -76,6 +76,20 @@ export const useCharacterSelectStore = defineStore('characterSelect', () => {
     if (newId) activeCharacterId.value = newId
   }
 
+  // Select nothing, and drop the deep-linked `?id=` so it can't re-select on
+  // the next evaluation. Used when the loaded server's characters stop being
+  // ours to show (sign-out, forgetting the server): an empty selection empties
+  // characterList, which unmounts the sheets — the only way the actor data they
+  // hold in memory actually goes away.
+  function clearSelection() {
+    activeSheetTab.value = undefined
+    urlId.value = undefined
+    activeCharacterId.value = ''
+    if (new URLSearchParams(window.location.search).has('id')) {
+      history.replaceState({}, '', window.location.pathname)
+    }
+  }
+
   // Re-point the selection at the *new* server after a switch. The previous
   // server's active character (and deep-linked `?id=`) must not carry over, so
   // we reseed from this server's own remembered character (scoped per origin —
@@ -86,18 +100,14 @@ export const useCharacterSelectStore = defineStore('characterSelect', () => {
   // clear the selection (and the stale `?id=`) and let the character-list watch
   // default to an owned character once the world arrives.
   function reseedForCurrentServer() {
-    activeSheetTab.value = undefined
     const remembered = getLastCharacterId()
-    if (remembered) {
-      urlId.value = remembered
-      activeCharacterId.value = remembered
-    } else {
-      urlId.value = undefined
-      activeCharacterId.value = ''
-      if (new URLSearchParams(window.location.search).has('id')) {
-        history.replaceState({}, '', window.location.pathname)
-      }
+    if (!remembered) {
+      clearSelection()
+      return
     }
+    activeSheetTab.value = undefined
+    urlId.value = remembered
+    activeCharacterId.value = remembered
   }
 
   function initializeActiveSheetTab(defaultIndex: number) {
@@ -115,6 +125,7 @@ export const useCharacterSelectStore = defineStore('characterSelect', () => {
     activeSheetTab,
     initialize,
     setActiveCharacterId,
+    clearSelection,
     reseedForCurrentServer,
     initializeActiveSheetTab,
     setActiveSheetTab

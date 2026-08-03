@@ -81,7 +81,7 @@
     "connectingTo": "Iniciando sesión en",
     "changeServer": "Cambiar servidor",
     "signOut": "Cerrar sesión",
-    "signOutHint": "Olvida la contraseña guardada de este servidor para que puedas iniciar sesión como otro usuario."
+    "signOutHint": "Olvida la contraseña guardada de este servidor y borra los personajes y el chat en caché, para que puedas iniciar sesión como otro usuario."
   },
   "serverUrl": {
     "title": "Servidor de Foundry",

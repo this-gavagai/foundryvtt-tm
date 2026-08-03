@@ -8,12 +8,12 @@ import { forgetPushRegistration } from '@/api/pushRegistry'
 import { forgetLoginUser } from '@/stores/user'
 import { useWorldStore } from '@/stores/world'
 import { useCharacterSelectStore } from '@/stores/characterSelect'
+import { useChatStore } from '@/stores/chat'
+import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
-import { clearActorSnapshotsForServer } from '@/utils/actorCache'
-import { clearChatCacheForServer } from '@/utils/chatCache'
-import { clearImageCacheForServer } from '@/api/imageCache'
+import { clearCachedCharacterData } from '@/utils/cachedCharacterData'
+import { cancelPendingSnapshotSaves } from '@/api/characterSync'
 import { rejectAllPending } from '@/api/actionRpc'
-import { clearLastCharacterId } from '@/utils/utilities'
 
 const ACTIVE_URL_STORAGE_KEY = 'tablemate.serverUrl'
 const SERVERS_STORAGE_KEY = 'tablemate.servers'
@@ -189,11 +189,39 @@ export const useServerAddressStore = defineStore('serverAddress', () => {
     return normalized
   }
 
+  // Drop the loaded server's characters from memory, and abandon the debounced
+  // writers that would otherwise re-persist them.
+  //
+  // Called immediately *before* clearCachedCharacterData on the two paths that
+  // delete a server's cached data — forgetting the active server, and signing
+  // out of it (the server store calls this from signOut). Order matters both
+  // ways round: cancelling the writers first is what keeps a trailing snapshot
+  // or chat write from re-creating the files the purge is about to delete, and
+  // emptying the selection is what unmounts the sheets still holding actor data
+  // in memory behind the login page.
+  //
+  // Deliberately absent from the *server switch* path (see activate): there the
+  // pending writes belong to the server being left and are still wanted on disk,
+  // keyed to the origin they captured.
+  //
+  // Deliberately does not touch world *status* either: the server is still up
+  // and its world still running (sign-out changes only who we are to it), and
+  // marking the world pending would park the app on a spinner until the next
+  // status poll instead of the login page it is heading for.
+  function dropLoadedCharacterData() {
+    cancelPendingSnapshotSaves()
+    useChatStore().dropCachedChat()
+    useWorldStore().clearWorld()
+    useTargetHelperStore().reset()
+    useCharacterSelectStore().clearSelection()
+  }
+
   // Forget a stored server, including its saved password, session/cookie, push
   // registration and all of its cached data, so re-adding it starts clean
   // (unauthenticated, no stale characters or chat). If it was the active one,
   // fall back to the gate.
   function removeServer(origin: string) {
+    const wasActive = serverUrl.value?.origin === origin
     servers.value = servers.value.filter((s) => s !== origin)
     persistServers()
     const transport = isNativeMobile.value ? capacitorServerTransport : browserServerTransport
@@ -207,13 +235,16 @@ export const useServerAddressStore = defineStore('serverAddress', () => {
     // Tell the relay to stop pushing this world's chat to this device. Without
     // it a deleted server keeps notifying until the relay's 30-day stale prune.
     forgetPushRegistration(origin)
-    // Drop this server's per-origin caches so they can't survive a delete +
-    // re-add. Best-effort and fire-and-forget — the IDB helpers never reject.
-    void clearActorSnapshotsForServer(origin)
-    void clearChatCacheForServer(origin)
-    void clearImageCacheForServer(origin)
-    clearLastCharacterId(origin)
-    if (serverUrl.value?.origin === origin) clearActiveServer()
+    // Deleting the server we are on: its characters have to leave memory too,
+    // not just the disk caches — and the debounced writers have to be abandoned
+    // before the purge (see dropLoadedCharacterData). A server that isn't
+    // active has nothing loaded to drop.
+    if (wasActive) dropLoadedCharacterData()
+    // Drop this server's cached character data (snapshots, chat, images,
+    // remembered character) so none of it can survive a delete + re-add.
+    // Fire-and-forget: the helpers never reject.
+    void clearCachedCharacterData(origin)
+    if (wasActive) clearActiveServer()
   }
 
   // Deactivate the current server without forgetting it — returns the app to
@@ -249,6 +280,7 @@ export const useServerAddressStore = defineStore('serverAddress', () => {
     commitServerUrl,
     selectServer,
     removeServer,
+    dropLoadedCharacterData,
     clearActiveServer,
     requestNewServer,
     consumePendingNewServer

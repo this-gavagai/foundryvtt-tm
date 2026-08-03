@@ -17,10 +17,12 @@ import { logger } from '@/utils/utilities'
 // world-local, so two servers (e.g. a copied world) can share one — without the
 // origin prefix that would leak one server's whispers/blind rolls onto another.
 //
-// Deliberate retention: re-logging as a different user on the same server does
-// NOT delete the previous user's cached tail or read marker. The per-user key
-// keeps it unreadable from the UI (and the render-time visibility filter guards
-// whispers besides); the data is only removed when the server is forgotten.
+// Everything under an origin is deleted when the user signs out of that server
+// or forgets it (see clearCachedCharacterData) — the next person to sign in on
+// this device must not inherit the previous user's log. A session that merely
+// changes user id without a sign-out keeps its entries: the per-user key makes
+// them unreadable from the UI, and the render-time visibility filter guards
+// whispers besides.
 const MAX_CACHED_MESSAGES = 200
 
 // Prefix a cache key with the active server origin. Returns undefined when no
@@ -37,7 +39,8 @@ function scopedKey(
 }
 
 // Drop every cached chat entry (messages + read markers) for a server. Called
-// when the server is forgotten so a re-add starts with an empty chat log.
+// when the user signs out of that server or forgets it, so the next login
+// starts with an empty chat log.
 export function clearChatCacheForServer(origin: string): Promise<void> {
   return idbDeleteByPrefix('chat', `${origin}${KEY_DELIMITER}`)
 }

@@ -66,10 +66,17 @@ export const useChatStore = defineStore('chat', () => {
   // don't flag the whole backlog as unread on first run.
   const needsBaseline = ref(false)
 
+  // Bumped by every hydrate and by dropCachedChat, so a read still in flight
+  // when the cache is purged can't land its (now-deleted) result in memory.
+  // The scope check alone can't catch that: a sign-out leaves origin and user
+  // unchanged, so the in-flight read's scope still matches.
+  let hydrateEpoch = 0
+
   async function hydrate(origin: string, key: string): Promise<void> {
     const scope = `${origin}|${key}`
     if (hydratedKey.value === scope) return
     hydratedKey.value = scope
+    const epoch = ++hydrateEpoch
     // Drop the previous scope's tail immediately rather than showing it while
     // the new read is in flight.
     cachedMessages.value = []
@@ -78,7 +85,7 @@ export const useChatStore = defineStore('chat', () => {
       loadChatReadMarker(key)
     ])
     // The scope may have moved on while the reads were in flight.
-    if (hydratedKey.value !== scope) return
+    if (hydrateEpoch !== epoch || hydratedKey.value !== scope) return
     if (cached?.length) cachedMessages.value = cached
     if (stored != null) {
       lastReadTimestamp.value = stored
@@ -153,6 +160,24 @@ export const useChatStore = defineStore('chat', () => {
     },
     { immediate: true }
   )
+
+  // Forget the chat held for the server/user we are leaving — called when the
+  // stored copy is about to be deleted (sign-out, forgetting the server).
+  //
+  // Cancelling the write-back is the load-bearing half: `persist` captured the
+  // user id, origin and messages when it was queued, so a trailing write firing
+  // after the purge would put the signed-out user's tail straight back on disk.
+  // The rest clears what's in memory, and releases the hydration scope so the
+  // next user reads their own cache rather than inheriting this hydrated state.
+  function dropCachedChat(): void {
+    persist.cancel()
+    hydrateEpoch++
+    cachedMessages.value = []
+    lastReadTimestamp.value = null
+    dividerTimestamp.value = null
+    needsBaseline.value = false
+    hydratedKey.value = ''
+  }
 
   // ── Read watermark ────────────────────────────────────────────────────────
 
@@ -237,6 +262,7 @@ export const useChatStore = defineStore('chat', () => {
     isUnread,
     beginSession,
     markAllRead,
+    dropCachedChat,
     pendingFocusMessageId,
     requestFocusMessage,
     consumeFocusMessage

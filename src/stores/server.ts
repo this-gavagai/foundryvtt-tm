@@ -4,6 +4,7 @@ import type { Socket } from 'socket.io-client'
 import { useUserStore, rememberLoginUser, lastLoginUser } from '@/stores/user'
 import { useServerAddressStore, serverUrlCandidates } from '@/stores/serverAddress'
 import { logger } from '@/utils/utilities'
+import { clearCachedCharacterData } from '@/utils/cachedCharacterData'
 import { TM } from '@/api/protocol'
 import {
   emitWithRetries,
@@ -331,11 +332,20 @@ export const useServerStore = defineStore('server', () => {
   // authenticated session event, clearing needsLogin and undoing the sign-out.
   // Reconnecting without a sid gets an anonymous session, which then finds no
   // credential to repair itself with and settles on the login page.
+  //
+  // The point of signing out is that someone else signs in on this device, so
+  // none of the previous user's character data may outlive it — not the sheets
+  // and chat cached on disk, and not what is still held in memory. The address
+  // store owns the in-memory half (it already knows what a loaded server has
+  // brought in), which also keeps this store free of world/character imports.
   async function signOut(): Promise<void> {
     const url = activeServerUrl()
     if (!url) return
+    // Before the purge, so no debounced writer can re-persist what we delete.
+    useServerAddressStore().dropLoadedCharacterData()
     await forgetCredential(url.origin)
     await Promise.resolve(currentTransport().deleteSession(url)).catch(() => {})
+    await clearCachedCharacterData(url.origin)
     silentReauthAttempts = 0
     needsLogin.value = true
     void requestReconnect()

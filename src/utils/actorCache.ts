@@ -27,8 +27,9 @@ function scopedKey(
   return `${origin}${KEY_DELIMITER}${actorId}`
 }
 
-// Drop every cached snapshot belonging to a server. Called when the server is
-// forgotten so a re-add starts with a clean cache instead of stale characters.
+// Drop every cached snapshot belonging to a server. Called when the user signs
+// out of that server or forgets it, so neither the next login nor a re-add can
+// paint the previous user's characters (see clearCachedCharacterData).
 export function clearActorSnapshotsForServer(origin: string): Promise<void> {
   return idbDeleteByPrefix('actors', `${origin}${KEY_DELIMITER}`)
 }

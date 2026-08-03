@@ -17,6 +17,8 @@ const readCredential = vi.fn()
 const writeCredential = vi.fn()
 const forgetCredential = vi.fn()
 const establishSocket = vi.fn()
+const dropLoadedCharacterData = vi.fn()
+const clearCachedCharacterData = vi.fn()
 
 // Every socket the store creates, with its handlers captured so a test can
 // play the server's side of the handshake.
@@ -70,10 +72,19 @@ vi.mock('@/api/credentialStore', () => ({
 }))
 
 // The address store's real module drags in the whole world/cache graph; the
-// server store only ever asks it for the active URL and the platform.
+// server store only ever asks it for the active URL, the platform, and (on
+// sign-out) to drop the loaded server's in-memory character data.
 vi.mock('@/stores/serverAddress', () => ({
-  useServerAddressStore: () => ({ serverUrl: SERVER, isNativeMobile: true }),
+  useServerAddressStore: () => ({
+    serverUrl: SERVER,
+    isNativeMobile: true,
+    dropLoadedCharacterData: () => dropLoadedCharacterData()
+  }),
   serverUrlCandidates: () => [SERVER]
+}))
+
+vi.mock('@/utils/cachedCharacterData', () => ({
+  clearCachedCharacterData: (...args: unknown[]) => clearCachedCharacterData(...args)
 }))
 
 async function loadStore() {
@@ -103,6 +114,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
   deleteSession.mockResolvedValue(undefined)
+  clearCachedCharacterData.mockResolvedValue(undefined)
   writeCredential.mockResolvedValue(undefined)
   forgetCredential.mockResolvedValue(undefined)
   readCredential.mockResolvedValue(undefined)
@@ -292,5 +304,43 @@ describe('signOut', () => {
     expect(forgetCredential).toHaveBeenCalledWith(SERVER.origin)
     expect(deleteSession).toHaveBeenCalledWith(SERVER)
     expect(store.needsLogin).toBe(true)
+  })
+
+  // Someone else signs in on this device next, so the previous user's sheets
+  // and chat must not be sitting in the cache waiting for them.
+  it('deletes the server’s cached character data', async () => {
+    const store = await loadStore()
+    await store.connectToServer(SERVER)
+    await settle()
+    sockets.at(-1)!.fire('session', { userId: 'user-1' })
+    await settle()
+
+    await store.signOut()
+    await settle()
+
+    expect(clearCachedCharacterData).toHaveBeenCalledWith(SERVER.origin)
+  })
+
+  // Ordering, not just occurrence: the debounced snapshot/chat writers are
+  // cancelled by the in-memory drop, so a purge that ran first could have a
+  // trailing write land behind it and re-create what it just deleted.
+  it('drops the in-memory character data before purging the caches', async () => {
+    const order: string[] = []
+    dropLoadedCharacterData.mockImplementation(() => order.push('drop'))
+    clearCachedCharacterData.mockImplementation(() => {
+      order.push('purge')
+      return Promise.resolve()
+    })
+
+    const store = await loadStore()
+    await store.connectToServer(SERVER)
+    await settle()
+    sockets.at(-1)!.fire('session', { userId: 'user-1' })
+    await settle()
+
+    await store.signOut()
+    await settle()
+
+    expect(order).toEqual(['drop', 'purge'])
   })
 })

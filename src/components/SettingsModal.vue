@@ -55,7 +55,8 @@ function manageServers() {
   emit('manageServers')
 }
 
-// Drop the saved password and the live session so the login page comes back —
+// Drop the saved password, the live session, and everything this server's
+// characters left cached on the device, so the login page comes back clean —
 // the way to switch to a different Foundry user, which silent re-authentication
 // would otherwise never let you reach.
 function signOut() {

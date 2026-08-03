@@ -278,9 +278,10 @@ function belongsTo(remote: string, origin: string): boolean {
 }
 
 /**
- * Drop every cached image belonging to a server. Called when the server is
- * forgotten, alongside the actor/chat cache clears, so its assets don't
- * survive a delete + re-add or squat in the entry budget. Hash-named files
+ * Drop every cached image belonging to a server. Called on sign-out and on
+ * forgetting the server, alongside the actor/chat cache clears, so its assets
+ * (portraits, token art) don't outlive the user they were fetched for or squat
+ * in the entry budget. Hash-named files
  * can't be attributed to an origin, so they're deleted wholesale — they're
  * rare (very long URLs only) and re-cache on demand. No-op off native.
  */
