@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useServerStore, type JoinUser } from '@/stores/server'
 import { useServerAddressStore } from '@/stores/serverAddress'
+import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 import { logger } from '@/utils/utilities'
 
 const { t } = useI18n()
@@ -219,6 +220,7 @@ async function handleLogin() {
           :disabled="loadingUsers || users.length === 0"
           autocomplete="username"
           class="border-divider rounded border bg-white p-2"
+          @pointerdown="!(loadingUsers || users.length === 0) && triggerLightHapticFeedback()"
         >
           <option v-if="loadingUsers" value="">{{ $t('login.loadingUsers') }}</option>
           <option v-else-if="users.length === 0" value="">{{ $t('login.noUsersAvailable') }}</option>
@@ -245,6 +247,7 @@ async function handleLogin() {
         type="submit"
         :disabled="submitting || loadingUsers || !userid"
         class="rounded bg-blue-500 p-2 text-white disabled:opacity-50"
+        @pointerdown="!(submitting || loadingUsers || !userid) && triggerLightHapticFeedback()"
       >
         {{ submitting ? $t('login.signingIn') : $t('login.signIn') }}
       </button>
@@ -253,6 +256,7 @@ async function handleLogin() {
         <button
           type="button"
           class="underline transition duration-180 ease-out active:scale-[0.90] active:opacity-50 active:duration-60"
+          @pointerdown="triggerLightHapticFeedback()"
           @click="manualRetry"
         >
           {{ $t('login.retry') }}
@@ -263,6 +267,7 @@ async function handleLogin() {
         type="button"
         data-part="change-server"
         class="text-sm text-gray-500 underline transition duration-180 ease-out active:scale-[0.90] active:opacity-50 active:duration-60"
+        @pointerdown="triggerLightHapticFeedback()"
         @click="changeServer"
       >
         {{ $t('login.changeServer') }}
