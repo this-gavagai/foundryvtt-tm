@@ -170,6 +170,18 @@ export const useWorldStore = defineStore('world', () => {
     return id ? usersById.value.get(id) : undefined
   }
 
+  // Foundry treats ASSISTANT (role 3) and GAMEMASTER (role 4) alike for document
+  // ownership: User#isGM is `hasRole(ASSISTANT)`, and Document#testUserPermission
+  // short-circuits to true for any such user. Every app-side ownership gate has
+  // to match that, because a GM is rarely named in an actor's ownership map —
+  // read literally they'd own nothing, while the Foundry side happily serves
+  // them every actor in the world.
+  const GM_ROLE = 3
+  const currentUserIsGM = computed(() => {
+    const id = (world.value as { userId?: string } | undefined)?.userId
+    return ((userById(id) as { role?: number } | undefined)?.role ?? 0) >= GM_ROLE
+  })
+
   async function sendWorldRequest(): Promise<void> {
     // Check /api/status first — works regardless of auth state.
     const worldStatus = useFoundryWorldStatusStore()
@@ -254,6 +266,7 @@ export const useWorldStore = defineStore('world', () => {
     usersById,
     actorById,
     userById,
+    currentUserIsGM,
     refreshWorld,
     refreshWorldNow,
     clearWorld,

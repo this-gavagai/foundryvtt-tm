@@ -4,35 +4,50 @@ import type { ActorPF2e } from '@7h3laughingman/pf2e-types'
 import { useWorldStore } from '@/stores/world'
 import { useSettingsStore } from '@/stores/settings'
 import { getLastCharacterId } from '@/utils/utilities'
+import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
+
+// Actor types a GM's list is limited to. A player's list is whatever the GM
+// gave them ownership of, so it stays unfiltered (bar the party actor); a GM
+// owns *every* actor in the world, and each entry here mounts a CharacterSheet
+// that pulls a full actor payload — so pulling in every npc/loot/hazard would
+// be both expensive and useless, since only these two have a sheet to render.
+const GM_SHEET_TYPES = new Set(['character', 'familiar'])
 
 export const useCharacterSelectStore = defineStore('characterSelect', () => {
-  const { world } = storeToRefs(useWorldStore())
+  const { world, currentUserIsGM } = storeToRefs(useWorldStore())
   const { skipCharacterAlts } = storeToRefs(useSettingsStore())
 
   const urlId = ref<string>()
   const activeCharacterId = ref<string>('')
   const activeSheetTab = ref<number>()
 
-  const ownedActorIds = computed<string[]>(
-    () =>
-      world.value?.actors
-        ?.filter((a: ActorPF2e) => a.ownership?.[world.value!.userId] === 3 && a.type !== 'party')
-        .map((a: ActorPF2e) => a?._id ?? '') ?? []
-  )
+  // The actors this user may open. GMs are owners of everything in Foundry's
+  // model and are almost never listed in an actor's ownership map, so reading
+  // that map literally would leave them with no characters at all.
+  const availableActorIds = computed<string[]>(() => {
+    if (!world.value) return []
+    return collectionToArray<ActorPF2e>(world.value.actors as CollectionLike<ActorPF2e>)
+      .filter((a: ActorPF2e) =>
+        currentUserIsGM.value
+          ? GM_SHEET_TYPES.has(a.type)
+          : a.ownership?.[world.value!.userId] === 3 && a.type !== 'party'
+      )
+      .map((a: ActorPF2e) => a?._id ?? '')
+  })
 
-  // Honor the URL/stored character only until we can verify ownership: while the
+  // Honor the URL/stored character only until we can verify access: while the
   // world is still loading we trust it, but once loaded it must be one the user
-  // actually owns. This keeps a character whose permissions changed from
+  // can actually open. This keeps a character whose permissions changed from
   // stranding the user on a "you don't own this" screen.
-  const urlIdOwned = computed(
-    () => !!urlId.value && (!world.value || ownedActorIds.value.includes(urlId.value))
+  const urlIdAvailable = computed(
+    () => !!urlId.value && (!world.value || availableActorIds.value.includes(urlId.value))
   )
 
   const characterList = computed<string[]>(() => {
     const ids = new Set<string>()
-    if (urlIdOwned.value) ids.add(urlId.value!)
-    if (!skipCharacterAlts.value || !urlIdOwned.value) {
-      ownedActorIds.value.forEach((id) => ids.add(id))
+    if (urlIdAvailable.value) ids.add(urlId.value!)
+    if (!skipCharacterAlts.value || !urlIdAvailable.value) {
+      availableActorIds.value.forEach((id) => ids.add(id))
     }
     return [...ids]
   })
@@ -41,11 +56,11 @@ export const useCharacterSelectStore = defineStore('characterSelect', () => {
   // back to one of their own characters and revert the URL to the bare
   // index.html so the stale ?id= doesn't keep re-selecting the lost character.
   watch(
-    urlIdOwned,
-    (owned) => {
-      if (owned || !urlId.value) return
+    urlIdAvailable,
+    (available) => {
+      if (available || !urlId.value) return
       if (activeCharacterId.value === urlId.value) {
-        activeCharacterId.value = ownedActorIds.value[0] ?? ''
+        activeCharacterId.value = availableActorIds.value[0] ?? ''
       }
       history.replaceState({}, '', window.location.pathname)
     },

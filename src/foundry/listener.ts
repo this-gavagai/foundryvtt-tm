@@ -333,6 +333,10 @@ function userOwnsActor(actor: ActorLike | undefined, userId: string): boolean {
   if (!actor) return false
   const user = game.users.get(userId)
   if (!user) return false
+  // A GM (Foundry: role >= ASSISTANT) owns every actor in the world. This is
+  // what testUserPermission below already answers; stating it up front keeps the
+  // ownership-map fallback from denying a GM who owns nothing explicitly.
+  if (user.isGM) return true
   // Prefer Foundry's canonical permission test, which also honours default
   // ownership; fall back to reading the ownership map (explicit entry, else
   // default) so an actor shared via ownership.default is still recognized.

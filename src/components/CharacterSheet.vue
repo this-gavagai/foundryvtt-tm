@@ -68,6 +68,7 @@ function changeTab(index: number) {
 }
 // base data
 const worldStore = useWorldStore()
+const { currentUserIsGM } = storeToRefs(worldStore)
 const { userId } = storeToRefs(useUserStore())
 const { sessionReady } = storeToRefs(useServerStore())
 const actor: Ref<TablemateActor | undefined> = ref()
@@ -95,7 +96,10 @@ const familiarActor = computed<TablemateFamiliar | undefined>(() =>
 // loads); checking the new user against that snapshot's ownership produced a
 // spurious "userDoesNotOwnCharacter" flash. Until the world confirms the actor
 // we assume permission and paint optimistically from whatever data we have.
+// A GM owns every actor in the world (see world.currentUserIsGM), and won't
+// normally appear in any ownership map, so they short-circuit the map check.
 const userHasActorPermission: ComputedRef<boolean> = computed(() => {
+  if (currentUserIsGM.value) return true
   const ownership = worldActor.value?.ownership
   if (ownership === undefined || ownership[userId.value] === 3) return true
   else return false
