@@ -9,7 +9,7 @@ import type { CharacterRules } from '@/composables/character/characterRules'
 import type { CharacterSkillActions } from '@/composables/character/characterSkillActions'
 import type { CharacterSpells } from '@/composables/character/characterSpells'
 
-// The surface shared by every sheet-bearing actor (characters, familiars).
+// The surface shared by every sheet-bearing actor (characters, familiars, NPCs).
 // Components rendered by more than one sheet type must consume this interface
 // (via useInjectedActor) rather than Character, so the compiler enforces that
 // they only rely on fields every actor actually provides.
@@ -43,6 +43,17 @@ export interface Actor {
   // no-ops on a new actor shape.
   doCharacterAction?: CharacterActions['doCharacterAction']
   doFlatCheck?: CharacterStats['doFlatCheck']
+
+  // Creature statistics that characters and NPCs both have but familiars don't.
+  // Components rendering them (AttributeScores, IWR, LanguagesKnown,
+  // CombatInitiative) consume this interface and guard on presence.
+  level?: CharacterCore['level']
+  languages?: CharacterCore['languages']
+  attributes?: CharacterStats['attributes']
+  immunities?: CharacterStats['immunities']
+  weaknesses?: CharacterStats['weaknesses']
+  resistances?: CharacterStats['resistances']
+  initiative?: CharacterActions['initiative']
 
   // Character-only features that shared chrome reads behind guards; absent on
   // actors that don't have them.

@@ -6,12 +6,17 @@ import { useSettingsStore } from '@/stores/settings'
 import { getLastCharacterId } from '@/utils/utilities'
 import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
 
-// Actor types a GM's list is limited to. A player's list is whatever the GM
+// Actor types that have a sheet to render at all. Used to decide whether a
+// deep-linked `?id=` is openable, not to build a list.
+const SHEET_TYPES = new Set(['character', 'familiar', 'npc'])
+
+// Actor types a GM's *list* is limited to. A player's list is whatever the GM
 // gave them ownership of, so it stays unfiltered (bar the party actor); a GM
 // owns *every* actor in the world, and each entry here mounts a CharacterSheet
-// that pulls a full actor payload — so pulling in every npc/loot/hazard would
-// be both expensive and useless, since only these two have a sheet to render.
-const GM_SHEET_TYPES = new Set(['character', 'familiar'])
+// that pulls a full actor payload — so auto-listing every npc/loot/hazard would
+// be expensive. NPCs are therefore reachable by deep link (or by explicit
+// ownership) rather than filling a GM's selector with the whole bestiary.
+const GM_LISTED_TYPES = new Set(['character', 'familiar'])
 
 export const useCharacterSelectStore = defineStore('characterSelect', () => {
   const { world, currentUserIsGM } = storeToRefs(useWorldStore())
@@ -24,23 +29,32 @@ export const useCharacterSelectStore = defineStore('characterSelect', () => {
   // The actors this user may open. GMs are owners of everything in Foundry's
   // model and are almost never listed in an actor's ownership map, so reading
   // that map literally would leave them with no characters at all.
-  const availableActorIds = computed<string[]>(() => {
+  const actorIdsWhere = (predicate: (actor: ActorPF2e) => boolean): string[] => {
     if (!world.value) return []
     return collectionToArray<ActorPF2e>(world.value.actors as CollectionLike<ActorPF2e>)
       .filter((a: ActorPF2e) =>
         currentUserIsGM.value
-          ? GM_SHEET_TYPES.has(a.type)
+          ? predicate(a)
           : a.ownership?.[world.value!.userId] === 3 && a.type !== 'party'
       )
       .map((a: ActorPF2e) => a?._id ?? '')
-  })
+  }
+
+  // Every actor whose sheet this user is allowed to open, including the ones a
+  // GM would have to deep-link to (see GM_LISTED_TYPES).
+  const openableActorIds = computed<string[]>(() => actorIdsWhere((a) => SHEET_TYPES.has(a.type)))
+
+  // The subset that populates the character selector by itself.
+  const availableActorIds = computed<string[]>(() =>
+    actorIdsWhere((a) => GM_LISTED_TYPES.has(a.type))
+  )
 
   // Honor the URL/stored character only until we can verify access: while the
   // world is still loading we trust it, but once loaded it must be one the user
   // can actually open. This keeps a character whose permissions changed from
   // stranding the user on a "you don't own this" screen.
   const urlIdAvailable = computed(
-    () => !!urlId.value && (!world.value || availableActorIds.value.includes(urlId.value))
+    () => !!urlId.value && (!world.value || openableActorIds.value.includes(urlId.value))
   )
 
   const characterList = computed<string[]>(() => {

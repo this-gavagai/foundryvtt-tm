@@ -189,6 +189,29 @@
     "athleticsSwim": "Проверка Атлетики (плавание)",
     "athleticsClimb": "Проверка Атлетики (лазание)"
   },
+  "npc": {
+    "senses": "Чувства",
+    "statNotes": "Примечания",
+    "allSaves": "Все спасброски",
+    "attackEffects": "Эффект:",
+    "activeAbilities": "Действия",
+    "passiveAbilities": "Пассивные способности",
+    "publicNotes": "Описание",
+    "innateUses": "Использования",
+    "unassignedSpells": "Непривязанные заклинания",
+    "adjustments": {
+      "elite": "Элитный",
+      "weak": "Слабый"
+    },
+    "sizes": {
+      "tiny": "Крошечный",
+      "sm": "Маленький",
+      "med": "Средний",
+      "lg": "Большой",
+      "huge": "Огромный",
+      "grg": "Гигантский"
+    }
+  },
   "iwr": {
     "immunity": "Иммунитет",
     "weakness": "Слабость",

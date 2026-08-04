@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import type { TablemateActor, TablemateCharacter, TablemateFamiliar } from '@/types/character-types'
+import type {
+  TablemateActor,
+  TablemateCharacter,
+  TablemateFamiliar,
+  TablemateNpc
+} from '@/types/character-types'
 import type { Ref, ComputedRef } from 'vue'
 import { ref, provide, computed, onMounted, watch } from 'vue'
 import { TabGroup, TabList, TabPanels } from '@headlessui/vue'
@@ -36,6 +41,7 @@ import FeatsList from '@/components/FeatsList.vue'
 import EquipmentList from '@/components/EquipmentList.vue'
 import ActionsPanel from '@/components/ActionsPanel.vue'
 import FamiliarSheet from '@/components/FamiliarSheet.vue'
+import NpcSheet from '@/components/NpcSheet.vue'
 
 const props = defineProps(['characterId'])
 
@@ -90,6 +96,9 @@ const familiarActor = computed<TablemateFamiliar | undefined>(() =>
     ? (actorOrWorldActor.value as TablemateFamiliar)
     : undefined
 )
+const npcActor = computed<TablemateNpc | undefined>(() =>
+  actorOrWorldActor.value?.type === 'npc' ? (actorOrWorldActor.value as TablemateNpc) : undefined
+)
 // Ownership is decided strictly from the current world, never from `actor`.
 // `actor` may be a locally-cached IndexedDB snapshot left over from a *different*
 // server (the URL's stale ?id= keeps such a sheet mounted until the new world
@@ -142,6 +151,7 @@ defineExpose({ actor, character, actorOrWorldActor })
     v-if="userHasActorPermission"
   >
     <FamiliarSheet v-if="familiarActor" :actor="familiarActor" />
+    <NpcSheet v-else-if="npcActor" :actor="npcActor" />
     <template v-else>
       <!-- show this column only if on a tablet or laptop -->
       <div

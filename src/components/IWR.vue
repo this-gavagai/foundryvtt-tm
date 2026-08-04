@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 
-const character = useInjectedCharacter()
-const { immunities, weaknesses, resistances } = character
+// Optional on the shared actor surface: absent on actors that don't track IWR,
+// in which case every section's `?.length` guard hides the whole block.
+const { immunities, weaknesses, resistances } = useInjectedActor()
 </script>
 <template>
   <div data-component="IWR" class="flex grow justify-between empty:hidden">

@@ -3,6 +3,7 @@ import type {
   CharacterPF2e,
   ElementalBlast as PF2eElementalBlast,
   FamiliarPF2e,
+  NPCPF2e,
   RawModifier
 } from '@7h3laughingman/pf2e-types'
 
@@ -18,6 +19,10 @@ import type {
 
 export type SpellcastingModifierData = {
   mod: number
+  // The entry's prepared spell DC. Absent from older Foundry-side builds, and
+  // only meaningfully different from the entry's stored `spelldc.dc` for an
+  // elite/weak-adjusted NPC.
+  dc?: number
   // Trimmed on the wire (see buildSpellcastingModifiers Foundry-side) — the
   // full RawModifier never crosses the socket.
   modifiers: SerializedModifier[]
@@ -87,7 +92,8 @@ export type TablemateActorExtras = {
 
 export type TablemateCharacter = CharacterPF2e & TablemateActorExtras
 export type TablemateFamiliar = FamiliarPF2e & TablemateActorExtras
-export type TablemateActor = TablemateCharacter | TablemateFamiliar
+export type TablemateNpc = NPCPF2e & TablemateActorExtras
+export type TablemateActor = TablemateCharacter | TablemateFamiliar | TablemateNpc
 
 // The ref shape the API layer accepts: any tablemate actor, possibly not yet
 // loaded. RPCs only serialize `_id` (see fromActor in actionRpc), so callers

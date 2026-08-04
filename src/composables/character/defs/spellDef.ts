@@ -29,7 +29,15 @@ export interface Spell extends Item {
   ) => Promise<RequestResolutionArgs | null>
 }
 export interface SpellSystem extends ItemSystem {
-  location: { value: Maybe<string>; heightenedLevel: Maybe<number>; signature: Maybe<boolean> }
+  location: {
+    value: Maybe<string>
+    heightenedLevel: Maybe<number>
+    // A per-spell override of the entry's auto-heighten rank, for cantrips and
+    // focus spells (which scale with caster level rather than being heightened
+    // into a slot). See makeSpellRankResolver.
+    autoHeightenLevel: Maybe<number>
+    signature: Maybe<boolean>
+  }
   range: Maybe<string>
   target: Maybe<string>
   area: { type: Maybe<string>; value: Maybe<number> }
@@ -42,6 +50,10 @@ export interface SpellcastingEntry extends Item {
   system: SpellcastingEntrySystem
   spellAttackModifier?: Maybe<number>
   spellAttackModifiers?: Modifier[]
+  // The entry statistic's prepared save DC. Only differs from the stored
+  // `system.spelldc.dc` for an elite/weak-adjusted NPC, so consumers fall back
+  // to the stored value when this is absent.
+  preparedDc?: Maybe<number>
   doSpellAttack?: (
     result?: number,
     modifierOverrides?: Record<string, boolean>
@@ -58,6 +70,9 @@ export interface SpellcastingEntrySystem extends ItemSystem {
   spelldc: { dc: Maybe<number> }
   tradition: { value: Maybe<string> }
   prepared: { value: Maybe<string>; flexible: Maybe<boolean> }
+  // The rank this entry's auto-scaling spells (cantrips, focus spells) heighten
+  // to. Null on most entries, which fall back to half the caster's level.
+  autoHeightenLevel: { value: Maybe<number> }
   slots: {
     [key: string]: {
       value: Maybe<number>
@@ -85,7 +100,8 @@ export function makeSpell(root: SpellPF2e): Spell {
       location: {
         value: root.system.location?.value ?? undefined,
         signature: root.system.location?.signature,
-        heightenedLevel: root.system.location?.heightenedLevel
+        heightenedLevel: root.system.location?.heightenedLevel,
+        autoHeightenLevel: root.system.location?.autoHeightenLevel ?? undefined
       },
       range: root.system.range?.value,
       target: root.system.target?.value,
@@ -127,6 +143,7 @@ export function makeSpellcastingEntry(root: SpellcastingEntryPF2e): Spellcasting
         value: root.system.prepared?.value,
         flexible: root.system.prepared?.flexible
       },
+      autoHeightenLevel: { value: root.system.autoHeightenLevel?.value ?? undefined },
       slots
     }
   } as SpellcastingEntry

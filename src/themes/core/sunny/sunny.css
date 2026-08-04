@@ -103,15 +103,10 @@
     /* Elevation scale — resting card / floating menu / modal. Soft, warm-tinted
      shadows (the light-paper counterpart to moonlit's hard black ones), one
      definition per step. */
-    --shadow-1:
-      inset 0 1px 0 oklch(100% 0 0 / 0.9),
-      0 6px 20px oklch(60% 0.06 40 / 0.12);
-    --shadow-2:
-      0 12px 28px oklch(55% 0.06 280 / 0.18),
-      0 0 0 1px oklch(60% 0.02 285 / 0.06);
+    --shadow-1: inset 0 1px 0 oklch(100% 0 0 / 0.9), 0 6px 20px oklch(60% 0.06 40 / 0.12);
+    --shadow-2: 0 12px 28px oklch(55% 0.06 280 / 0.18), 0 0 0 1px oklch(60% 0.02 285 / 0.06);
     --shadow-3:
-      inset 0 1px 0 oklch(100% 0 0 / 0.9),
-      0 8px 32px oklch(60% 0.08 30 / 0.18),
+      inset 0 1px 0 oklch(100% 0 0 / 0.9), 0 8px 32px oklch(60% 0.08 30 / 0.18),
       0 24px 64px oklch(55% 0.06 280 / 0.12);
 
     /* Shape scale — sunny is systematically rounder than moonlit. */
@@ -710,18 +705,17 @@
         [data-component='EquipmentList'],
         [data-component='ActionsList'],
         [data-component='StrikeList'],
-        [data-component='FamiliarActionsList']
+        [data-component='FamiliarActionsList'],
+        [data-component='NpcStrikeList'],
+        [data-component='NpcAbilitiesList']
       )
       section[data-section],
-    [data-component='SpellList'] section[data-section] {
+    :is([data-component='SpellList'], [data-component='NpcSpellList']) section[data-section] {
       /* Lit from above, the paper equivalent of moonlit's card gradient: a
        brighter top edge easing to the base fill. Text sits on the near-uniform
        body of the card, so legibility is unchanged; the translucency still
        lets the peach/sky wash refract through the blur. */
-      background-image: linear-gradient(
-        oklch(100% 0 0 / 0.72),
-        oklch(99% 0.012 95 / 0.55)
-      );
+      background-image: linear-gradient(oklch(100% 0 0 / 0.72), oklch(99% 0.012 95 / 0.55));
       backdrop-filter: blur(12px) saturate(1.3);
       -webkit-backdrop-filter: blur(12px) saturate(1.3);
       border: 1px solid oklch(100% 0 0 / 0.7);
@@ -750,7 +744,12 @@
 
     /* Shared attack / damage button chrome — chip surface + border (accent
      text colors and hover/active fills are shared). */
-    :is([data-component='StrikeList'], [data-component='SpellList']) {
+    :is(
+      [data-component='StrikeList'],
+      [data-component='NpcStrikeList'],
+      [data-component='SpellList'],
+      [data-component='NpcSpellList']
+    ) {
       [data-part='attack'] > span,
       [data-part='damage'] > span {
         background-color: oklch(98% 0.01 95);
@@ -806,8 +805,8 @@
       }
     }
 
-    /* --- SpellList: rank header + counter pip colors --- */
-    [data-component='SpellList'] {
+    /* --- Spell lists: rank header + counter pip colors --- */
+    :is([data-component='SpellList'], [data-component='NpcSpellList']) {
       h4 {
         color: oklch(55% 0.03 285);
       }

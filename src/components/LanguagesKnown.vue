@@ -1,9 +1,8 @@
 <script setup lang="ts">
 
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 
-const character = useInjectedCharacter()
-const { languages } = character
+const { languages } = useInjectedActor()
 </script>
 <template>
   <div data-component="LanguagesKnown" class="[&:not(:has(li))]:hidden">

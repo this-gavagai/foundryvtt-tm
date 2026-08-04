@@ -189,6 +189,29 @@
     "athleticsSwim": "Athletics Check (Swim)",
     "athleticsClimb": "Athletics Check (Climb)"
   },
+  "npc": {
+    "senses": "Senses",
+    "statNotes": "Notes",
+    "allSaves": "All Saves",
+    "attackEffects": "Effect:",
+    "activeAbilities": "Actions",
+    "passiveAbilities": "Passive Abilities",
+    "publicNotes": "Description",
+    "innateUses": "Uses",
+    "unassignedSpells": "Unassigned Spells",
+    "adjustments": {
+      "elite": "Elite",
+      "weak": "Weak"
+    },
+    "sizes": {
+      "tiny": "Tiny",
+      "sm": "Small",
+      "med": "Medium",
+      "lg": "Large",
+      "huge": "Huge",
+      "grg": "Gargantuan"
+    }
+  },
   "iwr": {
     "immunity": "Immunity",
     "weakness": "Weakness",

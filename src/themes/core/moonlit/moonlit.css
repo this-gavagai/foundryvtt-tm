@@ -91,21 +91,18 @@
       radial-gradient(ellipse 90% 60% at 88% 30%, oklch(34% 0.06 210 / 0.22), transparent),
       radial-gradient(ellipse 120% 50% at 15% 100%, oklch(28% 0.05 300 / 0.2), transparent);
     --tm-rollable-fallback: oklch(95% 0.005 250); /* rollable rule w/o proficiency */
-    --tm-tab-accent: var(--color-proficiency-legendary); /* selected-tab underline — moonlit's warm accent */
+    --tm-tab-accent: var(
+      --color-proficiency-legendary
+    ); /* selected-tab underline — moonlit's warm accent */
     --tm-tab-fill: oklch(68% 0.22 22 / 0.14); /* selected-tab accent wash (legendary hue) */
 
     /* Elevation scale — resting card / floating menu / modal. Hard black
      shadows with an inset hairline highlight; one definition per step,
      referenced by every surface at that elevation. */
-    --shadow-1:
-      inset 0 1px 0 oklch(100% 0 0 / 0.06),
-      0 8px 24px oklch(0% 0 0 / 0.25);
-    --shadow-2:
-      0 12px 28px oklch(5% 0.015 258 / 0.55),
-      0 0 0 1px oklch(50% 0.018 258 / 0.12);
+    --shadow-1: inset 0 1px 0 oklch(100% 0 0 / 0.06), 0 8px 24px oklch(0% 0 0 / 0.25);
+    --shadow-2: 0 12px 28px oklch(5% 0.015 258 / 0.55), 0 0 0 1px oklch(50% 0.018 258 / 0.12);
     --shadow-3:
-      inset 0 1px 0 oklch(100% 0 0 / 0.08),
-      0 8px 32px oklch(0% 0 0 / 0.5),
+      inset 0 1px 0 oklch(100% 0 0 / 0.08), 0 8px 32px oklch(0% 0 0 / 0.5),
       0 24px 64px oklch(0% 0 0 / 0.35);
 
     /* Shape scale — moonlit stays flat and crisp. */
@@ -716,18 +713,17 @@
         [data-component='EquipmentList'],
         [data-component='ActionsList'],
         [data-component='StrikeList'],
-        [data-component='FamiliarActionsList']
+        [data-component='FamiliarActionsList'],
+        [data-component='NpcStrikeList'],
+        [data-component='NpcAbilitiesList']
       )
       section[data-section],
-    [data-component='SpellList'] section[data-section] {
+    :is([data-component='SpellList'], [data-component='NpcSpellList']) section[data-section] {
       /* Lit from above: a shallow top-lighter → bottom-darker gradient sculpts
        every card instead of a flat fill. Text sits on the near-uniform middle,
        so contrast is unchanged; the translucency still lets the body's glow
        refract through the blur. */
-      background-image: linear-gradient(
-        oklch(20% 0.026 258 / 0.5),
-        oklch(15% 0.02 258 / 0.42)
-      );
+      background-image: linear-gradient(oklch(20% 0.026 258 / 0.5), oklch(15% 0.02 258 / 0.42));
       backdrop-filter: blur(14px) saturate(1.4);
       -webkit-backdrop-filter: blur(14px) saturate(1.4);
       border: 1px solid oklch(100% 0 0 / 0.06);
@@ -756,7 +752,12 @@
 
     /* Shared attack / damage button chrome — chip surface + border (accent
      text colors and hover/active fills are shared). */
-    :is([data-component='StrikeList'], [data-component='SpellList']) {
+    :is(
+      [data-component='StrikeList'],
+      [data-component='NpcStrikeList'],
+      [data-component='SpellList'],
+      [data-component='NpcSpellList']
+    ) {
       [data-part='attack'] > span,
       [data-part='damage'] > span {
         background-color: oklch(19% 0.022 258);
@@ -812,8 +813,8 @@
       }
     }
 
-    /* --- SpellList: rank header + counter pip colors --- */
-    [data-component='SpellList'] {
+    /* --- Spell lists: rank header + counter pip colors --- */
+    :is([data-component='SpellList'], [data-component='NpcSpellList']) {
       h4 {
         color: oklch(62% 0.015 258);
       }

@@ -1,10 +1,19 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import StatBox from './widgets/StatBox.vue'
 import { formatModifier } from '@/utils/formatters'
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 
-const character = useInjectedCharacter()
-const { str, dex, con, int, wis, cha } = character.attributes
+// `attributes` is optional on the shared actor surface — familiars have no
+// ability scores and never render this — so read through it rather than
+// destructuring the sub-fields directly.
+const { attributes } = useInjectedActor()
+const str = computed(() => attributes?.str.value)
+const dex = computed(() => attributes?.dex.value)
+const con = computed(() => attributes?.con.value)
+const int = computed(() => attributes?.int.value)
+const wis = computed(() => attributes?.wis.value)
+const cha = computed(() => attributes?.cha.value)
 </script>
 <template>
   <div class="flex grow justify-between px-0 *:w-1/6">

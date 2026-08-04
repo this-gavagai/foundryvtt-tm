@@ -8,10 +8,11 @@ import ViewableItem from '@/components/widgets/ViewableItem.vue'
 import SheetSection from '@/components/widgets/SheetSection.vue'
 import SpellRollButtons from '@/components/SpellRollButtons.vue'
 
-// One "source → rank → spell list" block, shared by spellcasting entries and the
-// staff. The entry-specific UI (slot counters, empty slots, prepared counters,
-// signature heightening) is all gated on `entry`; a staff source leaves it
-// undefined and those affordances fall away.
+// One "source → rank → spell list" block, shared by spellcasting entries, the
+// staff, and the NPC sheet's unattached spells. The entry-specific UI (slot
+// counters, empty slots, prepared counters, signature heightening) is all gated
+// on `entry`; an entry-less source leaves it undefined and those affordances
+// fall away.
 const props = defineProps<{
   dataSection: string
   title: string
@@ -19,6 +20,10 @@ const props = defineProps<{
   ranks?: Record<string, (Spell | undefined)[]>
   prepList?: Record<string, (Spell | undefined)[]>
   entry?: SpellcastingEntry
+  // What an entry-less source actually is. It rides along on the emitted
+  // SpellInfo so the parent can tell a staff cast (charge-gated) from a spell
+  // attached to no entry (not castable at all). Ignored when `entry` is set.
+  entrylessKind?: 'staff' | 'unattached'
   titleClickable?: boolean
 }>()
 
@@ -35,16 +40,22 @@ const emit = defineEmits<{
   ]
 }>()
 
-// An entry cast carries its slot coordinates; a staff cast only needs the rank.
+// An entry cast carries its slot coordinates; an entry-less one only needs the
+// rank, plus a marker for which kind of source it came from.
 function spellInfo(rank: string, index: number): SpellInfo {
-  return props.entry
-    ? {
-        entry: props.entry,
-        entryId: props.entry._id,
-        castingRank: Number(rank),
-        castingSlot: index
-      }
-    : { fromStaff: true, castingRank: Number(rank) }
+  if (props.entry) {
+    return {
+      entry: props.entry,
+      entryId: props.entry._id,
+      castingRank: Number(rank),
+      castingSlot: index
+    }
+  }
+  return {
+    castingRank: Number(rank),
+    ...(props.entrylessKind === 'staff' ? { fromStaff: true } : {}),
+    ...(props.entrylessKind === 'unattached' ? { unattached: true } : {})
+  }
 }
 </script>
 <template>

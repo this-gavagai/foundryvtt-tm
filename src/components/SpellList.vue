@@ -10,6 +10,7 @@ import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 import {
   buildSpellbook,
   buildPrepList,
+  makeSpellRankResolver,
   slotKey,
   isStrictPrepared,
   type SpellInfo
@@ -212,7 +213,17 @@ function openSpellSelection(info: SpellInfo) {
   spellSelectionDialog.value?.open(info)
 }
 
-const spellbook = computed(() => buildSpellbook(spellcastingEntries.value, spells.value))
+// Focus spells and deliberately-heightened innate/spontaneous spells belong in a
+// higher rank group than their stored base rank — and the group's rank is what
+// gets passed on as the casting rank, so filing them low also rolled their damage
+// low. makeSpellRankResolver mirrors PF2e's own SpellPF2e#rank.
+const spellbook = computed(() =>
+  buildSpellbook(
+    spellcastingEntries.value,
+    spells.value,
+    makeSpellRankResolver(characterLevel.value)
+  )
+)
 const prepList = computed(() => buildPrepList(spellcastingEntries.value, spells.value))
 
 // ⋮ menu action on the spellcasting-entry modal: browse the entry's full known
@@ -271,6 +282,7 @@ function openKnownSpells() {
         v-if="staff?.staffId"
         class="pt-4 [&:not(:has(li))]:hidden"
         data-section="staff"
+        entryless-kind="staff"
         :title="staffItem?.name ?? ''"
         :dc="spellDC"
         :ranks="staffSpellsByRank"

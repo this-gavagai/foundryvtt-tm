@@ -5,6 +5,7 @@ import type {
   PhysicalItemPF2e,
   RawModifier,
   RollOptionRuleElement,
+  SpellPF2e,
   WeaponPF2e
 } from '@7h3laughingman/pf2e-types'
 import type { RequestCharacterDetailsArgs, UpdateCharacterDetailsArgs } from '@/types/api-types'
@@ -326,8 +327,14 @@ export async function getCharacterDetails(
   const proficiencyLabels = isCharacter ? localizeProficiencyLabels(characterActor.system) : {}
   const rollOptionLabels = localizeRollOptionLabels(characterActor)
   const traitLabels = localizeTraitLabels()
-  const iwrLabels = isCharacter ? localizeIWRLabels(characterActor) : {}
-  const spellcastingModifiers = isCharacter ? buildSpellcastingModifiers(characterActor) : {}
+  // IWR reads straight off system.attributes, so it works for any creature —
+  // NPCs lean on it far more heavily than characters do.
+  const iwrLabels = localizeIWRLabels(characterActor)
+  // Entry statistics are read off the live spellcasting entries, so this works
+  // for any caster. NPCs need it more than characters do: their source
+  // `spelldc.dc`/`.value` are hand-authored numbers that the elite/weak
+  // adjustment shifts only on the prepared statistic.
+  const spellcastingModifiers = buildSpellcastingModifiers(characterActor)
   // Some PF2e conditions grant child conditions in-memory only (e.g. Grabbed
   // grants Off-Guard and Immobilized via `GrantItem` rule elements with
   // `inMemoryOnly: true`). These grants live on `actor.conditions` rather
@@ -380,6 +387,24 @@ export async function getCharacterDetails(
         ;(sys.damage as { damageType?: string }) = { ...dmg, damageType: prepared }
       }
     }
+    // An innate spell's per-spell uses are DERIVED, not stored: PF2e's
+    // SpellPF2e#prepareSiblingData merges in `{ value: 1, max: 1 }` (without
+    // overwriting an authored value) for every spell whose entry is innate. So
+    // toObject() omits `location.uses` entirely for the majority of bestiary
+    // innate spells, and without it the client can't tell "one cast available"
+    // from "expended" — nor render the uses counter that is the whole point of
+    // an NPC's innate spell list. Overlay the prepared value.
+    if (i.type === 'spell') {
+      const uses = (i as unknown as SpellPF2e).system?.location?.uses
+      if (uses) {
+        const sys = (obj.system ??= {})
+        const location = (sys.location as Record<string, unknown> | undefined) ?? {}
+        ;(sys.location as Record<string, unknown>) = {
+          ...location,
+          uses: { value: uses.value, max: uses.max }
+        }
+      }
+    }
     return obj
   })
   // In-memory-only conditions (e.g. Off-Guard granted by Grabbed) are now derived
@@ -423,15 +448,25 @@ export async function getCharacterDetails(
       modifiers: actor.armorClass.modifiers.map(serializeModifier)
     }
   }
-  systemPayload.perception = serializeStatistic(actor.perception)
+  // Overlay the live statistic traces onto the raw system data rather than
+  // replacing it: the trace is authoritative for the numbers, but the raw
+  // entries carry stat-block fields the trace has no notion of — an NPC's
+  // per-save `saveDetail`, and the `visible` flag that marks which of the
+  // sixteen skill statistics the creature is actually trained in.
+  const overlay = <T extends object>(raw: unknown, trace: T | undefined) =>
+    trace ? { ...((raw as object | undefined) ?? {}), ...trace } : trace
+  systemPayload.perception = overlay(systemPayload.perception, serializeStatistic(actor.perception))
   systemPayload.saves = {
     ...(systemPayload.saves ?? {}),
-    fortitude: serializeStatistic(actor.saves?.fortitude),
-    reflex: serializeStatistic(actor.saves?.reflex),
-    will: serializeStatistic(actor.saves?.will)
+    fortitude: overlay(systemPayload.saves?.fortitude, serializeStatistic(actor.saves?.fortitude)),
+    reflex: overlay(systemPayload.saves?.reflex, serializeStatistic(actor.saves?.reflex)),
+    will: overlay(systemPayload.saves?.will, serializeStatistic(actor.saves?.will))
   }
   systemPayload.skills = Object.fromEntries(
-    Object.entries(actor.skills ?? {}).map(([slug, skill]) => [slug, serializeStatistic(skill)])
+    Object.entries(actor.skills ?? {}).map(([slug, skill]) => [
+      slug,
+      overlay(systemPayload.skills?.[slug], serializeStatistic(skill))
+    ])
   )
   systemPayload.attack = serializeStatistic(
     (actor as ActorPF2e & { attackStatistic?: StatisticTrace }).attackStatistic

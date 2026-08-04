@@ -99,6 +99,10 @@ export function localizeTraitLabels(): Record<string, string> {
     'elementTraits',
     'rarityTraits',
     'npcAttackTraits',
+    // Not traits, but the same slug→i18n-key shape: the rider effects an NPC
+    // strike applies on a hit (Grab, Knockdown, …), which the NPC sheet lists
+    // under each attack and looks up by tag.
+    'attackEffects',
     'vehicleTraits',
     'hazardTraits'
   ]
@@ -190,6 +194,7 @@ export function buildSpellcastingModifiers(
 ): Record<string, SpellcastingModifierData> {
   type SpellcastingStatistic = {
     mod?: number
+    dc?: { value?: number }
     check?: { modifiers?: RawModifier[] }
   }
   const result: Record<string, SpellcastingModifierData> = {}
@@ -198,6 +203,10 @@ export function buildSpellcastingModifiers(
     const stat = (item as ItemPF2e<CharacterPF2e> & { statistic?: SpellcastingStatistic }).statistic
     result[item._id ?? ''] = {
       mod: stat?.mod ?? 0,
+      // The prepared save DC. A character's already matches the entry's stored
+      // `spelldc.dc`, but an NPC's shifts with the elite/weak adjustment while
+      // the stored number does not — so the client prefers this one.
+      dc: stat?.dc?.value,
       modifiers: (stat?.check?.modifiers ?? []).map((m: RawModifier) => ({
         slug: m.slug,
         label: m.label,

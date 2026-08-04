@@ -4,8 +4,13 @@ import {
   isStrictPrepared,
   isFlexiblePrepared,
   isSlotCaster,
+  isInnate,
+  isFocusPool,
+  makeSpellRankResolver,
   buildSpellbook,
+  buildOrphanSpells,
   buildPrepList,
+  hasAnySpells,
   MAX_SPELL_RANK
 } from '@/utils/spellcasting'
 
@@ -19,6 +24,7 @@ function makeEntry(overrides: {
   _id: string
   prepared?: string
   flexible?: boolean
+  autoHeightenLevel?: number
   slots?: Record<string, { max: number; prepared?: { id: string | null }[] }>
 }): SpellcastingEntry {
   return {
@@ -27,6 +33,7 @@ function makeEntry(overrides: {
     type: 'spellcastingEntry',
     system: {
       prepared: { value: overrides.prepared, flexible: overrides.flexible },
+      autoHeightenLevel: { value: overrides.autoHeightenLevel },
       slots: Object.fromEntries(
         Object.entries(overrides.slots ?? {}).map(([key, slot]) => [
           key,
@@ -43,16 +50,26 @@ function makeSpell(overrides: {
   location: string
   level: number
   cantrip?: boolean
+  focus?: boolean
   signature?: boolean
+  heightenedLevel?: number
+  autoHeightenLevel?: number
 }): Spell {
   return {
     _id: overrides._id,
     name: overrides.name ?? overrides._id,
     type: 'spell',
     system: {
-      location: { value: overrides.location, signature: overrides.signature },
+      location: {
+        value: overrides.location,
+        signature: overrides.signature,
+        heightenedLevel: overrides.heightenedLevel,
+        autoHeightenLevel: overrides.autoHeightenLevel
+      },
       level: { value: overrides.level },
-      traits: { value: overrides.cantrip ? ['cantrip'] : [] }
+      traits: {
+        value: [...(overrides.cantrip ? ['cantrip'] : []), ...(overrides.focus ? ['focus'] : [])]
+      }
     }
   } as unknown as Spell
 }
@@ -82,10 +99,23 @@ describe('preparation predicates', () => {
     expect(isStrictPrepared(sorcerer)).toBe(false)
   })
 
+  it('classifies innate and focus entries, which spend per spell / per point', () => {
+    const innate = makeEntry({ _id: 'e1', prepared: 'innate' })
+    expect(isInnate(innate)).toBe(true)
+    expect(isSlotCaster(innate)).toBe(false)
+    expect(isStrictPrepared(innate)).toBe(false)
+
+    const focus = makeEntry({ _id: 'e2', prepared: 'focus' })
+    expect(isFocusPool(focus)).toBe(true)
+    expect(isInnate(focus)).toBe(false)
+  })
+
   it('handles undefined entries', () => {
     expect(isStrictPrepared(undefined)).toBe(false)
     expect(isFlexiblePrepared(undefined)).toBe(false)
     expect(isSlotCaster(undefined)).toBe(false)
+    expect(isInnate(undefined)).toBe(false)
+    expect(isFocusPool(undefined)).toBe(false)
   })
 })
 
@@ -187,5 +217,175 @@ describe('buildPrepList', () => {
     const tooHigh = makeSpell({ _id: 'wish+', location: 'e1', level: MAX_SPELL_RANK + 1 })
     const prepList = buildPrepList([prepared], [tooHigh])
     expect(Object.values(prepList.e1).flat()).toEqual([])
+  })
+})
+
+// PF2e's real answer to "what rank is this spell?" is SpellPF2e#rank, a prototype
+// getter that never survives the socket — system.level.value is only the BASE
+// rank. The resolver mirrors the getter, and getting it wrong is not cosmetic:
+// the group's rank is passed on as the casting rank for damage previews and
+// damage rolls, so a spell filed too low also rolls its damage too low.
+describe('makeSpellRankResolver', () => {
+  const rankAt10 = makeSpellRankResolver(10)
+
+  it('files cantrips at 0 — their cast rank auto-scales Foundry-side', () => {
+    const cantrip = makeSpell({ _id: 'daze', location: 'e1', level: 1, cantrip: true })
+    expect(rankAt10(cantrip)).toBe(0)
+  })
+
+  it('takes the heightened rank when a spell was heightened into a higher group', () => {
+    const heightened = makeSpell({ _id: 'meta', location: 'e1', level: 6, heightenedLevel: 8 })
+    expect(rankAt10(heightened)).toBe(8)
+  })
+
+  it('falls back to the base rank when nothing heightened it', () => {
+    expect(rankAt10(makeSpell({ _id: 'dominate', location: 'e1', level: 6 }))).toBe(6)
+  })
+
+  it('auto-heightens a focus spell to half the caster level, rounded up', () => {
+    const layOnHands = makeSpell({ _id: 'loh', location: 'e1', level: 1, focus: true })
+    expect(rankAt10(layOnHands)).toBe(5)
+    expect(makeSpellRankResolver(1)(layOnHands)).toBe(1)
+    expect(makeSpellRankResolver(19)(layOnHands)).toBe(10)
+  })
+
+  it('auto-heightens every non-cantrip in a focus entry, trait or not', () => {
+    const focusEntry = makeEntry({ _id: 'e1', prepared: 'focus' })
+    const untagged = makeSpell({ _id: 'untagged', location: 'e1', level: 1 })
+    expect(rankAt10(untagged, focusEntry)).toBe(5)
+    expect(isFocusPool(focusEntry)).toBe(true)
+  })
+
+  it('prefers an explicit autoHeightenLevel over half the caster level', () => {
+    const entry = makeEntry({ _id: 'e1', prepared: 'focus', autoHeightenLevel: 3 })
+    const spell = makeSpell({ _id: 'loh', location: 'e1', level: 1, focus: true })
+    expect(rankAt10(spell, entry)).toBe(3)
+    // The spell's own override beats the entry's.
+    const pinned = makeSpell({
+      _id: 'pinned',
+      location: 'e1',
+      level: 1,
+      focus: true,
+      autoHeightenLevel: 7
+    })
+    expect(rankAt10(pinned, entry)).toBe(7)
+  })
+
+  it('floors at 1 and copes with an unknown caster level', () => {
+    const focusSpell = makeSpell({ _id: 'loh', location: 'e1', level: 1, focus: true })
+    expect(makeSpellRankResolver(undefined)(focusSpell)).toBe(1)
+    expect(makeSpellRankResolver(0)(focusSpell)).toBe(1)
+  })
+})
+
+describe('buildSpellbook — heightened and focus grouping', () => {
+  it('files a heightened innate spell under its heightened rank', () => {
+    const innate = makeEntry({ _id: 'e1', prepared: 'innate' })
+    const meta = makeSpell({
+      _id: 'meta',
+      name: 'Cursed Metamorphosis',
+      location: 'e1',
+      level: 6,
+      heightenedLevel: 8
+    })
+    const dominate = makeSpell({ _id: 'dominate', name: 'Dominate', location: 'e1', level: 6 })
+    const book = buildSpellbook([innate], [meta, dominate], makeSpellRankResolver(12))
+    expect(book.e1['8'].map((s) => s?.name)).toEqual(['Cursed Metamorphosis'])
+    expect(book.e1['6'].map((s) => s?.name)).toEqual(['Dominate'])
+  })
+
+  it('files a focus spell at its auto-heightened rank, not its base rank', () => {
+    const focus = makeEntry({ _id: 'e1', prepared: 'focus' })
+    const loh = makeSpell({
+      _id: 'loh',
+      name: 'Lay on Hands',
+      location: 'e1',
+      level: 1,
+      focus: true
+    })
+    const book = buildSpellbook([focus], [loh], makeSpellRankResolver(10))
+    expect(book.e1['5'].map((s) => s?.name)).toEqual(['Lay on Hands'])
+    expect(book.e1['1']).toEqual([])
+  })
+
+  it('leaves strict-prepared entries on their slot arrays, resolver or not', () => {
+    const entry = makeEntry({
+      _id: 'e1',
+      prepared: 'prepared',
+      slots: { slot1: { max: 2, prepared: [{ id: 'heal' }, { id: null }] } }
+    })
+    const heal = makeSpell({ _id: 'heal', location: 'e1', level: 1, heightenedLevel: 4 })
+    const book = buildSpellbook([entry], [heal], makeSpellRankResolver(10))
+    expect(book.e1['1'].map((s) => s?._id)).toEqual(['heal', undefined])
+    expect(book.e1['4']).toEqual([])
+  })
+
+  it('sorts a heightened spell as native to its own group, not as a signature spell', () => {
+    const innate = makeEntry({ _id: 'e1', prepared: 'innate' })
+    const meta = makeSpell({
+      _id: 'meta',
+      name: 'Zed',
+      location: 'e1',
+      level: 6,
+      heightenedLevel: 8
+    })
+    const native = makeSpell({ _id: 'native', name: 'Abc', location: 'e1', level: 8 })
+    const book = buildSpellbook([innate], [meta, native], makeSpellRankResolver(12))
+    // Both are native to rank 8; the stable sort keeps input order rather than
+    // demoting the heightened one to the bottom.
+    expect(book.e1['8'].map((s) => s?.name)).toEqual(['Zed', 'Abc'])
+  })
+})
+
+// PF2e attaches a spell to an entry via system.location.value and its sheets only
+// render entry collections, so an unattached spell is invisible there — a real
+// content gap for bestiary rituals and one-off abilities.
+describe('buildOrphanSpells', () => {
+  const entry = makeEntry({ _id: 'e1', prepared: 'innate' })
+  const attached = makeSpell({ _id: 'attached', name: 'Attached', location: 'e1', level: 3 })
+
+  it('collects spells with no location at all', () => {
+    const loose = makeSpell({ _id: 'weather', name: 'Control Weather', location: null!, level: 8 })
+    const ranks = buildOrphanSpells([entry], [attached, loose])
+    expect(ranks['8'].map((s) => s?.name)).toEqual(['Control Weather'])
+    expect(
+      Object.values(ranks)
+        .flat()
+        .map((s) => s?._id)
+    ).not.toContain('attached')
+  })
+
+  it('collects spells pointing at an entry that no longer exists', () => {
+    const stale = makeSpell({ _id: 'stale', name: 'Stale', location: 'deletedEntry', level: 2 })
+    const ranks = buildOrphanSpells([entry], [stale])
+    expect(ranks['2'].map((s) => s?.name)).toEqual(['Stale'])
+  })
+
+  it('groups by resolved rank and sorts by name within a rank', () => {
+    const b = makeSpell({ _id: 'b', name: 'Beta', location: null!, level: 2 })
+    const a = makeSpell({ _id: 'a', name: 'Alpha', location: null!, level: 2 })
+    const cantrip = makeSpell({
+      _id: 'c',
+      name: 'Cantrip',
+      location: null!,
+      level: 1,
+      cantrip: true
+    })
+    const ranks = buildOrphanSpells([entry], [b, a, cantrip], makeSpellRankResolver(10))
+    expect(ranks['2'].map((s) => s?.name)).toEqual(['Alpha', 'Beta'])
+    expect(ranks['0'].map((s) => s?.name)).toEqual(['Cantrip'])
+  })
+
+  it('reports emptiness so the caller can hide the section', () => {
+    expect(hasAnySpells(buildOrphanSpells([entry], [attached]))).toBe(false)
+    expect(hasAnySpells(buildOrphanSpells([entry], []))).toBe(false)
+    expect(hasAnySpells(undefined)).toBe(false)
+    const loose = makeSpell({ _id: 'loose', location: null!, level: 1 })
+    expect(hasAnySpells(buildOrphanSpells([entry], [loose]))).toBe(true)
+  })
+
+  it('treats every spell as an orphan when there are no entries', () => {
+    const ranks = buildOrphanSpells([], [attached])
+    expect(ranks['3'].map((s) => s?._id)).toEqual(['attached'])
   })
 })

@@ -189,6 +189,29 @@
     "athleticsSwim": "Athletikwurf (Schwimmen)",
     "athleticsClimb": "Athletikwurf (Klettern)"
   },
+  "npc": {
+    "senses": "Sinne",
+    "statNotes": "Anmerkungen",
+    "allSaves": "Alle Rettungswürfe",
+    "attackEffects": "Effekt:",
+    "activeAbilities": "Aktionen",
+    "passiveAbilities": "Passive Fähigkeiten",
+    "publicNotes": "Beschreibung",
+    "innateUses": "Anwendungen",
+    "unassignedSpells": "Nicht zugeordnete Zauber",
+    "adjustments": {
+      "elite": "Elite",
+      "weak": "Schwach"
+    },
+    "sizes": {
+      "tiny": "Winzig",
+      "sm": "Klein",
+      "med": "Mittel",
+      "lg": "Groß",
+      "huge": "Riesig",
+      "grg": "Gigantisch"
+    }
+  },
   "iwr": {
     "immunity": "Immunität",
     "weakness": "Schwäche",

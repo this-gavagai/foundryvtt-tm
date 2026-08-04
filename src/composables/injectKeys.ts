@@ -2,13 +2,15 @@ import { inject, type InjectionKey } from 'vue'
 import type { Actor } from '@/composables/actor'
 import type { Character } from '@/composables/character'
 import type { Familiar } from '@/composables/familiar'
+import type { Npc } from '@/composables/npc'
 
 // Every sheet provides actorKey; components shared across sheet types consume
-// it. characterKey/familiarKey expose the full sheet-specific models and are
-// only provided by their own sheet.
+// it. characterKey/familiarKey/npcKey expose the full sheet-specific models and
+// are only provided by their own sheet.
 export const actorKey = Symbol() as InjectionKey<Actor>
 export const characterKey = Symbol() as InjectionKey<Character>
 export const familiarKey = Symbol() as InjectionKey<Familiar>
+export const npcKey = Symbol() as InjectionKey<Npc>
 
 export function useInjectedActor(): Actor {
   const actor = inject(actorKey)
@@ -32,4 +34,12 @@ export function useInjectedFamiliar(): Familiar {
     throw new Error('useInjectedFamiliar() must be used inside a <FamiliarSheet>')
   }
   return familiar
+}
+
+export function useInjectedNpc(): Npc {
+  const npc = inject(npcKey)
+  if (!npc) {
+    throw new Error('useInjectedNpc() must be used inside an <NpcSheet>')
+  }
+  return npc
 }

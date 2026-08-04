@@ -5,19 +5,24 @@ import { formatModifier } from '@/utils/formatters'
 import StatBox from '@/components/widgets/StatBox.vue'
 import { storeToRefs } from 'pinia'
 import { useCombatStore } from '@/stores/combat'
-import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useInjectedActor } from '@/composables/injectKeys'
 import { useListenersStore } from '@/stores/listenersOnline'
 
 import DropdownWidget from './widgets/DropdownWidget.vue'
 
-const character = useInjectedCharacter()
-const { _id: currentActorId, skills, perception } = character
-const {
-  stat: initiativeStat,
-  modifiers: initiativeMods,
-  totalModifier: initiativeTotalModifier,
-  roll: rollInitiative
-} = character.initiative
+const actor = useInjectedActor()
+const { _id: currentActorId, skills, perception, initiative } = actor
+// `initiative` is optional on the shared actor surface (familiars don't roll
+// it), so the statistic picker and roll button read through it.
+const initiativeStat = computed({
+  get: () => initiative?.stat.value,
+  set: (newValue) => {
+    if (initiative) initiative.stat.value = newValue
+  }
+})
+const initiativeMods = computed(() => initiative?.modifiers.value)
+const initiativeTotalModifier = computed(() => initiative?.totalModifier.value)
+const rollInitiative = initiative?.roll
 
 const skillsPlusPerception = computed(() =>
   (perception.value ? [perception.value] : []).concat(skills.value ?? [])

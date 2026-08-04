@@ -576,6 +576,7 @@
     [data-section='treasure'],
     [data-section='primal'],
     [data-section='staff'],
+    [data-section='unassigned'],
     [data-section='master'],
     [data-section='movement'] {
       --section-color: var(--color-proficiency-master);
@@ -616,35 +617,62 @@
       padding: 0.75rem 0.3rem;
     }
 
-    /* --- FamiliarSheet: backdrop + card spacing mirror the main sheet ----- */
-    [data-component='FamiliarSheet'] {
+    /* --- Familiar / NPC sheets: backdrop + card spacing mirror the main sheet.
+     Both are single-page sheets (no tab bar), so they paint the panel backdrop
+     themselves and their <main> children carry the gutter the tab panels
+     otherwise supply. */
+    [data-component='FamiliarSheet'],
+    [data-component='NpcSheet'] {
       background-color: var(--tm-panel-color);
       background-image: var(--tm-backdrop-image);
     }
 
-    [data-component='FamiliarSheet'] [data-part='familiar-detail-label'] {
+    [data-component='FamiliarSheet'] [data-part='familiar-detail-label'],
+    [data-component='NpcSheet'] [data-part='npc-note-label'] {
       color: var(--color-heading);
     }
 
-    [data-component='FamiliarSheet'] [data-part='familiar-detail-value'] {
+    [data-component='FamiliarSheet'] [data-part='familiar-detail-value'],
+    [data-component='NpcSheet'] [data-part='npc-note-value'] {
       color: var(--color-text);
     }
 
-    [data-component='FamiliarSheet'] > main > [data-component='SkillList'] > div:first-child {
+    :is([data-component='FamiliarSheet'], [data-component='NpcSheet'])
+      > main
+      > [data-component='SkillList']
+      > div:first-child {
       padding-inline: 0.75rem;
     }
 
-    [data-component='FamiliarSheet'] > main > [data-component='FamiliarActionsList'] {
+    :is([data-component='FamiliarSheet'], [data-component='NpcSheet'])
+      > main
+      > :is(
+        [data-component='FamiliarActionsList'],
+        [data-component='NpcStrikeList'],
+        [data-component='NpcSpellList'],
+        [data-component='NpcAbilitiesList'],
+        [data-component='NpcNotes']
+      ) {
       padding-inline: 0.75rem;
     }
 
-    [data-component='FamiliarSheet'] > main > [data-component='SkillList'],
-    [data-component='FamiliarSheet'] > main > [data-component='FamiliarActionsList'] {
+    :is([data-component='FamiliarSheet'], [data-component='NpcSheet'])
+      > main
+      > :is(
+        [data-component='SkillList'],
+        [data-component='FamiliarActionsList'],
+        [data-component='NpcStrikeList'],
+        [data-component='NpcSpellList'],
+        [data-component='NpcAbilitiesList']
+      ) {
       padding-block: 0;
     }
 
     @media (min-width: 360px) {
-      [data-component='FamiliarSheet'] [data-component='SkillList'] [data-section='skills'] ul {
+      :is([data-component='FamiliarSheet'], [data-component='NpcSheet'])
+        [data-component='SkillList']
+        [data-section='skills']
+        ul {
         columns: 2;
       }
     }
@@ -674,7 +702,9 @@
     [data-component='EquipmentList'],
     [data-component='ActionsList'],
     [data-component='StrikeList'],
-    [data-component='FamiliarActionsList'] {
+    [data-component='FamiliarActionsList'],
+    [data-component='NpcStrikeList'],
+    [data-component='NpcAbilitiesList'] {
       section[data-section] {
         padding: 0.75rem 1rem;
         margin-bottom: 0.75rem;
@@ -720,7 +750,8 @@
         [data-component='SkillList'],
         [data-component='FeatsList'],
         [data-component='EquipmentList'],
-        [data-component='SpellList']
+        [data-component='SpellList'],
+        [data-component='NpcSpellList']
       )
       > div {
       padding-inline: 0.75rem;
@@ -744,6 +775,9 @@
         [data-component='ActionsList'],
         [data-component='StrikeList'],
         [data-component='FamiliarActionsList'],
+        [data-component='NpcStrikeList'],
+        [data-component='NpcAbilitiesList'],
+        [data-component='NpcSpellList'],
         [data-component='SpellList']
       )
       h3 {
@@ -768,7 +802,10 @@
         [data-component='ActionsList'],
         [data-component='StrikeList'],
         [data-component='FamiliarActionsList'],
-        [data-component='SpellList']
+        [data-component='NpcStrikeList'],
+        [data-component='NpcAbilitiesList'],
+        [data-component='SpellList'],
+        [data-component='NpcSpellList']
       )
       :is(h3, h3 *) {
       text-decoration: none;
@@ -832,7 +869,12 @@
     /* Shared attack / damage button accents — StrikeList strike row + SpellList
      inline spell-roll row both use the [data-part='attack'|'damage'] hook.
      Chip surface + border are per-theme. */
-    :is([data-component='StrikeList'], [data-component='SpellList']) {
+    :is(
+      [data-component='StrikeList'],
+      [data-component='NpcStrikeList'],
+      [data-component='SpellList'],
+      [data-component='NpcSpellList']
+    ) {
       [data-part='attack'] > span,
       [data-part='damage'] > span {
         margin-bottom: 0;
@@ -952,8 +994,10 @@
       }
     }
 
-    /* --- SpellList (two-level hierarchy: source card > rank groups) --- */
-    [data-component='SpellList'] {
+    /* --- Spell lists (two-level hierarchy: source card > rank groups).
+     Both the character SpellList and the NPC one render SpellSourceSection, so
+     they share this whole block. --- */
+    :is([data-component='SpellList'], [data-component='NpcSpellList']) {
       /* outer card per spell source — card styling comes from the per-theme
        rule; only layout-specific declarations belong here. */
       section[data-section] {

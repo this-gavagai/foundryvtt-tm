@@ -189,6 +189,29 @@
     "athleticsSwim": "Prueba de Atletismo (Nadar)",
     "athleticsClimb": "Prueba de Atletismo (Trepar)"
   },
+  "npc": {
+    "senses": "Sentidos",
+    "statNotes": "Notas",
+    "allSaves": "Todas las salvaciones",
+    "attackEffects": "Efecto:",
+    "activeAbilities": "Acciones",
+    "passiveAbilities": "Habilidades pasivas",
+    "publicNotes": "Descripción",
+    "innateUses": "Usos",
+    "unassignedSpells": "Hechizos sin asignar",
+    "adjustments": {
+      "elite": "Élite",
+      "weak": "Débil"
+    },
+    "sizes": {
+      "tiny": "Diminuto",
+      "sm": "Pequeño",
+      "med": "Mediano",
+      "lg": "Grande",
+      "huge": "Enorme",
+      "grg": "Gargantuesco"
+    }
+  },
   "iwr": {
     "immunity": "Inmunidad",
     "weakness": "Debilidad",
