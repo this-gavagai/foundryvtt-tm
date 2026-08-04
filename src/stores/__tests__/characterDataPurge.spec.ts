@@ -12,7 +12,7 @@ import { createPinia, setActivePinia } from 'pinia'
 const ACTIVE = 'https://table.example.com'
 const OTHER = 'https://other.example.com'
 
-const clearCachedCharacterData = vi.fn(() => Promise.resolve())
+const clearCachedCharacterData = vi.fn((_origin: string) => Promise.resolve())
 const cancelPendingSnapshotSaves = vi.fn()
 
 vi.mock('@/utils/cachedCharacterData', () => ({
