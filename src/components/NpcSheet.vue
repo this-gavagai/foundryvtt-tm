@@ -19,6 +19,7 @@ import NpcStrikeList from '@/components/NpcStrikeList.vue'
 import ParsedDescription from '@/components/ParsedDescription.vue'
 import PerceptionDetails from '@/components/PerceptionDetails.vue'
 import SavingThrows from '@/components/SavingThrows.vue'
+import SheetSection from '@/components/widgets/SheetSection.vue'
 import SideMenu from '@/components/SideMenu.vue'
 import SkillList from '@/components/SkillList.vue'
 import StatBox from '@/components/widgets/StatBox.vue'
@@ -72,7 +73,10 @@ const senseLabel = (sense: { type?: string; label?: string; range?: number }) =>
   sense.label ?? formatTraitLabel(sense.type ?? '', npc.traitLabels.value ?? {})
 </script>
 <template>
-  <div data-component="NpcSheet" class="flex h-full min-h-0 flex-col">
+  <!-- Width matches the character sheet's left sidebar (see sheet-left): a stat
+       block is a narrow column, and without a width the sheet is a shrink-to-fit
+       flex item whose width drifts with its content. -->
+  <div data-component="NpcSheet" class="flex h-full min-h-0 w-full flex-none flex-col md:w-80">
     <CharacterHeader
       class="sticky top-0 z-10 h-32 flex-none"
       sidebar-toggle-class=""
@@ -164,11 +168,10 @@ const senseLabel = (sense: { type?: string; label?: string; range?: number }) =>
 
       <NpcAbilitiesList />
 
-      <div v-if="npc.publicNotes.value" data-component="NpcNotes" class="px-6 py-4">
-        <h3 class="mb-2 text-[1.1rem] font-normal tracking-[0.01em]">
-          {{ $t('npc.publicNotes') }}
-        </h3>
-        <ParsedDescription :text="npc.publicNotes.value" :labels="npc.rollOptionLabels.value" />
+      <div v-if="npc.publicNotes.value" data-component="NpcNotes">
+        <SheetSection section="description" :title="$t('npc.publicNotes')">
+          <ParsedDescription :text="npc.publicNotes.value" :labels="npc.rollOptionLabels.value" />
+        </SheetSection>
       </div>
     </main>
     <SideMenu ref="sideMenu" />

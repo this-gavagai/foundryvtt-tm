@@ -139,6 +139,10 @@ export function makeSpellcastingEntry(root: SpellcastingEntryPF2e): Spellcasting
     system: {
       ...base.system,
       spelldc: { dc: root.system.spelldc?.dc },
+      // Drives the per-tradition section accent on both spell lists. It was
+      // declared but never copied, so every entry fell back to the 'arcane'
+      // accent and the occult/primal/divine colors were unreachable.
+      tradition: { value: root.system.tradition?.value ?? undefined },
       prepared: {
         value: root.system.prepared?.value,
         flexible: root.system.prepared?.flexible

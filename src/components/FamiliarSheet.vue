@@ -32,7 +32,8 @@ const worldStore = useWorldStore()
 const masterName = computed(() => worldStore.actorById(familiar.masterId.value)?.name)
 </script>
 <template>
-  <div data-component="FamiliarSheet" class="flex h-full min-h-0 flex-col">
+  <!-- Same sidebar width as the NPC sheet — see the note there. -->
+  <div data-component="FamiliarSheet" class="flex h-full min-h-0 w-full flex-none flex-col md:w-80">
     <CharacterHeader
       class="sticky top-0 z-10 h-32 flex-none"
       sidebar-toggle-class=""

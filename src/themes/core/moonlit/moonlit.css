@@ -715,7 +715,8 @@
         [data-component='StrikeList'],
         [data-component='FamiliarActionsList'],
         [data-component='NpcStrikeList'],
-        [data-component='NpcAbilitiesList']
+        [data-component='NpcAbilitiesList'],
+        [data-component='NpcNotes']
       )
       section[data-section],
     :is([data-component='SpellList'], [data-component='NpcSpellList']) section[data-section] {

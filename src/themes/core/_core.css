@@ -704,7 +704,8 @@
     [data-component='StrikeList'],
     [data-component='FamiliarActionsList'],
     [data-component='NpcStrikeList'],
-    [data-component='NpcAbilitiesList'] {
+    [data-component='NpcAbilitiesList'],
+    [data-component='NpcNotes'] {
       section[data-section] {
         padding: 0.75rem 1rem;
         margin-bottom: 0.75rem;
@@ -745,13 +746,15 @@
 
     /* Uniform horizontal gutter around the section cards across the list tabs.
      Each component sets this as a px-6 utility on its own content wrapper;
-     override it to px-3 here so all tabs match the familiar sheet's 0.75rem. */
+     override it to px-3 here so all tabs match the familiar sheet's 0.75rem.
+     NpcSpellList is deliberately absent: its wrapper carries no px-6, and the
+     single-page-sheet rule above already gutters it — listing it here stacked a
+     second 0.75rem and indented the spell cards past every other block. */
     :is(
         [data-component='SkillList'],
         [data-component='FeatsList'],
         [data-component='EquipmentList'],
-        [data-component='SpellList'],
-        [data-component='NpcSpellList']
+        [data-component='SpellList']
       )
       > div {
       padding-inline: 0.75rem;
@@ -777,6 +780,7 @@
         [data-component='FamiliarActionsList'],
         [data-component='NpcStrikeList'],
         [data-component='NpcAbilitiesList'],
+        [data-component='NpcNotes'],
         [data-component='NpcSpellList'],
         [data-component='SpellList']
       )
@@ -804,6 +808,7 @@
         [data-component='FamiliarActionsList'],
         [data-component='NpcStrikeList'],
         [data-component='NpcAbilitiesList'],
+        [data-component='NpcNotes'],
         [data-component='SpellList'],
         [data-component='NpcSpellList']
       )

@@ -214,7 +214,10 @@ const hasSpellcasting = computed(
 </script>
 <template>
   <div v-if="hasSpellcasting" data-component="NpcSpellList">
-    <div class="lg:columns-2">
+    <!-- Single column: the sheet is pinned to the sidebar width, so a
+         viewport-driven multi-column split here would shear the spell cards in
+         half rather than using space the sheet doesn't have. -->
+    <div>
       <SpellSourceSection
         v-for="entry in spellcastingEntries"
         :key="entry._id"
