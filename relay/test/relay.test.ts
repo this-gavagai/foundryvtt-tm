@@ -1777,7 +1777,13 @@ describe('Android delivery via FCM', () => {
     const sendIdx = apnsCalls.indexOf(FCM_SEND_URL)
     expect(apnsHeaders[sendIdx].authorization).toBe('Bearer ya29.test-token')
 
-    const sent = apnsBodies[sendIdx] as { message?: Record<string, any> }
+    const sent = apnsBodies[sendIdx] as {
+      message?: {
+        token?: string
+        notification?: { title?: string; body?: string }
+        android?: { ttl?: string }
+      }
+    }
     expect(sent.message?.token).toBe(fcmDev('droidA'))
     expect(sent.message?.notification).toEqual({ title: 'Gamemaster', body: 'hello' })
     // Chat is perishable on Android too — the counterpart of apns-expiration.
