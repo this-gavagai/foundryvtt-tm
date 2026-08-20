@@ -14,6 +14,13 @@ is free (it rides your existing $99/yr Apple Developer account).
 one alert to a device token you pass in. That's it — enough to prove the hardest
 link (getting Apple to ring your phone) before wiring up anything else.
 
+Android goes to FCM instead, which wants an OAuth2 access token rather than a
+self-signed JWT: the relay signs a service-account assertion, exchanges it at
+Google's token endpoint, and caches the result for the isolate's life. Android is
+opt-in on the credential — with no `FCM_SERVICE_ACCOUNT` the relay serves iOS
+exactly as before and reports Android registrations as unconfigured rather than
+failing them.
+
 ---
 
 ## Step 1 — Create an APNs auth key (once)
@@ -84,6 +91,16 @@ curl -X POST https://tablemate-push-relay.<your-subdomain>.workers.dev/send \
 
 Success → `{"ok":true, ...}` and the banner appears on your phone.
 
+For an Android device, add `"platform":"android"` and pass the FCM token the app
+logs as `[push] device token:` (visible with `adb logcat | grep "\[push\]"`):
+
+```sh
+curl -X POST https://tablemate-push-relay.<your-subdomain>.workers.dev/send \
+  -H "authorization: Bearer <RELAY_TEST_SECRET>" \
+  -H "content-type: application/json" \
+  -d '{"deviceToken":"<FCM_TOKEN>","title":"Tabula Mensa","body":"It works!","platform":"android"}'
+```
+
 ---
 
 ## Troubleshooting
@@ -97,6 +114,16 @@ The `apns.body` field in the JSON response carries Apple's reason on failure:
 | `ExpiredProviderToken` / `InvalidProviderToken` | Wrong `APNS_KEY_ID` / `APNS_TEAM_ID`, or the `.p8` was pasted incompletely. |
 | `MissingTopic` | `APNS_BUNDLE_ID` var is empty. |
 | 401 from the relay (not APNs) | `RELAY_TEST_SECRET` in the curl header doesn't match the deployed secret. |
+
+For Android the reason is in `fcm.body`:
+
+| Response | Meaning / fix |
+| --- | --- |
+| 501 `FCM is not configured` | No `FCM_SERVICE_ACCOUNT` secret — set `FCM_SERVICE_ACCOUNT_FILE` in `relay.env` and re-run `npm run secrets`. |
+| 502 `FCM token exchange failed` | The service-account JSON is wrong or incomplete, or its key was revoked in the Firebase console. |
+| `UNREGISTERED` (404) | The app was uninstalled or its token rotated. The relay prunes that registration itself. |
+| `INVALID_ARGUMENT` (400) | Malformed token or payload. Deliberately *not* treated as a dead device, so a sender bug can't prune live registrations. |
+| `SENDER_ID_MISMATCH` (403) | The device's `google-services.json` belongs to a different Firebase project than the service account. |
 
 Watch live logs while testing: `npx wrangler tail`.
 
@@ -190,9 +217,9 @@ provisioning, so opening it repairs a world whose first attempt failed offline.
 Backing that panel is `POST /status` (bearer the world key): read-only, returns
 `{provisioned, devices: {userId: count}, unsupported, truncated}` counting only
 registrations recent enough to still be pushed *and* on a platform the relay can
-actually reach — an Android registration is stored but never delivered to, so it
-is reported as `unsupported` rather than counted as a device that will hear
-something. `truncated` says the user list was longer than one call may read (see
+actually reach — an Android registration counts only when the relay has an FCM
+credential configured, and is otherwise reported as `unsupported` rather than
+counted as a device that will hear something. `truncated` says the user list was longer than one call may read (see
 the subrequest ceiling below); the module chunks and merges. A wrong key and an
 unknown world both answer 401 — the only actionable fact is "this relay will not
 take your world's pushes", and distinguishing them would leak which worlds exist.
@@ -226,14 +253,15 @@ in ways that cost notifications:
   Registration *reads* stay strict — not knowing where to send is a real error,
   and one the module retries.
 - **Subrequests — and there are two ceilings, not one.** A free-plan invocation
-  may make **50 external** subrequests (`fetch()`, i.e. the APNs sends) and,
+  may make **50 external** subrequests (`fetch()`, i.e. the APNs and FCM sends,
+  plus FCM's OAuth token exchange) and,
   separately, **1,000 operations to Cloudflare services** (the KV reads and
   writes). These were once budgeted as a single pool of 44 on the belief that KV
   drew on the same 50, which charged about four units per device where only one
   was external — so a dozen devices spent the allowance on bookkeeping and
   everyone past them was shed.
 
-  `MAX_APNS_SENDS` (46) now budgets the sends, and `MAX_KV_OPS` (400) bounds the
+  `MAX_PUSH_SENDS` (46) now budgets the sends, and `MAX_KV_OPS` (400) bounds the
   KV side generously — 400 against a limit of 1,000 will not bind for any table,
   and it exists so that being wrong about a ceiling degrades into a reported shed
   rather than a mid-loop throw that 500s and loses every recipient (three times

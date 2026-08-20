@@ -84,6 +84,37 @@ export function classifyHomeRedirect(
   return undefined
 }
 
+// Attributes for the session cookie the native app plants for a Foundry server.
+//
+// Foundry v14 authenticates a socket from the Cookie header alone. It no longer
+// reads the `session` query parameter v13 accepted — its own client passes none
+// (it is same-origin, so the cookie is automatic). The native app's WebView page
+// is a *different site* from the Foundry server, so that cookie only rides along
+// on the cross-site wss:// handshake when it is SameSite=None, and Chromium
+// refuses SameSite=None unless the cookie is also Secure.
+//
+// Capacitor's cookie plugin exposes no SameSite option — its Android
+// implementation concatenates `<key>=<value>; expires=<expires>; path=<path>`
+// into a Set-Cookie string — so the attributes are appended to the path value,
+// the only lever available. Verified on-device: without this the handshake gets
+// `session: null` and every getJoinData emit goes unanswered.
+//
+// http:// servers keep a bare path: no attribute combination helps them. A
+// Secure cookie is never sent back over a plain connection, and SameSite=None
+// without Secure is rejected outright.
+//
+// On Android that is moot anyway — Capacitor's default androidScheme makes the
+// page origin https://localhost, and Chromium refuses to even construct a
+// ws:// socket from an https page ("An insecure WebSocket connection may not be
+// initiated from a page loaded over HTTPS"), so a plain-http Foundry server has
+// never been reachable there on any Foundry version. iOS runs from
+// capacitor://localhost, which is not an https page, so ws:// is allowed and
+// http servers do work there — up to v13. On v14 they need this cookie, which
+// http can't have.
+export function sessionCookiePath(serverUrl: URL): string {
+  return serverUrl.protocol === 'https:' ? '/; SameSite=None; Secure' : '/'
+}
+
 // Error keys Foundry sends (as a plain-text 401 body, un-localized) when the
 // credential itself can never succeed. Anything else — including an
 // unrecognized refusal and JOIN.WorldPendingSetup, which clears once the GM

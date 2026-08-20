@@ -9,6 +9,7 @@ import {
   JOIN_DATA_TIMEOUT_MS,
   PROBE_TIMEOUT_MS,
   readBrowserSessionCookie,
+  sessionCookiePath,
   SESSION_CHECK_TIMEOUT_MS,
   VERIFY_CREDENTIALS_TIMEOUT_MS,
   type JoinAttempt,
@@ -25,6 +26,16 @@ const LEGACY_SESSION_KEY = 'foundrySession'
 
 function sessionStorageKey(serverUrl: URL): string {
   return `${SESSION_STORAGE_PREFIX}${serverUrl.origin}`
+}
+
+// The stored sid with no side effects — readSession also plants the cookie, so
+// it can't be used to merely *test* whether this server has a session yet.
+function readStoredSession(serverUrl: URL): string | undefined {
+  return (
+    localStorage.getItem(sessionStorageKey(serverUrl)) ??
+    localStorage.getItem(LEGACY_SESSION_KEY) ??
+    undefined
+  )
 }
 
 function responseDataAsText(response: HttpResponse): string {
@@ -76,6 +87,17 @@ async function getNativeJoinData(serverUrl: URL): Promise<JoinData> {
   if (response.status < 200 || response.status >= 300) {
     throw new Error(`Join page returned ${response.status}`)
   }
+  // GET /join mints an anonymous session and hands it back as a Set-Cookie.
+  // Keeping it is what lets the *next* socket authenticate: v14 answers
+  // getJoinData only for a handshake carrying a session, and on a first launch
+  // there is none — while the user list it used to serve in this page's HTML is
+  // now rendered client-side, so scraping can't break the deadlock any more.
+  // The login page's empty-list path already asks for a fresh socket, which
+  // picks this up via readSession.
+  //
+  // Only when nothing is stored. A session that exists and merely hit a
+  // transient socket failure must not be traded for an anonymous one.
+  if (!readStoredSession(serverUrl)) await persistNativeSession(serverUrl, response)
   return { ...parseJoinPage(responseDataAsText(response)), userId: null }
 }
 
@@ -88,11 +110,14 @@ async function persistNativeSession(serverUrl: URL, response: HttpResponse) {
   // Drop the ambiguous pre-upgrade global session now that this server has its
   // own, so it can never be mis-applied to a different server.
   localStorage.removeItem(LEGACY_SESSION_KEY)
+  // Overwrites whatever the native HTTP stack captured from the response:
+  // Foundry sets its own cookie SameSite=Strict, which is never sent on the
+  // app's cross-site socket handshake. See sessionCookiePath.
   await CapacitorCookies.setCookie({
     url: serverUrl.origin,
     key: 'session',
     value: session,
-    path: '/'
+    path: sessionCookiePath(serverUrl)
   })
 }
 
@@ -103,8 +128,7 @@ export const capacitorServerTransport: ServerTransport = {
   // could belong to any server — it's only a last resort for installs that
   // predate per-origin storage.
   async readSession(serverUrl: URL): Promise<string | undefined> {
-    const stored =
-      localStorage.getItem(sessionStorageKey(serverUrl)) ?? localStorage.getItem(LEGACY_SESSION_KEY)
+    const stored = readStoredSession(serverUrl)
     if (stored) {
       // Keep the native jar in agreement with the sid we're about to hand the
       // socket, so the websocket handshake's Cookie header can't carry a
@@ -113,7 +137,7 @@ export const capacitorServerTransport: ServerTransport = {
         url: serverUrl.origin,
         key: 'session',
         value: stored,
-        path: '/'
+        path: sessionCookiePath(serverUrl)
       }).catch(() => {})
       return stored
     }
@@ -130,18 +154,23 @@ export const capacitorServerTransport: ServerTransport = {
   },
 
   async getJoinData(serverUrl: URL, socketJoinData: () => Promise<JoinData>): Promise<JoinData> {
-    // On a cold start the socket connects before a session is established, and
-    // Foundry answers getJoinData with an *empty* user list rather than an
-    // error. An empty-but-successful result must still fall back to the HTTP
-    // /join page, which lists users without needing a session — otherwise the
-    // login page shows "No users available" until the app is relaunched.
-    try {
-      const data = await socketJoinData()
-      logger.debug('TM-DIAG capacitor getJoinData: socket users', data.users.length)
-      if (data.users.length > 0) return data
-    } catch (e) {
-      logger.debug('TM-DIAG capacitor getJoinData: socket failed', String(e))
-      /* socket failed entirely — fall back to the HTTP join page below */
+    // A socket carrying no session can't produce users on either Foundry
+    // generation: v13 answers getJoinData with an *empty* user list rather than
+    // an error, and v14 doesn't answer at all. On a first launch there is no
+    // session yet, so skip the emit budget (3 attempts x 3s of "Loading
+    // users...") and go straight to the HTTP join page, which is what mints the
+    // session the next socket will carry.
+    if (readStoredSession(serverUrl)) {
+      try {
+        const data = await socketJoinData()
+        logger.debug('TM-DIAG capacitor getJoinData: socket users', data.users.length)
+        if (data.users.length > 0) return data
+      } catch (e) {
+        logger.debug('TM-DIAG capacitor getJoinData: socket failed', String(e))
+        /* socket failed entirely — fall back to the HTTP join page below */
+      }
+    } else {
+      logger.debug('TM-DIAG capacitor getJoinData: no session yet, acquiring one over HTTP')
     }
     const httpData = await getNativeJoinData(serverUrl)
     logger.debug('TM-DIAG capacitor getJoinData: http users', httpData.users.length)

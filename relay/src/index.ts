@@ -1,8 +1,9 @@
 // tablemate-push-relay
 //
 // A stateless, multi-tenant Cloudflare Worker that relays push notifications to
-// APNs for the Tabula Mensa app. One relay + one APNs key serves every Foundry
-// world running the tablemate module.
+// APNs (iOS) and FCM (Android) for the Tabula Mensa app. One relay + one APNs
+// key + one FCM service account serves every Foundry world running the
+// tablemate module.
 //
 // Trust model: each world auto-generates a random opaque worldPushId + secret
 // worldKey (in the module) and provisions them here (TOFU — first writer for a
@@ -18,7 +19,7 @@
 //   POST /unregister {worldId, userId, deviceToken}     unbind a device from a user
 //   POST /notify     {worldId, recipients, direct, title, body} push to a world's users
 //   POST /status     {worldId, userIds}                 GM diagnostic: provisioned? devices?
-//   POST /send       {deviceToken, title, body, env}    admin test (RELAY_TEST_SECRET)
+//   POST /send       {deviceToken, title, body, env, platform}  admin test (RELAY_TEST_SECRET)
 
 interface KVNamespace {
   get(key: string): Promise<string | null>
@@ -39,6 +40,12 @@ export interface Env {
   APNS_BUNDLE_ID: string
   APNS_ENV: string
   RELAY_TEST_SECRET: string // admin bearer for /send and admin /register
+  // The Firebase service-account JSON, verbatim, as downloaded from
+  // Firebase console > Project settings > Service accounts. Optional: without it
+  // the relay still serves iOS and reports Android registrations as
+  // unconfigured rather than failing them. project_id/client_email/private_key
+  // are read from it, so there is nothing else to keep in step.
+  FCM_SERVICE_ACCOUNT?: string
   TOKENS: KVNamespace
   // Optional so a deployment predating the bindings still runs — it falls back
   // to the KV counters, which is what these replaced. See overLimit.
@@ -81,7 +88,8 @@ const REGISTER_PER_MINUTE_PER_IP = 30
 const NOTIFICATION_TTL_SECONDS = 60 * 60
 
 // TWO ceilings, not one. A free-plan Worker invocation may make 50 EXTERNAL
-// subrequests (fetch — here, APNs sends) and, separately, 1,000 operations to
+// subrequests (fetch — here the APNs and FCM sends, plus FCM's OAuth token
+// exchange) and, separately, 1,000 operations to
 // Cloudflare services such as KV. These were once budgeted as a single pool of
 // 44, on the belief that a KV read cost the same as an APNs send; that charged
 // roughly four units per device where only one was external, so a table of a
@@ -95,7 +103,7 @@ const NOTIFICATION_TTL_SECONDS = 60 * 60
 //
 // What gets shed is reported, and recipients are ordered direct-first, so
 // ambient chat is what goes.
-const MAX_APNS_SENDS = 46
+const MAX_PUSH_SENDS = 46
 const MAX_KV_OPS = 400
 
 // Ceiling on how many recipients one /notify may name. Far above any real table,
@@ -225,10 +233,15 @@ async function getApnsJwt(env: Env): Promise<string> {
   return token
 }
 
-interface ApnsResult {
+// What both providers answer with. Only APNs returns an apns-id, so that field
+// belongs to ApnsResult alone rather than being a null the FCM path has to carry.
+interface PushResult {
   status: number
-  apnsId: string | null
   body: string
+}
+
+interface ApnsResult extends PushResult {
+  apnsId: string | null
 }
 
 interface SendOptions {
@@ -289,6 +302,212 @@ async function sendApnsOnce(env: Env, opts: SendOptions): Promise<ApnsResult> {
     body: JSON.stringify({ aps, ...(opts.data ?? {}) }),
   })
   return { status: res.status, apnsId: res.headers.get('apns-id'), body: await res.text() }
+}
+
+
+// ---------------------------------------------------------------------------
+// FCM (Android)
+//
+// FCM v1 does not take a self-signed JWT the way APNs does: a service-account
+// assertion is exchanged at Google's token endpoint for a short-lived OAuth
+// access token, and that is what authorises the send. The exchange is itself an
+// EXTERNAL subrequest, so it competes with sends for the same ceiling (see
+// MAX_PUSH_SENDS) — it is cached for the isolate's life and fetched once per
+// invocation before any fan-out, so a table of Android devices pays for it once
+// rather than once per device.
+
+interface ServiceAccount {
+  project_id: string
+  client_email: string
+  private_key: string
+}
+
+const FCM_SCOPE = 'https://www.googleapis.com/auth/firebase.messaging'
+const OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token'
+
+// Caches are keyed by their input rather than merely "set once": an isolate
+// outlives a request, and a value keyed on nothing would be served to a later
+// request whose configuration had changed.
+let cachedServiceAccount: { raw: string; parsed: ServiceAccount | null } | null = null
+let cachedFcmKey: { clientEmail: string; key: CryptoKey } | null = null
+let cachedFcmToken: { clientEmail: string; token: string; exp: number } | null = null
+// An exchange already under way. Recipients are delivered concurrently, so
+// several can find the cache empty at the same instant; without this each would
+// spend a subrequest fetching the same token.
+let fcmTokenInFlight: { clientEmail: string; promise: Promise<string | null> } | null = null
+
+// null means "this relay cannot send to Android" — absent secret, or one that is
+// not the JSON Firebase hands out. Both are reported to the caller as
+// unconfigured rather than thrown, so iOS delivery is unaffected either way.
+function serviceAccount(env: Env): ServiceAccount | null {
+  const raw = env.FCM_SERVICE_ACCOUNT ?? ''
+  if (cachedServiceAccount?.raw === raw) return cachedServiceAccount.parsed
+  let parsed: ServiceAccount | null = null
+  if (raw) {
+    try {
+      const p = JSON.parse(raw) as Partial<ServiceAccount>
+      if (p.project_id && p.client_email && p.private_key) {
+        parsed = { project_id: p.project_id, client_email: p.client_email, private_key: p.private_key }
+      }
+    } catch {
+      /* not JSON — left null, reported as unconfigured */
+    }
+  }
+  cachedServiceAccount = { raw, parsed }
+  return parsed
+}
+
+// RS256, unlike the APNs key's ES256 — a service-account key is RSA.
+async function getFcmSigningKey(sa: ServiceAccount): Promise<CryptoKey> {
+  if (cachedFcmKey?.clientEmail === sa.client_email) return cachedFcmKey.key
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    pemToPkcs8(sa.private_key),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  cachedFcmKey = { clientEmail: sa.client_email, key }
+  return key
+}
+
+async function fetchFcmAccessToken(sa: ServiceAccount): Promise<string | null> {
+  const now = Math.floor(Date.now() / 1000)
+  const header = base64UrlFromString(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
+  const claims = base64UrlFromString(
+    JSON.stringify({ iss: sa.client_email, scope: FCM_SCOPE, aud: OAUTH_TOKEN_URL, iat: now, exp: now + 3600 }),
+  )
+  const signingInput = `${header}.${claims}`
+  const signature = await crypto.subtle.sign(
+    { name: 'RSASSA-PKCS1-v1_5' },
+    await getFcmSigningKey(sa),
+    new TextEncoder().encode(signingInput),
+  )
+  const assertion = `${signingInput}.${base64UrlFromBytes(signature)}`
+  const res = await fetch(OAUTH_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion,
+    }).toString(),
+  })
+  if (!res.ok) return null
+  const parsed = (await res.json().catch(() => null)) as { access_token?: string; expires_in?: number } | null
+  if (!parsed?.access_token) return null
+  // A minute of headroom, so a token that expires mid-fan-out is renewed before
+  // the send rather than costing every remaining device a 401 and a retry.
+  const ttl = Math.min(parsed.expires_in ?? 3600, 3600)
+  cachedFcmToken = { clientEmail: sa.client_email, token: parsed.access_token, exp: now + ttl - 60 }
+  return parsed.access_token
+}
+
+function cachedTokenFor(sa: ServiceAccount): string | null {
+  const now = Math.floor(Date.now() / 1000)
+  if (cachedFcmToken?.clientEmail === sa.client_email && cachedFcmToken.exp > now) return cachedFcmToken.token
+  return null
+}
+
+// For /notify: charges the exchange to the delivery budget, because it is a
+// subrequest like any send. Returns null when the budget cannot cover it or the
+// exchange fails; the caller reports that per device rather than throwing.
+async function ensureFcmAccessToken(
+  sa: ServiceAccount,
+  budget: ReturnType<typeof deliveryBudget>,
+): Promise<string | null> {
+  const cached = cachedTokenFor(sa)
+  if (cached) return cached
+  // Join an exchange already in flight rather than starting a second one, and
+  // charge the budget only for the one that actually goes out.
+  const inFlight = fcmTokenInFlight
+  if (inFlight?.clientEmail === sa.client_email) return await inFlight.promise
+  if (!budget.takeSend()) return null
+  const promise = (async () => {
+    try {
+      return await fetchFcmAccessToken(sa)
+    } catch {
+      return null
+    } finally {
+      if (fcmTokenInFlight?.clientEmail === sa.client_email) fcmTokenInFlight = null
+    }
+  })()
+  fcmTokenInFlight = { clientEmail: sa.client_email, promise }
+  return await promise
+}
+
+// For /send, which pushes to exactly one device and has no fan-out to budget.
+async function fcmAccessToken(sa: ServiceAccount): Promise<string | null> {
+  const cached = cachedTokenFor(sa)
+  if (cached) return cached
+  try {
+    return await fetchFcmAccessToken(sa)
+  } catch {
+    return null
+  }
+}
+
+async function sendFcmOnce(sa: ServiceAccount, accessToken: string, opts: SendOptions): Promise<PushResult> {
+  // `notification` draws the banner; `data` rides alongside and is what the app
+  // reads on tap to deep-link to the message (see src/api/pushNotifications.ts).
+  // FCM requires every data value to be a string, which SendOptions.data already
+  // guarantees.
+  const android: Record<string, unknown> = {
+    priority: 'high',
+    // Chat is perishable — the FCM counterpart of apns-expiration. Past the
+    // deadline FCM drops the message instead of storing it, so a phone that was
+    // off overnight does not light up with a burst of stale banners.
+    ttl: `${NOTIFICATION_TTL_SECONDS}s`,
+    notification: {
+      sound: 'default',
+      // The Android counterpart of aps.badge.
+      ...(typeof opts.badge === 'number' ? { notification_count: opts.badge } : {}),
+    },
+  }
+  // The counterpart of apns-collapse-id: a new ambient banner replaces the
+  // previous one for the same (world, user) instead of stacking.
+  if (opts.collapseId) android.collapse_key = opts.collapseId
+  const message: Record<string, unknown> = {
+    token: opts.deviceToken,
+    notification: { title: opts.title, body: opts.body },
+    android,
+    ...(opts.data ? { data: opts.data } : {}),
+  }
+  const res = await fetch(`https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ message }),
+  })
+  return { status: res.status, body: await res.text() }
+}
+
+// A rejected access token is not a per-device failure: it is cached for the whole
+// isolate, so every send fails identically until it is thrown away — the same
+// reasoning as the APNs ExpiredProviderToken retry.
+async function sendFcm(sa: ServiceAccount, accessToken: string, opts: SendOptions): Promise<PushResult> {
+  const result = await sendFcmOnce(sa, accessToken, opts)
+  if (result.status !== 401 && result.status !== 403) return result
+  cachedFcmToken = null
+  const fresh = await fetchFcmAccessToken(sa)
+  if (!fresh) return result
+  return await sendFcmOnce(sa, fresh, opts)
+}
+
+// sendFcm can reject outright — DNS, a connection reset, the subrequest ceiling.
+// Surface it as a failed result so one device cannot abort the recipient loop.
+async function trySendFcm(sa: ServiceAccount, accessToken: string, opts: SendOptions): Promise<PushResult> {
+  try {
+    return await sendFcm(sa, accessToken, opts)
+  } catch (err) {
+    return { status: 0, body: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+// FCM's only unambiguous "this device is gone" verdict. A 400 INVALID_ARGUMENT
+// can equally mean the payload was wrong, and condemning a registration on that
+// would prune live devices over a bug in the sender — so it is reported and left
+// to the 30-day staleness sweep.
+function isDeadFcmToken(result: PushResult): boolean {
+  return result.status === 404 && result.body.includes('UNREGISTERED')
 }
 
 // ---------------------------------------------------------------------------
@@ -463,7 +682,7 @@ function isEnvMismatch(result: ApnsResult): boolean {
 }
 
 // One /notify's allowance, drawn down as work dispatches. The two ceilings are
-// tracked apart because they are apart (see MAX_APNS_SENDS): an APNs send is an
+// tracked apart because they are apart (see MAX_PUSH_SENDS): an APNs send is an
 // external subrequest, a KV operation is not, and spending one must never shed
 // the other. Concurrency is safe — the runtime is single-threaded, so the
 // take/spend pairs are atomic.
@@ -473,7 +692,7 @@ function isEnvMismatch(result: ApnsResult): boolean {
 // read, a rate-limit counter on the fallback path), which are bounded and paid
 // before any fan-out begins.
 function deliveryBudget() {
-  let sends = MAX_APNS_SENDS
+  let sends = MAX_PUSH_SENDS
   let kvOps = MAX_KV_OPS
   return {
     takeSend(): boolean {
@@ -752,6 +971,7 @@ async function handleStatus(request: Request, env: Env): Promise<Response> {
 
   const devices: Record<string, number> = {}
   const now = Date.now()
+  const sa = serviceAccount(env)
   // One KV read per user, against the same 50-subrequest ceiling /notify faces,
   // so the list is capped and the overflow reported rather than 500ing a big
   // world's diagnostics. The caller chunks; see MAX_STATUS_USERS.
@@ -765,7 +985,7 @@ async function handleStatus(request: Request, env: Env): Promise<Response> {
       // reality: an Android registration is stored but never delivered to yet,
       // and counting it as a device promises a notification that cannot come.
       const live = regs.filter((r) => now - (r.updatedAt ?? 0) < STALE_REGISTRATION_MS)
-      const deliverable = live.filter((r) => r.platform === 'ios')
+      const deliverable = live.filter((r) => r.platform === 'ios' || (r.platform === 'android' && !!sa))
       if (deliverable.length) devices[userId] = deliverable.length
       unsupported += live.length - deliverable.length
     } catch {
@@ -1019,9 +1239,19 @@ async function deliverToUser(
     const envFixes = new Map<string, Registration['env']>()
     let mutated = regs.length !== stored.length
 
+    // Resolve the access token before the fan-out, so the devices below can
+    // just use it. One exchange serves the whole invocation: recipients are
+    // delivered concurrently, and ensureFcmAccessToken shares a single in-flight
+    // exchange between them rather than each spending a subrequest on it.
+    const sa = serviceAccount(env)
+    const fcmToken =
+      sa && regs.some((r) => r.platform === 'android') ? await ensureFcmAccessToken(sa, req.budget) : null
+
     const sends = regs.map(async (reg) => {
-      if (reg.platform !== 'ios') {
-        results.push({ userId: req.userId, platform: reg.platform, skipped: 'non-ios not wired yet' })
+      if (reg.platform === 'android' && !sa) {
+        // Nothing is wrong with the registration — this relay simply has no FCM
+        // credential. Distinct from a failed send so the GM panel can say which.
+        results.push({ userId: req.userId, platform: 'android', skipped: 'fcm not configured' })
         return
       }
       // /register rejects these now, but entries predating that check are still
@@ -1072,6 +1302,30 @@ async function deliverToUser(
         badge,
         collapseId: collapseIdFor(req.worldPushId, req.userId, req.direct, req.messageId),
       }
+      // FCM has no notion of sandbox vs production — one credential reaches
+      // every build of the app — so the environment retry below is APNs-only.
+      if (reg.platform === 'android') {
+        if (!sa || !fcmToken) {
+          results.push({ userId: req.userId, class: cls, skipped: 'fcm auth unavailable' })
+          return
+        }
+        const result = await trySendFcm(sa, fcmToken, send)
+        const isDead = isDeadFcmToken(result)
+        results.push({
+          userId: req.userId,
+          class: cls,
+          platform: 'android',
+          status: result.status,
+          ok: result.status === 200,
+          dead: isDead,
+        })
+        if (isDead) {
+          dead.add(reg.deviceToken)
+          mutated = true
+        }
+        return
+      }
+
       // Try the stored env. If APNs says the token is not one this environment
       // knows, the registration may simply be filed under the wrong one — an
       // Xcode build promoted to TestFlight, say — so try the other and remember
@@ -1128,12 +1382,31 @@ async function handleSend(request: Request, env: Env): Promise<Response> {
   if (request.headers.get('authorization') !== `Bearer ${env.RELAY_TEST_SECRET}`) {
     return json({ error: 'unauthorized' }, 401)
   }
-  const p = (await request.json().catch(() => null)) as { deviceToken?: string; title?: string; body?: string; env?: string } | null
+  const p = (await request.json().catch(() => null)) as
+    | { deviceToken?: string; title?: string; body?: string; env?: string; platform?: string }
+    | null
   if (!p?.deviceToken || !p.title || !p.body) return json({ error: 'deviceToken, title and body are required' }, 400)
+  if (p.platform !== undefined && p.platform !== 'ios' && p.platform !== 'android') {
+    return json({ error: 'platform must be ios or android' }, 400)
+  }
+  // Defaults to ios so every existing caller keeps working unchanged.
+  const platform: Registration['platform'] = p.platform === 'android' ? 'android' : 'ios'
   // Admin-only, but it is the same interpolation into the same URL — and a
   // pasted token that lost a character should say so rather than come back as
-  // an opaque APNs error.
-  if (!isValidDeviceToken(p.deviceToken, 'ios')) return json({ error: 'deviceToken is malformed' }, 400)
+  // an opaque provider error.
+  if (!isValidDeviceToken(p.deviceToken, platform)) return json({ error: 'deviceToken is malformed' }, 400)
+  if (platform === 'android') {
+    const sa = serviceAccount(env)
+    if (!sa) return json({ error: 'FCM is not configured on this relay' }, 501)
+    const accessToken = await fcmAccessToken(sa)
+    if (!accessToken) return json({ error: 'FCM token exchange failed' }, 502)
+    const fcm = await trySendFcm(sa, accessToken, {
+      deviceToken: p.deviceToken,
+      title: p.title,
+      body: p.body,
+    })
+    return json({ ok: fcm.status === 200, fcm }, fcm.status === 200 ? 200 : 502)
+  }
   const result = await sendApns(env, {
     deviceToken: p.deviceToken,
     title: p.title,

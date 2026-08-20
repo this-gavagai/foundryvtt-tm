@@ -396,9 +396,20 @@ interface NotifyResponseBody {
 
 // Skip reasons that are bookkeeping rather than a lost notification. One phone
 // registered under two of a world's users is deduped down to a single banner,
-// and an Android registration was never going to be delivered to — the status
-// panel already reports those separately as unsupported.
-const BENIGN_SKIPS = new Set(['device already notified', 'non-ios not wired yet'])
+// and an Android registration on a relay with no FCM credential was never going
+// to be delivered to — the status panel already reports those separately as
+// unsupported.
+//
+// 'fcm auth unavailable' is deliberately NOT here: that relay HAS a credential
+// and could not use it, which is a notification actually lost and a thing the GM
+// can act on. 'non-ios not wired yet' is the pre-FCM wording, kept so a world
+// pointed at an older relay deployment stays quiet rather than reporting a
+// problem the GM cannot fix.
+const BENIGN_SKIPS = new Set([
+  'device already notified',
+  'fcm not configured',
+  'non-ios not wired yet'
+])
 
 // The last delivery that did not fully happen, for the GM status panel to show.
 // Client-local and in-memory: it records what THIS browser sent since it loaded,

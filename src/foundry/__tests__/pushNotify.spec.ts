@@ -364,16 +364,28 @@ describe('reporting a shortfall the relay hid under a 200', () => {
 
   it('stays quiet about deduping and Android, which cost nobody a notification', async () => {
     // One phone registered under two of a world's users is deduped to a single
-    // banner; an Android registration was never going to be delivered to. Both
-    // arrive as `skipped`, and neither is a problem to report.
+    // banner; an Android registration on a relay with no FCM credential was
+    // never going to be delivered to. Both arrive as `skipped`, and neither is a
+    // problem to report. The older relay wording is accepted too, so a world
+    // pointed at a pre-FCM deployment stays quiet.
     const issue = await issueFrom({
       results: [
         { userId: 'bob', ok: true },
         { userId: 'bob-app', skipped: 'device already notified' },
-        { userId: 'carol', platform: 'android', skipped: 'non-ios not wired yet' }
+        { userId: 'carol', platform: 'android', skipped: 'fcm not configured' },
+        { userId: 'dave', platform: 'android', skipped: 'non-ios not wired yet' }
       ]
     })
     expect(issue).toBeNull()
+  })
+
+  // The other side of that line: a relay that has an FCM credential and could
+  // not use it lost a notification, and the GM should hear about it.
+  it('reports an Android send the relay could not authorise', async () => {
+    const issue = await issueFrom({
+      results: [{ userId: 'carol', platform: 'android', skipped: 'fcm auth unavailable' }]
+    })
+    expect(issue).not.toBeNull()
   })
 
   it('says nothing when everything was delivered', async () => {

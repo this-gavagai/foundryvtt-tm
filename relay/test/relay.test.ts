@@ -93,12 +93,14 @@ type TestEnv = {
   APNS_ENV: string
   RELAY_TEST_SECRET: string
   TOKENS: ReturnType<typeof makeKV>
+  FCM_SERVICE_ACCOUNT?: string
   PROVISION_LIMITER?: ReturnType<typeof makeLimiter>
   REGISTER_LIMITER?: ReturnType<typeof makeLimiter>
   NOTIFY_LIMITER?: ReturnType<typeof makeLimiter>
 }
 
 let apnsKeyPem = ''
+let fcmServiceAccount = ''
 
 // A real P-256 pkcs8 PEM so the Worker's ES256 JWT signing actually succeeds on
 // the /notify success path.
@@ -107,6 +109,22 @@ beforeAll(async () => {
   const pkcs8 = await crypto.subtle.exportKey('pkcs8', pair.privateKey)
   const b64 = Buffer.from(pkcs8).toString('base64')
   apnsKeyPem = `-----BEGIN PRIVATE KEY-----\n${b64.match(/.{1,64}/g)!.join('\n')}\n-----END PRIVATE KEY-----`
+
+  // A service-account key is RSA (RS256), not the APNs key's P-256 — a real one
+  // so the OAuth assertion the Worker signs is exercised rather than stubbed.
+  const rsa = await crypto.subtle.generateKey(
+    { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+    true,
+    ['sign', 'verify'],
+  )
+  const rsaPkcs8 = await crypto.subtle.exportKey('pkcs8', rsa.privateKey)
+  const rsaB64 = Buffer.from(rsaPkcs8).toString('base64')
+  fcmServiceAccount = JSON.stringify({
+    type: 'service_account',
+    project_id: 'tablemate-test',
+    client_email: 'relay@tablemate-test.iam.gserviceaccount.com',
+    private_key: `-----BEGIN PRIVATE KEY-----\n${rsaB64.match(/.{1,64}/g)!.join('\n')}\n-----END PRIVATE KEY-----`,
+  })
 })
 
 let env: TestEnv
@@ -139,7 +157,19 @@ beforeEach(() => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
       apnsCalls.push(url)
       apnsHeaders.push((init?.headers ?? {}) as Record<string, string>)
-      if (typeof init?.body === 'string') apnsBodies.push(JSON.parse(init.body))
+      // Not every outbound body is JSON: FCM's OAuth exchange is form-encoded,
+      // and an unguarded parse here would reject the fetch and look exactly like
+      // a failed token exchange. Push one entry per call either way, so an index
+      // into apnsCalls indexes this too.
+      if (typeof init?.body === 'string') {
+        try {
+          apnsBodies.push(JSON.parse(init.body))
+        } catch {
+          apnsBodies.push({ raw: init.body })
+        }
+      } else {
+        apnsBodies.push({})
+      }
       const { status, body } = apnsResponse(url)
       return new Response(body, { status, headers: { 'apns-id': 'test-apns-id' } })
     }),
@@ -1676,5 +1706,220 @@ describe('/send admin endpoint', () => {
     )
     expect(res.status).toBe(400)
     expect(apnsCalls.length).toBe(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Android / FCM
+//
+// FCM is the second provider, and everything about it that could quietly break
+// iOS delivery is asserted here: that it is opt-in on the credential, that its
+// OAuth exchange is paid for once rather than per device, and that only an
+// unambiguous verdict prunes a registration.
+
+const FCM_SEND_URL = 'https://fcm.googleapis.com/v1/projects/tablemate-test/messages:send'
+const OAUTH_URL = 'https://oauth2.googleapis.com/token'
+
+// FCM tokens are not hex like APNs ones — /register checks them against a
+// different pattern, so they are shaped like the real thing here too.
+const fcmDev = (label: string) => `${label}:${'A'.repeat(40)}`
+
+// A DISTINCT credential per test. The Worker caches the exchanged access token
+// for the isolate's life — which is the point of it, and which outlives one
+// test — so a shared client_email would let one test's token satisfy the next
+// and make "exchanged once" unobservable.
+let fcmCredentialSeq = 0
+function withFcm() {
+  fcmCredentialSeq += 1
+  const sa = JSON.parse(fcmServiceAccount) as Record<string, string>
+  sa.client_email = `relay-${fcmCredentialSeq}@tablemate-test.iam.gserviceaccount.com`
+  env.FCM_SERVICE_ACCOUNT = JSON.stringify(sa)
+}
+
+// Answers the OAuth exchange with a usable token and lets a test decide what
+// the send itself does.
+function stubFcm(send: (url: string) => { status: number; body: string } = () => ({ status: 200, body: '{}' })) {
+  apnsResponse = (url) =>
+    url.startsWith(OAUTH_URL)
+      ? { status: 200, body: JSON.stringify({ access_token: 'ya29.test-token', expires_in: 3600 }) }
+      : send(url)
+}
+
+async function registerAndroid(worldPushId: string, worldKey: string, userId: string, label: string) {
+  const res = await post('/register', {
+    regToken: mintToken(worldPushId, userId, worldKey),
+    deviceToken: fcmDev(label),
+    platform: 'android',
+  })
+  expect(res.status).toBe(200)
+}
+
+describe('Android delivery via FCM', () => {
+  it('exchanges the service account for a token, then sends to the device', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    withFcm()
+    await registerAndroid(worldPushId, worldKey, 'alice', 'droidA')
+    stubFcm()
+    apnsCalls = []
+    apnsBodies = []
+
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 'Gamemaster', body: 'hello' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    const json = (await res.json()) as { results: Array<{ ok: boolean; platform: string; status: number }> }
+    expect(json.results[0]).toMatchObject({ ok: true, platform: 'android', status: 200 })
+
+    expect(apnsCalls).toContain(OAUTH_URL)
+    expect(apnsCalls).toContain(FCM_SEND_URL)
+    // Authorised by the exchanged access token, not by the service-account key.
+    const sendIdx = apnsCalls.indexOf(FCM_SEND_URL)
+    expect(apnsHeaders[sendIdx].authorization).toBe('Bearer ya29.test-token')
+
+    const sent = apnsBodies[sendIdx] as { message?: Record<string, any> }
+    expect(sent.message?.token).toBe(fcmDev('droidA'))
+    expect(sent.message?.notification).toEqual({ title: 'Gamemaster', body: 'hello' })
+    // Chat is perishable on Android too — the counterpart of apns-expiration.
+    expect(sent.message?.android?.ttl).toBe('3600s')
+    expectUnderCeilings()
+  })
+
+  it('pays for the OAuth exchange once, not once per device', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    withFcm()
+    await registerAndroid(worldPushId, worldKey, 'alice', 'droidA')
+    await registerAndroid(worldPushId, worldKey, 'bob', 'droidB')
+    stubFcm()
+    apnsCalls = []
+
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice', 'bob'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    expect(res.status).toBe(200)
+    expect(apnsCalls.filter((u) => u === OAUTH_URL)).toHaveLength(1)
+    expect(apnsCalls.filter((u) => u === FCM_SEND_URL)).toHaveLength(2)
+    expectUnderCeilings()
+  })
+
+  it('reports Android as unconfigured — and spends nothing — with no service account', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    // Deliberately no withFcm().
+    await registerAndroid(worldPushId, worldKey, 'alice', 'droidA')
+    apnsCalls = []
+
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    const json = (await res.json()) as { results: Array<{ skipped?: string }> }
+    expect(json.results[0].skipped).toBe('fcm not configured')
+    // No credential means no call at all — not a failed one.
+    expect(apnsCalls).toHaveLength(0)
+  })
+
+  it('prunes a registration FCM reports as UNREGISTERED', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    withFcm()
+    await registerAndroid(worldPushId, worldKey, 'alice', 'droidGone')
+    stubFcm(() => ({
+      status: 404,
+      body: JSON.stringify({
+        error: { status: 'NOT_FOUND', details: [{ errorCode: 'UNREGISTERED' }] },
+      }),
+    }))
+
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    const json = (await res.json()) as { results: Array<{ dead: boolean }> }
+    expect(json.results[0].dead).toBe(true)
+    expect(env.TOKENS.store.get(`tok:${worldPushId}:alice`)).toBe('[]')
+  })
+
+  // The asymmetry that matters: a 400 can mean the payload was wrong, so acting
+  // on it would prune live devices over a bug in the sender.
+  it('keeps the registration when FCM merely rejects the request', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    withFcm()
+    await registerAndroid(worldPushId, worldKey, 'alice', 'droidLive')
+    stubFcm(() => ({
+      status: 400,
+      body: JSON.stringify({ error: { status: 'INVALID_ARGUMENT' } }),
+    }))
+
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    const json = (await res.json()) as { results: Array<{ ok: boolean; dead: boolean }> }
+    expect(json.results[0]).toMatchObject({ ok: false, dead: false })
+    expect(env.TOKENS.store.get(`tok:${worldPushId}:alice`)).toContain(fcmDev('droidLive'))
+  })
+
+  // The access token is cached for the isolate, so a rejected one fails every
+  // send identically until it is thrown away.
+  it('re-exchanges and retries once when the access token is rejected', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    withFcm()
+    await registerAndroid(worldPushId, worldKey, 'alice', 'droidA')
+    let sends = 0
+    stubFcm(() => {
+      sends += 1
+      return sends === 1 ? { status: 401, body: 'UNAUTHENTICATED' } : { status: 200, body: '{}' }
+    })
+
+    const res = await post(
+      '/notify',
+      { worldId: worldPushId, recipients: ['alice'], title: 't', body: 'b' },
+      { authorization: `Bearer ${worldKey}` },
+    )
+    const json = (await res.json()) as { results: Array<{ ok: boolean }> }
+    expect(json.results[0].ok).toBe(true)
+    expect(sends).toBe(2)
+  })
+
+  it('counts an Android device in /status only once FCM can reach it', async () => {
+    const { worldPushId, worldKey } = await provisionWorld()
+    await registerAndroid(worldPushId, worldKey, 'alice', 'droidA')
+    const ask = () =>
+      post('/status', { worldId: worldPushId, userIds: ['alice'] }, { authorization: `Bearer ${worldKey}` })
+
+    // Unconfigured: registered but not deliverable, so the GM panel says so
+    // rather than promising a notification that cannot come.
+    let body = (await (await ask()).json()) as { devices: Record<string, number>; unsupported: number }
+    expect(body.devices.alice).toBeUndefined()
+    expect(body.unsupported).toBe(1)
+
+    withFcm()
+    body = (await (await ask()).json()) as { devices: Record<string, number>; unsupported: number }
+    expect(body.devices.alice).toBe(1)
+    expect(body.unsupported).toBe(0)
+  })
+
+  it('sends an admin /send to an Android device, and refuses when unconfigured', async () => {
+    stubFcm()
+    const body = { deviceToken: fcmDev('droidA'), title: 't', body: 'b', platform: 'android' }
+    const auth = { authorization: 'Bearer test-secret' }
+
+    // 501, not 400: the request is well-formed, the relay simply cannot serve it.
+    expect((await post('/send', body, auth)).status).toBe(501)
+
+    withFcm()
+    const res = await post('/send', body, auth)
+    expect(res.status).toBe(200)
+    expect((await res.json()) as { ok: boolean }).toMatchObject({ ok: true })
+
+    // Note the patterns are not mutually exclusive — a 64-char hex APNs token
+    // also satisfies the FCM one, since hex is alphanumeric. The check is a
+    // shape sanity test, not a way to tell the providers apart. What it does
+    // catch is a token too short to be either.
+    expect((await post('/send', { ...body, deviceToken: 'too-short' }, auth)).status).toBe(400)
   })
 })

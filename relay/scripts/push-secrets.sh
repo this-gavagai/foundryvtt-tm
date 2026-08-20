@@ -52,5 +52,23 @@ printf '%s' "$APNS_KEY_ID"       | npx wrangler secret put APNS_KEY_ID
 printf '%s' "$APNS_TEAM_ID"      | npx wrangler secret put APNS_TEAM_ID
 printf '%s' "$RELAY_TEST_SECRET" | npx wrangler secret put RELAY_TEST_SECRET
 
+# FCM_SERVICE_ACCOUNT: optional, and uploaded verbatim — the Worker reads
+# project_id, client_email and private_key out of the JSON, so there is nothing
+# else to keep in step. Same file-or-base64 precedence as the APNs key. Without
+# it the relay still serves iOS and reports Android as unconfigured.
+if [[ -n "${FCM_SERVICE_ACCOUNT_CONTENT:-}" ]]; then
+  echo "Uploading FCM_SERVICE_ACCOUNT from FCM_SERVICE_ACCOUNT_CONTENT (base64)"
+  printf '%s' "$FCM_SERVICE_ACCOUNT_CONTENT" | base64 --decode | npx wrangler secret put FCM_SERVICE_ACCOUNT
+elif [[ -n "${FCM_SERVICE_ACCOUNT_FILE:-}" ]]; then
+  if [[ ! -f "$FCM_SERVICE_ACCOUNT_FILE" ]]; then
+    echo "FCM service account file not found: $FCM_SERVICE_ACCOUNT_FILE" >&2
+    exit 1
+  fi
+  echo "Uploading FCM_SERVICE_ACCOUNT from $FCM_SERVICE_ACCOUNT_FILE"
+  npx wrangler secret put FCM_SERVICE_ACCOUNT < "$FCM_SERVICE_ACCOUNT_FILE"
+else
+  echo "No FCM service account configured — Android push will report as unconfigured."
+fi
+
 echo
 echo "Secrets uploaded. Deploy with: npm run deploy"

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { classifyHomeRedirect, classifyJoinPost, homeUrl } from '@/api/serverTransport'
+import {
+  classifyHomeRedirect,
+  classifyJoinPost,
+  homeUrl,
+  sessionCookiePath
+} from '@/api/serverTransport'
 
 // These two classifiers are the whole basis on which the app decides between
 // "keep the user on their sheet", "silently re-authenticate", and "throw them
@@ -43,6 +48,25 @@ describe('classifyHomeRedirect', () => {
     expect(classifyHomeRedirect('', SERVER)).toBeUndefined()
     // No redirect at all — the request landed on / itself.
     expect(classifyHomeRedirect('https://vtt.example.com/', SERVER)).toBeUndefined()
+  })
+})
+
+describe('sessionCookiePath', () => {
+  // Foundry v14 authenticates the socket from the Cookie header only (it no
+  // longer reads the ?session= query param v13 took), and the app's WebView is
+  // a different site from the server, so the cookie needs SameSite=None to ride
+  // the handshake — plus Secure, without which Chromium rejects SameSite=None.
+  // Verified against a live v14 server: drop either attribute and the handshake
+  // reports `session: null` and getJoinData never acks.
+  it('marks an https session cookie SameSite=None; Secure', () => {
+    expect(sessionCookiePath(new URL('https://vtt.example.com/'))).toBe('/; SameSite=None; Secure')
+  })
+
+  // Secure cookies aren't sent back over a plain connection, and SameSite=None
+  // without Secure is refused, so there is no attribute combination that works
+  // for http — it stays a bare path rather than a cookie the browser discards.
+  it('leaves an http session cookie a bare path', () => {
+    expect(sessionCookiePath(new URL('http://192.168.1.10:30000/'))).toBe('/')
   })
 })
 

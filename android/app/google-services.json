@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "399937346173",
+    "project_id": "tablemate-11853",
+    "storage_bucket": "tablemate-11853.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:399937346173:android:f63977ba560f8c07ac2f14",
+        "android_client_info": {
+          "package_name": "io.github.thisgavagai.tablemate"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAeSdsp7Pn8Hj7lZN-wsEr8Fpirih_dTy0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

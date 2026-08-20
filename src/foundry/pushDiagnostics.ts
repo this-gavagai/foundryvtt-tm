@@ -182,15 +182,16 @@ export async function collectPushStatus(): Promise<PushStatus> {
         }
   )
 
-  // Registered but undeliverable: the relay stores an Android registration and
-  // never sends to it, so it must not be counted above as a device that will hear
-  // anything — but it should be said out loud, or that player looks registered and
-  // silently is not.
+  // Registered but undeliverable. The relay counts a device only when it can
+  // actually reach it, so Android lands here when the relay has no FCM
+  // credential — it must not be counted above as a device that will hear
+  // anything, but it should be said out loud, or that player looks registered
+  // and silently is not.
   if (unsupported > 0) {
     checks.push({
       label: 'Unsupported devices',
       state: 'warn',
-      detail: `${unsupported} Android device(s) registered. Android push is not wired up yet, so they receive nothing.`
+      detail: `${unsupported} Android device(s) registered, but the relay has no FCM credential configured, so they receive nothing.`
     })
   }
 
