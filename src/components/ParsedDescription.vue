@@ -89,7 +89,7 @@ function rollInputHtml(roll: ActiveRoll): string {
 }
 
 function selectableRollLabel(content: string, roll: ActiveRoll, contentClass = 'pl-4'): string {
-  return `<label class="bg-gray-300 border-divider border -my-0.5 pb-px px-1 cursor-pointer whitespace-nowrap mr-1">
+  return `<label class="relative bg-gray-300 border-divider border -my-0.5 pb-px px-1 cursor-pointer whitespace-nowrap mr-1">
         ${rollInputHtml(roll)}
         <span class="${contentClass}">${content}</span>
       </label> `
