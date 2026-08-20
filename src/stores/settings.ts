@@ -5,6 +5,7 @@ import { readTranscriptionKey, writeTranscriptionKey } from '@/api/transcription
 
 const MANUAL_DICE_PICKER_KEY = 'tm-manual-dice-picker'
 const SHOW_UNREAD_ON_PORTRAIT_KEY = 'tm-show-unread-on-portrait'
+const SHOW_SHARED_IMAGES_KEY = 'tm-show-shared-images'
 const TRANSCRIPTION_ENABLED_KEY = 'tm-transcription-enabled'
 const TRANSCRIPTION_ENDPOINT_KEY = 'tm-transcription-endpoint'
 const TRANSCRIPTION_MODEL_KEY = 'tm-transcription-model'
@@ -17,6 +18,10 @@ function loadManualDicePicker(): boolean {
 
 function loadShowUnreadOnPortrait(): boolean {
   return localStorage.getItem(SHOW_UNREAD_ON_PORTRAIT_KEY) === '1'
+}
+
+function loadShowSharedImages(): boolean {
+  return localStorage.getItem(SHOW_SHARED_IMAGES_KEY) === '1'
 }
 
 function persistFlag(key: string, value: boolean) {
@@ -42,6 +47,13 @@ export const useSettingsStore = defineStore('settings', () => {
   // to localStorage so the preference survives reloads.
   const showUnreadOnPortrait = ref(loadShowUnreadOnPortrait())
   watch(showUnreadOnPortrait, (v) => persistFlag(SHOW_UNREAD_ON_PORTRAIT_KEY, v))
+
+  // When enabled, an image a GM shares from Foundry (the core "show players"
+  // action) pops up over the sheet. Off by default: an unsolicited full-screen
+  // popup on someone else's action is exactly the kind of interruption a player
+  // should have to opt into. Persisted to localStorage.
+  const showSharedImages = ref(loadShowSharedImages())
+  watch(showSharedImages, (v) => persistFlag(SHOW_SHARED_IMAGES_KEY, v))
 
   // ── Voice memo transcription ───────────────────────────────────────────────
   // This device's transcription service, used for the memos recorded ON this
@@ -110,6 +122,7 @@ export const useSettingsStore = defineStore('settings', () => {
     skipCharacterAlts,
     manualDicePicker,
     showUnreadOnPortrait,
+    showSharedImages,
     transcriptionEnabled,
     transcriptionEndpoint,
     transcriptionModel,

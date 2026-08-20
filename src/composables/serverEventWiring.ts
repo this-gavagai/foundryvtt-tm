@@ -14,10 +14,12 @@ import { useGmPolicyStore } from '@/stores/gmPolicy'
 import { useSyncStatusStore } from '@/stores/syncStatus'
 import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { useWorldStore } from '@/stores/world'
+import { useSettingsStore } from '@/stores/settings'
 import { usePixelDiceStore } from '@/stores/pixelDice'
 import { logger } from '@/utils/utilities'
 import {
   onModifyDocument,
+  onShareImage,
   onSocketSwap,
   onTmAction,
   onUserActivity,
@@ -36,6 +38,7 @@ import { processChanges } from '@/api/documents'
 import { resetLoadPriority } from '@/api/loadPriority'
 import { registerStoreBridge } from '@/api/storeBridge'
 import { TM } from '@/api/protocol'
+import { useSharedImage } from '@/composables/useSharedImage'
 
 // The store-facing half of the socket wiring: subscribes to the api layer's
 // event registries (api/socketSetup.ts) and drives Pinia stores in response.
@@ -152,6 +155,14 @@ export function registerServerEventWiring() {
     // World manual-roll policy rides along on every announcement (including
     // the re-announce the module fires when the GM changes the setting).
     useGmPolicyStore().reportPolicy(args.manualRollPolicy)
+  })
+
+  // Core "show players" image share. Gated on an opt-in setting, and checked
+  // here rather than in the modal so a player who left it off never even holds
+  // the payload — the popup can't flash on a race with the toggle.
+  onShareImage((payload) => {
+    if (!useSettingsStore().showSharedImages) return
+    useSharedImage().showSharedImage(payload)
   })
 
   onWorldProgress(() => {

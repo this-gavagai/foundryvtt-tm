@@ -22,7 +22,7 @@ const emit = defineEmits<{ manageServers: [] }>()
 
 const { locale, t } = useI18n()
 const { activeTheme, setTheme } = useTheme()
-const { showUnreadOnPortrait } = storeToRefs(useSettingsStore())
+const { showUnreadOnPortrait, showSharedImages } = storeToRefs(useSettingsStore())
 const { isNativeMobile } = storeToRefs(useServerAddressStore())
 
 // 'moonlit/coolblue' → "Moonlit · Coolblue"; THEMES order puts variants right
@@ -88,6 +88,9 @@ defineExpose({ open, close })
       <hr class="opacity-30" />
       <Toggle :active="showUnreadOnPortrait" @changed="(v: boolean) => (showUnreadOnPortrait = v)">
         <span class="text-lg italic">{{ $t('settings.showUnreadOnPortrait') }}</span>
+      </Toggle>
+      <Toggle :active="showSharedImages" @changed="(v: boolean) => (showSharedImages = v)">
+        <span class="text-lg italic">{{ $t('settings.showSharedImages') }}</span>
       </Toggle>
       <hr class="opacity-30" />
       <Button

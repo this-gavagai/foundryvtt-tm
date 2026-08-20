@@ -11,7 +11,11 @@ const props = defineProps({
   title: { type: String, default: undefined },
   focusTarget: { type: [Object, Function], default: undefined },
   infoButton: { type: Function, default: undefined },
-  noX: { type: Boolean, default: false }
+  noX: { type: Boolean, default: false },
+  // Overrides the panel's default width cap. Replaces (rather than appends to)
+  // `w-full max-w-md`, since two competing max-w-* utilities resolve by
+  // stylesheet order, not by which one was written last.
+  panelClass: { type: String, default: undefined }
 })
 const isOpen = ref(false)
 const content = ref()
@@ -74,7 +78,8 @@ defineExpose({ open, close, options, isOpen })
           >
             <DialogPanel
               data-part="panel"
-              class="relative w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all"
+              :class="props.panelClass ?? 'w-full max-w-md'"
+              class="relative transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all"
             >
               <DialogTitle
                 as="h3"

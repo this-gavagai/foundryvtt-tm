@@ -2,6 +2,7 @@
   "settings": {
     "title": "Configuración",
     "showUnreadOnPortrait": "Mostrar número de mensajes sin leer en el retrato del personaje",
+    "showSharedImages": "Mostrar las imágenes que comparte el GM",
     "transcription": {
       "title": "Transcripción de notas de voz",
       "description": "Las notas de voz que grabes en este dispositivo pueden transcribirse automáticamente, y el texto se publica junto con la nota para que todos lo lean. La transcripción se hace en este dispositivo, así que cada dispositivo se configura por separado.",

@@ -14,6 +14,7 @@ import Spinner from '@/components/widgets/SpinnerWidget.vue'
 import UpdatePrompt from '@/components/UpdatePrompt.vue'
 import ReconnectingBanner from '@/components/ReconnectingBanner.vue'
 import VersionMismatchBanner from '@/components/VersionMismatchBanner.vue'
+import SharedImageModal from '@/components/SharedImageModal.vue'
 
 import { initTheme } from '@/composables/useTheme'
 import { useSession } from '@/composables/useSession'
@@ -159,5 +160,8 @@ useDevGlobals(characters, urlId)
     <UpdatePrompt />
     <ReconnectingBanner />
     <VersionMismatchBanner />
+    <!-- Outside the loading/login branches above so a GM's shared image lands
+         whatever the app is currently showing. -->
+    <SharedImageModal />
   </div>
 </template>

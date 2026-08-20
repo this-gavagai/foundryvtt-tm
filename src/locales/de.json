@@ -2,6 +2,7 @@
   "settings": {
     "title": "Einstellungen",
     "showUnreadOnPortrait": "Anzahl ungelesener Nachrichten auf Charakterporträt anzeigen",
+    "showSharedImages": "Vom SL geteilte Bilder anzeigen",
     "transcription": {
       "title": "Transkription von Sprachnachrichten",
       "description": "Sprachnachrichten, die du auf diesem Gerät aufnimmst, können automatisch transkribiert werden; der Text wird zusammen mit der Nachricht für alle sichtbar gepostet. Die Transkription läuft auf diesem Gerät, daher wird jedes Gerät einzeln eingerichtet.",

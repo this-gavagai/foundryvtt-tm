@@ -78,6 +78,30 @@ export function onUserActivity(handler: UserActivityHandler): () => void {
   }
 }
 
+// ── shareImage dispatcher ────────────────────────────────────────────────
+// Core Foundry event: a GM (or any client) sharing an image pops it on every
+// other client. Not a module message, so it rides its own socket event rather
+// than TM.CHANNEL.
+
+export interface ShareImagePayload {
+  image: string
+  title?: string
+  caption?: string
+  uuid?: string
+  showTitle?: boolean
+}
+
+export type ShareImageHandler = (payload: ShareImagePayload) => void
+
+const shareImageSubs = new Set<ShareImageHandler>()
+
+export function onShareImage(handler: ShareImageHandler): () => void {
+  shareImageSubs.add(handler)
+  return () => {
+    shareImageSubs.delete(handler)
+  }
+}
+
 // ── world-load progress dispatcher ───────────────────────────────────────
 // Foundry streams 'progress' events while a world loads; the wiring layer
 // subscribes to mark the world pending and refresh on the trailing edge.
@@ -122,6 +146,7 @@ let tmDispatch: ((args: ModuleEventArgs) => void) | null = null
 let modifyDispatch: ModifyDocumentHandler | null = null
 let userActivityDispatch: UserActivityHandler | null = null
 let progressDispatch: (() => void) | null = null
+let shareImageDispatch: ShareImageHandler | null = null
 let coreSubsRegistered = false
 
 // Re-attach the dispatchers to the (potentially new) socket. The subscription
@@ -135,6 +160,7 @@ export async function setupSocketListenersForApp() {
     if (modifyDispatch) attachedSocket.off('modifyDocument', modifyDispatch)
     if (userActivityDispatch) attachedSocket.off('userActivity', userActivityDispatch)
     if (progressDispatch) attachedSocket.off('progress', progressDispatch)
+    if (shareImageDispatch) attachedSocket.off('shareImage', shareImageDispatch)
     // Deliberately NOT flushing the RPC ack queue here: acks are uuid-keyed
     // broadcasts on the world module channel, so a request emitted before a
     // same-server reconnect is often still answered on the replacement
@@ -171,6 +197,17 @@ export async function setupSocketListenersForApp() {
     progressSubs.forEach((h) => guarded(h))
   }
   socket.on('progress', progressDispatch)
+
+  shareImageDispatch = (payload: ShareImagePayload) => {
+    // Foreign/malformed payloads become a logged drop: without an image path
+    // there is nothing to show, and subscribers would open an empty popup.
+    if (typeof payload?.image !== 'string' || !payload.image) {
+      logger.warn('TM-WARN: dropping malformed shareImage message', payload)
+      return
+    }
+    shareImageSubs.forEach((h) => guarded(() => h(payload)))
+  }
+  socket.on('shareImage', shareImageDispatch)
 
   attachedSocket = socket
 

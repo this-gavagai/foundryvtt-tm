@@ -2,6 +2,7 @@
   "settings": {
     "title": "Settings",
     "showUnreadOnPortrait": "Show unread message count on character portrait",
+    "showSharedImages": "Show images the GM shares",
     "transcription": {
       "title": "Voice memo transcription",
       "description": "Voice memos you record on this device can be transcribed automatically, and the text posts with the memo for everyone to read. Transcription happens on this device, so each device is configured separately.",
