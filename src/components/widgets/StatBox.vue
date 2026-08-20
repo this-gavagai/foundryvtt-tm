@@ -11,6 +11,7 @@ import ActionIcons from '@/components/widgets/ActionIcons.vue'
 import TraitList from '@/components/TraitList.vue'
 import Toggle from '@/components/widgets/ToggleWidget.vue'
 import type { RequestResolutionArgs } from '@/types/api-types'
+import type { SkillActionVariant } from '@/types/character-types'
 import type { Roll } from '@/types/roll-types'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
@@ -38,12 +39,18 @@ export interface StatBoxVariant {
   modifiers?: Modifier[]
   // Enriched HTML description shown when this variant is selected (skill actions).
   description?: string
+  // Sub-variants of a skill action (Create a Diversion → Distracting Words /
+  // Gesture / Trick). Present only when PF2e requires one to be named at roll
+  // time, so a selection is mandatory: selecting the action auto-picks the
+  // first, and the chosen slug goes out as options.variant.
+  variants?: SkillActionVariant[]
   rollAction: (
     r: number | undefined,
     options?: {
       modifierOverrides?: Record<string, boolean>
       messageMode?: 'blind'
       rollMode?: 'blindroll'
+      variant?: string
     }
   ) => Promise<RequestResolutionArgs | null>
 }
@@ -76,13 +83,24 @@ const selectedKey = ref<string | null>(null)
 const selectedVariant = computed(
   () => props.variants?.find((v) => v.key === selectedKey.value) ?? null
 )
+// For an action with sub-variants (Create a Diversion, Perform), which one is
+// armed. Never null while such an action is selected — PF2e can't roll the
+// action without it.
+const selectedSubKey = ref<string | null>(null)
+const selectedSubVariant = computed(
+  () => selectedVariant.value?.variants?.find((v) => v.slug === selectedSubKey.value) ?? null
+)
 // The base stat and each variant carry their own modifiers / roll / traits;
 // everything downstream reads the "active" one so the modal updates in place.
 const activeModifiers = computed(() =>
   selectedVariant.value ? (selectedVariant.value.modifiers ?? []) : props.modifiers
 )
 const activeRollAction = computed(() => selectedVariant.value?.rollAction ?? props.rollAction)
-const activeTraits = computed(() => selectedVariant.value?.traits ?? [])
+// A PF2e action variant's traits replace the action's, so the sub-variant wins
+// when one is armed (Gesture is manipulate+mental, not the action's bare mental).
+const activeTraits = computed(
+  () => selectedSubVariant.value?.traits ?? selectedVariant.value?.traits ?? []
+)
 const infoModal = ref()
 const isSecret = ref(false)
 const { isListening } = storeToRefs(useListenersStore())
@@ -130,12 +148,16 @@ const {
 // blind, so auto-arm the secret toggle on select and disarm it on deselect.
 watch(selectedKey, () => {
   modifierOverrides.value = {}
-  isSecret.value = selectedVariant.value?.traits?.includes('secret') ?? false
+  // Arm the first sub-variant so the roll button is immediately usable; PF2e
+  // throws on a multi-variant action used without one.
+  selectedSubKey.value = selectedVariant.value?.variants?.[0]?.slug ?? null
+  isSecret.value = activeTraits.value.includes('secret')
 })
 
 function onModalClosed() {
   modifierOverrides.value = {}
   selectedKey.value = null
+  selectedSubKey.value = null
   isSecret.value = false
 }
 
@@ -171,7 +193,8 @@ const rolls = computed<Roll[]>(() => {
           ...(hasOverrides ? { modifierOverrides: { ...overrides } } : {}),
           ...(isSecret.value
             ? { messageMode: 'blind' as const, rollMode: 'blindroll' as const }
-            : {})
+            : {}),
+          ...(selectedSubKey.value ? { variant: selectedSubKey.value } : {})
         }
         return activeRollAction.value!(
           faces?.[0],
@@ -294,6 +317,37 @@ defineExpose({ infoModal })
                 {{ SignedNumber.format(variant.modifier) }}
               </span>
             </button>
+            <!-- Sub-variants of the selected action (Create a Diversion's
+                 Distracting Words / Gesture / Trick, Perform's Acting /
+                 Comedy / …), on their own row below a divider so they read as
+                 a choice within the selected action. PF2e can't roll these
+                 actions without one, so the first is armed on selection and
+                 this row only switches between them — there is no "none"
+                 state to return to. -->
+            <div
+              v-if="selectedVariant?.variants?.length"
+              class="border-divider flex w-full flex-wrap gap-2 border-t pt-2.5"
+            >
+              <button
+                v-for="sub in selectedVariant.variants"
+                :key="sub.slug"
+                type="button"
+                class="rounded-full border px-3 py-1 text-xs transition-colors active:opacity-50"
+                :class="
+                  selectedSubKey === sub.slug
+                    ? 'border-blue-600 bg-blue-600 text-white shadow-sm'
+                    : 'border-divider bg-white dark:bg-white/10'
+                "
+                @click="selectedSubKey = sub.slug"
+              >
+                <ActionIcons
+                  v-if="sub.cost"
+                  :actions="sub.cost"
+                  class="relative mr-1 -mb-0.5 text-sm leading-none"
+                />
+                {{ sub.label }}
+              </button>
+            </div>
           </div>
           <TraitList
             v-if="activeTraits.length"

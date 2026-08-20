@@ -61,6 +61,18 @@ export type SkillActionStatistic = {
   modifiers: SerializedModifier[]
 }
 
+// One named variant of a skill action (Create a Diversion's Distracting Words
+// / Gesture / Trick, Perform's Acting / Comedy / …). PF2e refuses to roll an
+// action that declares more than one variant unless the use() call names one,
+// so the app has to offer the choice — see StatBox's sub-variant chips.
+// `traits` and `cost` are the variant's own (they override the action's).
+export type SkillActionVariant = {
+  slug: string
+  label: string
+  traits: string[]
+  cost?: string
+}
+
 // A skill action serialized Foundry-side from the live action registry
 // (game.pf2e.actions). `rollOptions` are replayed as extraRollOptions on the
 // actual roll so the rolled number matches the previewed `modifier`.
@@ -71,6 +83,9 @@ export type SkillActionData = {
   traits: string[]
   rollOptions: string[]
   statistics: SkillActionStatistic[]
+  // Present only when the action declares more than one variant — exactly the
+  // case where PF2e requires one to be named at roll time.
+  variants?: SkillActionVariant[]
   // Enriched HTML description pulled Foundry-side from the pf2e.actionspf2e
   // compendium (keyed by slug). Rendered client-side via ParsedDescription.
   // Absent for actions with no matching compendium item (e.g. homebrew).

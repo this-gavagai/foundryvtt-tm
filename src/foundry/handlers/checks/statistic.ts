@@ -46,6 +46,7 @@ export const handleSkillAction: CheckRollHandler = (ctx) => {
     modifierOverrides?: ModifierOverrideMap
     messageMode?: string
     rollMode?: string
+    variant?: string
   }
   const statisticSlug = opts?.statistic ?? ''
   const registry = (
@@ -73,7 +74,13 @@ export const handleSkillAction: CheckRollHandler = (ctx) => {
         rollOptions: opts?.rollOptions ?? [],
         event,
         target: ctx.targetActorProxy ?? undefined,
-        message: { create: true }
+        message: { create: true },
+        // Actions declaring several variants (Create a Diversion, Perform)
+        // throw unless the use() call names one; the app picks it and sends it
+        // here. PF2e derives the variant's traits, notes and its own
+        // `action:<slug>:<variant>` roll option from this, so nothing else
+        // needs to change per variant.
+        ...(opts?.variant ? { variant: opts.variant } : {})
       })) as SkillActionUseResult[] | undefined
       return results?.[0]?.roll ?? null
     }

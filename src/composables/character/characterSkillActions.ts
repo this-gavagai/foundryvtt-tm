@@ -1,5 +1,5 @@
 import { computed, type Ref } from 'vue'
-import type { TablemateCharacter } from '@/types/character-types'
+import type { SkillActionVariant, TablemateCharacter } from '@/types/character-types'
 import type { Field } from './helpers'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import { type Modifier, makeModifiers } from './defs/modifier'
@@ -20,6 +20,10 @@ export interface SkillActionForSkill {
   // Enriched HTML description (from the pf2e.actionspf2e compendium) for display
   // in the action modal; undefined when the action has no compendium item.
   description?: string
+  // Set only for actions PF2e refuses to roll without a named variant (Create a
+  // Diversion, Perform). The UI offers these as a second row of chips and sends
+  // the chosen slug back as `options.variant`.
+  variants?: SkillActionVariant[]
   rollAction: (result?: number, options?: object) => Promise<RequestResolutionArgs | null>
 }
 
@@ -43,6 +47,7 @@ export function useCharacterSkillActions(
           modifier: stat.modifier,
           modifiers: makeModifiers(stat.modifiers) ?? [],
           description: action.description,
+          variants: action.variants,
           // Rolls through PF2e's native action (the 'skillAction' handler runs
           // game.pf2e.actions.get(slug).use(...)), so the card, traits, target
           // DC, degree of success and notes all come from the system. We split
@@ -75,6 +80,10 @@ export function useCharacterSkillActions(
               { d20: [result ?? 0] },
               [],
               {
+                // `options.variant` (the chip the user picked for a
+                // multi-variant action) rides along in this spread — PF2e's
+                // use() reads it and resolves the variant's traits, notes and
+                // `action:<slug>:<variant>` roll option itself.
                 ...options,
                 statistic: stat.statistic,
                 rollOptions,

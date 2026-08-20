@@ -9,7 +9,7 @@ import type {
   WeaponPF2e
 } from '@7h3laughingman/pf2e-types'
 import type { RequestCharacterDetailsArgs, UpdateCharacterDetailsArgs } from '@/types/api-types'
-import type { SkillActionData } from '@/types/character-types'
+import type { SkillActionData, SkillActionVariant } from '@/types/character-types'
 import { TM } from '@/api/protocol'
 import { inventoryTypes } from '@/utils/constants'
 import { logger } from '@/utils/utilities'
@@ -108,6 +108,12 @@ type LiveStatistic = {
   dc?: { options?: Iterable<string> }
   lore?: boolean
 }
+type SkillActionVariantLike = {
+  slug?: string
+  name?: string
+  cost?: 'free' | 'reaction' | 0 | 1 | 2 | 3
+  traits?: string[]
+}
 type SkillActionLike = {
   slug?: string
   name?: string
@@ -116,6 +122,9 @@ type SkillActionLike = {
   statistic?: string | string[]
   modifiers?: RawModifier[]
   rollOptions?: string[]
+  // PF2e's BaseAction exposes variants as a Collection (a Map subclass) keyed
+  // by variant slug; `name` on each is a localization key like the action's.
+  variants?: Map<string, SkillActionVariantLike>
 }
 type PF2eModifierApi = {
   actions?: { values?: () => Iterable<SkillActionLike> }
@@ -172,6 +181,24 @@ async function getSkillActionDescriptions(): Promise<Map<string, string>> {
   // ready yet, so leave the cache unset to retry on the next call.
   if (map.size) skillActionDescriptions = map
   return map
+}
+
+// Variants are only serialized when there are several: PF2e's BaseAction.use()
+// throws ("has multiple variants, but no variant was requested") unless the
+// call names one, so the app must present the choice for those actions. A
+// single declared variant needs no choice — use() falls back to it.
+function serializeActionVariants(action: SkillActionLike): SkillActionVariant[] | undefined {
+  const variants = action.variants
+  if (!variants || variants.size < 2) return undefined
+  const out = [...variants.values()]
+    .filter((v): v is SkillActionVariantLike & { slug: string } => !!v.slug)
+    .map((v) => ({
+      slug: v.slug,
+      label: v.name ? game.i18n.localize(v.name) : v.slug,
+      traits: Array.isArray(v.traits) ? v.traits : [],
+      cost: v.cost === undefined ? undefined : String(v.cost)
+    }))
+  return out.length ? out : undefined
 }
 
 function serializeSkillActions(
@@ -255,6 +282,7 @@ function serializeSkillActions(
       // matches the previewed modifier (action-specific bonuses fire again).
       rollOptions,
       statistics,
+      variants: serializeActionVariants(action),
       description: action.slug ? descriptions.get(action.slug) : undefined
     })
   }
