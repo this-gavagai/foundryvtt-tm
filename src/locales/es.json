@@ -75,6 +75,7 @@
     "userLabel": "Usuario",
     "passwordLabel": "Contraseña",
     "error": "Error al iniciar sesión — comprueba tus credenciales.",
+    "unavailable": "El servidor no aceptó el inicio de sesión. Puede estar reiniciándose: inténtalo de nuevo.",
     "couldNotLoadUsers": "No se pudo cargar la lista de usuarios.",
     "noUsersRetry": "Aún no hay usuarios — puede que el mundo todavía esté iniciándose.",
     "retry": "Reintentar",

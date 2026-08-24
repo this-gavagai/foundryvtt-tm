@@ -268,7 +268,7 @@ describe('login', () => {
     verifyCredentials.mockResolvedValue('ok')
     const store = await loadStore()
 
-    await expect(store.login('user-1', 'hunter2', 'Alice')).resolves.toBe(true)
+    await expect(store.login('user-1', 'hunter2', 'Alice')).resolves.toBe('ok')
     expect(writeCredential).toHaveBeenCalledWith(SERVER.origin, 'user-1', 'hunter2')
   })
 
@@ -276,7 +276,18 @@ describe('login', () => {
     verifyCredentials.mockResolvedValue('rejected')
     const store = await loadStore()
 
-    await expect(store.login('user-1', 'wrong')).resolves.toBe(false)
+    await expect(store.login('user-1', 'wrong')).resolves.toBe('rejected')
+    expect(writeCredential).not.toHaveBeenCalled()
+  })
+
+  // The login page needs the difference: `rejected` is the only outcome where
+  // "check your credentials" is true, and a server that couldn't take the
+  // request at all must not be reported as a bad password.
+  it('reports a server that could not take the request as unavailable', async () => {
+    verifyCredentials.mockResolvedValue('unavailable')
+    const store = await loadStore()
+
+    await expect(store.login('user-1', 'hunter2')).resolves.toBe('unavailable')
     expect(writeCredential).not.toHaveBeenCalled()
   })
 })

@@ -17,12 +17,13 @@ import { forgetCredential, readCredential, writeCredential } from '@/api/credent
 import {
   JOIN_DATA_RETRY_ATTEMPTS,
   JOIN_DATA_TIMEOUT_MS,
+  type JoinAttempt,
   type JoinData,
   type JoinUser,
   type ServerTransport
 } from '@/api/serverTransport'
 
-export type { JoinData, JoinUser }
+export type { JoinAttempt, JoinData, JoinUser }
 
 const GET_SOCKET_TIMEOUT_MS = 15_000
 const PROBE_CONNECTION_TIMEOUT_MS = 3_000
@@ -302,10 +303,17 @@ export const useServerStore = defineStore('server', () => {
     })
   }
 
-  async function login(userid: string, password: string, name?: string): Promise<boolean> {
+  // Sign in with credentials the user just typed. The JoinAttempt is passed
+  // through rather than reduced to a boolean so the login page can tell "that
+  // password is wrong" (`rejected`) from "the server wouldn't take the request"
+  // (`unavailable`) — the shape a Foundry contract change arrives in, and the
+  // one case where telling the user to check their password sends them chasing
+  // a problem that isn't theirs.
+  async function login(userid: string, password: string, name?: string): Promise<JoinAttempt> {
     const url = activeServerUrl()
-    if (!url) return false
-    if ((await currentTransport().verifyCredentials(url, userid, password)) !== 'ok') return false
+    if (!url) return 'unavailable'
+    const attempt = await currentTransport().verifyCredentials(url, userid, password)
+    if (attempt !== 'ok') return attempt
     rememberLoginUser(url.origin, userid, name)
     // Remembered so the next dead session repairs itself. Awaited (it's a fast
     // keystore write) but never fatal: failing to save the password costs the
@@ -317,9 +325,11 @@ export const useServerStore = defineStore('server', () => {
       await connectToServer(url)
       needsLogin.value = false
     } catch {
-      return false
+      // The credential was accepted; only the socket that should have followed
+      // it failed, which is transient by nature.
+      return 'unavailable'
     }
-    return true
+    return 'ok'
   }
 
   // Forget the active server's saved password and drop back to the login page,

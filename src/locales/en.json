@@ -75,6 +75,7 @@
     "userLabel": "User",
     "passwordLabel": "Password",
     "error": "Login failed — check your credentials.",
+    "unavailable": "The server didn’t accept the sign-in. It may be restarting — try again.",
     "couldNotLoadUsers": "Could not load user list.",
     "noUsersRetry": "No users yet — the world may still be starting.",
     "retry": "Retry",

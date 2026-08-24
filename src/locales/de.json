@@ -75,6 +75,7 @@
     "userLabel": "Benutzer",
     "passwordLabel": "Passwort",
     "error": "Anmeldung fehlgeschlagen — bitte Zugangsdaten prüfen.",
+    "unavailable": "Der Server hat die Anmeldung nicht angenommen. Vielleicht startet er neu — bitte erneut versuchen.",
     "couldNotLoadUsers": "Benutzerliste konnte nicht geladen werden.",
     "noUsersRetry": "Noch keine Benutzer — die Welt startet möglicherweise noch.",
     "retry": "Erneut versuchen",

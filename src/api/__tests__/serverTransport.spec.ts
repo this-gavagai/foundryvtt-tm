@@ -3,6 +3,7 @@ import {
   classifyHomeRedirect,
   classifyJoinPost,
   homeUrl,
+  joinRequestBody,
   sessionCookiePath
 } from '@/api/serverTransport'
 
@@ -81,14 +82,30 @@ describe('classifyJoinPost', () => {
     expect(classifyJoinPost(200, body)).toBe('ok')
   })
 
-  // Foundry sends these as an un-localized plain-text 401. Each means the
-  // stored password can never work again, so it gets discarded.
-  it.each(['JOIN.ErrorInvalidPassword', 'JOIN.ErrorUserDoesNotExist', 'JOIN.ErrorBanned'])(
+  // A build that stops sending `status` but still says where to go next has
+  // still logged us in — Foundry answers a *failed* join with a non-2xx and a
+  // plain-text error key, never with JSON.
+  it('accepts a success body that has lost its status field', () => {
+    expect(classifyJoinPost(200, JSON.stringify({ request: 'join', redirect: '/game' }))).toBe('ok')
+  })
+
+  // Foundry sends these as an un-localized plain-text 401. Each one proves the
+  // server resolved the user and refused them, so the stored password can never
+  // work again and gets discarded.
+  it.each(['JOIN.ErrorInvalidPassword', 'JOIN.ErrorBanned'])(
     'treats %s as a terminal rejection',
     (body) => {
       expect(classifyJoinPost(401, body)).toBe('rejected')
     }
   )
+
+  // The 14.367 lockout: Foundry answers a request whose user field it didn't
+  // understand exactly as it answers a deleted user. Reading that as terminal
+  // deleted every saved password on a server upgrade, so it must stay transient
+  // — the login page can handle a user who really is gone.
+  it('treats JOIN.ErrorUserDoesNotExist as transient, not a bad credential', () => {
+    expect(classifyJoinPost(401, 'JOIN.ErrorUserDoesNotExist')).toBe('unavailable')
+  })
 
   // The critical asymmetry: a transient failure must never be read as a bad
   // password, or a good credential is thrown away and the user is back to
@@ -108,5 +125,20 @@ describe('classifyJoinPost', () => {
       'unavailable'
     )
     expect(classifyJoinPost(200, JSON.stringify({ status: 'failed' }))).toBe('unavailable')
+  })
+})
+
+describe('joinRequestBody', () => {
+  // Foundry's server read `req.body.userid` through v14 build 364 and reads
+  // `req.body.userId` from 14.367 on. Both ignore body keys they don't know, so
+  // the request carries both spellings rather than betting on one — sending
+  // only `userid` to a 14.367 server is the whole 14.367 login outage.
+  it('sends the user id under both spellings Foundry has used', () => {
+    expect(joinRequestBody('abc123', 'hunter2')).toEqual({
+      action: 'join',
+      userid: 'abc123',
+      userId: 'abc123',
+      password: 'hunter2'
+    })
   })
 })

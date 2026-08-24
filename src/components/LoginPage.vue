@@ -191,15 +191,20 @@ async function handleLogin() {
   submitting.value = true
   error.value = ''
   const name = users.value.find((u) => u._id === userid.value)?.name
-  const success = await login(userid.value, password.value, name)
-  if (success) {
+  const attempt = await login(userid.value, password.value, name)
+  if (attempt === 'ok') {
     // No reload needed: login() reconnected with the fresh session, and the
     // session handshake clears needsLogin (unmounting this page) and fires the
     // world/actor refreshes itself.
     return
   }
   submitting.value = false
-  error.value = t('login.error')
+  // Only `rejected` means Foundry looked the user up and refused them, so only
+  // then is "check your credentials" true. Everything else — an outage, a world
+  // still starting, a request this Foundry build didn't understand — is the
+  // server's problem, and blaming the password there sends the user off fixing
+  // something that isn't broken.
+  error.value = attempt === 'rejected' ? t('login.error') : t('login.unavailable')
 }
 </script>
 <template>
@@ -223,7 +228,9 @@ async function handleLogin() {
           @pointerdown="!(loadingUsers || users.length === 0) && triggerLightHapticFeedback()"
         >
           <option v-if="loadingUsers" value="">{{ $t('login.loadingUsers') }}</option>
-          <option v-else-if="users.length === 0" value="">{{ $t('login.noUsersAvailable') }}</option>
+          <option v-else-if="users.length === 0" value="">
+            {{ $t('login.noUsersAvailable') }}
+          </option>
           <option
             v-for="u in users"
             :key="u._id"

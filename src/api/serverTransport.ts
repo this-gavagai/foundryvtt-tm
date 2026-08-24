@@ -115,28 +115,63 @@ export function sessionCookiePath(serverUrl: URL): string {
   return serverUrl.protocol === 'https:' ? '/; SameSite=None; Secure' : '/'
 }
 
-// Error keys Foundry sends (as a plain-text 401 body, un-localized) when the
-// credential itself can never succeed. Anything else — including an
-// unrecognized refusal and JOIN.WorldPendingSetup, which clears once the GM
-// finishes setup — is treated as transient so a stored password survives it.
-const TERMINAL_JOIN_ERRORS = [
-  'JOIN.ErrorInvalidPassword',
-  'JOIN.ErrorUserDoesNotExist',
-  'JOIN.ErrorBanned'
-]
+// The body of a POST /join credential attempt.
+//
+// Foundry renamed this field: its server read `req.body.userid` up to and
+// including v14 build 364, and reads `req.body.userId` from 14.367 on (verified
+// against a live 14.367 server, which answered a *valid* id sent as `userid`
+// with JOIN.ErrorUserDoesNotExist — it never saw an id at all — and accepted
+// the same id as `userId`). Both generations destructure the body and ignore
+// keys they don't know, so sending both spellings satisfies every build rather
+// than betting on one: v13 and v14≤364 read `userid`, v14.367+ reads `userId`.
+//
+// Foundry's own v14 join form also sends `username`, but its server ignores it
+// and resolves the id client-side — the id is the canonical key. Sending a name
+// too would only add a way to fail when a user has been renamed, so we don't.
+export function joinRequestBody(
+  userid: string,
+  password: string
+): { action: 'join'; userid: string; userId: string; password: string } {
+  return { action: 'join', userid, userId: userid, password }
+}
 
-// Classify a POST /join response. Success is a JSON body with
-// `status: 'success'`; everything else leans transient unless Foundry named a
-// terminal credential error, because wrongly calling an outage `rejected`
-// throws away a good password and puts the user back on the login page.
+// Error keys Foundry sends (as a plain-text 401 body, un-localized) when the
+// credential itself can never succeed — each one proves the server *resolved
+// the user* and refused them, so it can only be the password or the ban.
+// Anything else — including an unrecognized refusal and JOIN.WorldPendingSetup,
+// which clears once the GM finishes setup — is treated as transient so a stored
+// password survives it.
+//
+// JOIN.ErrorUserDoesNotExist is deliberately NOT here, even though a deleted
+// user is terminal. It is the one error Foundry also answers when it did not
+// understand *which* user we meant, which is exactly what a renamed request
+// field looks like (see joinRequestBody). Reading that as `rejected` is what
+// turned the 14.367 rename into a total lockout: every stored password was
+// deleted on the spot. Treating it as transient keeps the credential, shows the
+// login page, and leaves a genuinely deleted user to be handled there — a
+// failure the user can see and recover from.
+const TERMINAL_JOIN_ERRORS = ['JOIN.ErrorInvalidPassword', 'JOIN.ErrorBanned']
+
+// Classify a POST /join response. Success is a JSON body Foundry only ever
+// sends when someone got logged in; everything else leans transient unless
+// Foundry named a terminal credential error, because wrongly calling an outage
+// `rejected` throws away a good password and puts the user back on the login
+// page.
 export function classifyJoinPost(status: number, bodyText: string): JoinAttempt {
   if (status >= 200 && status < 300) {
+    let parsed: unknown
     try {
-      const parsed: unknown = JSON.parse(bodyText)
-      if ((parsed as { status?: string } | null)?.status === 'success') return 'ok'
+      parsed = JSON.parse(bodyText)
     } catch {
       // A 2xx that isn't JSON is Foundry's rendered "no active game" page.
+      return 'unavailable'
     }
+    const body = parsed as { status?: string; redirect?: string } | null
+    if (body?.status === 'success') return 'ok'
+    // A build that stopped sending `status` but still named where to go next
+    // logged us in all the same: Foundry answers every *failed* join with a
+    // non-2xx and a plain-text error key, never with JSON.
+    if (body?.status === undefined && typeof body?.redirect === 'string') return 'ok'
     return 'unavailable'
   }
   return TERMINAL_JOIN_ERRORS.some((key) => bodyText.includes(key)) ? 'rejected' : 'unavailable'

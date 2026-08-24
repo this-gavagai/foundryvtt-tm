@@ -6,6 +6,7 @@ import {
   classifyHomeRedirect,
   classifyJoinPost,
   homeUrl,
+  joinRequestBody,
   JOIN_DATA_TIMEOUT_MS,
   PROBE_TIMEOUT_MS,
   readBrowserSessionCookie,
@@ -219,12 +220,16 @@ export const capacitorServerTransport: ServerTransport = {
       const response = await CapacitorHttp.post({
         url: new URL('/join', serverUrl).href,
         headers: { 'Content-Type': 'application/json' },
-        data: { action: 'join', password, userid },
+        data: joinRequestBody(userid, password),
         connectTimeout: VERIFY_CREDENTIALS_TIMEOUT_MS,
         readTimeout: VERIFY_CREDENTIALS_TIMEOUT_MS
       })
-      const result = classifyJoinPost(response.status, responseDataAsText(response))
+      const bodyText = responseDataAsText(response)
+      const result = classifyJoinPost(response.status, bodyText)
       if (result === 'ok') await persistNativeSession(serverUrl, response)
+      // See the browser transport: Foundry's plain-text error key is the only
+      // account of why a login failed, so it goes to the log verbatim.
+      else logger.debug('TM-DIAG join POST refused', response.status, bodyText)
       return result
     } catch {
       return 'unavailable'
