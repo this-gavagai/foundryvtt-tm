@@ -84,6 +84,12 @@ export interface ListenderOnlineArgs {
   // protocol.ts). Optional/absent on modules predating the handshake; the app
   // treats a missing capability as unsupported and hides the affordance.
   capabilities?: string[]
+  // The world's resolved dynamic token ring spritesheet. Only the Foundry
+  // client can resolve it: the world setting names a ring ID, and modules
+  // register their own rings. Absent on modules predating the field, and on
+  // worlds where the ring framework never initialized — avatars then render
+  // without rings.
+  tokenRing?: { spritesheet?: string }
 }
 export interface UpdateCharacterDetailsArgs {
   action: typeof TM.UPDATE_CHARACTER

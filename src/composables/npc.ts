@@ -27,6 +27,7 @@ import {
 } from '@/composables/character/defs/spellDef'
 import { makeIWRs } from '@/composables/character/characterStats'
 import { makeSpellRankResolver } from '@/utils/spellcasting'
+import { tokenPortrait } from '@/utils/tokenPortrait'
 import { deleteActorItem, updateActor, updateActorItem } from '@/api/documents'
 import { castSpell, getSpellDamage, getStrikeDamage, rollCheck, rollDamage } from '@/api/actionRpc'
 import { formatTraitLabel } from '@/utils/traitLabels'
@@ -112,16 +113,17 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
   const makeSpeed = (type: 'land' | 'swim' | 'climb' | 'fly' | 'burrow') =>
     computed(() => makeStat(actor.value?.system?.movement?.speeds?.[type] as StatInput))
 
+  const portrait = computed(() => tokenPortrait(actor.value?.prototypeToken, actor.value?.img))
+
   const npc: Npc = {
     _actor: actor,
     _id: computed(() => actor.value?._id ?? undefined),
     type: computed(() => actor.value?.type ?? undefined),
     name: computed(() => actor.value?.name),
-    portraitUrl: computed(
-      () => actor.value?.prototypeToken?.texture?.src ?? actor.value?.img ?? undefined
-    ),
-    portraitScaleX: computed(() => actor.value?.prototypeToken?.texture?.scaleX ?? 1),
-    portraitScaleY: computed(() => actor.value?.prototypeToken?.texture?.scaleY ?? 1),
+    portraitUrl: computed(() => portrait.value.url),
+    portraitScaleX: computed(() => portrait.value.scaleX),
+    portraitScaleY: computed(() => portrait.value.scaleY),
+    portraitRing: computed(() => portrait.value.ring),
 
     level: computed(() => actor.value?.system?.details?.level?.value),
     blurb: computed(() => actor.value?.system?.details?.blurb || undefined),

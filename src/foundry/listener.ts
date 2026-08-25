@@ -685,6 +685,16 @@ function iAmFirstGM() {
   // (gmHandlerSetting.spec.ts); this supplies the live world state.
   return isElectedHandler(game.user, game.users.contents ?? [], gmHandlerPolicy())
 }
+// The active ring's spritesheet path, or undefined when the ring framework
+// hasn't initialized (no canvas yet) or the config is unavailable.
+function tokenRingSpritesheet(): string | undefined {
+  try {
+    return CONFIG?.Token?.ring?.spritesheet || undefined
+  } catch {
+    return undefined
+  }
+}
+
 function announceSelf() {
   game.socket.emit(TM.CHANNEL, {
     action: TM.LISTENER_ONLINE,
@@ -695,6 +705,11 @@ function announceSelf() {
     // Piggyback the manual-roll policy so apps can gray out their manual/Pixel
     // affordances proactively; the dispatch gate above stays authoritative.
     manualRollPolicy: manualRollPolicy(),
+    // The resolved dynamic ring spritesheet, so the app can draw token rings on
+    // its avatars. Resolution has to happen here: the world setting holds a ring
+    // ID, and the registry that maps IDs to spritesheets (including the custom
+    // rings modules and adventure paths register) exists only in the client.
+    tokenRing: { spritesheet: tokenRingSpritesheet() },
     // Additive feature flags — the app hides features this module can't serve.
     // Each media capability is advertised only once the GM has configured its
     // destination folder, so an unconfigured world offers no such affordance.

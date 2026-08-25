@@ -11,6 +11,7 @@ import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { useVersionCompatStore } from '@/stores/versionCompat'
 import { useGmPolicyStore } from '@/stores/gmPolicy'
+import { useTokenRingStore } from '@/stores/tokenRing'
 import { useSyncStatusStore } from '@/stores/syncStatus'
 import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { useWorldStore } from '@/stores/world'
@@ -155,6 +156,8 @@ export function registerServerEventWiring() {
     // World manual-roll policy rides along on every announcement (including
     // the re-announce the module fires when the GM changes the setting).
     useGmPolicyStore().reportPolicy(args.manualRollPolicy)
+    // Which ring art the world uses, for the token rings drawn on avatars.
+    useTokenRingStore().reportSpritesheet(args.tokenRing?.spritesheet)
   })
 
   // Core "show players" image share. Gated on an opt-in setting, and checked

@@ -14,6 +14,7 @@ import { makeCondition } from '@/composables/character/defs/condition'
 import { makeEffect } from '@/composables/character/defs/effect'
 import type { Stat } from '@/composables/character/defs/stat'
 import { makeStat } from '@/composables/character/defs/stat'
+import { tokenPortrait } from '@/utils/tokenPortrait'
 import { makeModifiers } from '@/composables/character/defs/modifier'
 import { updateActor, deleteActorItem, updateActorItem } from '@/api/documents'
 import { rollCheck, rollDamage } from '@/api/actionRpc'
@@ -56,16 +57,17 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
         rollCheck(actor, 'save', { slug: subtype }, { d20: [result ?? 0] }, [], options ?? {})
     }))
 
+  const portrait = computed(() => tokenPortrait(actor.value?.prototypeToken, actor.value?.img))
+
   const familiar: Familiar = {
     _actor: actor,
     _id: computed(() => actor.value?._id ?? undefined),
     type: computed(() => actor.value?.type ?? undefined),
     name: computed(() => actor.value?.name),
-    portraitUrl: computed(
-      () => actor.value?.prototypeToken?.texture?.src ?? actor.value?.img ?? undefined
-    ),
-    portraitScaleX: computed(() => actor.value?.prototypeToken?.texture?.scaleX ?? 1),
-    portraitScaleY: computed(() => actor.value?.prototypeToken?.texture?.scaleY ?? 1),
+    portraitUrl: computed(() => portrait.value.url),
+    portraitScaleX: computed(() => portrait.value.scaleX),
+    portraitScaleY: computed(() => portrait.value.scaleY),
+    portraitRing: computed(() => portrait.value.ring),
     masterId: computed(() => actor.value?.system?.master?.id ?? undefined),
     masterAbility: computed(() => actor.value?.system?.master?.ability ?? undefined),
     creature: computed(() => actor.value?.system?.details?.creature?.value),

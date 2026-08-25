@@ -1,23 +1,25 @@
 <script setup lang="ts">
 import Spinner from '@/components/widgets/SpinnerWidget.vue'
-import { getPath } from '@/utils/utilities'
+import TokenArt from '@/components/TokenArt.vue'
 import { useInjectedActor } from '@/composables/injectKeys'
 
-const { portraitUrl, portraitScaleX, portraitScaleY } = useInjectedActor()
+const { portraitUrl, portraitScaleX, portraitScaleY, portraitRing } = useInjectedActor()
 
 defineEmits(['click'])
 </script>
 <template>
   <div
-    class="xs:flex border-divider -z-1 hidden h-24 w-24 items-center rounded-full transition duration-180 ease-out select-none active:scale-90 active:opacity-50 active:duration-60"
+    class="xs:flex border-divider -z-1 hidden h-24 w-24 items-center overflow-hidden rounded-full transition duration-180 ease-out select-none active:scale-90 active:opacity-50 active:duration-60"
     @click="$emit('click')"
   >
-    <img
+    <TokenArt
       v-if="portraitUrl"
-      :src="getPath(portraitUrl)"
+      :url="portraitUrl"
+      :scaleX="portraitScaleX"
+      :scaleY="portraitScaleY"
+      :ring="portraitRing"
+      :px="96"
       :alt="$t('app.characterPortrait')"
-      :style="{ '--sx': portraitScaleX, '--sy': portraitScaleY }"
-      class="scale-x-(--sx) scale-y-(--sy) pointer-events-none"
     />
     <div v-else class="h-full min-h-24">
       <Spinner class="mr-2 h-full w-full p-4" />

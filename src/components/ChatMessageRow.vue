@@ -10,6 +10,7 @@ import {
 import { useLongPress } from '@/composables/useLongPress'
 import { REACTION_EMOJI } from '@/utils/chatReactions'
 import ChatRollCard from '@/components/ChatRollCard.vue'
+import TokenArt from '@/components/TokenArt.vue'
 import KebabMenu from '@/components/widgets/KebabMenu.vue'
 import d20Icon from '@/assets/icons/d20.svg'
 import type { ActiveRoll } from '@/types/api-types'
@@ -209,21 +210,24 @@ function handleContentClick(event: MouseEvent) {
     >
       <!-- overflow-visible so a token whose art is scaled past its frame
            (scaleX/scaleY > 1) spills out of the avatar box rather than being
-           cropped — the usual Foundry large-creature token look. Omitted for
+           cropped — the usual Foundry large-creature token look. A ring token
+           brings its own round clip instead (see TokenArt). Omitted for
            out-of-character posts, which have no character token. -->
       <div
         v-if="view.hasPortrait"
         data-part="chat-portrait"
         class="h-12 w-12 flex-none overflow-visible rounded"
       >
-        <img
+        <TokenArt
           v-if="view.portrait"
-          class="h-full w-full scale-x-(--sx) scale-y-(--sy) object-cover"
-          :src="view.portrait"
+          :url="view.portrait"
+          :scaleX="view.portraitScale['--sx']"
+          :scaleY="view.portraitScale['--sy']"
+          :ring="view.portraitRing"
+          :px="48"
+          objectFit="cover"
+          lazy
           :alt="view.speakerName"
-          :style="view.portraitScale"
-          loading="lazy"
-          decoding="async"
         />
       </div>
       <div class="flex min-w-0 flex-col" :class="isOwn ? 'items-end' : 'items-start'">

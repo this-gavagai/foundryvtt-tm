@@ -25,13 +25,14 @@ import {
   triggerDismissHapticFeedback,
   triggerLightHapticFeedback
 } from '@/composables/useHapticFeedback'
-import { getPath } from '@/utils/utilities'
+import { tokenPortrait } from '@/utils/tokenPortrait'
 
 import Dropdown from '@/components/widgets/DropdownWidget.vue'
 import Toggle from '@/components/widgets/ToggleWidget.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import IconButtonWidget from '@/components/widgets/IconButtonWidget.vue'
 import RollOptions from '@/components/RollOptions.vue'
+import TokenArt from '@/components/TokenArt.vue'
 import Spinner from './widgets/SpinnerWidget.vue'
 import DamageRollBuilder from './DamageRollBuilder.vue'
 import RollCheckBuilder from './RollCheckBuilder.vue'
@@ -148,7 +149,16 @@ const { setActiveCharacterId } = characterSelectStore
 const characterOptions = computed(() =>
   (characterList.value ?? []).flatMap((id) => {
     const actor = worldStore.actorById(id)
-    return actor ? [actor] : []
+    if (!actor) return []
+    // Same derivation the sheets use, so a picker row shows the token art (and
+    // ring) that the header portrait will show once the row is tapped.
+    return [
+      {
+        _id: actor._id,
+        name: actor.name,
+        portrait: tokenPortrait(actor.prototypeToken, actor.img ?? undefined)
+      }
+    ]
   })
 )
 
@@ -471,17 +481,16 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
           @click="selectCharacter(chr._id ?? undefined)"
         >
           <div
-            v-if="chr.prototypeToken?.texture?.src ?? chr.img"
+            v-if="chr.portrait.url"
             class="flex h-10 w-10 flex-none items-center overflow-hidden rounded-full"
           >
-            <img
-              :src="getPath((chr.prototypeToken?.texture?.src ?? chr.img) as string)"
+            <TokenArt
+              :url="chr.portrait.url"
+              :scaleX="chr.portrait.scaleX"
+              :scaleY="chr.portrait.scaleY"
+              :ring="chr.portrait.ring"
+              :px="40"
               :alt="chr.name ?? ''"
-              :style="{
-                '--sx': chr.prototypeToken?.texture?.scaleX ?? 1,
-                '--sy': chr.prototypeToken?.texture?.scaleY ?? 1
-              }"
-              class="scale-x-(--sx) scale-y-(--sy)"
             />
           </div>
           <span class="truncate">{{ chr.name }}</span>

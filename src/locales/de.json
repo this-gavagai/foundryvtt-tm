@@ -82,8 +82,7 @@
     "activeMarker": "(aktiv)",
     "connectingTo": "Anmeldung bei",
     "changeServer": "Server wechseln",
-    "signOut": "Abmelden",
-    "signOutHint": "Vergisst das gespeicherte Passwort dieses Servers und löscht die zwischengespeicherten Charaktere und den Chat, damit du dich als anderer Benutzer anmelden kannst."
+    "signOut": "Abmelden"
   },
   "serverUrl": {
     "title": "Foundry-Server",

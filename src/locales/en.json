@@ -82,8 +82,7 @@
     "activeMarker": "(active)",
     "connectingTo": "Signing in to",
     "changeServer": "Change server",
-    "signOut": "Sign out",
-    "signOutHint": "Forgets this server’s saved password and deletes its cached characters and chat, so you can sign in as a different user."
+    "signOut": "Sign out"
   },
   "serverUrl": {
     "title": "Foundry server",

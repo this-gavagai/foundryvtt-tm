@@ -27,6 +27,7 @@ export interface Actor {
   portraitUrl: CharacterCore['portraitUrl']
   portraitScaleX: CharacterCore['portraitScaleX']
   portraitScaleY: CharacterCore['portraitScaleY']
+  portraitRing: CharacterCore['portraitRing']
   hp: CharacterResources['hp']
   ac: CharacterStats['ac']
   saves: CharacterStats['saves']

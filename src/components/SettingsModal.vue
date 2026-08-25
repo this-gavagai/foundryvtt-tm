@@ -134,9 +134,6 @@ defineExpose({ open, close })
             </span>
           </template>
         </Button>
-        <p data-part="sign-out-hint" class="-mt-2 text-sm opacity-70">
-          {{ $t('login.signOutHint') }}
-        </p>
       </template>
     </div>
     <!-- Teleported out of this dialog's DOM (the nesting pattern InfoModal uses

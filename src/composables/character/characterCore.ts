@@ -14,6 +14,7 @@ import { type Heritage, makeHeritage } from './defs/heritage'
 import { type ClassType, makeClassType } from './defs/classType'
 import { type Stat, makeStat } from './defs/stat'
 import { updateActor } from '@/api/documents'
+import { tokenPortrait, type PortraitRing } from '@/utils/tokenPortrait'
 
 export interface CharacterCore {
   // Live underlying PF2e actor — escape hatch for code that needs prototype
@@ -25,6 +26,7 @@ export interface CharacterCore {
   portraitUrl: Field<string>
   portraitScaleX: Field<number>
   portraitScaleY: Field<number>
+  portraitRing: Field<PortraitRing>
   ancestry: Field<Ancestry>
   heritage: Field<Heritage>
   background: Field<Background>
@@ -49,9 +51,11 @@ export interface CharacterCore {
 export function useCharacterCore(actor: Ref<TablemateCharacter | undefined>): CharacterCore {
   const _id = computed(() => actor.value?._id ?? undefined)
   const name = computed(() => actor.value?.name)
-  const portraitUrl = computed(() => actor.value?.prototypeToken?.texture?.src ?? undefined)
-  const portraitScaleX = computed(() => actor.value?.prototypeToken?.texture?.scaleX ?? undefined)
-  const portraitScaleY = computed(() => actor.value?.prototypeToken?.texture?.scaleY ?? undefined)
+  const portrait = computed(() => tokenPortrait(actor.value?.prototypeToken))
+  const portraitUrl = computed(() => portrait.value.url)
+  const portraitScaleX = computed(() => portrait.value.scaleX)
+  const portraitScaleY = computed(() => portrait.value.scaleY)
+  const portraitRing = computed(() => portrait.value.ring)
 
   const ancestry = computed(() =>
     makeAncestry(actor.value?.items?.find((x) => x.type === 'ancestry') as AncestryPF2e | undefined)
@@ -99,6 +103,7 @@ export function useCharacterCore(actor: Ref<TablemateCharacter | undefined>): Ch
     portraitUrl,
     portraitScaleX,
     portraitScaleY,
+    portraitRing,
     ancestry,
     background,
     heritage,

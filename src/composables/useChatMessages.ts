@@ -3,7 +3,8 @@ import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'
 import { useChatStore } from '@/stores/chat'
 import { useUserStore } from '@/stores/user'
-import { getMediaPath, getPath } from '@/utils/utilities'
+import { getMediaPath } from '@/utils/utilities'
+import { tokenPortrait, type PortraitRing } from '@/utils/tokenPortrait'
 import { prepareChatHtml } from '@/utils/chatHtml'
 import { rollSummaries, type ChatRollSummary, type RollJson } from '@/utils/chatRollSummary'
 import { applyPf2eNotation } from '@/utils/pf2eEnrich'
@@ -78,6 +79,8 @@ export interface ChatMessageData {
   getFlag?: (scope: string, key: string) => unknown
 }
 
+// Only the fields the portrait derivation reads; `tokenPortrait` is structurally
+// typed so a placed TokenDocument and a prototype token both fit.
 interface ChatTokenData {
   _id?: string | null
   actorId?: string | null
@@ -86,6 +89,16 @@ interface ChatTokenData {
     scaleX?: number | null
     scaleY?: number | null
   }
+  ring?: ChatTokenRing
+  width?: number | null
+  height?: number | null
+}
+
+interface ChatTokenRing {
+  enabled?: boolean | null
+  colors?: { ring?: string | null; background?: string | null } | null
+  effects?: number | null
+  subject?: { texture?: string | null; scale?: number | null } | null
 }
 
 interface ChatSceneData {
@@ -97,13 +110,7 @@ interface ChatSceneData {
 interface ChatActorData {
   _id?: string | null
   img?: string | null
-  prototypeToken?: {
-    texture?: {
-      src?: string | null
-      scaleX?: number | null
-      scaleY?: number | null
-    }
-  }
+  prototypeToken?: ChatTokenData
 }
 
 export interface ChatMessageView {
@@ -128,8 +135,11 @@ export interface ChatMessageView {
   groupStart: boolean
   groupEnd: boolean
   hasPortrait: boolean
+  // Unresolved token-art path (see speakerPortrait); TokenArt resolves it.
   portrait?: string
   portraitScale: { '--sx': number; '--sy': number }
+  // Present when the speaker's token draws a dynamic ring.
+  portraitRing?: PortraitRing
   preparedFlavor?: string
   preparedContent?: string
   // Playable URL of an attached voice memo (resolved from flags.tablemate);
@@ -437,8 +447,12 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
 
   // Whisper/GM gating is shared with the unread store via useChatVisibility so
   // the overlay and the badge count always agree on what's visible.
-  const { currentUserIsGM, messageVisibleToCurrentUser, messageIsFromCurrentUser, visibleMessages } =
-    useChatVisibility()
+  const {
+    currentUserIsGM,
+    messageVisibleToCurrentUser,
+    messageIsFromCurrentUser,
+    visibleMessages
+  } = useChatVisibility()
 
   // Reactions are keyed by the reacting user's own Foundry id, so "did I react"
   // is an exact match on it — deliberately not the belongsTo-widened
@@ -480,7 +494,8 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
   // falling back to the user's own name when there's no belongsTo owner.
   function resolvedUserName(userId: string): string {
     const ownerId = ownerIdByUserId.value.get(userId)
-    if (ownerId) return userNamesById.value.get(ownerId) ?? userNamesById.value.get(userId) ?? userId
+    if (ownerId)
+      return userNamesById.value.get(ownerId) ?? userNamesById.value.get(userId) ?? userId
     return userNamesById.value.get(userId) ?? userId
   }
   const scenes = computed(() =>
@@ -548,28 +563,28 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
   }
 
   // Resolve a speaker's portrait, preferring the placed scene token (per-token
-  // art and scale) and falling back to the actor's own portrait. Messages whose
-  // speaker carries only an actor — plain chat sent via ChatMessage.getSpeaker,
-  // or any actor without a token in the active scene — have no scene token, so
-  // without this fallback they render with no portrait at all.
+  // art, scale and ring) and falling back to the actor's own prototype token.
+  // Messages whose speaker carries only an actor — plain chat sent via
+  // ChatMessage.getSpeaker, or any actor without a token in the active scene —
+  // have no scene token, so without this fallback they render with no portrait
+  // at all.
   function speakerPortrait(message: ChatMessageData): {
     src?: string
     scale: { '--sx': number; '--sy': number }
+    ring?: PortraitRing
   } {
     const token = speakerToken(message)
-    if (token?.texture?.src) {
-      return {
-        src: getPath(token.texture.src),
-        scale: { '--sx': token.texture.scaleX ?? 1, '--sy': token.texture.scaleY ?? 1 }
-      }
-    }
     const actorId = message.speaker?.actor
     const actor = actorId ? actorsById.value.get(actorId) : undefined
-    const proto = actor?.prototypeToken?.texture
-    const src = proto?.src ?? actor?.img ?? undefined
+    const portrait = token?.texture?.src
+      ? tokenPortrait(token)
+      : tokenPortrait(actor?.prototypeToken, actor?.img ?? undefined)
     return {
-      src: src ? getPath(src) : undefined,
-      scale: { '--sx': proto?.scaleX ?? 1, '--sy': proto?.scaleY ?? 1 }
+      // Unresolved Foundry path: TokenArt runs it through getPath at render
+      // time, which on native re-resolves as the image cache fills in.
+      src: portrait.url,
+      scale: { '--sx': portrait.scaleX, '--sy': portrait.scaleY },
+      ring: portrait.ring
     }
   }
 
@@ -638,6 +653,7 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
       hasPortrait: !!message.speaker?.token || !!message.speaker?.actor,
       portrait: portrait.src,
       portraitScale: portrait.scale,
+      portraitRing: portrait.ring,
       audioUrl: voiceMemoUrl(message),
       transcript: voiceMemoTranscript(message),
       imageUrl: imageUrl(message),
