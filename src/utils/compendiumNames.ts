@@ -1,10 +1,10 @@
-import { getCompendiumItem } from '@/api/compendium'
+import { getCompendiumName } from '@/api/compendium'
 
 // Resolve a linked document's display name from its UUID, for label-less
 // @UUID[...] links (PF2e omits the label when it equals the referenced
 // document's name, and the client only learns the name by reading the document).
 // Covers both compendium entries and items embedded on a world actor — see
-// api/compendium.getCompendiumItem. Results are cached for the session and
+// api/compendium.getCompendiumName. Results are cached for the session and
 // in-flight requests deduped, so the same linked document shown across multiple
 // descriptions is fetched at most once.
 const nameCache = new Map<string, string>()
@@ -15,9 +15,8 @@ export function resolveCompendiumName(uuid: string): Promise<string | undefined>
   if (cached !== undefined) return Promise.resolve(cached)
   let pending = inFlight.get(uuid)
   if (!pending) {
-    pending = getCompendiumItem(uuid)
-      .then((result) => {
-        const name = result.compendiumItem?.name
+    pending = getCompendiumName(uuid)
+      .then((name) => {
         if (name) nameCache.set(uuid, name)
         return name
       })

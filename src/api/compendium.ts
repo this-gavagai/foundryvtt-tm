@@ -126,6 +126,36 @@ function embeddedItem(actorId: string, itemId: string): CompendiumItemData | nul
   return shapeCompendiumItem(item, actor?.name ?? '')
 }
 
+// Resolve just the display name behind a UUID, for label-less @UUID[...] links.
+//
+// Reads the pack INDEX rather than the document: a name is all the caller wants,
+// and a chat log can carry dozens of these links (a PF2e daily-preparations card
+// lists every prepared spell), so pulling whole spell documents — description
+// HTML, rules elements and all — to read one field would be wasteful on a phone.
+export async function getCompendiumName(itemUuid: string): Promise<string | undefined> {
+  const embedded = parseEmbeddedItemUuid(itemUuid)
+  if (embedded) return embeddedItem(embedded.actorId, embedded.itemId)?.name
+
+  const ref = parseCompendiumUuid(itemUuid)
+  if (!ref) {
+    logger.warn('TM-COMPENDIUM: not a compendium uuid', itemUuid)
+    return undefined
+  }
+  const raw = await socketDatabaseGet({
+    type: ref.documentType,
+    pack: ref.packId,
+    index: true,
+    indexFields: ['_id', 'name'],
+    query: { _id: ref.id }
+  })
+  const name = (raw[0] as { name?: unknown } | undefined)?.name
+  if (typeof name !== 'string' || !name) {
+    logger.warn('TM-COMPENDIUM: could not resolve name for', itemUuid)
+    return undefined
+  }
+  return name
+}
+
 // Read a linked document by UUID: a compendium entry (over the socket) or an
 // item embedded on a world actor (straight from the world payload).
 export async function getCompendiumItem(

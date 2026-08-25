@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watchPostEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ChatMessageView } from '@/composables/useChatMessages'
 import type { ChatActions, ChatRerollRequest } from '@/composables/useChatActions'
@@ -11,6 +11,7 @@ import { useLongPress } from '@/composables/useLongPress'
 import { REACTION_EMOJI } from '@/utils/chatReactions'
 import ChatRollCard from '@/components/ChatRollCard.vue'
 import TokenArt from '@/components/TokenArt.vue'
+import { fillUuidLinkLabels } from '@/utils/compendiumNames'
 import KebabMenu from '@/components/widgets/KebabMenu.vue'
 import d20Icon from '@/assets/icons/d20.svg'
 import type { ActiveRoll } from '@/types/api-types'
@@ -34,6 +35,23 @@ const props = defineProps<{
   // row in a long log subscribing to the same store.
   reactionsSupported: boolean
 }>()
+
+// Label-less @UUID[...] links render as a "…" placeholder because their text is
+// the linked document's name, which is only known after reading it (see
+// pf2eUuidHtml). PF2e omits the label wherever the two would be equal, so a
+// daily-preparations card lists every prepared spell that way. v-html rebuilds
+// these subtrees whenever the prepared HTML changes, which restores the
+// placeholders, so refill after each render — the pass is idempotent and only
+// touches anchors still flagged unresolved.
+const flavorRef = ref<HTMLElement>()
+const contentRef = ref<HTMLElement>()
+watchPostEffect(() => {
+  // Read both, so this re-runs when either v-html swaps its subtree.
+  void props.view.preparedFlavor
+  void props.view.preparedContent
+  fillUuidLinkLabels(flavorRef.value)
+  fillUuidLinkLabels(contentRef.value)
+})
 
 const emit = defineEmits<{
   // Tapping a name preselects that user as the whisper recipient.
@@ -299,6 +317,7 @@ function handleContentClick(event: MouseEvent) {
       >
         <div
           v-if="view.preparedFlavor"
+          ref="flavorRef"
           data-part="chat-flavor"
           class="mb-1 text-base font-medium text-gray-700"
           v-html="view.preparedFlavor"
@@ -306,6 +325,7 @@ function handleContentClick(event: MouseEvent) {
         />
         <div
           v-if="view.showContent && view.preparedContent"
+          ref="contentRef"
           data-part="chat-content"
           data-tone="primary"
           class="text-base wrap-break-word text-gray-900"
