@@ -24,6 +24,7 @@ import { useChatActions, type ChatRerollRequest } from '@/composables/useChatAct
 import {
   useChatMessages,
   chatContentToEditableText,
+  spellCardCast,
   type ChatMessageView
 } from '@/composables/useChatMessages'
 import { useChatScroll } from '@/composables/useChatScroll'
@@ -31,9 +32,12 @@ import { PUBLIC_WHISPER_TARGET, useWhisperTargets } from '@/composables/useWhisp
 import { rerollLabelKey, rollFormulaLabel, rollKindLabel } from '@/utils/chatRollDisplay'
 import {
   activeRollFromFoundryClickTarget,
+  activeRollFromSpellSaveButton,
+  cardRollFromClickTarget,
   compendiumItemUuidFromClickTarget
 } from '@/utils/foundryHtml'
 import ChatInlineRollModal from '@/components/ChatInlineRollModal.vue'
+import ChatCardRollModal from '@/components/ChatCardRollModal.vue'
 import ChatMessageRow from '@/components/ChatMessageRow.vue'
 import ChatRecipientPicker from '@/components/ChatRecipientPicker.vue'
 import CompendiumItemModal from '@/components/CompendiumItemModal.vue'
@@ -52,6 +56,7 @@ const character = useInjectedActor()
 const { _id, _actor, shield, skills, saves, perception } = character
 const inlineRollModal = ref<InstanceType<typeof ChatInlineRollModal>>()
 const compendiumModal = ref<InstanceType<typeof CompendiumItemModal>>()
+const cardRollModal = ref<InstanceType<typeof ChatCardRollModal>>()
 const rerollModal = ref<InstanceType<typeof InfoModal>>()
 const activeReroll = ref<ChatRerollRequest>()
 const { t } = useI18n()
@@ -519,6 +524,49 @@ function openLocalizedInlineRoll(check: ActiveRoll) {
   openInlineRoll({ ...check, label: inlineCheckLabel(check) })
 }
 
+// The message a click landed in, resolved from the row's data-message-id.
+function messageFromClickTarget(target: HTMLElement): ChatMessageView['message'] | undefined {
+  const id = target.closest<HTMLElement>('[data-message-id]')?.dataset.messageId
+  return id ? messages.value.find((m) => m._id === id) : undefined
+}
+
+// The card's own heading, minus any action-cost glyph span (whose text is a
+// font ligature, not a word). Used as the roll modal's title so it reads as a
+// continuation of the card that was tapped.
+function cardTitle(target: HTMLElement): string {
+  const heading = target.closest<HTMLElement>('.chat-card')?.querySelector('.card-header h3')
+  if (!heading) return ''
+  const clone = heading.cloneNode(true) as HTMLElement
+  clone.querySelectorAll('.action-glyph').forEach((glyph) => glyph.remove())
+  return clone.textContent?.trim() ?? ''
+}
+
+// A chat card's own roll buttons — a spell card's or a strike card's.
+//
+// Attack and damage roll on behalf of the card's caster/attacker, so they need
+// that actor to be the one this sheet has open. The save button is the
+// opposite: it rolls the READER's save against the DC printed on the card, so
+// it works on anyone's card and routes through the same modal as an inline
+// @Check.
+function handleCardRollClick(target: HTMLElement): boolean {
+  const save = activeRollFromSpellSaveButton(target)
+  if (save) {
+    openLocalizedInlineRoll(save)
+    return true
+  }
+
+  const cardRoll = cardRollFromClickTarget(target)
+  if (!cardRoll) return false
+  const message = messageFromClickTarget(target)
+  if (!message || !messageIsOwnActor(message)) return false
+  // A spell card's subject lives in the message flags; a strike card names its
+  // own in the descriptor, so it needs nothing further.
+  const cast = cardRoll.kind === 'spell' ? spellCardCast(message) : undefined
+  if (cardRoll.kind === 'spell' && !cast) return false
+  cardRollModal.value?.open(cardRoll, cardTitle(target), cast)
+  return true
+}
+
 function handleChatContentClick(event: MouseEvent) {
   const target = event.target as HTMLElement
   const compendiumUuid = compendiumItemUuidFromClickTarget(target)
@@ -526,6 +574,12 @@ function handleChatContentClick(event: MouseEvent) {
     event.preventDefault()
     event.stopPropagation()
     compendiumModal.value?.open(compendiumUuid)
+    return
+  }
+
+  if (handleCardRollClick(target)) {
+    event.preventDefault()
+    event.stopPropagation()
     return
   }
 
@@ -1036,6 +1090,7 @@ defineExpose({ open, close, isOpen })
         </div>
       </div>
       <ChatInlineRollModal ref="inlineRollModal" />
+      <ChatCardRollModal ref="cardRollModal" />
       <CompendiumItemModal ref="compendiumModal" />
       <ConfirmDialog
         ref="deleteDialog"

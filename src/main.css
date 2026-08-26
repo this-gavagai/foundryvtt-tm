@@ -352,7 +352,9 @@ html.tm-native [data-part='panel-scroll'] {
 
   .card-header {
     display: grid;
-    grid-template-columns: 40px 1fr;
+    /* Third column holds the spell card's rank label; it collapses to zero on
+       every other card header, which has no h4. */
+    grid-template-columns: 40px 1fr auto;
     column-gap: 0.5rem;
     row-gap: 0.25rem;
     align-items: start;
@@ -366,15 +368,28 @@ html.tm-native [data-part='panel-scroll'] {
       align-self: center;
     }
 
-    > h3,
-    > h4 {
+    /* Name and rank sit SIDE BY SIDE, not in the same cell. A spell card
+       header is `<h3>Heal <glyph></h3><h4 class="rank">Spell 3</h4>`, and
+       placing both in column 2 / row 1 printed them on top of each other.
+       Baseline-aligned so the smaller rank label lines up with the name. */
+    > h3 {
       grid-column: 2;
       grid-row: 1;
       margin: 0;
+      align-self: baseline;
+    }
+
+    > h4 {
+      grid-column: 3;
+      grid-row: 1;
+      margin: 0;
+      justify-self: end;
+      align-self: baseline;
+      white-space: nowrap;
     }
 
     > .tags {
-      grid-column: 2;
+      grid-column: 2 / span 2;
       grid-row: 2;
       display: flex;
       flex-direction: row;
@@ -447,9 +462,59 @@ html.tm-native [data-part='panel-scroll'] {
   }
 }
 
-/* Hide the action/damage buttons on chat cards that aren't the player's own
-   message — structural behavior, theme-agnostic. */
-[data-part='chat-message'][data-own-message='false'] .card-buttons {
+/* The card buttons this app can actually perform. Everything else PF2e renders
+   in a card's button row is hidden rather than left on screen doing nothing.
+
+   Stated as an ALLOWLIST on purpose. As a denylist it was fail-open: a button
+   added by a future PF2e release would render and be inert — which is the exact
+   bug this list exists to prevent. Inverted, an unrecognized button is simply
+   invisible until someone wires it.
+
+   Wired in ChatOverlay.handleCardRollClick (attack / damage / save) and
+   useChatActions.handleCardButtonClick (consume / variant). Known omissions:
+   spell-template and spell-template-clear need a canvas this app doesn't have,
+   and spell-counteract has no counteract roll path here. Adding a handler means
+   adding its action to this list too. */
+[data-part='chat-content']
+  .card-buttons
+  button:not(
+    :is(
+      [data-action='consume'],
+      [data-action='spell-variant'],
+      [data-action='spell-save'],
+      [data-action='spell-attack'],
+      [data-action='spell-attack-2'],
+      [data-action='spell-attack-3'],
+      [data-action='spell-damage'],
+      [data-action='strike-attack'],
+      [data-action='strike-attack2'],
+      [data-action='strike-attack3'],
+      [data-action='strike-damage']
+    )
+  ) {
+  display: none;
+}
+
+/* Card buttons that act on the card's OWN actor — attack, damage, variant,
+   consume — are hidden unless that actor is the character this sheet has open.
+   Keyed on data-own-actor rather than data-own-message: with a shared Foundry
+   login every tablet posts as the same USER, so an own-message test would offer
+   Kyra's buttons to a tablet showing Ezren, where they can do nothing.
+
+   The save button is the deliberate exception, and PF2e's own template marks it
+   as one: alone among the spell-card buttons it carries no data-visibility=
+   "owner", because a save is rolled by whoever READS the card, against the DC
+   printed on it. Hiding it was what made an enemy's spell card a dead end.
+
+   Two rules, because the container has its own margin: drop the whole row when
+   nothing in it survives, and otherwise drop only the buttons that don't. */
+[data-part='chat-message'][data-own-actor='false']
+  .card-buttons:not(:has(button[data-action='spell-save'])) {
+  display: none;
+}
+[data-part='chat-message'][data-own-actor='false']
+  .card-buttons
+  > *:not(button[data-action='spell-save']) {
   display: none;
 }
 

@@ -206,6 +206,13 @@ function handleContentClick(event: MouseEvent) {
 </script>
 
 <template>
+  <!-- data-own-message and data-own-actor are deliberately separate. The first
+       is about the USER who posted and drives the bubble's own-vs-other look.
+       The second is about the ACTOR the message acts on, and is what decides
+       whether a Foundry chat card's owner buttons (attack, damage, variant,
+       consume) can do anything: with a shared login, the sheet in front of you
+       may not be the character the card names. See the card-button rules in
+       main.css. -->
   <li
     data-part="chat-message"
     class="group flex flex-col"
@@ -214,6 +221,7 @@ function handleContentClick(event: MouseEvent) {
     :data-message-type="view.message.type"
     :data-private="!!view.visibilityLabel"
     :data-own-message="isOwn"
+    :data-own-actor="view.isOwnActor"
     :data-unread="unread || undefined"
   >
     <!-- Group header: the token at the screen edge with the character name, user

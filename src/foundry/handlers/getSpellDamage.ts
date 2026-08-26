@@ -1,8 +1,7 @@
-import type { ActorPF2e, SpellPF2e } from '@7h3laughingman/pf2e-types'
 import type { GetSpellDamageArgs, SpellDamagePreview } from '@/types/api-types'
 import { withBackgroundRoll } from '../backgroundRoll'
 import { getCharacter, getGame, makeAck } from '../utils/foundry'
-import { findSpell } from '../utils/spellLookup'
+import { findSpell, loadSpellVariant } from '../utils/spellLookup'
 import { withDamageModifierOverrides, type ModifierOverrideMap } from './checks/modifierOverrides'
 
 export async function foundryGetSpellDamage(args: GetSpellDamageArgs) {
@@ -10,18 +9,14 @@ export async function foundryGetSpellDamage(args: GetSpellDamageArgs) {
   const actor = getCharacter(source, args.characterId)
   // No target — a damage preview describes the spell, not a victim, so it must
   // not shift as the mirrored target changes. See GetStrikeDamageArgs.
-  const baseSpell = findSpell(actor, args.spellId)
-  // getDamage reads `this.rank` (which honours system.location.heightenedLevel),
-  // so we ask PF2e for a heightened variant via loadVariant. Per the PF2e source
-  // (item/spell/document.ts), loadVariant returns null only when castRank
-  // equals the spell's current rank — that's exactly the no-op case where the
-  // base spell already has the right rank, so falling back to baseSpell is
-  // correct.
-  const spell = args.castingRank
-    ? ((baseSpell?.loadVariant({ castRank: args.castingRank }) as
-        | SpellPF2e<ActorPF2e>
-        | undefined) ?? baseSpell)
-    : baseSpell
+  // getDamage reads `this.rank` (which honours system.location.heightenedLevel)
+  // and the applied overlays, so the preview has to be taken from the same
+  // variant the roll will use — otherwise a card switched to "Heal (vs. Living)"
+  // previews the base spell's dice and the picker offers the wrong ones.
+  const spell = loadSpellVariant(findSpell(actor, args.spellId), {
+    castRank: args.castingRank,
+    overlayIds: args.overlayIds
+  })
   type SpellGetDamageOpts = {
     skipDialog?: boolean
     rollMode?: 'roll' | 'publicroll' | 'gmroll' | 'blindroll' | 'selfroll'

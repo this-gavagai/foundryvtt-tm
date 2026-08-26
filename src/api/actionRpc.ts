@@ -228,13 +228,32 @@ export const consumeItem = (actor: TablemateActorRef, consumableId: string, opti
     options
   })
 
+// Swap a posted spell card to one of its variants. Rewrites the existing
+// message rather than posting a new one, so the app sees the change arrive as
+// an ordinary chat update.
+export const selectSpellVariant = (
+  actor: TablemateActorRef,
+  messageId: string,
+  overlayIds: string[],
+  castRank: number
+) =>
+  sendAction(TM.SELECT_SPELL_VARIANT, {
+    ...fromActor(actor),
+    messageId,
+    overlayIds,
+    castRank
+  })
+
 export const getStrikeDamage = (
   actor: TablemateActorRef,
   actionSlug: string,
   altUsage: number | undefined = undefined,
   modifierOverrides?: Record<string, boolean>,
   // Blast formula lookups pass the blast target here (actionSlug stays '').
-  blast?: BlastDamageQuery
+  blast?: BlastDamageQuery,
+  // Chat-card callers name the usage instead of an altUsages index — see the
+  // `strike` check subtype.
+  card?: { itemId?: string; usage?: 'melee' | 'ranged' }
 ) =>
   // Untargeted: a damage preview describes the weapon, not a victim. See
   // GetStrikeDamageArgs.
@@ -243,21 +262,26 @@ export const getStrikeDamage = (
     actionSlug,
     altUsage,
     modifierOverrides,
-    blast
+    blast,
+    ...(card?.itemId ? { itemId: card.itemId } : {}),
+    ...(card?.usage ? { usage: card.usage } : {})
   })
 
 export const getSpellDamage = (
   actor: TablemateActorRef,
   spellId: string,
   castingRank: number | undefined = undefined,
-  modifierOverrides?: Record<string, boolean>
+  modifierOverrides?: Record<string, boolean>,
+  // Only a chat card supplies these — the sheet always previews the base spell.
+  overlayIds?: string[]
 ) =>
   // Untargeted, as with strike damage — see GetStrikeDamageArgs.
   sendAction(TM.GET_SPELL_DAMAGE, {
     ...fromActor(actor),
     spellId,
     castingRank,
-    modifierOverrides
+    modifierOverrides,
+    ...(overlayIds?.length ? { overlayIds } : {})
   })
 
 // Unified entry point for any ad-hoc damage roll — both the side-menu

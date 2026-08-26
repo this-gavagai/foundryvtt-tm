@@ -5,6 +5,7 @@ import {
   applyDamage,
   consumeItem,
   rerollChatRoll,
+  selectSpellVariant,
   sendImage,
   sendVoiceMemo,
   toggleReaction as toggleReactionRpc
@@ -76,7 +77,7 @@ function rollActionKey(message: ChatMessageData, rollIndex: number): string | un
   return `${message._id}:${rollIndex}`
 }
 
-function consumeActionKey(message: ChatMessageData): string | undefined {
+function cardActionKey(message: ChatMessageData): string | undefined {
   return message._id ?? undefined
 }
 
@@ -130,7 +131,9 @@ export function useChatActions({
   const actionError = ref(false)
   const pendingDamageActions = ref(new Set<string>())
   const pendingRollActions = ref(new Set<string>())
-  const pendingConsumeMessages = ref(new Set<string>())
+  // One in-flight card-button action per message — a card offers at most one
+  // meaningful tap at a time (consume it, or pick one of its spell variants).
+  const pendingCardMessages = ref(new Set<string>())
   // Keyed `${messageId}:${emoji}` — a chip with an in-flight toggle ignores
   // further taps, so a double-tap can't send two toggles that cancel out.
   const pendingReactions = ref(new Set<string>())
@@ -257,10 +260,33 @@ export function useChatActions({
     }
   }
 
+  // Actions carried by buttons inside Foundry's own card HTML that this app
+  // knows how to run. Anything else on a card (spell-attack, spell-damage,
+  // spell-save, …) is rolled from the character sheet instead, so those buttons
+  // are left alone rather than being wired to a half-behavior here.
+  const CARD_BUTTON_ACTIONS = ['consume', 'spell-variant'] as const
+
+  // The variant a spell card's button selects. PF2e writes the overlay ids as a
+  // comma-separated list; a button with none is the "base variant" button,
+  // which reverts the card to the un-overlaid spell — an empty list is a
+  // meaningful value here, not a missing one.
+  function spellVariantOverlayIds(btn: HTMLButtonElement): string[] {
+    return (btn.dataset.overlayIds ?? '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0)
+  }
+
+  // Rank the card was cast at, off the card wrapper PF2e stamps it on. Falls
+  // back to 1 exactly as PF2e's own handler does.
+  function spellCardCastRank(btn: HTMLButtonElement): number {
+    const rank = Number(btn.closest<HTMLElement>('.chat-card')?.dataset.castRank)
+    return Number.isInteger(rank) && rank > 0 ? rank : 1
+  }
+
   async function handleCardButtonClick(event: MouseEvent) {
-    const btn = (event.target as HTMLElement).closest<HTMLButtonElement>(
-      '.card-buttons button[data-action="consume"]'
-    )
+    const selector = CARD_BUTTON_ACTIONS.map((a) => `.card-buttons button[data-action="${a}"]`)
+    const btn = (event.target as HTMLElement).closest<HTMLButtonElement>(selector.join(','))
     if (!btn) return
     event.preventDefault()
     event.stopPropagation()
@@ -268,21 +294,36 @@ export function useChatActions({
     const msgEl = btn.closest<HTMLElement>('[data-message-id]')
     const message = messages.value.find((m) => m._id === msgEl?.dataset.messageId)
     if (!message || !messageIsOwnActor(message) || !actor.value) return
-    const itemId = originItemId(message)
-    if (!itemId) return
-    const key = consumeActionKey(message)
-    if (!key || setHas(pendingConsumeMessages, key)) return
+
+    const action = btn.dataset.action
+    // Resolve the call BEFORE claiming the pending slot, so a card whose action
+    // can't be run (a consume card with no origin item) leaves the button live
+    // rather than briefly disabling it for nothing.
+    let run: (() => Promise<unknown>) | undefined
+    if (action === 'consume') {
+      const itemId = originItemId(message)
+      if (itemId) run = () => consumeItem(actor, itemId)
+    } else if (action === 'spell-variant' && message._id) {
+      const messageId = message._id
+      const overlayIds = spellVariantOverlayIds(btn)
+      const castRank = spellCardCastRank(btn)
+      run = () => selectSpellVariant(actor, messageId, overlayIds, castRank)
+    }
+    if (!run) return
+
+    const key = cardActionKey(message)
+    if (!key || setHas(pendingCardMessages, key)) return
 
     actionError.value = false
-    setPending(pendingConsumeMessages, key, true)
+    setPending(pendingCardMessages, key, true)
     btn.disabled = true
     btn.setAttribute('aria-busy', 'true')
     try {
-      await consumeItem(actor, itemId)
+      await run()
     } catch {
       actionError.value = true
     } finally {
-      setPending(pendingConsumeMessages, key, false)
+      setPending(pendingCardMessages, key, false)
       btn.disabled = false
       btn.removeAttribute('aria-busy')
     }

@@ -139,3 +139,114 @@ export function activeRollFromFoundryClickTarget(target: HTMLElement): ActiveRol
   const inlineRoll = target.closest<HTMLAnchorElement>('a.inline-roll')
   return inlineRoll ? activeRollFromInlineRollAnchor(inlineRoll) : undefined
 }
+
+// --- Chat-card roll buttons --------------------------------------------------
+// Buttons PF2e renders inside a posted card that this app knows how to roll.
+// Anything else is hidden by the chat-card styles rather than parsed here (see
+// main.css), so the set of "supported" is stated once and it is the set the
+// user actually sees.
+//
+// Two card families produce roll buttons, and they name their subject
+// differently:
+//
+//   spell cards  — the cast lives in the message flags (rank + variant
+//                  overlays), so the DOM carries nothing but which button.
+//   strike cards — the strike is named right on the card, as
+//                  data-identifier="<itemId>.<slug>.<melee|ranged>".
+//
+// The save button is the odd one out in PF2e's own markup: alone among the
+// spell-card buttons it carries no data-visibility="owner", because a save is
+// rolled by whoever READS the card, against the DC printed on it. That makes it
+// an ordinary check for the viewer's own character — which is exactly what an
+// inline @Check anchor already is, so it is parsed into one.
+
+// Which strike a card names, as PF2e stamps it. `usage` selects between the
+// weapon's melee and ranged forms; the module resolves it against the actor
+// (see StrikeRef) because an index into altUsages isn't knowable from here.
+export interface StrikeCardRef {
+  actionSlug: string
+  itemId?: string
+  usage?: 'melee' | 'ranged'
+}
+
+export type CardRoll =
+  // variant doubles as the MAP step: 0 = no penalty, 1 = -5, 2 = -10.
+  | { kind: 'spell'; phase: 'attack'; variant: 0 | 1 | 2 }
+  | { kind: 'spell'; phase: 'damage' }
+  | { kind: 'strike'; phase: 'attack'; variant: 0 | 1 | 2; strike: StrikeCardRef }
+  | { kind: 'strike'; phase: 'damage'; critical: boolean; strike: StrikeCardRef }
+
+// PF2e spells hyphenate the MAP suffix; strikes don't. Both are spelled out
+// rather than pattern-matched, so an unrecognized action stays unrecognized
+// instead of being guessed at.
+const SPELL_ATTACK_VARIANT: Record<string, 0 | 1 | 2> = {
+  'spell-attack': 0,
+  'spell-attack-2': 1,
+  'spell-attack-3': 2
+}
+const STRIKE_ATTACK_VARIANT: Record<string, 0 | 1 | 2> = {
+  'strike-attack': 0,
+  'strike-attack2': 1,
+  'strike-attack3': 2
+}
+
+// "<itemId>.<slug>.<melee|ranged>" — see strike-card.hbs. Parsed defensively:
+// the slug is the only part the module strictly needs, and a card written by an
+// older PF2e (or a module that re-renders one) may carry fewer segments.
+function strikeCardRef(target: HTMLElement): StrikeCardRef | undefined {
+  const identifier = target.closest<HTMLElement>('.chat-card[data-identifier]')?.dataset.identifier
+  if (!identifier) return undefined
+  const [itemId, actionSlug, usage] = identifier.split('.')
+  if (!actionSlug) return undefined
+  return {
+    actionSlug,
+    itemId: itemId || undefined,
+    usage: usage === 'melee' || usage === 'ranged' ? usage : undefined
+  }
+}
+
+export function cardRollFromClickTarget(target: HTMLElement): CardRoll | undefined {
+  const button = target.closest<HTMLButtonElement>('.card-buttons button[data-action]')
+  const action = button?.dataset.action
+  if (!action || !button) return undefined
+
+  if (action === 'spell-damage') return { kind: 'spell', phase: 'damage' }
+  const spellVariant = SPELL_ATTACK_VARIANT[action]
+  if (spellVariant !== undefined) return { kind: 'spell', phase: 'attack', variant: spellVariant }
+
+  // A strike card is useless without its identifier — there would be nothing to
+  // tell the module which strike to roll — so bail rather than guess.
+  const strike = strikeCardRef(target)
+  if (!strike) return undefined
+  if (action === 'strike-damage') {
+    return {
+      kind: 'strike',
+      phase: 'damage',
+      // PF2e writes the outcome on the button; only "success" is the plain
+      // damage roll, everything else is the critical one.
+      critical: button.dataset.outcome !== 'success',
+      strike
+    }
+  }
+  const strikeVariant = STRIKE_ATTACK_VARIANT[action]
+  return strikeVariant === undefined
+    ? undefined
+    : { kind: 'strike', phase: 'attack', variant: strikeVariant, strike }
+}
+
+// The save button as an ActiveRoll: `data-save` is the save slug and `data-dc`
+// the spell's DC, both stamped by PF2e's spell-card template. No `against` —
+// the DC is already resolved, so this takes the direct save path rather than
+// the target-defense pipeline.
+export function activeRollFromSpellSaveButton(target: HTMLElement): ActiveRoll | undefined {
+  const button = target.closest<HTMLButtonElement>('button[data-action="spell-save"]')
+  const slug = button?.dataset.save
+  if (!slug) return undefined
+  const dc = Number(button?.dataset.dc)
+  return {
+    action: 'check',
+    slug,
+    label: button?.textContent?.trim() || slug,
+    dc: Number.isInteger(dc) && dc > 0 ? dc : undefined
+  }
+}

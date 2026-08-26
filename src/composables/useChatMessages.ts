@@ -66,7 +66,20 @@ export interface ChatMessageData {
       reactions?: ChatReaction[] | null
     }
     pf2e?: {
-      origin?: { uuid?: string | null }
+      origin?: {
+        uuid?: string | null
+        // Rank the spell was actually cast at, and the spell-variant overlays
+        // the card is currently showing. Both are written by PF2e when the card
+        // is posted (and rewritten when a variant button swaps the card), and
+        // together they identify the cast a card button should roll for — the
+        // base spell item alone would roll at the wrong rank and without the
+        // variant's damage.
+        castRank?: number | null
+        variant?: { overlays?: string[] | null } | null
+      }
+      // The spellcasting entry the cast came from. Needed to resolve the right
+      // attack statistic for a spell that appears in more than one entry.
+      casting?: { id?: string | null } | null
       context?: {
         isReroll?: boolean | null
         options?: unknown
@@ -235,6 +248,32 @@ export function originItemId(message: ChatMessageData): string | undefined {
   const uuid = message.flags?.pf2e?.origin?.uuid
   if (!uuid) return undefined
   return /\.Item\.([^.]+)$/.exec(uuid)?.[1]
+}
+
+// Everything a chat card's roll buttons need to roll for the CAST the card
+// represents rather than for the bare spell item: which spell, from which
+// spellcasting entry, at what rank, under which variant overlays.
+export interface SpellCardCast {
+  spellId: string
+  entryId: string
+  castRank?: number
+  overlayIds: string[]
+}
+
+export function spellCardCast(message: ChatMessageData): SpellCardCast | undefined {
+  const spellId = originItemId(message)
+  if (!spellId) return undefined
+  const origin = message.flags?.pf2e?.origin
+  const castRank = typeof origin?.castRank === 'number' ? origin.castRank : undefined
+  const overlays = origin?.variant?.overlays
+  return {
+    spellId,
+    // Empty string is the "no entry named" case the module already handles by
+    // searching every collection (see foundry/utils/spellLookup).
+    entryId: message.flags?.pf2e?.casting?.id ?? '',
+    castRank,
+    overlayIds: Array.isArray(overlays) ? overlays.filter((id) => typeof id === 'string') : []
+  }
 }
 
 export function messageIsReroll(message: ChatMessageData): boolean {

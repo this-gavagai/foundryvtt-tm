@@ -21,6 +21,7 @@ export type ModuleEventArgs =
   | RollCheckArgs
   | CharacterActionArgs
   | CastSpellArgs
+  | SelectSpellVariantArgs
   | ConsumeItemArgs
   | GetStrikeDamageArgs
   | ShareTargetsArgs
@@ -166,8 +167,24 @@ export interface CheckModifier {
 // string form sent by pre-protocol-3 apps.
 export interface CheckSubtypeByType {
   // MAP variant index (0/1/2) + alt-usage index into strike.altUsages.
-  strike: { actionSlug: string; variant: number; altUsage?: number }
-  damage: { actionSlug: string; degree: 'damage' | 'critical'; altUsage?: number }
+  //
+  // `itemId`/`usage` are the chat-card form of the same identity: a posted
+  // strike card names its strike as "<itemId>.<slug>.<melee|ranged>" and has no
+  // index to give, so the module resolves the usage instead (see StrikeRef).
+  strike: {
+    actionSlug: string
+    variant: number
+    altUsage?: number
+    itemId?: string
+    usage?: 'melee' | 'ranged'
+  }
+  damage: {
+    actionSlug: string
+    degree: 'damage' | 'critical'
+    altUsage?: number
+    itemId?: string
+    usage?: 'melee' | 'ranged'
+  }
   blast: { element: string; damageType: string; variant: number; isMelee: boolean }
   blastDamage: {
     element: string
@@ -180,8 +197,22 @@ export interface CheckSubtypeByType {
   save: { slug: string }
   // entryId alone = entry-level attack (the spellcasting-entry modal);
   // spellId + attackNumber (1/2/3 = MAP 0/-5/-10) for per-spell attack buttons.
-  spellAttack: { entryId: string; spellId?: string; attackNumber?: number }
-  spellDamage: { spellId: string; mapIncreases: 0 | 1 | 2; castingRank?: number }
+  // `overlayIds` names the spell-variant overlays the roll is made under (the
+  // variant a posted chat card was switched to). Absent for a plain sheet roll,
+  // which is always the base spell.
+  spellAttack: {
+    entryId: string
+    spellId?: string
+    attackNumber?: number
+    castingRank?: number
+    overlayIds?: string[]
+  }
+  spellDamage: {
+    spellId: string
+    mapIncreases: 0 | 1 | 2
+    castingRank?: number
+    overlayIds?: string[]
+  }
   perception: undefined
   familiarAttack: undefined
   initiative: undefined
@@ -292,6 +323,18 @@ export interface CastStaffSpellArgs {
   targetScene?: string
   uuid: string
 }
+// A tap on one of a spell card's variant buttons. `overlayIds` comes straight
+// off the button's data-overlay-ids; an empty list means the "base variant"
+// button, which reverts the card to the un-overlaid spell.
+export interface SelectSpellVariantArgs {
+  action: typeof TM.SELECT_SPELL_VARIANT
+  userId: string
+  characterId: string
+  messageId: string
+  overlayIds: string[]
+  castRank: number
+  uuid: string
+}
 export interface ConsumeItemArgs {
   action: typeof TM.CONSUME_ITEM
   userId: string
@@ -314,6 +357,9 @@ export interface GetStrikeDamageArgs {
   // reached the modifiers list. Dropping it makes the whole preview consistent,
   // and takes it off the path where a stale mirror could refuse it.
   altUsage: number | undefined
+  // Chat-card form of the strike identity — see the `strike` check subtype.
+  itemId?: string
+  usage?: 'melee' | 'ranged'
   modifierOverrides?: Record<string, boolean>
   // Blast lookup target. Pre-protocol-3 apps packed this into actionSlug as
   // 'blast:element,damageType,isMelee' — see blastDamageQueryOf module-side.
@@ -326,6 +372,9 @@ export interface GetSpellDamageArgs {
   characterId: string
   spellId: string
   castingRank: number | undefined
+  // Spell-variant overlays the preview should be computed under — see the
+  // spellDamage check subtype. Absent for a base-spell preview.
+  overlayIds?: string[]
   // No targets — see GetStrikeDamageArgs.
   modifierOverrides?: Record<string, boolean>
   uuid: string
@@ -716,6 +765,7 @@ export interface ResponseByAction {
   [TM.GET_COMPENDIUM_INDEX]: { compendiumIndex: CompendiumIndexEntry[] }
   [TM.CAST_SPELL]: PlainAck
   [TM.CAST_STAFF_SPELL]: PlainAck
+  [TM.SELECT_SPELL_VARIANT]: PlainAck
   [TM.CONSUME_ITEM]: PlainAck
   [TM.SEND_CHAT_MESSAGE]: PlainAck
   // The final chunk's ack reports the message the memo was posted as, so the

@@ -117,6 +117,12 @@ export const TM = {
   ROLL_CHECK: 'rollCheck',
   CHARACTER_ACTION: 'characterAction',
   CAST_SPELL: 'castSpell',
+  // Spell-variant button on a posted spell card ("Heal 1", "Heal (vs. Undead)
+  // 2", …). PF2e rewrites the card IN PLACE with the chosen variant rather than
+  // posting a new one, and building that card needs the system's spell
+  // rendering — so it has to run on the module side. See
+  // foundry/handlers/spellVariant.ts.
+  SELECT_SPELL_VARIANT: 'selectSpellVariant',
   CONSUME_ITEM: 'consumeItem',
   GET_STRIKE_DAMAGE: 'getStrikeDamage',
   SEND_CHAT_MESSAGE: 'sendChatMessage',

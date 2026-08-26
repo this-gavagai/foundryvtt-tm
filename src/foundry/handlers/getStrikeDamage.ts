@@ -2,7 +2,7 @@ import type { DamageType, EffectTrait } from '@7h3laughingman/pf2e-types'
 import type { GetStrikeDamageArgs, StrikeDamagePreview } from '@/types/api-types'
 import { withBackgroundRoll } from '../backgroundRoll'
 import { getCharacter, getGame, makeAck, makeFakeEvent } from '../utils/foundry'
-import type { StrikeActionRuntime } from '../utils/strikeRuntime'
+import { findStrikeAction } from '../utils/strikeRuntime'
 import { blastDamageQueryOf } from './checks/subtype'
 import {
   withDamageModifierOverrides,
@@ -83,11 +83,12 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
         skipDialog: true,
         event: makeFakeEvent(source)
       }
-      const baseStrike = actor.system.actions.find((a) => a.slug === args.actionSlug) as
-        | StrikeActionRuntime
-        | undefined
-      const strike =
-        args.altUsage !== undefined ? baseStrike?.altUsages?.[args.altUsage] : baseStrike
+      const strike = findStrikeAction(actor, {
+        actionSlug: args.actionSlug,
+        altUsage: args.altUsage,
+        itemId: args.itemId,
+        usage: args.usage
+      })
       const doesDmg = strike?.item?.dealsDamage ?? false
       damage =
         doesDmg && strike

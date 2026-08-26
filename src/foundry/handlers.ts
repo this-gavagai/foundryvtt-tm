@@ -5,6 +5,7 @@
 //   handlers/
 //     actions.ts            characterAction, sendItemToChat, freeRoll
 //     castSpell.ts          castSpell, castStaffSpell, consumeItem
+//     spellVariant.ts       selectSpellVariant (spell-card variant buttons)
 //     chat.ts               sendChatMessage
 //     characterDetails.ts   getCharacterDetails (+ serialization helpers)
 //     equipment.ts          setWeaponLoaded, setWeaponDamageType, toggleKineticAura
@@ -30,6 +31,7 @@ export {
   foundrySendImage
 } from './handlers/chat'
 export { foundryCastSpell, foundryCastStaffSpell, foundryConsumeItem } from './handlers/castSpell'
+export { foundrySelectSpellVariant } from './handlers/spellVariant'
 export { getCharacterDetails } from './handlers/characterDetails'
 export {
   foundryAttachItem,
