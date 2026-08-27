@@ -39,13 +39,6 @@ interface ChatMessageLike {
   getFlag?: (scope: string, key: string) => unknown
 }
 
-// The bits of an Actor we read to find its portrait, matching how the app derives
-// one (SideMenu / characterCore): prototype-token art first, then the actor image.
-interface ActorLike {
-  img?: string | null
-  prototypeToken?: { texture?: { src?: string | null } | null } | null
-}
-
 function messageId(msg: ChatMessageLike): string | undefined {
   return msg.id ?? msg._id
 }
@@ -96,8 +89,7 @@ function authorId(msg: ChatMessageLike): string | undefined {
 // would be redundant. Backgrounding the app drops its socket, which flips the
 // user inactive and makes them eligible again — exactly when a push is wanted.
 function isActiveUser(userId: string): boolean {
-  const users = game.users as unknown as { get?: (id: string) => { active?: boolean } | undefined }
-  return users.get?.(userId)?.active === true
+  return game.users.get(userId)?.active === true
 }
 
 function whisperIds(msg: ChatMessageLike): string[] {
@@ -112,17 +104,20 @@ interface WorldUser {
   belongsTo?: string
 }
 
-type RawWorldUser = {
-  id?: string
-  name?: string
-  flags?: { tablemate?: { belongsTo?: string } }
-}
-
 function worldUsers(): WorldUser[] {
-  const users = game.users as unknown as { contents?: RawWorldUser[] } | undefined
-  return (users?.contents ?? [])
-    .filter((u): u is RawWorldUser & { id: string } => !!u.id)
-    .map((u) => ({ id: u.id, name: u.name, belongsTo: u.flags?.tablemate?.belongsTo }))
+  return game.users.contents.map((u) => {
+    // Read straight off `flags` rather than through getFlag. Foundry types
+    // every document's flags with an index signature, so our own scope needs no
+    // assertion — and the property read works on a plain deserialized user as
+    // well as a live document, which getFlag does not.
+    const tablemate = u.flags['tablemate'] as { belongsTo?: unknown } | undefined
+    const belongsTo = tablemate?.belongsTo
+    return {
+      id: u.id,
+      name: u.name,
+      belongsTo: typeof belongsTo === 'string' ? belongsTo : undefined
+    }
+  })
 }
 
 function escapeRegExp(value: string): string {
@@ -228,11 +223,12 @@ function senderName(msg: ChatMessageLike): string {
 // host's own localhost/LAN address, which a recipient's phone cannot reach.
 // Already-absolute external art (http/https) is passed through; data:/blob: art
 // is dropped (a phone extension can't fetch it and it would blow the APNs size).
+// Portrait art is derived the way the app derives it (SideMenu /
+// characterCore): prototype-token art first, then the actor image.
 function portraitUrl(msg: ChatMessageLike): string | undefined {
   const actorId = msg.speaker?.actor
   if (!actorId) return undefined
-  const actors = game.actors as unknown as { get?: (id: string) => ActorLike | undefined } | undefined
-  const actor = actors?.get?.(actorId)
+  const actor = game.actors.get(actorId)
   const src = actor?.prototypeToken?.texture?.src ?? actor?.img
   if (!src) return undefined
   if (/^https?:\/\//i.test(src)) return src // absolute external art, already reachable

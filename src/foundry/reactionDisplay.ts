@@ -179,7 +179,7 @@ export function applyReactionDisplay(message: ReactableMessage, element: HTMLEle
 // rather than offered as a silent no-op.
 function reactionsAvailable(): boolean {
   if (game.user.isGM) return true
-  return !!(game.users as unknown as { activeGM?: { id?: string } | null })?.activeGM
+  return !!game.users.activeGM
 }
 
 // v14 renamed two ContextMenuEntry fields and deprecates the old names:
@@ -290,7 +290,7 @@ export function registerContextEntries(options: unknown): void {
 // them (a reload posts nothing new). Sweep them once — same reasoning as
 // chatOriginDisplay.sweepRenderedMessages.
 function sweepRenderedMessages(): void {
-  const messages = game.messages as unknown as Iterable<ReactableMessage> | undefined
+  const messages: Iterable<ReactableMessage> | undefined = game.messages
   if (!messages) return
   for (const message of messages) {
     const element = findRenderedChatMessage(message)

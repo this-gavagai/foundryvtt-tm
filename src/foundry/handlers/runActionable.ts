@@ -116,7 +116,7 @@ export async function foundryRunActionable(args: RunActionableArgs) {
   // actor lookup happens synchronously at the top of simpleRollActionCheck
   // (before any await), so the override only needs to live across the
   // execute() call's synchronous prefix; restoring on finally is safe.
-  const user = source.user as unknown as { character?: unknown }
+  const user = source.user
   const ownCharDescriptor = Object.getOwnPropertyDescriptor(user, 'character')
   Object.defineProperty(user, 'character', {
     value: actor,
@@ -141,8 +141,10 @@ export async function foundryRunActionable(args: RunActionableArgs) {
       Object.defineProperty(user, 'character', ownCharDescriptor)
     } else {
       // No own property existed — remove ours so the prototype getter
-      // (User.prototype.character) takes over again.
-      delete user.character
+      // (User.prototype.character) takes over again. Reflect rather than
+      // `delete`, which the compiler refuses on a non-optional property (and
+      // rightly: the property is not optional, it's ours to take back off).
+      Reflect.deleteProperty(user, 'character')
     }
   }
   return makeAck(args)

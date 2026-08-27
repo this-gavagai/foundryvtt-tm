@@ -4,29 +4,14 @@ import { getGame, makeAck } from '../utils/foundry'
 import { localizeRarity } from '../utils/labels'
 import { getRequestingUser, userCanObservePack } from '../utils/permissions'
 
-// Index entries carry the fields Foundry always indexes (_id, name, img, type)
-// plus whatever extra `fields` we request below.
-interface IndexEntry {
-  _id: string
-  name: string
-  img?: string
-  type?: string
-  system?: { level?: { value?: number }; traits?: { rarity?: string } }
-}
-
-interface PackLike {
-  collection: string
-  documentName: string
-  getIndex(options?: { fields?: string[] }): Promise<Iterable<IndexEntry>>
-}
-
 // Extra index fields we ask Foundry to load so each browse row can show level
-// and rarity without fetching the whole document.
+// and rarity without fetching the whole document. An index entry always carries
+// _id/name/img/type; these two arrive because they are asked for here.
 const INDEX_FIELDS = ['system.level.value', 'system.traits.rarity']
 
 export async function foundryGetCompendiumIndex(args: GetCompendiumIndexArgs) {
   const source = getGame()
-  const pack = source.packs.get(args.packId) as unknown as PackLike | undefined
+  const pack = source.packs.get(args.packId)
   const user = getRequestingUser(source, args.userId)
   if (!pack || !user || !userCanObservePack(pack, user)) {
     logger.warn('TM-GET-COMPENDIUM-INDEX: unknown or unpermitted pack', args.packId)

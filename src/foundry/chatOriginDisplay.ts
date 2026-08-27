@@ -128,7 +128,7 @@ function observeChatOriginByline(
 // everything rendered after this point (new posts, updates, lazy-loaded
 // history).
 function sweepRenderedMessages() {
-  const messages = game.messages as unknown as Iterable<TablemateChatMessage> | undefined
+  const messages: Iterable<TablemateChatMessage> | undefined = game.messages
   if (!messages) return
   for (const message of messages) {
     const originUserId = tablemateChatOriginUserId(message)
