@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { TM } from '@/api/protocol'
 import type { SendImageArgs } from '@/types/api-types'
+import { makeFakeGetWhisperRecipients } from './fakeChatCore'
 
 // Mirrors voiceMemo.spec.ts: mock getGame (the only un-node-able Foundry
 // accessor the handler uses) and stand ChatMessage/FilePicker up on globalThis.
@@ -20,7 +21,13 @@ vi.mock('@/foundry/utils/foundry', async (importActual) => {
 
 const createMock = vi.fn<(data: Record<string, unknown>) => Promise<object>>(async () => ({}))
 const uploadMock = vi.fn<
-  (source: string, path: string, file: File, body?: object, options?: object) => Promise<{ path: string }>
+  (
+    source: string,
+    path: string,
+    file: File,
+    body?: object,
+    options?: object
+  ) => Promise<{ path: string }>
 >(async () => ({ path: 'tablemate/images/test-world/x.jpg' }))
 const createDirectoryMock = vi.fn(async () => ({}))
 const browseMock = vi.fn(async () => ({ dirs: [], files: [] }))
@@ -41,7 +48,8 @@ beforeEach(() => {
   }
   ;(globalThis as Record<string, unknown>).ChatMessage = {
     create: createMock,
-    getSpeaker: vi.fn(() => ({ actor: 'seelah-id' }))
+    getSpeaker: vi.fn(() => ({ actor: 'seelah-id' })),
+    getWhisperRecipients: makeFakeGetWhisperRecipients(fakeGame.users)
   }
   ;(globalThis as Record<string, unknown>).FilePicker = {
     upload: uploadMock,
@@ -78,7 +86,12 @@ function chunkArgs(overrides: Partial<SendImageArgs>): SendImageArgs {
 describe('foundrySendImage', () => {
   it('acks intermediate chunks without creating a message', async () => {
     const ack = await foundrySendImage(
-      chunkArgs({ uploadId: 'multi', seq: 0, total: 2, chunkBase64: bytesToBase64(new Uint8Array([1, 2])) })
+      chunkArgs({
+        uploadId: 'multi',
+        seq: 0,
+        total: 2,
+        chunkBase64: bytesToBase64(new Uint8Array([1, 2]))
+      })
     )
     expect(ack.action).toBe(TM.ACK)
     expect(createMock).not.toHaveBeenCalled()
@@ -87,16 +100,28 @@ describe('foundrySendImage', () => {
 
   it('reassembles chunk bytes in order on the final chunk, then uploads + posts', async () => {
     await foundrySendImage(
-      chunkArgs({ uploadId: 'ab', seq: 0, total: 2, chunkBase64: bytesToBase64(new Uint8Array([10, 20, 30])) })
+      chunkArgs({
+        uploadId: 'ab',
+        seq: 0,
+        total: 2,
+        chunkBase64: bytesToBase64(new Uint8Array([10, 20, 30]))
+      })
     )
     await foundrySendImage(
-      chunkArgs({ uploadId: 'ab', seq: 1, total: 2, chunkBase64: bytesToBase64(new Uint8Array([40, 50])) })
+      chunkArgs({
+        uploadId: 'ab',
+        seq: 1,
+        total: 2,
+        chunkBase64: bytesToBase64(new Uint8Array([40, 50]))
+      })
     )
 
     expect(uploadMock).toHaveBeenCalledTimes(1)
     expect(uploadMock.mock.calls[0][1]).toBe('tablemate/images')
     const uploadedFile = uploadMock.mock.calls[0][2] as File
-    expect(Array.from(new Uint8Array(await uploadedFile.arrayBuffer()))).toEqual([10, 20, 30, 40, 50])
+    expect(Array.from(new Uint8Array(await uploadedFile.arrayBuffer()))).toEqual([
+      10, 20, 30, 40, 50
+    ])
     expect(uploadedFile.name).toBe('ab.jpg')
 
     expect(createMock).toHaveBeenCalledTimes(1)
@@ -127,7 +152,11 @@ describe('foundrySendImage', () => {
 
   it('scopes a private image to its author when no whisper target resolves', async () => {
     await foundrySendImage(
-      chunkArgs({ uploadId: 'ghost', chunkBase64: bytesToBase64(new Uint8Array([1])), whisper: ['[Nobody]'] })
+      chunkArgs({
+        uploadId: 'ghost',
+        chunkBase64: bytesToBase64(new Uint8Array([1])),
+        whisper: ['[Nobody]']
+      })
     )
     const created = createMock.mock.calls[0][0] as { whisper?: string[] }
     expect(created.whisper).toEqual(['user-1'])
@@ -148,7 +177,9 @@ describe('foundrySendImage', () => {
   it('refuses to upload when the world has no configured image folder', async () => {
     uploadFolder = ''
     await expect(
-      foundrySendImage(chunkArgs({ uploadId: 'disabled', chunkBase64: bytesToBase64(new Uint8Array([1, 2, 3])) }))
+      foundrySendImage(
+        chunkArgs({ uploadId: 'disabled', chunkBase64: bytesToBase64(new Uint8Array([1, 2, 3])) })
+      )
     ).rejects.toThrow(/not enabled/)
     expect(uploadMock).not.toHaveBeenCalled()
     expect(createMock).not.toHaveBeenCalled()

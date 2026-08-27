@@ -22,6 +22,9 @@ type CreatedChatMessage = { id?: string | null; _id?: string | null }
 declare const ChatMessage: {
   create: (data: object) => Promise<CreatedChatMessage | undefined>
   getSpeaker: (opts: { actor?: unknown }) => unknown
+  // Core's own whisper-recipient lookup: keywords, user names, and the names of
+  // users' assigned characters. See resolveWhisperRecipients.
+  getWhisperRecipients: (name: string) => WhisperUser[]
 }
 
 interface WhisperUser {
@@ -54,6 +57,10 @@ function rerollOptionsForMode(mode: ChatRollRerollMode): { resource?: string; ke
   }
 }
 
+// Deliberately not foundry.utils.escapeHTML: that exists and is equivalent (bar
+// &#x27; vs &#39; for the apostrophe), but it is a bare client global, so reaching
+// for it makes every test that posts a message stub `foundry` — real coupling in
+// exchange for deleting five lines of string replacement that cannot drift.
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -67,49 +74,71 @@ function formatChatContent(content: string): string {
   return escapeHtml(content.trim()).replace(/\n/g, '<br>')
 }
 
-const WHISPER_PREFIX = /^\/w(?:hisper)?\s+/i
+// Foundry v13 moved ChatLog under foundry.applications.sidebar.tabs; earlier
+// generations expose it as a bare global. Resolve whichever exists, as with
+// getFilePicker below.
+type ChatLogLike = { parse: (message: string) => [string, (string | RegExpMatchArray)[]] }
 
-// Parse Foundry's `/w` / `/whisper` syntax. Targets may be bracketed
-// (`[Display Name]`, so names with spaces work) or a single bare token, and
-// several may be comma-separated. The first target not followed by a comma
-// ends the recipient list; everything after it is the message body. Returns
-// null when the text isn't a whisper command.
-function parseWhisperCommand(raw: string): { targets: string[]; content: string } | null {
-  if (!WHISPER_PREFIX.test(raw)) return null
-  let rest = raw.replace(WHISPER_PREFIX, '')
-  const targets: string[] = []
-  const tokenPattern = /^(\[[^\]]+\]|[^\s,]+)\s*(,)?\s*/
-  while (rest.length) {
-    const match = tokenPattern.exec(rest)
-    if (!match) break
-    targets.push(match[1])
-    rest = rest.slice(match[0].length)
-    if (!match[2]) break // no trailing comma — the rest is the message body
+function getChatLog(): ChatLogLike | undefined {
+  const scope = globalThis as {
+    foundry?: { applications?: { sidebar?: { tabs?: { ChatLog?: ChatLogLike } } } }
+    ChatLog?: ChatLogLike
   }
-  return { targets, content: rest }
+  return scope.foundry?.applications?.sidebar?.tabs?.ChatLog ?? scope.ChatLog
 }
 
-// Resolve whisper target names to Foundry user ids, mirroring Foundry's own
-// recipient lookup: the `gm`/`dm` keyword targets all GMs, `players` targets all
-// non-GMs, and any other name is matched case-insensitively against user names.
-function resolveWhisperRecipients(source: GamePF2e, targets: string[]): string[] {
-  const users = Array.from(source.users as Iterable<WhisperUser>)
-  const ids = new Set<string>()
-  const addAll = (matches: WhisperUser[]) =>
-    matches.forEach((u) => {
-      if (u.id) ids.add(u.id)
-    })
+// Recognize a whisper command in text typed on a tablet, using Foundry's own
+// command parser rather than a private regex.
+//
+// ChatLog.parse is what the Foundry chat bar itself calls, so `/w`, `/whisper`,
+// `/gm` and `/players` mean here exactly what they mean when typed into Foundry —
+// including the details a re-implementation drifts on (a bracketed name with
+// spaces, comma-separated names, where the recipient list ends and the body
+// begins). Returns null for plain text and for the commands this handler doesn't
+// implement (`/roll`, `/emote`, …), which are posted as literal text as before.
+//
+// Group layout per core's CHAT_COMMANDS: whisper captures the command, the target
+// token and the body; /gm and /players capture the command and the body.
+function parseWhisperCommand(raw: string): { targets: string[]; content: string } | null {
+  const chatLog = getChatLog()
+  if (!chatLog) return null
 
+  const [command, match] = chatLog.parse(raw)
+  // Only the single-line whisper commands reach us as a flat match array; the
+  // multiline roll commands parse to an array of matches, which we don't handle.
+  if (!Array.isArray(match) || typeof match[0] !== 'string') return null
+  const groups = match as unknown as RegExpMatchArray
+
+  switch (command) {
+    case 'whisper':
+      // Core splits the captured target token on commas (see
+      // ChatLog##processWhisperCommand), which is how `/w ana,bob hi` addresses
+      // two people; resolveWhisperRecipients strips the brackets.
+      return { targets: (groups[2] ?? '').split(','), content: groups[3] ?? '' }
+    case 'gm':
+      return { targets: ['gm'], content: groups[2] ?? '' }
+    case 'players':
+      return { targets: ['players'], content: groups[2] ?? '' }
+    default:
+      return null
+  }
+}
+
+// Resolve whisper target names to Foundry user ids through core's own lookup.
+//
+// ChatMessage.getWhisperRecipients is the function the Foundry chat bar uses, so
+// the keywords (`gm`/`dm`, `players`) and case-insensitive name matching behave
+// identically — and it resolves a name that matches a user's assigned CHARACTER
+// as well as their login name, which the hand-rolled version this replaces did
+// not. Whispering to "Ezren" now finds Ezren's player.
+function resolveWhisperRecipients(targets: string[]): string[] {
+  const ids = new Set<string>()
   for (const target of targets) {
+    // Brackets let a name contain spaces (`[Ana Vale]`); they aren't part of it.
     const name = target.replace(/[[\]]/g, '').trim()
     if (!name) continue
-    const lower = name.toLowerCase()
-    if (lower === 'gm' || lower === 'dm') {
-      addAll(users.filter((u) => u.isGM))
-    } else if (lower === 'players') {
-      addAll(users.filter((u) => !u.isGM))
-    } else {
-      addAll(users.filter((u) => u.name?.toLowerCase() === lower))
+    for (const user of ChatMessage.getWhisperRecipients(name)) {
+      if (user?.id) ids.add(user.id)
     }
   }
   return [...ids]
@@ -167,7 +196,7 @@ export async function foundrySendChatMessage(args: SendChatMessageArgs) {
   }
 
   if (whisper) {
-    const recipients = resolveWhisperRecipients(source, whisper.targets)
+    const recipients = resolveWhisperRecipients(whisper.targets)
     // An empty `whisper` array reads as a public message in Foundry, which would
     // leak a message the user meant to be private. When nothing resolves, scope
     // it to the author so it stays out of other players' overlays.
@@ -341,7 +370,7 @@ async function finalizeVoiceMemo(
     // '[Name]'); resolve them with the shared logic. Mirror the text handler's
     // leak-guard: scope an unresolved private memo to its author rather than
     // letting an empty array read as a public message.
-    const recipients = resolveWhisperRecipients(source, meta.whisper)
+    const recipients = resolveWhisperRecipients(meta.whisper)
     data.whisper = recipients.length ? recipients : [meta.userId]
   }
 
@@ -425,11 +454,7 @@ function imageExtension(mimeType: string): string {
   return IMAGE_EXTENSIONS[base] ?? 'jpg'
 }
 
-async function finalizeImage(
-  uploadId: string,
-  parts: Uint8Array<ArrayBuffer>[],
-  meta: ImageMeta
-) {
+async function finalizeImage(uploadId: string, parts: Uint8Array<ArrayBuffer>[], meta: ImageMeta) {
   const source = getGame()
   const actor = source.actors.get(meta.characterId, { strict: true })
 
@@ -485,7 +510,7 @@ async function finalizeImage(
   if (meta.whisper?.length) {
     // Mirror the voice/text leak-guard: scope an unresolved private image to its
     // author rather than letting an empty array read as a public message.
-    const recipients = resolveWhisperRecipients(source, meta.whisper)
+    const recipients = resolveWhisperRecipients(meta.whisper)
     data.whisper = recipients.length ? recipients : [meta.userId]
   }
 

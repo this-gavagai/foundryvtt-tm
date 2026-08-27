@@ -1,13 +1,15 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { TM } from '@/api/protocol'
 import type { SendVoiceMemoArgs } from '@/types/api-types'
+import { makeFakeGetWhisperRecipients } from './fakeChatCore'
 
 // getGame is the only Foundry-global accessor the voice-memo handler uses that
 // can't run in node; mock it and leave the rest of the util module (makeAck
 // etc.) real so the ack shape is exercised for free.
 const fakeActor = { name: 'Seelah' }
-// users is iterable so resolveWhisperRecipients (Array.from over it) can map
-// 'gm'/'[Name]' command targets to ids, matching the text-message path.
+// The world's users. The handler resolves whisper targets through core's
+// ChatMessage.getWhisperRecipients now, so these feed the double below rather
+// than being iterated by the handler itself.
 const fakeGame = {
   actors: { get: vi.fn(() => fakeActor) },
   world: { id: 'test-world' },
@@ -29,11 +31,17 @@ const createMock = vi.fn<(data: Record<string, unknown>) => Promise<object>>(asy
   id: 'msg-1'
 }))
 const uploadMock = vi.fn<
-  (source: string, path: string, file: File, body?: object, options?: object) => Promise<{ path: string }>
+  (
+    source: string,
+    path: string,
+    file: File,
+    body?: object,
+    options?: object
+  ) => Promise<{ path: string }>
 >(async () => ({ path: 'tablemate/voice-memos/test-world/x.m4a' }))
-const createDirectoryMock = vi.fn<(source: string, target: string, options?: object) => Promise<object>>(
-  async () => ({})
-)
+const createDirectoryMock = vi.fn<
+  (source: string, target: string, options?: object) => Promise<object>
+>(async () => ({}))
 // browse resolves → ensureDirectory treats the folder as existing and skips
 // createDirectory (the real first-upload path creates; either is fine here).
 const browseMock = vi.fn<(source: string, target: string, options?: object) => Promise<object>>(
@@ -64,7 +72,8 @@ beforeEach(() => {
   }
   ;(globalThis as Record<string, unknown>).ChatMessage = {
     create: createMock,
-    getSpeaker: vi.fn(() => ({ actor: 'seelah-id' }))
+    getSpeaker: vi.fn(() => ({ actor: 'seelah-id' })),
+    getWhisperRecipients: makeFakeGetWhisperRecipients(fakeGame.users)
   }
   ;(globalThis as Record<string, unknown>).FilePicker = {
     upload: uploadMock,
@@ -101,7 +110,12 @@ function chunkArgs(overrides: Partial<SendVoiceMemoArgs>): SendVoiceMemoArgs {
 describe('foundrySendVoiceMemo', () => {
   it('acks intermediate chunks without creating a message', async () => {
     const ack = await foundrySendVoiceMemo(
-      chunkArgs({ uploadId: 'multi', seq: 0, total: 2, chunkBase64: bytesToBase64(new Uint8Array([1, 2])) })
+      chunkArgs({
+        uploadId: 'multi',
+        seq: 0,
+        total: 2,
+        chunkBase64: bytesToBase64(new Uint8Array([1, 2]))
+      })
     )
     expect(ack.action).toBe(TM.ACK)
     expect(createMock).not.toHaveBeenCalled()
@@ -138,10 +152,20 @@ describe('foundrySendVoiceMemo', () => {
 
   it('reassembles out-of-order chunks by their seq index', async () => {
     await foundrySendVoiceMemo(
-      chunkArgs({ uploadId: 'ooo', seq: 1, total: 2, chunkBase64: bytesToBase64(new Uint8Array([9])) })
+      chunkArgs({
+        uploadId: 'ooo',
+        seq: 1,
+        total: 2,
+        chunkBase64: bytesToBase64(new Uint8Array([9]))
+      })
     )
     await foundrySendVoiceMemo(
-      chunkArgs({ uploadId: 'ooo', seq: 0, total: 2, chunkBase64: bytesToBase64(new Uint8Array([7, 8])) })
+      chunkArgs({
+        uploadId: 'ooo',
+        seq: 0,
+        total: 2,
+        chunkBase64: bytesToBase64(new Uint8Array([7, 8]))
+      })
     )
     const uploadedFile = uploadMock.mock.calls[0][2] as File
     expect(Array.from(new Uint8Array(await uploadedFile.arrayBuffer()))).toEqual([7, 8, 9])
@@ -158,7 +182,12 @@ describe('foundrySendVoiceMemo', () => {
     await foundrySendVoiceMemo(args) // retry of the same chunk
     expect(createMock).not.toHaveBeenCalled() // still waiting on seq 1
     await foundrySendVoiceMemo(
-      chunkArgs({ uploadId: 'dup', seq: 1, total: 2, chunkBase64: bytesToBase64(new Uint8Array([2])) })
+      chunkArgs({
+        uploadId: 'dup',
+        seq: 1,
+        total: 2,
+        chunkBase64: bytesToBase64(new Uint8Array([2]))
+      })
     )
     expect(createMock).toHaveBeenCalledTimes(1)
   })
@@ -205,7 +234,9 @@ describe('foundrySendVoiceMemo', () => {
 
   it('rejects a chunk total above the sanity cap', async () => {
     await expect(
-      foundrySendVoiceMemo(chunkArgs({ uploadId: 'bad3', seq: 0, total: 100000, chunkBase64: 'AA==' }))
+      foundrySendVoiceMemo(
+        chunkArgs({ uploadId: 'bad3', seq: 0, total: 100000, chunkBase64: 'AA==' })
+      )
     ).rejects.toThrow(/invalid chunk count/)
   })
 
@@ -227,7 +258,12 @@ describe('foundrySendVoiceMemo', () => {
 
   it('posts the memo with no transcript of its own — transcription is the app’s job now', async () => {
     await foundrySendVoiceMemo(
-      chunkArgs({ uploadId: 'no-tx', seq: 0, total: 1, chunkBase64: bytesToBase64(new Uint8Array([1, 2])) })
+      chunkArgs({
+        uploadId: 'no-tx',
+        seq: 0,
+        total: 1,
+        chunkBase64: bytesToBase64(new Uint8Array([1, 2]))
+      })
     )
     const created = createMock.mock.calls[0][0] as {
       content: string
@@ -242,14 +278,24 @@ describe('foundrySendVoiceMemo', () => {
 
   it('reports the posted message on the final chunk so the sender can patch its transcript on', async () => {
     const first = await foundrySendVoiceMemo(
-      chunkArgs({ uploadId: 'ack', seq: 0, total: 2, chunkBase64: bytesToBase64(new Uint8Array([1])) })
+      chunkArgs({
+        uploadId: 'ack',
+        seq: 0,
+        total: 2,
+        chunkBase64: bytesToBase64(new Uint8Array([1]))
+      })
     )
     // Nothing is posted yet, so an intermediate chunk names no message.
     expect(first.messageId).toBeUndefined()
     expect(first.content).toBeUndefined()
 
     const last = await foundrySendVoiceMemo(
-      chunkArgs({ uploadId: 'ack', seq: 1, total: 2, chunkBase64: bytesToBase64(new Uint8Array([2])) })
+      chunkArgs({
+        uploadId: 'ack',
+        seq: 1,
+        total: 2,
+        chunkBase64: bytesToBase64(new Uint8Array([2]))
+      })
     )
     expect(last.messageId).toBe('msg-1')
     // The content the app appends its transcript to — same string that was posted.
@@ -274,7 +320,12 @@ describe('foundrySendVoiceMemo', () => {
 
   it('omits the pending flag when the sender is not transcribing', async () => {
     await foundrySendVoiceMemo(
-      chunkArgs({ uploadId: 'not-pending', seq: 0, total: 1, chunkBase64: bytesToBase64(new Uint8Array([1])) })
+      chunkArgs({
+        uploadId: 'not-pending',
+        seq: 0,
+        total: 1,
+        chunkBase64: bytesToBase64(new Uint8Array([1]))
+      })
     )
     const created = createMock.mock.calls[0][0] as { flags: { tablemate: Record<string, unknown> } }
     expect(created.flags.tablemate).not.toHaveProperty('transcriptPending')
@@ -312,14 +363,24 @@ describe('foundrySendVoiceMemo', () => {
     it('refuses the next chunk once the gap budget has run out', async () => {
       vi.useFakeTimers()
       await foundrySendVoiceMemo(
-        chunkArgs({ uploadId: 'stalled', seq: 0, total: 2, chunkBase64: bytesToBase64(new Uint8Array([1])) })
+        chunkArgs({
+          uploadId: 'stalled',
+          seq: 0,
+          total: 2,
+          chunkBase64: bytesToBase64(new Uint8Array([1]))
+        })
       )
       await vi.advanceTimersByTimeAsync(61_000)
       // Answering this with a bare ack would tell the app the memo was on its
       // way when its first half is already gone.
       await expect(
         foundrySendVoiceMemo(
-          chunkArgs({ uploadId: 'stalled', seq: 1, total: 2, chunkBase64: bytesToBase64(new Uint8Array([2])) })
+          chunkArgs({
+            uploadId: 'stalled',
+            seq: 1,
+            total: 2,
+            chunkBase64: bytesToBase64(new Uint8Array([2]))
+          })
         )
       ).rejects.toThrow(/stalled/)
       expect(createMock).not.toHaveBeenCalled()
