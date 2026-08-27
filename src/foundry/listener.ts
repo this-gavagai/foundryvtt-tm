@@ -1,44 +1,7 @@
-import type {
-  AcknowledgementArgs,
-  ModuleEventArgs,
-  RequestCharacterDetailsArgs,
-  ResponseByAction,
-  RpcAction
-} from '@/types/api-types'
-import {
-  getCharacterDetails,
-  foundryRollCheck,
-  foundryCharacterAction,
-  foundryCastSpell,
-  foundryConsumeItem,
-  foundrySelectSpellVariant,
-  foundryGetStrikeDamage,
-  foundrySendItemToChat,
-  foundrySendCompendiumItemToChat,
-  foundrySetWeaponLoaded,
-  foundrySetWeaponDamageType,
-  foundryAttachItem,
-  foundryDetachItem,
-  foundryToggleKineticAura,
-  foundryCastStaffSpell,
-  foundryFreeRoll,
-  foundryRollDamage,
-  foundryRollInlineCheck,
-  foundryRunMacro,
-  foundryRunActionable,
-  foundryGetSpellDamage,
-  foundryUpdateActor,
-  foundryGetCompendiumItem,
-  foundryAddCompendiumItem,
-  foundryListCompendia,
-  foundryGetCompendiumIndex,
-  foundrySendChatMessage,
-  foundrySendVoiceMemo,
-  foundrySendImage,
-  foundryApplyDamage,
-  foundryRerollChatRoll,
-  foundryToggleReaction
-} from './handlers'
+import type { ModuleEventArgs, RequestCharacterDetailsArgs } from '@/types/api-types'
+import { getCharacterDetails } from './handlers'
+import { PASSIVE_ACTIONS, rpcDescriptor } from './rpcTable'
+import { authorizeRequest, userOwnsActorById, type AuthWorld } from './rpcAuthorize'
 import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
 import { logger } from '@/utils/utilities'
@@ -62,14 +25,10 @@ import {
   manualRollPolicy,
   hasPresetDiceResults
 } from './manualRollPolicy'
-import {
-  registerGmHandlerSetting,
-  gmHandlerPolicy,
-  isElectedHandler
-} from './gmHandlerSetting'
+import { registerGmHandlerSetting, gmHandlerPolicy, isElectedHandler } from './gmHandlerSetting'
 import { registerVoiceMemoSetting, voiceMemoEnabled } from './voiceMemoSetting'
 import { registerImageUploadSetting, imageUploadEnabled } from './imageUploadSetting'
-import { registerPushSettings, ensureWorldPushIdentity, foundryRegisterPush } from './pushRegistration'
+import { registerPushSettings, ensureWorldPushIdentity } from './pushRegistration'
 import { notifyChatMessage } from './pushNotify'
 
 type GetEvent = { action: 'get' }
@@ -124,61 +83,6 @@ function checkClientVersion(args: ModuleEventArgs) {
   ui.notifications?.error(message)
 }
 
-// Map of TM action → Foundry-side handler. Handler args are narrowed via
-// Extract<ModuleEventArgs, { action: K }>, and the return is pinned to the
-// per-action response contract (ResponseByAction), so both the request and
-// response shapes are type-checked against what the client expects. Adding a
-// new RPC is one entry here, one in ResponseByAction, plus the handler itself.
-type ActionHandlerMap = {
-  [K in RpcAction]?: (
-    args: Extract<ModuleEventArgs, { action: K }>
-  ) => Promise<AcknowledgementArgs & ResponseByAction[K]>
-}
-
-const actionHandlers: ActionHandlerMap = {
-  [TM.ROLL_CHECK]: foundryRollCheck,
-  [TM.CHARACTER_ACTION]: foundryCharacterAction,
-  [TM.CAST_SPELL]: foundryCastSpell,
-  [TM.SELECT_SPELL_VARIANT]: foundrySelectSpellVariant,
-  [TM.CONSUME_ITEM]: foundryConsumeItem,
-  [TM.GET_STRIKE_DAMAGE]: foundryGetStrikeDamage,
-  [TM.SEND_CHAT_MESSAGE]: foundrySendChatMessage,
-  [TM.SEND_VOICE_MEMO]: foundrySendVoiceMemo,
-  [TM.SEND_IMAGE]: foundrySendImage,
-  [TM.SEND_ITEM_TO_CHAT]: foundrySendItemToChat,
-  [TM.SEND_COMPENDIUM_ITEM_TO_CHAT]: foundrySendCompendiumItemToChat,
-  [TM.SET_WEAPON_LOADED]: foundrySetWeaponLoaded,
-  [TM.SET_WEAPON_DAMAGE_TYPE]: foundrySetWeaponDamageType,
-  [TM.ATTACH_ITEM]: foundryAttachItem,
-  [TM.DETACH_ITEM]: foundryDetachItem,
-  [TM.TOGGLE_KINETIC_AURA]: foundryToggleKineticAura,
-  [TM.CAST_STAFF_SPELL]: foundryCastStaffSpell,
-  [TM.FREE_ROLL]: foundryFreeRoll,
-  [TM.ROLL_DAMAGE]: foundryRollDamage,
-  [TM.ROLL_INLINE_CHECK]: foundryRollInlineCheck,
-  [TM.RUN_MACRO]: foundryRunMacro,
-  [TM.RUN_ACTIONABLE]: foundryRunActionable,
-  [TM.GET_SPELL_DAMAGE]: foundryGetSpellDamage,
-  [TM.UPDATE_ACTOR]: foundryUpdateActor,
-  [TM.GET_COMPENDIUM_ITEM]: foundryGetCompendiumItem,
-  [TM.ADD_COMPENDIUM_ITEM]: foundryAddCompendiumItem,
-  [TM.LIST_COMPENDIA]: foundryListCompendia,
-  [TM.GET_COMPENDIUM_INDEX]: foundryGetCompendiumIndex,
-  [TM.APPLY_DAMAGE]: foundryApplyDamage,
-  [TM.REROLL_CHAT_ROLL]: foundryRerollChatRoll,
-  [TM.TOGGLE_REACTION]: foundryToggleReaction,
-  [TM.REGISTER_PUSH]: foundryRegisterPush
-}
-
-// Actions that originate from this side (Foundry → browser) — the listener
-// observes them on the wire but doesn't need to act on them.
-const PASSIVE_ACTIONS = new Set<string>([
-  TM.ACK,
-  TM.LISTENER_ONLINE,
-  TM.UPDATE_CHARACTER,
-  TM.SHARE_TARGETS
-])
-
 const getChar: Record<string, (args: RequestCharacterDetailsArgs) => void> = {}
 const CHAT_ORIGIN_GRACE_MS = 2000
 // A request currently executing: userId drives chat attribution, uuid lets the
@@ -207,19 +111,6 @@ let chatOriginStampingRegistered = false
 // past a hung handler its requester has already given up.
 const HANDLER_QUEUE_TIMEOUT_MS = 30_000
 let dispatchChain: Promise<unknown> = Promise.resolve()
-
-// Read-only handlers: no dice, no chat messages, no ambient roll state.
-// They dispatch concurrently — a multi-second compendium index fetch must
-// not delay a queued attack roll (nor a roll stall delay browsing) — and
-// skip the chat-origin push, since they create no messages to attribute.
-const CONCURRENT_ACTIONS = new Set<string>([
-  TM.GET_COMPENDIUM_ITEM,
-  TM.LIST_COMPENDIA,
-  TM.GET_COMPENDIUM_INDEX,
-  // Read-only mint: no chat, no world mutation, so it needn't serialize behind
-  // the dispatch chain.
-  TM.REGISTER_PUSH
-])
 
 // Which client should answer this request: the GM the world elected, always.
 //
@@ -268,108 +159,16 @@ function isCharacterRequest(args: ModuleEventArgs): args is RequestCharacterDeta
 }
 
 // ── Authorization ──────────────────────────────────────────────────────────
-// Every client-initiated action declares its authorization requirement here.
-// The dispatch loop checks it once, before invoking the handler, so a handler
-// never runs against an actor the requesting user doesn't own. A new RPC added
-// without an entry is denied by default (fail-closed).
-//
-//   'owner'      requester must OWN the target actor (resolved from actorId or
-//                characterId). Covers rolls, spellcasting, equipment, damage,
-//                chat-as-actor, item mutation, etc.
-//   'world-user' no target actor; the requester need only be a known user of
-//                this world. Covers read-only compendium browsing.
-//
-// NOTE: args.userId is self-reported over Foundry's module channel and cannot
-// be authenticated there, so this is best-effort within Foundry's trust model
-// (anyone with world login is trusted for player-level actions). It closes the
-// previous gap where only actorId-keyed actions were checked at all, leaving
-// every characterId-keyed action (nearly all of them) ungated.
-type AuthRequirement = 'owner' | 'world-user'
-
-type ActorLike = {
-  ownership?: Record<string, number>
-  testUserPermission?: (user: unknown, level: string | number) => boolean
-}
-
-const AUTH_POLICY: Partial<Record<ModuleEventArgs['action'], AuthRequirement>> = {
-  [TM.ROLL_CHECK]: 'owner',
-  [TM.CHARACTER_ACTION]: 'owner',
-  [TM.CAST_SPELL]: 'owner',
-  [TM.CAST_STAFF_SPELL]: 'owner',
-  [TM.SELECT_SPELL_VARIANT]: 'owner',
-  [TM.CONSUME_ITEM]: 'owner',
-  [TM.GET_STRIKE_DAMAGE]: 'owner',
-  [TM.GET_SPELL_DAMAGE]: 'owner',
-  [TM.SEND_CHAT_MESSAGE]: 'owner',
-  [TM.SEND_VOICE_MEMO]: 'owner',
-  [TM.SEND_IMAGE]: 'owner',
-  [TM.SEND_ITEM_TO_CHAT]: 'owner',
-  [TM.SEND_COMPENDIUM_ITEM_TO_CHAT]: 'owner',
-  [TM.SET_WEAPON_LOADED]: 'owner',
-  [TM.SET_WEAPON_DAMAGE_TYPE]: 'owner',
-  [TM.ATTACH_ITEM]: 'owner',
-  [TM.DETACH_ITEM]: 'owner',
-  [TM.TOGGLE_KINETIC_AURA]: 'owner',
-  [TM.FREE_ROLL]: 'owner',
-  [TM.ROLL_DAMAGE]: 'owner',
-  [TM.ROLL_INLINE_CHECK]: 'owner',
-  [TM.RUN_MACRO]: 'owner',
-  [TM.RUN_ACTIONABLE]: 'owner',
-  [TM.UPDATE_ACTOR]: 'owner',
-  [TM.ADD_COMPENDIUM_ITEM]: 'owner',
-  [TM.APPLY_DAMAGE]: 'owner',
-  [TM.REROLL_CHAT_ROLL]: 'owner',
-  [TM.GET_COMPENDIUM_ITEM]: 'world-user',
-  [TM.LIST_COMPENDIA]: 'world-user',
-  [TM.GET_COMPENDIUM_INDEX]: 'world-user',
-  // Reactions belong to the player, not a character, so there's no actor to test
-  // ownership against — anyone logged into the world may react. This is the first
-  // 'world-user' action that WRITES, so the containment lives in the handler
-  // instead: it only ever toggles args.userId's own entry, and only for an emoji
-  // from the shared palette (see handlers/reactions.ts).
-  [TM.TOGGLE_REACTION]: 'world-user',
-  // Any known world user may register their own device for push.
-  [TM.REGISTER_PUSH]: 'world-user'
-}
-
-function userOwnsActor(actor: ActorLike | undefined, userId: string): boolean {
-  if (!actor) return false
-  const user = game.users.get(userId)
-  if (!user) return false
-  // A GM (Foundry: role >= ASSISTANT) owns every actor in the world. This is
-  // what testUserPermission below already answers; stating it up front keeps the
-  // ownership-map fallback from denying a GM who owns nothing explicitly.
-  if (user.isGM) return true
-  // Prefer Foundry's canonical permission test, which also honours default
-  // ownership; fall back to reading the ownership map (explicit entry, else
-  // default) so an actor shared via ownership.default is still recognized.
-  if (typeof actor.testUserPermission === 'function') {
-    return actor.testUserPermission(user, 'OWNER')
-  }
-  const ownership = actor.ownership ?? {}
-  return (ownership[userId] ?? ownership.default ?? 0) >= 3
-}
-
-function getActor(id: string): ActorLike | undefined {
-  return game.actors.get(id) as unknown as ActorLike | undefined
-}
-
-function targetActorId(args: ModuleEventArgs): string | undefined {
-  if ('actorId' in args && typeof args.actorId === 'string') return args.actorId
-  if ('characterId' in args && typeof args.characterId === 'string') return args.characterId
-  return undefined
-}
-
-function authorizeAction(args: ModuleEventArgs): boolean {
-  const requirement = AUTH_POLICY[args.action]
-  if (!requirement) return false // fail-closed: no policy → deny
-  if (requirement === 'world-user') return !!game.users.get(args.userId)
-  const id = targetActorId(args)
-  return !!id && userOwnsActor(getActor(id), args.userId)
-}
+// Every client-initiated action declares its authorization requirement alongside
+// its handler, in rpcTable.ts. The dispatch loop checks it once, before invoking
+// the handler, so a handler never runs against an actor the requesting user
+// doesn't own. The rule itself lives in rpcAuthorize.ts, which takes the world as
+// a parameter so it can be unit-tested away from a Foundry client — this is the
+// only place that supplies the live one.
+const authWorld = (): AuthWorld => game as unknown as AuthWorld
 
 function userOwnsRequestedActor(args: RequestCharacterDetailsArgs): boolean {
-  return userOwnsActor(getActor(args.actorId), args.userId)
+  return userOwnsActorById(authWorld(), args.actorId, args.userId)
 }
 
 function requestUuid(args: ModuleEventArgs): string | undefined {
@@ -587,9 +386,23 @@ export function setupListener() {
       return
     }
 
-    if (PASSIVE_ACTIONS.has(args.action)) return
+    // One table lookup answers every question the dispatch loop has about this
+    // action: who may ask for it, which handler answers it, and whether it may
+    // run off the serialized chain. See rpcTable.ts.
+    const rpc = rpcDescriptor(args.action)
+    if (!rpc) {
+      // An action this side only ever sends — observed on the wire, nothing to do.
+      if (PASSIVE_ACTIONS.has(args.action)) return
+      // A request with no entry in the table, then: most likely an app newer
+      // than this module. Answer it so the app fails fast with a truthful cause
+      // rather than waiting out its 30s timeout (or being told, as it was
+      // before, that it was unauthorized).
+      logger.warn('TABLEMATE: no handler for action', args.action, args)
+      emitErrorAck(args, `unsupported action: ${args.action}`)
+      return
+    }
 
-    if (!authorizeAction(args)) {
+    if (!authorizeRequest(authWorld(), rpc.auth, args)) {
       logger.warn('TABLEMATE: unauthorized request rejected', args.action, args.userId)
       // Answer instead of dropping: a silent drop leaves the app waiting out
       // its full 30s timeout, indistinguishable from "no GM online".
@@ -610,64 +423,57 @@ export function setupListener() {
       return
     }
 
-    const handler = actionHandlers[args.action as RpcAction] as
-      | ((a: ModuleEventArgs) => Promise<AcknowledgementArgs>)
-      | undefined
-    if (handler) {
-      // Answer the request; never rejects. The terminal catch matters: the
-      // error-ack emit can itself throw (socket torn down mid-reload), and a
-      // rejection escaping here would poison the dispatch chain for good.
-      const respond = (run: Promise<unknown>) =>
-        run
-          .then((result) => game.socket.emit(TM.CHANNEL, result))
-          .catch((error) => emitHandlerError(args, error))
-          .catch((error) => logger.error('TABLEMATE: failed to answer request', args.action, error))
+    // Answer the request; never rejects. The terminal catch matters: the
+    // error-ack emit can itself throw (socket torn down mid-reload), and a
+    // rejection escaping here would poison the dispatch chain for good.
+    const respond = (run: Promise<unknown>) =>
+      run
+        .then((result) => game.socket.emit(TM.CHANNEL, result))
+        .catch((error) => emitHandlerError(args, error))
+        .catch((error) => logger.error('TABLEMATE: failed to answer request', args.action, error))
 
-      if (CONCURRENT_ACTIONS.has(args.action)) {
-        void respond(handler(args))
-        return
-      }
+    if (rpc.concurrent) {
+      void respond(rpc.handler(args))
+      return
+    }
 
-      const origin: ChatOrigin = {
-        userId: args.userId,
-        uuid: requestUuid(args),
-        manualRoll: policy === 'flag'
-      }
-      dispatchChain = dispatchChain.then(
-        () =>
-          new Promise<void>((advance) => {
-            // Dedup at execution time, not receive time: the queue wait is
-            // exactly the window in which a competing client's ack (two GMs
-            // racing an election through a handoff) can arrive and mark this uuid.
-            const uuid = requestUuid(args)
-            if (uuid) {
-              if (requestAlreadySeen(uuid)) {
-                logger.warn(
-                  'TABLEMATE: skipping request already answered elsewhere',
-                  args.action,
-                  uuid
-                )
-                advance()
-                return
-              }
-              markRequestSeen(uuid)
-            }
-            const timer = globalThis.setTimeout(() => {
+    const origin: ChatOrigin = {
+      userId: args.userId,
+      uuid: requestUuid(args),
+      manualRoll: policy === 'flag'
+    }
+    dispatchChain = dispatchChain.then(
+      () =>
+        new Promise<void>((advance) => {
+          // Dedup at execution time, not receive time: the queue wait is
+          // exactly the window in which a competing client's ack (two GMs
+          // racing an election through a handoff) can arrive and mark this uuid.
+          const uuid = requestUuid(args)
+          if (uuid) {
+            if (requestAlreadySeen(uuid)) {
               logger.warn(
-                `TABLEMATE: handler still running after ${HANDLER_QUEUE_TIMEOUT_MS}ms; advancing queue`,
-                args.action
+                'TABLEMATE: skipping request already answered elsewhere',
+                args.action,
+                uuid
               )
               advance()
-            }, HANDLER_QUEUE_TIMEOUT_MS)
-            void respond(withChatOrigin(origin, () => handler(args))).finally(() => {
-              globalThis.clearTimeout(timer)
-              advance()
-            })
+              return
+            }
+            markRequestSeen(uuid)
+          }
+          const timer = globalThis.setTimeout(() => {
+            logger.warn(
+              `TABLEMATE: handler still running after ${HANDLER_QUEUE_TIMEOUT_MS}ms; advancing queue`,
+              args.action
+            )
+            advance()
+          }, HANDLER_QUEUE_TIMEOUT_MS)
+          void respond(withChatOrigin(origin, () => rpc.handler(args))).finally(() => {
+            globalThis.clearTimeout(timer)
+            advance()
           })
-      )
-    } else {
-      logger.warn('event not caught', args.action, args)
-    }
+        })
+    )
   })
 }
 
