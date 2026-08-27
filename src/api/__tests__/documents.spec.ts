@@ -9,11 +9,11 @@ import type { DocumentData } from '@/api/internal'
 // splice-on-delete) shape what every sheet displays.
 
 function response(action: 'create' | 'update' | 'delete', result: unknown[]) {
-  return { action, result } as unknown as DocumentSocketResponse
+  return { action, result } as DocumentSocketResponse
 }
 
 type Doc = { _id: string; system?: { quantity?: number; traits?: string[] } }
-const docs = (...items: Doc[]) => items as unknown as DocumentData[]
+const docs = (...items: Doc[]) => items as DocumentData[]
 
 describe('processChanges', () => {
   it('create appends new documents and skips ones already present', () => {

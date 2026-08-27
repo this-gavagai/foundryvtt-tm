@@ -55,7 +55,7 @@ function healthyGlobals() {
 }
 
 type TestGlobals = ReturnType<typeof healthyGlobals>
-const g = globalThis as unknown as Partial<TestGlobals>
+const g = globalThis as Partial<TestGlobals>
 
 function install(globals: TestGlobals) {
   g.game = globals.game

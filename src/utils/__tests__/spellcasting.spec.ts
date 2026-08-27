@@ -41,7 +41,7 @@ function makeEntry(overrides: {
         ])
       )
     }
-  } as unknown as SpellcastingEntry
+  } as SpellcastingEntry
 }
 
 function makeSpell(overrides: {
@@ -71,7 +71,7 @@ function makeSpell(overrides: {
         value: [...(overrides.cantrip ? ['cantrip'] : []), ...(overrides.focus ? ['focus'] : [])]
       }
     }
-  } as unknown as Spell
+  } as Spell
 }
 
 describe('preparation predicates', () => {

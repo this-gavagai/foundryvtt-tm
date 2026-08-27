@@ -21,7 +21,7 @@ function fakeSocket(id: string) {
     }
   }
   return {
-    socket: socket as unknown as Socket,
+    socket: socket as Socket,
     emit(event: string, ...args: unknown[]) {
       handlers.get(event)?.forEach((h) => h(...args))
     },

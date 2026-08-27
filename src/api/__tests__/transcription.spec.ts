@@ -26,7 +26,7 @@ beforeEach(() => {
 })
 
 function lastRequest(): [string, RequestInit] {
-  return fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+  return fetchMock.mock.calls[0] as [string, RequestInit]
 }
 
 describe('transcribeAudio', () => {

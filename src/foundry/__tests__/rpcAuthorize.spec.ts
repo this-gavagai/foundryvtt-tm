@@ -49,7 +49,7 @@ function makeWorld(
 
 // A request as it arrives on the wire. Only the fields the gate reads matter.
 const request = (fields: Record<string, unknown>) =>
-  ({ action: 'rollCheck', uuid: 'req-1', ...fields }) as unknown as ModuleEventArgs
+  ({ action: 'rollCheck', uuid: 'req-1', ...fields }) as ModuleEventArgs
 
 // An actor that answers through Foundry's canonical permission test.
 const withPermissionTest = (allow: (user: unknown) => boolean): ActorLike => ({

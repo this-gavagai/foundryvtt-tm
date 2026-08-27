@@ -59,8 +59,7 @@ const apply = (mode: ApplyDamageArgs['mode'] = 'damage') =>
     mode
   } as ApplyDamageArgs)
 
-const appliedToken = () =>
-  (applyDamage.mock.calls[0]?.[0] as unknown as { token?: FakeToken })?.token
+const appliedToken = () => (applyDamage.mock.calls[0]?.[0] as { token?: FakeToken })?.token
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -148,20 +147,20 @@ describe('modes', () => {
 
   it('passes the roll through so PF2e can apply per-type IWR', async () => {
     await apply('damage')
-    const call = applyDamage.mock.calls[0][0] as unknown as { damage: { total: number } }
+    const call = applyDamage.mock.calls[0][0] as { damage: { total: number } }
     expect(call.damage.total).toBe(12)
   })
 
   it('requests a shield block', async () => {
     await apply('block')
-    const call = applyDamage.mock.calls[0][0] as unknown as { shieldBlockRequest?: boolean }
+    const call = applyDamage.mock.calls[0][0] as { shieldBlockRequest?: boolean }
     expect(call.shieldBlockRequest).toBe(true)
   })
 
   // PF2e reads negative scalar damage as healing.
   it('heals with a negative scalar', async () => {
     await apply('heal')
-    const call = applyDamage.mock.calls[0][0] as unknown as { damage: number }
+    const call = applyDamage.mock.calls[0][0] as { damage: number }
     expect(call.damage).toBe(-12)
   })
 })

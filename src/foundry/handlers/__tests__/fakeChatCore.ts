@@ -32,10 +32,10 @@ export function fakeChatLogParse(message: string): [string, (string | RegExpMatc
   const html = message.replace(/^<p>|<\/p>$/gi, '')
   for (const [rule, rgx] of Object.entries(CHAT_COMMANDS)) {
     const match = html.match(rgx)
-    if (match) return [rule, match as unknown as string[]]
+    if (match) return [rule, match]
   }
   const invalid = html.match(/^(\/\S+)/)
-  if (invalid) return ['invalid', invalid as unknown as string[]]
+  if (invalid) return ['invalid', invalid]
   return ['none', [message, '', message]]
 }
 

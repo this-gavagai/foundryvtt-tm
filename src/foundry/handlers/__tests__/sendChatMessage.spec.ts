@@ -46,7 +46,7 @@ type CreatedMessage = {
   whisper?: string[]
   speaker?: { actor?: string; alias?: string }
 }
-const created = () => createMock.mock.calls[0]?.[0] as unknown as CreatedMessage
+const created = () => createMock.mock.calls[0]?.[0] as CreatedMessage
 
 const send = (content: string, extra: Partial<SendChatMessageArgs> = {}) =>
   foundrySendChatMessage({
