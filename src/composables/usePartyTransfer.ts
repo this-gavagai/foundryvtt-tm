@@ -68,6 +68,17 @@ export function usePartyTransfer(opts: {
 
   const partyActorForItems = computed<TablemateCharacter | undefined>(() => {
     if (!partyActorId.value) return undefined
+    // useCharacterItems is typed for a character because most of what it derives
+    // is character-specific; only its `inventory` is read here, and that reads
+    // physical items, which PF2e's party actor (where a shared stash lives) has
+    // like any other.
+    //
+    // Through `unknown` because the comparability check a single `as` performs
+    // cannot be completed: TablemateCharacter intersects TablemateActorExtras,
+    // which reaches back into CharacterPF2e['inventory'], and relating that to
+    // ActorPF2e exhausts TypeScript's instantiation depth (TS2589). Same limit
+    // as itemsOfType in character/helpers.ts, and the same non-claim about the
+    // values.
     return (
       partyActorRef.value ??
       (worldStore.actorById(partyActorId.value) as unknown as TablemateCharacter)

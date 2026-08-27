@@ -403,7 +403,7 @@ export function useChatActions({
       {
         action: 'create',
         type: 'ChatMessage',
-        operation: { data: [data as unknown as Record<string, unknown>], render: true }
+        operation: { data: [data], render: true }
       },
       (r) => worldStore.applyChatCreate(r.result as DocumentData[])
     )

@@ -31,7 +31,11 @@ export interface ChatSpeakerData {
   alias?: string
 }
 
-export interface ChatMessageCreateData {
+// A type alias rather than an interface on purpose: modifyDocument's create
+// payload takes `Record<string, unknown>[]`, and TypeScript grants an implicit
+// index signature to an object type literal but not to an interface — so as an
+// interface this could only reach the payload through an assertion.
+export type ChatMessageCreateData = {
   // Foundry v12+ names the field `author`; the server sets it to the emitting
   // user regardless, so this only has to agree with what the read side expects.
   author: string

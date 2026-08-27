@@ -105,12 +105,16 @@ function wrapContextualClone(
   overrides: ModifierOverrideMap,
   restores: (() => void)[]
 ): void {
-  type CloneWrapper = { getContextualClone: (...args: unknown[]) => ActorPF2e }
+  // The method's own signature, so the wrapper is checked against what it
+  // replaces — an own property shadowing the prototype's for the roll's
+  // duration, then removed. A plain assignment reaches it: `actor` HAS this
+  // method, only not as an own property yet.
+  type CloneWrapper = { getContextualClone: ActorPF2e['getContextualClone'] }
   const hadOwnClone = Object.prototype.hasOwnProperty.call(actor, 'getContextualClone')
-  const a = actor as unknown as CloneWrapper
+  const a: CloneWrapper = actor
   const origClone = a.getContextualClone
-  a.getContextualClone = function (...args: unknown[]) {
-    const clone = origClone.apply(this, args) as ActorPF2e
+  a.getContextualClone = function (this: ActorPF2e, ...args) {
+    const clone = origClone.apply(this, args)
     const mods = getModifiers(clone)
     if (mods.length) applyOverridesToModifiers(mods, overrides, restores)
     return clone
@@ -196,13 +200,13 @@ export async function withBlastModifierOverrides<T>(
 ): Promise<T> {
   if (!statistic || !overrides || Object.keys(overrides).length === 0) return doRoll()
 
-  type Extendable = { extend: (...args: unknown[]) => { check: { modifiers: Modifier[] } } }
-  const s = statistic as unknown as Extendable
+  type Extendable = { extend: Statistic['extend'] }
+  const s: Extendable = statistic
   const hadOwnExtend = Object.prototype.hasOwnProperty.call(statistic, 'extend')
   const origExtend = s.extend
   const restores: (() => void)[] = []
 
-  s.extend = function (this: unknown, ...args: unknown[]) {
+  s.extend = function (this: Statistic, ...args) {
     const extended = origExtend.apply(this, args)
     // Accessing `.check` forces the (lazily built, then cached) StatisticCheck
     // to materialize now, so the instances we mutate are the very ones the
@@ -237,7 +241,13 @@ function currentDamageOverrides(): ModifierOverrideMap | undefined {
   return activeDamageOverrides[activeDamageOverrides.length - 1]
 }
 
-function applyDamageOverride(modifier: MutableModifier): void {
+// What applyDamageOverride touches, and all it touches. PF2e's Modifier and its
+// DamageDicePF2e are unrelated classes that both carry these three, which is
+// what lets a die go through the same call as a numeric modifier — naming only
+// the three is what makes that a plain argument rather than an assertion.
+type OverridableModifier = { slug: string; enabled: boolean; ignored: boolean }
+
+function applyDamageOverride(modifier: OverridableModifier): void {
   const overrides = currentDamageOverrides()
   const slug = modifier.slug
   if (!overrides || !slug || !(slug in overrides)) return
@@ -333,7 +343,7 @@ function installDamagePrototypeOverrides(): void {
       args: { item: unknown; test: string[] | Set<string> }
     ) {
       origDiceApplyAlterations.call(this, args)
-      applyDamageOverride(this as unknown as MutableModifier)
+      applyDamageOverride(this)
       activeCaptureArrays[activeCaptureArrays.length - 1]?.add(this)
     }
     restoreDamageDiceProto = () => {
