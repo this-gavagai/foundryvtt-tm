@@ -1,7 +1,7 @@
 import type { ModuleEventArgs, RequestCharacterDetailsArgs } from '@/types/api-types'
 import { getCharacterDetails } from './handlers'
 import { PASSIVE_ACTIONS, rpcDescriptor } from './rpcTable'
-import { authorizeRequest, userOwnsActorById, type AuthWorld } from './rpcAuthorize'
+import { authorizeRequest, targetActorId, userOwnsActorById, type AuthWorld } from './rpcAuthorize'
 import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
 import { logger } from '@/utils/utilities'
@@ -20,6 +20,15 @@ import { makeAck, stampTablemateChatOrigin, tablemateChatOriginUuid } from './ut
 import { markRequestSeen, requestAlreadySeen } from './requestDedup'
 import { ownTargetIds } from './utils/target'
 import { resolveCapture, type CapturedMessage } from './chatCapture'
+import {
+  abandonChatOrigin,
+  chatOriginStampFor,
+  currentChatOriginUserId,
+  withChatOrigin,
+  type ChatOrigin,
+  type ChatOriginStamp
+} from './chatOrigin'
+import { abandonBackgroundRolls } from './backgroundRoll'
 import {
   registerManualRollPolicySetting,
   manualRollPolicy,
@@ -84,14 +93,6 @@ function checkClientVersion(args: ModuleEventArgs) {
 }
 
 const getChar: Record<string, (args: RequestCharacterDetailsArgs) => void> = {}
-const CHAT_ORIGIN_GRACE_MS = 2000
-// A request currently executing: userId drives chat attribution, uuid lets the
-// createChatMessage hook resolve the matching capture (see chatCapture.ts),
-// manualRoll marks a request whose dice faces were player-determined under the
-// 'flag' policy so the resulting chat message gets tagged.
-type ChatOrigin = { userId: string; uuid?: string; manualRoll?: boolean }
-const chatOriginStack: ChatOrigin[] = []
-let recentChatOrigin: { userId: string; expiresAt: number } | undefined
 let chatOriginStampingRegistered = false
 
 // Handlers that roll dice or create chat messages execute strictly one at a
@@ -218,11 +219,11 @@ function handleCharacterRequest(args: RequestCharacterDetailsArgs) {
   getChar[args.actorId](args)
 }
 
-function stampChatOrigin(message: unknown, data: unknown, origin: ChatOrigin) {
-  const tablemate: Record<string, unknown> = { originUserId: origin.userId }
-  if (origin.uuid) tablemate.originUuid = origin.uuid
-  if (origin.manualRoll) tablemate.manualRoll = true
-  const sourceUpdate = { flags: { tablemate } }
+// Write the stamp into flags.tablemate on the message being created. A live
+// document takes it through updateSource; a plain source object (some creation
+// paths hand the hook raw data) gets it merged in directly.
+function writeChatOriginStamp(message: unknown, data: unknown, stamp: ChatOriginStamp) {
+  const sourceUpdate = { flags: { tablemate: stamp } }
   const document = message as { updateSource?: (changes: typeof sourceUpdate) => unknown }
   if (typeof document.updateSource === 'function') {
     document.updateSource(sourceUpdate)
@@ -236,51 +237,19 @@ function stampChatOrigin(message: unknown, data: unknown, origin: ChatOrigin) {
   source.flags ??= {}
   source.flags.tablemate = {
     ...source.flags.tablemate,
-    ...tablemate
+    ...stamp
   }
-}
-
-function currentChatOrigin(): ChatOrigin | undefined {
-  return chatOriginStack[chatOriginStack.length - 1]
-}
-
-function currentChatOriginUserId(): string | undefined {
-  const stacked = currentChatOrigin()?.userId
-  if (stacked) return stacked
-
-  if (!recentChatOrigin) return undefined
-  if (recentChatOrigin.expiresAt > Date.now()) return recentChatOrigin.userId
-  recentChatOrigin = undefined
-  return undefined
-}
-
-function retainRecentChatOrigin(originUserId: string) {
-  recentChatOrigin = {
-    userId: originUserId,
-    expiresAt: Date.now() + CHAT_ORIGIN_GRACE_MS
-  }
-  globalThis.setTimeout(() => {
-    if (recentChatOrigin?.userId === originUserId && recentChatOrigin.expiresAt <= Date.now()) {
-      recentChatOrigin = undefined
-    }
-  }, CHAT_ORIGIN_GRACE_MS)
 }
 
 function setupChatOriginStamping() {
   if (chatOriginStampingRegistered) return
   chatOriginStampingRegistered = true
 
+  // What to stamp, and how each field is scoped, is chatOrigin.ts's decision —
+  // this only writes it.
   Hooks.on('preCreateChatMessage', (message, data) => {
-    const originUserId = currentChatOriginUserId()
-    if (!originUserId) return
-    // userId honours the grace window (attribution); uuid and manualRoll come
-    // only from a live stack entry, so they correlate to the request that is
-    // actually producing the message right now.
-    stampChatOrigin(message, data, {
-      userId: originUserId,
-      uuid: currentChatOrigin()?.uuid,
-      manualRoll: currentChatOrigin()?.manualRoll
-    })
+    const stamp = chatOriginStampFor(message, data)
+    if (stamp) writeChatOriginStamp(message, data, stamp)
   })
   Hooks.on('createChatMessage', (message) => {
     const originUserId = currentChatOriginUserId()
@@ -291,17 +260,6 @@ function setupChatOriginStamping() {
     // push config inside; safe to call on every client).
     void notifyChatMessage(message)
   })
-}
-
-async function withChatOrigin<T>(origin: ChatOrigin, run: () => Promise<T>): Promise<T> {
-  chatOriginStack.push(origin)
-  try {
-    return await run()
-  } finally {
-    const currentIndex = chatOriginStack.lastIndexOf(origin)
-    if (currentIndex >= 0) chatOriginStack.splice(currentIndex, 1)
-    retainRecentChatOrigin(origin.userId)
-  }
 }
 
 export function setupListener() {
@@ -440,7 +398,11 @@ export function setupListener() {
     const origin: ChatOrigin = {
       userId: args.userId,
       uuid: requestUuid(args),
-      manualRoll: policy === 'flag'
+      manualRoll: policy === 'flag',
+      // The actor this request is about, so the uuid stamp can be scoped to the
+      // message this request itself produces (belongsToRequest). Authorization
+      // already resolved and owner-checked this id for every 'owner' action.
+      actorId: targetActorId(args)
     }
     dispatchChain = dispatchChain.then(
       () =>
@@ -462,9 +424,19 @@ export function setupListener() {
             markRequestSeen(uuid)
           }
           const timer = globalThis.setTimeout(() => {
+            // Advancing the queue past a handler that is STILL RUNNING gives up
+            // the serialization that keeps ambient roll state from leaking
+            // between requests, so the abandoned request's context has to be
+            // torn down here rather than waiting for a `finally` that may never
+            // run. Left in place, its dice-result overrides sit on top of the
+            // stack for the rest of the session and land on everyone else's
+            // rolls — the GM's own included.
+            abandonChatOrigin(origin)
+            const droppedDice = abandonBackgroundRolls()
             logger.warn(
               `TABLEMATE: handler still running after ${HANDLER_QUEUE_TIMEOUT_MS}ms; advancing queue`,
-              args.action
+              args.action,
+              { abandonedDiceContexts: droppedDice }
             )
             advance()
           }, HANDLER_QUEUE_TIMEOUT_MS)

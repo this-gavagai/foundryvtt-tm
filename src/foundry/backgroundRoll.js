@@ -9,11 +9,14 @@ const appName = 'tablemate'
 // later roll by anyone). withBackgroundRoll() refcounts the stack and removes
 // the wrapper only once the last active roll finishes. Mirrors the refcounted
 // prototype-hook pattern in handlers/checks/modifierOverrides.ts.
+//
+// Entries are objects rather than bare diceResults so a frame can be identified
+// on the way out — see the removal note in withBackgroundRoll.
 const diceContextStack = []
 let restoreRollEvaluate = null
 
 function currentDiceResults() {
-  return diceContextStack[diceContextStack.length - 1]
+  return diceContextStack[diceContextStack.length - 1]?.diceResults
 }
 
 function customRollEvaluate(wrapped, ...args) {
@@ -63,11 +66,43 @@ function installRollEvaluate() {
 // during it, then restore. Nesting/concurrency safe via the refcounted stack.
 export async function withBackgroundRoll(diceResults, run) {
   installRollEvaluate()
-  diceContextStack.push(diceResults ?? {})
+  const frame = { diceResults: diceResults ?? {} }
+  diceContextStack.push(frame)
   try {
     return await run()
   } finally {
-    diceContextStack.pop()
+    // Remove OUR frame by identity, not the top one by position. Frames normally
+    // settle in LIFO order, but not always: when the dispatch queue gives up on a
+    // hung handler (HANDLER_QUEUE_TIMEOUT_MS in listener.ts) the next request
+    // starts while the hung one is still running, so a positional pop here would
+    // discard the frame of whichever request is executing NOW and leave the hung
+    // one's faces on top of the stack. Mirrors the splice-by-identity the chat
+    // origin stack already does for the same reason.
+    const index = diceContextStack.lastIndexOf(frame)
+    if (index >= 0) diceContextStack.splice(index, 1)
     if (diceContextStack.length === 0) restoreRollEvaluate?.()
   }
+}
+
+// Drop every dice-result override in flight and uninstall the wrapper.
+//
+// Called when the dispatch queue abandons a hung handler. Without it, that
+// handler's frame stays on the stack for the rest of the session: once the queue
+// drains it is top-of-stack again, so `currentDiceResults()` answers with a
+// player's chosen faces for EVERY later roll on this client — including rolls the
+// GM makes in Foundry's own UI. The stack never reaching empty also pins the
+// libWrapper in place, forcing allowInteractive: false on all of them.
+//
+// Safe to call while the abandoned handler is still running: its own `finally`
+// removes its frame by identity, so a frame already dropped here is simply not
+// found. Its later rolls lose their overrides, which is the point — nothing is
+// waiting on them any more.
+//
+// Returns how many frames were dropped, for the caller's log line.
+export function abandonBackgroundRolls() {
+  const dropped = diceContextStack.length
+  if (!dropped) return 0
+  diceContextStack.length = 0
+  restoreRollEvaluate?.()
+  return dropped
 }
