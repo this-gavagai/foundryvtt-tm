@@ -17,22 +17,8 @@ export async function foundryGetSpellDamage(args: GetSpellDamageArgs) {
     castRank: args.castingRank,
     overlayIds: args.overlayIds
   })
-  type SpellGetDamageOpts = {
-    skipDialog?: boolean
-    rollMode?: 'roll' | 'publicroll' | 'gmroll' | 'blindroll' | 'selfroll'
-  }
-  type SpellGetDamage = (opts: SpellGetDamageOpts) => Promise<{
-    template?: {
-      damage?: { roll?: { formula?: string }; breakdown?: string[] }
-      modifiers?: unknown[]
-    }
-  } | null>
   const overrides = (args as { modifierOverrides?: ModifierOverrideMap }).modifierOverrides
-  const getDamage = () =>
-    (spell!.getDamage as unknown as SpellGetDamage)({
-      skipDialog: true,
-      rollMode: 'blindroll'
-    })
+  const getDamage = () => spell!.getDamage({ skipDialog: true, rollMode: 'blindroll' })
   const { sd, baseline } = await withBackgroundRoll(undefined, async () => {
     const sd = spell ? await withDamageModifierOverrides(overrides, getDamage) : null
     const baseline = spell && overrides && Object.keys(overrides).length ? await getDamage() : sd

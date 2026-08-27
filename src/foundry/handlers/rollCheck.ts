@@ -94,7 +94,7 @@ export async function foundryRollCheck(args: RollCheckArgs) {
     modifiers,
     target: resolvedTargets.token,
     skipDialog: true,
-    event: makeFakeEvent(source) as PointerEvent,
+    event: makeFakeEvent(source),
     identifier: 'tm_background'
   }
   const ctx: CheckRollContext = {

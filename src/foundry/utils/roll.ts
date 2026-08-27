@@ -81,19 +81,18 @@ export async function rollDamageFormulaToMessage(
   return damageRoll
 }
 
-// Build a synthetic PointerEvent whose target carries [data-cast-rank], so
+// The stand-in event, with a target carrying [data-cast-rank] — so
 // SpellPF2e.rollDamage (which calls htmlClosest(event.target, "[data-cast-rank]")
-// — see ~/pf2e/src/module/item/spell/document.ts) can read the cast rank and
-// run its own loadVariant + heightening dispatch. Lets us delegate heightening
-// to PF2e instead of hand-rolling it.
-// htmlClosest does an `instanceof Element` check, so target must be a real
-// DOM element, not a plain object.
+// — see ~/pf2e/src/module/item/spell/document.ts) can read the cast rank and run
+// its own loadVariant + heightening dispatch. Lets us delegate heightening to
+// PF2e instead of hand-rolling it. See makeFakeEvent for why it isn't a real
+// event; the element is real, because htmlClosest does an `instanceof Element`
+// check on it.
 export function makeCastRankEvent(source: GamePF2e, castRank: number | undefined): PointerEvent {
-  const base = makeFakeEvent(source)
-  if (!castRank) return base as unknown as PointerEvent
+  if (!castRank) return makeFakeEvent(source)
   const target = document.createElement('span')
   target.dataset.castRank = String(castRank)
-  return { ...base, target } as unknown as PointerEvent
+  return makeFakeEvent(source, target)
 }
 
 // PF2e's roll-producing methods return polymorphic shapes:

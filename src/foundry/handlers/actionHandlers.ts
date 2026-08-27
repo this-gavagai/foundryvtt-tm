@@ -1,4 +1,4 @@
-import type { ActionUseOptions, ActorPF2e, ItemPF2e, Statistic } from '@7h3laughingman/pf2e-types'
+import type { ActorPF2e, ItemPF2e, Statistic } from '@7h3laughingman/pf2e-types'
 import type {
   CharacterActionArgs,
   FreeRollArgs,
@@ -31,7 +31,9 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
   const params = {
     ...args.options,
     actors: actor,
-    target: actorProxy ?? token,
+    // `?? undefined` because PF2e's ActionUseOptions declares `target` optional,
+    // not nullable, and resolveRequestedTargets answers null for "no target".
+    target: actorProxy ?? token ?? undefined,
     event: makeFakeEvent(source)
   }
 
@@ -52,7 +54,7 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
 
   const r = await withBackgroundRoll(args.diceResults, () =>
     withModifierOverrides(actor, getStatistic ?? (() => null), args.modifierOverrides, () =>
-      action.use(params as unknown as Partial<ActionUseOptions>)
+      action.use(params)
     )
   )
 

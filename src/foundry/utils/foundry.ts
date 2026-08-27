@@ -83,8 +83,26 @@ export async function stampTablemateChatOrigin(message: unknown, originUserId: s
 // Synthesizes the minimal event shape PF2e roll methods inspect. shiftKey is
 // pulled from the user's "showDamageDialogs" setting so we honour their dialog
 // preference; ctrl/meta are normalized to false.
-export function makeFakeEvent(source: GamePF2e) {
-  return { ctrlKey: false, metaKey: false, shiftKey: source.user.settings['showDamageDialogs'] }
+// The stand-in this module passes as PF2e's `event` parameter.
+//
+// PF2e's roll paths take a real DOM event, and read exactly two things off it:
+// the modifier keys — shift decides whether the roll dialog opens, which the
+// user's showDamageDialogs setting is the socket-side answer to — and, on the
+// spell-damage path, `event.target`, which PF2e walks with htmlClosest to find
+// [data-cast-rank] (see makeCastRankEvent in utils/roll.ts). Nothing here has a
+// real event to hand it: these rolls arrive over a socket, not from a click.
+//
+// A real PointerEvent is not an option. It is constructible in a browser but not
+// in this module's tests, which run without a DOM, and `target` is read-only on
+// a real event — settable only by dispatching it, which would run Foundry's own
+// listeners as a side effect of previewing damage.
+//
+// So it stays a plain object, and the assertion PF2e's signature forces lives
+// here, once, instead of at each of the four call sites. `target` is a real
+// element when given: htmlClosest does an `instanceof Element` check.
+export function makeFakeEvent(source: GamePF2e, target?: Element): PointerEvent {
+  const shiftKey = source.user.settings['showDamageDialogs']
+  return { ctrlKey: false, metaKey: false, shiftKey, target } as unknown as PointerEvent
 }
 
 // Build a chat speaker for an actor WITHOUT touching the GM client's canvas.
