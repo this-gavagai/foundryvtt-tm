@@ -1,13 +1,14 @@
 import type {
   ActorPF2e,
-  CharacterPF2e,
   ItemPF2e,
   PhysicalItemPF2e,
   RawModifier,
-  RollOptionRuleElement,
-  SpellPF2e,
-  WeaponPF2e
+  RollOptionRuleElement
 } from '@7h3laughingman/pf2e-types'
+import type {
+  Action,
+  SingleCheckAction
+} from '@7h3laughingman/pf2e-types/module/actor/actions/index.js'
 import type { RequestCharacterDetailsArgs, UpdateCharacterDetailsArgs } from '@/types/api-types'
 import type { SkillActionData, SkillActionVariant } from '@/types/character-types'
 import { TM } from '@/api/protocol'
@@ -101,38 +102,14 @@ function serializeStatistic(statistic: StatisticTrace | null | undefined) {
 // Unlike PF2e's preview (which returns only the total), we also serialize the
 // resolved modifier list so the app can show the breakdown and let the player
 // toggle modifiers — exactly as it already does for a plain skill roll.
-type LiveStatistic = {
-  label: string
-  modifiers: RawModifier[]
-  dc?: { options?: Iterable<string> }
-  lore?: boolean
-}
-type SkillActionVariantLike = {
-  slug?: string
-  name?: string
-  cost?: 'free' | 'reaction' | 0 | 1 | 2 | 3
-  traits?: string[]
-}
-type SkillActionLike = {
-  slug?: string
-  name?: string
-  cost?: 'free' | 'reaction' | 0 | 1 | 2 | 3
-  traits?: string[]
-  statistic?: string | string[]
-  modifiers?: RawModifier[]
-  rollOptions?: string[]
-  // PF2e's BaseAction exposes variants as a Collection (a Map subclass) keyed
-  // by variant slug; `name` on each is a localization key like the action's.
-  variants?: Map<string, SkillActionVariantLike>
-}
-type PF2eModifierApi = {
-  actions?: { values?: () => Iterable<SkillActionLike> }
-  Modifier?: new (raw: RawModifier) => RawModifier
-  StatisticModifier?: new (
-    slug: string,
-    modifiers: RawModifier[],
-    rollOptions: Set<string>
-  ) => { totalModifier: number; modifiers: RawModifier[] }
+// game.pf2e.actions is typed as a collection of the base Action, but the entries
+// this serializes are SingleCheckActions — the subclass that adds the statistic,
+// declared modifiers and roll options the preview is built from. PF2e does not
+// put the class on game.pf2e, so there is no constructor to test with
+// `instanceof`; the presence of `statistic` is the same discriminator PF2e's own
+// sheet uses, and it is exactly the field the loop below needs.
+function isSingleCheckAction(action: Action): action is Action & SingleCheckAction {
+  return 'statistic' in action
 }
 
 // Skill-action descriptions live in the pf2e.actionspf2e compendium (rich HTML
@@ -142,12 +119,6 @@ type PF2eModifierApi = {
 // getCharacterDetails runs on every sheet open. Keyed by the item's own slug,
 // which matches the action registry slug for the standard actions.
 let skillActionDescriptions: Map<string, string> | null = null
-
-type ActionCompendiumDoc = {
-  slug?: string | null
-  name?: string
-  system?: { slug?: string | null; description?: { value?: string } }
-}
 
 function slugify(name: string): string {
   return name
@@ -160,17 +131,17 @@ async function getSkillActionDescriptions(): Promise<Map<string, string>> {
   if (skillActionDescriptions) return skillActionDescriptions
   const map = new Map<string, string>()
   try {
-    const packs = (
-      game as unknown as {
-        packs?: { get?: (id: string) => { getDocuments?: () => Promise<ActionCompendiumDoc[]> } }
-      }
-    ).packs
-    const pack = packs?.get?.('pf2e.actionspf2e')
-    const docs = (await pack?.getDocuments?.()) ?? []
-    for (const doc of docs) {
-      const html = doc.system?.description?.value
+    const pack = getGame().packs.get('pf2e.actionspf2e')
+    // getDocuments() is typed as every document kind a pack could hold, since
+    // nothing tells the compiler which one this pack is. Narrow to items, then
+    // to action items, rather than restating their fields.
+    const docs = (await pack?.getDocuments()) ?? []
+    const items = docs.filter((doc): doc is ItemPF2e<null> => doc.documentName === 'Item')
+    for (const item of items) {
+      if (!item.isOfType('action')) continue
+      const html = item.system.description?.value
       if (!html) continue
-      const slug = doc.system?.slug ?? doc.slug ?? (doc.name ? slugify(doc.name) : '')
+      const slug = item.system.slug ?? (item.name ? slugify(item.name) : '')
       if (slug) map.set(slug, html)
     }
   } catch (e) {
@@ -186,11 +157,11 @@ async function getSkillActionDescriptions(): Promise<Map<string, string>> {
 // throws ("has multiple variants, but no variant was requested") unless the
 // call names one, so the app must present the choice for those actions. A
 // single declared variant needs no choice — use() falls back to it.
-function serializeActionVariants(action: SkillActionLike): SkillActionVariant[] | undefined {
+function serializeActionVariants(action: Action): SkillActionVariant[] | undefined {
   const variants = action.variants
   if (!variants || variants.size < 2) return undefined
   const out = [...variants.values()]
-    .filter((v): v is SkillActionVariantLike & { slug: string } => !!v.slug)
+    .filter((v) => !!v.slug)
     .map((v) => ({
       slug: v.slug,
       label: v.name ? localize(v.name) : v.slug,
@@ -204,15 +175,13 @@ function serializeSkillActions(
   actor: ActorPF2e,
   descriptions: Map<string, string>
 ): SkillActionData[] {
-  const pf2e = getGame().pf2e as unknown as PF2eModifierApi
-  const getStatistic = (actor as ActorPF2e & { getStatistic?: (s: string) => LiveStatistic | null })
-    .getStatistic
+  const pf2e = getGame().pf2e
   // The set of slugs that are actually skills (core + lore) on this actor. Not
   // every action sets `section: "skill"` — Track and Sense Direction, for
   // example, sit in the "exploration" group — so we key off the statistic being
   // a skill rather than the section. This also excludes actions that roll a
   // save/perception (their statistic slug won't be in here).
-  const actorSkills = (actor as ActorPF2e & { skills?: Record<string, LiveStatistic> }).skills ?? {}
+  const actorSkills = actor.skills ?? {}
   // Lore skills (Warfare Lore, etc.) are valid Recall Knowledge statistics, but
   // PF2e's preview never appends them (see its own "append relevant statistic
   // replacements" TODO). Splice them in so Recall Knowledge shows on lores too.
@@ -220,22 +189,17 @@ function serializeSkillActions(
     .filter(([, stat]) => stat?.lore)
     .map(([slug]) => slug)
   const { actions: registry, Modifier, StatisticModifier } = pf2e
-  if (!registry?.values || !Modifier || !StatisticModifier || !getStatistic) return []
   const out: SkillActionData[] = []
   for (const action of registry.values()) {
-    if (!action?.statistic) continue
+    if (!isSingleCheckAction(action) || !action.statistic) continue
     const declared = Array.isArray(action.statistic) ? action.statistic : [action.statistic]
     const candidates = action.slug === 'recall-knowledge' ? [...declared, ...loreSlugs] : declared
-    const actionModifiers = Array.isArray(action.modifiers) ? action.modifiers : []
-    const rollOptions = Array.isArray(action.rollOptions)
-      ? action.rollOptions
-      : action.slug
-        ? [`action:${action.slug}`]
-        : []
+    const actionModifiers = action.modifiers
+    const rollOptions = action.rollOptions.length ? action.rollOptions : [`action:${action.slug}`]
     const statistics: SkillActionData['statistics'] = []
     for (const slug of candidates) {
       if (!(slug in actorSkills)) continue
-      const statistic = getStatistic.call(actor, slug)
+      const statistic = actor.getStatistic(slug)
       if (!statistic) continue
       try {
         const actionMods = actionModifiers.map((m) => new Modifier(m))
@@ -273,8 +237,8 @@ function serializeSkillActions(
     }
     if (!statistics.length) continue
     out.push({
-      slug: action.slug ?? '',
-      label: action.name ? localize(action.name) : (action.slug ?? ''),
+      slug: action.slug,
+      label: action.name ? localize(action.name) : action.slug,
       cost: action.cost === undefined ? undefined : String(action.cost),
       traits: Array.isArray(action.traits) ? action.traits : [],
       // Replayed as extraRollOptions on the actual roll so the rolled number
@@ -292,11 +256,13 @@ export async function getCharacterDetails(
   args: RequestCharacterDetailsArgs
 ): Promise<UpdateCharacterDetailsArgs> {
   const source = getGame()
-  const actor = source.actors.get(args.actorId, { strict: true }) as ActorPF2e
-  const isCharacter = actor.type === 'character'
-  const characterActor = actor as unknown as CharacterPF2e
+  const actor = source.actors.get(args.actorId, { strict: true })
+  // A real guard rather than a `type ===` comparison, so the character-only
+  // reads below (elemental blast, proficiency labels) are checked against
+  // CharacterPF2e instead of asserted.
+  const isCharacter = actor.isOfType('character')
   const elementalBlasts = isCharacter
-    ? { ...new source.pf2e.ElementalBlast(characterActor), actor: actor }
+    ? { ...new source.pf2e.ElementalBlast(actor), actor: actor }
     : null
   const actorWithInventory = actor as ActorPF2e & {
     inventory?: {
@@ -351,17 +317,17 @@ export async function getCharacterDetails(
   const languages = (actorSystem.details?.languages?.value ?? []).map((slug: string) =>
     langKeys[slug] ? localize(langKeys[slug]) : slug
   )
-  const proficiencyLabels = isCharacter ? localizeProficiencyLabels(characterActor.system) : {}
-  const rollOptionLabels = localizeRollOptionLabels(characterActor)
+  const proficiencyLabels = isCharacter ? localizeProficiencyLabels(actor.system) : {}
+  const rollOptionLabels = localizeRollOptionLabels(actor)
   const traitLabels = localizeTraitLabels()
   // IWR reads straight off system.attributes, so it works for any creature —
   // NPCs lean on it far more heavily than characters do.
-  const iwrLabels = localizeIWRLabels(characterActor)
+  const iwrLabels = localizeIWRLabels(actor)
   // Entry statistics are read off the live spellcasting entries, so this works
   // for any caster. NPCs need it more than characters do: their source
   // `spelldc.dc`/`.value` are hand-authored numbers that the elite/weak
   // adjustment shifts only on the prepared statistic.
-  const spellcastingModifiers = buildSpellcastingModifiers(characterActor)
+  const spellcastingModifiers = buildSpellcastingModifiers(actor)
   // Some PF2e conditions grant child conditions in-memory only (e.g. Grabbed
   // grants Off-Guard and Immobilized via `GrantItem` rule elements with
   // `inMemoryOnly: true`). These grants live on `actor.conditions` rather
@@ -400,14 +366,13 @@ export async function getCharacterDetails(
     // is the BASE type and the modular toggle is just a numeric index whose
     // options array isn't serialized. Overlay the *current* damage type so
     // the client can highlight the right damage-type chip.
-    if (i.type === 'weapon') {
-      const w = i as unknown as WeaponPF2e
+    if (i.isOfType('weapon')) {
       // Modular weapons: the active option's damageType lives on the prepared
       // toggle config. Fall back to the prepared system.damage.damageType for
       // everything else (e.g. versatile carries the string in `selected` and
       // base weapons just have their innate type).
-      const modularDmg = w.system.traits?.toggles?.modular?.config?.damageType
-      const prepared = modularDmg ?? w.system.damage?.damageType
+      const modularDmg = i.system.traits?.toggles?.modular?.config?.damageType
+      const prepared = modularDmg ?? i.system.damage?.damageType
       if (prepared) {
         const sys = (obj.system ??= {})
         const dmg = (sys.damage as { damageType?: string } | undefined) ?? {}
@@ -421,8 +386,8 @@ export async function getCharacterDetails(
     // innate spells, and without it the client can't tell "one cast available"
     // from "expended" — nor render the uses counter that is the whole point of
     // an NPC's innate spell list. Overlay the prepared value.
-    if (i.type === 'spell') {
-      const uses = (i as unknown as SpellPF2e).system?.location?.uses
+    if (i.isOfType('spell')) {
+      const uses = i.system.location?.uses
       if (uses) {
         const sys = (obj.system ??= {})
         const location = (sys.location as Record<string, unknown> | undefined) ?? {}

@@ -2,7 +2,7 @@
 // stores in raw form (skills, saves, item rules, weapon/armor proficiencies,
 // IWR entries) into display-ready strings for the client.
 
-import type { CharacterPF2e, ItemPF2e, RawModifier } from '@7h3laughingman/pf2e-types'
+import type { ActorPF2e, CharacterPF2e, ItemPF2e, RawModifier } from '@7h3laughingman/pf2e-types'
 import { configPF2E, localize, type ConfigPF2E } from '../globals'
 import type { SpellcastingModifierData } from '@/types/character-types'
 
@@ -144,17 +144,23 @@ export function localizeTraitLabels(): Record<string, string> {
   return labels
 }
 
-export function localizeRollOptionLabels(actor: CharacterPF2e): Record<string, string> {
+export function localizeRollOptionLabels(actor: ActorPF2e): Record<string, string> {
   type StatWithLabel = { label?: string }
   type RuleWithLabel = { key?: string; label?: string; suboptions?: { label?: string }[] }
+  // Which statistic blocks a creature's system carries varies by actor type —
+  // a hazard has no saves, a familiar no skills — so they are all optional here
+  // and each is walked for whatever labels it holds.
+  const system = actor.system as {
+    skills?: Record<string, StatWithLabel>
+    saves?: Record<string, StatWithLabel>
+    perception?: StatWithLabel
+  }
   const labels: Record<string, string> = {}
-  for (const [slug, skill] of Object.entries(actor.system?.skills ?? {}))
-    if ((skill as StatWithLabel).label)
-      labels[slug] = localize((skill as StatWithLabel).label!)
-  for (const [slug, save] of Object.entries(actor.system?.saves ?? {}))
-    if ((save as StatWithLabel).label)
-      labels[slug] = localize((save as StatWithLabel).label!)
-  const percLabel = (actor.system?.perception as StatWithLabel | undefined)?.label
+  for (const [slug, skill] of Object.entries(system.skills ?? {}))
+    if (skill.label) labels[slug] = localize(skill.label)
+  for (const [slug, save] of Object.entries(system.saves ?? {}))
+    if (save.label) labels[slug] = localize(save.label)
+  const percLabel = system.perception?.label
   if (percLabel) labels['perception'] = localize(percLabel)
   for (const item of actor.items) {
     if (item.slug && item.name) labels[item.slug] = item.name
@@ -169,7 +175,7 @@ export function localizeRollOptionLabels(actor: CharacterPF2e): Record<string, s
   return labels
 }
 
-export function localizeIWRLabels(actor: CharacterPF2e): Record<string, string> {
+export function localizeIWRLabels(actor: ActorPF2e): Record<string, string> {
   type IWREntry = { type?: string; label?: string }
   const attrs = actor.system?.attributes as {
     immunities?: IWREntry[]
@@ -191,7 +197,7 @@ export function localizeIWRLabels(actor: CharacterPF2e): Record<string, string> 
 // the spell-attack modifier breakdown. Lives here with the other actor-side
 // serialization helpers since it's a sibling of the label localizers.
 export function buildSpellcastingModifiers(
-  actor: CharacterPF2e
+  actor: ActorPF2e
 ): Record<string, SpellcastingModifierData> {
   type SpellcastingStatistic = {
     mod?: number
@@ -201,7 +207,7 @@ export function buildSpellcastingModifiers(
   const result: Record<string, SpellcastingModifierData> = {}
   for (const item of actor.items) {
     if (item.type !== 'spellcastingEntry') continue
-    const stat = (item as ItemPF2e<CharacterPF2e> & { statistic?: SpellcastingStatistic }).statistic
+    const stat = (item as ItemPF2e & { statistic?: SpellcastingStatistic }).statistic
     result[item._id ?? ''] = {
       mod: stat?.mod ?? 0,
       // The prepared save DC. A character's already matches the entry's stored
