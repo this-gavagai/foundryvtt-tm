@@ -136,9 +136,13 @@ export function notifications(): NotificationsApi | undefined {
 // resolves `this.implementation` internally, so creating through it already uses
 // the system's configured subclass (ChatMessagePF2e). This exists to give the two
 // modules that create messages one declaration rather than two.
+// `getSpeaker` is deliberately absent. It resolves scene and token from whatever
+// scene THIS client has drawn, which on the elected GM's machine is the GM's own
+// view — wrong for a remote player's message and undefined with no scene loaded.
+// Everything here builds a speaker with utils/foundry.actorSpeaker instead; not
+// declaring the method keeps the canvas-dependent one from being reached for again.
 export type ChatMessageClass = {
   create: (data: object) => Promise<{ id?: string | null; _id?: string | null } | undefined>
-  getSpeaker: (opts: { actor?: unknown }) => unknown
   // Core's whisper-recipient lookup: keywords, user names, and the names of
   // users' assigned characters. See handlers/chat.ts.
   getWhisperRecipients: (name: string) => Array<{ id?: string | null; name?: string | null }>
@@ -222,6 +226,20 @@ export function localize(key: string): string {
   return (
     globalThis as unknown as { game: { i18n: { localize: (k: string) => string } } }
   ).game.i18n.localize(key)
+}
+
+// Localize a key, falling back to a literal when the system or core does not
+// define it.
+//
+// The module ships no Foundry lang files of its own, so a GM-facing string it puts
+// in chat has two imperfect options: hardcode English, or borrow the system's key
+// and show a raw "PF2E.Something" to the table if that key is ever renamed —
+// Foundry returns the key unchanged when it cannot translate. This takes the
+// system's wording (in the world's language, matching the rest of the sheet) when
+// the key resolves, and the literal when it does not.
+export function localizeOr(key: string, fallback: string): string {
+  const text = localize(key)
+  return text === key ? fallback : text
 }
 
 // ── CONFIG ─────────────────────────────────────────────────────────────────

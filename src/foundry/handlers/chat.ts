@@ -9,16 +9,11 @@ import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import { withBackgroundRoll } from '../backgroundRoll'
 import { registerCapture } from '../chatCapture'
 import { extractRollPayload } from '../utils/roll'
-import { getCharacter, getGame, makeAck } from '../utils/foundry'
+import { actorSpeaker, getCharacter, getGame, makeAck } from '../utils/foundry'
 import { voiceMemoEnabled, voiceMemoUploadPath } from '../voiceMemoSetting'
 import { imageUploadEnabled, imageUploadPath } from '../imageUploadSetting'
 import { makeChunkAccumulator } from './chunkedUpload'
-import {
-  chatMessageClass,
-  getChatLog,
-  getFilePicker,
-  type FilePickerLike
-} from '../globals'
+import { chatMessageClass, getChatLog, getFilePicker, type FilePickerLike } from '../globals'
 import { logger } from '@/utils/utilities'
 
 // The created message document, narrowed to the id we hand back to the sender
@@ -142,23 +137,6 @@ function outOfCharacterAlias(source: GamePF2e, userId: string): string | undefin
     if (ownerUser?.name) return ownerUser.name
   }
   return user?.name ?? undefined
-}
-
-// Build a chat speaker for an actor WITHOUT touching the GM client's canvas.
-// ChatMessage.getSpeaker resolves scene/token from whatever scene the GM
-// happens to have open — which is wrong for a remote player's message (it can
-// pick up the GM's selected token) and is undefined when the GM has no scene
-// loaded. That canvas dependency is also what trips third-party
-// preCreateChatMessage hooks that resolve the token via `canvas.tokens.get(...)`
-// (the "Cannot read properties of undefined (reading 'get')" seen on voice-memo
-// posts). Attributing by actor id + name is canvas-independent and still shows
-// the character — the app falls back to the actor portrait when no token rides
-// on the speaker.
-function actorSpeaker(actor: { id?: string | null; name?: string | null }): {
-  actor?: string
-  alias?: string
-} {
-  return { actor: actor.id ?? undefined, alias: actor.name ?? undefined }
 }
 
 export async function foundrySendChatMessage(args: SendChatMessageArgs) {

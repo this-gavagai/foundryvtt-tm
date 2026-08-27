@@ -86,3 +86,20 @@ export async function stampTablemateChatOrigin(message: unknown, originUserId: s
 export function makeFakeEvent(source: GamePF2e) {
   return { ctrlKey: false, metaKey: false, shiftKey: source.user.settings['showDamageDialogs'] }
 }
+
+// Build a chat speaker for an actor WITHOUT touching the GM client's canvas.
+// ChatMessage.getSpeaker resolves scene/token from whatever scene the GM
+// happens to have open — which is wrong for a remote player's message (it can
+// pick up the GM's selected token) and is undefined when the GM has no scene
+// loaded. That canvas dependency is also what trips third-party
+// preCreateChatMessage hooks that resolve the token via `canvas.tokens.get(...)`
+// (the "Cannot read properties of undefined (reading 'get')" seen on voice-memo
+// posts). Attributing by actor id + name is canvas-independent and still shows
+// the character — the app falls back to the actor portrait when no token rides
+// on the speaker.
+export function actorSpeaker(actor: { id?: string | null; name?: string | null }): {
+  actor?: string
+  alias?: string
+} {
+  return { actor: actor.id ?? undefined, alias: actor.name ?? undefined }
+}

@@ -1,3 +1,4 @@
+import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { ApplyDamageArgs } from '@/types/api-types'
 import { getGame, getCharacter, makeAck } from '../utils/foundry'
 
@@ -27,13 +28,43 @@ function alteredDamageRoll(roll: DamageRollLike, multiplier: number): DamageRoll
   return Math.floor(Math.abs(roll.total) * Math.abs(multiplier))
 }
 
+// A token of the actor TAKING the damage, which PF2e requires (ApplyDamageParams
+// declares it non-optional — it drives shield-block resolution, the IWR context,
+// and the damage-taken card).
+//
+// Deliberately not the chat message's own token: the message is the damage
+// SOURCE, so its speaker is whoever dealt the damage, not who is applying it.
+//
+// getActiveTokens alone is not enough. It reads `canvas.scene` — only the scene
+// this client currently has DRAWN — and returns nothing at all when
+// `canvas.ready` is false. On the elected GM's client that made "apply damage"
+// fail whenever the GM happened to be looking at another scene, or had no scene
+// up, which has nothing to do with the player who tapped the button. So fall back
+// to the actor's dependent tokens, which core tracks across every scene.
+//
+// Order: the drawn scene first, so a shield-block prompt and the token HUD change
+// happen where the GM can see them; linked before unlinked, matching what PF2e's
+// own sheet picks. Which token among several equally-good ones stays arbitrary —
+// it was before, and the request carries nothing to disambiguate with.
+// getActiveTokens is overloaded (Token vs TokenDocument by its `document` flag),
+// so the type comes from getDependentTokens, which has one signature and returns
+// the documents applyDamage wants.
+type RecipientToken = ReturnType<CharacterPF2e['getDependentTokens']>[number]
+
+function recipientToken(actor: CharacterPF2e): RecipientToken | undefined {
+  const drawn = actor.getActiveTokens(true, true)[0] ?? actor.getActiveTokens(false, true)[0]
+  if (drawn) return drawn
+
+  const dependents = actor.getDependentTokens()
+  return dependents.find((token) => token.actorLink) ?? dependents[0]
+}
+
 export async function foundryApplyDamage(args: ApplyDamageArgs) {
   const source = getGame()
   const actor = getCharacter(source, args.characterId)
 
   // Failures throw: the dispatch's central catch turns them into error acks,
-  // so the app shows "action failed" instead of a tap that silently did
-  // nothing (most commonly: the actor has no token on the active scene).
+  // so the app shows "action failed" instead of a tap that silently did nothing.
   const message = source.messages.get(args.messageId)
   if (!message) throw new Error(`Chat message ${args.messageId} not found`)
 
@@ -43,8 +74,8 @@ export async function foundryApplyDamage(args: ApplyDamageArgs) {
     throw new Error(`No damage roll at index ${rollIndex}`)
   }
 
-  const token = actor.getActiveTokens(true, true)[0]
-  if (!token) throw new Error(`${actor.name} has no token on the active scene`)
+  const token = recipientToken(actor)
+  if (!token) throw new Error(`${actor.name} has no token on any scene`)
 
   switch (args.mode) {
     case 'half':

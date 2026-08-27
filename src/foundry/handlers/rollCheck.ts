@@ -80,6 +80,8 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   const rawModifiers = flatMod
     ? [
         ...args.modifiers,
+        // English literal: neither PF2e nor core defines a key for this, and the
+        // module ships no lang files of its own. See localizeOr in globals.ts.
         { label: 'Situational', modifier: flatMod, enabled: true, ignored: false }
       ]
     : args.modifiers

@@ -1,6 +1,6 @@
 import type { MacroPF2e } from '@7h3laughingman/pf2e-types'
 import type { RunActionableArgs } from '@/types/api-types'
-import { getGame, makeAck } from '../utils/foundry'
+import { actorSpeaker, getGame, makeAck } from '../utils/foundry'
 import { chatMessageClass, resolveUuid } from '../globals'
 import { getRequestingUser, userCanRunMacro } from '../utils/permissions'
 import { resolveRequestedTargets } from '../utils/target'
@@ -88,10 +88,18 @@ export async function foundryRunActionable(args: RunActionableArgs) {
   }
 
   // Cancel callback: post a chat message indicating the macro stopped the
-  // action. Matches the lang/en.json "actionable.action.cancel" text.
+  // action. Matches toolbelt's own "actionable.action.cancel" wording.
+  //
+  // actorSpeaker, NOT ChatMessage.getSpeaker: getSpeaker resolves scene and token
+  // from whatever scene THIS client has open, which on the elected GM's machine is
+  // the GM's own view — it can attach the GM's selected token to a remote player's
+  // message, and it is undefined when the GM has no scene loaded. That canvas
+  // dependency is also what trips third-party preCreateChatMessage hooks which
+  // resolve the token via `canvas.tokens.get(...)`. See actorSpeaker's own note;
+  // every other message this module posts already goes through it.
   const cancel = async () => {
     return chatMessageClass().create({
-      speaker: chatMessageClass().getSpeaker({ actor }),
+      speaker: actorSpeaker(actor),
       content: `<strong>${item.name}</strong> action was cancelled by its macro.`
     })
   }

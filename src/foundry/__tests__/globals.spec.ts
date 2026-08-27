@@ -10,6 +10,7 @@ import {
   hooks,
   itemClass,
   localize,
+  localizeOr,
   notifications,
   resolveUuid,
   resolveUuidSync,
@@ -206,5 +207,28 @@ describe('straight reads', () => {
     // An untranslated key comes back unchanged, which is what lets callers fall
     // back to a raw slug.
     expect(localize('PF2E.Nope')).toBe('PF2E.Nope')
+  })
+})
+
+describe('localizeOr', () => {
+  // The module ships no Foundry lang files, so a GM-facing string it puts in chat
+  // borrows the system's key. Foundry returns a key it cannot translate UNCHANGED,
+  // which would put a raw "PF2E.Something" in front of the table — this catches
+  // that and shows real words instead.
+  it("uses the system's wording when the key resolves", () => {
+    g.game = { i18n: { localize: (k: string) => (k === 'PF2E.FlatCheck' ? 'Flat Check' : k) } }
+    expect(localizeOr('PF2E.FlatCheck', 'fallback')).toBe('Flat Check')
+  })
+
+  it('falls back when the key was renamed away', () => {
+    g.game = { i18n: { localize: (k: string) => k } }
+    expect(localizeOr('PF2E.FlatCheck', 'Flat Check')).toBe('Flat Check')
+  })
+
+  // A localization that happens to equal its own key is indistinguishable from an
+  // untranslated one, and the fallback is the same words anyway.
+  it('is harmless when a translation equals its key', () => {
+    g.game = { i18n: { localize: (k: string) => k } }
+    expect(localizeOr('Flat Check', 'Flat Check')).toBe('Flat Check')
   })
 })
