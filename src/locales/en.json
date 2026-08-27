@@ -312,6 +312,7 @@
     "basic": "basic",
     "ac": "AC",
     "cast": "Cast",
+    "chooseVariant": "Choose a version",
     "spellList": "Spell List",
     "spellAttack": "Spell Attack",
     "rollSpellAttack": "Roll Spell Attack",

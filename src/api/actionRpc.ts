@@ -159,26 +159,30 @@ export const castSpell = (
   actor: TablemateActorRef,
   spellId: string,
   castingLevel: number,
-  castingSlot: number
+  castingSlot: number,
+  overlayIds?: string[]
 ) =>
   sendAction(TM.CAST_SPELL, {
     ...fromActorTargeted(actor),
     id: spellId,
     rank: castingLevel,
-    slotId: castingSlot
+    slotId: castingSlot,
+    ...(overlayIds?.length ? { overlayIds } : {})
   })
 
 export const castStaffSpell = (
   actor: TablemateActorRef,
   staffId: string,
   spellId: string,
-  rank: number
+  rank: number,
+  overlayIds?: string[]
 ) =>
   sendAction(TM.CAST_STAFF_SPELL, {
     ...fromActorTargeted(actor),
     staffId,
     spellId,
-    rank
+    rank,
+    ...(overlayIds?.length ? { overlayIds } : {})
   })
 
 // Generic over the check type so each call site's subtype payload is checked
@@ -235,13 +239,14 @@ export const selectSpellVariant = (
   actor: TablemateActorRef,
   messageId: string,
   overlayIds: string[],
-  castRank: number
+  // Omit to let the module read the rank off the card being rewritten.
+  castRank?: number
 ) =>
   sendAction(TM.SELECT_SPELL_VARIANT, {
     ...fromActor(actor),
     messageId,
     overlayIds,
-    castRank
+    ...(castRank !== undefined ? { castRank } : {})
   })
 
 export const getStrikeDamage = (

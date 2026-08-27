@@ -16,11 +16,14 @@ import {
   type SpellInfo
 } from '@/utils/spellcasting'
 import { useTraitLabels } from '@/composables/useTraitLabels'
+import type { SpellVariant } from '@/utils/spellVariants'
+import { useSpellVariantMemory } from '@/composables/useSpellVariantMemory'
 
 import Button from '@/components/widgets/ButtonWidget.vue'
 import CounterWidget from '@/components/widgets/CounterWidget.vue'
 import InfoModal from '@/components/InfoModal.vue'
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
+import ChoiceWidget from '@/components/widgets/ChoiceWidget.vue'
 import SpellSourceSection from '@/components/SpellSourceSection.vue'
 import SpellDetails from '@/components/SpellDetails.vue'
 import SpellRollModal from '@/components/SpellRollModal.vue'
@@ -120,6 +123,7 @@ function openSpellModal(id: string | undefined, info: SpellInfo) {
     if (!spell) return
     viewed.value = { kind: 'spell', spell, info }
   }
+  variantChoice.value = undefined
   infoModal.value?.open()
 }
 
@@ -149,9 +153,45 @@ const viewedConsumableSpellRollData = computed<Record<string, unknown>>(() => {
 })
 
 function castViewedSpell() {
+  const info = viewedSpellInfo.value
   return viewedSpell.value
-    ?.doSpell?.(viewedSpellInfo.value?.castingRank, viewedSpellInfo.value?.castingSlot)
+    ?.doSpell?.(info?.castingRank, info?.castingSlot, chosenOverlayIds())
     ?.then(() => infoModal.value?.close())
+}
+
+// The spell's castable variants, and the one this cast will use. `variantChoice`
+// holds an explicit pick; until the player makes one the first variant stands,
+// so the selector always shows a selected option and Cast always means
+// something definite. PF2e's own card takes the same position — when a spell has
+// variants it offers no un-varianted option at all.
+const spellVariantOptions = computed<SpellVariant[]>(
+  () => viewedSpell.value?.system?.variants ?? []
+)
+const { rememberVariant, lastVariant } = useSpellVariantMemory()
+const variantChoice = ref<string | undefined>()
+// Seeded from whatever this spell was last cast or rolled as, so the common
+// case needs no picking — but freely changeable, and never forced to match.
+const selectedVariant = computed(
+  () =>
+    variantChoice.value ??
+    lastVariant(viewedSpell.value?._id, spellVariantOptions.value) ??
+    spellVariantOptions.value[0]?.overlayId ??
+    ''
+)
+const spellVariantLabels = computed(() =>
+  Object.fromEntries(spellVariantOptions.value.map((v) => [v.overlayId, v.label]))
+)
+const spellVariantGlyphs = computed(() =>
+  Object.fromEntries(spellVariantOptions.value.map((v) => [v.overlayId, v.actionGlyph ?? '']))
+)
+
+// Only send overlays when the spell actually has variants — a plain spell must
+// keep casting exactly as it did.
+function chosenOverlayIds(): string[] | undefined {
+  if (spellVariantOptions.value.length <= 1 || !selectedVariant.value) return undefined
+  // Remembered on the cast itself, not when the selector is touched.
+  rememberVariant(viewedSpell.value?._id, selectedVariant.value)
+  return [selectedVariant.value]
 }
 
 function consumeViewedSpellItem() {
@@ -382,6 +422,25 @@ function openKnownSpells() {
             :labels="rollOptionLabels"
             :spellRollData="viewedSpellRollData"
             :consumableSpellRollData="viewedConsumableSpellRollData"
+          />
+          <!-- Which version of the spell this cast is. A PARAMETER of the cast,
+               not a separate action — so it reads as a selection above the one
+               Cast button, rather than replacing Cast with a button per
+               version. ChoiceWidget renders only when there is more than one
+               option, so a spell without variants shows nothing extra and every
+               spell keeps its Cast button in the same place.
+
+               Stacked (direction="column"): variant labels like "Heal (vs.
+               Undead)" are far too long to share a segmented row on a phone. -->
+          <ChoiceWidget
+            v-if="viewedSpell && isListening"
+            class="mt-3 w-full"
+            direction="column"
+            :choiceSet="spellVariantOptions.map((v) => v.overlayId)"
+            :labelSet="spellVariantLabels"
+            :glyphSet="spellVariantGlyphs"
+            :selected="selectedVariant"
+            @changed="(id: string) => (variantChoice = id)"
           />
         </template>
         <template #headerActions>

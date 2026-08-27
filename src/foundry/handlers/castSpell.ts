@@ -7,6 +7,8 @@ import type {
 import type { CastSpellArgs, CastStaffSpellArgs, ConsumeItemArgs } from '@/types/api-types'
 import { logger } from '@/utils/utilities'
 import { getGame, makeAck } from '../utils/foundry'
+import { registerCapture } from '../chatCapture'
+import { applySpellVariantToCard, spellCardOf } from './spellVariant'
 
 declare const Hooks: {
   on: (event: string, cb: (message: unknown, data: unknown) => void) => number
@@ -109,6 +111,46 @@ async function withCastTargets<T>(
   }
 }
 
+// The chat card a cast produced. Captured by request uuid rather than by
+// grabbing the newest message — PF2e's cast() creates the card internally and
+// returns nothing, and an interleaved request could otherwise be mistaken for
+// this one.
+//
+// Best-effort by design: a cast that posts no card (or posts one the capture
+// misses within its timeout) still succeeded.
+async function castMessageId(
+  uuid: string,
+  cast: () => Promise<unknown>
+): Promise<string | undefined> {
+  const capture = registerCapture(uuid)
+  await cast()
+  const message = await capture
+  return message?.id ?? message?._id ?? undefined
+}
+
+// Apply the variant the player chose before casting to the card the cast just
+// posted. No card means the cast spent nothing (an expended slot, say), so
+// there is deliberately nothing to show — see applySpellVariantToCard.
+//
+// A failure here is swallowed rather than thrown: the spell IS cast and the
+// resource IS spent by this point, so reporting the whole cast as failed would
+// be a lie. The card simply stays on its base version, which the player can
+// still change from the card itself.
+async function applyChosenVariant(
+  source: ReturnType<typeof getGame>,
+  actorId: string | null | undefined,
+  messageId: string | undefined,
+  overlayIds: string[] | undefined,
+  rank: number
+): Promise<void> {
+  if (!overlayIds?.length || !messageId) return
+  try {
+    await applySpellVariantToCard(spellCardOf(source, messageId, actorId), overlayIds, rank)
+  } catch (error) {
+    logger.warn('TABLEMATE: cast succeeded but its variant could not be applied', error)
+  }
+}
+
 export async function foundryCastSpell(args: CastSpellArgs) {
   logger.debug('cast spell', args)
   const source = getGame()
@@ -123,17 +165,20 @@ export async function foundryCastSpell(args: CastSpellArgs) {
   if (!spellLocation) {
     throw new Error(`spell "${item.name}" has no spellcasting entry to cast from`)
   }
-  await withCastTargets(
-    { spellUuid: item.uuid, spellId: item.id, actorId: actor.id },
-    args.targets,
-    args.targetScene,
-    () =>
-      spellLocation.cast(item, {
-        rank: args.rank as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10,
-        slotId: args.slotId
-      })
+  const messageId = await castMessageId(args.uuid, () =>
+    withCastTargets(
+      { spellUuid: item.uuid, spellId: item.id, actorId: actor.id },
+      args.targets,
+      args.targetScene,
+      () =>
+        spellLocation.cast(item, {
+          rank: args.rank as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10,
+          slotId: args.slotId
+        })
+    )
   )
-  return makeAck(args)
+  await applyChosenVariant(source, actor.id, messageId, args.overlayIds, args.rank)
+  return { ...makeAck(args), ...(messageId ? { messageId } : {}) }
 }
 
 export async function foundryCastStaffSpell(args: CastStaffSpellArgs) {
@@ -157,21 +202,24 @@ export async function foundryCastStaffSpell(args: CastStaffSpellArgs) {
   // Pass spontaneous: { entryId: '' } — pf2e-dailies filters spontaneous entries by
   // entryId, so a blank ID matches nothing, entries.length === 0, and the dialog is
   // skipped. The cast proceeds straight to the normal charge-deduction path.
-  await withCastTargets(
-    { spellUuid: spell.uuid, spellId: spell.id, actorId: actor.id },
-    args.targets,
-    args.targetScene,
-    () =>
-      (
-        entry as SpellcastingEntryPF2e<ActorPF2e<null>> & {
-          cast: (spell: SpellPF2e<ActorPF2e<null>>, options: object) => Promise<void>
-        }
-      ).cast(spell, {
-        rank: args.rank as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10,
-        spontaneous: { entryId: '' }
-      })
+  const messageId = await castMessageId(args.uuid, () =>
+    withCastTargets(
+      { spellUuid: spell.uuid, spellId: spell.id, actorId: actor.id },
+      args.targets,
+      args.targetScene,
+      () =>
+        (
+          entry as SpellcastingEntryPF2e<ActorPF2e<null>> & {
+            cast: (spell: SpellPF2e<ActorPF2e<null>>, options: object) => Promise<void>
+          }
+        ).cast(spell, {
+          rank: args.rank as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10,
+          spontaneous: { entryId: '' }
+        })
+    )
   )
-  return makeAck(args)
+  await applyChosenVariant(source, actor.id, messageId, args.overlayIds, args.rank)
+  return { ...makeAck(args), ...(messageId ? { messageId } : {}) }
 }
 
 export async function foundryConsumeItem(args: ConsumeItemArgs) {

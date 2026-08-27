@@ -103,14 +103,15 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
       ?.map((item) => ({
         ...makeSpell(item),
         delete: () => deleteActorItem(actor, item._id!),
-        doSpell: (rank: number | undefined, slot: number | undefined) => {
+        doSpell: (rank: number | undefined, slot: number | undefined, overlayIds?: string[]) => {
           if (rank === undefined || slot === undefined) return Promise.resolve(null)
-          return castSpell(actor, item._id!, rank, slot)
+          return castSpell(actor, item._id!, rank, slot, overlayIds)
         },
         doSpellAttack: (
           attackNumber: 1 | 2 | 3,
           result?: number,
-          modifierOverrides?: Record<string, boolean>
+          modifierOverrides?: Record<string, boolean>,
+          overlayIds?: string[]
         ) =>
           rollCheck(
             actor,
@@ -118,7 +119,8 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
             {
               entryId: item.system.location?.value ?? '',
               spellId: item._id ?? undefined,
-              attackNumber
+              attackNumber,
+              overlayIds
             },
             { d20: [result ?? 0] },
             [],
@@ -128,26 +130,30 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
           mapIncreases: 0 | 1 | 2 = 0,
           castingRank?: number,
           result?: DiceResults,
-          modifierOverrides?: Record<string, boolean>
+          modifierOverrides?: Record<string, boolean>,
+          overlayIds?: string[]
         ) =>
           rollCheck(
             actor,
             'spellDamage',
-            { spellId: item._id ?? '', mapIncreases, castingRank },
+            { spellId: item._id ?? '', mapIncreases, castingRank, overlayIds },
             result ?? {},
             [],
             modifierOverrides ? { modifierOverrides } : {}
           ),
-        getDamage: (castingRank?: number, modifierOverrides?: Record<string, boolean>) =>
-          getSpellDamage(actor, item._id!, castingRank, modifierOverrides)
+        getDamage: (
+          castingRank?: number,
+          modifierOverrides?: Record<string, boolean>,
+          overlayIds?: string[]
+        ) => getSpellDamage(actor, item._id!, castingRank, modifierOverrides, overlayIds)
       }))
 
     const dailies = actor.value?.flags?.['pf2e-dailies'] as PF2eDailiesFlags
     const staves = dailies?.extra?.dailies?.staves
     const staffSpells = (staves?.spells ?? []).filter(isSpellSource).map((i) => ({
       ...makeSpell(i),
-      doSpell: (rank: number | undefined) =>
-        castStaffSpell(actor, staves!.staffId!, i._id!, rank ?? 1)
+      doSpell: (rank: number | undefined, _slot: number | undefined, overlayIds?: string[]) =>
+        castStaffSpell(actor, staves!.staffId!, i._id!, rank ?? 1, overlayIds)
     }))
 
     return [...(actorSpells ?? []), ...staffSpells]
@@ -184,17 +190,18 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
       },
       spells: (staffData?.spells ?? []).filter(isSpellSource).map((i) => ({
         ...makeSpell(i),
-        doSpell: (rank: number | undefined) =>
-          castStaffSpell(actor, staffData!.staffId!, i._id!, rank ?? 1),
+        doSpell: (rank: number | undefined, _slot: number | undefined, overlayIds?: string[]) =>
+          castStaffSpell(actor, staffData!.staffId!, i._id!, rank ?? 1, overlayIds),
         doSpellAttack: (
           attackNumber: 1 | 2 | 3,
           result?: number,
-          modifierOverrides?: Record<string, boolean>
+          modifierOverrides?: Record<string, boolean>,
+          overlayIds?: string[]
         ) =>
           rollCheck(
             actor,
             'spellAttack',
-            { entryId: staffEntryId, spellId: i._id ?? undefined, attackNumber },
+            { entryId: staffEntryId, spellId: i._id ?? undefined, attackNumber, overlayIds },
             { d20: [result ?? 0] },
             [],
             modifierOverrides ? { modifierOverrides } : {}
@@ -203,18 +210,22 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
           mapIncreases: 0 | 1 | 2 = 0,
           castingRank?: number,
           result?: DiceResults,
-          modifierOverrides?: Record<string, boolean>
+          modifierOverrides?: Record<string, boolean>,
+          overlayIds?: string[]
         ) =>
           rollCheck(
             actor,
             'spellDamage',
-            { spellId: i._id ?? '', mapIncreases, castingRank },
+            { spellId: i._id ?? '', mapIncreases, castingRank, overlayIds },
             result ?? {},
             [],
             modifierOverrides ? { modifierOverrides } : {}
           ),
-        getDamage: (castingRank?: number, modifierOverrides?: Record<string, boolean>) =>
-          getSpellDamage(actor, i._id!, castingRank, modifierOverrides)
+        getDamage: (
+          castingRank?: number,
+          modifierOverrides?: Record<string, boolean>,
+          overlayIds?: string[]
+        ) => getSpellDamage(actor, i._id!, castingRank, modifierOverrides, overlayIds)
       })),
       expended: staffData?.expended,
       setStaffCharges: (newValue: number) => {

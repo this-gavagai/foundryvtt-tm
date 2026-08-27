@@ -438,13 +438,14 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
             // and the Foundry handler would throw. The sheet reads the absence
             // and hides the button.
             doSpell: entry
-              ? (rank: number | undefined, slot: number | undefined) =>
-                  castSpell(actor, item._id!, rank ?? castRank ?? 1, slot ?? 0)
+              ? (rank: number | undefined, slot: number | undefined, overlayIds?: string[]) =>
+                  castSpell(actor, item._id!, rank ?? castRank ?? 1, slot ?? 0, overlayIds)
               : undefined,
             doSpellAttack: (
               attackNumber: 1 | 2 | 3,
               result?: number,
-              modifierOverrides?: Record<string, boolean>
+              modifierOverrides?: Record<string, boolean>,
+              overlayIds?: string[]
             ) =>
               rollCheck(
                 actor,
@@ -452,7 +453,8 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
                 {
                   entryId: item.system?.location?.value ?? '',
                   spellId: item._id ?? undefined,
-                  attackNumber
+                  attackNumber,
+                  overlayIds
                 },
                 { d20: [result ?? 0] },
                 [],
@@ -462,18 +464,28 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
               mapIncreases: 0 | 1 | 2 = 0,
               castingRank?: number,
               result?: DiceResults,
-              modifierOverrides?: Record<string, boolean>
+              modifierOverrides?: Record<string, boolean>,
+              overlayIds?: string[]
             ) =>
               rollCheck(
                 actor,
                 'spellDamage',
-                { spellId: item._id ?? '', mapIncreases, castingRank: castingRank ?? castRank },
+                {
+                  spellId: item._id ?? '',
+                  mapIncreases,
+                  castingRank: castingRank ?? castRank,
+                  overlayIds
+                },
                 result ?? {},
                 [],
                 modifierOverrides ? { modifierOverrides } : {}
               ),
-            getDamage: (castingRank?: number, modifierOverrides?: Record<string, boolean>) =>
-              getSpellDamage(actor, item._id!, castingRank ?? castRank, modifierOverrides)
+            getDamage: (
+              castingRank?: number,
+              modifierOverrides?: Record<string, boolean>,
+              overlayIds?: string[]
+            ) =>
+              getSpellDamage(actor, item._id!, castingRank ?? castRank, modifierOverrides, overlayIds)
           } as NpcSpell
         })
     }),

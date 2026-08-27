@@ -362,7 +362,8 @@ describe('useNpc — spellcasting', () => {
     const meta = npc.spells.value?.find((s) => s._id === 'meta')
     expect(meta?.castRank).toBe(8)
     meta?.doSpell?.(undefined, undefined)
-    expect(castSpell).toHaveBeenCalledWith(expect.anything(), 'meta', 8, 0)
+    // Trailing undefined: no spell variant was chosen for this cast.
+    expect(castSpell).toHaveBeenCalledWith(expect.anything(), 'meta', 8, 0, undefined)
   })
 
   it('leaves a cantrip without a cast rank so Foundry auto-scales it', () => {
@@ -394,7 +395,7 @@ describe('useNpc — spellcasting', () => {
     const { npc } = useNpc(actorRef(hag()))
     const meta = npc.spells.value?.find((s) => s._id === 'meta')
     meta?.getDamage?.()
-    expect(getSpellDamage).toHaveBeenCalledWith(expect.anything(), 'meta', 8, undefined)
+    expect(getSpellDamage).toHaveBeenCalledWith(expect.anything(), 'meta', 8, undefined, undefined)
     meta?.doSpellDamage?.(0)
     expect(rollCheck).toHaveBeenCalledWith(
       expect.anything(),
@@ -497,7 +498,13 @@ describe('useNpc — unattached spells', () => {
     const weather = npc.spells.value?.find((s) => s._id === 'weather')
     expect(weather?.castRank).toBe(8)
     weather?.getDamage?.()
-    expect(getSpellDamage).toHaveBeenCalledWith(expect.anything(), 'weather', 8, undefined)
+    expect(getSpellDamage).toHaveBeenCalledWith(
+      expect.anything(),
+      'weather',
+      8,
+      undefined,
+      undefined
+    )
   })
 
   it('treats them as non-innate, so no uses counter appears', () => {

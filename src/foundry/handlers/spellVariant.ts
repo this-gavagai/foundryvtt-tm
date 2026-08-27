@@ -45,6 +45,7 @@ type VariantCardMessage = {
 }
 
 type SpellCardMessage = {
+  flags?: { pf2e?: { origin?: { castRank?: number | null } | null } | null }
   _source?: { whisper?: string[]; author?: string | null }
   whisper?: string[]
   author?: { id?: string; _id?: string } | string | null
@@ -76,6 +77,67 @@ function originalAuthorId(message: SpellCardMessage): string | undefined {
   return author?.id ?? author?._id ?? undefined
 }
 
+// Rewrite a posted spell card to one of the spell's variants (or, with no
+// overlays, back to the base version).
+//
+// Shared by the two ways a variant gets chosen: tapping a variant button on the
+// card, and picking one before casting — the cast posts its normal card and
+// this immediately rewrites it. Casting deliberately does NOT take a different
+// route: `spellLocation.cast()` stays the single call every module wrapper in
+// the world sees, and a cast that spends no slot posts no card, so there is
+// nothing here to rewrite and no way to show a card for a cast that didn't
+// happen.
+export async function applySpellVariantToCard(
+  message: SpellCardMessage,
+  overlayIds: string[],
+  requestedRank?: number
+): Promise<void> {
+  const spell = spellFromMessage(message)
+  if (!spell) throw new Error('Chat message is not a spell card')
+
+  // The rank belongs to the cast the card records, so the card is the better
+  // source. An explicit rank still wins — a chat-card click reads data-cast-rank
+  // straight off the DOM it was rendered from, which is the same value.
+  const requested = requestedRank ?? message.flags?.pf2e?.origin?.castRank ?? undefined
+  const castRank =
+    typeof requested === 'number' && Number.isInteger(requested) && requested > 0 ? requested : 1
+  // No overlays means the "base variant" button: revert the card to the
+  // un-overlaid spell (PF2e's else-branch).
+  const variant = overlayIds.length
+    ? spell.loadVariant({ overlayIds, castRank })
+    : spell.loadBaseVariant()
+  if (!variant) throw new Error('Spell variant could not be loaded')
+
+  const card = await variant.toMessage(null, {
+    create: false,
+    ...(overlayIds.length ? { data: { castRank } } : {})
+  })
+  if (!card) throw new Error('Spell variant produced no chat card')
+
+  const whisper = message._source?.whisper ?? message.whisper ?? []
+  const update = card.clone({ whisper }).toObject()
+  const author = originalAuthorId(message)
+
+  await message.update(author ? { ...update, author } : update)
+}
+
+// Locate a posted spell card and confirm it belongs to the requesting actor.
+export function spellCardOf(
+  source: ReturnType<typeof getGame>,
+  messageId: string,
+  actorId: string | null | undefined
+): SpellCardMessage {
+  const message = source.messages.get(messageId) as unknown as SpellCardMessage | undefined
+  if (!message) throw new Error(`Chat message ${messageId} not found`)
+  // Ownership of the actor is already checked by the dispatch (AUTH_POLICY),
+  // but that only proves the requester owns SOME actor — pin it to the one this
+  // card was cast by, so a player can't rewrite another character's card.
+  if (message.speaker?.actor !== actorId) {
+    throw new Error('Spell card belongs to a different actor')
+  }
+  return message
+}
+
 export async function foundrySelectSpellVariant(args: SelectSpellVariantArgs) {
   const source = getGame()
   const actor = getCharacter(source, args.characterId)
@@ -83,38 +145,8 @@ export async function foundrySelectSpellVariant(args: SelectSpellVariantArgs) {
   // Every failure throws: the dispatch's catch turns it into an error ack, so
   // the app reports the tap as failed rather than leaving a spinner on a card
   // that never changed.
-  const message = source.messages.get(args.messageId) as unknown as SpellCardMessage | undefined
-  if (!message) throw new Error(`Chat message ${args.messageId} not found`)
-
-  // Ownership of the actor is already checked by the dispatch (AUTH_POLICY),
-  // but that only proves the requester owns SOME actor — pin it to the one this
-  // card was cast by, so a player can't rewrite another character's card.
-  if (message.speaker?.actor !== actor._id) {
-    throw new Error('Spell card belongs to a different actor')
-  }
-
-  const spell = spellFromMessage(message)
-  if (!spell) throw new Error(`Chat message ${args.messageId} is not a spell card`)
-
-  const castRank = Number.isInteger(args.castRank) && args.castRank > 0 ? args.castRank : 1
-  // No overlays means the "base variant" button: revert the card to the
-  // un-overlaid spell (PF2e's else-branch).
-  const variant = args.overlayIds.length
-    ? spell.loadVariant({ overlayIds: args.overlayIds, castRank })
-    : spell.loadBaseVariant()
-  if (!variant) throw new Error(`Spell variant could not be loaded for ${args.messageId}`)
-
-  const card = await variant.toMessage(null, {
-    create: false,
-    ...(args.overlayIds.length ? { data: { castRank } } : {})
-  })
-  if (!card) throw new Error(`Spell variant produced no chat card for ${args.messageId}`)
-
-  const whisper = message._source?.whisper ?? message.whisper ?? []
-  const update = card.clone({ whisper }).toObject()
-  const author = originalAuthorId(message)
-
-  await message.update(author ? { ...update, author } : update)
+  const message = spellCardOf(source, args.messageId, actor._id)
+  await applySpellVariantToCard(message, args.overlayIds, args.castRank)
 
   return makeAck(args)
 }

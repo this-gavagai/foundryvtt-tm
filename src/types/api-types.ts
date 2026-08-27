@@ -277,6 +277,9 @@ export interface CastSpellArgs {
   characterId: string
   rank: number
   slotId: number
+  // Spell-variant overlays chosen at cast time. The slot is spent by the normal
+  // cast either way; these decide which version the resulting card shows.
+  overlayIds?: string[]
   uuid: string
   targets: string[]
   targetScene?: string
@@ -319,6 +322,8 @@ export interface CastStaffSpellArgs {
   staffId: string
   spellId: string
   rank: number
+  // See CastSpellArgs.
+  overlayIds?: string[]
   targets: string[]
   targetScene?: string
   uuid: string
@@ -332,7 +337,10 @@ export interface SelectSpellVariantArgs {
   characterId: string
   messageId: string
   overlayIds: string[]
-  castRank: number
+  // Optional: the rank the card was cast at. A chat-card click reads it off the
+  // card's own data-cast-rank; the post-cast picker omits it, and the module
+  // takes it from the message's origin flags instead.
+  castRank?: number
   uuid: string
 }
 export interface ConsumeItemArgs {
@@ -763,8 +771,13 @@ export interface ResponseByAction {
   [TM.GET_COMPENDIUM_ITEM]: { compendiumItem: CompendiumItemData | null }
   [TM.LIST_COMPENDIA]: { compendia: CompendiumPackInfo[] }
   [TM.GET_COMPENDIUM_INDEX]: { compendiumIndex: CompendiumIndexEntry[] }
-  [TM.CAST_SPELL]: PlainAck
-  [TM.CAST_STAFF_SPELL]: PlainAck
+  // The chat card the cast posted, when one was captured — lets the app offer
+  // the spell's variants for that card. Absent when the cast produced no card.
+  [TM.CAST_SPELL]: { messageId?: string }
+  // As CAST_SPELL: the card the cast posted, so the app can offer the spell's
+  // variants for it. A staff spell is not a real actor item, but its card still
+  // resolves back to a spell document, so the variant rewrite works on it.
+  [TM.CAST_STAFF_SPELL]: { messageId?: string }
   [TM.SELECT_SPELL_VARIANT]: PlainAck
   [TM.CONSUME_ITEM]: PlainAck
   [TM.SEND_CHAT_MESSAGE]: PlainAck

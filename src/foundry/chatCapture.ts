@@ -13,7 +13,7 @@
 // tablemate request, the GM typing in chat, or a late message from a prior
 // request from being mistaken for this request's result.
 
-export type CapturedMessage = { rolls?: unknown[] }
+export type CapturedMessage = { id?: string | null; _id?: string | null; rolls?: unknown[] }
 
 const captures = new Map<string, (msg: CapturedMessage | undefined) => void>()
 

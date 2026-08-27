@@ -8,6 +8,8 @@ import { useInjectedNpc } from '@/composables/injectKeys'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 import { useTraitLabels } from '@/composables/useTraitLabels'
+import type { SpellVariant } from '@/utils/spellVariants'
+import { useSpellVariantMemory } from '@/composables/useSpellVariantMemory'
 import {
   buildOrphanSpells,
   buildSpellbook,
@@ -21,6 +23,7 @@ import {
 import type { Roll } from '@/types/roll-types'
 
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
+import ChoiceWidget from '@/components/widgets/ChoiceWidget.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import CounterWidget from '@/components/widgets/CounterWidget.vue'
 import InfoModal from '@/components/InfoModal.vue'
@@ -100,6 +103,7 @@ function openSpellModal(id: string | undefined, info: SpellInfo) {
   const spell = spells.value?.find((s) => s._id === id)
   if (!spell) return
   viewed.value = { kind: 'spell', spell, info }
+  variantChoice.value = undefined
   infoModal.value?.open()
 }
 
@@ -166,8 +170,37 @@ const viewedSpellRollData = computed<Record<string, unknown>>(() => {
 
 function castViewedSpell() {
   return viewedSpell.value
-    ?.doSpell?.(viewedCastRank.value, viewedSpellInfo.value?.castingSlot)
+    ?.doSpell?.(viewedCastRank.value, viewedSpellInfo.value?.castingSlot, chosenOverlayIds())
     ?.then(() => infoModal.value?.close())
+}
+
+// Variant selection — see SpellList, which offers the identical choice.
+const spellVariantOptions = computed<SpellVariant[]>(
+  () => viewedSpell.value?.system?.variants ?? []
+)
+const { rememberVariant, lastVariant } = useSpellVariantMemory()
+const variantChoice = ref<string | undefined>()
+// Seeded from whatever this spell was last cast or rolled as, so the common
+// case needs no picking — but freely changeable, and never forced to match.
+const selectedVariant = computed(
+  () =>
+    variantChoice.value ??
+    lastVariant(viewedSpell.value?._id, spellVariantOptions.value) ??
+    spellVariantOptions.value[0]?.overlayId ??
+    ''
+)
+const spellVariantLabels = computed(() =>
+  Object.fromEntries(spellVariantOptions.value.map((v) => [v.overlayId, v.label]))
+)
+const spellVariantGlyphs = computed(() =>
+  Object.fromEntries(spellVariantOptions.value.map((v) => [v.overlayId, v.actionGlyph ?? '']))
+)
+
+function chosenOverlayIds(): string[] | undefined {
+  if (spellVariantOptions.value.length <= 1 || !selectedVariant.value) return undefined
+  // Remembered on the cast itself, not when the selector is touched.
+  rememberVariant(viewedSpell.value?._id, selectedVariant.value)
+  return [selectedVariant.value]
 }
 
 // Mirrors PF2e's SpellcastingEntry#consume: a cantrip is always available, an
@@ -321,6 +354,17 @@ const hasSpellcasting = computed(
             :labels="rollOptionLabels"
             :spellRollData="viewedSpellRollData"
             :consumableSpellRollData="{}"
+          />
+          <!-- Variant selection — see SpellList for the reasoning. -->
+          <ChoiceWidget
+            v-if="viewedSpell && isListening"
+            class="mt-3 w-full"
+            direction="column"
+            :choiceSet="spellVariantOptions.map((v) => v.overlayId)"
+            :labelSet="spellVariantLabels"
+            :glyphSet="spellVariantGlyphs"
+            :selected="selectedVariant"
+            @changed="(id: string) => (variantChoice = id)"
           />
         </template>
         <template #actionButtons v-if="isListening">

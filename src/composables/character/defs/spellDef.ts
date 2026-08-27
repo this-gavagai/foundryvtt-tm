@@ -5,27 +5,35 @@ import type { Item, ItemSystem } from './item'
 import { makeItem } from './item'
 import type { RequestResolutionArgs } from '@/types/api-types'
 import type { Modifier } from './modifier'
+import { spellVariants, type SpellVariant } from '@/utils/spellVariants'
 
 export interface Spell extends Item {
   system: SpellSystem
   doSpell?: (
     rank: number | undefined,
-    slot: number | undefined
+    slot: number | undefined,
+    // Spell-variant overlays chosen before casting; see utils/spellVariants.
+    overlayIds?: string[]
   ) => Promise<RequestResolutionArgs | null>
+  // `overlayIds` on the roll methods is the variant the ROLL is made as, chosen
+  // independently of the one the spell was cast as — see useSpellVariantMemory.
   doSpellAttack?: (
     attackNumber: 1 | 2 | 3,
     result?: number,
-    modifierOverrides?: Record<string, boolean>
+    modifierOverrides?: Record<string, boolean>,
+    overlayIds?: string[]
   ) => Promise<RequestResolutionArgs | null>
   doSpellDamage?: (
     mapIncreases?: 0 | 1 | 2,
     castingRank?: number,
     result?: import('@/types/api-types').DiceResults,
-    modifierOverrides?: Record<string, boolean>
+    modifierOverrides?: Record<string, boolean>,
+    overlayIds?: string[]
   ) => Promise<RequestResolutionArgs | null>
   getDamage?: (
     castingRank?: number,
-    modifierOverrides?: Record<string, boolean>
+    modifierOverrides?: Record<string, boolean>,
+    overlayIds?: string[]
   ) => Promise<RequestResolutionArgs | null>
 }
 export interface SpellSystem extends ItemSystem {
@@ -44,6 +52,9 @@ export interface SpellSystem extends ItemSystem {
   defense: { save: { basic: Maybe<boolean>; statistic: Maybe<string> } }
   time: { value: Maybe<string> }
   hasDamage: boolean
+  // Castable variants offered by this spell, in the order PF2e lists them.
+  // Empty for the great majority of spells. See utils/spellVariants.
+  variants: SpellVariant[]
 }
 
 export interface SpellcastingEntry extends Item {
@@ -116,7 +127,8 @@ export function makeSpell(root: SpellPF2e): Spell {
         }
       },
       time: { value: root.system.time?.value },
-      hasDamage: Object.keys(root.system.damage ?? {}).length > 0
+      hasDamage: Object.keys(root.system.damage ?? {}).length > 0,
+      variants: spellVariants(root)
     }
   } as Spell
 }
