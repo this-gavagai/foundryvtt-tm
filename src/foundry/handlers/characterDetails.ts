@@ -488,16 +488,21 @@ export async function getCharacterDetails(
   return {
     action: TM.UPDATE_CHARACTER,
     actorId: actor._id ?? '',
-    // The wire types state the client-facing contract (prepared-actor shapes
-    // that parseActorData merges into TablemateActor). What actually crosses
-    // the socket is serialized source data (toObject() + the prepared-value
-    // overlays above), which the upstream instance types can't describe —
-    // these casts are the single seam where the two shape families meet.
+    // The single seam where two shape families meet. The wire types state the
+    // client-facing contract (prepared-actor shapes that parseActorData merges
+    // into TablemateActor); what actually crosses the socket is serialized
+    // source data — toObject() plus the prepared-value overlays above — which no
+    // upstream instance type describes.
+    //
+    // Only the actor payload needs the trip through `unknown`: it is a union of
+    // every actor type's source data, which shares too little with
+    // Partial<TablemateActor> for a comparability check to pass. The other two
+    // are checked `as`, so a drift in their wire shape still fails to compile.
     actor: actorPayload as unknown as UpdateCharacterDetailsArgs['actor'],
-    system: systemPayload as unknown as UpdateCharacterDetailsArgs['system'],
+    system: systemPayload as UpdateCharacterDetailsArgs['system'],
     languages,
     proficiencyLabels,
-    inventory: inventory as unknown as UpdateCharacterDetailsArgs['inventory'],
+    inventory: inventory as UpdateCharacterDetailsArgs['inventory'],
     activeRules: [...activeRules],
     elementalBlasts: cleanBlasts,
     spellcastingModifiers,

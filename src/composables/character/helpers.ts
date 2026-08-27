@@ -18,13 +18,13 @@ export type Maybe<T> = T | undefined
 // FIELDS line up; the methods do not, and reaching for one fails at runtime, not
 // at compile time.)
 //
-// Second, the assertion has to go through `unknown`. PF2e's item classes carry
-// the actor they hang off as a type parameter, and the Tablemate actor types
-// intersect TablemateActorExtras — which reaches back into
-// CharacterPF2e['inventory'] — into that actor. Relating an item of that actor
-// to anything else re-expands the intersection until TypeScript gives up with
-// TS2589, and that includes the comparability check a single `as` would do. The
-// double cast is a compiler limit, not a claim about the values.
+// Second, the items are collected as `{ type?: string }` before the assertion
+// rather than as PF2e items. Those carry the actor they hang off as a type
+// parameter, and the Tablemate actor types intersect TablemateActorExtras —
+// which reaches back into CharacterPF2e['inventory'] — into that actor, so
+// relating one to anything else re-expands the intersection until TypeScript
+// gives up with TS2589. Reading only the discriminant sidesteps that, and keeps
+// the assertion a checked `as` instead of a trip through `unknown`.
 //
 // What it buys: the runtime test and the returned type are decided together, in
 // one place, off PF2e's own ItemInstances map — so a call site gets
@@ -36,9 +36,7 @@ export function itemsOfType<T extends ItemType>(
 ): Array<ItemInstances<ActorPF2e | null>[T]> {
   const wanted = new Set<string>(types)
   const items: Array<{ type?: string }> = actor?.items ? [...actor.items] : []
-  return items.filter((i) => wanted.has(i.type ?? '')) as unknown as Array<
-    ItemInstances<ActorPF2e | null>[T]
-  >
+  return items.filter((i) => wanted.has(i.type ?? '')) as Array<ItemInstances<ActorPF2e | null>[T]>
 }
 
 // Narrow one already-fetched item to a single type.

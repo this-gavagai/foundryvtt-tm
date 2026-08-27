@@ -113,18 +113,14 @@ export function makeStrike(
       // physically-loaded subitem (not what the dropdown sets).
       selected: { id: root?.selectedAmmoId ?? '' }
     },
-    // PF2e's StatisticModifier exposes `modifiers` as a prototype getter,
-    // not an own property. JSON serialization only captures own enumerable
-    // properties, so after the socket round-trip `root.modifiers` is
-    // undefined — the underlying array lives on the own property `_modifiers`.
     // PF2e's StatisticModifier exposes `modifiers` as a prototype getter over a
     // PROTECTED `_modifiers`. JSON serialization captures only own enumerable
     // properties, so after the socket round-trip the getter is gone and the
     // array is reachable only under its underscored name — which upstream will
-    // not let anything outside the class see. Hence the assertion: what the app
-    // holds is the serialized data, not an instance of that class.
+    // not let anything outside the class see, hence the assertion. What the app
+    // holds is that class's serialized data, not an instance of it.
     _modifiers: makeModifiers(
-      root?.modifiers ?? (root as unknown as { _modifiers?: RawModifier[] } | undefined)?._modifiers
+      root?.modifiers ?? (root as { _modifiers?: RawModifier[] } | undefined)?._modifiers
     )
   }
 }
