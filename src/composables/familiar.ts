@@ -1,14 +1,10 @@
 import { computed, type Ref } from 'vue'
 import type {
-  AbilityItemPF2e,
-  AbstractEffectPF2e,
-  CharacterPF2e,
-  ConditionPF2e,
   SaveType
 } from '@7h3laughingman/pf2e-types'
 import type { TablemateFamiliar } from '@/types/character-types'
 import type { Actor } from '@/composables/actor'
-import type { Field } from '@/composables/character/helpers'
+import { isItemOfType, itemsOfType, type Field } from '@/composables/character/helpers'
 import { type Action, makeAction } from '@/composables/character/defs/action'
 import { makeCondition } from '@/composables/character/defs/condition'
 import { makeEffect } from '@/composables/character/defs/effect'
@@ -29,13 +25,6 @@ type FamiliarHp = {
 
 type FamiliarMovement = {
   speeds?: Record<string, unknown>
-}
-type FamiliarActionItem = AbilityItemPF2e<CharacterPF2e> & {
-  system?: {
-    actionType?: { value?: string | null }
-    actions?: { value?: number | null }
-    traits?: { value?: string[] }
-  }
 }
 type StatInput = Parameters<typeof makeStat>[0]
 
@@ -130,10 +119,8 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
       )
     },
     actions: computed(() =>
-      actor.value?.items
-        ?.filter((i) => i.type === 'action')
-        .map((i) => {
-          const item = i as unknown as FamiliarActionItem
+      itemsOfType(actor.value, 'action')
+        .map((item) => {
           const base = makeAction(item)
           const typeValue = item.system?.actionType?.value
           return {
@@ -148,14 +135,9 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
         })
     ),
     effects: computed(() =>
-      actor.value?.items
-        ?.filter((i) => ['effect', 'condition'].includes(i?.type ?? ''))
+      itemsOfType(actor.value, 'effect', 'condition')
         .map((i) => {
-          const item = i as unknown as AbstractEffectPF2e<CharacterPF2e>
-          const base =
-            i.type === 'condition'
-              ? makeCondition(i as unknown as ConditionPF2e<CharacterPF2e>)
-              : makeEffect(item)
+          const base = isItemOfType(i, 'condition') ? makeCondition(i) : makeEffect(i)
           return {
             ...base,
             delete: () => deleteActorItem(actor, i._id!),

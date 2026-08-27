@@ -1,18 +1,19 @@
 import { computed, type Ref } from 'vue'
 import type {
-  AbilityItemPF2e,
-  AbstractEffectPF2e,
-  ConditionPF2e,
   NPCStrike as PF2eNpcStrike,
   SaveType,
   SlotKey,
-  SpellPF2e,
-  SpellcastingEntryPF2e,
   WeaponPF2e
 } from '@7h3laughingman/pf2e-types'
 import type { TablemateNpc } from '@/types/character-types'
 import type { Actor } from '@/composables/actor'
-import type { Field, Maybe, WritableField } from '@/composables/character/helpers'
+import {
+  isItemOfType,
+  itemsOfType,
+  type Field,
+  type Maybe,
+  type WritableField
+} from '@/composables/character/helpers'
 import { type Action, makeAction } from '@/composables/character/defs/action'
 import { makeCondition } from '@/composables/character/defs/condition'
 import { makeEffect } from '@/composables/character/defs/effect'
@@ -348,12 +349,10 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
     // shared. What differs is what a bestiary caster leans on: innate entries
     // with per-spell uses instead of slots, and heavy heightening.
     spellcastingEntries: computed(() =>
-      [...(actor.value?.items ?? [])]
-        .filter((i) => i.type === 'spellcastingEntry')
+      itemsOfType(actor.value, 'spellcastingEntry')
         // Mirror Foundry's display order, which sorts items by `sort`.
         .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
-        .map((i) => {
-          const item = i as unknown as SpellcastingEntryPF2e
+        .map((item) => {
           const stats = item._id ? actor.value?.spellcastingModifiers?.[item._id] : undefined
           return {
             ...makeSpellcastingEntry(item),
@@ -397,13 +396,11 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
     ),
 
     spells: computed(() => {
-      const entries = [...(actor.value?.items ?? [])].filter((i) => i.type === 'spellcastingEntry')
-      const entryById = new Map(entries.map((i) => [i._id, i as unknown as SpellcastingEntryPF2e]))
+      const entries = itemsOfType(actor.value, 'spellcastingEntry')
+      const entryById = new Map(entries.map((i) => [i._id, i]))
       const rankOf = makeSpellRankResolver(actor.value?.system?.details?.level?.value)
-      return [...(actor.value?.items ?? [])]
-        .filter((i) => i.type === 'spell')
-        .map((i) => {
-          const item = i as unknown as SpellPF2e
+      return itemsOfType(actor.value, 'spell')
+        .map((item) => {
           const base = makeSpell(item)
           const entry = entryById.get(item.system?.location?.value)
           const innate = entry?.system?.prepared?.value === 'innate'
@@ -505,12 +502,9 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
     },
 
     effects: computed(() =>
-      actor.value?.items
-        ?.filter((i) => ['effect', 'condition'].includes(i?.type ?? ''))
+      itemsOfType(actor.value, 'effect', 'condition')
         .map((i) => {
-          const item = i as unknown as AbstractEffectPF2e
-          const base =
-            i.type === 'condition' ? makeCondition(i as unknown as ConditionPF2e) : makeEffect(item)
+          const base = isItemOfType(i, 'condition') ? makeCondition(i) : makeEffect(i)
           return {
             ...base,
             delete: () => deleteActorItem(actor, i._id!),
@@ -545,10 +539,8 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
 // PF2e stores a passive stat-block entry as an action item whose actionType is
 // 'passive'; everything else (actions, reactions, free actions) is active.
 function npcAbilities(actor: Ref<TablemateNpc | undefined>, active: boolean): Action[] {
-  return [...(actor.value?.items ?? [])]
-    .filter((i) => i.type === 'action')
-    .map((i) => {
-      const item = i as unknown as AbilityItemPF2e
+  return itemsOfType(actor.value, 'action')
+    .map((item) => {
       const typeValue = item.system?.actionType?.value
       return {
         ...makeAction(item),
