@@ -202,7 +202,10 @@ describe('useNpc', () => {
     expect(jaws.label).toBe('Jaws')
     expect(jaws.isRanged).toBe(false)
     expect(jaws.item?.name).toBe('Jaws')
-    expect(jaws.altUsages).toBeUndefined()
+    // An NPC strike has no alternate usages (PF2e types the field `never` for
+    // them), and Strike declares a list — so the empty list, not undefined,
+    // which the character strike list indexes without a guard.
+    expect(jaws.altUsages).toEqual([])
     // The MAP-0 label is trimmed to the bare modifier so the shared
     // StrikeActionSet doesn't render "Strike Strike +9".
     expect(jaws.variants.map((v) => v.label)).toEqual(['+9', 'MAP -5 (+4)', 'MAP -10 (-1)'])

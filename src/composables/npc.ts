@@ -1,10 +1,5 @@
 import { computed, type Ref } from 'vue'
-import type {
-  NPCStrike as PF2eNpcStrike,
-  SaveType,
-  SlotKey,
-  WeaponPF2e
-} from '@7h3laughingman/pf2e-types'
+import type { NPCStrike as PF2eNpcStrike, SaveType, SlotKey } from '@7h3laughingman/pf2e-types'
 import type { TablemateNpc } from '@/types/character-types'
 import type { Actor } from '@/composables/actor'
 import {
@@ -33,6 +28,25 @@ import { deleteActorItem, updateActor, updateActorItem } from '@/api/documents'
 import { castSpell, getSpellDamage, getStrikeDamage, rollCheck, rollDamage } from '@/api/actionRpc'
 import { formatTraitLabel } from '@/utils/traitLabels'
 import type { DiceResults } from '@/types/api-types'
+
+// The two fields an NPC strike's melee item is read for, neither of which
+// pf2e-types 7.x declares on MeleeSystemData.
+//
+// `weaponType` is what PF2e's own MeleePF2e.isMelee / isRanged getters read
+// (`this.system.weaponType.value === "ranged"`), and those getters do not survive
+// the socket — the app holds serialized data, not documents. The installed system
+// writes the field; the 7.x schema does not list it, and a migration there strips
+// any stored copy, so which of the two serialized copies of the item carries it
+// is version-dependent. Optional for that reason, and worth re-checking against a
+// live 7.x world.
+//
+// `range` is declared `{ increment, max } | null` on the 7.x schema and was a
+// bare number before, so it is read as unknown and only used when it IS a number
+// — an object would otherwise land on NpcStrike.range, which is a number.
+type MeleeSystemView = {
+  weaponType?: { value?: string }
+  range?: unknown
+}
 
 type StatInput = Parameters<typeof makeStat>[0]
 
@@ -273,15 +287,18 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
       (actor.value?.system?.actions ?? [])
         .filter((attack): attack is PF2eNpcStrike => attack?.type === 'strike')
         .map((attack) => {
-          // The strike's `item` is the NPC's melee item; prefer the copy on the
-          // actor (it round-trips as a full item document) and fall back to the
-          // one embedded in the strike.
-          const meleeItem = (actor.value?.items?.find((i) => i._id === attack.item?._id) ??
-            attack.item) as unknown as WeaponPF2e | undefined
-          const base = makeStrike(attack as unknown as Parameters<typeof makeStrike>[0], meleeItem)
-          const isRanged =
-            (meleeItem?.system as { weaponType?: { value?: string } } | undefined)?.weaponType
-              ?.value === 'ranged'
+          // The strike's `item` is the NPC's melee item — PF2e builds NPC strikes
+          // from those, not from carried equipment. Prefer the copy on the actor
+          // (it round-trips as a full item document) and fall back to the one
+          // embedded in the strike.
+          const meleeItem =
+            itemsOfType(actor.value, 'melee').find((i) => i._id === attack.item?._id) ??
+            attack.item
+          const meleeSystem: MeleeSystemView | undefined = meleeItem?.system
+          // `weaponType` is what PF2e's MeleePF2e.isMelee/isRanged getters read,
+          // and the getters do not survive the socket. See MeleeSystemView.
+          const isRanged = meleeSystem?.weaponType?.value === 'ranged'
+          const base = makeStrike(attack, meleeItem)
           return {
             ...base,
             // NPCs have no equipment to hold, so a strike is always available.
@@ -300,7 +317,7 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
                   : variant.label
             })),
             isRanged,
-            range: (meleeItem?.system as { range?: number } | undefined)?.range ?? undefined,
+            range: typeof meleeSystem?.range === 'number' ? meleeSystem.range : undefined,
             attackEffects: (attack.additionalEffects ?? []).map((effect) =>
               // `label` is an i18n key for the standard effects (CONFIG.PF2E
               // .attackEffects) and a plain item name for ability-granted ones;

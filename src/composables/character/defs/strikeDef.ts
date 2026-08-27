@@ -1,10 +1,12 @@
 import type { Maybe } from '@/composables/character/helpers'
 import type {
-  CharacterStrike,
+  AttackAction,
   ElementalBlast as PF2eElementalBlast,
   ElementalBlastConfig,
+  MeleePF2e,
   RawModifier,
   Statistic,
+  TraitViewData,
   WeaponPF2e
 } from '@7h3laughingman/pf2e-types'
 import { type Modifier, makeModifiers } from './modifier'
@@ -61,25 +63,41 @@ export interface Strike {
   setLoaded?: (loaded: boolean) => Promise<RequestResolutionArgs | null>
 }
 
+// What makeStrike reads off an attack.
+//
+// AttackAction is PF2e's own union for what shows up in `altUsages` — a strike or
+// an area attack — and only `label` is read off a variant, which both carry.
+// `visible` and `weaponTraits` live on BasicAttackData, which PF2e mixes into a
+// CHARACTER's attacks and does not export; an NPC's strike has neither, hence
+// optional. `selectedAmmoId` likewise: only a character's strike carries one.
+export type StrikeSource = AttackAction & {
+  visible?: boolean
+  weaponTraits?: TraitViewData[]
+  selectedAmmoId?: string | null
+}
+
 export function makeStrike(
-  root: CharacterStrike | undefined,
-  item: WeaponPF2e | undefined
+  root: StrikeSource | undefined,
+  item: WeaponPF2e | MeleePF2e | undefined
 ): Strike | undefined {
   if (!root) return undefined
   return {
     label: root?.label,
     slug: root?.slug,
     item: item ? makeWeapon(item) : undefined,
-    ready: (root as { ready?: boolean })?.ready,
-    visible: (root as { visible?: boolean })?.visible,
+    ready: root?.ready,
+    visible: root?.visible,
     variants: root?.variants.map((v, i) => ({ label: v?.label, map: i, type: undefined })),
-    altUsages: root?.altUsages?.map((a) => makeStrike(a as CharacterStrike, a.item)),
+    // `?? []` because PF2e declares altUsages optional and an NPC's strike sets
+    // it to never — where a character's strike always has the array. The Strike
+    // contract says a list, and the sheet iterates it.
+    altUsages: (root?.altUsages ?? []).map((a) => makeStrike(a, a.item)),
     traits: root?.traits?.map((t) => ({
       name: t?.name,
       label: t?.label,
       description: t?.description ?? undefined
     })),
-    weaponTraits: root?.weaponTraits?.map((t) => ({
+    weaponTraits: (root?.weaponTraits ?? []).map((t) => ({
       name: t?.name,
       label: t?.label,
       description: t?.description ?? undefined
@@ -93,14 +111,20 @@ export function makeStrike(
       // PF2e's strike carries the chosen ammo as `selectedAmmoId`; bind to it
       // rather than `ammunition.selected`, which for reload weapons reflects the
       // physically-loaded subitem (not what the dropdown sets).
-      selected: { id: (root as { selectedAmmoId?: string | null })?.selectedAmmoId ?? '' }
+      selected: { id: root?.selectedAmmoId ?? '' }
     },
     // PF2e's StatisticModifier exposes `modifiers` as a prototype getter,
     // not an own property. JSON serialization only captures own enumerable
     // properties, so after the socket round-trip `root.modifiers` is
     // undefined — the underlying array lives on the own property `_modifiers`.
+    // PF2e's StatisticModifier exposes `modifiers` as a prototype getter over a
+    // PROTECTED `_modifiers`. JSON serialization captures only own enumerable
+    // properties, so after the socket round-trip the getter is gone and the
+    // array is reachable only under its underscored name — which upstream will
+    // not let anything outside the class see. Hence the assertion: what the app
+    // holds is the serialized data, not an instance of that class.
     _modifiers: makeModifiers(
-      root?.modifiers ?? (root as CharacterStrike & { _modifiers?: RawModifier[] })?._modifiers
+      root?.modifiers ?? (root as unknown as { _modifiers?: RawModifier[] } | undefined)?._modifiers
     )
   }
 }
