@@ -3,18 +3,24 @@
 // IWR entries) into display-ready strings for the client.
 
 import type { CharacterPF2e, ItemPF2e, RawModifier } from '@7h3laughingman/pf2e-types'
-import { configPF2E, localize } from '../globals'
+import { configPF2E, localize, type ConfigPF2E } from '../globals'
 import type { SpellcastingModifierData } from '@/types/character-types'
+
+// One of PF2e's slug → i18n-key dictionaries, read by a slug that is not one of
+// the keys pf2e-types enumerates. Proficiency and trait slugs come out of actor
+// data, and homebrew adds its own, so the lookup genuinely is by arbitrary
+// string. Widening is a plain assignment, not a cast: the dictionaries stay
+// checked against PF2e's config, and only the key type opens up.
+type LabelDictionary = Record<string, string | undefined>
 
 export function localizeProficiencyLabels(system: CharacterPF2e['system']): Record<string, string> {
   const WEAPON_CATEGORIES = ['unarmed', 'simple', 'martial', 'advanced']
-  const cfg = configPF2E() as unknown as {
-    weaponCategories: Record<string, string>
-    weaponGroups: Record<string, string>
-    baseWeaponTypes: Record<string, string>
-    baseShieldTypes: Record<string, string>
-    armorCategories: Record<string, string>
-  }
+  const cfg = configPF2E()
+  const weaponCategories: LabelDictionary = cfg.weaponCategories
+  const weaponGroups: LabelDictionary = cfg.weaponGroups
+  const baseWeaponTypes: LabelDictionary = cfg.baseWeaponTypes
+  const baseShieldTypes: LabelDictionary = cfg.baseShieldTypes
+  const armorCategories: LabelDictionary = cfg.armorCategories
   const toPascal = (slug: string) =>
     slug.replace(/(?:^|-)(\w)/g, (_m, c: string) => c.toUpperCase())
   const labels: Record<string, string> = {}
@@ -24,15 +30,16 @@ export function localizeProficiencyLabels(system: CharacterPF2e['system']): Reco
     const group = /^weapon-group-([-\w]+)$/.exec(key)
     const base = /^weapon-base-([-\w]+)$/.exec(key)
     let label: string | undefined
-    if (key in cfg.weaponCategories) {
+    const categoryKey = weaponCategories[key]
+    if (categoryKey !== undefined) {
       label = WEAPON_CATEGORIES.includes(key)
         ? localize('PF2E.Actor.Character.Proficiency.Attack.' + toPascal(key))
-        : localize(cfg.weaponCategories[key])
+        : localize(categoryKey)
     } else if (group) {
-      label = localize(cfg.weaponGroups[group[1]] ?? group[1])
+      label = localize(weaponGroups[group[1]] ?? group[1])
     } else if (base) {
       const bt = base[1]
-      label = localize(cfg.baseWeaponTypes[bt] ?? cfg.baseShieldTypes[bt] ?? bt)
+      label = localize(baseWeaponTypes[bt] ?? baseShieldTypes[bt] ?? bt)
     } else if (data.label) {
       label = localize(data.label)
     }
@@ -41,7 +48,7 @@ export function localizeProficiencyLabels(system: CharacterPF2e['system']): Reco
 
   const defenses = (system?.proficiencies?.defenses ?? {}) as Record<string, { label?: string }>
   for (const [key, data] of Object.entries(defenses)) {
-    if (key in cfg.armorCategories) {
+    if (armorCategories[key] !== undefined) {
       labels[key] = localize('PF2E.Actor.Character.Proficiency.Defense.' + toPascal(key))
     } else if (data.label) {
       labels[key] = localize(data.label)
@@ -62,10 +69,8 @@ export function localizeProficiencyLabels(system: CharacterPF2e['system']): Reco
 // Falls back to the raw slug when the dictionary or key is missing.
 export function localizeRarity(slug?: string): string | undefined {
   if (!slug) return slug
-  const dict = configPF2E().rarityTraits as
-    | Record<string, string>
-    | undefined
-  const key = dict?.[slug]
+  const dict: LabelDictionary = configPF2E().rarityTraits
+  const key = dict[slug]
   return typeof key === 'string' ? localize(key) : slug
 }
 
@@ -78,7 +83,7 @@ export function localizeRarity(slug?: string): string | undefined {
 // dictionary keys, so they fall through to the raw slug — same as before.
 export function localizeTraitLabels(): Record<string, string> {
   const cfg = configPF2E()
-  const DICTIONARIES = [
+  const DICTIONARIES: Array<keyof ConfigPF2E> = [
     'actionTraits',
     'spellTraits',
     'featTraits',
@@ -88,7 +93,6 @@ export function localizeTraitLabels(): Record<string, string> {
     'equipmentTraits',
     'consumableTraits',
     'ancestryTraits',
-    'backgroundTraits',
     'classTraits',
     'creatureTraits',
     'effectTraits',

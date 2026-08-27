@@ -33,24 +33,20 @@ import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 // (the listener and every handler are Foundry-side only, and listener.ts reads
 // the bare global throughout), so the parent-frame branch could never be taken.
 export function getGame(): GamePF2e {
-  return game as unknown as GamePF2e
+  return game
 }
 
-// The settings API, as the module's own setting wrappers use it.
+// The settings API.
 //
 // Registration happens once at ready; reads can run before it (a capability
 // probe on a world that has never saved the setting), which is why each caller
 // wraps its read in try/catch and falls back to a default. Reaching through here
 // keeps that behaviour: with no `game` yet, the property access throws exactly as
 // the bare global did.
-export type SettingsApi = {
-  register: (scope: string, key: string, config: object) => void
-  get: (scope: string, key: string) => unknown
-  set: (scope: string, key: string, value: unknown) => Promise<unknown>
-}
+export type SettingsApi = GamePF2e['settings']
 
 export function settingsApi(): SettingsApi {
-  return (game as unknown as { settings: SettingsApi }).settings
+  return game.settings
 }
 
 // ── Documents by UUID ──────────────────────────────────────────────────────
@@ -103,14 +99,10 @@ export function resolveUuidSync<T = AnyDocument>(uuid: string): T | null {
 
 // ── Hooks ──────────────────────────────────────────────────────────────────
 
-export type HooksApi = {
-  on: (event: string, cb: (...args: never[]) => void) => number
-  off: (event: string, id: number) => void
-  once: (event: string, cb: (...args: never[]) => void) => number
-}
+export type HooksApi = typeof Hooks
 
 export function hooks(): HooksApi {
-  return (globalThis as unknown as { Hooks: HooksApi }).Hooks
+  return Hooks
 }
 
 // ── Notifications ──────────────────────────────────────────────────────────
@@ -141,6 +133,10 @@ export function notifications(): NotificationsApi | undefined {
 // view — wrong for a remote player's message and undefined with no scene loaded.
 // Everything here builds a speaker with utils/foundry.actorSpeaker instead; not
 // declaring the method keeps the canvas-dependent one from being reached for again.
+//
+// This is a NARROWING of core's ChatMessage, not a redescription of it: the
+// return above is a plain assignment, so the compiler checks these two members
+// against the real class and the omission of the rest costs nothing.
 export type ChatMessageClass = {
   create: (data: object) => Promise<{ id?: string | null; _id?: string | null } | undefined>
   // Core's whisper-recipient lookup: keywords, user names, and the names of
@@ -149,7 +145,7 @@ export type ChatMessageClass = {
 }
 
 export function chatMessageClass(): ChatMessageClass {
-  return (globalThis as unknown as { ChatMessage: ChatMessageClass }).ChatMessage
+  return ChatMessage
 }
 
 // ── Items ──────────────────────────────────────────────────────────────────
@@ -159,14 +155,10 @@ export function chatMessageClass(): ChatMessageClass {
 // Used to build a TEMPORARY in-memory item parented to an actor, which is how a
 // compendium item gets posted to chat: PF2e's toChat() requires an owned item,
 // and this satisfies the ownership check without persisting anything.
-export type ItemDocumentClass = new (
-  data: object,
-  context: { parent: object }
-) => { toChat(): Promise<unknown> }
+export type ItemDocumentClass = typeof CONFIG.Item.documentClass
 
 export function itemClass(): ItemDocumentClass {
-  return (globalThis as unknown as { CONFIG: { Item: { documentClass: ItemDocumentClass } } })
-    .CONFIG.Item.documentClass
+  return CONFIG.Item.documentClass
 }
 
 // ── FilePicker ─────────────────────────────────────────────────────────────
@@ -223,9 +215,7 @@ export function getChatLog(): ChatLogLike | undefined {
 // A key with no translation comes back unchanged, which is Foundry's behaviour and
 // what the callers rely on to fall back to a raw slug.
 export function localize(key: string): string {
-  return (
-    globalThis as unknown as { game: { i18n: { localize: (k: string) => string } } }
-  ).game.i18n.localize(key)
+  return game.i18n.localize(key)
 }
 
 // Localize a key, falling back to a literal when the system or core does not
@@ -247,12 +237,15 @@ export function localizeOr(key: string, fallback: string): string {
 // The PF2e config bag: slug → localization key dictionaries the label helpers
 // read (languages, rarityTraits, weaponCategories, …).
 //
-// Typed as an untyped record on purpose. pf2e-types describes ConfigPF2e far more
-// precisely than the label helpers can use — they walk it by string key and
-// localize whatever they find — so a precise type here would only be cast away at
-// every call site. Each reader narrows the one dictionary it wants.
-export function configPF2E(): Record<string, unknown> {
-  return (globalThis as unknown as { CONFIG: { PF2E: Record<string, unknown> } }).CONFIG.PF2E
+// Kept at pf2e-types' own precision rather than flattened to a string record.
+// The label helpers do walk it by name, but the names are a fixed list, so
+// typing them as `keyof ConfigPF2E` (see utils/labels.ts) turns a dictionary
+// PF2e renames into a compile error instead of labels that silently stop
+// resolving.
+export type ConfigPF2E = ConfigPF2e['PF2E']
+
+export function configPF2E(): ConfigPF2E {
+  return CONFIG.PF2E
 }
 
 // PF2e's registered Roll subclasses, searched for DamageRoll. See utils/roll.ts.

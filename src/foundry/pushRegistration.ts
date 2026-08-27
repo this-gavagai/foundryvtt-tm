@@ -87,20 +87,25 @@ export function registerPushSettings() {
     default: PUSH_RELAY_URL,
     onChange: () => void ensureWorldPushIdentity()
   })
-  // Auto-generated, not shown in the settings UI.
+  // Auto-generated, not shown in the settings UI. `config: false` means the
+  // names below are never rendered anywhere; they are here because Foundry's
+  // setting registration declares `name` required.
   settingsApi().register(MODULE_ID, PUSH_WORLD_ID_SETTING, {
+    name: 'Push world id',
     scope: 'world',
     config: false,
     type: String,
     default: ''
   })
   settingsApi().register(MODULE_ID, PUSH_WORLD_KEY_SETTING, {
+    name: 'Push world key',
     scope: 'world',
     config: false,
     type: String,
     default: ''
   })
   settingsApi().register(MODULE_ID, PUSH_WORLD_ORIGIN_SETTING, {
+    name: 'Push world origin',
     scope: 'world',
     config: false,
     type: String,

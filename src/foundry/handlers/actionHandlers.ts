@@ -1,4 +1,4 @@
-import type { ActionUseOptions, ActorPF2e, Statistic } from '@7h3laughingman/pf2e-types'
+import type { ActionUseOptions, ActorPF2e, ItemPF2e, Statistic } from '@7h3laughingman/pf2e-types'
 import type {
   CharacterActionArgs,
   FreeRollArgs,
@@ -124,7 +124,7 @@ export async function foundrySendCompendiumItemToChat(args: SendCompendiumItemTo
     throw new Error(`compendium item not permitted or not a compendium item: ${args.itemUuid}`)
   }
 
-  const doc = await resolveUuid<{ toObject(): object }>(args.itemUuid)
+  const doc = await resolveUuid<ItemPF2e>(args.itemUuid)
   if (!doc) throw new Error(`compendium item could not be resolved: ${args.itemUuid}`)
   // PF2e's toChat() requires an owned item. Create a temporary in-memory item
   // with the character as parent so the ownership check passes without persisting.
