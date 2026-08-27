@@ -52,8 +52,10 @@ function explicitTokenDocumentList(tokenDoc: TokenDoc): TokenDoc[] {
 }
 
 function noFallbackTokenDocumentList(): TokenDoc[] {
-  const tokenDocs = [] as TokenDoc[]
-  tokenDocs.find = (() => false) as unknown as TokenDoc[]['find']
+  const tokenDocs: TokenDoc[] = []
+  // The list is already empty, so a native find would answer undefined anyway —
+  // this pins it there against a PF2e path that supplies its own fallback.
+  tokenDocs.find = () => undefined
   return tokenDocs
 }
 
@@ -219,7 +221,7 @@ export async function withMirroredTargets<T>(
 ): Promise<T> {
   const user = source.user
   const descriptor = Object.getOwnPropertyDescriptor(user, 'targets')
-  const held = descriptor?.value as { constructor?: new (user: unknown) => unknown } | undefined
+  const held: GamePF2e['user']['targets'] | undefined = descriptor?.value
   // Only swap what we can put back exactly as we found it: a configurable own
   // value property whose class we can instantiate empty. Anything else (a
   // prototype getter, a frozen property, a Foundry refactor) means we roll
@@ -230,7 +232,10 @@ export async function withMirroredTargets<T>(
   }
   let standIn: unknown
   try {
-    standIn = new held.constructor(user)
+    // `constructor` is typed Function, which says nothing about being newable;
+    // the guard above checked it is callable and the try/catch covers the rest.
+    const TargetSet = held.constructor as new (user: unknown) => unknown
+    standIn = new TargetSet(user)
     for (const token of tokens) Set.prototype.add.call(standIn as Set<TokenPF2e>, token)
   } catch (error) {
     logger.debug('TABLEMATE: could not build a stand-in target set', error)
@@ -242,7 +247,7 @@ export async function withMirroredTargets<T>(
   // exists to prevent. Dispatch is serialized, so nesting means one handler
   // calling another; the guard makes it harmless rather than relying on that.
   const outermost = !displacedTargets
-  if (outermost) displacedTargets = held as unknown as TargetSetLike
+  if (outermost) displacedTargets = held
 
   Object.defineProperty(user, 'targets', { ...descriptor, value: standIn })
   try {

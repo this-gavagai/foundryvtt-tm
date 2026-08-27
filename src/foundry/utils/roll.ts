@@ -1,13 +1,21 @@
-// Roll-construction and roll-result helpers. The local `declare const Roll`
-// and `declare const CONFIG` below intentionally shadow the wider ambient
-// types from pf2e-types / foundry-types — we need narrower shapes that
-// guarantee the methods/fields we touch (FoundryRoll.total is non-optional,
-// CONFIG.Dice.rolls items are DamageRollCtor). Other modules that need these
-// narrowed shapes repeat the same `declare` pattern at their top — see
-// foundry-globals.d.ts for the rationale.
+// Roll-construction and roll-result helpers.
+//
+// FoundryRoll is a deliberate strengthening of Foundry's own Roll, not a
+// redescription of it, and it makes exactly two claims the upstream type cannot:
+//
+//   total is non-optional. Upstream it is `number | undefined`, because it is
+//   unset until evaluate() resolves — and everything here has awaited that.
+//
+//   each die term has a face count. Upstream `DiceTerm.faces` is `number | void`
+//   because a coin or fate die has none; every formula this module builds rolls
+//   dN terms, so every term it gets back has faces. The wire type the app reads
+//   (RolledDie) says the same thing, so the payload needs no assertion.
+//
+// Both are asserted in one place, rollClass() below, with a single `as` — the
+// compiler still checks that Roll and FoundryRoll describe the same class.
 
 import type { ActorPF2e, GamePF2e } from '@7h3laughingman/pf2e-types'
-import type { RollResult } from '@/types/api-types'
+import type { RolledDie, RollResult } from '@/types/api-types'
 import { makeFakeEvent } from './foundry'
 import { diceRollClasses } from '../globals'
 
@@ -16,7 +24,7 @@ export type FoundryRoll = {
   formula: string
   total: number
   result: string
-  dice: { faces: number; results: { result: number }[] }[]
+  dice: RolledDie[]
   evaluate: () => Promise<FoundryRoll>
   toMessage: (
     data?: { speaker?: { actor?: string }; flavor?: string },
@@ -36,11 +44,11 @@ export type DamageRollCtor = new (
   ) => Promise<unknown>
 }
 
-// Foundry's Roll constructor, narrowed to FoundryRoll (whose `total` is
-// non-optional after evaluate()). Lives here rather than in globals.ts because
-// FoundryRoll is this module's type and the narrowing is the whole point.
+// Foundry's Roll constructor, narrowed to FoundryRoll. Lives here rather than in
+// globals.ts because FoundryRoll is this module's type and the narrowing is the
+// whole point; see the header for what the narrowing claims.
 export function rollClass(): new (formula: string) => FoundryRoll {
-  return (globalThis as unknown as { Roll: new (formula: string) => FoundryRoll }).Roll
+  return Roll as new (formula: string) => FoundryRoll
 }
 
 // Look up PF2e's DamageRoll subclass from CONFIG.Dice.rolls. Returns undefined

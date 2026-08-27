@@ -80,6 +80,15 @@ function formatChatContent(content: string): string {
 //
 // Group layout per core's CHAT_COMMANDS: whisper captures the command, the target
 // token and the body; /gm and /players capture the command and the body.
+// Core's parse() returns one of two shapes under a single type — the capture
+// groups of a single-line command, or one such array per line for a multiline
+// roll — and Foundry's own declaration states the union as
+// `(string | RegExpMatchArray)[]`, which describes both and distinguishes
+// neither. A first element that is a string means the flat form: the whole match.
+function isFlatMatch(match: (string | RegExpMatchArray)[]): match is RegExpMatchArray {
+  return typeof match[0] === 'string'
+}
+
 function parseWhisperCommand(raw: string): { targets: string[]; content: string } | null {
   const chatLog = getChatLog()
   if (!chatLog) return null
@@ -87,8 +96,8 @@ function parseWhisperCommand(raw: string): { targets: string[]; content: string 
   const [command, match] = chatLog.parse(raw)
   // Only the single-line whisper commands reach us as a flat match array; the
   // multiline roll commands parse to an array of matches, which we don't handle.
-  if (!Array.isArray(match) || typeof match[0] !== 'string') return null
-  const groups = match as unknown as RegExpMatchArray
+  if (!isFlatMatch(match)) return null
+  const groups = match
 
   switch (command) {
     case 'whisper':

@@ -154,7 +154,7 @@ function isCharacterRequest(args: ModuleEventArgs): args is RequestCharacterDeta
 // doesn't own. The rule itself lives in rpcAuthorize.ts, which takes the world as
 // a parameter so it can be unit-tested away from a Foundry client — this is the
 // only place that supplies the live one.
-const authWorld = (): AuthWorld => game as unknown as AuthWorld
+const authWorld = (): AuthWorld => game
 
 function userOwnsRequestedActor(args: RequestCharacterDetailsArgs): boolean {
   return userOwnsActorById(authWorld(), args.actorId, args.userId)

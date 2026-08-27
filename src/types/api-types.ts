@@ -711,11 +711,24 @@ export interface RollInlineCheckArgs {
   uuid: string
 }
 
+// One rolled die of a result, as Foundry's Roll reports it: the face count and
+// the individual results of that term.
+//
+// NOT DiceResults, which this field used to be typed as. DiceResults travels the
+// other way — face counts the app pre-seeds for a roll it is asking Foundry to
+// make — and the mismatch meant both the producer (foundry/utils/roll.ts,
+// handlers/actionHandlers.ts) and the consumer (RollResultModal.vue) had to
+// assert their way past the declared type.
+export interface RolledDie {
+  faces: number
+  results: { result: number }[]
+}
+
 export interface RollResult {
   formula: string
   result: string
   total: number
-  dice: DiceResults
+  dice: RolledDie[]
   isSecret: boolean
 }
 

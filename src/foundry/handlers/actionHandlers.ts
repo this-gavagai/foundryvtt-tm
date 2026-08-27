@@ -81,13 +81,12 @@ export async function foundryFreeRoll(args: FreeRollArgs) {
     await r.toMessage({ speaker: { actor: actor._id ?? undefined }, flavor }, { rollMode })
     return r
   })
-  // Typed local so field names/arity stay compiler-checked; only `dice` is
-  // asserted — it carries raw Foundry dice terms on the wire.
+  // Typed local so field names/arity stay compiler-checked.
   const payload: RollResult = {
     formula: roll.formula,
     result: String(roll.total),
     total: roll.total,
-    dice: roll.dice as unknown as RollResult['dice'],
+    dice: roll.dice,
     isSecret: args.secret
   }
   return { ...makeAck(args), roll: payload }

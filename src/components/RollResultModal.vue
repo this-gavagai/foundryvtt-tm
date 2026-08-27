@@ -2,22 +2,15 @@
 import { computed, ref } from 'vue'
 import Modal from './ModalBox.vue'
 import { dieIcons } from '@/utils/chatRollDisplay'
-import type { RequestResolutionArgs } from '@/types/api-types'
+import type { RequestResolutionArgs, RolledDie } from '@/types/api-types'
 
 const modal = ref<InstanceType<typeof Modal>>()
 const result = ref<RequestResolutionArgs | null | undefined>()
 const roll = computed(() => result.value?.roll)
 
-interface DisplayDieResult {
-  result: number
-}
+type DisplayDieResult = RolledDie['results'][number]
 
-interface DisplayDie {
-  faces: number
-  results: DisplayDieResult[]
-}
-
-const rollDice = computed(() => (roll.value?.dice ?? []) as unknown as DisplayDie[])
+const rollDice = computed(() => roll.value?.dice ?? [])
 
 function dieIconForFaces(faces: number) {
   return dieIcons[faces]
