@@ -22,15 +22,8 @@ import {
   isReactionEmoji,
   readReactions,
   toggleReaction,
-  type ChatReaction,
-  type ReactionFlagSource
+  type ChatReaction
 } from '@/utils/chatReactions'
-
-// Structural view of what we need off a ChatMessage. Foundry's own types don't
-// describe tablemate flags, and setFlag's signature varies across versions.
-type ReactableMessage = ReactionFlagSource & {
-  setFlag?: (scope: string, key: string, value: unknown) => Promise<unknown>
-}
 
 export async function foundryToggleReaction(args: ToggleReactionArgs) {
   // Reject an unknown emoji rather than storing it: the flag is rendered as text
@@ -42,7 +35,7 @@ export async function foundryToggleReaction(args: ToggleReactionArgs) {
   }
 
   const source = getGame()
-  const message = source.messages.get(args.messageId) as unknown as ReactableMessage | undefined
+  const message = source.messages.get(args.messageId)
   if (!message) throw new Error(`Chat message ${args.messageId} not found`)
 
   if (typeof message.setFlag !== 'function') {

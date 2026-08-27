@@ -41,7 +41,12 @@ export function isReactionEmoji(value: unknown): value is ReactionEmoji {
 // getFlag, a nested flags object, or — on a freshly broadcast update — a dotted
 // key). Mirrors how the voice-memo/image flags are read in useChatMessages.
 export interface ReactionFlagSource {
-  flags?: { tablemate?: { reactions?: unknown } | null } | null
+  // The flag bag, keyed by scope. Typed as the index signature Foundry gives a
+  // document's `flags` rather than as `{ tablemate: … }`, so a real ChatMessage
+  // satisfies this alongside the app's plain wire shapes — the narrower spelling
+  // shared no properties with ChatMessageFlagsPF2e, which is what forced the
+  // Foundry-side callers to assert their way in.
+  flags?: Record<string, unknown> | null
   'flags.tablemate.reactions'?: unknown
   getFlag?: (scope: string, key: string) => unknown
 }
@@ -72,9 +77,10 @@ export function normalizeReactions(value: unknown): ChatReaction[] {
 export function readReactions(source: ReactionFlagSource | null | undefined): ChatReaction[] {
   if (!source) return []
   const flagged = source.getFlag?.('tablemate', 'reactions')
+  const scope = source.flags?.['tablemate'] as { reactions?: unknown } | null | undefined
   return normalizeReactions(
     (Array.isArray(flagged) ? flagged : undefined) ??
-      source.flags?.tablemate?.reactions ??
+      scope?.reactions ??
       source['flags.tablemate.reactions']
   )
 }

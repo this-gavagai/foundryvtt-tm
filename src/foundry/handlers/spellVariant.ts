@@ -1,6 +1,12 @@
-import type { ActorPF2e, SpellPF2e } from '@7h3laughingman/pf2e-types'
+import type { ActorPF2e, ChatMessagePF2e, SpellPF2e } from '@7h3laughingman/pf2e-types'
 import type { SelectSpellVariantArgs } from '@/types/api-types'
 import { getCharacter, getGame, makeAck } from '../utils/foundry'
+
+// A posted spell card. Just a chat message — the local shape this used to carry
+// (with `author` as string-or-document and every field optional) described
+// nothing pf2e-types does not, and loadVariant / loadBaseVariant / toMessage /
+// clone are all on the real SpellPF2e and ChatMessagePF2e too.
+type SpellCardMessage = ChatMessagePF2e
 
 // Swap a posted spell card to one of the variants its buttons offer ("Heal 1",
 // "Heal (vs. Undead) 2", …).
@@ -25,56 +31,20 @@ import { getCharacter, getGame, makeAck } from '../utils/foundry'
 //             to edit or delete. PF2e has no equivalent line because in Foundry
 //             the player clicks the button on their own client.
 
-type VariantSpell = SpellPF2e<ActorPF2e> & {
-  loadVariant: (options: {
-    overlayIds?: string[]
-    castRank?: number
-  }) => VariantSpell | null | undefined
-  loadBaseVariant: () => VariantSpell
-  toMessage: (
-    event: null,
-    options: { create: false; data?: { castRank: number } }
-  ) => Promise<VariantCardMessage | null | undefined>
-}
-
-// The un-created ChatMessage that toMessage({ create: false }) hands back: a
-// real document instance, so it can be cloned with the original's whisper list
-// before being flattened into an update payload.
-type VariantCardMessage = {
-  clone: (data: { whisper: string[] }) => { toObject: () => Record<string, unknown> }
-}
-
-type SpellCardMessage = {
-  flags?: { pf2e?: { origin?: { castRank?: number | null } | null } | null }
-  _source?: { whisper?: string[]; author?: string | null }
-  whisper?: string[]
-  author?: { id?: string; _id?: string } | string | null
-  speaker?: { actor?: string | null } | null
-  item?: {
-    isOfType?: (...types: string[]) => boolean
-    embeddedSpell?: unknown
-  } | null
-  update: (data: object) => Promise<unknown>
-}
-
 // The spell behind the card. A consumable (scroll/wand) card carries its spell
 // as an embedded item, exactly as PF2e's own handler resolves it.
-function spellFromMessage(message: SpellCardMessage): VariantSpell | null {
+function spellFromMessage(message: SpellCardMessage): SpellPF2e<ActorPF2e> | null {
   const item = message.item
   if (!item) return null
-  if (item.isOfType?.('spell')) return item as unknown as VariantSpell
-  if (item.isOfType?.('consumable')) return (item.embeddedSpell as VariantSpell) ?? null
+  if (item.isOfType('spell')) return item
+  if (item.isOfType('consumable')) return item.embeddedSpell
   return null
 }
 
-// Who posted the card. Read from _source first — that's the stored id — and
-// fall back to the resolved User document for shapes that only expose it there.
+// Who posted the card. Read from _source first — that's the stored id — and fall
+// back to the resolved User document.
 function originalAuthorId(message: SpellCardMessage): string | undefined {
-  const stored = message._source?.author
-  if (typeof stored === 'string' && stored) return stored
-  const author = message.author
-  if (typeof author === 'string') return author || undefined
-  return author?.id ?? author?._id ?? undefined
+  return message._source.author || message.author?.id || undefined
 }
 
 // Rewrite a posted spell card to one of the spell's variants (or, with no
@@ -127,7 +97,7 @@ export function spellCardOf(
   messageId: string,
   actorId: string | null | undefined
 ): SpellCardMessage {
-  const message = source.messages.get(messageId) as unknown as SpellCardMessage | undefined
+  const message = source.messages.get(messageId)
   if (!message) throw new Error(`Chat message ${messageId} not found`)
   // Ownership of the actor is already checked by the dispatch (AUTH_POLICY),
   // but that only proves the requester owns SOME actor — pin it to the one this
