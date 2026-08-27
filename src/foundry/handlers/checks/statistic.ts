@@ -14,6 +14,16 @@ import { withModifierOverrides, type ModifierOverrideMap } from './modifierOverr
 // both the no-clone path and the contextual-clone path so the toggles
 // affect the actual numbers used in the roll, not just the source actor's
 // reference data.
+// Every statistic below is optional on ActorPF2e: an NPC has no class DC, a
+// familiar no saves, a hazard no perception. The app gates its own UI, so a
+// request that names one an actor lacks means the app's state has drifted from
+// the world's — throw so the dispatch answers with an error ack rather than
+// letting PF2e take a TypeError on an undefined statistic.
+function requireStatistic<T>(actor: ActorPF2e, statistic: T | null | undefined, slug: string): T {
+  if (!statistic) throw new Error(`${actor.name} has no ${slug} statistic`)
+  return statistic
+}
+
 function takeOverrides(ctx: Parameters<CheckRollHandler>[0]): ModifierOverrideMap | undefined {
   const opts = ctx.args.options as { modifierOverrides?: ModifierOverrideMap } | undefined
   return opts?.modifierOverrides
@@ -23,9 +33,9 @@ export const handleSkill: CheckRollHandler = (ctx) => {
   const { slug } = checkSubtypeOf(ctx.args, 'skill')
   return withModifierOverrides(
     ctx.actor,
-    (a) => (a as ActorPF2e).skills?.[slug] ?? null,
+    (a) => a.skills?.[slug] ?? null,
     takeOverrides(ctx),
-    () => ctx.actor.skills[slug].check.roll(statisticParams(ctx))
+    () => requireStatistic(ctx.actor, ctx.actor.skills?.[slug], slug).check.roll(statisticParams(ctx))
   )
 }
 
@@ -91,44 +101,40 @@ export const handleSave: CheckRollHandler = (ctx) => {
   const slug = checkSubtypeOf(ctx.args, 'save').slug as SaveType
   return withModifierOverrides(
     ctx.actor,
-    (a) => (a as ActorPF2e).saves?.[slug] ?? null,
+    (a) => a.saves?.[slug] ?? null,
     takeOverrides(ctx),
-    () => ctx.actor.saves[slug].check.roll(statisticParams(ctx))
+    () => requireStatistic(ctx.actor, ctx.actor.saves?.[slug], slug).check.roll(statisticParams(ctx))
   )
 }
 
 export const handlePerception: CheckRollHandler = (ctx) => {
   return withModifierOverrides(
     ctx.actor,
-    (a) => (a as ActorPF2e).perception ?? null,
+    (a) => a.perception ?? null,
     takeOverrides(ctx),
-    () => ctx.actor.perception.check.roll(statisticParams(ctx))
+    () =>
+      requireStatistic(ctx.actor, ctx.actor.perception, 'perception').check.roll(
+        statisticParams(ctx)
+      )
   )
 }
 
 export const handleFamiliarAttack: CheckRollHandler = (ctx) => {
-  const attackStatisticGetter = (a: ActorPF2e): Statistic | null => {
-    const familiar = a as ActorPF2e & { attackStatistic?: Statistic }
-    return familiar.attackStatistic ?? null
-  }
+  const attackStatisticGetter = (a: ActorPF2e): Statistic | null =>
+    a.isOfType('familiar') ? a.attackStatistic : null
   return withModifierOverrides(
     ctx.actor,
     attackStatisticGetter,
     takeOverrides(ctx),
-    async () =>
-      (await attackStatisticGetter(ctx.actor as ActorPF2e)?.check.roll(statisticParams(ctx))) ??
-      null
+    async () => (await attackStatisticGetter(ctx.actor)?.check.roll(statisticParams(ctx))) ?? null
   )
 }
 
 export const handleInitiative: CheckRollHandler = (ctx) => {
   // Initiative wraps an underlying Statistic on `initiative.statistic`;
   // its check modifiers live there, not on `initiative` itself.
-  const initStatGetter = (a: ActorPF2e): Statistic | null => {
-    const init = (a as ActorPF2e & { initiative?: { statistic?: Statistic } }).initiative
-    return init?.statistic ?? null
-  }
+  const initStatGetter = (a: ActorPF2e): Statistic | null => a.initiative?.statistic ?? null
   return withModifierOverrides(ctx.actor, initStatGetter, takeOverrides(ctx), () =>
-    ctx.actor.initiative.roll(statisticParams(ctx))
+    requireStatistic(ctx.actor, ctx.actor.initiative, 'initiative').roll(statisticParams(ctx))
   )
 }

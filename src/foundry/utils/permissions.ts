@@ -56,7 +56,7 @@ export function userCanRunMacro(macro: unknown, user: UserPF2e): boolean {
     typeof m.testUserPermission === 'function' ? m.testUserPermission(user, LIMITED) : true
   if (!canUse) return false
   if (m.type === 'script') {
-    return !!(user as unknown as { can?: (permission: string) => boolean }).can?.('MACRO_SCRIPT')
+    return user.can('MACRO_SCRIPT')
   }
   return true
 }

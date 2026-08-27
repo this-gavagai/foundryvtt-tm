@@ -1,6 +1,5 @@
 import type {
   ActorPF2e,
-  CharacterPF2e,
   GamePF2e,
   Modifier,
   StatisticRollParameters,
@@ -13,7 +12,7 @@ import { noFallbackTargetActor, type ResolvedTarget } from '@/foundry/utils/targ
 // builds this once per request; each handler reads what it needs.
 export type CheckRollContext = {
   source: GamePF2e
-  actor: CharacterPF2e
+  actor: ActorPF2e
   args: RollCheckArgs
   // Shared param blob that strike / blast handlers spread into PF2e roll calls.
   // Statistic handlers (save/skill/…) override `target` with targetActorProxy

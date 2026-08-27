@@ -186,7 +186,7 @@ let displacedTargets: TargetSetLike | null = null
 // then outlives the roll: nothing re-broadcasts until the next re-target.
 // See listener.broadcastOwnTargets, the one caller.
 export function ownTargetIds(source: GamePF2e): string[] {
-  const set = displacedTargets ?? (source.user.targets as unknown as TargetSetLike | undefined)
+  const set: TargetSetLike | undefined = displacedTargets ?? source.user.targets
   return set?.ids ?? []
 }
 
@@ -217,7 +217,7 @@ export async function withMirroredTargets<T>(
   tokens: TokenPF2e[],
   run: () => Promise<T>
 ): Promise<T> {
-  const user = source.user as unknown as object
+  const user = source.user
   const descriptor = Object.getOwnPropertyDescriptor(user, 'targets')
   const held = descriptor?.value as { constructor?: new (user: unknown) => unknown } | undefined
   // Only swap what we can put back exactly as we found it: a configurable own

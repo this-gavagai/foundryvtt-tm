@@ -39,7 +39,8 @@ export const handleStrikeDamage: CheckRollHandler = ({ actor, args, params }) =>
   return withDamageModifierOverrides(
     overrides,
     async () =>
-      (await (degree === 'critical' ? dmgTarget?.critical(params) : dmgTarget?.damage(params))) ??
-      null
+      (await (degree === 'critical'
+        ? dmgTarget?.critical?.(params)
+        : dmgTarget?.damage?.(params))) ?? null
   )
 }

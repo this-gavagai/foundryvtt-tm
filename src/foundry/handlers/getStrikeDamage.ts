@@ -38,6 +38,10 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
     let modifiers: Promise<unknown> | null
 
     if (blastQuery) {
+      // Impulses are a kineticist class feature: only a character has one.
+      if (!actor.isOfType('character')) {
+        throw new Error(`${actor.name} is not a character and has no elemental blast`)
+      }
       const blast = new source.pf2e.ElementalBlast(actor)
       type BlastParams = Parameters<typeof blast.damage>[0]
       const blastBase: BlastParams = {
@@ -89,16 +93,19 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
         itemId: args.itemId,
         usage: args.usage
       })
-      const doesDmg = strike?.item?.dealsDamage ?? false
+      // PF2e leaves `damage`/`critical` off a strike that rolls no damage, so
+      // `dealsDamage` and the functions being present are the same condition
+      // twice; check both rather than trusting them to agree.
+      const doesDmg = (strike?.item?.dealsDamage ?? false) && !!strike?.damage
       damage =
-        doesDmg && strike
-          ? withDamageModifierOverrides(overrides, () => strike.damage(baseDamageOptions))
+        doesDmg && strike?.damage
+          ? withDamageModifierOverrides(overrides, () => strike.damage!(baseDamageOptions))
           : null
       critical =
-        doesDmg && strike
-          ? withDamageModifierOverrides(overrides, () => strike.critical(baseDamageOptions))
+        doesDmg && strike?.critical
+          ? withDamageModifierOverrides(overrides, () => strike.critical!(baseDamageOptions))
           : null
-      modifiers = doesDmg && strike ? strike.damage(baseModifierOptions) : null
+      modifiers = doesDmg && strike?.damage ? strike.damage(baseModifierOptions) : null
     }
 
     return Promise.all([damage, critical, modifiers])

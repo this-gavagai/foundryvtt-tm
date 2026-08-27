@@ -511,8 +511,14 @@ export async function foundryRerollChatRoll(args: RerollChatRollArgs) {
     throw new Error('Only check rolls can be rerolled')
   }
   if (message.isRerollable === false) throw new Error('This roll can no longer be rerolled')
-  if (args.mode === 'hero-point' && actor.heroPoints.value <= 0) {
-    throw new Error(`${actor.name} has no hero points available`)
+  // Hero points are a character resource; no other actor type has the pool.
+  if (args.mode === 'hero-point') {
+    if (!actor.isOfType('character')) {
+      throw new Error(`${actor.name} is not a character and has no hero points`)
+    }
+    if (actor.heroPoints.value <= 0) {
+      throw new Error(`${actor.name} has no hero points available`)
+    }
   }
 
   // PF2e's rerollFromMessage creates the replacement message internally without

@@ -5,6 +5,13 @@ import type { ActorPF2e } from '@7h3laughingman/pf2e-types'
 
 export type StrikeRollFn = (opts: object) => Promise<unknown>
 
+// A variant's roll. Widened to allow no return because an area attack's does
+// not have one: it rolls for effect against everything in the template and
+// returns void, where a strike's resolves to the roll. Reached through
+// altUsages, which PF2e types as strikes-or-area-attacks; callers wrap the
+// result in Promise.resolve.
+export type StrikeVariantRollFn = (opts: object) => Promise<unknown> | void
+
 export type StrikeActionRuntime = {
   slug: string
   // `type` distinguishes a strike from the other action shapes that can appear
@@ -13,9 +20,11 @@ export type StrikeActionRuntime = {
   type?: string
   item: { dealsDamage: boolean; id?: string; isMelee?: boolean } | null
   altUsages?: StrikeActionRuntime[]
-  variants: { label: string; roll: StrikeRollFn }[]
-  damage: StrikeRollFn
-  critical: StrikeRollFn
+  variants: { label: string; roll: StrikeVariantRollFn }[]
+  // Optional, as PF2e declares them: a strike whose weapon deals no damage
+  // (a grapple-only unarmed form, an area attack) carries neither.
+  damage?: StrikeRollFn
+  critical?: StrikeRollFn
 }
 
 // How a caller names the strike it wants.
@@ -53,7 +62,14 @@ export function findStrikeAction(
   actor: ActorPF2e,
   ref: StrikeRef
 ): StrikeActionRuntime | undefined {
-  const actions = (actor.system.actions ?? []) as unknown as StrikeActionRuntime[]
+  // system.actions holds area attacks (an NPC "area fire" item, a character's
+  // auto-fire) alongside strikes, and those are a different shape: their
+  // variants roll for effect and return void rather than a roll. They aren't
+  // rollable through this path and the app never offers them here — see the
+  // strikes computed in composables/npc.ts — so drop them at the door rather
+  // than hand one back for a caller to invoke as a strike.
+  const all = actor.isOfType('character', 'npc') ? actor.system.actions : []
+  const actions: StrikeActionRuntime[] = all.filter((a) => a.type === 'strike')
   const base =
     (ref.itemId
       ? actions.find((a) => a.slug === ref.actionSlug && a.item?.id === ref.itemId)

@@ -1,4 +1,4 @@
-import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
+import type { ActorPF2e } from '@7h3laughingman/pf2e-types'
 import type { ApplyDamageArgs } from '@/types/api-types'
 import { getGame, getCharacter, makeAck } from '../utils/foundry'
 
@@ -49,9 +49,9 @@ function alteredDamageRoll(roll: DamageRollLike, multiplier: number): DamageRoll
 // getActiveTokens is overloaded (Token vs TokenDocument by its `document` flag),
 // so the type comes from getDependentTokens, which has one signature and returns
 // the documents applyDamage wants.
-type RecipientToken = ReturnType<CharacterPF2e['getDependentTokens']>[number]
+type RecipientToken = ReturnType<ActorPF2e['getDependentTokens']>[number]
 
-function recipientToken(actor: CharacterPF2e): RecipientToken | undefined {
+function recipientToken(actor: ActorPF2e): RecipientToken | undefined {
   const drawn = actor.getActiveTokens(true, true)[0] ?? actor.getActiveTokens(false, true)[0]
   if (drawn) return drawn
 
