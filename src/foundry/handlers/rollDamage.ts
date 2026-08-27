@@ -1,3 +1,4 @@
+import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import type { RollDamageArgs } from '@/types/api-types'
 import { withBackgroundRoll } from '../backgroundRoll'
 import { registerCapture } from '../chatCapture'
@@ -13,12 +14,6 @@ import { extractRollPayload, rollDamageFormulaToMessage } from '../utils/roll'
 //
 // PF2e patches Foundry's TextEditor with TextEditorPF2e at boot (see
 // pf2e/src/scripts/set-game-pf2e.ts) and exposes it on game.pf2e.TextEditor.
-declare const game: {
-  user: { settings: { showDamageDialogs?: boolean } }
-  pf2e: {
-    TextEditor: { _onClickInlineRoll: (event: PointerEvent) => Promise<unknown> }
-  }
-}
 // Mirrors PF2e's @Damage enricher (text-editor.ts:776-805): combine explicit
 // traits with the item's own traits (unless overrideTraits), and stamp the
 // rest of the pipe annotations onto the corresponding dataset attributes that
@@ -40,6 +35,7 @@ declare const game: {
 // Setting shiftKey to skipDefault's inverse makes both branches yield true.
 // ctrlKey flips messageMode to 'gm'/'blind' for secret rolls.
 function makeInlineAnchorEvent(
+  source: GamePF2e,
   formula: string,
   itemUuid: string,
   itemTraits: string[],
@@ -83,7 +79,7 @@ function makeInlineAnchorEvent(
 
   wrapper.appendChild(anchor)
   const event = new PointerEvent('click', {
-    shiftKey: !!game.user.settings.showDamageDialogs,
+    shiftKey: !!source.user.settings['showDamageDialogs'],
     ctrlKey: secret
   })
   Object.defineProperty(event, 'target', { value: anchor, configurable: true })
@@ -113,13 +109,14 @@ export async function foundryRollDamage(args: RollDamageArgs) {
     const itemTraits =
       (item.system as { traits?: { value?: string[] } } | undefined)?.traits?.value ?? []
     const event = makeInlineAnchorEvent(
+      source,
       args.formula,
       item.uuid,
       itemTraits,
       args.damageInline,
       args.secret
     )
-    await game.pf2e.TextEditor._onClickInlineRoll(event)
+    await source.pf2e.TextEditor._onClickInlineRoll(event)
     const message = await capture
     return message?.rolls?.[0]
   })

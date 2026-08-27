@@ -8,14 +8,14 @@ import {
 } from './modifierOverrides'
 
 export const handleBlast: CheckRollHandler = (ctx) => {
-  const { actor, args, params } = ctx
+  const { source, actor, args, params } = ctx
   const { element, damageType, variant, isMelee } = checkSubtypeOf(args, 'blast')
   const overrides = (args.options as { modifierOverrides?: ModifierOverrideMap })?.modifierOverrides
   // Blasts roll off an ephemeral statistic that ElementalBlast.attack() derives
   // from the actor's "impulse" statistic via `extend()`; withBlastModifierOverrides
   // shadows that extend to apply the overrides. See modifierOverrides.ts.
   return withBlastModifierOverrides(actor.getStatistic('impulse'), overrides, () => {
-    const blasts = new game.pf2e.ElementalBlast(actor)
+    const blasts = new source.pf2e.ElementalBlast(actor)
     return blasts.attack({
       ...params,
       element: element as EffectTrait,
@@ -26,10 +26,10 @@ export const handleBlast: CheckRollHandler = (ctx) => {
   })
 }
 
-export const handleBlastDamage: CheckRollHandler = ({ actor, args, params }) => {
+export const handleBlastDamage: CheckRollHandler = ({ source, actor, args, params }) => {
   const { element, damageType, outcome, isMelee } = checkSubtypeOf(args, 'blastDamage')
   const overrides = (args.options as { modifierOverrides?: ModifierOverrideMap })?.modifierOverrides
-  const damageBlasts = new game.pf2e.ElementalBlast(actor)
+  const damageBlasts = new source.pf2e.ElementalBlast(actor)
   return withDamageModifierOverrides(overrides, () =>
     damageBlasts.damage({
       ...params,

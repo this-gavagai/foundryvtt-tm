@@ -9,6 +9,7 @@
 import type { ActorPF2e, GamePF2e } from '@7h3laughingman/pf2e-types'
 import type { RollResult } from '@/types/api-types'
 import { makeFakeEvent } from './foundry'
+import { diceRollClasses } from '../globals'
 
 // Structural shape of an evaluated Foundry Roll instance.
 export type FoundryRoll = {
@@ -35,17 +36,18 @@ export type DamageRollCtor = new (
   ) => Promise<unknown>
 }
 
-declare const Roll: new (formula: string) => FoundryRoll
-declare const CONFIG: {
-  Dice: { rolls: Array<DamageRollCtor & { name: string }> }
-  PF2E: Record<string, unknown>
+// Foundry's Roll constructor, narrowed to FoundryRoll (whose `total` is
+// non-optional after evaluate()). Lives here rather than in globals.ts because
+// FoundryRoll is this module's type and the narrowing is the whole point.
+export function rollClass(): new (formula: string) => FoundryRoll {
+  return (globalThis as unknown as { Roll: new (formula: string) => FoundryRoll }).Roll
 }
 
 // Look up PF2e's DamageRoll subclass from CONFIG.Dice.rolls. Returns undefined
 // if PF2e hasn't finished registering its roll classes yet — callers should
 // gracefully fall back to a plain Roll.
 export function getDamageRollClass(): DamageRollCtor | undefined {
-  return CONFIG.Dice.rolls.find((r) => r.name === 'DamageRoll')
+  return diceRollClasses().find((r) => r.name === 'DamageRoll') as DamageRollCtor | undefined
 }
 
 // Build a PF2e DamageRoll from a formula string, evaluate it, and post it to
@@ -62,7 +64,7 @@ export async function rollDamageFormulaToMessage(
   } = {}
 ): Promise<FoundryRoll> {
   const DamageRoll = getDamageRollClass()
-  const damageRoll = DamageRoll ? new DamageRoll(formula, opts.rollData ?? {}) : new Roll(formula)
+  const damageRoll = DamageRoll ? new DamageRoll(formula, opts.rollData ?? {}) : new (rollClass())(formula)
   await damageRoll.evaluate()
   await damageRoll.toMessage(
     { speaker: { actor: actor._id ?? undefined } },

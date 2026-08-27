@@ -6,20 +6,15 @@
 
 import { MODULE_ID } from '@/api/protocol'
 import type { DiceResults, ManualRollPolicy } from '@/types/api-types'
+import { settingsApi } from './globals'
 
-declare const game: {
-  settings: {
-    register: (scope: string, key: string, config: object) => void
-    get: (scope: string, key: string) => unknown
-  }
-}
 
 export const MANUAL_ROLL_POLICY_SETTING = 'manualRollPolicy'
 
 // Setting strings are raw English, matching the registerMenu precedent in
 // tablemate.ts (the module ships no Foundry lang files).
 export function registerManualRollPolicySetting(onChange: () => void) {
-  game.settings.register(MODULE_ID, MANUAL_ROLL_POLICY_SETTING, {
+  settingsApi().register(MODULE_ID, MANUAL_ROLL_POLICY_SETTING, {
     name: 'Player-supplied dice results',
     hint:
       'How to handle Tabula rolls that arrive with the dice results already ' +
@@ -40,7 +35,7 @@ export function registerManualRollPolicySetting(onChange: () => void) {
 
 export function manualRollPolicy(): ManualRollPolicy {
   try {
-    const value = game.settings.get(MODULE_ID, MANUAL_ROLL_POLICY_SETTING)
+    const value = settingsApi().get(MODULE_ID, MANUAL_ROLL_POLICY_SETTING)
     return value === 'flag' || value === 'reject' ? value : 'allow'
   } catch {
     // Setting not registered yet (or an unexpectedly old world) — fail open to

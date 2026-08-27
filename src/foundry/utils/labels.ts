@@ -3,15 +3,12 @@
 // IWR entries) into display-ready strings for the client.
 
 import type { CharacterPF2e, ItemPF2e, RawModifier } from '@7h3laughingman/pf2e-types'
+import { configPF2E, localize } from '../globals'
 import type { SpellcastingModifierData } from '@/types/character-types'
-
-// Narrowed shadow over the ambient CONFIG. pf2e-types' ConfigPF2e is wider
-// but doesn't expose the field shapes we read here.
-declare const CONFIG: { PF2E: Record<string, unknown> }
 
 export function localizeProficiencyLabels(system: CharacterPF2e['system']): Record<string, string> {
   const WEAPON_CATEGORIES = ['unarmed', 'simple', 'martial', 'advanced']
-  const cfg = CONFIG.PF2E as {
+  const cfg = configPF2E() as unknown as {
     weaponCategories: Record<string, string>
     weaponGroups: Record<string, string>
     baseWeaponTypes: Record<string, string>
@@ -29,15 +26,15 @@ export function localizeProficiencyLabels(system: CharacterPF2e['system']): Reco
     let label: string | undefined
     if (key in cfg.weaponCategories) {
       label = WEAPON_CATEGORIES.includes(key)
-        ? game.i18n.localize('PF2E.Actor.Character.Proficiency.Attack.' + toPascal(key))
-        : game.i18n.localize(cfg.weaponCategories[key])
+        ? localize('PF2E.Actor.Character.Proficiency.Attack.' + toPascal(key))
+        : localize(cfg.weaponCategories[key])
     } else if (group) {
-      label = game.i18n.localize(cfg.weaponGroups[group[1]] ?? group[1])
+      label = localize(cfg.weaponGroups[group[1]] ?? group[1])
     } else if (base) {
       const bt = base[1]
-      label = game.i18n.localize(cfg.baseWeaponTypes[bt] ?? cfg.baseShieldTypes[bt] ?? bt)
+      label = localize(cfg.baseWeaponTypes[bt] ?? cfg.baseShieldTypes[bt] ?? bt)
     } else if (data.label) {
-      label = game.i18n.localize(data.label)
+      label = localize(data.label)
     }
     if (label) labels[key] = label
   }
@@ -45,15 +42,15 @@ export function localizeProficiencyLabels(system: CharacterPF2e['system']): Reco
   const defenses = (system?.proficiencies?.defenses ?? {}) as Record<string, { label?: string }>
   for (const [key, data] of Object.entries(defenses)) {
     if (key in cfg.armorCategories) {
-      labels[key] = game.i18n.localize('PF2E.Actor.Character.Proficiency.Defense.' + toPascal(key))
+      labels[key] = localize('PF2E.Actor.Character.Proficiency.Defense.' + toPascal(key))
     } else if (data.label) {
-      labels[key] = game.i18n.localize(data.label)
+      labels[key] = localize(data.label)
     }
   }
 
   const classDCs = (system?.proficiencies?.classDCs ?? {}) as Record<string, { label?: string }>
   for (const [key, data] of Object.entries(classDCs)) {
-    if (data.label) labels[key] = game.i18n.localize(data.label)
+    if (data.label) labels[key] = localize(data.label)
   }
 
   return labels
@@ -65,11 +62,11 @@ export function localizeProficiencyLabels(system: CharacterPF2e['system']): Reco
 // Falls back to the raw slug when the dictionary or key is missing.
 export function localizeRarity(slug?: string): string | undefined {
   if (!slug) return slug
-  const dict = (CONFIG.PF2E as Record<string, unknown>).rarityTraits as
+  const dict = configPF2E().rarityTraits as
     | Record<string, string>
     | undefined
   const key = dict?.[slug]
-  return typeof key === 'string' ? game.i18n.localize(key) : slug
+  return typeof key === 'string' ? localize(key) : slug
 }
 
 // PF2e stores item/creature traits as bare slugs (e.g. "concentrate",
@@ -80,7 +77,7 @@ export function localizeRarity(slug?: string): string | undefined {
 // Dynamic/parametrized traits (e.g. "deadly-d8", "versatile-s") aren't literal
 // dictionary keys, so they fall through to the raw slug — same as before.
 export function localizeTraitLabels(): Record<string, string> {
-  const cfg = CONFIG.PF2E as Record<string, unknown>
+  const cfg = configPF2E()
   const DICTIONARIES = [
     'actionTraits',
     'spellTraits',
@@ -112,7 +109,7 @@ export function localizeTraitLabels(): Record<string, string> {
     if (!dict || typeof dict !== 'object') continue
     for (const [slug, key] of Object.entries(dict as Record<string, unknown>)) {
       if (typeof key !== 'string' || slug in labels) continue
-      labels[slug] = game.i18n.localize(key)
+      labels[slug] = localize(key)
     }
   }
   // Base labels for the parameterized weapon-trait families. The common
@@ -137,7 +134,7 @@ export function localizeTraitLabels(): Record<string, string> {
   }
   for (const [slug, key] of Object.entries(BASE_TRAIT_KEYS)) {
     if (slug in labels) continue
-    const label = game.i18n.localize(key)
+    const label = localize(key)
     if (label !== key) labels[slug] = label
   }
   return labels
@@ -149,19 +146,19 @@ export function localizeRollOptionLabels(actor: CharacterPF2e): Record<string, s
   const labels: Record<string, string> = {}
   for (const [slug, skill] of Object.entries(actor.system?.skills ?? {}))
     if ((skill as StatWithLabel).label)
-      labels[slug] = game.i18n.localize((skill as StatWithLabel).label!)
+      labels[slug] = localize((skill as StatWithLabel).label!)
   for (const [slug, save] of Object.entries(actor.system?.saves ?? {}))
     if ((save as StatWithLabel).label)
-      labels[slug] = game.i18n.localize((save as StatWithLabel).label!)
+      labels[slug] = localize((save as StatWithLabel).label!)
   const percLabel = (actor.system?.perception as StatWithLabel | undefined)?.label
-  if (percLabel) labels['perception'] = game.i18n.localize(percLabel)
+  if (percLabel) labels['perception'] = localize(percLabel)
   for (const item of actor.items) {
     if (item.slug && item.name) labels[item.slug] = item.name
     for (const rule of (item.system.rules as RuleWithLabel[]) ?? []) {
       if (rule.key === 'RollOption') {
-        if (rule.label) labels[rule.label] = game.i18n.localize(rule.label)
+        if (rule.label) labels[rule.label] = localize(rule.label)
         for (const sub of rule.suboptions ?? [])
-          if (sub.label) labels[sub.label] = game.i18n.localize(sub.label)
+          if (sub.label) labels[sub.label] = localize(sub.label)
       }
     }
   }

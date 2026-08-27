@@ -13,6 +13,7 @@ import type {
   ToggleKineticAuraArgs
 } from '@/types/api-types'
 import { getGame, makeAck } from '../utils/foundry'
+import { resolveUuid } from '../globals'
 
 export async function foundryToggleKineticAura(args: ToggleKineticAuraArgs) {
   const KINETIC_AURA_EFFECT_UUID = 'Compendium.pf2e.feat-effects.Item.pLurcSPQb2gjAzoP'
@@ -26,7 +27,7 @@ export async function foundryToggleKineticAura(args: ToggleKineticAuraArgs) {
   } else {
     // Fetch the effect from compendium and pre-set the ChoiceSet selection so
     // PF2e skips the aura-radius dialog and uses the default 10ft radius.
-    const effectDoc = await fromUuid(KINETIC_AURA_EFFECT_UUID)
+    const effectDoc = await resolveUuid<ItemPF2e>(KINETIC_AURA_EFFECT_UUID)
     if (effectDoc) {
       type RuleData = { key: string; selection?: number }
       const effectData = (effectDoc as ItemPF2e).toObject()

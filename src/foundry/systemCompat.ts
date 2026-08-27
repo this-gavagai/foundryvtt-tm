@@ -15,6 +15,7 @@
 
 import { logger } from '@/utils/utilities'
 import { MODULE_ID } from '@/api/protocol'
+import { diceRollClasses, notifications } from './globals'
 
 // Narrow local shapes for the globals we probe — deliberately structural, so
 // the probes themselves can't break when the upstream types move.
@@ -49,8 +50,6 @@ type CompatGame = {
   }
 }
 declare const game: CompatGame
-declare const ui: { notifications?: { warn: (message: string) => void } }
-declare const CONFIG: { Dice?: { rolls?: Array<{ name?: string }> } }
 
 function majorOf(version: string | undefined): number | undefined {
   const major = Number.parseInt(version ?? '', 10)
@@ -109,7 +108,7 @@ function probeInternals(): string[] {
   ) {
     issues.push('per-roll modifier overrides (Modifier prototype methods missing)')
   }
-  if (!CONFIG.Dice?.rolls?.some((r) => r?.name === 'DamageRoll')) {
+  if (!diceRollClasses().some((r) => r?.name === 'DamageRoll')) {
     issues.push('typed damage chat cards (DamageRoll not registered; plain rolls will be used)')
   }
   if (typeof pf2e?.actions?.get !== 'function') {
@@ -176,5 +175,5 @@ export function checkSystemCompat(): void {
 
   logger.warn('TABLEMATE: ' + message, { versionIssues, brokenFeatures })
   // GM-only, advisory (warn, not error): fires once per session at ready.
-  if (game.user?.isGM) ui.notifications?.warn(message)
+  if (game.user?.isGM) notifications()?.warn?.(message)
 }

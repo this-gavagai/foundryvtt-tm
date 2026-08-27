@@ -6,20 +6,15 @@
 // the upload handler refuses defensively even if a request slips through.
 
 import { MODULE_ID } from '@/api/protocol'
+import { settingsApi } from './globals'
 
-declare const game: {
-  settings: {
-    register: (scope: string, key: string, config: object) => void
-    get: (scope: string, key: string) => unknown
-  }
-}
 
 export const VOICE_MEMO_PATH_SETTING = 'voiceMemoPath'
 
 // Setting strings are raw English, matching the other module settings (the
 // module ships no Foundry lang files).
 export function registerVoiceMemoSetting(onChange: () => void) {
-  game.settings.register(MODULE_ID, VOICE_MEMO_PATH_SETTING, {
+  settingsApi().register(MODULE_ID, VOICE_MEMO_PATH_SETTING, {
     name: 'Voice memo upload folder',
     hint:
       'Data-relative folder where Tabula saves uploaded voice memos ' +
@@ -42,7 +37,7 @@ export function registerVoiceMemoSetting(onChange: () => void) {
 // segment voids the path so a stray traversal can't escape the Data root.
 export function voiceMemoUploadPath(): string {
   try {
-    const raw = game.settings.get(MODULE_ID, VOICE_MEMO_PATH_SETTING)
+    const raw = settingsApi().get(MODULE_ID, VOICE_MEMO_PATH_SETTING)
     if (typeof raw !== 'string') return ''
     const trimmed = raw.trim().replace(/^\/+|\/+$/g, '')
     if (!trimmed) return ''

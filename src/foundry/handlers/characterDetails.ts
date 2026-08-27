@@ -14,9 +14,8 @@ import { TM } from '@/api/protocol'
 import { inventoryTypes } from '@/utils/constants'
 import { logger } from '@/utils/utilities'
 
-// Narrowed shadow over the ambient CONFIG. Only the field we read is typed.
-declare const CONFIG: { PF2E: Record<string, unknown> }
 import { getGame } from '../utils/foundry'
+import { configPF2E, localize } from '../globals'
 import {
   buildSpellcastingModifiers,
   localizeIWRLabels,
@@ -194,7 +193,7 @@ function serializeActionVariants(action: SkillActionLike): SkillActionVariant[] 
     .filter((v): v is SkillActionVariantLike & { slug: string } => !!v.slug)
     .map((v) => ({
       slug: v.slug,
-      label: v.name ? game.i18n.localize(v.name) : v.slug,
+      label: v.name ? localize(v.name) : v.slug,
       traits: Array.isArray(v.traits) ? v.traits : [],
       cost: v.cost === undefined ? undefined : String(v.cost)
     }))
@@ -205,7 +204,7 @@ function serializeSkillActions(
   actor: ActorPF2e,
   descriptions: Map<string, string>
 ): SkillActionData[] {
-  const pf2e = game.pf2e as unknown as PF2eModifierApi
+  const pf2e = getGame().pf2e as unknown as PF2eModifierApi
   const getStatistic = (actor as ActorPF2e & { getStatistic?: (s: string) => LiveStatistic | null })
     .getStatistic
   // The set of slugs that are actually skills (core + lore) on this actor. Not
@@ -275,7 +274,7 @@ function serializeSkillActions(
     if (!statistics.length) continue
     out.push({
       slug: action.slug ?? '',
-      label: action.name ? game.i18n.localize(action.name) : (action.slug ?? ''),
+      label: action.name ? localize(action.name) : (action.slug ?? ''),
       cost: action.cost === undefined ? undefined : String(action.cost),
       traits: Array.isArray(action.traits) ? action.traits : [],
       // Replayed as extraRollOptions on the actual roll so the rolled number
@@ -297,7 +296,7 @@ export async function getCharacterDetails(
   const isCharacter = actor.type === 'character'
   const characterActor = actor as unknown as CharacterPF2e
   const elementalBlasts = isCharacter
-    ? { ...new game.pf2e.ElementalBlast(characterActor), actor: actor }
+    ? { ...new source.pf2e.ElementalBlast(characterActor), actor: actor }
     : null
   const actorWithInventory = actor as ActorPF2e & {
     inventory?: {
@@ -345,12 +344,12 @@ export async function getCharacterDetails(
     ? JSON.parse(JSON.stringify(elementalBlasts, blastReplacer))
     : null
   // Languages are stored on the actor as bare slugs; need to be localized
-  const langKeys = CONFIG.PF2E.languages as Record<string, string>
+  const langKeys = configPF2E().languages as Record<string, string>
   const actorSystem = actor.system as {
     details?: { languages?: { value?: string[] } }
   }
   const languages = (actorSystem.details?.languages?.value ?? []).map((slug: string) =>
-    langKeys[slug] ? game.i18n.localize(langKeys[slug]) : slug
+    langKeys[slug] ? localize(langKeys[slug]) : slug
   )
   const proficiencyLabels = isCharacter ? localizeProficiencyLabels(characterActor.system) : {}
   const rollOptionLabels = localizeRollOptionLabels(characterActor)
@@ -542,6 +541,6 @@ export async function getCharacterDetails(
     iwrLabels,
     skillActions: isCharacter ? serializeSkillActions(actor, skillActionDescs) : [],
     uuid: args.uuid,
-    userId: game.user._id ?? ''
+    userId: source.user._id ?? ''
   }
 }

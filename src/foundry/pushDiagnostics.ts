@@ -14,13 +14,8 @@ import {
 import { lastPushDeliveryIssue } from './pushNotify'
 import { MODULE_ID } from '@/api/protocol'
 import { logger } from '@/utils/utilities'
+import { settingsApi } from './globals'
 
-declare const game: {
-  settings: { get: (scope: string, key: string) => unknown }
-  user?: { id?: string; name?: string; isGM?: boolean }
-  users?: { contents?: Array<{ id?: string; name?: string }> }
-  world?: { title?: string; id?: string }
-}
 
 // A single diagnostic line: what was checked, how it went, and the detail that
 // makes it actionable.
@@ -75,7 +70,7 @@ function worldUserNames(): Map<string, string> {
 export async function collectPushStatus(): Promise<PushStatus> {
   const checks: PushCheck[] = []
   const url = relayUrl()
-  const enabled = game.settings.get(MODULE_ID, PUSH_ENABLED_SETTING) === true
+  const enabled = settingsApi().get(MODULE_ID, PUSH_ENABLED_SETTING) === true
 
   checks.push(
     enabled

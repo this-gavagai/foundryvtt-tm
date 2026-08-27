@@ -1,14 +1,15 @@
-// Tiny wrappers around Foundry-injected globals. Centralized so the handler
-// modules don't each reach into `parent.game` / `window.game` directly.
+// Chat-origin flag helpers and the small synthesized values handlers need
+// (acks, the fake event PF2e roll methods inspect).
+//
+// The Foundry-injected globals themselves live in ../globals.ts. getGame is
+// re-exported from here because every handler already imports it from this path.
 
 import type { CharacterPF2e, GamePF2e } from '@7h3laughingman/pf2e-types'
 import type { AcknowledgementArgs } from '@/types/api-types'
 import { TM } from '@/api/protocol'
 import { logger } from '@/utils/utilities'
 
-export function getGame(): GamePF2e {
-  return (typeof window.game === 'undefined' ? parent.game : window.game) as GamePF2e
-}
+export { getGame } from '../globals'
 
 export function getCharacter(source: GamePF2e, id: string): CharacterPF2e {
   return source.actors.get(id, { strict: true }) as unknown as CharacterPF2e

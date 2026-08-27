@@ -38,7 +38,7 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
     let modifiers: Promise<unknown> | null
 
     if (blastQuery) {
-      const blast = new game.pf2e.ElementalBlast(actor)
+      const blast = new source.pf2e.ElementalBlast(actor)
       type BlastParams = Parameters<typeof blast.damage>[0]
       const blastBase: BlastParams = {
         element: blastQuery.element as EffectTrait,

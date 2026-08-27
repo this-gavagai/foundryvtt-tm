@@ -17,17 +17,8 @@ import { MODULE_ID } from '@/api/protocol'
 import type { AcknowledgementArgs, RegisterPushArgs } from '@/types/api-types'
 import { logger } from '@/utils/utilities'
 import { makeAck } from './utils/foundry'
+import { settingsApi } from './globals'
 
-declare const game: {
-  settings: {
-    register: (scope: string, key: string, config: object) => void
-    get: (scope: string, key: string) => unknown
-    set: (scope: string, key: string, value: unknown) => Promise<unknown>
-  }
-  user?: { id?: string; isGM?: boolean }
-  users?: { activeGM?: { id?: string } | null }
-  world?: { id?: string }
-}
 
 // The single shared relay. Everyone running Tabula Mensa uses this instance.
 export const PUSH_RELAY_URL = 'https://tablemate-push-relay.openinst.workers.dev'
@@ -46,7 +37,7 @@ export type PushScope = 'mentions' | 'all'
 const REG_TOKEN_TTL_SECONDS = 300
 
 export function registerPushSettings() {
-  game.settings.register(MODULE_ID, PUSH_ENABLED_SETTING, {
+  settingsApi().register(MODULE_ID, PUSH_ENABLED_SETTING, {
     name: 'Enable push notifications',
     hint:
       'Send a push notification to connected Tabula Mensa apps when a chat ' +
@@ -59,7 +50,7 @@ export function registerPushSettings() {
     default: false,
     onChange: () => void ensureWorldPushIdentity()
   })
-  game.settings.register(MODULE_ID, PUSH_INCLUDE_BODY_SETTING, {
+  settingsApi().register(MODULE_ID, PUSH_INCLUDE_BODY_SETTING, {
     name: 'Include message text in push notifications',
     hint:
       'When on, notifications show the message text; when off (default), they ' +
@@ -70,7 +61,7 @@ export function registerPushSettings() {
     type: Boolean,
     default: false
   })
-  game.settings.register(MODULE_ID, PUSH_SCOPE_SETTING, {
+  settingsApi().register(MODULE_ID, PUSH_SCOPE_SETTING, {
     name: 'Notify on',
     hint:
       'Which messages trigger a push. "Whispers & mentions" (default) notifies a ' +
@@ -83,7 +74,7 @@ export function registerPushSettings() {
     choices: { mentions: 'Whispers & mentions', all: 'All messages' },
     default: 'mentions'
   })
-  game.settings.register(MODULE_ID, PUSH_RELAY_URL_SETTING, {
+  settingsApi().register(MODULE_ID, PUSH_RELAY_URL_SETTING, {
     name: 'Push relay URL',
     hint:
       'The service that forwards notifications to Apple/Google. Leave as the ' +
@@ -97,19 +88,19 @@ export function registerPushSettings() {
     onChange: () => void ensureWorldPushIdentity()
   })
   // Auto-generated, not shown in the settings UI.
-  game.settings.register(MODULE_ID, PUSH_WORLD_ID_SETTING, {
+  settingsApi().register(MODULE_ID, PUSH_WORLD_ID_SETTING, {
     scope: 'world',
     config: false,
     type: String,
     default: ''
   })
-  game.settings.register(MODULE_ID, PUSH_WORLD_KEY_SETTING, {
+  settingsApi().register(MODULE_ID, PUSH_WORLD_KEY_SETTING, {
     scope: 'world',
     config: false,
     type: String,
     default: ''
   })
-  game.settings.register(MODULE_ID, PUSH_WORLD_ORIGIN_SETTING, {
+  settingsApi().register(MODULE_ID, PUSH_WORLD_ORIGIN_SETTING, {
     scope: 'world',
     config: false,
     type: String,
@@ -119,7 +110,7 @@ export function registerPushSettings() {
 
 function readStr(key: string): string {
   try {
-    return String(game.settings.get(MODULE_ID, key) ?? '').trim()
+    return String(settingsApi().get(MODULE_ID, key) ?? '').trim()
   } catch {
     return ''
   }
@@ -127,7 +118,7 @@ function readStr(key: string): string {
 
 function readBool(key: string): boolean {
   try {
-    return game.settings.get(MODULE_ID, key) === true
+    return settingsApi().get(MODULE_ID, key) === true
   } catch {
     return false
   }
@@ -229,14 +220,14 @@ async function mintAndProvision(): Promise<void> {
 
   if (!worldId) {
     worldId = crypto.randomUUID()
-    await game.settings.set(MODULE_ID, PUSH_WORLD_ID_SETTING, worldId)
+    await settingsApi().set(MODULE_ID, PUSH_WORLD_ID_SETTING, worldId)
   }
   if (!worldKey) {
     worldKey = randomKeyHex()
-    await game.settings.set(MODULE_ID, PUSH_WORLD_KEY_SETTING, worldKey)
+    await settingsApi().set(MODULE_ID, PUSH_WORLD_KEY_SETTING, worldKey)
   }
   if (currentWorld && mintedFor !== currentWorld) {
-    await game.settings.set(MODULE_ID, PUSH_WORLD_ORIGIN_SETTING, currentWorld)
+    await settingsApi().set(MODULE_ID, PUSH_WORLD_ORIGIN_SETTING, currentWorld)
   }
 
   const status = await provision(worldId, worldKey)
@@ -250,8 +241,8 @@ async function mintAndProvision(): Promise<void> {
     logger.warn('TABLEMATE: relay holds another key for this push id — minting a fresh identity')
     worldId = crypto.randomUUID()
     worldKey = randomKeyHex()
-    await game.settings.set(MODULE_ID, PUSH_WORLD_ID_SETTING, worldId)
-    await game.settings.set(MODULE_ID, PUSH_WORLD_KEY_SETTING, worldKey)
+    await settingsApi().set(MODULE_ID, PUSH_WORLD_ID_SETTING, worldId)
+    await settingsApi().set(MODULE_ID, PUSH_WORLD_KEY_SETTING, worldKey)
     await provision(worldId, worldKey)
   }
 }

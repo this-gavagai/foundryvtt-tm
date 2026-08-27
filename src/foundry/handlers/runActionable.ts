@@ -1,6 +1,7 @@
 import type { MacroPF2e } from '@7h3laughingman/pf2e-types'
 import type { RunActionableArgs } from '@/types/api-types'
 import { getGame, makeAck } from '../utils/foundry'
+import { chatMessageClass, resolveUuid } from '../globals'
 import { getRequestingUser, userCanRunMacro } from '../utils/permissions'
 import { resolveRequestedTargets } from '../utils/target'
 
@@ -33,17 +34,6 @@ import { resolveRequestedTargets } from '../utils/target'
 //             ignore it to do something custom.
 //   cancel()— post a "cancelled by macro" chat message. Macros use this to
 //             abort and explain why (e.g. preconditions not met).
-// fromUuid is async and resolves compendium documents fully (loads the doc
-// content). fromUuidSync would return only an index stub for compendium
-// UUIDs, which doesn't have `execute()` — calling it throws "r.execute is
-// not a function". World macros work either way, but compendium macros
-// (Compendium.<pack>.Macro.<id>) require the async path.
-declare function fromUuid(uuid: string): Promise<MacroPF2e | null>
-declare const ChatMessage: {
-  create: (data: object) => Promise<unknown>
-  getSpeaker: (opts: { actor?: unknown }) => unknown
-}
-
 type ToolbeltActionableFlag = { linked?: string; macro?: string }
 
 export async function foundryRunActionable(args: RunActionableArgs) {
@@ -60,7 +50,7 @@ export async function foundryRunActionable(args: RunActionableArgs) {
   const macroUuid = tbFlag?.linked ?? tbFlag?.macro
   if (!macroUuid) throw new Error(`No actionable macro on ${item.name}`)
 
-  const macro = await fromUuid(macroUuid)
+  const macro = await resolveUuid<MacroPF2e>(macroUuid)
   if (!macro) throw new Error(`Macro not found: ${macroUuid}`)
 
   // The macro executes with GM privileges. The item is owned by the requester,
@@ -100,8 +90,8 @@ export async function foundryRunActionable(args: RunActionableArgs) {
   // Cancel callback: post a chat message indicating the macro stopped the
   // action. Matches the lang/en.json "actionable.action.cancel" text.
   const cancel = async () => {
-    return ChatMessage.create({
-      speaker: ChatMessage.getSpeaker({ actor }),
+    return chatMessageClass().create({
+      speaker: chatMessageClass().getSpeaker({ actor }),
       content: `<strong>${item.name}</strong> action was cancelled by its macro.`
     })
   }

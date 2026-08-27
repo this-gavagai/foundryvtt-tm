@@ -1,6 +1,7 @@
 import type { CompendiumItemData, GetCompendiumItemArgs } from '@/types/api-types'
 import { logger } from '@/utils/utilities'
 import { getGame, makeAck } from '../utils/foundry'
+import { resolveUuid } from '../globals'
 import {
   compendiumPackIdFromUuid,
   getRequestingUser,
@@ -24,10 +25,6 @@ interface JournalPageObject {
   type?: string
   text?: { content?: string }
 }
-
-declare function fromUuid(uuid: string): Promise<{
-  toObject(): CompendiumDocObject
-} | null>
 
 // Journal documents don't carry a `system.description.value` — their rich HTML
 // lives in `text.content` (a single JournalEntryPage) or across
@@ -67,7 +64,7 @@ export async function foundryGetCompendiumItem(args: GetCompendiumItemArgs) {
     return emptyAck
   }
 
-  const doc = await fromUuid(args.itemUuid)
+  const doc = await resolveUuid<{ toObject(): CompendiumDocObject }>(args.itemUuid)
   if (!doc) {
     logger.warn('TM-GET-COMPENDIUM-ITEM: could not resolve', args.itemUuid)
     return emptyAck

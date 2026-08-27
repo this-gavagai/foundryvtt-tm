@@ -2,7 +2,6 @@ import type { ModuleEventArgs, RequestCharacterDetailsArgs } from '@/types/api-t
 import { getCharacterDetails } from './handlers'
 import { PASSIVE_ACTIONS, rpcDescriptor } from './rpcTable'
 import { authorizeRequest, targetActorId, userOwnsActorById, type AuthWorld } from './rpcAuthorize'
-import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import { debounce } from 'lodash-es'
 import { logger } from '@/utils/utilities'
 import {
@@ -29,6 +28,7 @@ import {
   type ChatOriginStamp
 } from './chatOrigin'
 import { abandonBackgroundRolls } from './backgroundRoll'
+import { drawnSceneId, hooks, notifications } from './globals'
 import {
   registerManualRollPolicySetting,
   manualRollPolicy,
@@ -42,18 +42,6 @@ import { notifyChatMessage } from './pushNotify'
 
 type GetEvent = { action: 'get' }
 
-declare const game: GamePF2e
-declare const Hooks: {
-  on: (event: string, cb: (...args: unknown[]) => void) => number
-  off: (event: string, id: number) => void
-}
-declare const ui: {
-  notifications?: { error: (message: string, options?: object) => void }
-}
-// The drawn canvas. Only needed for `scene.id` — the scene our own targets are
-// on. Undefined on a client with no scene up (e.g. a GM sitting on the world
-// setup screen), which is why sceneId is nullable on the wire.
-declare const canvas: { scene?: { id?: string } | null } | undefined
 
 // Running module release, read from the manifest Foundry parsed at load.
 function moduleVersion(): string | undefined {
@@ -89,7 +77,7 @@ function checkClientVersion(args: ModuleEventArgs) {
   })
   // Advisory only — a transient (non-permanent) notification so it warns the GM
   // without wedging an undismissable error on screen.
-  ui.notifications?.error(message)
+  notifications()?.error?.(message)
 }
 
 const getChar: Record<string, (args: RequestCharacterDetailsArgs) => void> = {}
@@ -247,11 +235,11 @@ function setupChatOriginStamping() {
 
   // What to stamp, and how each field is scoped, is chatOrigin.ts's decision —
   // this only writes it.
-  Hooks.on('preCreateChatMessage', (message, data) => {
+  hooks().on('preCreateChatMessage', (message, data) => {
     const stamp = chatOriginStampFor(message, data)
     if (stamp) writeChatOriginStamp(message, data, stamp)
   })
-  Hooks.on('createChatMessage', (message) => {
+  hooks().on('createChatMessage', (message) => {
     const originUserId = currentChatOriginUserId()
     if (originUserId) stampTablemateChatOrigin(message, originUserId)
     const uuid = tablemateChatOriginUuid(message)
@@ -532,7 +520,7 @@ function broadcastOwnTargets() {
   game.socket.emit(TM.CHANNEL, {
     action: TM.SHARE_TARGETS,
     userId: game.user._id,
-    sceneId: canvas?.scene?.id ?? null,
+    sceneId: drawnSceneId(),
     targets: ownTargetIds(game)
   })
 }
@@ -548,7 +536,7 @@ function setupTargetReporting() {
   // ones this client learned about over the wire. Report only our own, or a
   // table of N clients would answer each change N times, and the copies made on
   // other canvases are exactly the lossy reconstruction this replaces.
-  Hooks.on('targetToken', (...args: unknown[]) => {
+  hooks().on('targetToken', (...args: unknown[]) => {
     const user = args[0] as { id?: string } | undefined
     if (user?.id !== game.user.id) return
     broadcastOwnTargetsSoon()
@@ -557,5 +545,5 @@ function setupTargetReporting() {
   // Changing scene rebuilds the canvas and drops every placed Token, so our
   // targets are now empty (or belong to a different scene). Say so rather than
   // leaving mirroring tablets holding ids for a scene we've left.
-  Hooks.on('canvasReady', () => broadcastOwnTargetsSoon())
+  hooks().on('canvasReady', () => broadcastOwnTargetsSoon())
 }

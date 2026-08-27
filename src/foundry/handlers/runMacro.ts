@@ -1,6 +1,7 @@
 import type { MacroPF2e } from '@7h3laughingman/pf2e-types'
 import type { RunMacroArgs } from '@/types/api-types'
 import { getGame, makeAck } from '../utils/foundry'
+import { resolveUuid } from '../globals'
 import { getRequestingUser, userCanRunMacro } from '../utils/permissions'
 import { resolveRequestedTargets } from '../utils/target'
 
@@ -13,12 +14,6 @@ import { resolveRequestedTargets } from '../utils/target'
 //
 // Macros that read `game.user.targets` directly won't see the tablet's
 // selection — they need to be adapted to use the scope `targets` instead.
-//
-// fromUuid is async and required for compendium UUIDs: the sync variant
-// returns an index stub for compendium docs that has no `execute()`, so
-// any Compendium.<pack>.Macro.<id> path throws "r.execute is not a
-// function" if you call it through fromUuidSync.
-declare function fromUuid(uuid: string): Promise<MacroPF2e | null>
 
 export async function foundryRunMacro(args: RunMacroArgs) {
   const source = getGame()
@@ -30,7 +25,7 @@ export async function foundryRunMacro(args: RunMacroArgs) {
 
   // Failures throw: the dispatch's central catch turns them into error acks,
   // so the app rejects instead of believing a failed macro ran.
-  const macro = await fromUuid(args.macroUuid)
+  const macro = await resolveUuid<MacroPF2e>(args.macroUuid)
   if (!macro) throw new Error(`Macro not found: ${args.macroUuid}`)
 
   // The macro runs with GM privileges, so gate it on the requesting user's own

@@ -27,14 +27,8 @@
 
 import { MODULE_ID } from '@/api/protocol'
 import { isSheetUser, type SheetFlaggedUser } from './utils/sheetUser'
+import { settingsApi } from './globals'
 
-declare const game: {
-  settings: {
-    register: (scope: string, key: string, config: object) => void
-    get: (scope: string, key: string) => unknown
-    set: (scope: string, key: string, value: unknown) => Promise<unknown>
-  }
-}
 
 export const GM_HANDLERS_SETTING = 'gmHandlers'
 
@@ -78,7 +72,7 @@ export function normalizeGmHandlerPolicy(value: unknown): GmHandlerPolicy {
 // through the GM Handlers menu, so Foundry's generic settings UI must not try to
 // render it as a field.
 export function registerGmHandlerSetting(onChange: () => void) {
-  game.settings.register(MODULE_ID, GM_HANDLERS_SETTING, {
+  settingsApi().register(MODULE_ID, GM_HANDLERS_SETTING, {
     name: 'GM handlers',
     scope: 'world',
     config: false,
@@ -90,7 +84,7 @@ export function registerGmHandlerSetting(onChange: () => void) {
 
 export function gmHandlerPolicy(): GmHandlerPolicy {
   try {
-    return normalizeGmHandlerPolicy(game.settings.get(MODULE_ID, GM_HANDLERS_SETTING))
+    return normalizeGmHandlerPolicy(settingsApi().get(MODULE_ID, GM_HANDLERS_SETTING))
   } catch {
     // Setting not registered yet (or an unexpectedly old world): fall back to
     // today's behavior rather than leaving nobody to handle requests.
@@ -112,7 +106,7 @@ export function collapseGmHandlerPolicy(policy: GmHandlerPolicy): GmHandlerPolic
 }
 
 export async function saveGmHandlerPolicy(policy: GmHandlerPolicy): Promise<void> {
-  await game.settings.set(MODULE_ID, GM_HANDLERS_SETTING, normalizeGmHandlerPolicy(policy))
+  await settingsApi().set(MODULE_ID, GM_HANDLERS_SETTING, normalizeGmHandlerPolicy(policy))
 }
 
 // Whether this user's client may handle Tablemate requests at all. An opted-out

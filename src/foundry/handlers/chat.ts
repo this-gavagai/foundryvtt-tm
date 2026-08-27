@@ -13,20 +13,19 @@ import { getCharacter, getGame, makeAck } from '../utils/foundry'
 import { voiceMemoEnabled, voiceMemoUploadPath } from '../voiceMemoSetting'
 import { imageUploadEnabled, imageUploadPath } from '../imageUploadSetting'
 import { makeChunkAccumulator } from './chunkedUpload'
+import {
+  chatMessageClass,
+  getChatLog,
+  getFilePicker,
+  type FilePickerLike
+} from '../globals'
 import { logger } from '@/utils/utilities'
 
 // The created message document, narrowed to the id we hand back to the sender
 // (which patches its own transcript onto the message; see below).
 type CreatedChatMessage = { id?: string | null; _id?: string | null }
 
-declare const ChatMessage: {
-  create: (data: object) => Promise<CreatedChatMessage | undefined>
-  getSpeaker: (opts: { actor?: unknown }) => unknown
-  // Core's own whisper-recipient lookup: keywords, user names, and the names of
-  // users' assigned characters. See resolveWhisperRecipients.
-  getWhisperRecipients: (name: string) => WhisperUser[]
-}
-
+// The created message document, narrowed to the id we hand back to the sender.
 interface WhisperUser {
   id?: string | null
   name?: string | null
@@ -72,19 +71,6 @@ function escapeHtml(value: string): string {
 
 function formatChatContent(content: string): string {
   return escapeHtml(content.trim()).replace(/\n/g, '<br>')
-}
-
-// Foundry v13 moved ChatLog under foundry.applications.sidebar.tabs; earlier
-// generations expose it as a bare global. Resolve whichever exists, as with
-// getFilePicker below.
-type ChatLogLike = { parse: (message: string) => [string, (string | RegExpMatchArray)[]] }
-
-function getChatLog(): ChatLogLike | undefined {
-  const scope = globalThis as {
-    foundry?: { applications?: { sidebar?: { tabs?: { ChatLog?: ChatLogLike } } } }
-    ChatLog?: ChatLogLike
-  }
-  return scope.foundry?.applications?.sidebar?.tabs?.ChatLog ?? scope.ChatLog
 }
 
 // Recognize a whisper command in text typed on a tablet, using Foundry's own
@@ -137,7 +123,7 @@ function resolveWhisperRecipients(targets: string[]): string[] {
     // Brackets let a name contain spaces (`[Ana Vale]`); they aren't part of it.
     const name = target.replace(/[[\]]/g, '').trim()
     if (!name) continue
-    for (const user of ChatMessage.getWhisperRecipients(name)) {
+    for (const user of chatMessageClass().getWhisperRecipients(name)) {
       if (user?.id) ids.add(user.id)
     }
   }
@@ -203,7 +189,7 @@ export async function foundrySendChatMessage(args: SendChatMessageArgs) {
     data.whisper = recipients.length ? recipients : [args.userId]
   }
 
-  await ChatMessage.create(data)
+  await chatMessageClass().create(data)
   return makeAck(args)
 }
 
@@ -243,30 +229,6 @@ type VoiceMemoMeta = {
 // directly over the socket once its transcription call returns — the module
 // does no transcribing of its own (see api/transcription.ts on the app side).
 type VoiceMemoResult = { messageId?: string; content?: string }
-
-// Foundry v13 moved FilePicker under foundry.applications.apps; v11/v12 expose
-// it as a bare global. Resolve whichever exists so the handler works on both.
-type FilePickerLike = {
-  upload: (
-    source: string,
-    path: string,
-    file: File,
-    body?: object,
-    options?: object
-  ) => Promise<{ path?: string } | false>
-  createDirectory: (source: string, target: string, options?: object) => Promise<unknown>
-  browse: (source: string, target: string, options?: object) => Promise<unknown>
-}
-
-function getFilePicker(): FilePickerLike {
-  const scope = globalThis as {
-    foundry?: { applications?: { apps?: { FilePicker?: FilePickerLike } } }
-    FilePicker?: FilePickerLike
-  }
-  const picker = scope.foundry?.applications?.apps?.FilePicker ?? scope.FilePicker
-  if (!picker) throw new Error('FilePicker is unavailable in this Foundry client')
-  return picker
-}
 
 const AUDIO_EXTENSIONS: Record<string, string> = {
   'audio/mp4': 'm4a',
@@ -376,7 +338,7 @@ async function finalizeVoiceMemo(
 
   let message: CreatedChatMessage | undefined
   try {
-    message = await ChatMessage.create(data)
+    message = await chatMessageClass().create(data)
   } catch (error) {
     // The file uploaded but the message didn't post: surface the failure to the
     // app, and log the orphaned path so it can be reclaimed (Foundry exposes no
@@ -515,7 +477,7 @@ async function finalizeImage(uploadId: string, parts: Uint8Array<ArrayBuffer>[],
   }
 
   try {
-    await ChatMessage.create(data)
+    await chatMessageClass().create(data)
   } catch (error) {
     // The file uploaded but the message didn't post: surface the failure, and log
     // the orphaned path (Foundry exposes no reliable file-delete here).

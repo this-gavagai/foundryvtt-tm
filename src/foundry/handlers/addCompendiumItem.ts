@@ -1,13 +1,12 @@
 import type { AddCompendiumItemArgs } from '@/types/api-types'
 import { logger } from '@/utils/utilities'
 import { getGame, makeAck } from '../utils/foundry'
+import { resolveUuid } from '../globals'
 import {
   compendiumPackIdFromUuid,
   getRequestingUser,
   userCanObservePack
 } from '../utils/permissions'
-
-declare function fromUuid(uuid: string): Promise<{ toObject(): Record<string, unknown> } | null>
 
 export async function foundryAddCompendiumItem(args: AddCompendiumItemArgs) {
   const source = getGame()
@@ -30,7 +29,7 @@ export async function foundryAddCompendiumItem(args: AddCompendiumItemArgs) {
     throw new Error(`not an Item pack: ${args.itemUuid}`)
   }
 
-  const doc = await fromUuid(args.itemUuid)
+  const doc = await resolveUuid(args.itemUuid)
   if (!doc) {
     logger.warn('TM-ADD-COMPENDIUM-ITEM: could not resolve', args.itemUuid)
     throw new Error(`compendium item could not be resolved: ${args.itemUuid}`)

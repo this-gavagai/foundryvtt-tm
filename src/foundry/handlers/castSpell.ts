@@ -9,11 +9,7 @@ import { logger } from '@/utils/utilities'
 import { getGame, makeAck } from '../utils/foundry'
 import { registerCapture } from '../chatCapture'
 import { applySpellVariantToCard, spellCardOf } from './spellVariant'
-
-declare const Hooks: {
-  on: (event: string, cb: (message: unknown, data: unknown) => void) => number
-  off: (event: string, id: number) => void
-}
+import { hooks } from '../globals'
 
 type TablemateFlagData = {
   flags?: { tablemate?: Record<string, unknown>; [key: string]: unknown }
@@ -95,7 +91,7 @@ async function withCastTargets<T>(
     return !!speakerActor && speakerActor === cast.actorId
   }
 
-  const hookId = Hooks.on('preCreateChatMessage', (message, data) => {
+  const hookId = hooks().on('preCreateChatMessage', (message, data) => {
     if (stamped) return
     if (!belongsToCast(pendingMessageOf(message, data))) return
     stamped = true
@@ -104,7 +100,7 @@ async function withCastTargets<T>(
   try {
     return await run()
   } finally {
-    Hooks.off('preCreateChatMessage', hookId)
+    hooks().off('preCreateChatMessage', hookId)
     if (!stamped) {
       logger.warn('TABLEMATE: cast produced no chat card to carry its targets', cast.spellUuid)
     }

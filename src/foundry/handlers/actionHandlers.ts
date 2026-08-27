@@ -9,19 +9,15 @@ import type {
 import { logger } from '@/utils/utilities'
 import { withBackgroundRoll } from '../backgroundRoll'
 import { getGame, makeAck, makeFakeEvent } from '../utils/foundry'
+import { itemClass, resolveUuid } from '../globals'
 import {
   compendiumPackIdFromUuid,
   getRequestingUser,
   userCanObservePack
 } from '../utils/permissions'
-import { extractRollPayload, type FoundryRoll } from '../utils/roll'
+import { extractRollPayload, rollClass, type FoundryRoll } from '../utils/roll'
 import { resolveRequestedTargets } from '../utils/target'
 import { withModifierOverrides } from './checks/modifierOverrides'
-
-// Narrowed shadow over the ambient Roll global from foundry-types. The
-// generic Foundry Roll has total as optional; FoundryRoll narrows it to
-// non-optional after .evaluate().
-declare const Roll: new (formula: string) => FoundryRoll
 
 export async function foundryCharacterAction(args: CharacterActionArgs) {
   const source = getGame()
@@ -81,7 +77,7 @@ export async function foundryFreeRoll(args: FreeRollArgs) {
       : `${args.modifier}`
     : ''
   const roll: FoundryRoll = await withBackgroundRoll(args.diceResults, async () => {
-    const r: FoundryRoll = await new Roll(`1d20${modSuffix}`).evaluate()
+    const r: FoundryRoll = await new (rollClass())(`1d20${modSuffix}`).evaluate()
     await r.toMessage({ speaker: { actor: actor._id ?? undefined }, flavor }, { rollMode })
     return r
   })
@@ -98,19 +94,12 @@ export async function foundryFreeRoll(args: FreeRollArgs) {
 }
 
 export async function foundrySendItemToChat(args: SendItemToChatArgs) {
-  const actor = game.actors.get(args.characterId)
+  const actor = getGame().actors.get(args.characterId)
   const item = actor?.items?.get(args.itemId)
   // Throw instead of acking success: nothing was posted to chat.
   if (!item) throw new Error(`item ${args.itemId} not found on actor ${args.characterId}`)
   await item.toChat()
   return makeAck(args)
-}
-
-declare function fromUuid(uuid: string): Promise<{ toObject(): object } | null>
-declare const CONFIG: {
-  Item: {
-    documentClass: new (data: object, context: { parent: object }) => { toChat(): Promise<unknown> }
-  }
 }
 
 export async function foundrySendCompendiumItemToChat(args: SendCompendiumItemToChatArgs) {
@@ -135,11 +124,11 @@ export async function foundrySendCompendiumItemToChat(args: SendCompendiumItemTo
     throw new Error(`compendium item not permitted or not a compendium item: ${args.itemUuid}`)
   }
 
-  const doc = await fromUuid(args.itemUuid)
+  const doc = await resolveUuid<{ toObject(): object }>(args.itemUuid)
   if (!doc) throw new Error(`compendium item could not be resolved: ${args.itemUuid}`)
   // PF2e's toChat() requires an owned item. Create a temporary in-memory item
   // with the character as parent so the ownership check passes without persisting.
-  const tempItem = new CONFIG.Item.documentClass(doc.toObject(), { parent: actor })
+  const tempItem = new (itemClass())(doc.toObject(), { parent: actor })
   await tempItem.toChat()
   return makeAck(args)
 }
