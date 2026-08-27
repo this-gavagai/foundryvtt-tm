@@ -22,16 +22,16 @@
   "rollCheck": {
     "saves": "Rettungswürfe",
     "spotlight": "Wahrnehmung & Initiative",
-    "flat": "Flach",
+    "flat": "Einfach",
     "skills": "Fertigkeiten",
     "lores": "Kenntnisse",
     "modifiers": "Modifikatoren",
     "traits": "Merkmale",
     "luck": "Glück & Unglück",
-    "situational": "Situativ",
+    "situational": "Situationsabhängig",
     "trait": {
       "concentrate": "Konzentration",
-      "manipulate": "Manipulieren",
+      "manipulate": "Handhaben",
       "fortune": "Glück",
       "misfortune": "Unglück"
     }
@@ -118,12 +118,12 @@
     "spells": "Zauber"
   },
   "attributes": {
-    "str": "Stä",
-    "dex": "Ges",
-    "con": "Kon",
-    "int": "Int",
-    "wis": "Wei",
-    "cha": "Cha"
+    "str": "St",
+    "dex": "Ge",
+    "con": "Ko",
+    "int": "In",
+    "wis": "We",
+    "cha": "Ch"
   },
   "attributesFull": {
     "str": "Stärke",
@@ -251,7 +251,7 @@
     "effectIcon": "Effekt-Symbol"
   },
   "actions": {
-    "use": "Verwenden"
+    "use": "Nutzen"
   },
   "actionTypes": {
     "action": "Aktionen",
@@ -490,7 +490,7 @@
     "master": "Meister"
   },
   "rolls": {
-    "flatDc": "Feste SG {dc}"
+    "flatDc": "Einfacher SG {dc}"
   },
   "modifiers": {
     "outranked": "Von einem höheren Modifikator desselben Typs übertroffen; trägt nicht zum Wurf bei"
