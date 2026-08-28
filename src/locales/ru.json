@@ -421,6 +421,7 @@
     "compendium": "Библиотеки",
     "changeCharacter": "Сменить персонажа",
     "targetingProxy": "Прокси нацеливания",
+    "proxyOffline": "Этот игрок не в сети, поэтому цели не выбираются.",
     "pairPixelDice": "Сопрячь Pixel Die",
     "reconnectDie": "Переподключить кубик",
     "forgetDie": "Забыть кубик",

@@ -421,6 +421,7 @@
     "compendium": "Compendios",
     "changeCharacter": "Cambiar personaje",
     "targetingProxy": "Proxy de objetivo",
+    "proxyOffline": "Ese jugador no está conectado, por lo que no se está seleccionando ningún objetivo.",
     "pairPixelDice": "Vincular dado Pixel",
     "reconnectDie": "Reconectar dado",
     "forgetDie": "Olvidar dado",
