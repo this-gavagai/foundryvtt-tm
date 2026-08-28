@@ -408,12 +408,15 @@ function cachedTokenFor(sa: ServiceAccount): string | null {
   return null
 }
 
-// For /notify: charges the exchange to the delivery budget, because it is a
-// subrequest like any send. Returns null when the budget cannot cover it or the
-// exchange fails; the caller reports that per device rather than throwing.
-async function ensureFcmAccessToken(
+// The OAuth exchange is an EXTERNAL subrequest like any send, so /notify passes
+// that request's delivery budget and the exchange is charged to it; /send pushes
+// to exactly one device, has no fan-out to budget, and passes none.
+//
+// Returns null when the budget cannot cover the exchange or the exchange fails.
+// The caller reports that per device rather than throwing.
+async function fcmAccessToken(
   sa: ServiceAccount,
-  budget: ReturnType<typeof deliveryBudget>,
+  budget?: ReturnType<typeof deliveryBudget>,
 ): Promise<string | null> {
   const cached = cachedTokenFor(sa)
   if (cached) return cached
@@ -421,7 +424,7 @@ async function ensureFcmAccessToken(
   // charge the budget only for the one that actually goes out.
   const inFlight = fcmTokenInFlight
   if (inFlight?.clientEmail === sa.client_email) return await inFlight.promise
-  if (!budget.takeSend()) return null
+  if (budget && !budget.takeSend()) return null
   const promise = (async () => {
     try {
       return await fetchFcmAccessToken(sa)
@@ -433,17 +436,6 @@ async function ensureFcmAccessToken(
   })()
   fcmTokenInFlight = { clientEmail: sa.client_email, promise }
   return await promise
-}
-
-// For /send, which pushes to exactly one device and has no fan-out to budget.
-async function fcmAccessToken(sa: ServiceAccount): Promise<string | null> {
-  const cached = cachedTokenFor(sa)
-  if (cached) return cached
-  try {
-    return await fetchFcmAccessToken(sa)
-  } catch {
-    return null
-  }
 }
 
 async function sendFcmOnce(sa: ServiceAccount, accessToken: string, opts: SendOptions): Promise<PushResult> {
@@ -725,6 +717,32 @@ async function trySendApns(env: Env, opts: SendOptions): Promise<ApnsResult> {
   }
 }
 
+// Send to APNs in the environment the registration claims and, if APNs answers
+// that the token is not one that environment knows, try the other and adopt it
+// when it delivers. A registration can simply be filed under the wrong
+// environment — an Xcode build promoted to TestFlight, say — and this is what
+// heals it. The caller writes `usedEnv` back when it differs from the stored one.
+//
+// Only a 200 is worth adopting. A failure from the environment we just guessed
+// at describes that environment, not the device: the *only* thing the wrong
+// environment ever says about a live token is BadDeviceToken, so treating that
+// as evidence would condemn the very registrations this retry exists to rescue.
+//
+// The probe is charged to the budget and skipped when it cannot be — self-
+// healing is worth a subrequest only while there are subrequests to spare.
+async function sendApnsHealingEnv(
+  env: Env,
+  send: SendOptions,
+  storedEnv: Registration['env'],
+  budget: ReturnType<typeof deliveryBudget>,
+): Promise<{ result: ApnsResult; usedEnv: Registration['env'] }> {
+  const result = await trySendApns(env, { ...send, envOverride: storedEnv })
+  if (!isEnvMismatch(result) || !budget.takeSend()) return { result, usedEnv: storedEnv }
+  const other: Registration['env'] = storedEnv === 'production' ? 'sandbox' : 'production'
+  const alt = await trySendApns(env, { ...send, envOverride: other })
+  return alt.status === 200 ? { result: alt, usedEnv: other } : { result, usedEnv: storedEnv }
+}
+
 // Is `key` over its per-minute ceiling? Answered by the rate-limiting binding
 // where one is configured, and by a KV counter otherwise.
 //
@@ -788,6 +806,24 @@ function clientIp(request: Request): string {
 // ---------------------------------------------------------------------------
 // Handlers
 
+// Resolve the (world, user) a regToken attests to, or the Response to answer
+// with. /register and /unregister authorise identically — the token names a
+// world, the world names its key, the key verifies the token — so they share
+// this rather than keeping two copies of the sequence and its error strings in
+// step by hand.
+async function identityFromRegToken(
+  env: Env,
+  regToken: string,
+): Promise<{ worldPushId: string; userId: string } | Response> {
+  const claimed = parseRegTokenPayload(regToken)
+  if (!claimed) return json({ error: 'invalid regToken' }, 401)
+  const key = await worldKeyOf(env, claimed.worldId)
+  if (!key) return json({ error: 'world not provisioned' }, 401)
+  const verified = await verifyRegToken(regToken, key)
+  if (!verified) return json({ error: 'invalid regToken' }, 401)
+  return { worldPushId: verified.worldId, userId: verified.userId }
+}
+
 async function handleProvision(request: Request, env: Env): Promise<Response> {
   // /provision is necessarily unauthenticated (TOFU), so per-IP throttle it to
   // stop a single source from creating unbounded world entries.
@@ -829,14 +865,10 @@ async function handleRegister(request: Request, env: Env): Promise<Response> {
   let userId: string
   const admin = request.headers.get('authorization') === `Bearer ${env.RELAY_TEST_SECRET}`
   if (p.regToken) {
-    const claimed = parseRegTokenPayload(p.regToken)
-    if (!claimed) return json({ error: 'invalid regToken' }, 401)
-    const key = await worldKeyOf(env, claimed.worldId)
-    if (!key) return json({ error: 'world not provisioned' }, 401)
-    const verified = await verifyRegToken(p.regToken, key)
-    if (!verified) return json({ error: 'invalid regToken' }, 401)
-    worldPushId = verified.worldId
-    userId = verified.userId
+    const identity = await identityFromRegToken(env, p.regToken)
+    if (identity instanceof Response) return identity
+    worldPushId = identity.worldPushId
+    userId = identity.userId
   } else if (admin) {
     if (!p.worldId || !p.userId) return json({ error: 'worldId and userId required with admin bearer' }, 400)
     worldPushId = p.worldId
@@ -922,14 +954,10 @@ async function handleUnregister(request: Request, env: Env): Promise<Response> {
   let worldPushId: string
   let userId: string
   if (p.regToken) {
-    const claimed = parseRegTokenPayload(p.regToken)
-    if (!claimed) return json({ error: 'invalid regToken' }, 401)
-    const key = await worldKeyOf(env, claimed.worldId)
-    if (!key) return json({ error: 'world not provisioned' }, 401)
-    const verified = await verifyRegToken(p.regToken, key)
-    if (!verified) return json({ error: 'invalid regToken' }, 401)
-    worldPushId = verified.worldId
-    userId = verified.userId
+    const identity = await identityFromRegToken(env, p.regToken)
+    if (identity instanceof Response) return identity
+    worldPushId = identity.worldPushId
+    userId = identity.userId
   } else if (p.worldId && p.userId) {
     worldPushId = p.worldId
     userId = p.userId
@@ -1011,6 +1039,29 @@ function portraitFor(portraitUrl: string | undefined, serverBaseUrl: string | un
   }
 }
 
+// Turn the two audience classes into the waves that will actually be delivered,
+// plus the shed results for a class that was over its ceiling.
+//
+// Direct is a WAVE of its own rather than merely first in one list: the budget is
+// drawn down concurrently, so ambient recipients dispatched alongside would race
+// direct ones for it. Two waves keep "ambient is what gets shed" true while still
+// parallelising within each class. Callers pass direct first for that reason.
+//
+// Shedding is reported rather than silent, so a world hitting its ceiling is
+// visible in the response instead of looking like a successful send.
+function planWaves(
+  classes: Array<{ direct: boolean; users: string[]; limited: boolean }>,
+): { waves: Array<{ direct: boolean; users: string[] }>; shed: Array<Record<string, unknown>> } {
+  const waves: Array<{ direct: boolean; users: string[] }> = []
+  const shed: Array<Record<string, unknown>> = []
+  for (const { direct, users, limited } of classes) {
+    const cls = direct ? 'direct' : 'ambient'
+    if (limited) for (const userId of users) shed.push({ userId, class: cls, skipped: 'rate limited' })
+    else if (users.length) waves.push({ direct, users })
+  }
+  return { waves, shed }
+}
+
 async function handleNotify(request: Request, env: Env): Promise<Response> {
   const p = (await request.json().catch(() => null)) as {
     worldId?: string
@@ -1084,33 +1135,20 @@ async function handleNotify(request: Request, env: Env): Promise<Response> {
   const directLimited =
     direct.length > 0 && (await overLimit(env, env.NOTIFY_LIMITER, `rl:direct:${p.worldId}`, DIRECT_NOTIFY_PER_MINUTE))
 
-  const results: Array<Record<string, unknown>> = []
-  const waves: Array<{ direct: boolean; users: string[] }> = []
-  for (const [list, limited, isDirect] of [
-    [direct, directLimited, true],
-    [ambient, ambientLimited, false],
-  ] as Array<[string[], boolean, boolean]>) {
-    if (limited) {
-      // Shedding is reported rather than silent, so a world hitting its ceiling is
-      // visible in the response instead of looking like a successful send.
-      const cls = isDirect ? 'direct' : 'ambient'
-      for (const userId of list) results.push({ userId, class: cls, skipped: 'rate limited' })
-    } else if (list.length) {
-      waves.push({ direct: isDirect, users: list })
-    }
-  }
+  const { waves, shed } = planWaves([
+    { direct: true, users: direct, limited: directLimited },
+    { direct: false, users: ambient, limited: ambientLimited },
+  ])
+  const results: Array<Record<string, unknown>> = [...shed]
   // Nothing survived the limits — including an over-limit request that addressed
   // nobody — so this really is a rate-limited request.
   if (!waves.length && (ambientLimited || directLimited)) return json({ error: 'rate limited' }, 429)
 
   // Recipients are independent, so deliver them concurrently: sequential awaits
   // made a table of six a chain of six APNs round-trips. Each settles on its own —
-  // one recipient's failure can no longer abort the rest of the list.
-  //
-  // Direct goes as its own WAVE rather than merely first in one list: the
-  // budget is drawn down concurrently, so ambient recipients dispatched alongside
-  // would race direct ones for it. Two waves keep "ambient is what gets shed"
-  // true while still parallelising within each class.
+  // one recipient's failure can no longer abort the rest of the list. Waves run in
+  // order, though, which is what keeps ambient the class that gets shed; see
+  // planWaves.
   //
   // sentTokens spans both waves, so a phone registered under two users of this
   // world (a player and the app-user they own) is notified once, by whichever
@@ -1241,11 +1279,11 @@ async function deliverToUser(
 
     // Resolve the access token before the fan-out, so the devices below can
     // just use it. One exchange serves the whole invocation: recipients are
-    // delivered concurrently, and ensureFcmAccessToken shares a single in-flight
+    // delivered concurrently, and fcmAccessToken shares a single in-flight
     // exchange between them rather than each spending a subrequest on it.
     const sa = serviceAccount(env)
     const fcmToken =
-      sa && regs.some((r) => r.platform === 'android') ? await ensureFcmAccessToken(sa, req.budget) : null
+      sa && regs.some((r) => r.platform === 'android') ? await fcmAccessToken(sa, req.budget) : null
 
     const sends = regs.map(async (reg) => {
       if (reg.platform === 'android' && !sa) {
@@ -1326,26 +1364,10 @@ async function deliverToUser(
         return
       }
 
-      // Try the stored env. If APNs says the token is not one this environment
-      // knows, the registration may simply be filed under the wrong one — an
-      // Xcode build promoted to TestFlight, say — so try the other and remember
-      // whichever delivers.
-      //
-      // Only a 200 is worth adopting. A failure from the environment we just
-      // guessed at describes that environment, not the device: the *only* thing
-      // the wrong environment ever says about a live token is BadDeviceToken, so
-      // treating that as evidence would condemn the very registrations this
-      // retry exists to rescue.
-      let result = await trySendApns(env, { ...send, envOverride: reg.env })
-      let usedEnv = reg.env
-      if (isEnvMismatch(result) && req.budget.takeSend()) {
-        const other: Registration['env'] = reg.env === 'production' ? 'sandbox' : 'production'
-        const alt = await trySendApns(env, { ...send, envOverride: other })
-        if (alt.status === 200) {
-          result = alt
-          usedEnv = other
-        }
-      }
+      // Sent in the environment the registration claims, self-healing to the
+      // other if APNs says this one does not know the token. See
+      // sendApnsHealingEnv.
+      const { result, usedEnv } = await sendApnsHealingEnv(env, send, reg.env, req.budget)
       const isDead = isDeadToken(result)
       results.push({
         userId: req.userId,
