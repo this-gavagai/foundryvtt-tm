@@ -93,7 +93,6 @@
     "invalid": "Introduce una dirección de servidor de Foundry válida.",
     "unreachable": "No se pudo contactar con ese servidor por HTTPS ni HTTP. Comprueba la dirección e inténtalo de nuevo.",
     "checking": "Comprobando…",
-    "connectionError": "No se pudo conectar con ese servidor. Comprueba la dirección e inténtalo de nuevo.",
     "servers": "Servidores",
     "active": "Activo",
     "joinNew": "Unirse a un nuevo servidor",

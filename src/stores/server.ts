@@ -62,7 +62,6 @@ export const useServerStore = defineStore('server', () => {
   const needsLogin = ref(false)
   const isConnected = ref(false)
   const sessionReady = ref(false)
-  const connectionError = ref('')
   let connectionId = 0
   let sessionWatchdog: ReturnType<typeof setTimeout> | undefined
   let stalledHandshakeRetries = 0
@@ -114,10 +113,6 @@ export const useServerStore = defineStore('server', () => {
     sessionReady.value = false
   }
 
-  function clearConnectionError() {
-    connectionError.value = ''
-  }
-
   // Tear down the socket and abandon any in-flight connection attempt or
   // scheduled retry. Bumping connectionId invalidates a pending connectToServer
   // so a late-arriving socket can't yank the user back out of the gate. Used
@@ -127,7 +122,6 @@ export const useServerStore = defineStore('server', () => {
     reconnectPolicy.cancel()
     disconnectCurrentSocket()
     needsLogin.value = false
-    connectionError.value = ''
     stalledHandshakeRetries = 0
     silentReauthAttempts = 0
     lastAttemptOrigin = undefined
@@ -496,16 +490,12 @@ export const useServerStore = defineStore('server', () => {
     })
   }
 
-  // `userInitiated` marks connects the user explicitly asked for (picking a
-  // server in the gate): their failures surface connectionError immediately so
-  // the gate can show it. Automatic connects (cold start, resume, repairs)
-  // never set connectionError — they retry quietly on a backoff so a transient
-  // network wobble can't bounce the user off their cached sheet.
-  async function connectToServer(
-    url: URL,
-    opts: { userInitiated?: boolean } = {}
-  ): Promise<Socket> {
-    connectionError.value = ''
+  // Every connect is automatic — cold start, resume, repair, a server picked in
+  // the gate. Failures retry quietly on a backoff rather than surfacing an
+  // error, so a transient network wobble can't bounce the user off their cached
+  // sheet; the gate does its own reachability probe before committing a choice,
+  // which is where a user picking a server gets told it is unreachable.
+  async function connectToServer(url: URL): Promise<Socket> {
     const thisConnectionId = ++connectionId
     reconnectPolicy.clearRetryTimer()
     disconnectCurrentSocket()
@@ -542,11 +532,7 @@ export const useServerStore = defineStore('server', () => {
         socket.value = undefined
         isConnected.value = false
         sessionReady.value = false
-        if (opts.userInitiated) {
-          connectionError.value = e instanceof Error ? e.message : 'Could not connect to server'
-        } else {
-          reconnectPolicy.scheduleRetry()
-        }
+        reconnectPolicy.scheduleRetry()
       }
       throw e
     }
@@ -557,8 +543,6 @@ export const useServerStore = defineStore('server', () => {
     needsLogin,
     isConnected,
     sessionReady,
-    connectionError,
-    clearConnectionError,
     disconnect,
     resolveServerUrl,
     probeServer,

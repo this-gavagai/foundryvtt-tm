@@ -5,13 +5,11 @@ import { PlusIcon, ServerStackIcon, XMarkIcon } from '@heroicons/vue/24/solid'
 import { storeToRefs } from 'pinia'
 
 import { useServerAddressStore } from '@/stores/serverAddress'
-import { useServerStore } from '@/stores/server'
 import ServerRow from '@/components/ServerRow.vue'
 
 const emit = defineEmits<{ join: [] }>()
 
 const serverAddressStore = useServerAddressStore()
-const serverStore = useServerStore()
 const { servers, serverUrlText } = storeToRefs(serverAddressStore)
 
 // Split the saved servers into the one currently connected (pulled to the top
@@ -34,7 +32,6 @@ function close() {
 }
 
 function select(origin: string) {
-  serverStore.clearConnectionError()
   serverAddressStore.selectServer(origin)
   close()
 }

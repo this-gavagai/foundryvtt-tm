@@ -7,7 +7,6 @@ import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 
 const serverAddressStore = useServerAddressStore()
 const serverStore = useServerStore()
-const { connectionError } = storeToRefs(serverStore)
 const { servers, serverUrlText } = storeToRefs(serverAddressStore)
 
 // Sentinel dropdown value for "type a fresh address" — kept distinct from any
@@ -30,11 +29,7 @@ const isNew = computed(() => selected.value === NEW_OPTION)
 
 const input = useTemplateRef<HTMLInputElement>('input')
 
-// Reveal + focus the textbox whenever "New" is chosen. Deliberately does NOT
-// clear connectionError: while a failed server is still active, that error is
-// the only thing keeping this gate mounted (see App.vue's showServerUrlGate).
-// Clearing it here would unmount the gate mid-interaction and bounce the user
-// back to a retry of the old server.
+// Reveal + focus the textbox whenever "New" is chosen.
 watch(
   isNew,
   (show) => {
@@ -55,11 +50,9 @@ async function handleSubmit() {
   error.value = ''
   if (!isNew.value) {
     // Probe reachability before committing so an unreachable saved server
-    // reports its error right here in the gate. (Automatic connects no longer
-    // surface connectionError — once we hand off to ConnectedApp, failures
-    // retry quietly — so this is the user's feedback point.) Only then commit
-    // (sets the active serverUrl) and clear the error so the gate hands off to
-    // ConnectedApp, which connects to the chosen server.
+    // reports it right here. This is the user's only feedback point: once the
+    // server is committed the gate hands off to ConnectedApp, and connection
+    // failures from there retry quietly rather than surfacing anything.
     checking.value = true
     try {
       const reachable = await serverStore.probeServer(new URL(selected.value))
@@ -68,7 +61,6 @@ async function handleSubmit() {
         return
       }
       serverAddressStore.selectServer(selected.value)
-      serverStore.clearConnectionError()
     } catch {
       error.value = 'serverUrl.invalid'
     } finally {
@@ -77,15 +69,12 @@ async function handleSubmit() {
     return
   }
   // Fresh address: resolve the protocol (https first, then http) before
-  // committing, so a bare host connects over whichever responds. The error
-  // is only cleared once a reachable URL has been committed — clearing it
-  // earlier would unmount the gate before the new server is active.
+  // committing, so a bare host connects over whichever responds.
   checking.value = true
   try {
     const result = await serverStore.resolveServerUrl(newUrl.value)
     if (result.ok) {
       serverAddressStore.commitServerUrl(result.url)
-      serverStore.clearConnectionError()
     } else {
       error.value = result.reason === 'unreachable' ? 'serverUrl.unreachable' : 'serverUrl.invalid'
     }
@@ -146,9 +135,6 @@ async function handleSubmit() {
         >
           {{ checking ? $t('serverUrl.checking') : $t('serverUrl.connect') }}
         </button>
-        <p v-if="connectionError && !isNew" data-part="error" class="text-sm">
-          {{ $t('serverUrl.connectionError') }}
-        </p>
         <p v-if="error" data-part="error" class="text-sm">{{ $t(error) }}</p>
       </form>
     </div>
