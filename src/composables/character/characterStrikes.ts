@@ -39,19 +39,27 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
 
   const strikes = computed(() => {
     return (actor.value?.system?.actions as CharacterStrike[] | undefined)?.map((action) => {
-      // Match by slug first; for granted items (e.g. clan dagger from the
-      // ancestry feat) PF2e gives the actor-item a unique slug that differs
-      // from the strike's slug, so fall back to the strike's own item _id.
-      // If that lookup lands on the granting feat itself (PF2e references the
-      // feat as the strike's item when the weapon was granted by it), chase
-      // the feat's itemGrants to the actual weapon — that's the one with the
-      // versatile/modular traits and damageType the picker needs.
+      // Match on the strike's own item _id FIRST. That is the exact link: PF2e
+      // builds one strike per weapon (`weapons.map((w) => this.prepareStrike(w))`)
+      // and hands the weapon back on the strike as `item`.
+      //
+      // Slug is only a fallback, because it does not identify an item. A strike's
+      // slug is `weapon.slug ?? sluggify(weapon.name)`, and nothing dedupes the
+      // list — so two identical weapons (two shortswords, two daggers) produce
+      // two strikes carrying the SAME slug. Matching on it first resolved both
+      // strikes to whichever `find` returned first, and toggling versatile damage
+      // or reloading on the second one silently acted on the first.
+      // (Verified against the running system, pf2e 8.4.1.)
+      //
+      // If neither lands on a weapon the strike may have been granted by a feat,
+      // so chase that item's itemGrants to the real weapon — that's the one
+      // carrying the versatile/modular traits and damageType the picker needs.
       let weaponItem: WeaponPF2e<CharacterPF2e> | undefined =
         actor.value?.items.find<WeaponPF2e<CharacterPF2e>>(
-          (i) => i.system?.slug === action?.slug && i.type === 'weapon'
+          (i) => i._id === action?.item?._id && i.type === 'weapon'
         ) ??
         actor.value?.items.find<WeaponPF2e<CharacterPF2e>>(
-          (i) => i._id === action?.item?._id && i.type === 'weapon'
+          (i) => i.system?.slug === action?.slug && i.type === 'weapon'
         )
       if (!weaponItem) {
         const granter = actor.value?.items.find(
