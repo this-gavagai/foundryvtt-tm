@@ -140,11 +140,10 @@ export interface ChatMessageView {
   // bubble layout. Distinct from isOwnActor, which is about the message's actor.
   isOwnMessage: boolean
   // Stable identity of the displayed sender, for grouping consecutive messages.
-  // Own messages share one key ('me') since they render without a name/portrait.
   senderKey: string
   // Grouping flags for the bubble layout, filled in a second pass over the
-  // rendered list: groupStart shows the portrait/name header, groupEnd shows the
-  // timestamp and rounds off the last bubble of a run.
+  // rendered list: groupStart draws the gutter token and the name/time line above
+  // the run, groupEnd rounds off its last bubble.
   groupStart: boolean
   groupEnd: boolean
   hasPortrait: boolean
@@ -712,8 +711,8 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
   const renderedMessages = computed(() => {
     const views = messages.value.map(buildChatMessageView)
     // Second pass: group consecutive messages from the same sender so the bubble
-    // layout shows the portrait/name once at the top of a run and the timestamp
-    // once at its end. A run breaks on a different sender, a switch between
+    // layout shows the token and the name/time header once, at the top of a run.
+    // A run breaks on a different sender, a switch between
     // own/other, a change in visibility (whispers never group with public), or a
     // gap longer than GROUP_GAP_MS.
     for (let i = 0; i < views.length; i++) {

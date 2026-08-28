@@ -566,26 +566,29 @@
         }
 
         /* Reaction chips. A reacted-by-me chip (data-mine) takes the same blue
-           accent the inline-check buttons use, so "on" reads consistently; the
-           rest sit on the neutral parchment surface. */
+           accent the inline-check buttons use, so "on" reads consistently.
+           These sit INSIDE the bubble, so both fills separate from the bubble
+           surfaces (95% parchment, 92% blue for own) rather than from the panel
+           behind them — the neutral chip lifts to near-white, and the mine chip
+           carries enough chroma to stay visible on the own-message tint. */
         [data-part='chat-reaction-chip'] {
-          background-color: oklch(95% 0.012 95);
+          background-color: oklch(99% 0.006 95);
           border-color: var(--color-border);
           color: oklch(45% 0.02 285);
         }
 
         [data-part='chat-reaction-chip']:hover:not(:disabled) {
-          background-color: oklch(91% 0.018 95);
+          background-color: oklch(96% 0.01 95);
         }
 
         [data-part='chat-reaction-chip'][data-mine] {
-          background-color: oklch(95% 0.03 250);
-          border-color: oklch(72% 0.1 250);
-          color: oklch(45% 0.13 250);
+          background-color: oklch(89% 0.055 250);
+          border-color: oklch(68% 0.12 250);
+          color: oklch(35% 0.13 250);
         }
 
         [data-part='chat-reaction-chip'][data-mine]:hover:not(:disabled) {
-          background-color: oklch(91% 0.04 250);
+          background-color: oklch(85% 0.07 250);
         }
 
         /* Chat composer */
