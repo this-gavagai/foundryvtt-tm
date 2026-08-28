@@ -1,4 +1,8 @@
-import type { ModuleEventArgs, RequestCharacterDetailsArgs } from '@/types/api-types'
+import type {
+  ManualRollPolicy,
+  ModuleEventArgs,
+  RequestCharacterDetailsArgs
+} from '@/types/api-types'
 import { getCharacterDetails } from './handlers'
 import { PASSIVE_ACTIONS, rpcDescriptor } from './rpcTable'
 import { authorizeRequest, targetActorId, userOwnsActorById, type AuthWorld } from './rpcAuthorize'
@@ -101,48 +105,6 @@ let chatOriginStampingRegistered = false
 const HANDLER_QUEUE_TIMEOUT_MS = 30_000
 let dispatchChain: Promise<unknown> = Promise.resolve()
 
-// Which client should answer this request: the GM the world elected, always.
-//
-// Requests used to route to the requester's *targeting proxy* when they had one,
-// falling back to the elected GM otherwise. That was carried over from an older
-// "shared display" client and does nothing for targeting, because no handler
-// reads the executing client's targets. A player's chosen targets travel in the
-// request as token ids and are resolved against the active scene — world data,
-// identical on every client — and PF2e's own target resolution is driven through
-// an actor Proxy specifically so that no client's `game.user.targets` is ever
-// consulted or mutated. See resolveTarget in utils/target.ts, whose comment names
-// "the GM's (or proxy's) own UI state" as the thing being avoided.
-//
-// So proxy routing bought nothing and cost plenty:
-//
-//   • A proxy may be an ordinary PLAYER — the app lets you pick any non-root
-//     user. Requests then execute on a client with no GM authority: Foundry
-//     refuses a non-author message update (reactions), and file uploads want a
-//     GM's permissions (voice memos, images) — so those requests fail on a
-//     player proxy with no error anywhere useful.
-//   • It is chosen PER REQUESTER, so one table's requests could execute on
-//     several clients at once. The dispatch chain below serializes handlers per
-//     client, which made it insufficient for anything read-modify-write on
-//     shared state: two players reacting to one message through two proxies read
-//     the same list and one write clobbered the other.
-//   • It made "which client ran this" depend on a per-user flag, so the same
-//     action behaved differently for two players at the same table.
-//
-// One elected GM answers everything. The election is the world's GM Handlers
-// policy (gmHandlerSetting.ts), so a table that wants a particular GM to do the
-// work says so once, in one place, for every action.
-//
-// Trade-off: with no GM online, nothing is answered — where a player proxy might
-// once have picked a request up. In practice it would have failed on permissions
-// for most actions anyway, and REQUEST_CHARACTER already required a GM.
-//
-// The targeting proxy itself is untouched: it remains an app-side choice about
-// whose targets a tablet mirrors (see stores/targetHelper.ts), which is the job
-// it actually does.
-function iAmResponderFor(_args: ModuleEventArgs) {
-  return iAmFirstGM()
-}
-
 function isCharacterRequest(args: ModuleEventArgs): args is RequestCharacterDetailsArgs {
   return args.action === TM.REQUEST_CHARACTER
 }
@@ -162,24 +124,6 @@ function userOwnsRequestedActor(args: RequestCharacterDetailsArgs): boolean {
 
 function requestUuid(args: ModuleEventArgs): string | undefined {
   return 'uuid' in args && typeof args.uuid === 'string' ? args.uuid : undefined
-}
-
-// Answer a refused/failed request with an error ack so the waiting app rejects
-// its pending request immediately with a distinguishable cause, instead of
-// hanging until the client-side timeout. With no uuid there's nothing to
-// correlate, so the refusal is log-only.
-function emitErrorAck(args: ModuleEventArgs, error: string) {
-  const uuid = requestUuid(args)
-  if (!uuid) return
-  // Build the ack through makeAck so error acks and success acks share one
-  // shape (and userId normalization); this only adds the error field.
-  game.socket.emit(TM.CHANNEL, { ...makeAck({ uuid }), error })
-}
-
-// Turn a thrown handler into an error ack.
-function emitHandlerError(args: ModuleEventArgs, error: unknown) {
-  logger.error('TABLEMATE: handler failed', args.action, error)
-  emitErrorAck(args, error instanceof Error ? error.message : String(error))
 }
 
 function handleCharacterRequest(args: RequestCharacterDetailsArgs) {
@@ -250,7 +194,219 @@ function setupChatOriginStamping() {
   })
 }
 
+// Everything the dispatch loop below needs from the Foundry client, named so it
+// can be supplied by a test instead.
+//
+// The loop itself is a sequence of gates — character requests and acks first,
+// then the targets request, then the responder election, then the handler table,
+// then authorization, then the manual-roll policy — and the ORDER is the part
+// that carries the reasoning. Each gate has a comment saying why it sits where
+// it does, and until now none of it was reachable from a test: the whole body
+// was a closure inside setupListener, so the twelve specs in this directory
+// cover the pieces it calls (rpcTable, rpcAuthorize, requestDedup,
+// gmHandlerSetting, chatOrigin) and nothing covered how they compose.
+//
+// Only the Foundry-facing edges are injected. The pure collaborators — the RPC
+// table, the dedup guard, the chat-origin stack — are already importable and
+// already tested, so they stay direct calls.
+export interface ModuleEventDeps {
+  // The world, for the authorization gate. rpcAuthorize takes it as a parameter
+  // for exactly this reason; this is the second caller to benefit.
+  world: () => AuthWorld
+  // This client's user id: a targets request names the client that must answer.
+  selfUserId: () => string | undefined
+  // Send on the module channel.
+  emit: (payload: unknown) => void
+  // Is this client the world's elected handler?
+  isResponder: () => boolean
+  // World policy for player-determined dice faces.
+  manualRollPolicy: () => ManualRollPolicy
+  // Character refresh has its own debounced, per-actor path.
+  onCharacterRequest: (args: RequestCharacterDetailsArgs) => void
+  // Presence handshake: version check, then re-announce.
+  onAnybodyHome: (args: ModuleEventArgs) => void
+  // Report this client's own targeting.
+  onRequestTargets: () => void
+}
+
+// Answer a refused/failed request with an error ack so the waiting app rejects
+// its pending request immediately with a distinguishable cause, instead of
+// hanging until the client-side timeout. With no uuid there's nothing to
+// correlate, so the refusal is log-only.
+function ackError(deps: ModuleEventDeps, args: ModuleEventArgs, error: string) {
+  const uuid = requestUuid(args)
+  if (!uuid) return
+  // Built through makeAck so error acks and success acks share one shape (and
+  // userId normalization); this only adds the error field.
+  deps.emit({ ...makeAck({ uuid }), error })
+}
+
+// Turn a thrown handler into an error ack.
+function ackHandlerError(deps: ModuleEventDeps, args: ModuleEventArgs, error: unknown) {
+  logger.error('TABLEMATE: handler failed', args.action, error)
+  ackError(deps, args, error instanceof Error ? error.message : String(error))
+}
+
+// One inbound module message, from the gates through to dispatch.
+export function handleModuleEvent(args: ModuleEventArgs, deps: ModuleEventDeps) {
+  if (!args.userId) logger.warn('TM-missing: no userid', args)
+
+  // Character refresh has its own path: it is debounced per actor and answered
+  // by the elected GM (see handleCharacterRequest), rather than going through
+  // the handler table and the serialized dispatch chain below.
+  if (isCharacterRequest(args)) {
+    deps.onCharacterRequest(args)
+    return
+  }
+
+  // Observe acks from ANY answering client BEFORE the relay gate: they feed
+  // the request-dedup guard, so two GMs who momentarily both believe they are
+  // the elected one can't double-execute a request the other already
+  // answered. (The gate would drop this on every client but the elected one,
+  // which is exactly the client that does not need to hear it.)
+  if (args.action === TM.ACK) {
+    const uuid = requestUuid(args)
+    if (uuid) markRequestSeen(uuid)
+    return
+  }
+
+  // Answered BEFORE the responder gate, and by whichever client the request
+  // names rather than by the elected GM. A user's targets are placed Tokens on
+  // that user's own canvas, so only their client can report them without loss
+  // — the GM's copy is a reconstruction limited to whatever scene the GM has
+  // drawn. Read-only: it describes this client, never changes it. No
+  // authorization gate for the same reason core Foundry has none — target
+  // selection is already broadcast to every client via userActivity.
+  if (args.action === TM.REQUEST_TARGETS) {
+    if (args.proxyId === deps.selfUserId()) deps.onRequestTargets()
+    return
+  }
+
+  if (!deps.isResponder()) return
+  logger.info('TM.RECV (listener)', args)
+
+  if (args.action === TM.ANYBODY_HOME) {
+    deps.onAnybodyHome(args)
+    return
+  }
+
+  // One table lookup answers every question the dispatch loop has about this
+  // action: who may ask for it, which handler answers it, and whether it may
+  // run off the serialized chain. See rpcTable.ts.
+  const rpc = rpcDescriptor(args.action)
+  if (!rpc) {
+    // An action this side only ever sends — observed on the wire, nothing to do.
+    if (PASSIVE_ACTIONS.has(args.action)) return
+    // A request with no entry in the table, then: most likely an app newer
+    // than this module. Answer it so the app fails fast with a truthful cause
+    // rather than waiting out its 30s timeout (or being told, as it was
+    // before, that it was unauthorized).
+    logger.warn('TABLEMATE: no handler for action', args.action, args)
+    ackError(deps, args, `unsupported action: ${args.action}`)
+    return
+  }
+
+  if (!authorizeRequest(deps.world(), rpc.auth, args)) {
+    logger.warn('TABLEMATE: unauthorized request rejected', args.action, args.userId)
+    // Answer instead of dropping: a silent drop leaves the app waiting out
+    // its full 30s timeout, indistinguishable from "no GM online".
+    ackError(deps, args, TM_ERROR_UNAUTHORIZED)
+    return
+  }
+
+  // Manual-roll policy gate: a payload carrying player-determined dice faces
+  // is checked here, at the single dispatch point, before withBackgroundRoll
+  // can stamp the faces onto a Roll. 'reject' answers with a sentinel error
+  // ack the app recognizes; 'flag' lets the roll through but marks the chat
+  // origin so the resulting message gets tagged.
+  const presetDice = hasPresetDiceResults('diceResults' in args ? args.diceResults : undefined)
+  const policy = presetDice ? deps.manualRollPolicy() : 'allow'
+  if (policy === 'reject') {
+    logger.warn('TABLEMATE: manual roll rejected by world policy', args.action, args.userId)
+    ackError(deps, args, TM_ERROR_MANUAL_ROLLS_DISABLED)
+    return
+  }
+
+  // Answer the request; never rejects. The terminal catch matters: the
+  // error-ack emit can itself throw (socket torn down mid-reload), and a
+  // rejection escaping here would poison the dispatch chain for good.
+  const respond = (run: Promise<unknown>) =>
+    run
+      .then((result) => deps.emit(result))
+      .catch((error) => ackHandlerError(deps, args, error))
+      .catch((error) => logger.error('TABLEMATE: failed to answer request', args.action, error))
+
+  if (rpc.concurrent) {
+    void respond(rpc.handler(args))
+    return
+  }
+
+  const origin: ChatOrigin = {
+    userId: args.userId,
+    uuid: requestUuid(args),
+    manualRoll: policy === 'flag',
+    // The actor this request is about, so the uuid stamp can be scoped to the
+    // message this request itself produces (belongsToRequest). Authorization
+    // already resolved and owner-checked this id for every 'owner' action.
+    actorId: targetActorId(args)
+  }
+  dispatchChain = dispatchChain.then(
+    () =>
+      new Promise<void>((advance) => {
+        // Dedup at execution time, not receive time: the queue wait is
+        // exactly the window in which a competing client's ack (two GMs
+        // racing an election through a handoff) can arrive and mark this uuid.
+        const uuid = requestUuid(args)
+        if (uuid) {
+          if (requestAlreadySeen(uuid)) {
+            logger.warn('TABLEMATE: skipping request already answered elsewhere', args.action, uuid)
+            advance()
+            return
+          }
+          markRequestSeen(uuid)
+        }
+        const timer = globalThis.setTimeout(() => {
+          // Advancing the queue past a handler that is STILL RUNNING gives up
+          // the serialization that keeps ambient roll state from leaking
+          // between requests, so the abandoned request's context has to be
+          // torn down here rather than waiting for a `finally` that may never
+          // run. Left in place, its dice-result overrides sit on top of the
+          // stack for the rest of the session and land on everyone else's
+          // rolls — the GM's own included.
+          abandonChatOrigin(origin)
+          const droppedDice = abandonBackgroundRolls()
+          logger.warn(
+            `TABLEMATE: handler still running after ${HANDLER_QUEUE_TIMEOUT_MS}ms; advancing queue`,
+            args.action,
+            { abandonedDiceContexts: droppedDice }
+          )
+          advance()
+        }, HANDLER_QUEUE_TIMEOUT_MS)
+        void respond(withChatOrigin(origin, () => rpc.handler(args))).finally(() => {
+          globalThis.clearTimeout(timer)
+          advance()
+        })
+      })
+  )
+}
+
+// The serialized chain outlives a single request by design, so a test that left
+// work queued on it would leak into the next one.
+export function resetDispatchChainForTest(): void {
+  dispatchChain = Promise.resolve()
+}
+
+// Guarded because everything below registers a listener with Foundry — a socket
+// handler, canvas hooks, world settings — and a second call would double every
+// one of them: each request answered twice, each target change broadcast twice.
+// Safe today only because Hooks.on('ready') fires once per page load, which is a
+// property of the caller rather than of this function. setupChatOriginStamping
+// already carried its own guard; this is the same protection for its neighbours.
+let listenerRegistered = false
+
 export function setupListener() {
+  if (listenerRegistered) return
+  listenerRegistered = true
   logger.info('TABLEMATE: Setting up listener')
   // Which GMs handle requests, and in what order (edited via the GM Handlers
   // menu, registered in tablemate.ts). Re-announce on change so the newly
@@ -289,156 +445,67 @@ export function setupListener() {
     logger.info(`TM.SEND ${event}`, args?.[0]?.action, args)
   })
 
-  game.socket.on(TM.CHANNEL, (args: ModuleEventArgs) => {
-    if (!args.userId) logger.warn('TM-missing: no userid', args)
-
-    // Character refresh has its own path: it is debounced per actor and answered
-    // by the elected GM (see handleCharacterRequest), rather than going through
-    // the handler table and the serialized dispatch chain below.
-    if (isCharacterRequest(args)) {
-      handleCharacterRequest(args)
-      return
-    }
-
-    // Observe acks from ANY answering client BEFORE the relay gate: they feed
-    // the request-dedup guard, so two GMs who momentarily both believe they are
-    // the elected one can't double-execute a request the other already
-    // answered. (The gate would drop this on every client but the elected one,
-    // which is exactly the client that does not need to hear it.)
-    if (args.action === TM.ACK) {
-      const uuid = requestUuid(args)
-      if (uuid) markRequestSeen(uuid)
-      return
-    }
-
-    // Answered BEFORE the responder gate, and by whichever client the request
-    // names rather than by the elected GM. A user's targets are placed Tokens on
-    // that user's own canvas, so only their client can report them without loss
-    // — the GM's copy is a reconstruction limited to whatever scene the GM has
-    // drawn. Read-only: it describes this client, never changes it. No
-    // authorization gate for the same reason core Foundry has none — target
-    // selection is already broadcast to every client via userActivity.
-    if (args.action === TM.REQUEST_TARGETS) {
-      if (args.proxyId === game.user._id) broadcastOwnTargets()
-      return
-    }
-
-    if (!iAmResponderFor(args)) return
-    logger.info('TM.RECV (listener)', args)
-
-    if (args.action === TM.ANYBODY_HOME) {
+  // The live edges of the dispatch loop. Everything Foundry-shaped is resolved
+  // here, at the one place that has a client, so handleModuleEvent itself can be
+  // driven by a test.
+  const deps: ModuleEventDeps = {
+    world: authWorld,
+    selfUserId: () => game.user.id,
+    emit: (payload) => game.socket.emit(TM.CHANNEL, payload),
+    isResponder: iAmFirstGM,
+    manualRollPolicy,
+    onCharacterRequest: handleCharacterRequest,
+    onAnybodyHome: (args) => {
       checkClientVersion(args)
       announceSelf()
-      return
-    }
+    },
+    onRequestTargets: broadcastOwnTargets
+  }
 
-    // One table lookup answers every question the dispatch loop has about this
-    // action: who may ask for it, which handler answers it, and whether it may
-    // run off the serialized chain. See rpcTable.ts.
-    const rpc = rpcDescriptor(args.action)
-    if (!rpc) {
-      // An action this side only ever sends — observed on the wire, nothing to do.
-      if (PASSIVE_ACTIONS.has(args.action)) return
-      // A request with no entry in the table, then: most likely an app newer
-      // than this module. Answer it so the app fails fast with a truthful cause
-      // rather than waiting out its 30s timeout (or being told, as it was
-      // before, that it was unauthorized).
-      logger.warn('TABLEMATE: no handler for action', args.action, args)
-      emitErrorAck(args, `unsupported action: ${args.action}`)
-      return
-    }
-
-    if (!authorizeRequest(authWorld(), rpc.auth, args)) {
-      logger.warn('TABLEMATE: unauthorized request rejected', args.action, args.userId)
-      // Answer instead of dropping: a silent drop leaves the app waiting out
-      // its full 30s timeout, indistinguishable from "no GM online".
-      emitErrorAck(args, TM_ERROR_UNAUTHORIZED)
-      return
-    }
-
-    // Manual-roll policy gate: a payload carrying player-determined dice faces
-    // is checked here, at the single dispatch point, before withBackgroundRoll
-    // can stamp the faces onto a Roll. 'reject' answers with a sentinel error
-    // ack the app recognizes; 'flag' lets the roll through but marks the chat
-    // origin so the resulting message gets tagged.
-    const presetDice = hasPresetDiceResults('diceResults' in args ? args.diceResults : undefined)
-    const policy = presetDice ? manualRollPolicy() : 'allow'
-    if (policy === 'reject') {
-      logger.warn('TABLEMATE: manual roll rejected by world policy', args.action, args.userId)
-      emitErrorAck(args, TM_ERROR_MANUAL_ROLLS_DISABLED)
-      return
-    }
-
-    // Answer the request; never rejects. The terminal catch matters: the
-    // error-ack emit can itself throw (socket torn down mid-reload), and a
-    // rejection escaping here would poison the dispatch chain for good.
-    const respond = (run: Promise<unknown>) =>
-      run
-        .then((result) => game.socket.emit(TM.CHANNEL, result))
-        .catch((error) => emitHandlerError(args, error))
-        .catch((error) => logger.error('TABLEMATE: failed to answer request', args.action, error))
-
-    if (rpc.concurrent) {
-      void respond(rpc.handler(args))
-      return
-    }
-
-    const origin: ChatOrigin = {
-      userId: args.userId,
-      uuid: requestUuid(args),
-      manualRoll: policy === 'flag',
-      // The actor this request is about, so the uuid stamp can be scoped to the
-      // message this request itself produces (belongsToRequest). Authorization
-      // already resolved and owner-checked this id for every 'owner' action.
-      actorId: targetActorId(args)
-    }
-    dispatchChain = dispatchChain.then(
-      () =>
-        new Promise<void>((advance) => {
-          // Dedup at execution time, not receive time: the queue wait is
-          // exactly the window in which a competing client's ack (two GMs
-          // racing an election through a handoff) can arrive and mark this uuid.
-          const uuid = requestUuid(args)
-          if (uuid) {
-            if (requestAlreadySeen(uuid)) {
-              logger.warn(
-                'TABLEMATE: skipping request already answered elsewhere',
-                args.action,
-                uuid
-              )
-              advance()
-              return
-            }
-            markRequestSeen(uuid)
-          }
-          const timer = globalThis.setTimeout(() => {
-            // Advancing the queue past a handler that is STILL RUNNING gives up
-            // the serialization that keeps ambient roll state from leaking
-            // between requests, so the abandoned request's context has to be
-            // torn down here rather than waiting for a `finally` that may never
-            // run. Left in place, its dice-result overrides sit on top of the
-            // stack for the rest of the session and land on everyone else's
-            // rolls — the GM's own included.
-            abandonChatOrigin(origin)
-            const droppedDice = abandonBackgroundRolls()
-            logger.warn(
-              `TABLEMATE: handler still running after ${HANDLER_QUEUE_TIMEOUT_MS}ms; advancing queue`,
-              args.action,
-              { abandonedDiceContexts: droppedDice }
-            )
-            advance()
-          }, HANDLER_QUEUE_TIMEOUT_MS)
-          void respond(withChatOrigin(origin, () => rpc.handler(args))).finally(() => {
-            globalThis.clearTimeout(timer)
-            advance()
-          })
-        })
-    )
-  })
+  game.socket.on(TM.CHANNEL, (args: ModuleEventArgs) => handleModuleEvent(args, deps))
 }
 
 // utility functions
 
+// Which client should answer this request: the GM the world elected, always.
+//
+// Requests used to route to the requester's *targeting proxy* when they had one,
+// falling back to the elected GM otherwise. That was carried over from an older
+// "shared display" client and does nothing for targeting, because no handler
+// reads the executing client's targets. A player's chosen targets travel in the
+// request as token ids and are resolved against the active scene — world data,
+// identical on every client — and PF2e's own target resolution is driven through
+// an actor Proxy specifically so that no client's `game.user.targets` is ever
+// consulted or mutated. See resolveTarget in utils/target.ts, whose comment names
+// "the GM's (or proxy's) own UI state" as the thing being avoided.
+//
+// So proxy routing bought nothing and cost plenty:
+//
+//   • A proxy may be an ordinary PLAYER — the app lets you pick any non-root
+//     user. Requests then execute on a client with no GM authority: Foundry
+//     refuses a non-author message update (reactions), and file uploads want a
+//     GM's permissions (voice memos, images) — so those requests fail on a
+//     player proxy with no error anywhere useful.
+//   • It is chosen PER REQUESTER, so one table's requests could execute on
+//     several clients at once. The dispatch chain below serializes handlers per
+//     client, which made it insufficient for anything read-modify-write on
+//     shared state: two players reacting to one message through two proxies read
+//     the same list and one write clobbered the other.
+//   • It made "which client ran this" depend on a per-user flag, so the same
+//     action behaved differently for two players at the same table.
+//
+// One elected GM answers everything. The election is the world's GM Handlers
+// policy (gmHandlerSetting.ts), so a table that wants a particular GM to do the
+// work says so once, in one place, for every action.
+//
+// Trade-off: with no GM online, nothing is answered — where a player proxy might
+// once have picked a request up. In practice it would have failed on permissions
+// for most actions anyway, and REQUEST_CHARACTER already required a GM.
+//
+// The targeting proxy itself is untouched: it remains an app-side choice about
+// whose targets a tablet mirrors (see stores/targetHelper.ts), which is the job
+// it actually does.
+//
 // The elected handler among active GMs: highest priority per the world's GM
 // handler policy (set in the GM Handlers menu), ties broken by lowest _id — the
 // pre-setting rule, and still what an unconfigured world uses for every GM.
@@ -467,7 +534,7 @@ function tokenRingSpritesheet(): string | undefined {
 function announceSelf() {
   game.socket.emit(TM.CHANNEL, {
     action: TM.LISTENER_ONLINE,
-    userId: game.user._id,
+    userId: game.user.id,
     // Let the app run the reciprocal version check on its side.
     protocol: PROTOCOL_VERSION,
     moduleVersion: moduleVersion(),
@@ -519,7 +586,7 @@ function announceSelf() {
 function broadcastOwnTargets() {
   game.socket.emit(TM.CHANNEL, {
     action: TM.SHARE_TARGETS,
-    userId: game.user._id,
+    userId: game.user.id,
     sceneId: drawnSceneId(),
     targets: ownTargetIds(game)
   })
@@ -531,7 +598,11 @@ function broadcastOwnTargets() {
 const TARGET_BROADCAST_DEBOUNCE_MS = 50
 const broadcastOwnTargetsSoon = debounce(broadcastOwnTargets, TARGET_BROADCAST_DEBOUNCE_MS)
 
+let targetReportingRegistered = false
+
 function setupTargetReporting() {
+  if (targetReportingRegistered) return
+  targetReportingRegistered = true
   // Fires on EVERY client, for every user's target change — including remote
   // ones this client learned about over the wire. Report only our own, or a
   // table of N clients would answer each change N times, and the copies made on
