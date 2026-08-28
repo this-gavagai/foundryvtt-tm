@@ -129,7 +129,9 @@ const menuItems = computed(() => {
   const items: { id: string; label: string; danger?: boolean }[] = []
   if (canEdit.value) items.push({ id: 'edit', label: t('chat.edit') })
   else if (canEditTranscript.value) items.push({ id: 'edit', label: t('chat.editTranscript') })
-  items.push({ id: 'delete', label: t('common.delete'), danger: true })
+  // Gated like the edit entries: hasMenu opens for a reaction alone, so on
+  // someone else's message this menu exists with nothing manageable in it.
+  if (canManage.value) items.push({ id: 'delete', label: t('common.delete'), danger: true })
   return items
 })
 

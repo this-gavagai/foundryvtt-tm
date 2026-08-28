@@ -466,8 +466,13 @@ export function useChatActions({
       const ack = await toggleReactionRpc(messageId, emoji)
       worldStore.applyChatReactions(messageId, ack.reactions)
     } catch {
-      // Put the pre-tap list back — no GM online, an error ack, or a timeout.
-      worldStore.applyChatReactions(messageId, before)
+      // No GM online, an error ack, or a timeout. Undo our own pair on the list
+      // as it stands now rather than replaying the pre-tap snapshot: another
+      // player may have reacted while the RPC was out, and only this user can
+      // have touched this user's pair, so re-toggling settles exactly our tap
+      // and leaves theirs standing.
+      const current = readReactions(message)
+      worldStore.applyChatReactions(messageId, toggleReactionLocal(current, emoji, userId))
       actionError.value = true
     } finally {
       setPending(pendingReactions, key, false)
@@ -615,7 +620,22 @@ export function useChatActions({
     }
     const config = memoTranscriptionConfig()
     if (!config) return null
-    return transcribeAudioOrNull(blob, mimeType, config)
+    // Record the call against this take, the same way begin does. Without the
+    // entry a retry after a failed upload finds nothing keyed to the blob and
+    // pays for a second transcription — the reuse this function promises.
+    const started: MemoTranscription = {
+      blob,
+      running: true,
+      text: transcribeAudioOrNull(blob, mimeType, config)
+    }
+    memoTranscription = started
+    void started.text.then((text) => {
+      // Identity check as in begin: a retake or a correction typed during the
+      // send has moved the composer on, and this text belongs to neither.
+      if (memoTranscription !== started) return
+      memoTranscription = { blob, running: false, text }
+    })
+    return started.text
   }
 
   // Send a recorded voice memo: slice the blob into base64 chunks and stream
@@ -635,12 +655,19 @@ export function useChatActions({
       outOfCharacter?: boolean
       whisper?: string[]
     }
-  ) {
+  ): Promise<boolean> {
     const characterId = actorId.value
-    if (!characterId || isSending.value) return
+    // Reports whether the memo actually posted, rather than leaving the caller
+    // to infer it from sendError: the early returns below run before sendError
+    // is cleared, so a stale null there would read as a send that never ran.
+    if (isSending.value) return false
+    if (!characterId) {
+      sendError.value = 'send'
+      return false
+    }
     if (blob.size === 0) {
       sendError.value = 'upload'
-      return
+      return false
     }
     isSending.value = true
     sendError.value = null
@@ -662,8 +689,10 @@ export function useChatActions({
       // Detached: the composer is done once the memo is posted.
       if (pendingTranscript) void attachVoiceMemoTranscript(posted, pendingTranscript)
       onMessageSent?.()
+      return true
     } catch {
       sendError.value = 'upload'
+      return false
     } finally {
       isSending.value = false
     }
@@ -744,12 +773,18 @@ export function useChatActions({
       outOfCharacter?: boolean
       whisper?: string[]
     } = {}
-  ) {
+  ): Promise<boolean> {
     const characterId = actorId.value
-    if (!characterId || isSending.value) return
+    // Same contract as submitVoiceMemo: the return value, not sendError, is
+    // what tells the caller whether the selection is safe to clear.
+    if (isSending.value) return false
+    if (!characterId) {
+      sendError.value = 'send'
+      return false
+    }
     if (image.bytes.length === 0) {
       sendError.value = 'upload'
-      return
+      return false
     }
     isSending.value = true
     sendError.value = null
@@ -773,8 +808,10 @@ export function useChatActions({
         )
       }
       onMessageSent?.()
+      return true
     } catch {
       sendError.value = 'upload'
+      return false
     } finally {
       isSending.value = false
     }

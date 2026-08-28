@@ -134,6 +134,24 @@ describe('submitVoiceMemo transcription', () => {
     await vi.waitFor(() => expect(modifyDocument).toHaveBeenCalledTimes(1))
   })
 
+  it('bills one transcription for a take whose upload failed and was retried', async () => {
+    await enableTranscription()
+    const actions = makeActions()
+    const take = blob()
+
+    // A take sent without begin() having run: the transcription starts from the
+    // send itself. The upload then fails outright — the chunk and its one retry.
+    sendVoiceMemo.mockRejectedValue(new Error('Voice memo upload returned no path'))
+    expect(await actions.submitVoiceMemo(take, memo)).toBe(false)
+    expect(transcribeAudioOrNull).toHaveBeenCalledTimes(1)
+
+    // The composer kept the take, so the user hits send again. That retry has to
+    // reuse the call already paid for rather than transcribe the same audio twice.
+    sendVoiceMemo.mockResolvedValue({ messageId: 'msg-1', content: '<audio></audio>' })
+    expect(await actions.submitVoiceMemo(take, memo)).toBe(true)
+    expect(transcribeAudioOrNull).toHaveBeenCalledTimes(1)
+  })
+
   it('rewrites a posted memo’s transcript in place, leaving the player alone', async () => {
     const player = '<audio controls preload="metadata" src="audio/memo.m4a"></audio>'
     const posted = `${player}<div data-tablemate-transcript><em>the goblin attacks</em></div>`

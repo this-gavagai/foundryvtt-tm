@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ref, computed } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import type { ChatMessageData } from '@/composables/useChatMessages'
+import type { PreparedImage } from '@/utils/imageUpload'
 import { VOICE_MEMO_CHUNK_SIZE } from '@/utils/voiceMemoChunks'
 
 // A recording crosses to the GM as a series of chunk RPCs, each awaiting its ack
@@ -16,12 +17,15 @@ type UploadChunkArgs = { uploadId: string; seq: number; total: number; chunkBase
 const sendVoiceMemo = vi.fn<
   (characterId: string, chunk: UploadChunkArgs, meta: unknown) => Promise<{ messageId?: string }>
 >(async () => ({ messageId: 'msg-1' }))
+const sendImage = vi.fn<
+  (characterId: string, chunk: UploadChunkArgs, meta: unknown) => Promise<{ messageId?: string }>
+>(async () => ({ messageId: 'msg-1' }))
 
 vi.mock('@/api/actionRpc', () => ({
   applyDamage: vi.fn(),
   consumeItem: vi.fn(),
   rerollChatRoll: vi.fn(),
-  sendImage: vi.fn(),
+  sendImage: (...args: Parameters<typeof sendImage>) => sendImage(...args),
   sendVoiceMemo: (...args: Parameters<typeof sendVoiceMemo>) => sendVoiceMemo(...args),
   toggleReaction: vi.fn()
 }))
@@ -31,13 +35,22 @@ vi.mock('@/composables/useHapticFeedback', () => ({ triggerLightHapticFeedback: 
 
 const { useChatActions } = await import('@/composables/useChatActions')
 
-function makeActions() {
+function makeActions(actorId = 'seelah-id') {
   return useChatActions({
-    actorId: ref('seelah-id'),
+    actorId: ref(actorId),
     actor: ref(undefined),
     messages: computed<ChatMessageData[]>(() => []),
     messageIsOwnActor: () => true
   })
+}
+
+function pickedImage(): PreparedImage {
+  return {
+    bytes: new Uint8Array(new ArrayBuffer(8)),
+    mimeType: 'image/webp',
+    width: 4,
+    height: 2
+  }
 }
 
 const memo = { mimeType: 'audio/mp4', durationMs: 62_000 }
@@ -113,5 +126,42 @@ describe('submitVoiceMemo chunk streaming', () => {
     // composer, so the composer says the upload didn't finish.
     expect(actions.sendError.value).toBe('upload')
     expect(sendVoiceMemo).toHaveBeenCalledTimes(2) // the chunk, then its one retry
+  })
+})
+
+// Whether the composer may clear the take is the send's answer to give, not
+// something to infer from sendError: the guard returns below run before
+// sendError is cleared, so a stale null there used to read as "sent" and threw
+// away a recording that had never left the device.
+describe('what a send reports back', () => {
+  it('reports a posted memo, so the composer can clear the take', async () => {
+    const actions = makeActions()
+    await expect(actions.submitVoiceMemo(minuteLongRecording().blob, memo)).resolves.toBe(true)
+    expect(actions.sendError.value).toBeNull()
+  })
+
+  it('keeps the take when there is no actor to speak as', async () => {
+    const actions = makeActions('')
+    await expect(actions.submitVoiceMemo(minuteLongRecording().blob, memo)).resolves.toBe(false)
+    // Nothing was sent, so the recording is still the user's only copy.
+    expect(sendVoiceMemo).not.toHaveBeenCalled()
+    expect(actions.sendError.value).toBe('send')
+  })
+
+  it('keeps the take when the upload failed', async () => {
+    sendVoiceMemo.mockRejectedValue(new Error('Voice memo upload returned no path'))
+    const actions = makeActions()
+    await expect(actions.submitVoiceMemo(minuteLongRecording().blob, memo)).resolves.toBe(false)
+    expect(actions.sendError.value).toBe('upload')
+  })
+
+  it('reports a posted image, and keeps the selection without an actor', async () => {
+    const actions = makeActions()
+    await expect(actions.submitImage(pickedImage())).resolves.toBe(true)
+
+    const without = makeActions('')
+    await expect(without.submitImage(pickedImage())).resolves.toBe(false)
+    expect(sendImage).toHaveBeenCalledTimes(1) // the first send only
+    expect(without.sendError.value).toBe('send')
   })
 })

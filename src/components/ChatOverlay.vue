@@ -219,6 +219,16 @@ function cancelEdit() {
   draft.value = ''
 }
 
+// Escape abandons an edit in progress — and stops there. HeadlessUI's Dialog
+// listens for Escape on the window and closes on any it sees undefaulted, so an
+// unconsumed key would drop the user out of chat along with the edit. With no
+// edit under way it stays unconsumed, and Escape closes the overlay as usual.
+function onComposerEscape(event: KeyboardEvent) {
+  if (!editingMessageId.value) return
+  event.preventDefault()
+  cancelEdit()
+}
+
 // Delete is confirmed in a modal: the row's request opens the dialog; its
 // confirm performs the delete.
 const deleteDialog = ref<InstanceType<typeof ConfirmDialog>>()
@@ -345,14 +355,14 @@ async function submitCurrentVoiceMemo() {
   const blob = recordedBlob.value
   if (!blob) return
   const whisper = selectedWhisperCommandTargets.value
-  await submitVoiceMemo(blob, {
+  const sent = await submitVoiceMemo(blob, {
     mimeType: recordMimeType.value,
     durationMs: Math.round(recordElapsedMs.value),
     outOfCharacter: outOfCharacter.value,
     whisper: whisper.length ? whisper : undefined
   })
   // Keep the take on failure so the user can retry; clear it once it's sent.
-  if (!sendError.value) resetRecording()
+  if (sent) resetRecording()
 }
 
 // ── Images ─────────────────────────────────────────────────────────────────
@@ -450,12 +460,12 @@ async function submitCurrentImage() {
   const image = imagePrepared.value
   if (!image) return
   const whisper = selectedWhisperCommandTargets.value
-  await submitImage(image, {
+  const sent = await submitImage(image, {
     outOfCharacter: outOfCharacter.value,
     whisper: whisper.length ? whisper : undefined
   })
   // Keep the selection on failure so the user can retry; clear once it's sent.
-  if (!sendError.value) resetImage()
+  if (sent) resetImage()
 }
 
 // On the native mobile keyboard there's no modifier key to reach for, so a bare
@@ -733,7 +743,7 @@ defineExpose({ open, close, isOpen })
                   {{ $t('chat.noMessages') }}
                 </div>
                 <ol v-else class="flex flex-col">
-                  <template v-for="view in renderedMessages" :key="view.key">
+                  <template v-for="(view, i) in renderedMessages" :key="view.key">
                     <li
                       v-if="view.key === firstUnreadKey"
                       data-part="chat-new-divider"
@@ -753,7 +763,7 @@ defineExpose({ open, close, isOpen })
                       :inline-check-label="inlineCheckLabel"
                       :actions="chatActions"
                       :group-start="view.groupStart || view.key === firstUnreadKey"
-                      :group-end="view.groupEnd"
+                      :group-end="view.groupEnd || renderedMessages[i + 1]?.key === firstUnreadKey"
                       :reactions-supported="reactionsSupported"
                       @select-author="selectWhisperUserFromMessage(view)"
                       @content-click="handleChatContentClick($event)"
@@ -898,7 +908,7 @@ defineExpose({ open, close, isOpen })
                         class="max-h-16 w-full resize-none overflow-y-auto rounded-md border border-gray-300 bg-white px-1 text-xs text-gray-600 italic focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-hidden"
                         @blur="commitTranscriptEdit"
                         @keydown.enter.exact="onTranscriptEnterKey"
-                        @keydown.esc="cancelTranscriptEdit"
+                        @keydown.esc.prevent="cancelTranscriptEdit"
                       />
                       <button
                         v-else-if="voiceMemoTranscript"
@@ -942,7 +952,7 @@ defineExpose({ open, close, isOpen })
                         @keydown.enter.exact="onEnterKey"
                         @keydown.meta.enter.prevent="submitChatMessage"
                         @keydown.ctrl.enter.prevent="submitChatMessage"
-                        @keydown.esc="editingMessageId && cancelEdit()"
+                        @keydown.esc="onComposerEscape"
                         @paste="onPaste"
                       />
                       <!-- Attach + mic sit inside the empty composer; they hide as
@@ -1007,7 +1017,7 @@ defineExpose({ open, close, isOpen })
                     <button
                       type="button"
                       class="inline-flex h-14.5 w-12 flex-none items-center justify-center rounded-md bg-blue-600 text-white transition-colors enabled:hover:bg-blue-500 enabled:active:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
-                      :disabled="isSending"
+                      :disabled="isSending || !_id"
                       :aria-label="$t('chat.sendVoice')"
                       @click="submitCurrentVoiceMemo"
                     >
@@ -1031,7 +1041,7 @@ defineExpose({ open, close, isOpen })
                     <button
                       type="button"
                       class="inline-flex h-14.5 w-12 flex-none items-center justify-center rounded-md bg-blue-600 text-white transition-colors enabled:hover:bg-blue-500 enabled:active:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
-                      :disabled="isSending"
+                      :disabled="isSending || !_id"
                       :aria-label="$t('chat.sendImage')"
                       @click="submitCurrentImage"
                     >
