@@ -354,4 +354,42 @@ describe('signOut', () => {
 
     expect(order).toEqual(['drop', 'purge'])
   })
+
+  // A repair attempt opened before the sign-out read the session id while it
+  // was still stored, so its socket authenticates against the very session
+  // deleteSession has since destroyed. requestReconnect shares an in-flight
+  // attempt by design, so signing out has to abandon that one rather than
+  // adopt it — otherwise its authenticated session event clears needsLogin and
+  // the user is silently signed back in.
+  it('is not undone by a reconnect that was already in flight', async () => {
+    const store = await loadStore()
+    await store.connectToServer(SERVER)
+    await settle()
+    sockets.at(-1)!.fire('session', { userId: 'user-1' })
+    await settle()
+    expect(store.needsLogin).toBe(false)
+
+    // Hold a repair attempt open across the sign-out.
+    let releaseConnect!: () => void
+    const held = new Promise<void>((resolve) => (releaseConnect = resolve))
+    const connectNormally = establishSocket.getMockImplementation()!
+    establishSocket.mockImplementationOnce(async (...args: unknown[]) => {
+      await held
+      return connectNormally(...(args as Parameters<typeof connectNormally>))
+    })
+    void store.requestReconnect()
+    await settle()
+
+    await store.signOut()
+    await settle()
+    expect(store.needsLogin).toBe(true)
+
+    // The abandoned attempt lands late, still carrying the old session.
+    releaseConnect()
+    await settle()
+    sockets.at(-1)!.fire('session', { userId: 'user-1' })
+    await settle()
+
+    expect(store.needsLogin).toBe(true)
+  })
 })

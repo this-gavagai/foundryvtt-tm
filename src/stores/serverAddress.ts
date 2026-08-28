@@ -11,6 +11,7 @@ import { useCharacterSelectStore } from '@/stores/characterSelect'
 import { useChatStore } from '@/stores/chat'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
+import { resetWorldScopedStores } from '@/stores/worldScopedReset'
 import { clearCachedCharacterData } from '@/utils/cachedCharacterData'
 import { cancelPendingSnapshotSaves } from '@/api/characterSync'
 import { rejectAllPending } from '@/api/actionRpc'
@@ -169,6 +170,13 @@ export const useServerAddressStore = defineStore('serverAddress', () => {
       // uuid-keyed broadcasts that still arrive on the replacement socket.
       rejectAllPending('server changed')
       useWorldStore().clearWorld()
+      // Everything the OLD world told us about itself goes with it. This runs
+      // here, on the switch itself, rather than only on the new server's
+      // session handshake: a server that never answers would otherwise leave
+      // the app showing the previous world's GM presence, capability flags,
+      // manual-roll policy and ring art under the new server's name. See
+      // resetWorldScopedStores.
+      resetWorldScopedStores()
       useFoundryWorldStatusStore().markWorldPending()
       useCharacterSelectStore().reseedForCurrentServer()
     }

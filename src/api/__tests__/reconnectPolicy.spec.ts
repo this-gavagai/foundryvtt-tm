@@ -137,4 +137,29 @@ describe('scheduleRetry backoff', () => {
     await vi.advanceTimersByTimeAsync(1_000)
     expect(connect).toHaveBeenCalledTimes(1)
   })
+
+  // cancel() is called when the state an attempt was started against has just
+  // been invalidated — a sign-out deleting the session that attempt is carrying.
+  // Adopting it would establish exactly what the caller asked to be rid of, so
+  // the slot has to be released, not merely have its timer cleared.
+  it('cancel releases the in-flight slot so the next request connects afresh', async () => {
+    const resolvers: Array<() => void> = []
+    const { policy, connect } = makePolicy({
+      connect: vi.fn(() => new Promise<void>((resolve) => resolvers.push(resolve)))
+    })
+
+    const abandoned = policy.requestReconnect()
+    expect(connect).toHaveBeenCalledTimes(1)
+
+    policy.cancel()
+    void policy.requestReconnect()
+    expect(connect).toHaveBeenCalledTimes(2)
+
+    // And the abandoned attempt settling late must not free the slot the live
+    // one now holds — otherwise the next trigger stacks a third teardown.
+    resolvers[0]()
+    await abandoned
+    void policy.requestReconnect()
+    expect(connect).toHaveBeenCalledTimes(2)
+  })
 })

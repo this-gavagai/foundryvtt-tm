@@ -356,6 +356,17 @@ export const useServerStore = defineStore('server', () => {
     await forgetCredential(url.origin)
     await Promise.resolve(currentTransport().deleteSession(url)).catch(() => {})
     await clearCachedCharacterData(url.origin)
+    // Abandon whatever was already in flight before asking for a fresh socket.
+    // A reconnect started before deleteSession read the session id while it was
+    // still stored, so it hands Foundry the very session this sign-out just
+    // destroyed — and requestReconnect would have adopted it rather than
+    // opening a new one. Its authenticated session event then clears
+    // needsLogin, and the sign-out silently doesn't happen. The live socket
+    // goes for the same reason: it is bound server-side to that session.
+    connectionId += 1
+    reconnectPolicy.cancel()
+    disconnectCurrentSocket()
+    stalledHandshakeRetries = 0
     silentReauthAttempts = 0
     needsLogin.value = true
     void requestReconnect()

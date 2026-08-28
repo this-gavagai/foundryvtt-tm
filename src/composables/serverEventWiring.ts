@@ -17,6 +17,7 @@ import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { useWorldStore } from '@/stores/world'
 import { useSettingsStore } from '@/stores/settings'
 import { usePixelDiceStore } from '@/stores/pixelDice'
+import { resetWorldScopedStores } from '@/stores/worldScopedReset'
 import { logger } from '@/utils/utilities'
 import {
   onModifyDocument,
@@ -82,24 +83,6 @@ export function installApiStoreBridge() {
     },
     getWorldActor: (actorId) => useWorldStore().actorById(actorId)
   })
-}
-
-// Everything the connected world told us about itself, dropped in one place.
-//
-// All of it arrives on a module announcement or a proxy push, so none of it is
-// re-derived on a server/user switch — it simply persists until the new world's
-// module happens to speak. Carried over, the new world inherits the old one's
-// GM presence (roll buttons live against a client that cannot answer), its
-// manual-roll policy, its capability flags, and its token ring art.
-function resetWorldScopedStores() {
-  useListenersStore().reset()
-  useVersionCompatStore().reset()
-  useGmPolicyStore().reset()
-  useTokenRingStore().reset()
-  // Mirrored targets belong to one proxy in one world. Carrying them across a
-  // server/user switch would leave the sheet holding token ids that resolve to
-  // nothing — or, worse, to something.
-  useTargetHelperStore().reset()
 }
 
 export function registerServerEventWiring() {
