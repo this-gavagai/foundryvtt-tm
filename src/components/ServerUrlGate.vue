@@ -129,7 +129,7 @@ async function handleSubmit() {
         <button
           type="submit"
           data-part="connect"
-          class="rounded p-2 transition duration-180 ease-out disabled:opacity-50 active:scale-[0.97] active:opacity-50 active:duration-60"
+          class="rounded p-2 transition duration-180 ease-out active:scale-[0.97] active:opacity-50 active:duration-60 disabled:opacity-50"
           :disabled="checking"
           @pointerdown="!checking && triggerLightHapticFeedback()"
         >

@@ -16,9 +16,7 @@ const { servers, serverUrlText } = storeToRefs(serverAddressStore)
 // under its own heading) and the rest. activeServer is only set when the active
 // origin is actually in the saved list, so an unsaved/transient active server
 // won't render an empty "active" section.
-const activeServer = computed(() =>
-  servers.value.find((origin) => origin === serverUrlText.value)
-)
+const activeServer = computed(() => servers.value.find((origin) => origin === serverUrlText.value))
 const inactiveServers = computed(() =>
   servers.value.filter((origin) => origin !== serverUrlText.value)
 )
