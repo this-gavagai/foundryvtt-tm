@@ -37,7 +37,7 @@ const src = computed(() => (props.url ? getPath(props.url) : undefined))
 </script>
 
 <template>
-  <div class="relative h-full w-full" :class="layers ? 'overflow-hidden rounded-full' : ''">
+  <div class="relative h-full w-full" :class="layers ? 'overflow-visible rounded-full' : ''">
     <img
       v-if="layers?.background"
       :src="layers.background"
