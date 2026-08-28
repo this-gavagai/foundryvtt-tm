@@ -49,6 +49,7 @@ import {
   type TablemateChatMessage
 } from './utils/chatMessage'
 import { foundryToggleReaction } from './handlers/reactions'
+import { onHook } from './globals'
 
 let reactionDisplayRegistered = false
 let reactionContextMenuRegistered = false
@@ -183,13 +184,19 @@ function reactionsAvailable(): boolean {
 }
 
 // v14 renamed two ContextMenuEntry fields and deprecates the old names:
-// condition → visible, and name → label. Both spellings of each are set below so
-// v13 (which reads the old names) and v14 (which prefers the new ones, and only
-// warns when it sees an old name WITHOUT its replacement) are each satisfied
-// without a console deprecation. The shipped types predate both new fields.
+// condition → visible, and name → label. Both spellings of each are still set
+// below so v13 (which reads the old names) and v14 (which prefers the new ones,
+// and only warns when it sees an old name WITHOUT its replacement) are each
+// satisfied without a console deprecation. Confirmed in 14.367:
+//
+//     const visibilityCheck = "visible" in entry ? entry.visible : entry.condition
+//
+// The types now describe v14, so it is the LEGACY pair that has to be declared
+// here — the reverse of what this augmentation held against the v13 types.
 type ReactionContextEntry = ContextMenuEntry & {
-  visible?: ContextMenuEntry['condition']
-  label?: string
+  condition?: ContextMenuEntry['visible']
+  name?: string
+  callback?: (target: unknown, event?: unknown) => void
 }
 
 // One entry per palette emoji, in a group of their own so they read as a block
@@ -203,17 +210,27 @@ type ReactionContextEntry = ContextMenuEntry & {
 // IS re-evaluated on every open, which is what lets reactionsAvailable() reflect
 // whether a GM is online right now.
 function reactionContextEntries(): ReactionContextEntry[] {
-  return REACTION_EMOJI.map((emoji) => ({
-    label: emoji,
-    name: emoji,
-    group: 'tm-reactions',
-    visible: reactionsAvailable,
-    condition: reactionsAvailable,
-    callback: (target: unknown) => {
+  return REACTION_EMOJI.map((emoji) => {
+    const react = (target: unknown) => {
       const id = contextTargetMessageId(target)
       if (id) toggle(id, emoji)
     }
-  }))
+    return {
+      label: emoji,
+      name: emoji,
+      group: 'tm-reactions',
+      visible: reactionsAvailable,
+      condition: reactionsAvailable,
+      // The third v14 rename, and the only one that is not a straight alias:
+      // onClick takes (event, target) where callback took (target, event). v14
+      // prefers onClick and falls back to callback with a deprecation warning
+      // (foundry.mjs:29614), so both are supplied — as separate functions,
+      // because handing the same one to both would feed v14's event in where
+      // v13's target belongs.
+      onClick: (_event: PointerEvent, target: HTMLElement) => react(target),
+      callback: (target: unknown) => react(target)
+    }
+  })
 }
 
 // The right-clicked message's id, from whatever the running core hands the
@@ -302,7 +319,7 @@ export function setupReactionDisplay(): void {
   if (reactionDisplayRegistered) return
   reactionDisplayRegistered = true
 
-  Hooks.on('renderChatMessageHTML', (message: ReactableMessage, html: unknown) => {
+  onHook('renderChatMessageHTML', (message: ReactableMessage, html: unknown) => {
     const element = chatMessageElement(html) ?? findRenderedChatMessage(message)
     if (element) applyReactionDisplay(message, element)
   })
@@ -311,7 +328,7 @@ export function setupReactionDisplay(): void {
   // (which the hook above catches), but re-applying directly is cheap insurance
   // against a version or a flag-only diff that skips the re-render — without it
   // a chip added from a tablet wouldn't appear here until the next reload.
-  Hooks.on('updateChatMessage', (message: ReactableMessage) => {
+  onHook('updateChatMessage', (message: ReactableMessage) => {
     const element = findRenderedChatMessage(message)
     if (element) applyReactionDisplay(message, element)
   })

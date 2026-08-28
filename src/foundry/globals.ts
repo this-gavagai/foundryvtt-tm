@@ -105,6 +105,23 @@ export function hooks(): HooksApi {
   return Hooks
 }
 
+// Subscribe to a hook the typings do not enumerate.
+//
+// Foundry's typings overload `Hooks.on` for the hooks core declares and fall
+// back to `(...args: unknown[])` for everything else — which includes the
+// document-render hooks this module lives on (renderChatMessageHTML,
+// updateChatMessage). A handler that declares what it is actually handed is
+// then REJECTED for being narrower than unknown, so every call site would have
+// to take `unknown` and re-narrow.
+//
+// The knowledge that renderChatMessageHTML is handed a chat message is the same
+// kind of knowledge as the rest of this file: true of the running client, not
+// expressible to the compiler. Stated once here, where the reason can be
+// written down, rather than as an assertion at each subscription.
+export function onHook<A extends unknown[]>(hook: string, handler: (...args: A) => void): void {
+  hooks().on(hook, handler as (...args: unknown[]) => void)
+}
+
 // ── Notifications ──────────────────────────────────────────────────────────
 
 // `ui.notifications` is absent until the UI renders, so every method is optional

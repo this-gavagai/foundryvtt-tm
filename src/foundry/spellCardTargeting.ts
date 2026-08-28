@@ -13,6 +13,7 @@ import {
 } from './utils/chatMessage'
 import { noFallbackTargetActor, resolveTargets } from './utils/target'
 import { rollSpellDamageWithTarget } from './utils/spellTargeting'
+import { onHook } from './globals'
 
 let spellCardTargetingRegistered = false
 
@@ -89,7 +90,7 @@ export function setupSpellCardTargeting() {
   if (spellCardTargetingRegistered) return
   spellCardTargetingRegistered = true
 
-  Hooks.on('renderChatMessageHTML', (message: TablemateChatMessage, html: unknown) => {
+  onHook('renderChatMessageHTML', (message: TablemateChatMessage, html: unknown) => {
     // Non-empty only — see tablemateTargetTokenIds. A cast with no targets
     // produces an ordinary card that nobody intercepts.
     if (!tablemateTargetTokenIds(message).length) return

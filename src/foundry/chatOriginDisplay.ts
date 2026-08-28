@@ -9,6 +9,7 @@ import {
   type TablemateChatMessage
 } from './utils/chatMessage'
 import { tablemateChatOriginUserId, tablemateManualRoll } from './utils/foundry'
+import { onHook } from './globals'
 
 let chatOriginDisplayRegistered = false
 
@@ -146,7 +147,7 @@ export function setupChatOriginDisplay() {
 
   // renderChatMessageHTML fires for every render AFTER registration — new posts,
   // updates, and messages lazily rendered as the log is scrolled.
-  Hooks.on('renderChatMessageHTML', (message: TablemateChatMessage, html: unknown) => {
+  onHook('renderChatMessageHTML', (message: TablemateChatMessage, html: unknown) => {
     const originUserId = tablemateChatOriginUserId(message)
     if (!originUserId) return
 

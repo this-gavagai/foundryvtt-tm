@@ -18,7 +18,12 @@ export async function foundryGetSpellDamage(args: GetSpellDamageArgs) {
     overlayIds: args.overlayIds
   })
   const overrides = (args as { modifierOverrides?: ModifierOverrideMap }).modifierOverrides
-  const getDamage = () => spell!.getDamage({ skipDialog: true, rollMode: 'blindroll' })
+  // No rollMode. It used to be passed here as 'blindroll', but getDamage posts
+  // no chat message — it builds and returns the damage data — so there was never
+  // a message for a roll mode to apply to, and pf2e 8.4.1 does not read the
+  // field at all. Dropped rather than translated to its replacement
+  // (messageMode), which would likewise govern a message this never creates.
+  const getDamage = () => spell!.getDamage({ skipDialog: true })
   const { sd, baseline } = await withBackgroundRoll(undefined, async () => {
     const sd = spell ? await withDamageModifierOverrides(overrides, getDamage) : null
     const baseline = spell && overrides && Object.keys(overrides).length ? await getDamage() : sd
