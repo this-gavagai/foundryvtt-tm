@@ -5,7 +5,6 @@ import {
   resolveRequestedTargets,
   requirePlaceableTarget,
   withMirroredTargets,
-  withoutAmbientTargets,
   noFallbackTargetActor,
   ownTargetIds
 } from '@/foundry/utils/target'
@@ -223,7 +222,7 @@ describe('mirroring targets onto the handling client', () => {
   it('hides this client own targets from an untargeted roll', async () => {
     const game = makeGameWithTargets('gm-reticle')
     let seenDuringRoll: unknown[] = []
-    await withoutAmbientTargets(game, async () => {
+    await withMirroredTargets(game, [], async () => {
       seenDuringRoll = Array.from(game.user.targets)
     })
     expect(seenDuringRoll).toEqual([])
@@ -250,7 +249,7 @@ describe('mirroring targets onto the handling client', () => {
   it('restores the exact original set afterwards, by identity', async () => {
     const game = makeGameWithTargets('gm-reticle')
     const held = game.user.targets
-    await withoutAmbientTargets(game, async () => undefined)
+    await withMirroredTargets(game, [], async () => undefined)
     expect(game.user.targets).toBe(held)
     expect(Array.from(game.user.targets)).toEqual([{ name: 'gm-reticle' }])
   })
@@ -259,7 +258,7 @@ describe('mirroring targets onto the handling client', () => {
     const game = makeGameWithTargets('gm-reticle')
     const held = game.user.targets
     await expect(
-      withoutAmbientTargets(game, async () => {
+      withMirroredTargets(game, [], async () => {
         throw new Error('roll blew up')
       })
     ).rejects.toThrow('roll blew up')
@@ -283,7 +282,7 @@ describe('mirroring targets onto the handling client', () => {
   it('reports an empty own selection during an untargeted roll, not the empty stand-in', async () => {
     const game = makeGameWithTargets()
     let reportedDuringRoll: string[] = ['unset']
-    await withoutAmbientTargets(game, async () => {
+    await withMirroredTargets(game, [], async () => {
       reportedDuringRoll = ownTargetIds(game)
     })
     expect(reportedDuringRoll).toEqual([])
@@ -291,7 +290,7 @@ describe('mirroring targets onto the handling client', () => {
 
   it('reports the live property once the swap is over', async () => {
     const game = makeGameWithTargets('gm-reticle')
-    await withoutAmbientTargets(game, async () => undefined)
+    await withMirroredTargets(game, [], async () => undefined)
     expect(ownTargetIds(game)).toEqual(['gm-reticle'])
   })
 
@@ -299,7 +298,7 @@ describe('mirroring targets onto the handling client', () => {
     const game = makeGameWithTargets('gm-reticle')
     const { tokens } = resolveTargets(game, { targets: ['tok-1'], targetScene: 'scene-a' })
     let reportedInside: string[] = []
-    await withoutAmbientTargets(game, () =>
+    await withMirroredTargets(game, [], () =>
       withMirroredTargets(game, tokens, async () => {
         reportedInside = ownTargetIds(game)
       })
@@ -311,7 +310,7 @@ describe('mirroring targets onto the handling client', () => {
   it('reports the real set again after a roll that threw', async () => {
     const game = makeGameWithTargets('gm-reticle')
     await expect(
-      withoutAmbientTargets(game, async () => {
+      withMirroredTargets(game, [], async () => {
         throw new Error('roll blew up')
       })
     ).rejects.toThrow('roll blew up')
@@ -326,7 +325,7 @@ describe('mirroring targets onto the handling client', () => {
         return new Set(['immovable'])
       }
     }) as object
-    const ran = await withoutAmbientTargets(game as unknown as GamePF2e, async () => 'rolled')
+    const ran = await withMirroredTargets(game as unknown as GamePF2e, [], async () => 'rolled')
     expect(ran).toBe('rolled')
   })
 })

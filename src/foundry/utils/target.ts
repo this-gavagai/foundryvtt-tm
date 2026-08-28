@@ -59,6 +59,21 @@ function noFallbackTokenDocumentList(): TokenDoc[] {
   return tokenDocs
 }
 
+// One actor Proxy, two uses. Both stand in for an actor PF2e will interrogate
+// for targeting, and both need the same trap body: intercept a few properties,
+// pass everything else through, and BIND methods to the real actor so PF2e's
+// private class fields keep resolving (a `#field` read through an unbound
+// method on a Proxy throws).
+function actorStandIn(actor: ActorPF2e, overrides: Record<string, unknown>): ActorPF2e {
+  return new Proxy(actor, {
+    get(obj: ActorPF2e, prop: string | symbol) {
+      if (typeof prop === 'string' && prop in overrides) return overrides[prop]
+      const val = (obj as ActorPF2e & Record<string | symbol, unknown>)[prop]
+      return typeof val === 'function' ? (val as (...a: unknown[]) => unknown).bind(obj) : val
+    }
+  }) as ActorPF2e
+}
+
 // A stand-in to pass as PF2e's `target` when the player targeted NOTHING.
 //
 // Passing null instead is not the same thing: PF2e treats a missing target as
@@ -74,19 +89,12 @@ function noFallbackTokenDocumentList(): TokenDoc[] {
 // level, and the roller's real level there would earn a degree-of-success
 // adjustment for a target that does not exist.
 export function noFallbackTargetActor(actor: ActorPF2e): ActorPF2e {
-  return new Proxy(actor, {
-    get(obj: ActorPF2e, prop: string | symbol) {
-      if (prop === 'getActiveTokens') {
-        return (_linked?: boolean, document?: boolean) =>
-          document ? noFallbackTokenDocumentList() : []
-      }
-      if (prop === 'getSelfRollOptions') return () => []
-      if (prop === 'level') return 0
-
-      const val = (obj as ActorPF2e & Record<string | symbol, unknown>)[prop]
-      return typeof val === 'function' ? (val as (...a: unknown[]) => unknown).bind(obj) : val
-    }
-  }) as ActorPF2e
+  return actorStandIn(actor, {
+    getActiveTokens: (_linked?: boolean, document?: boolean) =>
+      document ? noFallbackTokenDocumentList() : [],
+    getSelfRollOptions: () => [],
+    level: 0
+  })
 }
 
 // The scene a request's token ids live on. `targetScene` is what the targeting
@@ -133,16 +141,10 @@ export function resolveTargets(source: GamePF2e, request: TargetRequest): Resolv
   const actor = tokenDoc?.actor ?? null
   const actorProxy =
     actor && tokenDoc
-      ? (new Proxy(actor, {
-          get(obj: ActorPF2e, prop: string | symbol) {
-            if (prop === 'getActiveTokens') {
-              return (_linked?: boolean, document?: boolean) =>
-                document ? explicitTokenDocumentList(tokenDoc) : token ? [token] : []
-            }
-            const val = (obj as ActorPF2e & Record<string | symbol, unknown>)[prop]
-            return typeof val === 'function' ? (val as (...a: unknown[]) => unknown).bind(obj) : val
-          }
-        }) as ActorPF2e)
+      ? actorStandIn(actor, {
+          getActiveTokens: (_linked?: boolean, document?: boolean) =>
+            document ? explicitTokenDocumentList(tokenDoc) : token ? [token] : []
+        })
       : null
 
   return { tokenDocs, tokens, tokenDoc, token, actorProxy, requested: ids.length, unresolved }
@@ -256,12 +258,6 @@ export async function withMirroredTargets<T>(
     Object.defineProperty(user, 'targets', descriptor)
     if (outermost) displacedTargets = null
   }
-}
-
-// The empty case: nothing the player targeted, so nothing this client's own
-// selection may substitute for it.
-export function withoutAmbientTargets<T>(source: GamePF2e, run: () => Promise<T>): Promise<T> {
-  return withMirroredTargets(source, [], run)
 }
 
 // Resolve for an RPC handler, refusing the request when the player targeted

@@ -5,7 +5,7 @@ import { getCharacter, getGame, makeAck, makeFakeEvent } from '../utils/foundry'
 import {
   requirePlaceableTarget,
   resolveRequestedTargets,
-  withoutAmbientTargets
+  withMirroredTargets
 } from '../utils/target'
 import { handleBlast, handleBlastDamage } from './checks/blast'
 import { handleFlat } from './checks/flat'
@@ -44,30 +44,41 @@ const CHECK_ROLL_HANDLERS: Record<string, CheckRollHandler> = {
 // enough for them. See requirePlaceableTarget.
 const PLACEABLE_TARGET_CHECKS = new Set(['strike', 'damage', 'blast', 'blastDamage'])
 
-// Check kinds that resolve their target from `game.user.targets` no matter what
-// we pass, so an UNTARGETED request has to run with this client's own selection
-// hidden or it borrows the handling GM's reticle (withoutAmbientTargets).
+// Check kinds whose PF2e entry point reads `game.user.targets` — so this
+// client's own selection has to be swapped out for the player's for the
+// duration of the roll (withMirroredTargets), whether the player targeted
+// something or nothing.
 //
-// Deliberately a short list rather than "everything untargeted". A statistic
-// check — skill, save, perception, initiative, familiar attack, spell attack —
-// always receives an actor through statisticParams (the no-target stand-in when
-// the player chose nothing), and PF2e reads the ambient Set only when that param
-// is absent: `(args.target?.getActiveTokens() ?? [...game.user.targets]).find()`.
+// BOTH halves matter, and only one of them used to be covered. With no targets,
+// an unshielded roll inherits the handling GM's reticle. WITH targets, an
+// unshielded roll still inherits it wherever PF2e ignores the `target` param we
+// pass — which is most of this list:
+//
+//   • ElementalBlast#attack builds its context as
+//     `target: game.user.targets.first()?.actor ?? null` and never reads
+//     params.target at all; #damage does the same. A targeted blast therefore
+//     rolled against whatever the GM was pointing at.
+//   • Skill actions go through ActionMacroHelpers, which resolves its target
+//     with `ActionMacroHelpers.target()` — a direct read of the ambient Set,
+//     with no param path.
+//   • SpellPF2e#rollDamage picks its target out of the ambient Set itself. The
+//     injected `target` (utils/spellTargeting.ts) reaches getDamage, but PF2e
+//     re-dispatches to a freshly loaded variant when the spell isn't one
+//     already — and that variant does not carry the patch.
+//   • Strikes are the exception: `params.target ?? game.user.targets.first()`,
+//     so the param wins when there is one. They stay on the list for the
+//     untargeted case, and mirroring is a no-op for them otherwise.
+//
+// Deliberately a short list rather than "every check". A statistic check —
+// skill, save, perception, initiative, familiar attack, spell attack — always
+// receives an actor through statisticParams (the no-target stand-in when the
+// player chose nothing), and PF2e reads the ambient Set only when that param is
+// absent: `(args.target?.getActiveTokens() ?? [...game.user.targets]).find()`.
 // The stand-in returns an empty array there, which is not nullish, so the
-// fallback never runs. Shielding those too was harmless in itself but put a
-// global property swap around nearly every roll — and this client may be a
+// fallback never runs. Shielding those too would be harmless in itself but puts
+// a global property swap around nearly every roll — and this client may be a
 // targeting proxy, whose reports must describe the screen (see ownTargetIds).
-const NEEDS_AMBIENT_SHIELD = new Set([
-  // Strikes and blasts: PF2e builds the roll context with
-  // `target: { token: game.user.targets.first() ?? null }`, ignoring params.
-  ...PLACEABLE_TARGET_CHECKS,
-  // Skill actions go through ActionMacroHelpers, which falls back to
-  // `ActionMacroHelpers.target()` — a direct read of the ambient Set.
-  'skillAction',
-  // SpellPF2e#rollDamage picks its target token out of the ambient Set itself;
-  // the injected `target` (utils/spellTargeting.ts) only reaches getDamage.
-  'spellDamage'
-])
+const NEEDS_AMBIENT_SHIELD = new Set([...PLACEABLE_TARGET_CHECKS, 'skillAction', 'spellDamage'])
 
 export async function foundryRollCheck(args: RollCheckArgs) {
   const source = getGame()
@@ -107,12 +118,12 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   }
 
   const runHandler = () => Promise.resolve(CHECK_ROLL_HANDLERS[args.checkType]?.(ctx))
-  // A request that named no targets must not pick up the handling client's own
-  // reticle. statisticParams covers every path that accepts an actor; the shield
-  // covers the few that don't — see NEEDS_AMBIENT_SHIELD.
+  // Present the player's targets — however many, including none — to the check
+  // kinds that read the ambient Set. statisticParams covers every path that
+  // accepts an actor; this covers the few that don't. See NEEDS_AMBIENT_SHIELD.
   const rRaw = await withBackgroundRoll(args.diceResults, () =>
-    resolvedTargets.requested === 0 && NEEDS_AMBIENT_SHIELD.has(args.checkType)
-      ? withoutAmbientTargets(source, runHandler)
+    NEEDS_AMBIENT_SHIELD.has(args.checkType)
+      ? withMirroredTargets(source, resolvedTargets.tokens, runHandler)
       : runHandler()
   )
   return { ...makeAck(args), ...extractRollPayload(rRaw, args) }
