@@ -422,6 +422,7 @@
     "compendium": "Kompendium",
     "changeCharacter": "Charakter wechseln",
     "targetingProxy": "Ziel-Stellvertreter",
+    "proxyOffline": "Diese Spielerin oder dieser Spieler ist nicht verbunden, daher wird nichts anvisiert.",
     "pairPixelDice": "Pixel-Würfel koppeln",
     "reconnectDie": "Würfel neu verbinden",
     "forgetDie": "Würfel entfernen",

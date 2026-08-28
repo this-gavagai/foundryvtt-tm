@@ -19,5 +19,11 @@ export const useTokenRingStore = defineStore('tokenRing', () => {
     spritesheet.value = path || undefined
   }
 
-  return { spritesheet, reportSpritesheet }
+  // Ring art is world configuration; drop it on a server/user switch rather than
+  // drawing the previous world's rings on this one's avatars.
+  function reset() {
+    spritesheet.value = undefined
+  }
+
+  return { spritesheet, reportSpritesheet, reset }
 })

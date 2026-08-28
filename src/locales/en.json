@@ -422,6 +422,7 @@
     "compendium": "Compendium",
     "changeCharacter": "Change Character",
     "targetingProxy": "Targeting Proxy",
+    "proxyOffline": "That player is not connected, so nothing is being targeted.",
     "pairPixelDice": "Pair Pixel Die",
     "reconnectDie": "Reconnect die",
     "forgetDie": "Forget die",

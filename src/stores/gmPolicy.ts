@@ -16,5 +16,12 @@ export const useGmPolicyStore = defineStore('gmPolicy', () => {
     manualRollPolicy.value = policy ?? 'allow'
   }
 
-  return { manualRollPolicy, manualRollsBlocked, reportPolicy }
+  // The policy belongs to the world that announced it. On a server/user switch
+  // it must not carry over — a new world's affordances would be greyed out (or
+  // offered) on the previous world's rule until its module next announces.
+  function reset() {
+    manualRollPolicy.value = 'allow'
+  }
+
+  return { manualRollPolicy, manualRollsBlocked, reportPolicy, reset }
 })

@@ -64,6 +64,17 @@ export const useVersionCompatStore = defineStore('versionCompat', () => {
     moduleCapabilities.value = capabilities ?? []
   }
 
+  // Everything here describes the module of one world. On a server/user switch
+  // it must go back to "not connected yet" — otherwise the new world inherits
+  // the old one's capability flags (offering features its module may not have)
+  // and its compatibility verdict.
+  function reset() {
+    heardFromModule.value = false
+    moduleProtocol.value = undefined
+    moduleVersion.value = undefined
+    moduleCapabilities.value = []
+  }
+
   return {
     appProtocol: PROTOCOL_VERSION,
     appVersion: __APP_VERSION__,
@@ -75,6 +86,7 @@ export const useVersionCompatStore = defineStore('versionCompat', () => {
     supportsImageUpload,
     supportsReactions,
     isMismatched,
-    reportModule
+    reportModule,
+    reset
   }
 })

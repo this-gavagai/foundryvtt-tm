@@ -83,7 +83,7 @@ function iconForDieType(dieType: string): string {
 // component is plain JS.
 const pixelDiceModal = ref()
 const targetHelperStore = useTargetHelperStore()
-const { userList, targetingProxyId } = storeToRefs(targetHelperStore)
+const { userList, targetingProxyId, proxyOffline } = storeToRefs(targetHelperStore)
 const { updateProxyId } = targetHelperStore
 
 // A pickable "none": mirroring someone's targeting has to be undoable, and the
@@ -382,6 +382,12 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                         :changed="(newId: string) => updateProxyId(newId)"
                         :disabled="world === undefined"
                       />
+                      <!-- A proxy whose client has left answers no target
+                           report, so rolls quietly go out untargeted while its
+                           name still sits in the picker. Say so. -->
+                      <div v-if="proxyOffline" class="mt-1 text-sm text-amber-700 italic">
+                        {{ $t('sideMenu.proxyOffline') }}
+                      </div>
                     </li>
                     <li class="grow">
                       <RollOptions />

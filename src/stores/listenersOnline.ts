@@ -1,9 +1,16 @@
-import { ref, computed, watch, onScopeDispose } from 'vue'
-import { defineStore, storeToRefs } from 'pinia'
+import { ref, computed, onScopeDispose } from 'vue'
+import { defineStore } from 'pinia'
 import { getAuthenticatedSocket } from '@/api/internal'
-import { useServerStore } from '@/stores/server'
+import { onForeground } from '@/utils/foreground'
 import { logger } from '@/utils/utilities'
 import { TM, PROTOCOL_VERSION } from '@/api/protocol'
+
+// How often we announce ourselves and re-ask who is listening.
+const HEARTBEAT_INTERVAL_MS = 30_000
+// How long a listener stays "online" without re-announcing. Must comfortably
+// exceed one heartbeat so a single dropped ping doesn't blink the GM offline
+// (and with it every roll button in the app); one and a half is the margin.
+const LISTENER_TTL_MS = 45_000
 
 export const useListenersStore = defineStore('listenersOnline', () => {
   const listenersOnline = ref(new Map<string, number>())
@@ -14,11 +21,22 @@ export const useListenersStore = defineStore('listenersOnline', () => {
     listenersOnline.value.set(listenerId, Date.now())
   }
 
-  function getListeners() {
-    return listenersOnline
+  function expireStaleListeners() {
+    const now = Date.now()
+    listenersOnline.value.forEach((lastSeen, id, map) => {
+      if (now - lastSeen > LISTENER_TTL_MS) map.delete(id)
+    })
   }
 
+  // Announce ourselves and ask who is out there.
+  //
+  // Expiry runs FIRST, and unconditionally: getAuthenticatedSocket waits out a
+  // 15s session timeout before rejecting when there is no connection, so a prune
+  // sequenced after the emit simply never runs while the app is offline. That
+  // left `isListening` pinned true for the whole outage — roll buttons live, and
+  // every tap sitting out its full 30s ack timeout with nothing to answer it.
   async function pingHeartbeat() {
+    expireStaleListeners()
     const { socket, userId } = await getAuthenticatedSocket()
     socket.emit(TM.CHANNEL, {
       userId,
@@ -28,57 +46,46 @@ export const useListenersStore = defineStore('listenersOnline', () => {
       protocol: PROTOCOL_VERSION,
       appVersion: __APP_VERSION__
     })
-    listenersOnline.value.forEach((value, key, map) => {
-      if (Date.now() - value > 45000) map.delete(key)
-    })
   }
 
-  function safePingHeartbeat() {
+  // The one entry point for "re-announce now": callers never want the rejection
+  // (there is nothing to do about it, and the next tick retries anyway).
+  function ping() {
     void pingHeartbeat().catch(() => undefined)
   }
 
-  // Mobile browsers throttle or pause setInterval when the tab is in the
-  // background, so the heartbeat can lapse — leaving isListening stuck on
-  // false (and roll buttons hidden) until the next tick. Re-ping immediately
-  // when the page comes back into focus.
-  function handleVisibilityChange() {
-    if (document.visibilityState === 'visible') safePingHeartbeat()
+  // Everything we know about who is listening belongs to one world. Called on a
+  // server/user switch, where carrying it over means the new world inherits the
+  // old world's GM — up to a full TTL of `isListening` describing a client that
+  // cannot answer anything here.
+  function reset() {
+    listenersOnline.value = new Map()
   }
 
-  const { sessionReady } = storeToRefs(useServerStore())
-
-  // Start the presence machinery: a 30s heartbeat, an immediate ping, a
-  // visibility re-ping, and a re-ping on every session handshake. Kept out of
-  // the store setup body (idempotent) so instantiating the store in a test
-  // doesn't emit a socket ping or spawn a 30s interval; the app calls start()
-  // once at bootstrap. Disposal below clears whatever start() created.
+  // Start the presence machinery: a heartbeat, an immediate ping, and a
+  // foreground re-ping. Kept out of the store setup body (idempotent) so
+  // instantiating the store in a test doesn't emit a socket ping or spawn an
+  // interval; the app calls start() once at bootstrap. Disposal below clears
+  // whatever start() created. The re-ping on each session handshake is driven
+  // from serverEventWiring, with the rest of the handshake fan-out.
   let heartbeatInterval: ReturnType<typeof setInterval> | undefined
-  let stopSessionWatch: (() => void) | undefined
+  let stopForeground: (() => void) | undefined
   let started = false
   function start(): void {
     if (started) return
     started = true
-    heartbeatInterval = setInterval(safePingHeartbeat, 30000)
-    safePingHeartbeat()
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    // Re-ping on every fresh session handshake. The visibility ping races the
-    // connection-recovery probe (it can fire ANYBODY_HOME on the stale socket
-    // that recovery is about to replace, then prune the expired listeners),
-    // and a recovery-triggered reconnect refreshes world/character data but
-    // never re-announces GM presence — leaving the PWA "connected to the world
-    // but without a GM" until the next 30s tick. Keying off sessionReady
-    // guarantees a heartbeat on the new socket the moment auth completes,
-    // covering every reconnect path (probe, online, soft reconnect, re-auth).
-    stopSessionWatch = watch(sessionReady, (ready) => {
-      if (ready) safePingHeartbeat()
-    })
+    heartbeatInterval = setInterval(ping, HEARTBEAT_INTERVAL_MS)
+    ping()
+    // Mobile browsers throttle or pause setInterval in the background, so the
+    // heartbeat lapses and every listener ages out — leaving isListening stuck
+    // false (and roll buttons hidden) until the next tick.
+    stopForeground = onForeground(ping)
   }
 
   onScopeDispose(() => {
     if (heartbeatInterval) clearInterval(heartbeatInterval)
-    document.removeEventListener('visibilitychange', handleVisibilityChange)
-    stopSessionWatch?.()
+    stopForeground?.()
   })
 
-  return { listenersOnline, isListening, addListener, getListeners, start }
+  return { listenersOnline, isListening, addListener, ping, reset, start }
 })

@@ -9,6 +9,7 @@ import { requestTargets } from '@/api/actionRpc'
 import type { MirroredTargets } from '@/types/api-types'
 import type { UserPF2e } from '@7h3laughingman/pf2e-types'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
+import { onForeground } from '@/utils/foreground'
 import { logger } from '@/utils/utilities'
 
 // The tablet has no canvas, so it cannot target: it MIRRORS another Foundry
@@ -28,6 +29,11 @@ function isTablemateRootUser(user: UserPF2e): boolean {
 }
 
 const NO_TARGETS: MirroredTargets = { sceneId: null, tokenIds: [] }
+
+// How many (server, user) proxy choices this device remembers. A tablet that has
+// been pointed at a handful of worlds keeps a working set; beyond that the
+// oldest entries are choices for pairings nobody is coming back to.
+const MAX_REMEMBERED_SCOPES = 12
 
 export const useTargetHelperStore = defineStore('targetHelper', () => {
   const worldStore = useWorldStore()
@@ -59,7 +65,24 @@ export const useTargetHelperStore = defineStore('targetHelper', () => {
     localScope.value ? localProxyByScope.value[localScope.value] : undefined
   )
 
+  // Insertion-ordered, so dropping from the front drops the least recently
+  // chosen pairing. Re-choosing for a scope moves it to the back.
+  function rememberLocalChoice(scope: string, proxyId: string) {
+    const rest = Object.fromEntries(
+      Object.entries(localProxyByScope.value).filter(([key]) => key !== scope)
+    )
+    // Room for the one about to be written, so the cap counts it.
+    const overflow = Object.keys(rest).length - (MAX_REMEMBERED_SCOPES - 1)
+    for (const key of Object.keys(rest).slice(0, Math.max(0, overflow))) delete rest[key]
+    localProxyByScope.value = { ...rest, [scope]: proxyId }
+  }
+
   const targets = ref<MirroredTargets>(NO_TARGETS)
+
+  function isSelectableProxy(proxyId: string | undefined): boolean {
+    const user = userById(proxyId)
+    return !!user && !isTablemateRootUser(user)
+  }
 
   const userList = computed(
     () =>
@@ -72,28 +95,33 @@ export const useTargetHelperStore = defineStore('targetHelper', () => {
     () => userById(userId.value)?.flags?.tablemate?.targeting_proxy as string | undefined
   )
 
-  const proxyIsSelectable = computed(() => (proxyId: string | undefined) => {
-    const user = userById(proxyId)
-    return !!user && !isTablemateRootUser(user)
-  })
-
   // This device's choice wins where it has one — a tablet may deliberately mirror
   // a different screen than its user's default (the shared-TV table vs. the
   // player's own second login). The stored flag is the cross-device default for
   // everywhere that device hasn't been told otherwise.
   const targetingProxyId = computed(() => {
     const chosen = localProxyId.value ?? storedProxyId.value
-    return proxyIsSelectable.value(chosen) ? chosen : undefined
+    return isSelectableProxy(chosen) ? chosen : undefined
   })
+
+  // Whether the proxy's client is connected, as far as we have been told.
+  // `undefined` until a presence broadcast names it: the world payload carries
+  // no liveness, so "we have not heard" is a third state and must not be
+  // rendered as offline.
+  const proxyOnline = ref<boolean | undefined>(undefined)
+  // A proxy we KNOW is gone. Worth surfacing, because it is otherwise a silent
+  // dead end: it answers no report request, so the tablet quietly rolls
+  // untargeted with a proxy still named in the menu.
+  const proxyOffline = computed(() => !!targetingProxyId.value && proxyOnline.value === false)
 
   function updateProxyId(newId: string): Promise<DocumentSocketResponse | null> {
     logger.debug('TM-info: newID incoming', newId)
     if (!world.value) return Promise.resolve(null)
-    if (newId && !proxyIsSelectable.value(newId)) return Promise.resolve(null)
+    if (newId && !isSelectableProxy(newId)) return Promise.resolve(null)
     // Local first and unconditionally: the flag write is a round-trip that can
     // fail (a world that denies the update, a dropped socket), and the tap must
     // still take effect on the device the user tapped.
-    if (localScope.value) localProxyByScope.value[localScope.value] = newId
+    if (localScope.value) rememberLocalChoice(localScope.value, newId)
     return updateUserTargetingProxy(getUserId(), newId)
   }
 
@@ -116,30 +144,28 @@ export const useTargetHelperStore = defineStore('targetHelper', () => {
     targets.value = NO_TARGETS
   }
 
-  // Throw away what we hold and ask the proxy for the truth. Clearing and
-  // re-requesting are two halves of one event: whatever we held belonged to the
-  // old proxy / old world, and the new answer may predate us entirely — a tablet
-  // that connects mid-session would otherwise show nothing until the proxy
-  // happens to re-target.
+  // Ask the proxy for the truth, keeping what we hold until the answer lands.
   //
-  // Clearing FIRST means a roll fired in the gap before the answer lands is
-  // untargeted rather than aimed at a stale set — the same trade the reset
-  // comment above describes, and cheap now that an untargeted request can no
-  // longer pick up the handling GM's own reticle (see utils/target.ts).
-  function resync() {
-    reset()
+  // For the gaps where the proxy has not changed — a socket reconnect, an app
+  // returning to the foreground — this is the whole job. What we hold was
+  // correct for this proxy in this world when it arrived; it is merely possibly
+  // out of date, and clearing it first would open a window in which a roll fired
+  // before the answer returns is silently untargeted. If it turns out to be
+  // genuinely stale, the module refuses the roll (TM_ERROR_TARGET_UNRESOLVED)
+  // and api/actionRpc calls resync below — so the dangerous case is already
+  // caught, at the one boundary every targeted request crosses.
+  function refresh() {
     const proxyId = targetingProxyId.value
     if (proxyId) void requestTargets(proxyId)
   }
 
-  // A SHARE_TARGETS push only reaches a connected tablet. Every gap in that
-  // connection — socket.io's own reconnects, and above all a mobile app
-  // backgrounded long enough for iOS to suspend its socket — is a window in
-  // which the proxy re-targeted and we never heard, leaving us holding ids that
-  // still resolve. So re-ask on every session handshake and on every return to
-  // the foreground, the way the presence heartbeat already re-pings.
-  function handleVisibilityChange() {
-    if (document.visibilityState === 'visible') resync()
+  // Throw away what we hold and ask again. For the changes where what we hold
+  // belongs to somebody else: a new proxy, a new world, or a module that has
+  // just told us our ids don't resolve. Here the stale set is not merely old but
+  // wrong, and rolling at it is worse than rolling at nothing.
+  function resync() {
+    reset()
+    refresh()
   }
 
   // The proxy's client going away does NOT clear its targets: nothing is
@@ -153,27 +179,39 @@ export const useTargetHelperStore = defineStore('targetHelper', () => {
   function reportUserActivity(userId: string, active: boolean | undefined) {
     if (active === undefined) return
     if (userId !== targetingProxyId.value) return
+    proxyOnline.value = active
     // Coming back: ask rather than wait for its next re-target. It answers with
     // an empty set if it has none, which is also the right answer.
-    if (active) resync()
+    if (active) refresh()
     else reset()
   }
 
   let started = false
   let stopProxyWatch: (() => void) | undefined
+  let stopForeground: (() => void) | undefined
   function start(): void {
     if (started) return
     started = true
     // `immediate` covers the cold start: targetingProxyId resolves only once the
     // world payload lands and names the proxy user, so the first meaningful run
     // is the one that fires when the world arrives.
-    stopProxyWatch = watch(targetingProxyId, resync, { immediate: true })
-    document.addEventListener('visibilitychange', handleVisibilityChange)
+    stopProxyWatch = watch(
+      targetingProxyId,
+      () => {
+        // A new proxy's liveness is unknown again until it says otherwise.
+        proxyOnline.value = undefined
+        resync()
+      },
+      { immediate: true }
+    )
+    // A SHARE_TARGETS push only reaches a connected tablet, and an app the OS
+    // suspended has been unreachable for however long it was away.
+    stopForeground = onForeground(refresh)
   }
 
   onScopeDispose(() => {
     stopProxyWatch?.()
-    document.removeEventListener('visibilitychange', handleVisibilityChange)
+    stopForeground?.()
   })
 
   return {
@@ -181,10 +219,12 @@ export const useTargetHelperStore = defineStore('targetHelper', () => {
     getTargets,
     userList,
     targetingProxyId,
+    proxyOffline,
     updateProxyId,
     updateTargets,
     reportUserActivity,
     reset,
+    refresh,
     resync,
     start
   }

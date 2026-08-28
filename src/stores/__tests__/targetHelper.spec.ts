@@ -177,6 +177,23 @@ describe('staleness', () => {
     expect(store.getTargets().tokenIds).toEqual([])
   })
 
+  it('flags a proxy whose client has gone, and clears the flag on its return', async () => {
+    // Otherwise an offline proxy is a silent dead end: it answers no report
+    // request, so rolls quietly go out untargeted with its name still in the
+    // picker.
+    setWorld([{ _id: 'display', name: 'Table TV' }])
+    const store = useTargetHelperStore()
+    await store.updateProxyId('display')
+    // Not yet heard from — "unknown" must not render as offline.
+    expect(store.proxyOffline).toBe(false)
+
+    store.reportUserActivity('display', false)
+    expect(store.proxyOffline).toBe(true)
+
+    store.reportUserActivity('display', true)
+    expect(store.proxyOffline).toBe(false)
+  })
+
   it('re-asks when the proxy comes back online', async () => {
     setWorld([{ _id: 'display', name: 'Table TV' }])
     const store = useTargetHelperStore()
@@ -248,10 +265,15 @@ describe('bootstrap', () => {
     expect(requestTargets).toHaveBeenCalledWith('display')
   })
 
-  it('re-asks when the app returns to the foreground', async () => {
+  it('re-asks when the app returns to the foreground, without dropping what it holds', async () => {
     // A backgrounded tablet stops receiving the proxy's pushes (iOS suspends the
     // socket), so whatever it holds on resume is only as fresh as the moment it
     // went away — and those ids still resolve, so nothing downstream notices.
+    //
+    // But the proxy has not CHANGED, so what we hold is possibly stale rather
+    // than wrong. Clearing it first would leave a roll fired in the gap before
+    // the answer lands silently untargeted; a genuinely stale set is caught by
+    // the module refusing the roll, which routes back through resync.
     setWorld([{ _id: 'display', name: 'Table TV' }])
     const store = useTargetHelperStore()
     store.start()
@@ -262,7 +284,7 @@ describe('bootstrap', () => {
     Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
     document.dispatchEvent(new Event('visibilitychange'))
 
-    expect(store.getTargets().tokenIds).toEqual([])
+    expect(store.getTargets()).toEqual(someTargets)
     expect(requestTargets).toHaveBeenCalledWith('display')
   })
 
@@ -291,5 +313,63 @@ describe('bootstrap', () => {
     store.resync()
     expect(store.getTargets().tokenIds).toEqual([])
     expect(requestTargets).toHaveBeenCalledWith('display')
+  })
+})
+
+describe('local choice retention', () => {
+  it('keeps the working set of pairings and drops the oldest beyond it', async () => {
+    setWorld([
+      { _id: 'display', name: 'Table TV' },
+      { _id: 'laptop', name: 'My Laptop' }
+    ])
+    const store = useTargetHelperStore()
+
+    // 14 distinct (server, user) pairings, chosen oldest-first.
+    for (let i = 0; i < 14; i++) {
+      serverUrl.value = new URL(`https://table-${i}.example`)
+      await store.updateProxyId('display')
+    }
+
+    const stored = JSON.parse(localStorage.getItem('proxy-id-by-scope') ?? '{}')
+    expect(Object.keys(stored)).toHaveLength(12)
+    // The two oldest pairings are gone; the most recent survive.
+    expect(stored['https://table-0.example|me']).toBeUndefined()
+    expect(stored['https://table-1.example|me']).toBeUndefined()
+    expect(stored['https://table-13.example|me']).toBe('display')
+  })
+
+  it('re-choosing for a pairing keeps it, rather than counting it twice', async () => {
+    setWorld([
+      { _id: 'display', name: 'Table TV' },
+      { _id: 'laptop', name: 'My Laptop' }
+    ])
+    const store = useTargetHelperStore()
+
+    await store.updateProxyId('display')
+    await store.updateProxyId('laptop')
+
+    const stored = JSON.parse(localStorage.getItem('proxy-id-by-scope') ?? '{}')
+    expect(stored).toEqual({ 'https://table.example|me': 'laptop' })
+  })
+})
+
+describe('refresh vs resync', () => {
+  it('refresh re-asks and keeps what it holds', async () => {
+    setWorld([{ _id: 'display', name: 'Table TV' }])
+    const store = useTargetHelperStore()
+    await store.updateProxyId('display')
+    store.updateTargets('display', someTargets)
+    requestTargets.mockClear()
+
+    store.refresh()
+    expect(store.getTargets()).toEqual(someTargets)
+    expect(requestTargets).toHaveBeenCalledWith('display')
+  })
+
+  it('asks nobody when there is no proxy', () => {
+    setWorld([{ _id: 'display', name: 'Table TV' }])
+    const store = useTargetHelperStore()
+    store.refresh()
+    expect(requestTargets).not.toHaveBeenCalled()
   })
 })

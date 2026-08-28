@@ -84,6 +84,24 @@ export function installApiStoreBridge() {
   })
 }
 
+// Everything the connected world told us about itself, dropped in one place.
+//
+// All of it arrives on a module announcement or a proxy push, so none of it is
+// re-derived on a server/user switch — it simply persists until the new world's
+// module happens to speak. Carried over, the new world inherits the old one's
+// GM presence (roll buttons live against a client that cannot answer), its
+// manual-roll policy, its capability flags, and its token ring art.
+function resetWorldScopedStores() {
+  useListenersStore().reset()
+  useVersionCompatStore().reset()
+  useGmPolicyStore().reset()
+  useTokenRingStore().reset()
+  // Mirrored targets belong to one proxy in one world. Carrying them across a
+  // server/user switch would leave the sheet holding token ids that resolve to
+  // nothing — or, worse, to something.
+  useTargetHelperStore().reset()
+}
+
 export function registerServerEventWiring() {
   if (appWiringRegistered) return
   appWiringRegistered = true
@@ -112,10 +130,7 @@ export function registerServerEventWiring() {
     // reconnect keeps the stale world for a seamless resume.
     onUserChanged: () => {
       useWorldStore().clearWorld()
-      // Mirrored targets belong to one proxy in one world. Carrying them across
-      // a server/user switch would leave the sheet holding token ids that
-      // resolve to nothing — or, worse, to something.
-      useTargetHelperStore().reset()
+      resetWorldScopedStores()
       // The push registration belongs to the user we are leaving; drop the
       // "already registered" state so the new one registers itself rather than
       // matching against a stale identity.
@@ -128,9 +143,18 @@ export function registerServerEventWiring() {
     onSessionAuthenticated: () => {
       void useWorldStore().refreshWorldNow()
       fireAllRefresh()
-      // Any gap in the connection is a gap in the proxy's target pushes, so the
-      // mirror can only be trusted as far back as this handshake. Re-ask.
-      useTargetHelperStore().resync()
+      // Any gap in the connection is a gap in what the world told us, so
+      // everything fed by an unsolicited push has to be re-asked for here.
+      //
+      // Presence: a recovery-triggered reconnect refreshes world/character data
+      // but never re-announces GM presence, leaving the app "connected to the
+      // world but without a GM" until the next 30s heartbeat tick.
+      useListenersStore().ping()
+      // Targets: a gap in the connection is a gap in the proxy's pushes. Re-ask
+      // without clearing — the proxy has not changed, so what we hold is
+      // possibly stale rather than wrong, and a roll fired before the answer
+      // lands should still be aimed. See targetHelper.refresh.
+      useTargetHelperStore().refresh()
       // Now authenticated as a known user: (re)register this device's push
       // token with the relay. Fires on reconnects too; the call is idempotent.
       syncPushRegistration()

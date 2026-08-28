@@ -76,7 +76,33 @@ describe('listenersOnline', () => {
 
     store.addListener('gm-1')
     expect(store.isListening).toBe(true)
-    expect(store.getListeners().value.has('gm-1')).toBe(true)
+    expect(store.listenersOnline.has('gm-1')).toBe(true)
+  })
+
+  it('drops every known listener on reset (server/user switch)', () => {
+    // Carried over, the new world inherits the old world's GM: roll buttons
+    // live against a client that cannot answer anything here.
+    const store = useListenersStore()
+    store.addListener('gm-1')
+
+    store.reset()
+    expect(store.isListening).toBe(false)
+  })
+
+  it('expires a listener that stopped announcing, even with no connection', async () => {
+    // The prune used to be sequenced after the socket emit, so it never ran
+    // while the app was offline — isListening stayed true for the whole outage.
+    const store = useListenersStore()
+    store.addListener('gm-1')
+    expect(store.isListening).toBe(true)
+
+    // Well past the 45s TTL. The ping's own socket lookup is irrelevant here —
+    // that is the point: the prune must not be waiting behind it.
+    vi.setSystemTime(Date.now() + 60_000)
+    store.ping()
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(store.isListening).toBe(false)
   })
 
   it('start() spawns the heartbeat exactly once (idempotent)', () => {
