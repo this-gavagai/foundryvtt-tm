@@ -1,0 +1,33 @@
+{
+  // The Worker had no tsconfig at all, so it was type-checked by nothing in CI
+  // and by the editor's implicit ES5 defaults — which together missed a real
+  // BufferSource error in verifyRegToken and invented a spurious one about Set
+  // iteration. This is what the root `type-check` picks it up through.
+  //
+  // src only. relay/src is web-standard code with no dependencies of its own,
+  // which is what lets the root build cover it without relay/node_modules being
+  // installed (CI runs `npm ci` at the root alone, and relay/node_modules is
+  // gitignored). test/ imports vitest and node:crypto, so including it here
+  // would make the root type-check depend on the relay's own install; it is
+  // checked by `npm test` inside relay/ instead.
+  "include": ["src/**/*"],
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "../node_modules/.tmp/tsconfig.relay.tsbuildinfo",
+    "declarationDir": "../node_modules/.tmp/relay-types",
+    "emitDeclarationOnly": true,
+    "target": "ES2022",
+    // A Worker isolate: web standards only. No Node, no Vue, no bundler globals.
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    // The root's @types belong to the app (DOM font loading, node, vitest).
+    // None of them are a Worker's, and auto-including them only imports their
+    // conflicts — the css-font-loading/lib.dom clashes, in particular.
+    "types": [],
+    "skipLibCheck": true
+  }
+}

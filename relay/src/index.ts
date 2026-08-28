@@ -182,7 +182,11 @@ function base64UrlFromBytes(bytes: ArrayBuffer): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-function base64UrlToBytes(input: string): Uint8Array {
+// Pinned to Uint8Array<ArrayBuffer> rather than the SharedArrayBuffer-inclusive
+// default, so the bytes satisfy the BufferSource that crypto.subtle.verify takes.
+// Accurate rather than merely convenient: `new Uint8Array(n)` allocates a plain
+// ArrayBuffer, so this narrows the return to what the function already produces.
+function base64UrlToBytes(input: string): Uint8Array<ArrayBuffer> {
   const b64 = input.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (input.length % 4)) % 4)
   const binary = atob(b64)
   const out = new Uint8Array(binary.length)

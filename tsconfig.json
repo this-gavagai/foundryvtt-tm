@@ -9,6 +9,11 @@
     },
     {
       "path": "./tsconfig.vitest.json"
+    },
+    {
+      // The push relay. Its src is self-contained web-standard code, so the root
+      // build can check it without relay/node_modules — which CI never installs.
+      "path": "./relay/tsconfig.json"
     }
   ]
 }
