@@ -38,7 +38,29 @@ Manifest is here: https://github.com/this-gavagai/foundryvtt-tm/releases/latest/
 4) To enable full functionality, sign in on another device or browser as a GM.
 
 # Native builds
-Coming soon...
+
+You don't need these — the character sheet runs in any mobile browser, and you can "Add to Home Screen" for something close to an app. The native builds mainly add push notifications for chat.
+
+Every tagged release attaches its own builds, so an old version stays installable even if a newer one breaks something for you.
+
+## iOS
+
+**The App Store is the supported route** — a normal install that updates itself, with notifications working. <!-- TODO: App Store link -->
+
+If you want builds ahead of the store release, join the TestFlight beta. <!-- TODO: public TestFlight link — enable it on the "Beta Group" in App Store Connect -->
+
+For anyone who would rather not go through Apple at all, each release also attaches `tabulamensa-unsigned.ipa`, which you can install yourself with [Sideloadly](https://sideloadly.com/) or [AltStore](https://altstore.io/). Two things to know before you do:
+
+- **Push notifications will not work** if you sign with a free Apple ID. Apple only grants the push entitlement to paid developer accounts ($99/yr). Everything else in the app works normally.
+- **A free Apple ID's signature expires after 7 days**, so you'll need to re-sign it weekly. A paid account gets a year.
+
+If Sideloadly refuses to install it, tick its "remove app extensions" option — that drops the notification helper, which a free account can't sign anyway.
+
+## Android
+
+Each release attaches `tabulamensa.apk`. Download it on the device and open it; Android will ask you to allow installs from your browser the first time.
+
+If you'd like the APK to update itself, [Obtainium](https://github.com/ImranR98/Obtainium) can watch this repository and install new releases as they're published.
 
 # A note of caution
 I'm sharing this module in good faith. I use it in my own games, and I'm not aware of anything that would seriously mess up your game data. That said, I'm not particularly knowledgable as a programmer, and it's very possible I've done something stupid. Use at your own risk. Backups are good.

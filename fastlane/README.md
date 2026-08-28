@@ -37,6 +37,20 @@ result. Pass an output dir + password, e.g.:
 
 Build a signed iOS release IPA from the Capacitor app
 
+### ios unsigned
+
+```sh
+[bundle exec] fastlane ios unsigned
+```
+
+Build an unsigned IPA for sideloading (Sideloadly, AltStore)
+
+Deliberately unsigned: whoever installs it re-signs with their own Apple ID,
+
+so our signature would only be stripped again. That also means this lane needs
+
+no certificate, profile, or App Store Connect key — unlike every other iOS lane.
+
 ### ios beta
 
 ```sh

@@ -110,6 +110,52 @@ jobs:
           APP_STORE_CONNECT_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_KEY_CONTENT }}
         run: bundle exec fastlane ios beta
 
+  build-ios-unsigned:
+    # Attach an unsigned IPA to the release for people who self-sign with
+    # Sideloadly or AltStore — the iOS analog of the sideload APK below.
+    # Deliberately holds no secrets: the artifact carries no signature, so this
+    # job still runs on forks and can't be broken by an expired certificate.
+    needs: build-release
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Select Xcode 26
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Build unsigned IPA
+        env:
+          # Baked into the web bundle and the CFBundleVersion, exactly as in the
+          # TestFlight job — only the signing is left out.
+          APP_VERSION: ${{ github.ref_name }}
+        run: bundle exec fastlane ios unsigned
+
+      - name: Attach unsigned IPA to the release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
+          omitPrereleaseDuringUpdate: true
+          replacesArtifacts: true
+          token: ${{ secrets.WORKFLOW_KEY }}
+          tag: ${{ github.ref_name }}
+          artifacts: ./build/tabulamensa-unsigned.ipa
+
   build-android:
     # Build a signed APK and attach it to the GitHub release for manual install
     # (sideloading) — the Android analog of the iOS TestFlight upload.

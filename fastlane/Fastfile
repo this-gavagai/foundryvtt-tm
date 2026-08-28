@@ -96,6 +96,58 @@ platform :ios do
     )
   end
 
+  desc "Build an unsigned IPA for sideloading (Sideloadly, AltStore)"
+  desc "Deliberately unsigned: whoever installs it re-signs with their own Apple ID,"
+  desc "so our signature would only be stripped again. That also means this lane needs"
+  desc "no certificate, profile, or App Store Connect key — unlike every other iOS lane."
+  lane :unsigned do
+    sync_capacitor
+
+    # fastlane runs with the working directory set to fastlane/, not the repo
+    # root, so the shell-level paths below are ../-relative. (The fastlane
+    # actions used elsewhere in this file resolve from the root instead.)
+    derived = "../build/unsigned-dd"
+    payload = "../build/Payload"
+    ipa     = "../build/tabulamensa-unsigned.ipa"
+
+    sh("rm", "-rf", derived, payload, ipa)
+
+    args = [
+      "xcodebuild",
+      "-project", "../ios/App/App.xcodeproj",
+      "-scheme", "App",
+      "-configuration", "Release",
+      "-sdk", "iphoneos",
+      "-derivedDataPath", derived,
+      "CODE_SIGNING_ALLOWED=NO",
+      "CODE_SIGNING_REQUIRED=NO",
+      "CODE_SIGN_IDENTITY=",
+      # Drops aps-environment from the binary. A free Apple ID can't be granted
+      # the push entitlement, so leaving it in makes the re-signing tools fail
+      # outright instead of merely losing notifications.
+      "CODE_SIGN_ENTITLEMENTS="
+    ]
+
+    # Mirror the android build lane: the tag's digits (alpha-0108 -> 108) become
+    # the build number, so a sideloaded IPA reports the release it came from.
+    tag_digits = ENV["APP_VERSION"].to_s.gsub(/\D/, "")
+    args << "CURRENT_PROJECT_VERSION=#{tag_digits}" unless tag_digits.empty?
+
+    sh(*args)
+
+    # An IPA is just a zip holding the .app inside a top-level Payload/ dir.
+    app = "#{derived}/Build/Products/Release-iphoneos/App.app"
+    UI.user_error!("Expected an app bundle at #{app}, found none.") unless File.directory?(app)
+
+    sh("mkdir", "-p", payload)
+    sh("cp", "-R", app, "#{payload}/")
+    sh("cd ../build && zip -qry tabulamensa-unsigned.ipa Payload")
+    sh("rm", "-rf", payload)
+
+    UI.success("Unsigned IPA: #{File.expand_path(ipa)}")
+    UI.important("Push notifications will not work on a build re-signed with a free Apple ID.")
+  end
+
   desc "Build an App Store IPA and upload it to TestFlight"
   lane :beta do
     sync_capacitor
@@ -344,6 +396,13 @@ platform :android do
   desc "Build an Android release AAB for signing and Play Console upload"
   lane :bundle do
     sync_capacitor
+
+    # Same tag-derived versionCode as the APK lane. Without this the AAB falls
+    # back to gradle's default of 1, which Play would accept but no existing
+    # sideloader could ever install over — an install only moves upward, and
+    # released APKs are already numbered in the hundreds.
+    tag_digits = ENV["APP_VERSION"].to_s.gsub(/\D/, "")
+    ENV["ANDROID_VERSION_CODE"] = tag_digits unless tag_digits.empty?
 
     gradle(
       project_dir: "android",
