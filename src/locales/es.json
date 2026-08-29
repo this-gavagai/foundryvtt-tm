@@ -460,6 +460,11 @@
     "message": "Hay una nueva versión disponible.",
     "reload": "Recargar"
   },
+  "unsupportedBrowser": {
+    "title": "Tu navegador está desactualizado",
+    "message": "Tabula Mensa necesita un motor de navegador más reciente para mostrarse correctamente, por eso aparece sin ningún estilo. En Android, actualiza Android System WebView desde Play Store. Si no, actualiza tu navegador.",
+    "dismiss": "Continuar de todos modos"
+  },
   "versionMismatch": {
     "title": "Actualización necesaria",
     "message": "Esta aplicación ({appVersion}) no es compatible con el módulo de Foundry conectado ({moduleVersion}). Actualiza ambos a la misma versión.",

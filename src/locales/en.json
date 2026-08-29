@@ -460,6 +460,11 @@
     "message": "A new version is available.",
     "reload": "Reload"
   },
+  "unsupportedBrowser": {
+    "title": "Your browser is out of date",
+    "message": "Tabula Mensa needs a newer browser engine to display correctly, so it is showing without any styling. On Android, update Android System WebView from the Play Store. Otherwise, update your browser.",
+    "dismiss": "Continue anyway"
+  },
   "versionMismatch": {
     "title": "Update required",
     "message": "This app ({appVersion}) isn't compatible with the connected Foundry module ({moduleVersion}). Update both to the same release.",

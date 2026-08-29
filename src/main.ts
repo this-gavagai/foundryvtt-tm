@@ -3,7 +3,9 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 
 import App from './App.vue'
+import UnsupportedBrowserNotice from '@/components/UnsupportedBrowserNotice.vue'
 import { i18n } from '@/plugins/i18n'
+import { supportsModernCss } from '@/utils/cssSupport'
 
 import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
@@ -62,3 +64,13 @@ app.use(pinia)
 installApiStoreBridge()
 
 app.mount('#app')
+
+// Tailwind v4's output needs a Chromium 111-era engine; an older one silently
+// drops the whole stylesheet and the app paints as bare DOM (see
+// utils/cssSupport). Say so, rather than leaving it looking like a broken build.
+// Mounted separately on its own host so it survives regardless of what #app
+// does, and so App.vue's v-if/v-else template root stays a single node.
+if (!supportsModernCss()) {
+  const host = document.body.appendChild(document.createElement('div'))
+  createApp(UnsupportedBrowserNotice).use(i18n).mount(host)
+}
