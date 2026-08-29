@@ -412,4 +412,93 @@ platform :android do
       build_type: "Release"
     )
   end
+
+  # Resolve the Play Developer API service-account key from, in order: the inline
+  # JSON secret (CI), then a file kept outside the repo (developer machines) —
+  # the same precedence the keystore above and the App Store Connect key on iOS
+  # already use. Returns the argument pair supply wants so callers don't care
+  # which one was found.
+  private_lane :play_credentials do
+    inline = ENV["PLAY_SERVICE_ACCOUNT_JSON"].to_s
+    path = ENV["PLAY_SERVICE_ACCOUNT_FILE"] ||
+           File.join(Dir.home, ".config/tablemate-android/play-service-account.json")
+
+    if !inline.strip.empty?
+      { json_key_data: inline }
+    elsif File.exist?(path)
+      { json_key: path }
+    else
+      UI.user_error!(
+        "No Play credentials found. Set PLAY_SERVICE_ACCOUNT_JSON (the service " \
+        "account's JSON key, used on CI) or save it to #{path}."
+      )
+    end
+  end
+
+  desc "Build the release AAB and upload it to a Play track."
+  desc "Track names predate the Console's labels: internal, alpha (= closed"
+  desc "testing), beta (= open testing), production. Defaults to internal."
+  desc "  bundle exec fastlane android play track:alpha"
+  lane :play do |options|
+    track = options[:track] || ENV["PLAY_TRACK"] || "internal"
+    known = %w[internal alpha beta production]
+    unless known.include?(track)
+      UI.important("'#{track}' is not one of #{known.join(', ')} — treating it as a custom closed track.")
+    end
+
+    # Resolved before building: a missing key should fail in seconds rather than
+    # after several minutes of gradle work that gets thrown away.
+    creds = play_credentials
+
+    bundle
+
+    aab = lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH]
+    UI.user_error!("The bundle lane produced no AAB.") if aab.to_s.empty?
+
+    # fastlane runs from fastlane/, so supply's metadata tree is a sibling here.
+    metadata_path = File.expand_path("metadata/android")
+
+    # Release notes live at metadata/android/<locale>/changelogs/<versionCode>.txt.
+    # Asking supply to upload one that doesn't exist fails the release, so only
+    # enable changelogs when the file for this build is actually present.
+    version_code = ENV["ANDROID_VERSION_CODE"].to_s.gsub(/\D/, "")
+    changelog = File.join(metadata_path, "en-US/changelogs/#{version_code.to_i}.txt")
+    has_changelog = !version_code.empty? && File.exist?(changelog)
+    UI.message(has_changelog ? "Using release notes from #{changelog}" : "No release notes for this build; skipping changelogs.")
+
+    upload_to_play_store(**creds.merge(
+      track: track,
+      aab: aab,
+      metadata_path: metadata_path,
+      release_status: options[:release_status] || "completed",
+      skip_upload_apk: true,
+      skip_upload_changelogs: !has_changelog,
+      # The store listing is edited in the Console and pushed deliberately by the
+      # play_metadata lane. Shipping a binary must never quietly rewrite it.
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    ))
+
+    UI.success("Uploaded #{File.basename(aab)} to the '#{track}' track.")
+  end
+
+  desc "Push the store listing images (icon, feature graphic, screenshots) from"
+  desc "fastlane/metadata to Play. Separate from the play lane on purpose: this"
+  desc "overwrites what's in the Console, so it should be a deliberate act."
+  lane :play_metadata do
+    upload_to_play_store(**play_credentials.merge(
+      metadata_path: File.expand_path("metadata/android"),
+      skip_upload_aab: true,
+      skip_upload_apk: true,
+      skip_upload_changelogs: true,
+      # No text files in the tree — the listing copy is maintained in the
+      # Console — so only the images are ours to push.
+      skip_upload_metadata: true,
+      skip_upload_images: false,
+      skip_upload_screenshots: false
+    ))
+
+    UI.success("Store listing images uploaded.")
+  end
 end

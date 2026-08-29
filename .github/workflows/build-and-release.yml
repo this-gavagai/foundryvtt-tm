@@ -214,3 +214,76 @@ jobs:
           token: ${{ secrets.WORKFLOW_KEY }}
           tag: ${{ github.ref_name }}
           artifacts: ./android/app/build/outputs/apk/release/tabulamensa.apk
+
+  publish-play:
+    # Upload the release AAB to a Play testing track. Separate from build-android
+    # because the two produce different artifacts for different audiences: that
+    # job builds the sideload APK for the GitHub release, this one builds the
+    # bundle Play requires.
+    #
+    # Which track is a repository variable rather than a literal so the closed
+    # test can be switched to (PLAY_TRACK=alpha) and back without editing this
+    # file. supply's names predate the Console's: alpha is closed testing, beta
+    # is open testing.
+    needs: build-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check for Play credentials
+        # The service account is set up separately in the Play Console, so this
+        # job has to tolerate its absence rather than turning every release red
+        # before that happens.
+        id: creds
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$PLAY_SERVICE_ACCOUNT_JSON" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::PLAY_SERVICE_ACCOUNT_JSON is not set; skipping the Play upload."
+          fi
+
+      - uses: actions/setup-node@v5
+        if: steps.creds.outputs.present == 'true'
+        with:
+          node-version: '22'
+
+      - uses: actions/setup-java@v4
+        if: steps.creds.outputs.present == 'true'
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Install npm dependencies
+        if: steps.creds.outputs.present == 'true'
+        run: npm install
+
+      - uses: ruby/setup-ruby@v1
+        if: steps.creds.outputs.present == 'true'
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Decode signing keystore
+        # Play verifies the upload key on every bundle, so this job needs the
+        # same keystore as the APK build.
+        if: steps.creds.outputs.present == 'true'
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/release.jks"
+          keytool -list -keystore "$RUNNER_TEMP/release.jks" -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" >/dev/null \
+            && echo "Keystore decoded and readable." \
+            || { echo "::error::Decoded keystore is unreadable — re-create the ANDROID_KEYSTORE_BASE64 secret as a single line."; exit 1; }
+
+      - name: Build and upload the AAB to Play
+        if: steps.creds.outputs.present == 'true'
+        env:
+          APP_VERSION: ${{ github.ref_name }}
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          PLAY_TRACK: ${{ vars.PLAY_TRACK || 'internal' }}
+        run: bundle exec fastlane android play

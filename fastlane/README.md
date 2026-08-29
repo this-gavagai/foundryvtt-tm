@@ -94,6 +94,32 @@ Build a signed Android release APK from the Capacitor app for sideloading
 
 Build an Android release AAB for signing and Play Console upload
 
+### android play
+
+```sh
+[bundle exec] fastlane android play
+```
+
+Build the release AAB and upload it to a Play track.
+
+Track names predate the Console's labels: internal, alpha (= closed
+
+testing), beta (= open testing), production. Defaults to internal.
+
+  bundle exec fastlane android play track:alpha
+
+### android play_metadata
+
+```sh
+[bundle exec] fastlane android play_metadata
+```
+
+Push the store listing images (icon, feature graphic, screenshots) from
+
+fastlane/metadata to Play. Separate from the play lane on purpose: this
+
+overwrites what's in the Console, so it should be a deliberate act.
+
 ----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.
