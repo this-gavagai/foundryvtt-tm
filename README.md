@@ -45,9 +45,9 @@ Every tagged release attaches its own builds, so an old version stays installabl
 
 ## iOS
 
-**The App Store is the supported route** — a normal install that updates itself, with notifications working. <!-- TODO: App Store link -->
+**The App Store is the supported route** — a normal install that updates itself, with notifications working.
 
-If you want builds ahead of the store release, join the TestFlight beta. <!-- TODO: public TestFlight link — enable it on the "Beta Group" in App Store Connect -->
+If you want builds ahead of the store release, [join the TestFlight beta](https://testflight.apple.com/join/xgeZTSyW).
 
 For anyone who would rather not go through Apple at all, each release also attaches `tabulamensa-unsigned.ipa`, which you can install yourself with [Sideloadly](https://sideloadly.com/) or [AltStore](https://altstore.io/). Two things to know before you do:
 
