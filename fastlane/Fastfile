@@ -128,10 +128,12 @@ platform :ios do
       "CODE_SIGN_ENTITLEMENTS="
     ]
 
-    # Mirror the android build lane: the tag's digits (alpha-0108 -> 108) become
-    # the build number, so a sideloaded IPA reports the release it came from.
+    # The tag's digits become the build number, so a sideloaded IPA reports the
+    # release it came from. to_i drops the tag's zero padding (alpha-0165 -> 165)
+    # to match what the beta lane sends to TestFlight; interpolating the raw
+    # string would write a non-canonical "0165" into CFBundleVersion.
     tag_digits = ENV["APP_VERSION"].to_s.gsub(/\D/, "")
-    args << "CURRENT_PROJECT_VERSION=#{tag_digits}" unless tag_digits.empty?
+    args << "CURRENT_PROJECT_VERSION=#{tag_digits.to_i}" unless tag_digits.empty?
 
     sh(*args)
 
