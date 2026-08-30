@@ -191,7 +191,28 @@ export const useWorldStore = defineStore('world', () => {
     return ((userById(id) as { role?: number } | undefined)?.role ?? 0) >= GM_ROLE
   })
 
+  // True from a world request's first network call until it settles. The 8s
+  // status poll reads this so its retry can't stack a second request on one
+  // already in flight: the payload is large (26 MB on a mid-sized world) and
+  // the poll ticks well inside the request's own 15s budget, so an unguarded
+  // retry would fetch it twice over.
+  //
+  // Explicit callers ignore it deliberately. refreshWorldNow runs on a session
+  // handshake, where any in-flight request belongs to the socket that was just
+  // replaced — it can only time out now, and deferring to it would strand the
+  // app for the full budget waiting on an answer that isn't coming.
+  const requestInFlight = ref(false)
+
   async function sendWorldRequest(): Promise<void> {
+    requestInFlight.value = true
+    try {
+      await performWorldRequest()
+    } finally {
+      requestInFlight.value = false
+    }
+  }
+
+  async function performWorldRequest(): Promise<void> {
     // Check /api/status first — works regardless of auth state.
     const worldStatus = useFoundryWorldStatusStore()
     const running = await worldStatus.fetchWorldStatus()
@@ -270,6 +291,7 @@ export const useWorldStore = defineStore('world', () => {
 
   return {
     world,
+    requestInFlight,
     messagesRevision,
     bumpMessagesRevision,
     applyChatCreate,

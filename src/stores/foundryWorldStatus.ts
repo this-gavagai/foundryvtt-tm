@@ -69,10 +69,23 @@ export const useFoundryWorldStatusStore = defineStore('foundryWorldStatus', () =
     started = true
     pollInterval = setInterval(async () => {
       const running = await fetchWorldStatus()
+      const worldStore = useWorldStore()
       if (running === false && worldLoaded.value !== false) {
         markWorldInactive()
-      } else if (running === true && worldLoaded.value !== true) {
-        useWorldStore().refreshWorld()
+      } else if (
+        running === true &&
+        !worldStore.requestInFlight &&
+        // Retrying on `worldLoaded !== true` alone left the one case that most
+        // needs it uncovered: sendWorldRequest sets worldLoaded from
+        // /api/status *before* asking for the payload, so a request that then
+        // times out leaves the flag true with no world data and nothing to ask
+        // again. The remaining triggers (session handshake, world-progress
+        // edge, visibility resume) don't fire in a foregrounded app on a live
+        // socket, so the app sat there. Retry on the data being missing, which
+        // is the condition actually being waited on, and stop once it lands.
+        (worldLoaded.value !== true || !worldStore.world)
+      ) {
+        worldStore.refreshWorld()
       }
     }, POLL_INTERVAL_MS)
   }
