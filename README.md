@@ -4,12 +4,12 @@
 
 # What is this?
 
-This is a Character Sheet for the Pathfinder 2e system on FoundryVTT. It was designed to be run on a phone or tablet during in-person games, replacing the need for a laptop. 
+This is a Character Sheet for the Pathfinder 2e system on FoundryVTT. It was designed to be run on a phone or tablet during in-person games, replacing the need for a laptop.
 
-Unlike most of the mobile sheets out there, this applicaiton does not load Foundry in the background. Instead, it's a relatively light-weight webpage. 
-All data exchange happens using Foundry's built-in websockets. This should make it run better on low-performace devices, and it should allow for a more customized, streamlined experience.
+Unlike most of the mobile sheets out there, this application does not load Foundry in the background. Instead, it's a relatively light-weight webpage.
+All data exchange happens using Foundry's built-in websockets, much like Foundry's own client. But, unlike Foundry's client, it's designed to run character sheets only. This should make it run better on low-performace devices, and it should allow for a more customized, streamlined experience.
 
-There are some limitations to this approach. Mainly, the character sheet doesn't work very well unless a GM is logged in. I'm looking to improve on this in the future, though there will always be limitations to what's possible.
+There are some limitations to this approach. Mainly, the character sheet can't do everything unless a GM is logged in. I'm looking to improve on this in the future, though there will always be limitations to what's possible.
 
 
 ## Things you can do now:
@@ -45,9 +45,9 @@ Every tagged release attaches its own builds, so an old version stays installabl
 
 ## iOS
 
-**The App Store is the supported route** — a normal install that updates itself, with notifications working.
+**TestFlight is the supported route** — [join the beta](https://testflight.apple.com/join/xgeZTSyW). It installs like a normal app, updates itself, and notifications work. You'll need Apple's TestFlight app installed first.
 
-If you want builds ahead of the store release, [join the TestFlight beta](https://testflight.apple.com/join/xgeZTSyW).
+TestFlight builds expire 90 days after release. A new release refreshes them, so keep the app updated and it won't lapse.
 
 For anyone who would rather not go through Apple at all, each release also attaches `tabulamensa-unsigned.ipa`, which you can install yourself with [Sideloadly](https://sideloadly.com/) or [AltStore](https://altstore.io/). Two things to know before you do:
 
