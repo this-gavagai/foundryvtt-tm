@@ -211,6 +211,38 @@ async function fetchAsset(path: string): Promise<Blob> {
   return response.blob()
 }
 
+// The spritesheet manifest, fetched as data rather than bytes.
+//
+// It cannot go through fetchAsset on native: Foundry serves these as
+// `application/json`, and CapacitorHttp overrides whatever responseType the
+// caller asks for whenever it sees that content type —
+//
+//   if (contentType.includes('application/json')) responseType = 'json'
+//
+// — so the blob request comes back already parsed. fetchAsset then looks for a
+// base64 string, finds an object, and throws "Empty ring asset response",
+// taking every ring on native down with it while the web build (plain fetch)
+// stayed fine. Only the manifest is affected; the sheet image is image/webp and
+// is left alone, so it keeps the blob path it needs for createImageBitmap.
+async function fetchJson(path: string): Promise<unknown> {
+  const url = getMediaPath(path)
+  if (Capacitor.isNativePlatform()) {
+    const response = await CapacitorHttp.get({ url })
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`Ring asset fetch returned ${response.status}`)
+    }
+    // Parsed already when the server labelled it json; still a string when it
+    // didn't, which a proxy or a static host may well not.
+    const data = response.data
+    if (typeof data === 'string') return JSON.parse(data)
+    if (data == null) throw new Error('Empty ring asset response')
+    return data
+  }
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`Ring asset fetch returned ${response.status}`)
+  return response.json()
+}
+
 type LoadedSheet = { sheet: RingSheet; image: ImageBitmap }
 
 // One in-flight/settled promise per spritesheet path. The sheets are large
@@ -224,7 +256,7 @@ async function loadRingSheet(spritesheet: string): Promise<LoadedSheet> {
   if (cached) return cached
 
   const load = (async () => {
-    const json = JSON.parse(await (await fetchAsset(spritesheet)).text()) as SheetJson
+    const json = (await fetchJson(spritesheet)) as SheetJson
     const sheet = parseRingSheet(json)
     const imageName = json.meta?.image
     if (!imageName) throw new Error('Ring spritesheet declares no image')
@@ -330,7 +362,11 @@ export function ringLayers(request: RingLayerRequest): Promise<RingLayers> {
   build.then((resolved) => settledLayers.set(key, resolved)).catch(() => {})
   build.catch((error) => {
     layerCache.delete(key)
-    logger.debug('token ring layers unavailable', error)
+    // warn, not debug: debug is compiled out of production builds, so the
+    // native-only JSON failure above produced no console output at all — rings
+    // simply vanished with nothing to go on. A ring that can't be drawn is
+    // worth one line in any build.
+    logger.warn('token ring layers unavailable', error)
   })
   return build
 }
