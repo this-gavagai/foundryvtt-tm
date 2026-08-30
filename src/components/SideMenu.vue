@@ -538,11 +538,15 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
         data-part="picker-divider"
         class="border-divider border-t"
       ></div>
-      <!-- Every actor this user may open, npcs included, as a roster to scroll. -->
+      <!-- Every actor this user may open, npcs included. Deliberately without a
+           scroll container of its own: a nested one captures the gesture, so
+           dragging over this list left the owned-character list above it pinned
+           in place. The modal panel grows and ModalBox's outer overflow-y-auto
+           scrolls the whole thing as one. -->
       <ul
         v-if="allActorOptions.length"
         data-part="all-actors"
-        class="flex max-h-80 flex-col gap-1 overflow-y-auto py-2"
+        class="flex flex-col gap-1 py-2"
       >
         <li
           v-for="chr in allActorOptions"
