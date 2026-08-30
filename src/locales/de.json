@@ -106,7 +106,8 @@
   "app": {
     "userDoesNotOwnCharacter": "Der Benutzer besitzt diesen Charakter nicht",
     "characterPortrait": "Charakterporträt",
-    "noWorld": "Dieser Server hat keine aktive Spielwelt. Bitte kontaktiere deinen GM."
+    "noWorld": "Dieser Server hat keine aktive Spielwelt. Bitte kontaktiere deinen GM.",
+    "noCharacters": "Für diesen Benutzer sind keine Charaktere verfügbar. Bitte deinen GM, dir Besitzerrechte für einen Charakter zu geben."
   },
   "tabs": {
     "character": "Charakter",

@@ -6,6 +6,7 @@ import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 
 import { useWorldStore } from '@/stores/world'
 import { useCharacterSelectStore } from '@/stores/characterSelect'
+import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 
 // A GM is essentially never listed in an actor's ownership map — Foundry grants
 // them ownership by role instead — so reading that map literally left a GM login
@@ -69,5 +70,33 @@ describe('characterList access', () => {
     select.initialize('pc-other')
     expect(select.activeCharacterId).toBe('pc-other')
     expect(select.characterList).toContain('pc-other')
+  })
+})
+
+// A blank screen on native, reported against a v14 server: signing in as a
+// different user cleared the world but left worldAuthenticated `true`, which
+// satisfies every readiness gate in ConnectedApp while characterList is empty —
+// so it rendered a TabGroup with zero panels and no spinner to replace it.
+describe('clearWorld', () => {
+  it('empties the character list', () => {
+    loadWorld('gm')
+    const select = useCharacterSelectStore()
+    expect(select.characterList.length).toBeGreaterThan(0)
+
+    useWorldStore().clearWorld()
+    expect(select.characterList).toEqual([])
+  })
+
+  it('returns worldAuthenticated to pending, so the empty list reads as loading', () => {
+    loadWorld('gm')
+    const status = useFoundryWorldStatusStore()
+    status.markWorldLoaded()
+    status.setWorldAuthenticated(true)
+
+    useWorldStore().clearWorld()
+
+    // The pair is set together by sendWorldRequest and must be cleared
+    // together: `true` over an absent world is the unrenderable combination.
+    expect(status.worldAuthenticated).toBeUndefined()
   })
 })

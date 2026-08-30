@@ -121,6 +121,28 @@ useDevGlobals(characters, urlId)
       </button>
     </div>
     <LoginPage v-else-if="needsLogin && !showCachedSheet" />
+    <!-- Nothing to put in the TabGroup below: it renders one panel per
+         character, so an empty list renders an empty element — a blank screen
+         with no spinner, no message and (on native) no way back to the gate.
+         Reached when the signed-in user owns no character, and previously also
+         whenever the world payload went missing underneath a still-true
+         worldAuthenticated (see world.clearWorld). -->
+    <div
+      v-else-if="characterList.length === 0"
+      data-component="NoCharactersMessage"
+      class="flex h-full flex-col items-center justify-center gap-8 p-8 text-center text-lg"
+    >
+      {{ $t('app.noCharacters') }}
+      <button
+        v-if="isNativeMobile"
+        type="button"
+        data-part="change-server"
+        class="rounded px-4 py-2 text-sm"
+        @click="cancelConnecting"
+      >
+        {{ $t('serverUrl.cancelConnect') }}
+      </button>
+    </div>
     <TabGroup
       v-else
       :selectedIndex="characterList.indexOf(activeCharacterId)"

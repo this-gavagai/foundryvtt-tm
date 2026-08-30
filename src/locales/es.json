@@ -106,7 +106,8 @@
   "app": {
     "userDoesNotOwnCharacter": "El usuario no es dueño de este personaje",
     "characterPortrait": "Retrato del personaje",
-    "noWorld": "Este servidor no tiene un mundo de juego activado. Por favor, contacta con tu GM."
+    "noWorld": "Este servidor no tiene un mundo de juego activado. Por favor, contacta con tu GM.",
+    "noCharacters": "No hay personajes disponibles para este usuario. Pide a tu GM que te dé permiso de Propietario sobre un personaje."
   },
   "tabs": {
     "character": "Personaje",

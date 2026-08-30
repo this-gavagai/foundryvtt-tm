@@ -47,7 +47,10 @@ export const useFoundryWorldStatusStore = defineStore('foundryWorldStatus', () =
     worldAuthenticated.value = undefined
   }
 
-  function setWorldAuthenticated(authenticated: boolean) {
+  // `undefined` is a real argument here, not just the initial value: dropping
+  // the world payload (a user switch) has to put this back to "pending", or a
+  // stale `true` outlives the data it was derived from.
+  function setWorldAuthenticated(authenticated: boolean | undefined) {
     worldAuthenticated.value = authenticated
   }
 

@@ -251,6 +251,12 @@ export const useWorldStore = defineStore('world', () => {
   // those intentionally keep the stale world visible until fresh data lands.
   function clearWorld(): void {
     world.value = undefined
+    // sendWorldRequest sets these two together, so they have to be cleared
+    // together. Leaving worldAuthenticated `true` over an absent world is the
+    // one combination the app can't render: it satisfies every readiness gate
+    // in ConnectedApp while actorIdsWhere returns nothing, which used to paint
+    // an empty character list — a blank screen with no spinner and no way out.
+    useFoundryWorldStatusStore().setWorldAuthenticated(undefined)
   }
 
   return {

@@ -106,7 +106,8 @@
   "app": {
     "userDoesNotOwnCharacter": "User does not own this character",
     "characterPortrait": "Character portrait",
-    "noWorld": "This server does not have a game world activated. Please contact your GM."
+    "noWorld": "This server does not have a game world activated. Please contact your GM.",
+    "noCharacters": "No characters are available for this user. Ask your GM to give you Owner permission on a character."
   },
   "tabs": {
     "character": "Character",
