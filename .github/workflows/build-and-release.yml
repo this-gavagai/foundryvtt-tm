@@ -221,10 +221,16 @@ jobs:
     # job builds the sideload APK for the GitHub release, this one builds the
     # bundle Play requires.
     #
-    # Which track is a repository variable rather than a literal so the closed
-    # test can be switched to (PLAY_TRACK=alpha) and back without editing this
-    # file. supply's names predate the Console's: alpha is closed testing, beta
-    # is open testing.
+    # Which track is a repository variable rather than a literal so it can be
+    # changed without editing this file. supply's names predate the Console's:
+    # alpha is closed testing, beta is open testing.
+    #
+    # It accepts a comma-separated list, uploaded once and promoted to the rest.
+    # PLAY_TRACK=internal,alpha is the useful pairing during a closed test:
+    # internal skips Play review, so the build reaches your own device while the
+    # testers' copy is still pending — a few hours to catch a bad build before
+    # twelve people install it. It also sidesteps the eligibility rule that a
+    # user opted into internal cannot receive a closed test.
     needs: build-release
     runs-on: ubuntu-latest
     steps:

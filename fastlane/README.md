@@ -100,13 +100,17 @@ Build an Android release AAB for signing and Play Console upload
 [bundle exec] fastlane android play
 ```
 
-Build the release AAB and upload it to a Play track.
+Build the release AAB and upload it to one or more Play tracks.
 
 Track names predate the Console's labels: internal, alpha (= closed
 
 testing), beta (= open testing), production. Defaults to internal.
 
-  bundle exec fastlane android play track:alpha
+Accepts a comma-separated list; the bundle is uploaded once and promoted
+
+to the rest, so one build can serve several audiences.
+
+  bundle exec fastlane android play track:internal,alpha
 
 ### android play_metadata
 

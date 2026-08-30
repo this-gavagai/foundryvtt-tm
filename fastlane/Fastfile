@@ -435,16 +435,28 @@ platform :android do
     end
   end
 
-  desc "Build the release AAB and upload it to a Play track."
+  desc "Build the release AAB and upload it to one or more Play tracks."
   desc "Track names predate the Console's labels: internal, alpha (= closed"
   desc "testing), beta (= open testing), production. Defaults to internal."
-  desc "  bundle exec fastlane android play track:alpha"
+  desc "Accepts a comma-separated list; the bundle is uploaded once and promoted"
+  desc "to the rest, so one build can serve several audiences."
+  desc "  bundle exec fastlane android play track:internal,alpha"
   lane :play do |options|
-    track = options[:track] || ENV["PLAY_TRACK"] || "internal"
+    tracks = (options[:track] || ENV["PLAY_TRACK"] || "internal").to_s.split(",").map(&:strip).reject(&:empty?)
+    UI.user_error!("No track given.") if tracks.empty?
+    UI.user_error!("Duplicate tracks: #{tracks.join(', ')}") unless tracks.uniq.length == tracks.length
+
     known = %w[internal alpha beta production]
-    unless known.include?(track)
-      UI.important("'#{track}' is not one of #{known.join(', ')} — treating it as a custom closed track.")
+    (tracks - known).each do |t|
+      UI.important("'#{t}' is not one of #{known.join(', ')} — treating it as a custom closed track.")
     end
+
+    # The bundle is uploaded to the first track and promoted into the others.
+    # Order matters for how soon each audience sees it: internal skips Play
+    # review, so listing it first gets the build onto your own device while the
+    # reviewed tracks are still pending.
+    upload_track = tracks.first
+    promote_to = tracks.drop(1)
 
     # Resolved before building: a missing key should fail in seconds rather than
     # after several minutes of gradle work that gets thrown away.
@@ -466,21 +478,42 @@ platform :android do
     has_changelog = !version_code.empty? && File.exist?(changelog)
     UI.message(has_changelog ? "Using release notes from #{changelog}" : "No release notes for this build; skipping changelogs.")
 
-    upload_to_play_store(**creds.merge(
-      track: track,
-      aab: aab,
-      metadata_path: metadata_path,
-      release_status: options[:release_status] || "completed",
+    release_status = options[:release_status] || "completed"
+
+    # Everything the listing owns is skipped on every call below: the store
+    # listing is edited in the Console and pushed deliberately by the
+    # play_metadata lane, so shipping a binary must never quietly rewrite it.
+    listing_untouched = {
       skip_upload_apk: true,
-      skip_upload_changelogs: !has_changelog,
-      # The store listing is edited in the Console and pushed deliberately by the
-      # play_metadata lane. Shipping a binary must never quietly rewrite it.
       skip_upload_metadata: true,
       skip_upload_images: true,
       skip_upload_screenshots: true
-    ))
+    }
 
-    UI.success("Uploaded #{File.basename(aab)} to the '#{track}' track.")
+    upload_to_play_store(**creds.merge(listing_untouched).merge(
+      track: upload_track,
+      aab: aab,
+      metadata_path: metadata_path,
+      release_status: release_status,
+      skip_upload_changelogs: !has_changelog
+    ))
+    UI.success("Uploaded #{File.basename(aab)} to the '#{upload_track}' track.")
+
+    # Promote-only: the bundle is already on Play, so this adds the same version
+    # code to another track without a second upload. It leaves the source track
+    # alone — a build can sit on internal and closed at once, which is the point.
+    UI.user_error!("Cannot promote without a version code; set APP_VERSION.") if promote_to.any? && version_code.empty?
+    promote_to.each do |target|
+      upload_to_play_store(**creds.merge(listing_untouched).merge(
+        track: upload_track,
+        version_code: version_code.to_i,
+        track_promote_to: target,
+        track_promote_release_status: release_status,
+        skip_upload_aab: true,
+        skip_upload_changelogs: true
+      ))
+      UI.success("Promoted #{version_code.to_i} to the '#{target}' track.")
+    end
   end
 
   desc "Push the store listing images (icon, feature graphic, screenshots) from"
