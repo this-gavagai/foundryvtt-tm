@@ -12,6 +12,7 @@ import { useTheme, THEMES } from '@/composables/useTheme'
 import { useSettingsStore } from '@/stores/settings'
 import { useServerAddressStore } from '@/stores/serverAddress'
 import { useServerStore } from '@/stores/server'
+import { useGmPolicyStore } from '@/stores/gmPolicy'
 import ModalBox from './ModalBox.vue'
 import TranscriptionSettingsModal from './TranscriptionSettingsModal.vue'
 import Dropdown from '@/components/widgets/DropdownWidget.vue'
@@ -22,7 +23,8 @@ const emit = defineEmits<{ manageServers: [] }>()
 
 const { locale, t } = useI18n()
 const { activeTheme, setTheme } = useTheme()
-const { showUnreadOnPortrait, showSharedImages } = storeToRefs(useSettingsStore())
+const { showUnreadOnPortrait, showSharedImages, manualDicePicker } = storeToRefs(useSettingsStore())
+const { manualRollsBlocked } = storeToRefs(useGmPolicyStore())
 const { isNativeMobile } = storeToRefs(useServerAddressStore())
 
 // 'moonlit/coolblue' → "Moonlit · Coolblue"; THEMES order puts variants right
@@ -92,6 +94,21 @@ defineExpose({ open, close })
       <Toggle :active="showSharedImages" @changed="(v: boolean) => (showSharedImages = v)">
         <span class="text-lg italic">{{ $t('settings.showSharedImages') }}</span>
       </Toggle>
+      <div>
+        <!-- The switch reads as off while the GM rejects manual results; the
+             local preference itself is untouched so it comes back if the GM
+             re-allows them. -->
+        <Toggle
+          :active="manualDicePicker && !manualRollsBlocked"
+          :disabled="manualRollsBlocked"
+          @changed="(v: boolean) => (manualDicePicker = v)"
+        >
+          <span class="text-lg italic">{{ $t('sideMenu.manualDicePicker') }}</span>
+        </Toggle>
+        <div v-if="manualRollsBlocked" class="text-sm text-gray-500">
+          {{ $t('sideMenu.manualRollsDisabledByGm') }}
+        </div>
+      </div>
       <hr class="opacity-30" />
       <Button
         class="w-full"

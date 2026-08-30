@@ -17,8 +17,6 @@ import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useWorldStore } from '@/stores/world'
 import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { usePixelDiceStore } from '@/stores/pixelDice'
-import { useSettingsStore } from '@/stores/settings'
-import { useGmPolicyStore } from '@/stores/gmPolicy'
 import { useChatStore } from '@/stores/chat'
 import { useCharacterSelectStore } from '@/stores/characterSelect'
 import {
@@ -28,7 +26,6 @@ import {
 import { tokenPortrait } from '@/utils/tokenPortrait'
 
 import Dropdown from '@/components/widgets/DropdownWidget.vue'
-import Toggle from '@/components/widgets/ToggleWidget.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import IconButtonWidget from '@/components/widgets/IconButtonWidget.vue'
 import RollOptions from '@/components/RollOptions.vue'
@@ -57,11 +54,18 @@ const connectionState = computed(() => {
   if (!isListening.value) return 'no-gm'
   return 'ok'
 })
+// Which Foundry user this device is signed in as. Worth naming in the status
+// line because the app remembers a session across launches and can hold several
+// servers, so "Connected" alone doesn't say connected as whom. Falls back to the
+// bare label until the world payload arrives with the user list.
+const currentUserName = computed(() => worldStore.userById(worldStore.world?.userId)?.name)
 const connectionTitle = computed<Record<string, string>>(() => ({
   down: t('connection.down'),
   'no-world': t('connection.noWorld'),
   'no-gm': t('connection.noGm'),
-  ok: t('connection.connected')
+  ok: currentUserName.value
+    ? t('connection.connectedAs', { name: currentUserName.value })
+    : t('connection.connected')
 }))
 const pixelStore = usePixelDiceStore()
 const { pixels, pairError } = storeToRefs(pixelStore)
@@ -101,9 +105,6 @@ function dismissSidebar() {
   triggerDismissHapticFeedback()
   sidebarOpen.value = false
 }
-
-const { manualDicePicker } = storeToRefs(useSettingsStore())
-const { manualRollsBlocked } = storeToRefs(useGmPolicyStore())
 
 const freeRollModal = ref<InstanceType<typeof RollCheckBuilder>>()
 function openFreeRoll() {
@@ -313,21 +314,6 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                       </div>
                     </li>
                     <li>
-                      <!-- The switch reads as off while the GM rejects manual
-                           results; the local preference itself is untouched so
-                           it comes back if the GM re-allows them. -->
-                      <Toggle
-                        :active="manualDicePicker && !manualRollsBlocked"
-                        :disabled="manualRollsBlocked"
-                        @changed="(v: boolean) => (manualDicePicker = v)"
-                      >
-                        <span class="text-lg italic">{{ $t('sideMenu.manualDicePicker') }}</span>
-                      </Toggle>
-                      <div v-if="manualRollsBlocked" class="text-sm text-gray-500">
-                        {{ $t('sideMenu.manualRollsDisabledByGm') }}
-                      </div>
-                    </li>
-                    <li class="-mt-4">
                       <!-- Stays clickable when Bluetooth is unsupported so the
                            tap still surfaces pairError as feedback. -->
                       <button
@@ -482,7 +468,7 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                       </div>
                       <Button
                         class="w-full"
-                        color="lightgray"
+                        color="teal"
                         :clicked="openCompendium"
                         :aria-label="$t('sideMenu.compendium')"
                       >

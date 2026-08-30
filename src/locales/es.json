@@ -480,7 +480,8 @@
     "down": "El servidor de Foundry no responde",
     "noWorld": "Servidor accesible — mundo no activo",
     "noGm": "Mundo activo — ningún DJ conectado",
-    "connected": "Conectado"
+    "connected": "Conectado",
+    "connectedAs": "Conectado como {name}"
   },
   "infoModal": {
     "systemIcon": "Icono del sistema de PF2e",

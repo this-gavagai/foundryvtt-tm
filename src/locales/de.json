@@ -480,7 +480,8 @@
     "down": "Foundry-Server antwortet nicht",
     "noWorld": "Server erreichbar — Welt nicht aktiv",
     "noGm": "Welt aktiv — kein SL online",
-    "connected": "Verbunden"
+    "connected": "Verbunden",
+    "connectedAs": "Verbunden als {name}"
   },
   "infoModal": {
     "systemIcon": "PF2e-Systemsymbol",

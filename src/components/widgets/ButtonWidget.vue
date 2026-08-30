@@ -23,6 +23,10 @@ const styles = new Map([
     'blue',
     [`bg-blue-600`, `enabled:hover:bg-blue-500`, `enabled:active:bg-blue-400`, 'text-white']
   ],
+  [
+    'teal',
+    [`bg-teal-600`, `enabled:hover:bg-teal-500`, `enabled:active:bg-teal-400`, 'text-white']
+  ],
   ['lightgray', [`bg-gray-300`, `enabled:active:bg-gray-200`, 'text-gray-900']],
   [
     'gray',
