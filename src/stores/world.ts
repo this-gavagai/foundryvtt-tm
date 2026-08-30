@@ -11,10 +11,19 @@ import { collectionToArray, type CollectionLike } from '@/utils/foundryCollectio
 import type { ChatReaction } from '@/utils/chatReactions'
 
 const REFRESH_DEBOUNCE_MS = 2000
-// World payloads can be large and the GM serializes them behind actor
-// requests, so give the ack a generous budget before giving up. A timed-out
-// request is simply dropped — the next refresh trigger (session handshake,
-// world-progress trailing edge, visibility resume) retries.
+// 'world' is answered by the Foundry server itself, not by the module on a GM
+// client — there is no handler for it in src/foundry. It is core's dump of
+// every collection (packages/world.mjs calls db.Actor.dump() and friends with
+// no user argument), so it is unfiltered and identical for every user: a
+// player receives the same bytes a GM does, and permission only decides what
+// the client displays. That makes it big — 26 MB on a mid-sized v14 world,
+// dominated by scenes/settings/packs rather than actors — hence the generous
+// budget. Selective, per-actor data is a separate request the GM does serve
+// (see foundry/handlers/characterDetails), because the derived values a sheet
+// needs don't survive the server's source-only dump.
+//
+// A timed-out request is simply dropped — the next refresh trigger (session
+// handshake, world-progress trailing edge, visibility resume) retries.
 const WORLD_REQUEST_TIMEOUT_MS = 15_000
 
 export const useWorldStore = defineStore('world', () => {
