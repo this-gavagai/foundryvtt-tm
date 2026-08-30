@@ -423,7 +423,6 @@
     "changeCharacter": "Change Character",
     "searchActors": "Search all actors, including NPCs",
     "noActorsFound": "No actors match that search.",
-    "moreActors": "Showing {shown} of {total}. Keep typing to narrow.",
     "targetingProxy": "Targeting Proxy",
     "proxyOffline": "That player is not connected, so nothing is being targeted.",
     "pairPixelDice": "Pair Pixel Die",

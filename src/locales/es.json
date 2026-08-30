@@ -423,7 +423,6 @@
     "changeCharacter": "Cambiar personaje",
     "searchActors": "Buscar todos los actores, incluidos los PNJ",
     "noActorsFound": "Ningún actor coincide con esa búsqueda.",
-    "moreActors": "Mostrando {shown} de {total}. Sigue escribiendo para acotar.",
     "targetingProxy": "Proxy de objetivo",
     "proxyOffline": "Ese jugador no está conectado, por lo que no se está seleccionando ningún objetivo.",
     "pairPixelDice": "Vincular dado Pixel",

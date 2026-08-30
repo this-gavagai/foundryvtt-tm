@@ -363,10 +363,11 @@
         background-color: var(--color-danger-surface-active);
       }
 
-      /* Change-character picker rows: hover matches the shared interactive
-       surface; the active-row accent is per-theme (mirrors the active
-       server row). */
-      [data-part='character-option']:hover {
+      /* Change-character picker rows — both the owned-character list and the
+       full actor roster below the divider: hover matches the shared
+       interactive surface; the active-row accent is per-theme (mirrors the
+       active server row). */
+      :is([data-part='character-option'], [data-part='actor-result']):hover {
         background-color: var(--color-surface-hover);
       }
 

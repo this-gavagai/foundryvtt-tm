@@ -199,7 +199,7 @@
 
       /* Change-character picker active row: same accent treatment as the
        active server row (hover comes from the shared surface pair). */
-      [data-part='character-option'][data-active='true'] {
+      :is([data-part='character-option'], [data-part='actor-result'])[data-active='true'] {
         background-color: oklch(95% 0.05 60);
         box-shadow: inset 0 0 0 1px oklch(70% 0.16 48 / 0.25);
       }

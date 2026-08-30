@@ -159,29 +159,32 @@ function pickerRow(id: string) {
   }
 }
 
+const actorSearch = ref('')
+const actorQuery = computed(() => actorSearch.value.trim().toLowerCase())
+function matchesQuery(row: { name?: string | null }): boolean {
+  return !actorQuery.value || !!row.name?.toLowerCase().includes(actorQuery.value)
+}
+
+// Top of the picker: the same owned-character list it has always shown.
 const characterOptions = computed(() =>
-  (characterList.value ?? []).flatMap((id) => pickerRow(id) ?? [])
+  (characterList.value ?? []).flatMap((id) => pickerRow(id) ?? []).filter(matchesQuery)
 )
 
-// Search widens the picker past the listed characters to every actor this user
-// may open — for a GM that means the npcs GM_LISTED_TYPES keeps out of the
-// list. It only engages once something is typed, so the default view stays the
-// short owned-character list it has always been.
-const actorSearch = ref('')
-// Each row paints token art, so an unfiltered single-letter query on a world
-// with hundreds of npcs would fetch hundreds of images at once. Cap the rows
-// and say so, rather than silently hiding matches.
-const ACTOR_SEARCH_LIMIT = 50
-const actorQuery = computed(() => actorSearch.value.trim().toLowerCase())
-const actorMatches = computed(() => {
-  const query = actorQuery.value
-  if (!query) return []
-  return openableActorIds.value
+// Below the divider: every actor this user may open, which for a GM is the
+// whole roster including the npcs GM_LISTED_TYPES keeps out of the list above.
+// Name-sorted so it reads as a roster to scroll rather than world order, and
+// deliberately not deduplicated against the list above — the point of this
+// section is that it is complete.
+//
+// Rendering all of it (hundreds of rows on a real world) is affordable because
+// the rows lazy-load their art, and the ring rasters behind it are cached and
+// size-bucketed for exactly this "dozens of rows ask at once" case.
+const allActorOptions = computed(() =>
+  openableActorIds.value
     .flatMap((id) => pickerRow(id) ?? [])
-    .filter((row) => row.name?.toLowerCase().includes(query))
+    .filter(matchesQuery)
     .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
-})
-const visibleActorMatches = computed(() => actorMatches.value.slice(0, ACTOR_SEARCH_LIMIT))
+)
 
 const characterPicker = ref<InstanceType<typeof Modal>>()
 function openCharacterPicker() {
@@ -517,8 +520,8 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
           :placeholder="$t('sideMenu.searchActors')"
         />
       </div>
-      <!-- Untyped: the owned-character list this modal has always shown. -->
-      <ul v-if="!actorQuery" class="flex flex-col gap-1 py-2">
+      <!-- The owned-character list this modal has always shown. -->
+      <ul v-if="characterOptions.length" class="flex flex-col gap-1 py-2">
         <li
           v-for="chr in characterOptions"
           :key="chr._id ?? undefined"
@@ -544,10 +547,19 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
           <span class="truncate">{{ chr.name }}</span>
         </li>
       </ul>
-      <!-- Typed: every actor this user may open, npcs included. -->
-      <ul v-else class="flex max-h-80 flex-col gap-1 overflow-y-auto py-2">
+      <div
+        v-if="characterOptions.length && allActorOptions.length"
+        data-part="picker-divider"
+        class="border-divider border-t"
+      ></div>
+      <!-- Every actor this user may open, npcs included, as a roster to scroll. -->
+      <ul
+        v-if="allActorOptions.length"
+        data-part="all-actors"
+        class="flex max-h-80 flex-col gap-1 overflow-y-auto py-2"
+      >
         <li
-          v-for="chr in visibleActorMatches"
+          v-for="chr in allActorOptions"
           :key="chr._id ?? undefined"
           data-part="actor-result"
           :data-active="chr._id === activeCharacterId"
@@ -566,30 +578,19 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
               :ring="chr.portrait.ring"
               :px="40"
               :alt="chr.name ?? ''"
+              lazy
             />
           </div>
           <span class="truncate">{{ chr.name }}</span>
         </li>
-        <li
-          v-if="!actorMatches.length"
-          data-part="actor-search-empty"
-          class="p-2 opacity-60"
-        >
-          {{ $t('sideMenu.noActorsFound') }}
-        </li>
-        <li
-          v-else-if="actorMatches.length > visibleActorMatches.length"
-          data-part="actor-search-truncated"
-          class="p-2 text-sm opacity-60"
-        >
-          {{
-            $t('sideMenu.moreActors', {
-              shown: visibleActorMatches.length,
-              total: actorMatches.length
-            })
-          }}
-        </li>
       </ul>
+      <div
+        v-if="!characterOptions.length && !allActorOptions.length"
+        data-part="actor-search-empty"
+        class="p-2 opacity-60"
+      >
+        {{ $t('sideMenu.noActorsFound') }}
+      </div>
     </Modal>
     <!-- Detail view for paired Pixel dice. Mounted regardless of pixel count
        so toggling between 1- and 2-die states doesn't tear it down. -->
