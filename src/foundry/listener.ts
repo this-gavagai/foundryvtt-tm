@@ -17,6 +17,7 @@ import {
   CAPABILITY_VOICE_MEMO_TRANSCRIPT,
   CAPABILITY_IMAGE_UPLOAD,
   CAPABILITY_REACTIONS,
+  CAPABILITY_COMMENTS,
   MODULE_ID
 } from '@/api/protocol'
 import { makeAck, stampTablemateChatOrigin, tablemateChatOriginUuid } from './utils/foundry'
@@ -555,6 +556,9 @@ function announceSelf() {
       // Unconditional: reactions need no world configuration, so this is purely
       // a "this module is new enough" signal for the app's affordance gate.
       CAPABILITY_REACTIONS,
+      // Unconditional for the same reason as reactions: purely a "this module
+      // can answer SET_COMMENT" signal for the app's affordance gate.
+      CAPABILITY_COMMENTS,
       // Likewise unconditional — it says this module reports the posted message
       // on a voice memo's final chunk, which is what lets the sending app patch
       // its own transcript onto the memo.

@@ -1,5 +1,6 @@
 import type { RollCheckArgs } from '@/types/api-types'
 import { withBackgroundRoll } from '../backgroundRoll'
+import { registerCapture, settleCapture } from '../chatCapture'
 import { extractRollPayload } from '../utils/roll'
 import { getCharacter, getGame, makeAck, makeFakeEvent } from '../utils/foundry'
 import {
@@ -118,6 +119,16 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   }
 
   const runHandler = () => Promise.resolve(CHECK_ROLL_HANDLERS[args.checkType]?.(ctx))
+  // Which chat card this roll posted. PF2e's statistic pipelines create the
+  // message themselves and hand back only the roll, so it is matched by request
+  // uuid (the listener stamps it during preCreateChatMessage — see
+  // chatCapture.ts). Registered BEFORE the roll runs, because that is when the
+  // message is created.
+  //
+  // The app uses it to offer a comment on the roll from the result modal, so a
+  // roll whose card can't be identified simply doesn't offer one — nothing else
+  // depends on it.
+  const capture = registerCapture(args.uuid)
   // Present the player's targets — however many, including none — to the check
   // kinds that read the ambient Set. statisticParams covers every path that
   // accepts an actor; this covers the few that don't. See NEEDS_AMBIENT_SHIELD.
@@ -126,5 +137,15 @@ export async function foundryRollCheck(args: RollCheckArgs) {
       ? withMirroredTargets(source, resolvedTargets.tokens, runHandler)
       : runHandler()
   )
-  return { ...makeAck(args), ...extractRollPayload(rRaw, args) }
+  // The card, if there was one, exists by now: PF2e awaits its creation before
+  // returning the roll. Settling rather than awaiting the capture's own timeout
+  // keeps a roll that posted nothing from delaying its ack by five seconds.
+  settleCapture(args.uuid)
+  const message = await capture
+
+  return {
+    ...makeAck(args),
+    ...extractRollPayload(rRaw, args),
+    messageId: message?.id ?? message?._id ?? undefined
+  }
 }

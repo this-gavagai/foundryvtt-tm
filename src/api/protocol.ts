@@ -91,6 +91,13 @@ export const CAPABILITY_VOICE_MEMO_TRANSCRIPT = 'voiceMemoTranscript'
 // affordance on the capability hides it instead.
 export const CAPABILITY_REACTIONS = 'reactions'
 
+// Free-text comments on chat messages (flags.tablemate.comments, see
+// utils/chatComments.ts). Unconditional like reactions, and for the same
+// reason: it is purely a version signal, so an app talking to a module with no
+// SET_COMMENT handler hides the affordance instead of firing a request that
+// would sit out the full 30s ack timeout.
+export const CAPABILITY_COMMENTS = 'comments'
+
 export const TM = {
   // Socket.io channel name. All tablemate messages flow over this channel.
   CHANNEL: 'module.tablemate',
@@ -163,6 +170,13 @@ export const TM = {
   // the author or a GM to do. So it has to be an RPC through the GM client. See
   // foundry/handlers/reactions.ts.
   TOGGLE_REACTION: 'toggleReaction',
+  // Write, edit, or remove one comment on a chat message. An RPC for the same
+  // reason reactions are — and more sharply: a roll made from the app is POSTED
+  // BY the GM's client on the player's behalf, so even the roller's "own" roll
+  // is a message Foundry won't let them update directly. Anyone may comment on
+  // anything; the handler is where "only a comment's author (or a GM) may
+  // rewrite it" is enforced. See foundry/handlers/comments.ts.
+  SET_COMMENT: 'setComment',
   // Push registration: the app asks the module (GM's client) for a short-lived,
   // signed token binding {worldId, userId} plus the relay URL, then registers
   // its device token with the relay. See foundry/pushRegistration.ts.

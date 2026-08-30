@@ -1,6 +1,7 @@
 import { setupListener } from './listener'
 import { setupChatOriginDisplay } from './chatOriginDisplay'
 import { setupReactionDisplay, setupReactionContextMenu } from './reactionDisplay'
+import { setupCommentDisplay, setupCommentContextMenu } from './commentDisplay'
 import { setupChatImagePopout } from './chatImagePopout'
 import { setupSpellCardTargeting } from './spellCardTargeting'
 import { setupSettingsHeaders } from './settingsHeaders'
@@ -19,6 +20,7 @@ logger.info('TM initializing...')
 // and ChatLog builds its right-click menu once during that render. Registering
 // any later misses the only time the hook fires. See reactionDisplay.ts.
 Hooks.on('init', setupReactionContextMenu)
+Hooks.on('init', setupCommentContextMenu)
 
 // Escape hatch from the redirect below: load the world with `?tablemate=off` and
 // this tab stays in Foundry. Without it a sheet user has no way back into the
@@ -60,6 +62,7 @@ Hooks.on('ready', () => {
   setupListener()
   setupChatOriginDisplay()
   setupReactionDisplay()
+  setupCommentDisplay()
   setupChatImagePopout()
   setupSpellCardTargeting()
   setupSettingsHeaders()

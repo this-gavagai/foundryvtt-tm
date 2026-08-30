@@ -5,7 +5,8 @@ import {
   CAPABILITY_VOICE_MEMO,
   CAPABILITY_VOICE_MEMO_TRANSCRIPT,
   CAPABILITY_IMAGE_UPLOAD,
-  CAPABILITY_REACTIONS
+  CAPABILITY_REACTIONS,
+  CAPABILITY_COMMENTS
 } from '@/api/protocol'
 
 // Tracks whether the connected Foundry module speaks the same wire protocol as
@@ -53,6 +54,11 @@ export const useVersionCompatStore = defineStore('versionCompat', () => {
   // would sit out the full 30s ack timeout — hide the picker instead.
   const supportsReactions = computed(() => moduleCapabilities.value.includes(CAPABILITY_REACTIONS))
 
+  // Gate for the chat comment affordance, mirroring supportsReactions: a module
+  // too old to advertise it has no SET_COMMENT handler, so a comment would sit
+  // out the full 30s ack timeout instead of saving.
+  const supportsComments = computed(() => moduleCapabilities.value.includes(CAPABILITY_COMMENTS))
+
   function reportModule(
     protocol: number | undefined,
     version: string | undefined,
@@ -85,6 +91,7 @@ export const useVersionCompatStore = defineStore('versionCompat', () => {
     supportsVoiceMemoTranscript,
     supportsImageUpload,
     supportsReactions,
+    supportsComments,
     isMismatched,
     reportModule,
     reset

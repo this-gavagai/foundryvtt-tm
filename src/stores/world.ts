@@ -9,6 +9,7 @@ import { emitWithTimeout } from '@/api/socketConnection'
 import { asDocumentArray, type DocumentData } from '@/api/internal'
 import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
 import type { ChatReaction } from '@/utils/chatReactions'
+import type { ChatComment } from '@/utils/chatComments'
 
 const REFRESH_DEBOUNCE_MS = 2000
 // 'world' is answered by the Foundry server itself, not by the module on a GM
@@ -105,6 +106,22 @@ export const useWorldStore = defineStore('world', () => {
     message.flags ??= {}
     message.flags.tablemate ??= {}
     message.flags.tablemate.reactions = reactions
+    messagesRevision.value++
+    triggerRef(world)
+  }
+
+  // Write a message's comment list in place. Nested-write for the same
+  // reason as applyChatReactions, and used the same way: the optimistic guess
+  // in useChatActions.saveComment, then the reconcile once the GM answers.
+  function applyChatComments(messageId: string, comments: ChatComment[]): void {
+    const root = asDocumentArray(world.value?.messages)
+    const message = root?.find((m) => m._id === messageId) as
+      | (DocumentData & { flags?: { tablemate?: { comments?: ChatComment[] } } })
+      | undefined
+    if (!message) return
+    message.flags ??= {}
+    message.flags.tablemate ??= {}
+    message.flags.tablemate.comments = comments
     messagesRevision.value++
     triggerRef(world)
   }
@@ -297,6 +314,7 @@ export const useWorldStore = defineStore('world', () => {
     applyChatCreate,
     applyChatUpdate,
     applyChatReactions,
+    applyChatComments,
     applyChatTranscript,
     applyChatDelete,
     actorsById,

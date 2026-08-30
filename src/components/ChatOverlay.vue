@@ -25,6 +25,7 @@ import {
   useChatMessages,
   chatContentToEditableText,
   spellCardCast,
+  type ChatCommentView,
   type ChatMessageView
 } from '@/composables/useChatMessages'
 import { useChatScroll } from '@/composables/useChatScroll'
@@ -43,6 +44,7 @@ import ChatRecipientPicker from '@/components/ChatRecipientPicker.vue'
 import CompendiumItemModal from '@/components/CompendiumItemModal.vue'
 import InfoModal from '@/components/InfoModal.vue'
 import ConfirmDialog from '@/components/widgets/ConfirmDialog.vue'
+import ChatCommentModal from '@/components/ChatCommentModal.vue'
 import type { ActiveRoll } from '@/types/api-types'
 import type { Roll } from '@/types/roll-types'
 
@@ -129,7 +131,8 @@ const {
   submitImage,
   deleteMessage,
   updateMessageContent,
-  updateVoiceMemoTranscript
+  updateVoiceMemoTranscript,
+  commentFailed
 } = chatActions
 
 async function submitChatMessage() {
@@ -423,6 +426,75 @@ function openReactionDetail(view: ChatMessageView) {
 function toggleDetailReaction(emoji: string) {
   const message = reactionDetail.value?.message
   if (message) void chatActions.toggleMessageReaction(message, emoji)
+}
+
+// ── Comments ───────────────────────────────────────────────────────────────
+// Same gate shape and same reason as reactions, one step stronger: a roll made
+// from the app is posted by the GM's client, so a comment on it is a write to a
+// message this user doesn't author even when the roll is theirs. It runs as an
+// RPC with no direct-socket fallback. Existing comments still render when this
+// is false — inert, like reaction chips.
+const commentsSupported = computed(() => versionCompat.supportsComments && listeners.isListening)
+
+// What the editor is currently pointed at: a message id (not a view — views are
+// rebuilt on every world trigger, so a captured one would freeze) and, when
+// rewriting rather than adding, the comment's id.
+const commentModal = ref<InstanceType<typeof ChatCommentModal>>()
+const commentMessageId = ref<string | null>(null)
+const editingCommentId = ref<string | null>(null)
+
+const commentTarget = computed(() =>
+  commentMessageId.value
+    ? renderedMessages.value.find((view) => view.message._id === commentMessageId.value)
+    : undefined
+)
+
+// The line under the editor's title: whose message is being commented on, so an
+// editor opened from a long log can't quietly land on the wrong one.
+const commentDescription = computed(() =>
+  t('chat.commentOn', { subject: commentTarget.value?.speakerName ?? '' })
+)
+
+const commentPending = computed(() =>
+  chatActions.isCommentPending(commentMessageId.value, editingCommentId.value)
+)
+
+function openCommentEditor(view: ChatMessageView, comment?: ChatCommentView) {
+  const id = view.message._id
+  if (!id) return
+  commentMessageId.value = id
+  editingCommentId.value = comment?.id ?? null
+  // The initial text is passed in rather than read from a prop: the modal opens
+  // in this same tick, before a prop would have updated.
+  nextTick(() => commentModal.value?.open(comment?.text ?? ''))
+}
+
+function closeCommentEditor() {
+  commentMessageId.value = null
+  editingCommentId.value = null
+}
+
+// Save and remove both go through saveComment (removing IS an empty write — see
+// SetCommentArgs). The panel closes only when the write actually landed: on a
+// failure the text is still the user's only copy, and the error line under the
+// log reports why.
+async function submitComment(text: string) {
+  const message = commentTarget.value?.message
+  if (!message) return
+  const saved = await chatActions.saveComment(message, text, editingCommentId.value ?? undefined)
+  if (!saved) return
+  commentModal.value?.close()
+  closeCommentEditor()
+}
+
+async function deleteComment() {
+  const message = commentTarget.value?.message
+  const id = editingCommentId.value
+  if (!message || !id) return
+  const removed = await chatActions.removeComment(message, id)
+  if (!removed) return
+  commentModal.value?.close()
+  closeCommentEditor()
 }
 
 function onImagePicked(event: Event) {
@@ -765,6 +837,7 @@ defineExpose({ open, close, isOpen })
                       :group-start="view.groupStart || view.key === firstUnreadKey"
                       :group-end="view.groupEnd || renderedMessages[i + 1]?.key === firstUnreadKey"
                       :reactions-supported="reactionsSupported"
+                      :comments-supported="commentsSupported"
                       @select-author="selectWhisperUserFromMessage(view)"
                       @content-click="handleChatContentClick($event)"
                       @open-inline-check="openLocalizedInlineRoll($event)"
@@ -772,6 +845,8 @@ defineExpose({ open, close, isOpen })
                       @edit="startEdit($event)"
                       @delete="requestDeleteMessage($event)"
                       @show-reactions="openReactionDetail($event)"
+                      @add-comment="openCommentEditor($event)"
+                      @edit-comment="openCommentEditor($event.view, $event.comment)"
                     />
                   </template>
                 </ol>
@@ -1099,6 +1174,16 @@ defineExpose({ open, close, isOpen })
           </TransitionChild>
         </div>
       </div>
+      <ChatCommentModal
+        ref="commentModal"
+        :description="commentDescription"
+        :pending="commentPending"
+        :editing="!!editingCommentId"
+        :failed="commentFailed"
+        @save="submitComment($event)"
+        @remove="deleteComment()"
+        @cancel="closeCommentEditor()"
+      />
       <ChatInlineRollModal ref="inlineRollModal" />
       <ChatCardRollModal ref="cardRollModal" />
       <CompendiumItemModal ref="compendiumModal" />

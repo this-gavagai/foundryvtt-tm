@@ -12,6 +12,7 @@ import {
 } from '@/api/actionRpc'
 import { readReactions, toggleReaction as toggleReactionLocal } from '@/utils/chatReactions'
 import { modifyDocument } from '@/api/documents'
+import { useChatComments } from '@/composables/useChatComments'
 import { transcribeAudioOrNull, type TranscriptionConfig } from '@/api/transcription'
 import type { DocumentData } from '@/api/internal'
 import { useWorldStore } from '@/stores/world'
@@ -139,6 +140,7 @@ export function useChatActions({
   const pendingReactions = ref(new Set<string>())
 
   const worldStore = useWorldStore()
+  const comments = useChatComments()
   const userStore = useUserStore()
   const settingsStore = useSettingsStore()
   const versionCompat = useVersionCompatStore()
@@ -477,6 +479,24 @@ export function useChatActions({
     } finally {
       setPending(pendingReactions, key, false)
     }
+  }
+
+  // Comments delegate to useChatComments — the roll-result modal writes them
+  // too, from a sheet with no chat surface at all, so the write can't live in
+  // here. These wrappers keep the row's call shape (it holds a message, not an
+  // id) and fold a failure into the shared actionError line under the log.
+  async function saveComment(
+    message: ChatMessageData,
+    text: string,
+    commentId?: string
+  ): Promise<boolean> {
+    const stored = await comments.saveComment(message._id, text, commentId)
+    actionError.value = comments.commentFailed.value
+    return !!stored
+  }
+
+  function removeComment(message: ChatMessageData, commentId: string): Promise<boolean> {
+    return saveComment(message, '', commentId)
   }
 
   function isReactionPending(messageId: string | null | undefined, emoji: string): boolean {
@@ -835,6 +855,10 @@ export function useChatActions({
     updateVoiceMemoTranscript,
     toggleMessageReaction,
     isReactionPending,
+    saveComment,
+    removeComment,
+    isCommentPending: comments.isCommentPending,
+    commentFailed: comments.commentFailed,
     canApplyDamage,
     canReroll,
     isDamageActionPending,

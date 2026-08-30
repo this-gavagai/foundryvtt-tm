@@ -380,6 +380,21 @@
         }
       }
 
+      /* Comment editor's textarea. Sits at dialog level, not under
+         ChatOverlay: the editor is its own [role='dialog'], portalled out of
+         the overlay's subtree. Same treatment as the chat composer's box — it
+         is the same kind of surface. */
+      [data-part='chat-comment-input'] {
+        background-color: var(--color-input);
+        border-color: var(--color-border);
+        color: var(--color-text);
+      }
+
+      [data-part='chat-comment-input']:focus {
+        border-color: var(--color-focus);
+        --tw-ring-color: var(--color-focus);
+      }
+
       [data-component='ChatOverlay'] {
         header {
           border-color: var(--color-border);
@@ -455,6 +470,19 @@
           ) {
             color: var(--color-text);
           }
+        }
+
+        /* Comments, inside the bubble under the message they are about. The
+           accent rail is what marks them as ABOUT the card rather than part of
+           it; token-driven, so both palettes inherit it without a rule of their
+           own. */
+        [data-part='chat-comment'] {
+          border-left-color: var(--color-primary);
+          color: var(--color-text);
+        }
+
+        [data-part='chat-comment-author'] {
+          letter-spacing: 0.04em;
         }
 
         [data-part='chat-rerolled-label'] {

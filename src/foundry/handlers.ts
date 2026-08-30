@@ -14,6 +14,7 @@
 //     rollCheck.ts          rollCheck orchestrator + dispatch map
 //     rollDamage.ts         inline @Damage + side-menu damage roll
 //     reactions.ts          toggleReaction (emoji reactions on chat messages)
+//     comment.ts         setComment (free-text notes on chat messages)
 //     rollInlineCheck.ts    inline @Check with target-defense routing
 //     runMacro.ts           generic macro execution by UUID
 //     checks/               one file per check kind (strike, blast, …)
@@ -54,3 +55,4 @@ export { foundryListCompendia } from './handlers/listCompendia'
 export { foundryGetCompendiumIndex } from './handlers/getCompendiumIndex'
 export { foundryApplyDamage } from './handlers/applyDamage'
 export { foundryToggleReaction } from './handlers/reactions'
+export { foundrySetComment } from './handlers/comments'

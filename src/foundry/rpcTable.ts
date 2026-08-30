@@ -45,6 +45,7 @@ import {
   foundryRollInlineCheck,
   foundryRunActionable,
   foundryRunMacro,
+  foundrySetComment,
   foundrySelectSpellVariant,
   foundrySendChatMessage,
   foundrySendCompendiumItemToChat,
@@ -138,6 +139,14 @@ export const RPC_TABLE: RpcTable = {
   // concurrent — the toggle is a read-modify-write on one message's flag, and
   // the dispatch chain is what serializes two players tapping at once.
   [TM.TOGGLE_REACTION]: { handler: foundryToggleReaction, auth: 'world-user' },
+
+  // A comment is the player's too, so it clears the same 'world-user' bar, and
+  // that IS the whole gate for writing one: anyone in the world may comment on
+  // any message. The narrower rule — only a comment's author (or a GM) may
+  // rewrite it — is about the stored comment rather than the request, so it
+  // lives in the handler. Deliberately NOT concurrent: read-modify-write on one
+  // message's flag, serialized by the dispatch chain.
+  [TM.SET_COMMENT]: { handler: foundrySetComment, auth: 'world-user' },
 
   // Any known world user may register their own device for push. A read-only
   // mint: no chat, no world mutation, so it needn't serialize behind the chain.

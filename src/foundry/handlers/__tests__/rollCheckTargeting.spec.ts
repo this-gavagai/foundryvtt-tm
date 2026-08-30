@@ -34,6 +34,7 @@ vi.mock('@/foundry/utils/roll', () => ({
 }))
 
 import { foundryRollCheck } from '@/foundry/handlers/rollCheck'
+import { resolveCapture } from '@/foundry/chatCapture'
 import type { RollCheckArgs } from '@/types/api-types'
 
 // A UserTargets stand-in: a Set the swap can re-instantiate, with the `ids` and
@@ -62,7 +63,9 @@ function placedToken(id: string): FakeToken {
 // at that moment, which is the whole question.
 let ambientDuringRoll: string[] = []
 
-function makeGame(gmReticle: string[], sceneTokens: string[]) {
+// onRoll fires at the moment the roll itself runs — the point at which PF2e
+// would have created its chat card, which is what the capture test stands in for.
+function makeGame(gmReticle: string[], sceneTokens: string[], onRoll?: () => void) {
   const tokens = new Map(sceneTokens.map((id) => [id, placedToken(id)]))
   const scene = {
     id: 'scene-a',
@@ -85,6 +88,7 @@ function makeGame(gmReticle: string[], sceneTokens: string[]) {
         constructor(_actor: unknown) {}
         attack() {
           ambientDuringRoll = (currentGame.user.targets as unknown as FakeUserTargets).ids
+          onRoll?.()
           return Promise.resolve({ rolled: 'blast' })
         }
         damage() {
@@ -191,5 +195,36 @@ describe('checks that pass an explicit target', () => {
     } as unknown as RollCheckArgs)
 
     expect(swapped).toBe(false)
+  })
+})
+
+// The ack names the chat card the roll posted, which is what lets the app offer
+// a comment on the roll from the result panel. PF2e's pipelines create that card
+// themselves and hand back only the roll, so it is matched by request uuid — the
+// listener's createChatMessage hook is what calls resolveCapture, stood in for
+// here by the roll itself.
+describe('the card the roll posted', () => {
+  it('reports the captured message id', async () => {
+    currentGame = makeGame([], ['tok-1'], () => resolveCapture('req-card', { id: 'msg-77' }))
+
+    const ack = await foundryRollCheck({
+      ...blastArgs([]),
+      uuid: 'req-card'
+    } as unknown as RollCheckArgs)
+
+    expect(ack.messageId).toBe('msg-77')
+  })
+
+  it('acks without one when nothing could be matched to the request', async () => {
+    // A roll that posted no card must not stall the ack waiting for one: the
+    // handler settles its own capture rather than sitting out the timeout.
+    currentGame = makeGame([], ['tok-1'])
+
+    const ack = await foundryRollCheck({
+      ...blastArgs([]),
+      uuid: 'req-silent'
+    } as unknown as RollCheckArgs)
+
+    expect(ack.messageId).toBeUndefined()
   })
 })

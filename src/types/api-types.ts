@@ -3,6 +3,7 @@ import type { ItemPF2e, RawDamageDice, RawModifier } from '@7h3laughingman/pf2e-
 // computed property keys in ResponseByAction below.
 import { TM } from '@/api/protocol'
 import type { ChatReaction } from '@/utils/chatReactions'
+import type { ChatComment } from '@/utils/chatComments'
 import type {
   SkillActionData,
   SpellcastingModifierData,
@@ -49,6 +50,7 @@ export type ModuleEventArgs =
   | ApplyDamageArgs
   | RerollChatRollArgs
   | ToggleReactionArgs
+  | SetCommentArgs
   | RegisterPushArgs
 
 export interface AcknowledgementArgs {
@@ -684,6 +686,28 @@ export interface ToggleReactionArgs {
   emoji: string
 }
 
+// Write, edit, or remove one comment on a chat message. Like a reaction this
+// belongs to the player rather than a character, so there is no characterId to
+// test ownership against and the wire-level requirement is only 'world-user':
+// anyone in the world may comment on any message. The one rule that remains —
+// only a comment's author (or a GM) may rewrite it — is a property of the stored
+// comment, so the handler enforces it (see foundry/handlers/comments.ts).
+export interface SetCommentArgs {
+  action: typeof TM.SET_COMMENT
+  uuid: string
+  userId: string
+  messageId: string
+  // Omitted to add a new comment; set to edit or remove the one it names. A
+  // commentId the message doesn't carry is an error, not a silent add — it means
+  // the comment was deleted under the editor, and quietly re-adding it would
+  // undo someone else's removal.
+  commentId?: string
+  // The comment's text, sanitized again on the Foundry side (trimmed, capped at
+  // COMMENT_MAX_LENGTH). Empty removes the named comment — which is why remove
+  // needs no separate action.
+  text: string
+}
+
 export interface RollInlineCheckArgs {
   action: typeof TM.ROLL_INLINE_CHECK
   userId: string
@@ -773,11 +797,15 @@ type PlainAck = object
 // instead of drifting silently. Keys are exactly the client-initiated RPC
 // actions; sendAction refuses actions without an entry.
 export interface ResponseByAction {
-  [TM.ROLL_CHECK]: { roll?: RollResult }
+  // messageId names the chat card the roll posted, when it can be identified —
+  // it is what lets the roll-result modal offer a comment on the roll it is
+  // showing. Absent when the pipeline posted nothing the module could match to
+  // this request (see chatCapture.ts), and every consumer treats it as optional.
+  [TM.ROLL_CHECK]: { roll?: RollResult; messageId?: string }
   [TM.CHARACTER_ACTION]: { roll?: RollResult }
   [TM.FREE_ROLL]: { roll: RollResult }
-  [TM.ROLL_DAMAGE]: { roll?: RollResult }
-  [TM.ROLL_INLINE_CHECK]: { roll?: RollResult }
+  [TM.ROLL_DAMAGE]: { roll?: RollResult; messageId?: string }
+  [TM.ROLL_INLINE_CHECK]: { roll?: RollResult; messageId?: string }
   [TM.REROLL_CHAT_ROLL]: { roll?: RollResult }
   [TM.GET_STRIKE_DAMAGE]: { response: StrikeDamagePreview }
   [TM.GET_SPELL_DAMAGE]: { response: SpellDamagePreview }
@@ -815,6 +843,10 @@ export interface ResponseByAction {
   // The updated reaction list, so the caller can reconcile its optimistic write
   // against what the GM actually stored (concurrent taps, a rejected emoji).
   [TM.TOGGLE_REACTION]: { reactions: ChatReaction[] }
+  // The updated comment list, so the caller reconciles against what the GM
+  // actually stored (a concurrent edit, a comment someone removed while this one
+  // was being typed).
+  [TM.SET_COMMENT]: { comments: ChatComment[] }
   [TM.REGISTER_PUSH]: { regToken: string; relayUrl: string }
 }
 

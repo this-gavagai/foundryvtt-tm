@@ -16,6 +16,7 @@ import {
   type ChatReaction,
   type ReactionGroup
 } from '@/utils/chatReactions'
+import { canModifyComment, readComments, type ChatComment } from '@/utils/chatComments'
 import type { ActiveRoll } from '@/types/api-types'
 
 interface ChatSpeaker {
@@ -64,6 +65,11 @@ export interface ChatMessageData {
       // and read through utils/chatReactions.ts. See the shape note there for
       // why this is an array rather than an emoji → users map.
       reactions?: ChatReaction[] | null
+      // Free-text comments about this message, from anyone at the table.
+      // Written GM-side by foundrySetComment (a roll is authored by the GM
+      // client that rolled it, so not even the roller can write it directly),
+      // and read through utils/chatComments.ts.
+      comments?: ChatComment[] | null
     }
     pf2e?: {
       origin?: {
@@ -176,6 +182,24 @@ export interface ChatMessageView {
   // render stale. Also depends on the user list (reactor names), which the memo
   // deliberately doesn't track.
   reactions: ReactionGroup[]
+  // Comments on this message, oldest first, with their authors resolved to
+  // display names. Built in the CHEAP pass for the same reasons as reactions:
+  // the memo's fingerprint doesn't cover the flag, and the names depend on the
+  // user list.
+  comments: ChatCommentView[]
+}
+
+// One comment as the row renders it.
+export interface ChatCommentView {
+  id: string
+  text: string
+  // The comment's author, resolved through the belongsTo owner like every other
+  // piece of chat attribution.
+  authorName: string
+  // Written by this user (exact id match, like a reaction's `mine`).
+  mine: boolean
+  // Whether this user may edit or remove it: its author, or any GM.
+  canModify: boolean
 }
 
 export interface ChatRerollSummary {
@@ -657,6 +681,21 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
     })
   }
 
+  // Comments as the row renders them: author names resolved like every other
+  // piece of attribution, and each one marked with whether this user may edit or
+  // remove it (their own, or any if they're a GM — see canModifyComment).
+  function commentViews(message: ChatMessageData): ChatCommentView[] {
+    const selfId = userStore.userId
+    const isGM = currentUserIsGM.value
+    return readComments(message).map((comment) => ({
+      id: comment.id,
+      text: comment.text,
+      authorName: resolvedUserName(comment.userId),
+      mine: !!selfId && comment.userId === selfId,
+      canModify: canModifyComment(comment, selfId, isGM)
+    }))
+  }
+
   function buildChatMessageView(message: ChatMessageData, index: number): ChatMessageView {
     // Cheap, world/actor-dependent parts — recomputed each pass (they must react
     // to scene/actor/user hydration and actor switches, and are inexpensive).
@@ -703,6 +742,7 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
         selfUserId: userStore.userId,
         nameFor: resolvedUserName
       }),
+      comments: commentViews(message),
       // Expensive HTML parsing — memoized by content fingerprint.
       ...expensiveView(message)
     }

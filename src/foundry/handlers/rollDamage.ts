@@ -1,7 +1,7 @@
 import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import type { RollDamageArgs } from '@/types/api-types'
 import { withBackgroundRoll } from '../backgroundRoll'
-import { registerCapture } from '../chatCapture'
+import { registerCapture, settleCapture } from '../chatCapture'
 import { getGame, makeAck } from '../utils/foundry'
 import { extractRollPayload, rollDamageFormulaToMessage } from '../utils/roll'
 
@@ -93,6 +93,12 @@ export async function foundryRollDamage(args: RollDamageArgs) {
   const item = args.itemId ? actor.items.get(args.itemId) : null
   const rollMode = args.secret ? 'blindroll' : 'publicroll'
 
+  // The chat card this roll posts, matched by request uuid. Registered up front
+  // so it covers BOTH branches below: the item branch needs it to get at the
+  // roll at all (see the note there), and the bare-formula branch only needs the
+  // id, which the app uses to offer a comment on the roll from the result modal.
+  const capture = registerCapture(args.uuid)
+
   const rRaw = await withBackgroundRoll(args.diceResults, async () => {
     if (!item) {
       // No item context — post a bare DamageRoll with the requested message
@@ -100,12 +106,11 @@ export async function foundryRollDamage(args: RollDamageArgs) {
       return rollDamageFormulaToMessage(args.formula, actor, { rollMode })
     }
     // _onClickInlineRoll's augment branch awaits DamagePF2e.roll but doesn't
-    // return its ChatMessage (text-editor.ts:185-189), so capture it by request
-    // uuid: the listener stamps args.uuid onto the message it creates, and
-    // registerCapture resolves once that message exists. Its timeout guards
+    // return its ChatMessage (text-editor.ts:185-189), so read it off the
+    // capture above: the listener stamps args.uuid onto the message it creates,
+    // and the capture resolves once that message exists. Its timeout guards
     // against the augment pipeline bailing out silently (e.g.
     // augmentInlineDamageRoll returning null on an unparsable formula).
-    const capture = registerCapture(args.uuid)
     const itemTraits =
       (item.system as { traits?: { value?: string[] } } | undefined)?.traits?.value ?? []
     const event = makeInlineAnchorEvent(
@@ -121,8 +126,14 @@ export async function foundryRollDamage(args: RollDamageArgs) {
     return message?.rolls?.[0]
   })
 
+  // Already settled on the item branch (which awaited it); this is for the
+  // bare-formula one, whose message exists by now — see the note in rollCheck.
+  settleCapture(args.uuid)
+  const message = await capture
+
   return {
     ...makeAck(args),
-    ...extractRollPayload(rRaw, { userId: args.userId, options: { rollMode } })
+    ...extractRollPayload(rRaw, { userId: args.userId, options: { rollMode } }),
+    messageId: message?.id ?? message?._id ?? undefined
   }
 }

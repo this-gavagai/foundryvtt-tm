@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watchPostEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { ChatMessageView } from '@/composables/useChatMessages'
+import type { ChatCommentView, ChatMessageView } from '@/composables/useChatMessages'
 import type { ChatActions, ChatRerollRequest } from '@/composables/useChatActions'
 import {
   triggerLightHapticFeedback,
@@ -34,6 +34,9 @@ const props = defineProps<{
   // prop rather than a store read: the overlay resolves it once instead of every
   // row in a long log subscribing to the same store.
   reactionsSupported: boolean
+  // Likewise for comments — an older module has no SET_COMMENT handler, so the
+  // entry is hidden rather than offered and left to time out.
+  commentsSupported: boolean
 }>()
 
 // Label-less @UUID[...] links render as a "…" placeholder because their text is
@@ -68,6 +71,10 @@ const emit = defineEmits<{
   // Long-press on a reaction chip: show who reacted with what. The overlay owns
   // the sheet, like the other modals.
   showReactions: [view: ChatMessageView]
+  // Write a new comment on this message, or rewrite one already on it. The
+  // overlay owns the editor modal, like every other modal the row can raise.
+  addComment: [view: ChatMessageView]
+  editComment: [payload: { view: ChatMessageView; comment: ChatCommentView }]
 }>()
 
 const { t } = useI18n()
@@ -89,9 +96,16 @@ const canManage = computed(() => isOwn.value && !!props.view.message._id)
 // them, and it's why the menu affordance below is no longer own-messages-only.
 const canReact = computed(() => props.reactionsSupported && !!props.view.message._id)
 
+// Anyone may comment on anything — a table talks about each other's rolls, so
+// there is no ownership rule here, only "is this a real message and can the
+// module store one". Offered on every kind of message rather than rolls alone:
+// a roll is the case that motivated the feature, but the same remark is just as
+// useful on the spell card or the memo beside it.
+const canAddComment = computed(() => props.commentsSupported && !!props.view.message._id)
+
 // Any reason to offer the menu at all: the reaction palette, the manage items,
-// or both.
-const hasMenu = computed(() => canReact.value || canManage.value)
+// comment, or any combination.
+const hasMenu = computed(() => canReact.value || canManage.value || canAddComment.value)
 
 // The palette, marked with what this user has already reacted with so a tap on a
 // filled pick reads as "remove mine".
@@ -131,6 +145,7 @@ const menuItems = computed(() => {
   const items: { id: string; label: string; danger?: boolean }[] = []
   if (canEdit.value) items.push({ id: 'edit', label: t('chat.edit') })
   else if (canEditTranscript.value) items.push({ id: 'edit', label: t('chat.editTranscript') })
+  if (canAddComment.value) items.push({ id: 'comment', label: t('chat.addComment') })
   // Gated like the edit entries: hasMenu opens for a reaction alone, so on
   // someone else's message this menu exists with nothing manageable in it.
   if (canManage.value) items.push({ id: 'delete', label: t('common.delete'), danger: true })
@@ -141,6 +156,7 @@ const menuItems = computed(() => {
 // the row just relays the chosen action.
 function onMenuSelect(id: string) {
   if (id === 'edit') emit('edit', props.view)
+  else if (id === 'comment') emit('addComment', props.view)
   else if (id === 'delete') emit('delete', props.view)
 }
 
@@ -437,6 +453,45 @@ function handleContentClick(event: MouseEvent) {
           <div v-if="view.showEmptyMessage" data-tone="muted" class="text-sm text-gray-500 italic">
             {{ $t('chat.emptyMessage') }}
           </div>
+          <!-- Comments about this message, in the card under it and above the
+               reaction chips. One the viewer may change (their own, or any if
+               they're a GM) is a button that reopens the editor on it; everyone
+               else's is inert text. Rendered as text, never v-html — a comment
+               is stored as plain text precisely so it can't inject markup into
+               a card. -->
+          <ul v-if="view.comments.length" data-part="chat-comments" class="mt-2 space-y-1">
+            <li v-for="comment in view.comments" :key="comment.id">
+              <button
+                v-if="comment.canModify"
+                type="button"
+                data-part="chat-comment"
+                :data-mine="comment.mine || undefined"
+                class="block w-full border-l-2 border-gray-300 pl-2 text-left"
+                :disabled="actions.isCommentPending(view.message._id, comment.id)"
+                :aria-label="$t('chat.editComment')"
+                @click="emit('editComment', { view, comment })"
+              >
+                <span
+                  data-part="chat-comment-author"
+                  data-tone="muted"
+                  class="block text-[11px] font-semibold tracking-wide text-gray-500 uppercase"
+                >
+                  {{ comment.authorName }}
+                </span>
+                <span class="block text-sm whitespace-pre-line">{{ comment.text }}</span>
+              </button>
+              <div v-else data-part="chat-comment" class="border-l-2 border-gray-300 pl-2">
+                <span
+                  data-part="chat-comment-author"
+                  data-tone="muted"
+                  class="block text-[11px] font-semibold tracking-wide text-gray-500 uppercase"
+                >
+                  {{ comment.authorName }}
+                </span>
+                <span class="block text-sm whitespace-pre-line">{{ comment.text }}</span>
+              </div>
+            </li>
+          </ul>
           <!-- Reaction chips, in the card under the message they belong to, aligned
                to the sender's side so a run of own messages keeps its right edge.
                A tap on a chip toggles this user's own reaction of that emoji — the

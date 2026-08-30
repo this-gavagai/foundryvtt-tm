@@ -121,6 +121,9 @@ export async function foundryRollInlineCheck(args: RollInlineCheckArgs) {
   const rollMode = args.secret ? 'blindroll' : 'publicroll'
   return {
     ...makeAck(args),
-    ...extractRollPayload(message?.rolls?.[0], { userId: args.userId, options: { rollMode } })
+    ...extractRollPayload(message?.rolls?.[0], { userId: args.userId, options: { rollMode } }),
+    // The captured card, so the app can offer a comment on this roll from the
+    // result modal.
+    messageId: message?.id ?? message?._id ?? undefined
   }
 }

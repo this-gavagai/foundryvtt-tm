@@ -57,6 +57,10 @@ const EXPECTED: Record<RpcAction, Expected> = {
 
   // ── Player-scoped, not character-scoped.
   [TM.TOGGLE_REACTION]: { auth: 'world-user' },
+  // Anyone in the world may comment on any message, so 'world-user' is the
+  // whole gate; the narrower "only its author may rewrite a comment" rule is
+  // about the stored comment, so it lives in the handler.
+  [TM.SET_COMMENT]: { auth: 'world-user' },
   [TM.REGISTER_PUSH]: { auth: 'world-user', concurrent: true }
 }
 
@@ -99,6 +103,13 @@ describe('RPC_TABLE', () => {
   // "these are all read-only-ish" pass can't quietly undo it.
   it('keeps reactions on the serialized dispatch chain', () => {
     expect(RPC_TABLE[TM.TOGGLE_REACTION].concurrent).toBeUndefined()
+  })
+
+  // Same read-modify-write hazard, same fix: two people commenting on one roll
+  // (the GM narrating it while the roller explains it) would otherwise read the
+  // same list and one write would drop the other's comment.
+  it('keeps comments on the serialized dispatch chain', () => {
+    expect(RPC_TABLE[TM.SET_COMMENT].concurrent).toBeUndefined()
   })
 })
 

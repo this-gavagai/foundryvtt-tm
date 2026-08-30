@@ -38,6 +38,18 @@ export function registerCapture(
   })
 }
 
+// Answer a still-pending capture NOW, with nothing.
+//
+// For callers whose message — if the request produced one at all — already
+// exists by the time they ask: awaiting the promise itself would otherwise sit
+// out the full timeout on a request that posted nothing, delaying an ack the
+// caller could have sent immediately. A capture that already resolved is gone
+// from the map, so this is a no-op on the happy path and the awaited promise
+// still yields its message.
+export function settleCapture(uuid: string): void {
+  captures.get(uuid)?.(undefined)
+}
+
 // Called by the listener's createChatMessage hook with the uuid stamped onto the
 // newly created message. No-op when no capture is waiting on that uuid.
 export function resolveCapture(uuid: string, msg: CapturedMessage): void {

@@ -494,6 +494,13 @@ export const applyDamage = (
 export const toggleReaction = (messageId: string, emoji: string) =>
   sendAction(TM.TOGGLE_REACTION, { messageId, emoji })
 
+// Write, edit, or remove one comment on a chat message. No actor: a comment
+// belongs to the player, like a reaction — the GM side stamps it with the
+// request's userId. Resolves with the comment list as stored, so the caller can
+// reconcile against what actually landed.
+export const setComment = (messageId: string, text: string, commentId?: string) =>
+  sendAction(TM.SET_COMMENT, { messageId, text, commentId })
+
 export const rerollChatRoll = (
   actor: TablemateActorRef,
   messageId: string,

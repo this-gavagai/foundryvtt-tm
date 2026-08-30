@@ -21,6 +21,7 @@ vi.mock('@/api/actionRpc', () => ({
   rerollChatRoll: vi.fn(),
   sendImage: vi.fn(),
   sendVoiceMemo: vi.fn(),
+  setComment: vi.fn(),
   toggleReaction: (...args: Parameters<typeof toggleReaction>) => toggleReaction(...args)
 }))
 vi.mock('@/api/documents', () => ({ modifyDocument: vi.fn(async () => ({ result: [] })) }))
