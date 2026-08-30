@@ -33,7 +33,14 @@ export function makeIWRs(
   return set.map((e) => ({
     type: e.type,
     label: (e.type && labels?.[e.type]) ?? e.type?.replace(/-/g, ' ') ?? '',
-    exceptions: e.exceptions.map((ex) => (typeof ex === 'string' ? ex : ex.label)),
+    // Optional in source data even though the PF2e type declares it required:
+    // an entry with no exceptions simply omits the key (`{"type":"curse"}`),
+    // and the app holds wire JSON rather than a live document that would have
+    // filled the default in. Reading it unguarded threw inside a computed and
+    // took the whole sheet down to a blank page — on 68 of 173 openable actors
+    // in a real world. `exceptions` is Maybe<string[]>, so undefined is a
+    // value the field already accepts, and nothing renders it today.
+    exceptions: e.exceptions?.map((ex) => (typeof ex === 'string' ? ex : ex.label)),
     definition: undefined,
     value: e.value as number | undefined
   }))
