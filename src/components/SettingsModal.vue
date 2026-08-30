@@ -2,16 +2,11 @@
 import { ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
-import {
-  ArrowRightStartOnRectangleIcon,
-  MicrophoneIcon,
-  ServerStackIcon
-} from '@heroicons/vue/24/solid'
+import { MicrophoneIcon, ServerStackIcon } from '@heroicons/vue/24/solid'
 import { availableLocales, setLocale } from '@/plugins/i18n'
 import { useTheme, THEMES } from '@/composables/useTheme'
 import { useSettingsStore } from '@/stores/settings'
 import { useServerAddressStore } from '@/stores/serverAddress'
-import { useServerStore } from '@/stores/server'
 import { useGmPolicyStore } from '@/stores/gmPolicy'
 import { usePixelDiceStore } from '@/stores/pixelDice'
 import { dieIcons } from '@/utils/chatRollDisplay'
@@ -64,15 +59,6 @@ function openTranscriptionSettings() {
 function manageServers() {
   close()
   emit('manageServers')
-}
-
-// Drop the saved password, the live session, and everything this server's
-// characters left cached on the device, so the login page comes back clean —
-// the way to switch to a different Foundry user, which silent re-authentication
-// would otherwise never let you reach.
-function signOut() {
-  close()
-  void useServerStore().signOut()
 }
 
 defineExpose({ open, close })
@@ -164,19 +150,6 @@ defineExpose({ open, close })
             <span class="inline-flex items-center justify-center gap-1">
               <ServerStackIcon class="h-5 w-5" aria-hidden="true" />
               <span class="whitespace-nowrap">{{ $t('serverUrl.servers') }}</span>
-            </span>
-          </template>
-        </Button>
-        <Button
-          class="w-full"
-          color="lightgray"
-          :clicked="signOut"
-          :aria-label="$t('login.signOut')"
-        >
-          <template #default>
-            <span class="inline-flex items-center justify-center gap-1">
-              <ArrowRightStartOnRectangleIcon class="h-5 w-5" aria-hidden="true" />
-              <span class="whitespace-nowrap">{{ $t('login.signOut') }}</span>
             </span>
           </template>
         </Button>

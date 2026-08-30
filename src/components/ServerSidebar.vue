@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { TransitionRoot, TransitionChild, Dialog, DialogPanel } from '@headlessui/vue'
-import { PlusIcon, ServerStackIcon, XMarkIcon } from '@heroicons/vue/24/solid'
+import {
+  ArrowRightStartOnRectangleIcon,
+  PlusIcon,
+  ServerStackIcon,
+  XMarkIcon
+} from '@heroicons/vue/24/solid'
 import { storeToRefs } from 'pinia'
 
 import { useServerAddressStore } from '@/stores/serverAddress'
+import { useServerStore } from '@/stores/server'
 import ServerRow from '@/components/ServerRow.vue'
+import Button from '@/components/widgets/ButtonWidget.vue'
 
 const emit = defineEmits<{ join: [] }>()
 
@@ -36,6 +43,18 @@ function select(origin: string) {
 
 function remove(origin: string) {
   serverAddressStore.removeServer(origin)
+}
+
+// Drop the saved password, the live session, and everything this server's
+// characters left cached on the device, so the login page comes back clean —
+// the way to switch to a different Foundry user, which silent re-authentication
+// would otherwise never let you reach.
+//
+// It sits under the active server because that is the one it signs out of; in
+// the settings modal it read as a global action, which it isn't.
+function signOut() {
+  close()
+  void useServerStore().signOut()
 }
 
 function joinNew() {
@@ -115,6 +134,19 @@ defineExpose({ open })
                       @remove="remove"
                     />
                   </ul>
+                  <Button
+                    class="mt-2.5 w-full"
+                    color="lightgray"
+                    :clicked="signOut"
+                    :aria-label="$t('login.signOut')"
+                  >
+                    <template #default>
+                      <span class="inline-flex items-center justify-center gap-1">
+                        <ArrowRightStartOnRectangleIcon class="h-5 w-5" aria-hidden="true" />
+                        <span class="whitespace-nowrap">{{ $t('login.signOut') }}</span>
+                      </span>
+                    </template>
+                  </Button>
                 </section>
 
                 <section v-if="inactiveServers.length" data-part="server-section">
