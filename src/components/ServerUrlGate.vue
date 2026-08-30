@@ -114,6 +114,7 @@ async function handleSubmit() {
             data-part="mode-tab"
             :aria-selected="mode === tab"
             class="flex-1 rounded p-1.5 text-sm"
+            :class="mode === tab ? 'bg-gray-200 font-semibold' : 'opacity-60'"
             @click="mode = tab"
             @pointerdown="triggerLightHapticFeedback()"
           >
