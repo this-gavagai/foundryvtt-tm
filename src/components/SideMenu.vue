@@ -468,7 +468,7 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                       </div>
                       <Button
                         class="w-full"
-                        color="teal"
+                        color="violet"
                         :clicked="openCompendium"
                         :aria-label="$t('sideMenu.compendium')"
                       >
