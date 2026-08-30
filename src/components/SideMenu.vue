@@ -68,8 +68,8 @@ const connectionTitle = computed<Record<string, string>>(() => ({
     : t('connection.connected')
 }))
 const pixelStore = usePixelDiceStore()
-const { pixels, pairError } = storeToRefs(pixelStore)
-const { bluetoothSupported, pairDie, reconnectDie, forgetDie } = pixelStore
+const { pixels } = storeToRefs(pixelStore)
+const { reconnectDie, forgetDie } = pixelStore
 
 // Per-die icon — match the paired Pixel's actual die type to the shared
 // faces-keyed icon map. The SDK's die types are strings like 'd6pipped' and
@@ -313,23 +313,10 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                         </IconButtonWidget>
                       </div>
                     </li>
-                    <li>
-                      <!-- Stays clickable when Bluetooth is unsupported so the
-                           tap still surfaces pairError as feedback. -->
-                      <button
-                        type="button"
-                        class="text-lg font-bold"
-                        :class="
-                          bluetoothSupported ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
-                        "
-                        :aria-disabled="!bluetoothSupported"
-                        @click="pairDie"
-                      >
-                        {{ $t('sideMenu.pairPixelDice') }}
-                      </button>
-                      <div v-if="pairError" class="text-sm text-red-700">
-                        {{ $t(pairError) }}
-                      </div>
+                    <!-- Live status of whatever is already paired. Pairing
+                         itself is in the settings modal, so with no dice paired
+                         there is nothing to show here. -->
+                    <li v-if="pixels.length">
                       <!-- Single die: full inline row (icon, name, battery, X).
                          The X stays mounted while the die reconnects so you
                          can always forget it — the spinner just sits next to
@@ -395,6 +382,23 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                       </div>
                     </li>
                     <li>
+                      <Button
+                        class="w-full"
+                        color="lightgray"
+                        :clicked="openCharacterPicker"
+                        :aria-label="$t('sideMenu.changeCharacter')"
+                      >
+                        <template #default>
+                          <span class="inline-flex items-center justify-center gap-1">
+                            <UsersIcon class="h-5 w-5" aria-hidden="true" />
+                            <span class="whitespace-nowrap">{{
+                              $t('sideMenu.changeCharacter')
+                            }}</span>
+                          </span>
+                        </template>
+                      </Button>
+                    </li>
+                    <li>
                       <div class="text-lg italic">{{ $t('sideMenu.targetingProxy') }}</div>
                       <Dropdown
                         ref="targetProxySelector"
@@ -414,21 +418,20 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                       <RollOptions />
                     </li>
                     <li class="flex flex-col gap-3">
-                      <Button
-                        class="w-full"
-                        color="lightgray"
-                        :clicked="openCharacterPicker"
-                        :aria-label="$t('sideMenu.changeCharacter')"
-                      >
-                        <template #default>
-                          <span class="inline-flex items-center justify-center gap-1">
-                            <UsersIcon class="h-5 w-5" aria-hidden="true" />
-                            <span class="whitespace-nowrap">{{
-                              $t('sideMenu.changeCharacter')
-                            }}</span>
-                          </span>
-                        </template>
-                      </Button>
+                      <div class="flex gap-2">
+                        <Button
+                          class="flex-1"
+                          :label="$t('sideMenu.freeRoll')"
+                          color="blue"
+                          :clicked="openFreeRoll"
+                        />
+                        <Button
+                          class="flex-1"
+                          :label="$t('sideMenu.damageRoll')"
+                          color="red"
+                          :clicked="openDamageRoll"
+                        />
+                      </div>
                       <Button
                         class="w-full"
                         color="green"
@@ -452,20 +455,6 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                           </span>
                         </template>
                       </Button>
-                      <div class="flex gap-2">
-                        <Button
-                          class="flex-1"
-                          :label="$t('sideMenu.freeRoll')"
-                          color="blue"
-                          :clicked="openFreeRoll"
-                        />
-                        <Button
-                          class="flex-1"
-                          :label="$t('sideMenu.damageRoll')"
-                          color="red"
-                          :clicked="openDamageRoll"
-                        />
-                      </div>
                       <Button
                         class="w-full"
                         color="violet"

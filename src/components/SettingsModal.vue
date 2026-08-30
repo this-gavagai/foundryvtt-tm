@@ -13,6 +13,8 @@ import { useSettingsStore } from '@/stores/settings'
 import { useServerAddressStore } from '@/stores/serverAddress'
 import { useServerStore } from '@/stores/server'
 import { useGmPolicyStore } from '@/stores/gmPolicy'
+import { usePixelDiceStore } from '@/stores/pixelDice'
+import { dieIcons } from '@/utils/chatRollDisplay'
 import ModalBox from './ModalBox.vue'
 import TranscriptionSettingsModal from './TranscriptionSettingsModal.vue'
 import Dropdown from '@/components/widgets/DropdownWidget.vue'
@@ -26,6 +28,13 @@ const { activeTheme, setTheme } = useTheme()
 const { showUnreadOnPortrait, showSharedImages, manualDicePicker } = storeToRefs(useSettingsStore())
 const { manualRollsBlocked } = storeToRefs(useGmPolicyStore())
 const { isNativeMobile } = storeToRefs(useServerAddressStore())
+
+// Pairing lives here rather than in the side menu: it is one-time setup, not
+// something reached mid-roll. The side menu keeps the live status of whatever
+// is already paired.
+const pixelStore = usePixelDiceStore()
+const { pairError } = storeToRefs(pixelStore)
+const { pairDie } = pixelStore
 
 // 'moonlit/coolblue' → "Moonlit · Coolblue"; THEMES order puts variants right
 // after their parent.
@@ -123,6 +132,26 @@ defineExpose({ open, close })
           </span>
         </template>
       </Button>
+      <div>
+        <!-- Deliberately not disabled when Bluetooth is unavailable: the tap is
+             what sets pairError, which is the only thing that explains why. -->
+        <Button
+          class="w-full"
+          color="lightgray"
+          :clicked="pairDie"
+          :aria-label="$t('sideMenu.pairPixelDice')"
+        >
+          <template #default>
+            <span class="inline-flex items-center justify-center gap-1">
+              <img :src="dieIcons[20]" alt="" aria-hidden="true" class="h-5 w-5" />
+              <span class="whitespace-nowrap">{{ $t('sideMenu.pairPixelDice') }}</span>
+            </span>
+          </template>
+        </Button>
+        <div v-if="pairError" data-part="pair-error" class="mt-1 text-sm text-red-700">
+          {{ $t(pairError) }}
+        </div>
+      </div>
       <template v-if="isNativeMobile">
         <hr class="opacity-30" />
         <Button
