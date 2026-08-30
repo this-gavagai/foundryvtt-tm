@@ -1,3 +1,5 @@
+import { actionCost } from '@/utils/actionCost'
+
 // Split a string on `|` only at bracket-depth zero — used to peel pipe-
 // separated annotations off inline-roll payloads without splitting inside
 // bracketed type tags whose own contents may contain `|`.
@@ -262,22 +264,14 @@ export function pf2eUuidHtml(uuid: string, label: string | undefined): string {
   )}" data-type="Item"${flag}>${inner}</a>`
 }
 
-// Map a PF2e @Glyph argument to the character the Pathfinder2eActions font
-// renders as that action icon (matches widgets/ActionIcons.vue's encoding).
-function actionGlyphChar(value: string): string | undefined {
-  const v = value.trim().toLowerCase()
-  if (/^(action(\s*1)?|1|a|single[- ]?action|one[- ]?action)$/.test(v)) return '1'
-  if (/^(action\s*2|2|d|two[- ]?actions?)$/.test(v)) return '2'
-  if (/^(action\s*3|3|t|three[- ]?actions?)$/.test(v)) return '3'
-  if (/^(free[- ]?action|free|f)$/.test(v)) return 'f'
-  if (/^(reaction|r)$/.test(v)) return 'r'
-  return undefined
-}
-
+// A @Glyph argument that names an action cost becomes the Pathfinder2eActions
+// character for that icon; anything else — a prose cost like "1 minute", or a
+// value a module invented — stays words, since the icon font would render it
+// as a string of unrelated action symbols. Same split as ActionIcons.vue.
 export function pf2eGlyphHtml(value: string): string {
-  const char = actionGlyphChar(value)
-  if (!char) return escapeHtml(value)
-  return `<span class="action-glyph">${char}</span>`
+  const cost = actionCost(value)
+  if (cost.kind !== 'glyph') return escapeHtml(value)
+  return `<span class="action-glyph">${cost.glyph}</span>`
 }
 
 export function pf2eTraitHtml(slug: string, label: string | undefined): string {
