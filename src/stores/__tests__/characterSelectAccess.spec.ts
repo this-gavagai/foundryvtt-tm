@@ -17,6 +17,7 @@ const ACTORS = [
   { _id: 'pc-other', type: 'character', ownership: { someone: 3 } },
   { _id: 'familiar', type: 'familiar', ownership: { someone: 3 } },
   { _id: 'npc', type: 'npc', ownership: {} },
+  { _id: 'npc-2', type: 'npc', ownership: {} },
   { _id: 'party', type: 'party', ownership: { player: 3 } }
 ]
 
@@ -98,5 +99,54 @@ describe('clearWorld', () => {
     // The pair is set together by sendWorldRequest and must be cleared
     // together: `true` over an absent world is the unrenderable combination.
     expect(status.worldAuthenticated).toBeUndefined()
+  })
+})
+
+// NPCs are deliberately kept out of a GM's list (GM_LISTED_TYPES) because each
+// listed entry mounts a sheet that pulls a full actor payload — auto-listing a
+// bestiary would be ruinous. They stay reachable one at a time through urlId,
+// which is what the picker's search selects with.
+describe('openActor', () => {
+  it('opens an npc a GM would never see in the list', () => {
+    loadWorld('gm')
+    const select = useCharacterSelectStore()
+    expect(select.characterList).not.toContain('npc')
+
+    select.openActor('npc')
+
+    expect(select.activeCharacterId).toBe('npc')
+    expect(select.characterList).toContain('npc')
+  })
+
+  it('swaps one npc for another instead of accumulating them', () => {
+    loadWorld('gm')
+    const select = useCharacterSelectStore()
+
+    select.openActor('npc')
+    select.openActor('npc-2')
+
+    expect(select.characterList).toContain('npc-2')
+    expect(select.characterList).not.toContain('npc')
+  })
+
+  it('ignores an actor type that has no sheet to render', () => {
+    loadWorld('gm')
+    const select = useCharacterSelectStore()
+    const before = select.activeCharacterId
+
+    select.openActor('party')
+
+    expect(select.activeCharacterId).toBe(before)
+    expect(select.characterList).not.toContain('party')
+  })
+
+  it('does not let a player open an npc they were never given', () => {
+    loadWorld('player')
+    const select = useCharacterSelectStore()
+
+    select.openActor('npc')
+
+    expect(select.activeCharacterId).not.toBe('npc')
+    expect(select.characterList).toEqual(['pc-owned'])
   })
 })

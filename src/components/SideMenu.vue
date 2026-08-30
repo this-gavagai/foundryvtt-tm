@@ -144,32 +144,64 @@ function openCompendium() {
 // Resolves the owned-character ids to their world actors so the modal can show
 // portrait + name; falls back to nothing while the world is still loading.
 const characterSelectStore = useCharacterSelectStore()
-const { characterList, activeCharacterId } = storeToRefs(characterSelectStore)
-const { setActiveCharacterId } = characterSelectStore
+const { characterList, openableActorIds, activeCharacterId } = storeToRefs(characterSelectStore)
+const { setActiveCharacterId, openActor } = characterSelectStore
+
+// Same derivation the sheets use, so a picker row shows the token art (and
+// ring) that the header portrait will show once the row is tapped.
+function pickerRow(id: string) {
+  const actor = worldStore.actorById(id)
+  if (!actor) return null
+  return {
+    _id: actor._id,
+    name: actor.name,
+    portrait: tokenPortrait(actor.prototypeToken, actor.img ?? undefined)
+  }
+}
+
 const characterOptions = computed(() =>
-  (characterList.value ?? []).flatMap((id) => {
-    const actor = worldStore.actorById(id)
-    if (!actor) return []
-    // Same derivation the sheets use, so a picker row shows the token art (and
-    // ring) that the header portrait will show once the row is tapped.
-    return [
-      {
-        _id: actor._id,
-        name: actor.name,
-        portrait: tokenPortrait(actor.prototypeToken, actor.img ?? undefined)
-      }
-    ]
-  })
+  (characterList.value ?? []).flatMap((id) => pickerRow(id) ?? [])
 )
+
+// Search widens the picker past the listed characters to every actor this user
+// may open — for a GM that means the npcs GM_LISTED_TYPES keeps out of the
+// list. It only engages once something is typed, so the default view stays the
+// short owned-character list it has always been.
+const actorSearch = ref('')
+// Each row paints token art, so an unfiltered single-letter query on a world
+// with hundreds of npcs would fetch hundreds of images at once. Cap the rows
+// and say so, rather than silently hiding matches.
+const ACTOR_SEARCH_LIMIT = 50
+const actorQuery = computed(() => actorSearch.value.trim().toLowerCase())
+const actorMatches = computed(() => {
+  const query = actorQuery.value
+  if (!query) return []
+  return openableActorIds.value
+    .flatMap((id) => pickerRow(id) ?? [])
+    .filter((row) => row.name?.toLowerCase().includes(query))
+    .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
+})
+const visibleActorMatches = computed(() => actorMatches.value.slice(0, ACTOR_SEARCH_LIMIT))
 
 const characterPicker = ref<InstanceType<typeof Modal>>()
 function openCharacterPicker() {
   sidebarOpen.value = false
+  // A query left over from last time would hide the character list behind
+  // results the user didn't ask for again.
+  actorSearch.value = ''
   characterPicker.value?.open()
 }
 function selectCharacter(id: string | undefined) {
   triggerLightHapticFeedback()
   if (id) setActiveCharacterId(id)
+  characterPicker.value?.close()
+}
+// Search results go through openActor rather than setActiveCharacterId: an npc
+// isn't in characterList, so selecting it has to deep-link it in or no panel
+// would render it.
+function selectSearchedActor(id: string | undefined) {
+  triggerLightHapticFeedback()
+  if (id) openActor(id)
   characterPicker.value?.close()
 }
 
@@ -476,7 +508,17 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
     <!-- Character switcher modal — lists every owned character so the user can
        jump to another sheet without using the header dropdown. -->
     <Modal ref="characterPicker" :title="$t('sideMenu.changeCharacter')">
-      <ul class="flex flex-col gap-1 py-2">
+      <div class="pt-3">
+        <input
+          v-model="actorSearch"
+          data-part="actor-search"
+          type="search"
+          class="block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-hidden"
+          :placeholder="$t('sideMenu.searchActors')"
+        />
+      </div>
+      <!-- Untyped: the owned-character list this modal has always shown. -->
+      <ul v-if="!actorQuery" class="flex flex-col gap-1 py-2">
         <li
           v-for="chr in characterOptions"
           :key="chr._id ?? undefined"
@@ -500,6 +542,52 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
             />
           </div>
           <span class="truncate">{{ chr.name }}</span>
+        </li>
+      </ul>
+      <!-- Typed: every actor this user may open, npcs included. -->
+      <ul v-else class="flex max-h-80 flex-col gap-1 overflow-y-auto py-2">
+        <li
+          v-for="chr in visibleActorMatches"
+          :key="chr._id ?? undefined"
+          data-part="actor-result"
+          :data-active="chr._id === activeCharacterId"
+          class="flex cursor-pointer items-center gap-3 rounded-lg p-2 hover:bg-gray-100"
+          :class="chr._id === activeCharacterId ? 'bg-gray-100 font-semibold' : ''"
+          @click="selectSearchedActor(chr._id ?? undefined)"
+        >
+          <div
+            v-if="chr.portrait.url"
+            class="flex h-10 w-10 flex-none items-center overflow-hidden rounded-full"
+          >
+            <TokenArt
+              :url="chr.portrait.url"
+              :scaleX="chr.portrait.scaleX"
+              :scaleY="chr.portrait.scaleY"
+              :ring="chr.portrait.ring"
+              :px="40"
+              :alt="chr.name ?? ''"
+            />
+          </div>
+          <span class="truncate">{{ chr.name }}</span>
+        </li>
+        <li
+          v-if="!actorMatches.length"
+          data-part="actor-search-empty"
+          class="p-2 opacity-60"
+        >
+          {{ $t('sideMenu.noActorsFound') }}
+        </li>
+        <li
+          v-else-if="actorMatches.length > visibleActorMatches.length"
+          data-part="actor-search-truncated"
+          class="p-2 text-sm opacity-60"
+        >
+          {{
+            $t('sideMenu.moreActors', {
+              shown: visibleActorMatches.length,
+              total: actorMatches.length
+            })
+          }}
         </li>
       </ul>
     </Modal>

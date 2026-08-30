@@ -105,6 +105,23 @@ export const useCharacterSelectStore = defineStore('characterSelect', () => {
     if (newId) activeCharacterId.value = newId
   }
 
+  // Open any actor this user is allowed to open, including the npcs that
+  // GM_LISTED_TYPES deliberately keeps out of the list. Routing it through
+  // urlId rather than activeCharacterId alone is what makes that possible:
+  // characterList admits the deep-linked actor on top of the listed ones, so
+  // picking an npc mounts exactly one npc sheet — and swapping to another
+  // replaces it — instead of the whole bestiary. Same mechanism a `?id=` deep
+  // link already uses; this just reaches it from the UI.
+  //
+  // An id this user can't open is ignored rather than assigned, so a search
+  // result that went stale (ownership changed, actor deleted) can't strand the
+  // sheet on a panel with nothing behind it.
+  function openActor(id: string): void {
+    if (!openableActorIds.value.includes(id)) return
+    urlId.value = id
+    activeCharacterId.value = id
+  }
+
   // Select nothing, and drop the deep-linked `?id=` so it can't re-select on
   // the next evaluation. Used when the loaded server's characters stop being
   // ours to show (sign-out, forgetting the server): an empty selection empties
@@ -150,10 +167,12 @@ export const useCharacterSelectStore = defineStore('characterSelect', () => {
   return {
     urlId,
     characterList,
+    openableActorIds,
     activeCharacterId,
     activeSheetTab,
     initialize,
     setActiveCharacterId,
+    openActor,
     clearSelection,
     reseedForCurrentServer,
     initializeActiveSheetTab,
