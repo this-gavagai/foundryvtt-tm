@@ -9,31 +9,35 @@ const serverAddressStore = useServerAddressStore()
 const serverStore = useServerStore()
 const { servers, serverUrlText } = storeToRefs(serverAddressStore)
 
-// Sentinel dropdown value for "type a fresh address" — kept distinct from any
-// real origin so it can never collide with a saved server.
-const NEW_OPTION = '__new__'
+// Two sections rather than one list with a sentinel entry mixed into it:
+// picking a saved server and typing a new address are different tasks, and the
+// dropdown had to carry a fake option that could never be a real origin.
+type Mode = 'saved' | 'new'
 
-// Pre-select "New" when the user explicitly asked to add a server; otherwise
-// default to the active server, else the first saved one, else "New" (the only
-// option when nothing is saved yet).
-const selected = ref(
-  serverAddressStore.consumePendingNewServer()
-    ? NEW_OPTION
-    : serverUrlText.value || servers.value[0] || NEW_OPTION
-)
+const hasSaved = computed(() => servers.value.length > 0)
+
+// Consumed once, on setup: an explicit "join a new server" opens straight on
+// that section. With nothing saved there is no other section to open on.
+const startOnNew = serverAddressStore.consumePendingNewServer() || !servers.value.length
+const mode = ref<Mode>(startOnNew ? 'new' : 'saved')
+
+// Defaults to the active server, else the first saved one. Never a sentinel —
+// when nothing is saved the saved section isn't reachable at all.
+const selected = ref(serverUrlText.value || servers.value[0] || '')
 const newUrl = ref('')
 const error = ref('')
 const checking = ref(false)
 
-const isNew = computed(() => selected.value === NEW_OPTION)
-
 const input = useTemplateRef<HTMLInputElement>('input')
 
-// Reveal + focus the textbox whenever "New" is chosen.
+// Reveal + focus the textbox whenever the new-server section opens. Switching
+// sections also drops any error: it described the other section's field, and
+// leaving it under this one reads as a complaint about what was just typed.
 watch(
-  isNew,
-  (show) => {
-    if (!show) return
+  mode,
+  (next) => {
+    error.value = ''
+    if (next !== 'new') return
     newUrl.value = ''
     void nextTick(() => input.value?.focus())
   },
@@ -48,7 +52,7 @@ function displayName(origin: string): string {
 
 async function handleSubmit() {
   error.value = ''
-  if (!isNew.value) {
+  if (mode.value === 'saved') {
     // Probe reachability before committing so an unreachable saved server
     // reports it right here. This is the user's only feedback point: once the
     // server is committed the gate hands off to ConnectedApp, and connection
@@ -94,7 +98,30 @@ async function handleSubmit() {
       >
         <h1 class="text-lg">{{ $t('serverUrl.title') }}</h1>
 
-        <label class="flex flex-col gap-1">
+        <!-- Hidden when nothing is saved: there is no second section to reach,
+             and a switcher with one dead half is just noise. -->
+        <div
+          v-if="hasSaved"
+          data-part="mode-switch"
+          role="tablist"
+          class="flex gap-1 rounded border p-1"
+        >
+          <button
+            v-for="tab in (['saved', 'new'] as const)"
+            :key="tab"
+            type="button"
+            role="tab"
+            data-part="mode-tab"
+            :aria-selected="mode === tab"
+            class="flex-1 rounded p-1.5 text-sm"
+            @click="mode = tab"
+            @pointerdown="triggerLightHapticFeedback()"
+          >
+            {{ tab === 'saved' ? $t('serverUrl.savedServer') : $t('serverUrl.new') }}
+          </button>
+        </div>
+
+        <label v-if="mode === 'saved'" class="flex flex-col gap-1">
           <span data-part="field-label" class="text-sm">{{ $t('serverUrl.server') }}</span>
           <select
             v-model="selected"
@@ -105,11 +132,10 @@ async function handleSubmit() {
             <option v-for="origin in servers" :key="origin" :value="origin">
               {{ displayName(origin) }}
             </option>
-            <option :value="NEW_OPTION">{{ $t('serverUrl.new') }}</option>
           </select>
         </label>
 
-        <label v-if="isNew" class="flex flex-col gap-1">
+        <label v-else class="flex flex-col gap-1">
           <span data-part="field-label" class="text-sm">{{ $t('serverUrl.label') }}</span>
           <input
             ref="input"

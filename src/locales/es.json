@@ -89,6 +89,7 @@
     "label": "Dirección del servidor",
     "server": "Servidor",
     "new": "Nuevo",
+    "savedServer": "Guardados",
     "connect": "Conectar",
     "invalid": "Introduce una dirección de servidor de Foundry válida.",
     "unreachable": "No se pudo contactar con ese servidor por HTTPS ni HTTP. Comprueba la dirección e inténtalo de nuevo.",

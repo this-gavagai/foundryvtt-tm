@@ -89,6 +89,7 @@
     "label": "Serveradresse",
     "server": "Server",
     "new": "Neu",
+    "savedServer": "Gespeichert",
     "connect": "Verbinden",
     "invalid": "Gib eine gültige Foundry-Serveradresse ein.",
     "unreachable": "Server weder über HTTPS noch HTTP erreichbar. Bitte Adresse prüfen und erneut versuchen.",

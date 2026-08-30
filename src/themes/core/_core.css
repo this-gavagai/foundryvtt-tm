@@ -1262,6 +1262,27 @@
         color: var(--color-text);
       }
 
+      /* Segmented switch between the saved-server and new-server sections.
+         Borrows the connect button's fill for the selected half so the two
+         primary surfaces on this screen agree. */
+      [data-part='mode-switch'] {
+        border-color: var(--color-border);
+      }
+
+      [data-part='mode-tab'] {
+        color: var(--color-text);
+        opacity: 0.65;
+        transition:
+          background-color 120ms,
+          opacity 120ms;
+
+        &[aria-selected='true'] {
+          background-color: var(--color-primary);
+          color: var(--color-on-primary);
+          opacity: 1;
+        }
+      }
+
       input:focus,
       [data-part='server-select']:focus {
         border-color: var(--color-focus);
