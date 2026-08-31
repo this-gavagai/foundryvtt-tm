@@ -22,7 +22,7 @@ import {
 } from '@/api/protocol'
 import { makeAck, stampTablemateChatOrigin, tablemateChatOriginUuid } from './utils/foundry'
 import { markRequestSeen, requestAlreadySeen } from './requestDedup'
-import { ownTargetIds } from './utils/target'
+import { abandonMirroredTargets, ownTargetIds } from './utils/target'
 import { resolveCapture, type CapturedMessage } from './chatCapture'
 import {
   abandonChatOrigin,
@@ -33,6 +33,7 @@ import {
   type ChatOriginStamp
 } from './chatOrigin'
 import { abandonBackgroundRolls } from './backgroundRoll'
+import { abandonDamageModifierOverrides } from './handlers/checks/modifierOverrides'
 import { drawnSceneId, hooks, notifications } from './globals'
 import {
   registerManualRollPolicySetting,
@@ -46,7 +47,6 @@ import { registerPushSettings, ensureWorldPushIdentity } from './pushRegistratio
 import { notifyChatMessage } from './pushNotify'
 
 type GetEvent = { action: 'get' }
-
 
 // Running module release, read from the manifest Foundry parsed at load.
 function moduleVersion(): string | undefined {
@@ -376,10 +376,22 @@ export function handleModuleEvent(args: ModuleEventArgs, deps: ModuleEventDeps) 
           // rolls — the GM's own included.
           abandonChatOrigin(origin)
           const droppedDice = abandonBackgroundRolls()
+          // The other two pieces of ambient state a running handler owns. Both
+          // outlive the abandoned request exactly as the dice contexts do: the
+          // target swap leaves this client's own reticle replaced by the
+          // roller's (and freezes what mirroring tablets are told it is), and
+          // the damage overrides apply one player's modifier toggles to every
+          // later roll on this client. See each function's own note.
+          const droppedTargets = abandonMirroredTargets()
+          const droppedOverrides = abandonDamageModifierOverrides()
           logger.warn(
             `TABLEMATE: handler still running after ${HANDLER_QUEUE_TIMEOUT_MS}ms; advancing queue`,
             args.action,
-            { abandonedDiceContexts: droppedDice }
+            {
+              abandonedDiceContexts: droppedDice,
+              abandonedTargetSwaps: droppedTargets,
+              abandonedDamageOverrides: droppedOverrides
+            }
           )
           advance()
         }, HANDLER_QUEUE_TIMEOUT_MS)

@@ -165,22 +165,33 @@ describe('elemental blast targeting', () => {
   })
 })
 
-describe('checks that pass an explicit target', () => {
-  it('leaves the ambient set alone for a skill check', async () => {
-    // A statistic check always receives an actor through statisticParams, so it
-    // needs no swap — and this client may be somebody's targeting proxy, whose
-    // reports must keep describing the screen.
-    currentGame = makeGame(['gm-reticle'], ['tok-1'])
-    const held = currentGame.user.targets
-    let swapped = false
-
+// Statistic checks (skill, save, perception, initiative, familiar attack, spell
+// attack) used to roll UNSHIELDED, on the reasoning that statisticParams always
+// hands PF2e an actor and PF2e consults `game.user.targets` only when that param
+// is absent. That held while PF2e resolved the param as
+// `(target?.getActiveTokens() ?? [...game.user.targets]).find(…)`, where an empty
+// stand-in array — not being nullish — stops the lookup.
+//
+// pf2e 8.4.1 moved the `??` after the `.find()`:
+//   `target?.getActiveTokens(true, true)?.find(…) ?? game.user.targets.find(…)`
+// so the no-target stand-in answers undefined and the ambient half runs anyway.
+// Every untargeted statistic roll was picking up the handling GM's reticle, and
+// a spell attack (which supplies `dc: { slug: 'ac' }`) got a full AC comparison
+// and degree of success against it.
+//
+// These pin the fix at the level that survives the next such re-shuffle: what
+// PF2e can SEE in the ambient set, rather than which expression it reads it with.
+describe('statistic checks and the ambient set', () => {
+  // Roll a skill check whose PF2e entry point records the ambient set, the way
+  // the blast fake above does.
+  function rollSkill(targets: string[]) {
     currentActor = {
       ...character,
       skills: {
         athletics: {
           check: {
             roll: () => {
-              swapped = currentGame.user.targets !== held
+              ambientDuringRoll = (currentGame.user.targets as unknown as FakeUserTargets).ids
               return Promise.resolve({ rolled: 'skill' })
             }
           }
@@ -188,13 +199,61 @@ describe('checks that pass an explicit target', () => {
       }
     } as unknown as typeof character
 
-    await foundryRollCheck({
-      ...blastArgs(['tok-1']),
+    return foundryRollCheck({
+      ...blastArgs(targets),
       checkType: 'skill',
       checkSubtype: { slug: 'athletics' }
     } as unknown as RollCheckArgs)
+  }
 
-    expect(swapped).toBe(false)
+  it('hides the handling GM reticle from an untargeted statistic check', async () => {
+    currentGame = makeGame(['gm-reticle'], ['tok-1'])
+
+    await rollSkill([])
+
+    // Not ['gm-reticle']: whatever PF2e falls back to, there is nothing there to
+    // find. This is the assertion the old shape of the code got wrong.
+    expect(ambientDuringRoll).toEqual([])
+  })
+
+  it('presents the player targets to a statistic check that has them', async () => {
+    currentGame = makeGame(['gm-reticle'], ['tok-1'])
+
+    await rollSkill(['tok-1'])
+
+    expect(ambientDuringRoll).toEqual(['tok-1'])
+  })
+
+  it('restores the GM own selection, by identity, once the check is done', async () => {
+    currentGame = makeGame(['gm-reticle'], ['tok-1'])
+    const held = currentGame.user.targets
+
+    await rollSkill(['tok-1'])
+
+    expect(currentGame.user.targets).toBe(held)
+    expect((currentGame.user.targets as unknown as FakeUserTargets).ids).toEqual(['gm-reticle'])
+  })
+})
+
+describe('unknown check kinds', () => {
+  it('refuses rather than acking a roll that never happened', async () => {
+    // extractRollPayload turns a missing handler's undefined into a SUCCESSFUL
+    // ack carrying no roll, which the app opens a result modal for.
+    currentGame = makeGame([], ['tok-1'])
+
+    await expect(
+      foundryRollCheck({ ...blastArgs([]), checkType: 'telepathy' } as unknown as RollCheckArgs)
+    ).rejects.toThrow(/unknown check type/)
+  })
+
+  it('does not call an inherited Object property as a handler', async () => {
+    // `checkType` is an untrusted string off the socket, and the handler table is
+    // a plain object — a bare index answers 'constructor' with a function.
+    currentGame = makeGame([], ['tok-1'])
+
+    await expect(
+      foundryRollCheck({ ...blastArgs([]), checkType: 'constructor' } as unknown as RollCheckArgs)
+    ).rejects.toThrow(/unknown check type/)
   })
 })
 

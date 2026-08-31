@@ -229,7 +229,12 @@ export async function withBlastModifierOverrides<T>(
   }
 }
 
-const activeDamageOverrides: ModifierOverrideMap[] = []
+// Wrapped in a frame object rather than pushed bare, so a frame can be removed
+// by IDENTITY on the way out even when two requests carry the same override map.
+// See the removal note in withDamageModifierOverrides.
+type DamageOverrideFrame = { overrides: ModifierOverrideMap }
+
+const activeDamageOverrides: DamageOverrideFrame[] = []
 // When a caller passes a `capture` Set to withDamageModifierOverrides, it is
 // pushed here for the duration of the call. Every Modifier / DamageDicePF2e
 // instance encountered in the hooked methods is added to the top-of-stack Set
@@ -238,7 +243,31 @@ const activeCaptureArrays: Set<unknown>[] = []
 let restoreDamagePrototypeOverrides: (() => void) | null = null
 
 function currentDamageOverrides(): ModifierOverrideMap | undefined {
-  return activeDamageOverrides[activeDamageOverrides.length - 1]
+  return activeDamageOverrides[activeDamageOverrides.length - 1]?.overrides
+}
+
+// Drop every damage-modifier override in flight and uninstall the prototype
+// hooks.
+//
+// Called when the dispatch queue abandons a hung handler, for the same reason
+// abandonBackgroundRolls is: once the queue drains, an abandoned frame is
+// top-of-stack again, so `currentDamageOverrides()` answers with one player's
+// modifier toggles for EVERY later damage roll on this client — the GM's own
+// included. The stack never reaching empty also pins the Modifier prototype
+// patches in place.
+//
+// Safe to call while the abandoned handler is still running: its own `finally`
+// removes its frame by identity, so a frame already dropped here is simply not
+// found.
+//
+// Returns how many frames were dropped, for the caller's log line.
+export function abandonDamageModifierOverrides(): number {
+  const dropped = activeDamageOverrides.length + activeCaptureArrays.length
+  if (!dropped) return 0
+  activeDamageOverrides.length = 0
+  activeCaptureArrays.length = 0
+  restoreDamagePrototypeOverrides?.()
+  return dropped
 }
 
 // What applyDamageOverride touches, and all it touches. PF2e's Modifier and its
@@ -385,13 +414,31 @@ export async function withDamageModifierOverrides<T>(
   installDamagePrototypeOverrides()
   if (!restoreDamagePrototypeOverrides) return doRoll()
 
-  if (hasOverrides) activeDamageOverrides.push(overrides!)
+  const frame: DamageOverrideFrame | undefined = hasOverrides
+    ? { overrides: overrides! }
+    : undefined
+  if (frame) activeDamageOverrides.push(frame)
   if (capture) activeCaptureArrays.push(capture)
   try {
     return await doRoll()
   } finally {
-    if (capture) activeCaptureArrays.pop()
-    if (hasOverrides) activeDamageOverrides.pop()
+    // Remove OUR entries by identity, not the top ones by position. Frames
+    // normally settle LIFO, but not always: when the dispatch queue gives up on
+    // a hung handler (HANDLER_QUEUE_TIMEOUT_MS in listener.ts) the next request
+    // starts while the hung one is still running, so a positional pop would
+    // discard the overrides of whichever request is executing NOW and leave the
+    // hung one's on top of the stack — applying one player's modifier toggles to
+    // everyone else's damage rolls for the rest of the session. Mirrors the
+    // splice-by-identity in backgroundRoll.js and chatOrigin.ts. A frame already
+    // dropped by abandonDamageModifierOverrides is simply not found.
+    if (capture) {
+      const index = activeCaptureArrays.lastIndexOf(capture)
+      if (index >= 0) activeCaptureArrays.splice(index, 1)
+    }
+    if (frame) {
+      const index = activeDamageOverrides.lastIndexOf(frame)
+      if (index >= 0) activeDamageOverrides.splice(index, 1)
+    }
     if (activeDamageOverrides.length === 0 && activeCaptureArrays.length === 0)
       restoreDamagePrototypeOverrides?.()
   }

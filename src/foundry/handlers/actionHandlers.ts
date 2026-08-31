@@ -16,7 +16,7 @@ import {
   userCanObservePack
 } from '../utils/permissions'
 import { extractRollPayload, rollClass, type FoundryRoll } from '../utils/roll'
-import { resolveRequestedTargets } from '../utils/target'
+import { resolveRequestedTargets, withMirroredTargets } from '../utils/target'
 import { withModifierOverrides } from './checks/modifierOverrides'
 
 export async function foundryCharacterAction(args: CharacterActionArgs) {
@@ -27,7 +27,15 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
   // token via getActiveTokens() rather than reading game.user.targets, which
   // on the handler machine reflects the GM's (or proxy's) own UI state.
   // tricky code: https://github.com/foundryvtt/pf2e/blob/2eaef272f3e17f340eba1b7f2dc82e857d8d296e/src/module/actor/actions/single-check.ts#L160
-  const { token, actorProxy } = resolveRequestedTargets(source, args)
+  //
+  // The proxy covers the TARGETED case only. With no target the param below is
+  // undefined, and SingleCheckActionVariant#use answers its own target callback
+  // with null — at which point simpleRollActionCheck falls through to
+  // `ActionMacroHelpers.target()`, a bare `Array.from(game.user.targets)` read,
+  // and the action rolls against whatever the handling GM is pointing at. Hence
+  // the mirror below, which is what the identical `use()` path in
+  // handlers/checks/statistic.ts (handleSkillAction) has always had.
+  const { token, actorProxy, tokens } = resolveRequestedTargets(source, args)
   const params = {
     ...args.options,
     actors: actor,
@@ -53,8 +61,10 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
   if (!action) throw new Error(`unknown character action: ${args.characterAction}`)
 
   const r = await withBackgroundRoll(args.diceResults, () =>
-    withModifierOverrides(actor, getStatistic ?? (() => null), args.modifierOverrides, () =>
-      action.use(params)
+    withMirroredTargets(source, tokens, () =>
+      withModifierOverrides(actor, getStatistic ?? (() => null), args.modifierOverrides, () =>
+        action.use(params)
+      )
     )
   )
 

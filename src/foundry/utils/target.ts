@@ -83,6 +83,14 @@ function actorStandIn(actor: ActorPF2e, overrides: Record<string, unknown>): Act
 // pointing at, complete with its AC/DC comparison and target-derived modifiers.
 // A stand-in that resolves to no token stops the lookup at the door.
 //
+// No longer SUFFICIENT on its own: pf2e 8.4.1 falls back to the ambient set when
+// the param's own lookup answers undefined, which is exactly what this does. See
+// withMirroredTargets, which is what actually closes that path now. This stays
+// because it is still correct, and because it is what keeps PF2e's `target ===
+// actor` self-roll test (StatisticCheck#roll, which a saving throw branches on)
+// answering the same as it does today — passing nothing would silently move
+// saves onto a different context branch.
+//
 // It contributes nothing of its own: no tokens (so nothing to target), no roll
 // options (PF2e feeds a target actor through getSelfRollOptions('target')), and
 // level 0 — PF2e compares the target's level against an incapacitation effect's
@@ -174,10 +182,22 @@ export function requirePlaceableTarget(resolved: ResolvedTarget): ResolvedTarget
 
 type TargetSetLike = { ids: string[] }
 
-// This client's OWN target set while a swap is in place: the object displaced
-// from `user.targets`, which is the selection actually drawn on this canvas.
-// Null the rest of the time, when the property itself is the answer.
-let displacedTargets: TargetSetLike | null = null
+// One in-flight `user.targets` swap. Kept as a stack of frames rather than a
+// bare "is a swap in place" flag so a swap can be torn down from OUTSIDE the
+// call that made it — see abandonMirroredTargets.
+type TargetSwap = {
+  user: GamePF2e['user']
+  // The property as we found it, to put back verbatim.
+  descriptor: PropertyDescriptor
+  // The set displaced from `user.targets` by this frame. On the outermost frame
+  // that is this client's real selection; on a nested one it is the outer
+  // frame's stand-in, which nothing may report.
+  held: TargetSetLike | undefined
+}
+
+// Outermost first. Empty the rest of the time, when `user.targets` is itself
+// the answer.
+const targetSwaps: TargetSwap[] = []
 
 // The ids this client is really targeting, swap or no swap.
 //
@@ -189,22 +209,65 @@ let displacedTargets: TargetSetLike | null = null
 // nothing at all, while its own reticle sits unchanged on screen. That report
 // then outlives the roll: nothing re-broadcasts until the next re-target.
 // See listener.broadcastOwnTargets, the one caller.
+//
+// Only the OUTERMOST frame holds the real set — a nested swap displaces the
+// outer stand-in, and publishing that is the bug this exists to prevent.
 export function ownTargetIds(source: GamePF2e): string[] {
-  const set: TargetSetLike | undefined = displacedTargets ?? source.user.targets
+  const set: TargetSetLike | undefined = targetSwaps[0]?.held ?? source.user.targets
   return set?.ids ?? []
+}
+
+// Put this client's own targeting back and drop every swap in flight.
+//
+// Called when the dispatch queue abandons a hung handler (see the note beside
+// abandonBackgroundRolls, which this mirrors). Without it, a handler that never
+// settles leaves `user.targets` presenting the ROLLER's selection for the rest
+// of the session: the GM's own reticle is replaced on their own screen, and
+// because the outermost frame is still on the stack, ownTargetIds keeps
+// reporting a frozen pre-roll set to every mirroring tablet.
+//
+// Restores the OUTERMOST frame's descriptor — the only one that names this
+// client's real set — and clears the stack, so the abandoned handler's own
+// `finally` finds its frame gone and leaves the restored property alone.
+//
+// Returns how many frames were dropped, for the caller's log line.
+export function abandonMirroredTargets(): number {
+  const dropped = targetSwaps.length
+  if (!dropped) return 0
+  const outermost = targetSwaps[0]
+  targetSwaps.length = 0
+  try {
+    Object.defineProperty(outermost.user, 'targets', outermost.descriptor)
+  } catch (error) {
+    // Nothing more we can do, and throwing here would take out the dispatch
+    // timeout that called us.
+    logger.warn('TABLEMATE: could not restore this client targeting', error)
+  }
+  return dropped
 }
 
 // Run `run()` with `game.user.targets` presenting the PLAYER's targets (or
 // nothing) in place of this client's own selection.
 //
-// The safety net behind noFallbackTargetActor, for the PF2e entry points that
-// resolve a target from `game.user.targets` whatever we pass as a `target`
-// param — strikes and blasts, the action-macro helper, spell damage, and the
-// inline-check listener. Hand it the resolved placeables and those paths target
-// what the player targeted; hand it nothing and they target nothing, instead of
-// inheriting the handling GM's reticle. rollCheck names the check kinds that
-// need it (NEEDS_AMBIENT_SHIELD); everything else passes an explicit target and
-// runs unswapped.
+// THE defence against a request inheriting the handling GM's reticle, for every
+// PF2e entry point that can reach `game.user.targets` — which, as of pf2e 8.4.1,
+// is all of them. Hand it the resolved placeables and those paths target what
+// the player targeted; hand it nothing and they target nothing.
+//
+// It used to be the safety net behind noFallbackTargetActor, applied only to the
+// short list of entry points that ignore their `target` param outright. That
+// division rested on PF2e resolving an actor param as
+// `(args.target?.getActiveTokens() ?? [...game.user.targets]).find(…)`, where a
+// stand-in returning an empty array stops the lookup — the array is not nullish,
+// so the ambient half never runs. pf2e 8.4.1 reads
+// `args.target?.getActiveTokens(true, true)?.find(…) ?? game.user.targets.find(…)`
+// instead (pf2e.mjs, StatisticCheck#roll): the `??` moved AFTER the `.find()`,
+// so an empty stand-in answers undefined and the ambient half runs after all.
+// Every untargeted statistic roll — save, skill, perception, initiative,
+// familiar attack, spell attack — was picking up the GM's target, and a spell
+// attack (which supplies `dc: { slug: 'ac' }`) got a full AC comparison and
+// degree of success against it. Now every roll is shielded, so no future
+// re-shuffling of that expression can reach past us.
 //
 // The real UserTargets is never touched: we swap the PROPERTY for a fresh
 // instance of the same class and put the original descriptor back in `finally`.
@@ -244,19 +307,28 @@ export async function withMirroredTargets<T>(
     return run()
   }
 
-  // Only the OUTERMOST swap holds this client's real set — a nested one would
-  // displace the outer stand-in, and publishing that is the bug ownTargetIds
-  // exists to prevent. Dispatch is serialized, so nesting means one handler
-  // calling another; the guard makes it harmless rather than relying on that.
-  const outermost = !displacedTargets
-  if (outermost) displacedTargets = held
+  // Dispatch is serialized, so nesting means one handler calling another.
+  // ownTargetIds reads the outermost frame for the real set; this only has to
+  // record the frame in order.
+  const frame: TargetSwap = { user, descriptor, held }
+  targetSwaps.push(frame)
 
   Object.defineProperty(user, 'targets', { ...descriptor, value: standIn })
   try {
     return await run()
   } finally {
-    Object.defineProperty(user, 'targets', descriptor)
-    if (outermost) displacedTargets = null
+    // Remove OUR frame by identity, not the top one by position — frames settle
+    // LIFO only until the dispatch queue gives up on a hung handler, after which
+    // the next request is swapping while this one is still running. Mirrors the
+    // splice-by-identity in backgroundRoll.js and chatOrigin.ts.
+    const index = targetSwaps.lastIndexOf(frame)
+    if (index >= 0) {
+      targetSwaps.splice(index, 1)
+      Object.defineProperty(user, 'targets', descriptor)
+    }
+    // index < 0 means abandonMirroredTargets already put this client's real
+    // targeting back. Restoring our descriptor now would re-install a stand-in
+    // nobody is rolling behind any more.
   }
 }
 

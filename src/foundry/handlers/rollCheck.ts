@@ -45,44 +45,55 @@ const CHECK_ROLL_HANDLERS: Record<string, CheckRollHandler> = {
 // enough for them. See requirePlaceableTarget.
 const PLACEABLE_TARGET_CHECKS = new Set(['strike', 'damage', 'blast', 'blastDamage'])
 
-// Check kinds whose PF2e entry point reads `game.user.targets` — so this
-// client's own selection has to be swapped out for the player's for the
-// duration of the roll (withMirroredTargets), whether the player targeted
-// something or nothing.
+// Every check kind is shielded — this client's own selection is swapped out for
+// the player's for the duration of the roll (withMirroredTargets), whether the
+// player targeted something or nothing.
 //
-// BOTH halves matter, and only one of them used to be covered. With no targets,
-// an unshielded roll inherits the handling GM's reticle. WITH targets, an
-// unshielded roll still inherits it wherever PF2e ignores the `target` param we
-// pass — which is most of this list:
+// This used to be a short allow-list: the entry points that ignore their
+// `target` param outright (ElementalBlast, which reads
+// `game.user.targets.first()` and never looks at params.target; skill actions,
+// which resolve through ActionMacroHelpers.target(); SpellPF2e#rollDamage, which
+// re-dispatches to a freshly loaded variant that doesn't carry our patch), plus
+// strikes for the untargeted case. Everything else was left unshielded on the
+// grounds that statisticParams always passes an actor and PF2e reads the ambient
+// Set only when that param is absent.
 //
-//   • ElementalBlast#attack builds its context as
-//     `target: game.user.targets.first()?.actor ?? null` and never reads
-//     params.target at all; #damage does the same. A targeted blast therefore
-//     rolled against whatever the GM was pointing at.
-//   • Skill actions go through ActionMacroHelpers, which resolves its target
-//     with `ActionMacroHelpers.target()` — a direct read of the ambient Set,
-//     with no param path.
-//   • SpellPF2e#rollDamage picks its target out of the ambient Set itself. The
-//     injected `target` (utils/spellTargeting.ts) reaches getDamage, but PF2e
-//     re-dispatches to a freshly loaded variant when the spell isn't one
-//     already — and that variant does not carry the patch.
-//   • Strikes are the exception: `params.target ?? game.user.targets.first()`,
-//     so the param wins when there is one. They stay on the list for the
-//     untargeted case, and mirroring is a no-op for them otherwise.
+// That last part stopped being true. pf2e 8.4.1 resolves an actor param as
+// `target?.getActiveTokens(true, true)?.find(…) ?? game.user.targets.find(…)`,
+// so the no-target stand-in — whose whole job is to answer "no token" — hands
+// the expression an undefined and the ambient half runs anyway. See
+// withMirroredTargets for the full note. Shielding uniformly is both the fix and
+// the way this stops being a property of one PF2e expression we have to keep
+// re-reading.
 //
-// Deliberately a short list rather than "every check". A statistic check —
-// skill, save, perception, initiative, familiar attack, spell attack — always
-// receives an actor through statisticParams (the no-target stand-in when the
-// player chose nothing), and PF2e reads the ambient Set only when that param is
-// absent: `(args.target?.getActiveTokens() ?? [...game.user.targets]).find()`.
-// The stand-in returns an empty array there, which is not nullish, so the
-// fallback never runs. Shielding those too would be harmless in itself but puts
-// a global property swap around nearly every roll — and this client may be a
-// targeting proxy, whose reports must describe the screen (see ownTargetIds).
-const NEEDS_AMBIENT_SHIELD = new Set([...PLACEABLE_TARGET_CHECKS, 'skillAction', 'spellDamage'])
+// The cost the old comment weighed against a broad shield — that this client may
+// itself be somebody's targeting proxy, whose reports must describe its screen —
+// is already paid: ownTargetIds reports through the displaced set, not the
+// property, precisely so a swap is invisible to mirroring tablets.
 
 export async function foundryRollCheck(args: RollCheckArgs) {
   const source = getGame()
+
+  // Resolved FIRST, before anything that can refuse for its own reasons: an
+  // unrecognized check kind must report itself, not surface as whatever the
+  // target resolution below happens to say about a request nobody could have
+  // rolled anyway.
+  //
+  // hasOwnProperty, not a bare index: `checkType` is an untrusted string off the
+  // socket, and a plain-object lookup answers 'constructor' / 'toString' with an
+  // inherited function that would then be CALLED with the roll context. Same
+  // guard, and the same reason, as rpcDescriptor in rpcTable.ts.
+  //
+  // Throw rather than ack an empty roll: an unknown kind (an app newer than this
+  // module, a hand-crafted payload) means nothing was rolled, and
+  // extractRollPayload turns the handler's undefined into a SUCCESSFUL ack
+  // carrying no roll — which the app opens a result modal for. Matches
+  // foundryCharacterAction's refusal of an unknown action slug.
+  const handler = Object.prototype.hasOwnProperty.call(CHECK_ROLL_HANDLERS, args.checkType)
+    ? CHECK_ROLL_HANDLERS[args.checkType]
+    : undefined
+  if (!handler) throw new Error(`unknown check type: ${args.checkType}`)
+
   // https://github.com/foundryvtt/pf2e/blob/68988e12fbec7ea8359b9bee9b0c43eb6964ca3f/src/module/system/statistic/statistic.ts#L617
   const actor = getCharacter(source, args.characterId)
   // _flatModifier is an app-internal option key: a flat untyped bonus/penalty
@@ -118,7 +129,7 @@ export async function foundryRollCheck(args: RollCheckArgs) {
     targets: resolvedTargets
   }
 
-  const runHandler = () => Promise.resolve(CHECK_ROLL_HANDLERS[args.checkType]?.(ctx))
+  const runHandler = () => Promise.resolve(handler(ctx))
   // Which chat card this roll posted. PF2e's statistic pipelines create the
   // message themselves and hand back only the roll, so it is matched by request
   // uuid (the listener stamps it during preCreateChatMessage — see
@@ -129,13 +140,11 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   // roll whose card can't be identified simply doesn't offer one — nothing else
   // depends on it.
   const capture = registerCapture(args.uuid)
-  // Present the player's targets — however many, including none — to the check
-  // kinds that read the ambient Set. statisticParams covers every path that
-  // accepts an actor; this covers the few that don't. See NEEDS_AMBIENT_SHIELD.
+  // Present the player's targets — however many, including none — for the whole
+  // roll, so no PF2e path can reach this client's own reticle. See the note
+  // above the handler table.
   const rRaw = await withBackgroundRoll(args.diceResults, () =>
-    NEEDS_AMBIENT_SHIELD.has(args.checkType)
-      ? withMirroredTargets(source, resolvedTargets.tokens, runHandler)
-      : runHandler()
+    withMirroredTargets(source, resolvedTargets.tokens, runHandler)
   )
   // The card, if there was one, exists by now: PF2e awaits its creation before
   // returning the roll. Settling rather than awaiting the capture's own timeout

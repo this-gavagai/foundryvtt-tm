@@ -5,6 +5,7 @@ import {
   resolveRequestedTargets,
   requirePlaceableTarget,
   withMirroredTargets,
+  abandonMirroredTargets,
   noFallbackTargetActor,
   ownTargetIds
 } from '@/foundry/utils/target'
@@ -315,6 +316,83 @@ describe('mirroring targets onto the handling client', () => {
       })
     ).rejects.toThrow('roll blew up')
     expect(ownTargetIds(game)).toEqual(['gm-reticle'])
+  })
+
+  // The dispatch queue gives up on a handler that never settles
+  // (HANDLER_QUEUE_TIMEOUT_MS) and lets the next request run. Everything the
+  // abandoned handler owns has to come off HERE rather than in a `finally` that
+  // may never run — a swap left standing means the GM's own reticle is replaced
+  // by the roller's on their own screen for the rest of the session, and, because
+  // the outermost frame is still recorded, ownTargetIds keeps reporting a frozen
+  // pre-roll set to every tablet mirroring this client.
+  it('puts this client targeting back when the queue abandons a hung roll', async () => {
+    const game = makeGameWithTargets('gm-reticle')
+    const held = game.user.targets
+    let release: (() => void) | undefined
+    const hung = withMirroredTargets(game, [], () => new Promise<void>((r) => (release = r)))
+
+    expect(game.user.targets).not.toBe(held)
+    expect(abandonMirroredTargets()).toBe(1)
+
+    expect(game.user.targets).toBe(held)
+    expect(ownTargetIds(game)).toEqual(['gm-reticle'])
+
+    release!()
+    await hung
+  })
+
+  // The sharp end of abandoning: the hung handler is still running, so its
+  // `finally` fires at some arbitrary later point — by which time the queue has
+  // moved on and ANOTHER request is mid-roll behind its own swap. A restore that
+  // doesn't check whether its frame is still current puts the pre-abandon
+  // property back and strips the live roll's targets out from under it, which
+  // reads as the roll quietly aiming at the GM's reticle instead.
+  it('does not strip a later roll of its targets when a hung one settles', async () => {
+    const game = makeGameWithTargets('gm-reticle')
+    let releaseHung: (() => void) | undefined
+    const hung = withMirroredTargets(game, [], () => new Promise<void>((r) => (releaseHung = r)))
+    abandonMirroredTargets()
+
+    const { tokens } = resolveTargets(game, { targets: ['tok-1'], targetScene: 'scene-a' })
+    let ambientAfterHungSettled: string[] = []
+    let releaseLive: (() => void) | undefined
+    const live = withMirroredTargets(game, tokens, async () => {
+      await new Promise<void>((r) => (releaseLive = r))
+      ambientAfterHungSettled = [
+        ...(game.user.targets as unknown as Iterable<{ name: string }>)
+      ].map((t) => t.name)
+    })
+
+    releaseHung!()
+    await hung
+
+    releaseLive!()
+    await live
+    expect(ambientAfterHungSettled).toEqual(['token-tok-1'])
+  })
+
+  it('restores the real set, not an inner stand-in, when abandoning a nested swap', async () => {
+    const game = makeGameWithTargets('gm-reticle')
+    const held = game.user.targets
+    const { tokens } = resolveTargets(game, { targets: ['tok-1'], targetScene: 'scene-a' })
+    let release: (() => void) | undefined
+    const hung = withMirroredTargets(game, [], () =>
+      withMirroredTargets(game, tokens, () => new Promise<void>((r) => (release = r)))
+    )
+
+    expect(abandonMirroredTargets()).toBe(2)
+    expect(game.user.targets).toBe(held)
+
+    release!()
+    await hung
+    expect(game.user.targets).toBe(held)
+  })
+
+  it('does nothing when no swap is in flight', () => {
+    const game = makeGameWithTargets('gm-reticle')
+    const held = game.user.targets
+    expect(abandonMirroredTargets()).toBe(0)
+    expect(game.user.targets).toBe(held)
   })
 
   it('rolls unshielded rather than break targeting it cannot put back', async () => {
