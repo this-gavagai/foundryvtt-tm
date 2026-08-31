@@ -23,13 +23,16 @@ vi.mock('@/utils/utilities', () => ({
 
 type FakeTokenDoc = { id: string; actor: object | null; object: object | null }
 
+// An id prefixed 'orphan-' models a token whose actorId names an actor that has
+// been deleted: a real, placed, targetable token on the canvas whose `actor` is
+// null. Seen in the wild — a leftover iconic in a test world.
 function scene(id: string, tokenIds: string[], drawn = true) {
   const tokens = new Map<string, FakeTokenDoc>(
     tokenIds.map((tid) => [
       tid,
       {
         id: tid,
-        actor: { name: `actor-${tid}` },
+        actor: tid.startsWith('orphan-') ? null : { name: `actor-${tid}` },
         // `object` is the PLACED token, which exists only while this client has
         // that scene drawn. An undrawn scene still resolves documents.
         object: drawn ? { name: `token-${tid}` } : null
@@ -44,7 +47,7 @@ function scene(id: string, tokenIds: string[], drawn = true) {
 // bare-id wire format ambiguous.
 function makeGame(activeId: string | null) {
   const scenes = new Map([
-    ['scene-a', scene('scene-a', ['tok-1', 'tok-2'])],
+    ['scene-a', scene('scene-a', ['tok-1', 'tok-2', 'orphan-1'])],
     ['scene-b', scene('scene-b', ['tok-1'])],
     // A scene this client holds documents for but has not drawn — what the
     // elected GM sees when the targeting proxy is on a different scene.
@@ -162,6 +165,45 @@ describe('resolveTargets multi-target', () => {
     }
     expect(asActor.getActiveTokens(false, false)).toEqual([{ name: 'token-tok-1' }])
     expect(asActor.getActiveTokens(false, true)).toHaveLength(1)
+  })
+})
+
+// A token whose actor has been deleted is still placed, visible and targetable,
+// so the proxy reports it and the DOCUMENT resolves — but PF2e builds everything
+// a target contributes out of the actor, so the check context resolves back to
+// `target: null` and the roll lands as though nothing had been targeted.
+//
+// Reproduced live: a leftover iconic token in a test world made every roll aimed
+// at it come back untargeted, with no error anywhere, while the same roll aimed
+// at the token beside it worked. It read as "the targeting proxy is broken".
+describe('a target whose actor is gone', () => {
+  it('does not count as resolved', () => {
+    const game = makeGame('scene-a')
+    const resolved = resolveTargets(game, { targets: ['orphan-1'], targetScene: 'scene-a' })
+    expect(resolved.tokenDocs).toEqual([])
+    expect(resolved.unresolved).toEqual(['orphan-1'])
+    expect(resolved.token).toBeNull()
+    expect(resolved.actorProxy).toBeNull()
+  })
+
+  it('is refused rather than rolled as untargeted', () => {
+    const game = makeGame('scene-a')
+    expect(() =>
+      resolveRequestedTargets(game, { targets: ['orphan-1'], targetScene: 'scene-a' })
+    ).toThrow(TM_ERROR_TARGET_UNRESOLVED)
+  })
+
+  it('does not take a usable target down with it', () => {
+    // A multi-target selection that clips an orphan still rolls at the rest —
+    // the same partial-loss rule as any other unresolvable id.
+    const game = makeGame('scene-a')
+    const resolved = resolveRequestedTargets(game, {
+      targets: ['orphan-1', 'tok-1'],
+      targetScene: 'scene-a'
+    })
+    expect(resolved.tokenDocs).toHaveLength(1)
+    expect(resolved.token).toEqual({ name: 'token-tok-1' })
+    expect(resolved.unresolved).toEqual(['orphan-1'])
   })
 })
 

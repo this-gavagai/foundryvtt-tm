@@ -136,7 +136,23 @@ export function resolveTargets(source: GamePF2e, request: TargetRequest): Resolv
   const unresolved: string[] = []
   for (const id of ids) {
     const doc = scene?.tokens.get(id) ?? null
-    if (doc) tokenDocs.push(doc)
+    // A token whose ACTOR is gone counts as unresolved, not as a target.
+    //
+    // An orphaned token — one whose actorId names an actor that has since been
+    // deleted — is still a placed, visible, perfectly targetable thing on the
+    // canvas. It has a name, it takes a reticle, and the proxy reports it like
+    // any other. But PF2e derives everything a target contributes (AC, DC,
+    // degree of success, `target:*` roll options) from the actor, so a check
+    // context built on one resolves back to `target: null` and the roll comes
+    // out as though nothing had been targeted at all.
+    //
+    // Every other guard in this file already refuses that outcome — an id that
+    // doesn't resolve, a scene we don't have, a document with no placeable. This
+    // one slipped through because the DOCUMENT resolves fine: `requested > 0`
+    // and `tokenDocs.length > 0`, so resolveRequestedTargets is satisfied and
+    // requirePlaceableTarget is satisfied, and the player gets the silent
+    // wrong-result-that-looks-right this module exists to make impossible.
+    if (doc?.actor) tokenDocs.push(doc)
     else unresolved.push(id)
   }
 
