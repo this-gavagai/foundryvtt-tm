@@ -38,9 +38,16 @@ vi.mock('@/foundry/utils/roll', () => ({
 import { foundryCharacterAction } from '@/foundry/handlers/actionHandlers'
 import type { CharacterActionArgs } from '@/types/api-types'
 
+// The `already has a targets set` guard is core's, verbatim (foundry 14.367,
+// client/canvas/placeables/tokens/targets.mjs). Faithful on purpose: without it
+// the swap under test throws in production and silently rolls unshielded, while
+// a permissive double reports every one of these as passing.
 class FakeUserTargets extends Set<{ id: string; document: unknown }> {
-  constructor(_user: unknown) {
+  constructor(user: unknown) {
     super()
+    if ((user as { targets?: unknown } | null)?.targets) {
+      throw new Error('User already has a targets set defined')
+    }
   }
   get ids() {
     return [...this].map((t) => t.id)

@@ -39,9 +39,16 @@ import type { RollCheckArgs } from '@/types/api-types'
 
 // A UserTargets stand-in: a Set the swap can re-instantiate, with the `ids` and
 // `first()` accessors the module and PF2e read off it.
+// The `already has a targets set` guard is core's, verbatim (foundry 14.367,
+// client/canvas/placeables/tokens/targets.mjs). Faithful on purpose: without it
+// the swap under test throws in production and silently rolls unshielded, while
+// a permissive double reports every one of these as passing.
 class FakeUserTargets extends Set<{ id: string; document: unknown }> {
-  constructor(_user: unknown) {
+  constructor(user: unknown) {
     super()
+    if ((user as { targets?: unknown } | null)?.targets) {
+      throw new Error('User already has a targets set defined')
+    }
   }
   get ids() {
     return [...this].map((t) => t.id)

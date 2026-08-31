@@ -61,10 +61,20 @@ function makeGame(activeId: string | null) {
 // Stand-in for Foundry's UserTargets: a Set subclass hung off the User document,
 // whose add() refreshes the token's reticle (recorded here so we can prove we
 // never call it — presenting the player's targets must not touch the UI).
+//
+// The `already has a targets set` guard is core's, VERBATIM (foundry 14.367,
+// client/canvas/placeables/tokens/targets.mjs). It is the reason this double has
+// to be faithful rather than convenient: without it, every test here passed
+// while the real thing threw on construction and silently rolled unshielded on
+// every single roll. A double that is easier to satisfy than the class it stands
+// for tests nothing.
 class FakeUserTargets extends Set<TokenPF2e> {
   static reticleRefreshes = 0
   constructor(readonly user: unknown) {
     super()
+    if ((user as { targets?: unknown } | null)?.targets) {
+      throw new Error('User already has a targets set defined')
+    }
   }
   override add(token: TokenPF2e): this {
     FakeUserTargets.reticleRefreshes++
@@ -386,6 +396,47 @@ describe('mirroring targets onto the handling client', () => {
     release!()
     await hung
     expect(game.user.targets).toBe(held)
+  })
+
+  // The regression that made every one of the tests above vacuous. Core's
+  // UserTargets will not be a user's SECOND target set, so building the stand-in
+  // while the real one is still installed throws — and the catch turns that into
+  // a silent, permanent "roll unshielded". Assert on what PF2e would actually
+  // see, not on whether a swap happened, so this cannot pass for the wrong
+  // reason again.
+  it('actually swaps, rather than falling through to an unshielded roll', async () => {
+    const game = makeGameWithTargets('gm-reticle')
+    const { tokens } = resolveTargets(game, { targets: ['tok-1'], targetScene: 'scene-a' })
+    let ambientDuringRoll: string[] = ['unset']
+
+    await withMirroredTargets(game, tokens, async () => {
+      ambientDuringRoll = [...(game.user.targets as unknown as Iterable<{ name: string }>)].map(
+        (t) => t.name
+      )
+    })
+
+    expect(ambientDuringRoll).toEqual(['token-tok-1'])
+  })
+
+  it('leaves this client targeting intact when the stand-in cannot be built', async () => {
+    const game = makeGameWithTargets('gm-reticle')
+    const held = game.user.targets
+    // A class that refuses to construct at all — the "a Foundry refactor moved
+    // it out from under us" case the fallback exists for.
+    Object.defineProperty(held, 'constructor', {
+      value: class {
+        constructor() {
+          throw new Error('nope')
+        }
+      },
+      configurable: true
+    })
+
+    const ran = await withMirroredTargets(game, [], async () => 'rolled')
+
+    expect(ran).toBe('rolled')
+    expect(game.user.targets).toBe(held)
+    expect(ownTargetIds(game)).toEqual(['gm-reticle'])
   })
 
   it('does nothing when no swap is in flight', () => {

@@ -297,12 +297,36 @@ export async function withMirroredTargets<T>(
   }
   let standIn: unknown
   try {
+    // The property has to come OFF before the stand-in can be built. Core's
+    // UserTargets refuses to be a user's second target set:
+    //
+    //   constructor(user) {
+    //     super()
+    //     if (user.targets) throw new Error(`User ${user.id} already has a targets set defined`)
+    //     this.user = user
+    //   }
+    //
+    // (foundry 14.367, client/canvas/placeables/tokens/targets.mjs — it is a
+    // class FIELD on User, so it constructs cleanly exactly once, while
+    // `this.targets` is still undefined.) Constructing the stand-in with the real
+    // set still installed therefore throws every single time, and the catch below
+    // turns that into a silent, permanent "roll unshielded" — which is what this
+    // whole module exists to prevent. PF2e does not subclass UserTargets, so
+    // there is no build where that constructor is a more forgiving one.
+    //
+    // Clearing it first is safe because all of this is synchronous: no hook, no
+    // render, no other client's code runs between here and the swap below, so
+    // nothing can observe `user.targets` as undefined.
+    Object.defineProperty(user, 'targets', { ...descriptor, value: undefined })
     // `constructor` is typed Function, which says nothing about being newable;
     // the guard above checked it is callable and the try/catch covers the rest.
     const TargetSet = held.constructor as new (user: unknown) => unknown
     standIn = new TargetSet(user)
     for (const token of tokens) Set.prototype.add.call(standIn as Set<TokenPF2e>, token)
   } catch (error) {
+    // Put back what we took off before giving up, or the failure leaves this
+    // client with no targeting at all.
+    Object.defineProperty(user, 'targets', descriptor)
     logger.debug('TABLEMATE: could not build a stand-in target set', error)
     return run()
   }
