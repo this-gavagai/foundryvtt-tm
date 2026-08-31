@@ -24,18 +24,16 @@ import {
 } from '@/api/protocol'
 import { makeAck, stampTablemateChatOrigin, tablemateChatOriginUuid } from './utils/foundry'
 import { markRequestSeen, requestAlreadySeen } from './requestDedup'
-import { abandonMirroredTargets, ownTargetIds } from './utils/target'
+import { ownTargetIds } from './utils/target'
 import { resolveCapture, type CapturedMessage } from './chatCapture'
 import {
-  abandonChatOrigin,
   chatOriginStampFor,
   currentChatOriginUserId,
   withChatOrigin,
   type ChatOrigin,
   type ChatOriginStamp
 } from './chatOrigin'
-import { abandonBackgroundRolls } from './backgroundRoll'
-import { abandonDamageModifierOverrides } from './handlers/checks/modifierOverrides'
+import { abandonRequestContext } from './requestTeardown'
 import { drawnSceneId, hooks, notifications } from './globals'
 import {
   registerManualRollPolicySetting,
@@ -91,13 +89,18 @@ const getChar: Record<string, (args: RequestCharacterDetailsArgs) => void> = {}
 let chatOriginStampingRegistered = false
 
 // Handlers that roll dice or create chat messages execute strictly one at a
-// time. Three mechanisms read ambient top-of-stack state while a handler
-// runs — preset dice faces (backgroundRoll), damage modifier overrides
-// (modifierOverrides), and chat attribution (chatOriginStack above) — so two
-// interleaved requests would read each other's context: player B's "random"
-// roll landing on player A's chosen faces, damage toggles applied to the
-// wrong roll, chat messages attributed to the wrong tablet. FIFO latency is
-// fine at tabletop cadence.
+// time, because several mechanisms read ambient top-of-stack state while a
+// handler runs: two interleaved requests would read each other's context —
+// player B's "random" roll landing on player A's chosen faces, damage toggles
+// applied to the wrong roll, chat messages attributed to the wrong tablet, a
+// roll aimed at the previous request's target. FIFO latency is fine at tabletop
+// cadence.
+//
+// WHICH mechanisms those are is deliberately not listed here. This comment used
+// to name three, and stayed at three after a fourth was added — an undercount
+// nobody could see, in the one place a reader would go to check. They are
+// enumerated once, in requestTeardown.ts, where the list is load-bearing:
+// leaving one out is a compile error there rather than a silent leak here.
 //
 // The chain advances when a task settles OR after HANDLER_QUEUE_TIMEOUT_MS,
 // whichever comes first — a handler that never settles (e.g. a macro
@@ -404,24 +407,16 @@ export function handleModuleEvent(args: ModuleEventArgs, deps: ModuleEventDeps) 
           // run. Left in place, its dice-result overrides sit on top of the
           // stack for the rest of the session and land on everyone else's
           // rolls — the GM's own included.
-          abandonChatOrigin(origin)
-          const droppedDice = abandonBackgroundRolls()
-          // The other two pieces of ambient state a running handler owns. Both
-          // outlive the abandoned request exactly as the dice contexts do: the
-          // target swap leaves this client's own reticle replaced by the
-          // roller's (and freezes what mirroring tablets are told it is), and
-          // the damage overrides apply one player's modifier toggles to every
-          // later roll on this client. See each function's own note.
-          const droppedTargets = abandonMirroredTargets()
-          const droppedOverrides = abandonDamageModifierOverrides()
+          //
+          // WHAT gets torn down is requestTeardown.ts's decision, not this
+          // loop's: it names every mechanism that holds ambient per-request
+          // state and makes a new one that forgets to declare a teardown a
+          // compile error. This just says when.
+          const abandoned = abandonRequestContext(origin)
           logger.warn(
             `TABLEMATE: handler still running after ${HANDLER_QUEUE_TIMEOUT_MS}ms; advancing queue`,
             args.action,
-            {
-              abandonedDiceContexts: droppedDice,
-              abandonedTargetSwaps: droppedTargets,
-              abandonedDamageOverrides: droppedOverrides
-            }
+            abandoned
           )
           advance()
         }, HANDLER_QUEUE_TIMEOUT_MS)

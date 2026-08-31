@@ -129,9 +129,11 @@ export function chatOriginStampFor(
 // Frames normally settle LIFO, but not always: when the dispatch queue abandons a
 // hung handler the next request starts while the hung one is still running, so a
 // positional pop would discard the frame of whichever request is executing NOW.
-function dropChatOrigin(origin: ChatOrigin) {
+function dropChatOrigin(origin: ChatOrigin): number {
   const index = chatOriginStack.lastIndexOf(origin)
-  if (index >= 0) chatOriginStack.splice(index, 1)
+  if (index < 0) return 0
+  chatOriginStack.splice(index, 1)
+  return 1
 }
 
 // Tear down a request the dispatch queue gave up on.
@@ -141,9 +143,13 @@ function dropChatOrigin(origin: ChatOrigin) {
 // abandoned request's frame has to come off here rather than waiting for a
 // `finally` that may never run — otherwise it stays on the stack and keeps
 // stamping its userId (and claiming captures) on other requests' messages.
-export function abandonChatOrigin(origin: ChatOrigin): void {
+//
+// Returns how many frames it dropped (1, or 0 if the handler had already
+// settled) so it reports like the other teardowns the dispatch timeout runs —
+// see requestTeardown.ts.
+export function abandonChatOrigin(origin: ChatOrigin): number {
   origin.abandoned = true
-  dropChatOrigin(origin)
+  return dropChatOrigin(origin)
 }
 
 function retainRecentChatOrigin(originUserId: string, now = Date.now()) {
