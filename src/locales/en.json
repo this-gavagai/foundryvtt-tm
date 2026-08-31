@@ -511,6 +511,25 @@
   "rolls": {
     "flatDc": "Flat DC {dc}"
   },
+  "rollResult": {
+    "versus": "vs {name}",
+    "dc": "{label} {dc}",
+    "offset": "by {offset}",
+    "degree": {
+      "check": {
+        "criticalSuccess": "Critical Success",
+        "success": "Success",
+        "failure": "Failure",
+        "criticalFailure": "Critical Failure"
+      },
+      "attack": {
+        "criticalSuccess": "Critical Hit",
+        "success": "Hit",
+        "failure": "Miss",
+        "criticalFailure": "Critical Miss"
+      }
+    }
+  },
   "modifiers": {
     "outranked": "Outranked by a higher same-type modifier; will not contribute to the roll"
   }

@@ -511,6 +511,25 @@
   "rolls": {
     "flatDc": "Einfacher SG {dc}"
   },
+  "rollResult": {
+    "versus": "gegen {name}",
+    "dc": "{label} {dc}",
+    "offset": "um {offset}",
+    "degree": {
+      "check": {
+        "criticalSuccess": "Kritischer Erfolg",
+        "success": "Erfolg",
+        "failure": "Fehlschlag",
+        "criticalFailure": "Kritischer Fehlschlag"
+      },
+      "attack": {
+        "criticalSuccess": "Kritischer Treffer",
+        "success": "Treffer",
+        "failure": "Fehlschlag",
+        "criticalFailure": "Kritischer Fehlschlag"
+      }
+    }
+  },
   "modifiers": {
     "outranked": "Von einem höheren Modifikator desselben Typs übertroffen; trägt nicht zum Wurf bei"
   }

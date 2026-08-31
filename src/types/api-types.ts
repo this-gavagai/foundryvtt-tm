@@ -756,6 +756,44 @@ export interface RollResult {
   isSecret: boolean
 }
 
+// PF2e's four degrees of success, in its own spelling (DEGREE_OF_SUCCESS_STRINGS).
+// Declared here rather than imported from pf2e-types because it is a WIRE value:
+// the module writes it, the app reads it, and it must keep meaning the same
+// thing across a system upgrade that renames the system-side type.
+export type DegreeOfSuccess = 'criticalFailure' | 'failure' | 'success' | 'criticalSuccess'
+
+// What a roll was aimed at and how it came out, read off the chat card PF2e
+// posted for it (flags.pf2e.context — see foundry/utils/rollOutcome.ts).
+//
+// Every field is independently optional, because each is independently
+// WITHHELD: PF2e hides a DC, a target's name, or a degree of success from
+// players according to the world's metagame settings, and the module applies
+// those same rules before putting anything on the wire rather than sending it
+// all and trusting the app to hide it. A field that is absent was either not
+// part of the roll (an untargeted skill check has no target) or is not this
+// user's to see — the app draws what it is given and says nothing about the
+// rest.
+export interface RollOutcome {
+  // The targeted token's name and art, when the roll had a target.
+  targetName?: string
+  targetImg?: string
+  // The DC rolled against, and PF2e's label for it ("AC", "Reflex DC", "DC"),
+  // localized in the WORLD's language like every other label the module sends.
+  dc?: number
+  dcLabel?: string
+  // The degree of success. Only ever set for a roll that HAD a DC — PF2e also
+  // stamps `outcome: "success"` on the damage roll that follows an attack,
+  // where it means "not a critical" rather than a degree of success, and
+  // showing that as a result would be a lie.
+  degree?: DegreeOfSuccess
+  // The degree before a degree-of-success adjustment (Assurance, an effect that
+  // upgrades a success to a critical). Only set when it differs from `degree`.
+  unadjustedDegree?: DegreeOfSuccess
+  // Which wording the degree takes: an attack roll reads Hit/Miss, everything
+  // else Success/Failure. PF2e's own dc.scope.
+  scope?: 'attack' | 'check'
+}
+
 export interface CompendiumItemData {
   _id?: string
   name: string
@@ -801,11 +839,16 @@ export interface ResponseByAction {
   // it is what lets the roll-result modal offer a comment on the roll it is
   // showing. Absent when the pipeline posted nothing the module could match to
   // this request (see chatCapture.ts), and every consumer treats it as optional.
-  [TM.ROLL_CHECK]: { roll?: RollResult; messageId?: string }
-  [TM.CHARACTER_ACTION]: { roll?: RollResult }
+  //
+  // `outcome` names the target and the degree of success, for the roll-result
+  // modal. Like messageId it is read off the posted card, so it is absent
+  // whenever that card could not be identified — and its own fields are absent
+  // when the roll had no target, no DC, or the world hides them from this user.
+  [TM.ROLL_CHECK]: { roll?: RollResult; messageId?: string; outcome?: RollOutcome }
+  [TM.CHARACTER_ACTION]: { roll?: RollResult; outcome?: RollOutcome }
   [TM.FREE_ROLL]: { roll: RollResult }
-  [TM.ROLL_DAMAGE]: { roll?: RollResult; messageId?: string }
-  [TM.ROLL_INLINE_CHECK]: { roll?: RollResult; messageId?: string }
+  [TM.ROLL_DAMAGE]: { roll?: RollResult; messageId?: string; outcome?: RollOutcome }
+  [TM.ROLL_INLINE_CHECK]: { roll?: RollResult; messageId?: string; outcome?: RollOutcome }
   [TM.REROLL_CHAT_ROLL]: { roll?: RollResult }
   [TM.GET_STRIKE_DAMAGE]: { response: StrikeDamagePreview }
   [TM.GET_SPELL_DAMAGE]: { response: SpellDamagePreview }

@@ -318,6 +318,52 @@
         }
       }
 
+      /* Roll result: who the roll was aimed at, and how it came out. The
+         component ships light-theme fallbacks — a near-white DC chip and
+         emerald/rose degree pills — that glare on the dark panel. */
+      [data-component='RollResultModal'] {
+        [data-part='roll-target-name'] {
+          color: oklch(62% 0.01 258);
+        }
+
+        [data-part='roll-dc'] {
+          background-color: oklch(22% 0.026 258);
+          border-color: oklch(38% 0.024 258);
+          color: oklch(78% 0.012 258);
+        }
+
+        /* No degree hook: a result the world withholds still gets a pill. */
+        [data-part='roll-degree'] {
+          background-color: oklch(26% 0.02 258);
+          color: oklch(88% 0.008 258);
+          --tw-ring-color: oklch(38% 0.026 258);
+        }
+
+        [data-part='roll-degree'][data-degree='criticalSuccess'] {
+          background-color: oklch(32% 0.08 155);
+          color: oklch(90% 0.11 155);
+          --tw-ring-color: oklch(50% 0.1 155);
+        }
+
+        [data-part='roll-degree'][data-degree='success'] {
+          background-color: oklch(27% 0.05 155);
+          color: oklch(86% 0.08 155);
+          --tw-ring-color: oklch(42% 0.07 155);
+        }
+
+        [data-part='roll-degree'][data-degree='failure'] {
+          background-color: oklch(27% 0.05 25);
+          color: oklch(85% 0.07 25);
+          --tw-ring-color: oklch(42% 0.07 25);
+        }
+
+        [data-part='roll-degree'][data-degree='criticalFailure'] {
+          background-color: oklch(32% 0.09 25);
+          color: oklch(89% 0.11 25);
+          --tw-ring-color: oklch(50% 0.11 25);
+        }
+      }
+
       [data-component='ChatOverlay'] {
         /* The row is just layout now; the visible surface is the bubble. */
         [data-part='chat-message'] {

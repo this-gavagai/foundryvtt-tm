@@ -10,6 +10,8 @@ import { useWorldStore } from '@/stores/world'
 import { readComments, type ChatComment } from '@/utils/chatComments'
 import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
 import { dieIcons } from '@/utils/chatRollDisplay'
+import { formatModifier } from '@/utils/formatters'
+import { getPath } from '@/utils/utilities'
 import type { RequestResolutionArgs, RolledDie } from '@/types/api-types'
 
 const modal = ref<InstanceType<typeof Modal>>()
@@ -33,6 +35,62 @@ const singleD20Result = computed(() => {
   const d20Results = rollDice.value.filter((die) => die.faces === 20).flatMap((die) => die.results)
   return d20Results.length === 1 ? d20Results[0] : null
 })
+
+// ── What the roll was aimed at, and how it came out ────────────────────────
+// The module reads this off the chat card PF2e posted and withholds, field by
+// field, whatever the world does not show this player (see
+// foundry/utils/rollOutcome.ts). So everything here is drawn only if it
+// arrived: a skill check against nothing shows none of it, a strike shows all
+// of it, and a check whose DC the GM keeps hidden shows the degree without the
+// number it was measured against.
+//
+// A secret roll shows none of it. The total above is already '???' for one, and
+// the degree of success — or the margin, from a visible DC — would answer the
+// question the blind roll exists to keep from the roller.
+const outcome = computed(() => (roll.value?.isSecret ? undefined : result.value?.outcome))
+
+const hasTargetLine = computed(
+  () => !!outcome.value?.targetName || !!outcome.value?.targetImg || outcome.value?.dc !== undefined
+)
+
+// PF2e's own wording for the degree: an attack reads Hit/Miss, everything else
+// Success/Failure. Translated here rather than on the module side — these four
+// words are the app's own vocabulary, the way the reroll labels are, and belong
+// in the reader's language rather than the world's.
+function degreeKey(degree: string, scope: string | undefined) {
+  return `rollResult.degree.${scope === 'attack' ? 'attack' : 'check'}.${degree}`
+}
+
+const degreeLabelKey = computed(() => {
+  const degree = outcome.value?.degree
+  return degree ? degreeKey(degree, outcome.value?.scope) : undefined
+})
+
+// The degree the dice alone would have produced, when an adjustment (Assurance,
+// an effect that upgrades a success) moved it. Shown struck through beside the
+// one that counted, which is how PF2e words it too.
+const unadjustedLabelKey = computed(() => {
+  const degree = outcome.value?.unadjustedDegree
+  return degree ? degreeKey(degree, outcome.value?.scope) : undefined
+})
+
+// How far past the DC the roll landed, signed — only when both numbers are in
+// hand, which is exactly when PF2e shows it on the card.
+const offset = computed(() => {
+  const dc = outcome.value?.dc
+  const total = roll.value?.total
+  if (dc === undefined || typeof total !== 'number') return undefined
+  return formatModifier(total - dc)
+})
+
+const DEGREE_CLASSES: Record<string, string> = {
+  criticalSuccess: 'bg-emerald-100 text-emerald-900 ring-emerald-200',
+  success: 'bg-emerald-50 text-emerald-800 ring-emerald-100',
+  failure: 'bg-rose-50 text-rose-800 ring-rose-100',
+  criticalFailure: 'bg-rose-100 text-rose-900 ring-rose-200'
+}
+
+const degreeClass = computed(() => DEGREE_CLASSES[outcome.value?.degree ?? ''] ?? '')
 
 function d20ResultClass(dieResult: DisplayDieResult) {
   if (dieResult !== singleD20Result.value) return null
@@ -140,8 +198,40 @@ defineExpose({ open, close, isOpen })
        rather than a child of it: both are dialogs, and nesting one inside the
        other's panel puts two focus traps in the same subtree. (The wrapper adds
        no layout of its own — both children render as fixed overlays.) -->
-  <div>
+  <div data-component="RollResultModal">
     <Modal ref="modal">
+      <!-- Who the roll was aimed at, above the dice: the token's art and name,
+           and the DC it was measured against when the table plays with those
+           visible. A flat-DC check arrives with no target and shows just the
+           number. -->
+      <div
+        v-if="hasTargetLine"
+        data-part="roll-target"
+        class="mb-3 flex flex-wrap items-center justify-center gap-2"
+      >
+        <img
+          v-if="outcome?.targetImg"
+          :src="getPath(outcome.targetImg)"
+          class="h-7 w-7 rounded-full object-cover ring-1 ring-gray-200"
+          alt=""
+          aria-hidden="true"
+        />
+        <span
+          v-if="outcome?.targetName"
+          data-part="roll-target-name"
+          data-tone="muted"
+          class="text-sm text-gray-500"
+        >
+          {{ $t('rollResult.versus', { name: outcome.targetName }) }}
+        </span>
+        <span
+          v-if="outcome?.dc !== undefined"
+          data-part="roll-dc"
+          class="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 font-mono text-xs text-gray-600"
+        >
+          {{ $t('rollResult.dc', { label: outcome.dcLabel ?? '', dc: outcome.dc }) }}
+        </span>
+      </div>
       <div class="flex">
         <div class="m-auto">
           <div class="m-auto">{{ roll?.formula }}</div>
@@ -174,6 +264,32 @@ defineExpose({ open, close, isOpen })
             {{ roll?.isSecret ? '???' : roll?.total }}
           </div>
         </div>
+      </div>
+      <!-- How it came out, under the number: the degree of success, the margin
+           it beat the DC by, and — when an adjustment moved it — the degree the
+           dice alone would have given, struck through beside it. -->
+      <div v-if="degreeLabelKey" data-part="roll-outcome" class="mt-3 text-center">
+        <!-- The four degrees carry a state hook as well as the fallback
+             palette below, so a theme can recolour them without restating the
+             component's classes. -->
+        <span
+          data-part="roll-degree"
+          :data-degree="outcome?.degree"
+          class="inline-flex items-baseline gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ring-1 ring-inset"
+          :class="degreeClass"
+        >
+          <span
+            v-if="unadjustedLabelKey"
+            data-part="roll-degree-unadjusted"
+            class="text-xs font-normal line-through opacity-60"
+          >
+            {{ $t(unadjustedLabelKey) }}
+          </span>
+          <span>{{ $t(degreeLabelKey) }}</span>
+          <span v-if="offset" data-part="roll-degree-offset" class="text-xs font-normal opacity-70">
+            {{ $t('rollResult.offset', { offset }) }}
+          </span>
+        </span>
       </div>
       <!-- Comment affordance, under the result: a plain text button rather than a
          filled one, so it stays out of the way of the number everyone is

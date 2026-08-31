@@ -16,6 +16,7 @@ import {
   userCanObservePack
 } from '../utils/permissions'
 import { extractRollPayload, rollClass, type FoundryRoll } from '../utils/roll'
+import { describeRollOutcome, outcomeMessageOf } from '../utils/rollOutcome'
 import { resolveRequestedTargets, withMirroredTargets } from '../utils/target'
 import { withModifierOverrides } from './checks/modifierOverrides'
 
@@ -69,7 +70,14 @@ export async function foundryCharacterAction(args: CharacterActionArgs) {
   )
 
   logger.debug(r, args.characterAction)
-  return { ...makeAck(args), ...extractRollPayload(r, args) }
+  return {
+    ...makeAck(args),
+    ...extractRollPayload(r, args),
+    // What the action was rolled against and how it came out, for the result
+    // modal. Read off the card the pipeline posted, which it hands back here —
+    // no capture needed, unlike the roll handlers.
+    outcome: describeRollOutcome(source, outcomeMessageOf(r), args.userId)
+  }
 }
 
 // Raw 1d20 roll from the side-menu Check Roll modal's "Roll d20" fallback —

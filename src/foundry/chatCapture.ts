@@ -13,7 +13,17 @@
 // tablemate request, the GM typing in chat, or a late message from a prior
 // request from being mistaken for this request's result.
 
-export type CapturedMessage = { id?: string | null; _id?: string | null; rolls?: unknown[] }
+import type { OutcomeFlags } from './utils/rollOutcome'
+
+// `flags` is carried so a handler can describe what the roll was aimed at and
+// how it came out (utils/rollOutcome.ts) from the same message it takes the id
+// off — PF2e writes both onto the card and nowhere else.
+export type CapturedMessage = {
+  id?: string | null
+  _id?: string | null
+  rolls?: unknown[]
+  flags?: OutcomeFlags | null
+}
 
 const captures = new Map<string, (msg: CapturedMessage | undefined) => void>()
 

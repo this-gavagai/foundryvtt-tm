@@ -511,6 +511,25 @@
   "rolls": {
     "flatDc": "CD fija {dc}"
   },
+  "rollResult": {
+    "versus": "contra {name}",
+    "dc": "{label} {dc}",
+    "offset": "por {offset}",
+    "degree": {
+      "check": {
+        "criticalSuccess": "Éxito crítico",
+        "success": "Éxito",
+        "failure": "Fallo",
+        "criticalFailure": "Fallo crítico"
+      },
+      "attack": {
+        "criticalSuccess": "Impacto crítico",
+        "success": "Impacto",
+        "failure": "Fallo",
+        "criticalFailure": "Fallo crítico"
+      }
+    }
+  },
   "modifiers": {
     "outranked": "Superado por un modificador del mismo tipo de mayor rango; no contribuirá a la tirada"
   }

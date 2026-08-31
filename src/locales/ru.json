@@ -511,6 +511,25 @@
   "rolls": {
     "flatDc": "Фикс. Кл.Сл. {dc}"
   },
+  "rollResult": {
+    "versus": "против {name}",
+    "dc": "{label} {dc}",
+    "offset": "на {offset}",
+    "degree": {
+      "check": {
+        "criticalSuccess": "Критический успех",
+        "success": "Успех",
+        "failure": "Провал",
+        "criticalFailure": "Критический провал"
+      },
+      "attack": {
+        "criticalSuccess": "Критическое попадание",
+        "success": "Попадание",
+        "failure": "Промах",
+        "criticalFailure": "Критический промах"
+      }
+    }
+  },
   "modifiers": {
     "outranked": "Превзойдён более высоким модификатором того же типа; не будет учтён в броске"
   }

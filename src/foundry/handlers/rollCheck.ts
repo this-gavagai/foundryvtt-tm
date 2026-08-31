@@ -2,6 +2,7 @@ import type { RollCheckArgs } from '@/types/api-types'
 import { withBackgroundRoll } from '../backgroundRoll'
 import { registerCapture, settleCapture } from '../chatCapture'
 import { extractRollPayload } from '../utils/roll'
+import { describeRollOutcome } from '../utils/rollOutcome'
 import { getCharacter, getGame, makeAck, makeFakeEvent } from '../utils/foundry'
 import {
   requirePlaceableTarget,
@@ -155,6 +156,10 @@ export async function foundryRollCheck(args: RollCheckArgs) {
   return {
     ...makeAck(args),
     ...extractRollPayload(rRaw, args),
-    messageId: message?.id ?? message?._id ?? undefined
+    messageId: message?.id ?? message?._id ?? undefined,
+    // What the roll was aimed at and how it came out, for the result modal —
+    // read off the same card, and withheld field by field where the world does
+    // not show a player the DC, the result, or the target's name.
+    outcome: describeRollOutcome(source, message, args.userId)
   }
 }

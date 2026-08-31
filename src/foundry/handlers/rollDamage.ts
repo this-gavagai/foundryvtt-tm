@@ -4,6 +4,7 @@ import { withBackgroundRoll } from '../backgroundRoll'
 import { registerCapture, settleCapture } from '../chatCapture'
 import { getGame, makeAck } from '../utils/foundry'
 import { extractRollPayload, rollDamageFormulaToMessage } from '../utils/roll'
+import { describeRollOutcome } from '../utils/rollOutcome'
 
 // Unified entry point for any ad-hoc damage roll the tablet initiates —
 // both the side-menu formula builder and inline @Damage[...] clicks. When
@@ -134,6 +135,10 @@ export async function foundryRollDamage(args: RollDamageArgs) {
   return {
     ...makeAck(args),
     ...extractRollPayload(rRaw, { userId: args.userId, options: { rollMode } }),
-    messageId: message?.id ?? message?._id ?? undefined
+    messageId: message?.id ?? message?._id ?? undefined,
+    // Names the creature the damage was rolled against, when the card records
+    // one. No degree of success comes back for a damage roll: PF2e's `outcome`
+    // there separates normal damage from critical, not success from failure.
+    outcome: describeRollOutcome(source, message, args.userId)
   }
 }

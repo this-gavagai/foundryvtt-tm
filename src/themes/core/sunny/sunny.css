@@ -315,6 +315,52 @@
         }
       }
 
+      /* Roll result: who the roll was aimed at, and how it came out. Warmed
+         to the sheet's parchment neutrals, and the degree pills pulled back
+         from the component's flat emerald/rose fallbacks. */
+      [data-component='RollResultModal'] {
+        [data-part='roll-target-name'] {
+          color: oklch(55% 0.02 285);
+        }
+
+        [data-part='roll-dc'] {
+          background-color: oklch(96% 0.014 95);
+          border-color: var(--color-border);
+          color: oklch(45% 0.02 285);
+        }
+
+        /* No degree hook: a result the world withholds still gets a pill. */
+        [data-part='roll-degree'] {
+          background-color: oklch(95% 0.012 95);
+          color: var(--color-text);
+          --tw-ring-color: var(--color-border);
+        }
+
+        [data-part='roll-degree'][data-degree='criticalSuccess'] {
+          background-color: oklch(90% 0.09 150);
+          color: oklch(38% 0.11 150);
+          --tw-ring-color: oklch(80% 0.1 150);
+        }
+
+        [data-part='roll-degree'][data-degree='success'] {
+          background-color: oklch(94% 0.05 150);
+          color: oklch(42% 0.09 150);
+          --tw-ring-color: oklch(86% 0.06 150);
+        }
+
+        [data-part='roll-degree'][data-degree='failure'] {
+          background-color: oklch(95% 0.04 25);
+          color: oklch(45% 0.12 25);
+          --tw-ring-color: oklch(87% 0.05 25);
+        }
+
+        [data-part='roll-degree'][data-degree='criticalFailure'] {
+          background-color: oklch(91% 0.07 25);
+          color: oklch(40% 0.14 25);
+          --tw-ring-color: oklch(81% 0.09 25);
+        }
+      }
+
       [data-component='ChatOverlay'] {
         /* The row is just layout now; the visible surface is the bubble. */
         [data-part='chat-message'] {

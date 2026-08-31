@@ -3,6 +3,7 @@ import { withBackgroundRoll } from '../backgroundRoll'
 import { registerCapture } from '../chatCapture'
 import { getGame, makeAck } from '../utils/foundry'
 import { extractRollPayload } from '../utils/roll'
+import { describeRollOutcome } from '../utils/rollOutcome'
 import { resolveTargets, withMirroredTargets } from '../utils/target'
 
 // Inline @Check route. Builds a synthetic PF2e inline-check anchor (matching
@@ -124,6 +125,9 @@ export async function foundryRollInlineCheck(args: RollInlineCheckArgs) {
     ...extractRollPayload(message?.rolls?.[0], { userId: args.userId, options: { rollMode } }),
     // The captured card, so the app can offer a comment on this roll from the
     // result modal.
-    messageId: message?.id ?? message?._id ?? undefined
+    messageId: message?.id ?? message?._id ?? undefined,
+    // An inline @Check is the one route where the DC is as often flat as it is
+    // a creature's — describeRollOutcome reports whichever the card recorded.
+    outcome: describeRollOutcome(source, message, args.userId)
   }
 }
