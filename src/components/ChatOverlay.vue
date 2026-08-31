@@ -401,6 +401,10 @@ function openImagePicker() {
 // and handed to every row as a prop rather than each row subscribing to the
 // store. Existing chips still render when this is false — they're just inert,
 // so a log doesn't visibly lose data when the last GM drops off.
+//
+// The other half of the capability, a world that has reactions switched OFF, is
+// not handled here: there the chips must not appear at all, so the view drops
+// them at the source (useChatMessages) and every consumer follows.
 const reactionsSupported = computed(() => versionCompat.supportsReactions && listeners.isListening)
 
 // Who-reacted sheet, opened by a long-press on a chip. Holds the message id
@@ -433,7 +437,8 @@ function toggleDetailReaction(emoji: string) {
 // from the app is posted by the GM's client, so a comment on it is a write to a
 // message this user doesn't author even when the roll is theirs. It runs as an
 // RPC with no direct-socket fallback. Existing comments still render when this
-// is false — inert, like reaction chips.
+// is false — inert, like reaction chips — while a world that has comments
+// switched off has none to render (see useChatMessages).
 const commentsSupported = computed(() => versionCompat.supportsComments && listeners.isListening)
 
 // What the editor is currently pointed at: a message id (not a view — views are

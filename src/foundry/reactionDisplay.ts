@@ -49,6 +49,7 @@ import {
   type TablemateChatMessage
 } from './utils/chatMessage'
 import { foundryToggleReaction } from './handlers/reactions'
+import { reactionsEnabled } from './featureToggles'
 import { onHook } from './globals'
 
 let reactionDisplayRegistered = false
@@ -148,7 +149,11 @@ export function applyReactionDisplay(message: ReactableMessage, element: HTMLEle
   const id = messageId(message)
   if (!id) return
 
+  // Clear first, THEN check the switch: this runs again on every client when the
+  // GM turns reactions off (see refreshReactionDisplay), and the chips already
+  // drawn have to come off the log rather than freeze in place.
   element.querySelector<HTMLElement>(`.${CONTAINER_CLASS}`)?.remove()
+  if (!reactionsEnabled()) return
 
   const groups = groupReactions(readReactions(message), {
     selfUserId: game.user._id,
@@ -179,6 +184,9 @@ export function applyReactionDisplay(message: ReactableMessage, element: HTMLEle
 // GM connected a player's request would go unanswered, so the entries are hidden
 // rather than offered as a silent no-op.
 function reactionsAvailable(): boolean {
+  // The world switch first — a world with reactions off offers them nowhere,
+  // including on the GM's own screen.
+  if (!reactionsEnabled()) return false
   if (game.user.isGM) return true
   return !!game.users.activeGM
 }
@@ -313,6 +321,13 @@ function sweepRenderedMessages(): void {
     const element = findRenderedChatMessage(message)
     if (element) applyReactionDisplay(message, element)
   }
+}
+
+// Redraw every message in the log. Called when the world switch flips, in both
+// directions: applyReactionDisplay removes the existing row before it checks the
+// switch, so one sweep both adds chips and takes them away.
+export function refreshReactionDisplay(): void {
+  sweepRenderedMessages()
 }
 
 export function setupReactionDisplay(): void {

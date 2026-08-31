@@ -38,6 +38,7 @@ import {
   type TablemateChatMessage
 } from './utils/chatMessage'
 import { foundrySetComment } from './handlers/comments'
+import { commentsEnabled } from './featureToggles'
 import { onHook } from './globals'
 
 // Narrowed local shape for core's DialogV2 prompt.
@@ -178,7 +179,11 @@ export function applyCommentDisplay(message: CommentableMessage, element: HTMLEl
   const id = messageId(message)
   if (!id) return
 
+  // Clear first, THEN check the switch — same reason as the reaction row: this
+  // runs again on every client when the GM turns comments off, and the notes
+  // already drawn have to come off the log.
   element.querySelector<HTMLElement>(`.${CONTAINER_CLASS}`)?.remove()
+  if (!commentsEnabled()) return
 
   const comments = readComments(message)
   if (!comments.length) return
@@ -246,6 +251,8 @@ async function promptForComment(id: string, comment?: ChatComment): Promise<void
 // Can this client's write actually be serviced? A GM writes the flag itself;
 // anyone else needs a GM online to do it for them. Mirrors reactionsAvailable.
 function commentsAvailable(): boolean {
+  // The world switch first, exactly as reactionsAvailable does.
+  if (!commentsEnabled()) return false
   if (game.user.isGM) return true
   return !!game.users.activeGM
 }
@@ -282,10 +289,11 @@ function commentContextEntries(): CommentContextEntry[] {
       name: 'Add comment',
       icon: '<i class="fa-solid fa-comment-dots"></i>',
       group: 'tm-comments',
-      // Anyone may comment on any message, so the only question left is whether
-      // the write can be serviced. Re-evaluated on every open (unlike the entry
-      // list itself, which core builds once), which is what lets it track
-      // whether a GM is online right now.
+      // Anyone may comment on any message, so the only questions left are
+      // whether the world has the feature on and whether the write can be
+      // serviced. Re-evaluated on every open (unlike the entry list itself,
+      // which core builds once), which is what lets it track both — neither is
+      // knowable at `init`, when the entry is built.
       visible: commentsAvailable,
       condition: commentsAvailable,
       // v14 prefers onClick(event, target); v13 calls callback(target, event).
@@ -320,6 +328,13 @@ function sweepRenderedMessages(): void {
     const element = findRenderedChatMessage(message)
     if (element) applyCommentDisplay(message, element)
   }
+}
+
+// Redraw every message in the log when the world switch flips. Works in both
+// directions: applyCommentDisplay removes the existing block before it checks
+// the switch, so one sweep both adds notes and takes them away.
+export function refreshCommentDisplay(): void {
+  sweepRenderedMessages()
 }
 
 export function setupCommentDisplay(): void {

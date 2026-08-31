@@ -44,6 +44,15 @@ import { registerGmHandlerSetting, gmHandlerPolicy, isElectedHandler } from './g
 import { registerVoiceMemoSetting, voiceMemoEnabled } from './voiceMemoSetting'
 import { registerImageUploadSetting, imageUploadEnabled } from './imageUploadSetting'
 import { registerPushSettings, ensureWorldPushIdentity } from './pushRegistration'
+import {
+  registerReactionsSetting,
+  registerCommentsSetting,
+  registerRollOutcomeSetting,
+  reactionsEnabled,
+  commentsEnabled
+} from './featureToggles'
+import { refreshReactionDisplay } from './reactionDisplay'
+import { refreshCommentDisplay } from './commentDisplay'
 import { notifyChatMessage } from './pushNotify'
 
 type GetEvent = { action: 'get' }
@@ -455,12 +464,28 @@ export function setupListener() {
   // connected apps update their manual/Pixel affordances without waiting for
   // the next presence heartbeat.
   registerManualRollPolicySetting(() => announceSelf())
+  // Whether a roll's ack carries what it was aimed at and how it came out. No
+  // capability rides on this one (the data travels with the ack rather than
+  // being asked for, so withholding it IS the gate — see featureToggles.ts), but
+  // announcing keeps a connected app's view of this world current.
+  registerRollOutcomeSetting(() => announceSelf())
   // Re-announce when the GM sets/clears the voice-memo folder so connected apps
   // show or hide the mic immediately (the capability rides announceSelf below).
   registerVoiceMemoSetting(() => announceSelf())
   // Re-announce when the GM sets/clears the image folder so connected apps show
   // or hide the attach button immediately (the capability rides announceSelf).
   registerImageUploadSetting(() => announceSelf())
+  // Reactions and comments: the capability rides announceSelf, and the Foundry
+  // chat log has to be redrawn too — a world setting's onChange fires on every
+  // client, so each one adds or drops its chips and notes without a reload.
+  registerReactionsSetting(() => {
+    announceSelf()
+    refreshReactionDisplay()
+  })
+  registerCommentsSetting(() => {
+    announceSelf()
+    refreshCommentDisplay()
+  })
   registerPushSettings()
   // GM-only: generate + provision this world's push identity if enabled.
   void ensureWorldPushIdentity()
@@ -584,18 +609,19 @@ function announceSelf() {
     // ID, and the registry that maps IDs to spritesheets (including the custom
     // rings modules and adventure paths register) exists only in the client.
     tokenRing: { spritesheet: tokenRingSpritesheet() },
-    // Additive feature flags — the app hides features this module can't serve.
-    // Each media capability is advertised only once the GM has configured its
-    // destination folder, so an unconfigured world offers no such affordance.
+    // Additive feature flags — the app hides features this module can't serve,
+    // and now also the ones this world has switched off. Each media capability
+    // is advertised only once the GM has configured its destination folder, so
+    // an unconfigured world offers no such affordance.
     capabilities: [
       ...(voiceMemoEnabled() ? [CAPABILITY_VOICE_MEMO] : []),
       ...(imageUploadEnabled() ? [CAPABILITY_IMAGE_UPLOAD] : []),
-      // Unconditional: reactions need no world configuration, so this is purely
-      // a "this module is new enough" signal for the app's affordance gate.
-      CAPABILITY_REACTIONS,
-      // Unconditional for the same reason as reactions: purely a "this module
-      // can answer SET_COMMENT" signal for the app's affordance gate.
-      CAPABILITY_COMMENTS,
+      // Reactions and comments answer two questions at once now: whether this
+      // module is new enough to have the handler at all, and whether the GM has
+      // turned the feature on (both default off, see featureToggles.ts). The app
+      // needs no way to tell those apart — either way there is nothing to offer.
+      ...(reactionsEnabled() ? [CAPABILITY_REACTIONS] : []),
+      ...(commentsEnabled() ? [CAPABILITY_COMMENTS] : []),
       // Likewise unconditional — it says this module reports the posted message
       // on a voice memo's final chunk, which is what lets the sending app patch
       // its own transcript onto the memo.

@@ -27,6 +27,10 @@ function makeMessage(overrides: Partial<StoredMessage> = {}): StoredMessage {
 type FakeUser = { isGM?: boolean; getFlag?: (scope: string, key: string) => unknown }
 const users = new Map<string, FakeUser>()
 
+// The world switch for the feature (featureToggles.ts), read through the bare
+// `game` global below. On for every case but the one that asserts the refusal.
+let commentsOn = true
+
 const fakeGame = {
   messages: { get: vi.fn(() => message) },
   users: { get: vi.fn((id: string) => users.get(id)) }
@@ -57,10 +61,25 @@ beforeEach(() => {
   users.set('u1', {})
   users.set('u2', {})
   // makeAck reads the bare `game` global for the answering client's id.
-  ;(globalThis as Record<string, unknown>).game = { user: { _id: 'gm-1' } }
+  commentsOn = true
+  ;(globalThis as Record<string, unknown>).game = {
+    user: { _id: 'gm-1' },
+    settings: { get: () => commentsOn }
+  }
 })
 
 describe('foundrySetComment', () => {
+  it('refuses when the world has comments switched off', async () => {
+    // Same three ways in as the reaction refusal: a stale app, a save that raced
+    // the switch, or a hand-built socket message. A GM is refused too — the
+    // switch turns the feature off for the world, not just for players.
+    commentsOn = false
+
+    await expect(foundrySetComment(args())).rejects.toThrow(/not enabled/i)
+    await expect(foundrySetComment(args({ userId: 'gm-1' }))).rejects.toThrow(/not enabled/i)
+    expect(setFlagMock).not.toHaveBeenCalled()
+  })
+
   it('lets a GM comment on a message they did not write', async () => {
     const ack = await foundrySetComment(args({ userId: 'gm-1' }))
 

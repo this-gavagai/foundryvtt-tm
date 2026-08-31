@@ -18,6 +18,7 @@
 import type { ToggleReactionArgs } from '@/types/api-types'
 import { MODULE_ID } from '@/api/protocol'
 import { getGame, makeAck } from '../utils/foundry'
+import { reactionsEnabled } from '../featureToggles'
 import {
   isReactionEmoji,
   readReactions,
@@ -26,6 +27,14 @@ import {
 } from '@/utils/chatReactions'
 
 export async function foundryToggleReaction(args: ToggleReactionArgs) {
+  // The world switch (off by default — see featureToggles.ts). The app already
+  // hides the picker when the capability is absent, so reaching here means a
+  // stale app, a request in flight when the GM flipped the switch, or a
+  // hand-built socket message; all three get the same refusal.
+  if (!reactionsEnabled()) {
+    throw new Error('Chat reactions are not enabled for this world')
+  }
+
   // Reject an unknown emoji rather than storing it: the flag is rendered as text
   // in the app and in the Foundry chat log, and the palette is the contract both
   // ends agree on. Throwing lets the dispatch's central catch answer with an

@@ -31,6 +31,7 @@ import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import type { SetCommentArgs } from '@/types/api-types'
 import { MODULE_ID, TM_ERROR_UNAUTHORIZED } from '@/api/protocol'
 import { getGame, makeAck } from '../utils/foundry'
+import { commentsEnabled } from '../featureToggles'
 import { uuidv4 } from '@/utils/utilities'
 import {
   canModifyComment,
@@ -67,6 +68,14 @@ export function commentIdentityIds(source: GamePF2e, userId: string): Set<string
 }
 
 export async function foundrySetComment(args: SetCommentArgs) {
+  // The world switch (off by default — see featureToggles.ts), refused here as
+  // well as hidden in the app: a stale app, a write that raced the GM flipping
+  // the switch, or a hand-built socket message must not land a comment on a
+  // world that has the feature off.
+  if (!commentsEnabled()) {
+    throw new Error('Chat comments are not enabled for this world')
+  }
+
   const source = getGame()
   const message = source.messages.get(args.messageId) as CommentableMessage | undefined
   if (!message) throw new Error(`Chat message ${args.messageId} not found`)

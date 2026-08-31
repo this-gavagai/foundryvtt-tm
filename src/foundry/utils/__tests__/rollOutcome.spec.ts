@@ -91,6 +91,10 @@ beforeEach(() => {
   // The permissive-but-realistic default: results are public (PF2e's own
   // default), DCs are not, and token names are whatever the token says.
   settings = {
+    // The world switch for the whole feature (featureToggles.ts). Off by
+    // default in a real world; on here, because every case below is about what
+    // an ENABLED world is allowed to say.
+    rollOutcomeEnabled: true,
     metagame_showResults: true,
     metagame_showDC: false,
     metagame_tokenSetsNameVisibility: true
@@ -100,6 +104,18 @@ beforeEach(() => {
 })
 
 describe('describeRollOutcome', () => {
+  it('tells the app nothing at all when the world has the feature off', () => {
+    // Off is the default, and it is enforced HERE rather than in the app: the
+    // outcome rides the ack, so withholding the object is the whole gate. A GM
+    // asking gets the same nothing — the switch is the world's, not a
+    // permission.
+    settings.rollOutcomeEnabled = false
+
+    expect(describeRollOutcome(source, attackMessage(), 'player-1')).toBeUndefined()
+    asker = { isGM: true }
+    expect(describeRollOutcome(source, attackMessage(), 'gm-1')).toBeUndefined()
+  })
+
   it('names the target and the degree of success of an attack', () => {
     expect(describeRollOutcome(source, attackMessage(), 'player-1')).toEqual({
       targetName: 'Goblin Warrior',
@@ -182,6 +198,7 @@ describe('describeRollOutcome', () => {
   it('tells a GM asker everything the world hides from players', () => {
     asker = { isGM: true }
     settings = {
+      rollOutcomeEnabled: true,
       metagame_showResults: false,
       metagame_showDC: false,
       metagame_tokenSetsNameVisibility: true

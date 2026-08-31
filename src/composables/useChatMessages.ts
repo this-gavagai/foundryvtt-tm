@@ -3,6 +3,7 @@ import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'
 import { useChatStore } from '@/stores/chat'
 import { useUserStore } from '@/stores/user'
+import { useVersionCompatStore } from '@/stores/versionCompat'
 import { getMediaPath } from '@/utils/utilities'
 import { tokenPortrait, type PortraitRing } from '@/utils/tokenPortrait'
 import { prepareChatHtml } from '@/utils/chatHtml'
@@ -523,6 +524,19 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
   // reaction instead of removing the one on screen.
   const userStore = useUserStore()
 
+  // Whether this world offers reactions and comments at all. Both are GM
+  // switches on the module side, off by default, and a world with one off
+  // withholds its capability from the handshake (see foundry/featureToggles.ts)
+  // — so the flags and the affordances have to disappear together. Gating the
+  // VIEW here rather than each consumer means one place decides, and the
+  // reaction sheet, the row and the roll-result modal all follow.
+  //
+  // Deliberately the capability alone, not the "can act right now" gate the
+  // overlay builds on top of it: chips must stay on screen when the last GM
+  // drops off (inert until one returns), and only vanish when the world itself
+  // has the feature switched off.
+  const versionCompat = useVersionCompatStore()
+
   const users = computed(() =>
     collectionToArray<UserData>(world.value?.users as CollectionLike<UserData>)
   )
@@ -738,11 +752,13 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
       imageHeight: message.flags?.tablemate?.imageHeight ?? undefined,
       // Reactor names resolve through resolvedUserName so a reaction sent from a
       // sheet-only user reads as the human behind it, like message attribution.
-      reactions: groupReactions(readReactions(message), {
-        selfUserId: userStore.userId,
-        nameFor: resolvedUserName
-      }),
-      comments: commentViews(message),
+      reactions: versionCompat.supportsReactions
+        ? groupReactions(readReactions(message), {
+            selfUserId: userStore.userId,
+            nameFor: resolvedUserName
+          })
+        : [],
+      comments: versionCompat.supportsComments ? commentViews(message) : [],
       // Expensive HTML parsing — memoized by content fingerprint.
       ...expensiveView(message)
     }

@@ -23,6 +23,7 @@ import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import type { DegreeOfSuccess, RollOutcome } from '@/types/api-types'
 import { configPF2E, localize, resolveUuidSync, settingsApi } from '../globals'
 import { getRequestingUser } from './permissions'
+import { rollOutcomeEnabled } from '../featureToggles'
 import { tokenPortrait } from '@/utils/tokenPortrait'
 import { logger } from '@/utils/utilities'
 
@@ -155,6 +156,13 @@ export function describeRollOutcome(
   userId: string
 ): RollOutcome | undefined {
   try {
+    // The world switch, off by default (see featureToggles.ts). This is the only
+    // gate the feature needs: the outcome rides the ack rather than being asked
+    // for, so an absent object is the whole of "off" — the app's modal renders
+    // nothing for it, exactly as when the module is too old to send one. Every
+    // roll route funnels through here, so there is one place to check.
+    if (!rollOutcomeEnabled()) return undefined
+
     const context = contextOf(message)
     if (!context) return undefined
 

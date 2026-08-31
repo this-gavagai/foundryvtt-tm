@@ -27,6 +27,10 @@ function makeMessage(reactions?: unknown): StoredMessage {
   }
 }
 
+// The world switch for the feature (featureToggles.ts), read through the bare
+// `game` global below. On for every case but the one that asserts the refusal.
+let reactionsOn = true
+
 const fakeGame = { messages: { get: vi.fn(() => message) } }
 vi.mock('@/foundry/utils/foundry', async (importActual) => {
   const actual = await importActual<typeof import('@/foundry/utils/foundry')>()
@@ -51,10 +55,24 @@ beforeEach(() => {
   message = makeMessage()
   // makeAck reads the bare `game` global for the answering client's id, so stand
   // up the minimum it needs (mirrors voiceMemo.spec.ts).
-  ;(globalThis as Record<string, unknown>).game = { user: { _id: 'gm-1' } }
+  reactionsOn = true
+  ;(globalThis as Record<string, unknown>).game = {
+    user: { _id: 'gm-1' },
+    settings: { get: () => reactionsOn }
+  }
 })
 
 describe('foundryToggleReaction', () => {
+  it('refuses when the world has reactions switched off', async () => {
+    // The app hides the picker when the capability is absent, so this covers the
+    // ways a request arrives anyway: a stale app, a tap that raced the GM
+    // flipping the switch, or a hand-built socket message. Nothing is written.
+    reactionsOn = false
+
+    await expect(foundryToggleReaction(args())).rejects.toThrow(/not enabled/i)
+    expect(setFlagMock).not.toHaveBeenCalled()
+  })
+
   it('adds the requesting user’s reaction and acks with the stored list', async () => {
     const ack = await foundryToggleReaction(args())
 

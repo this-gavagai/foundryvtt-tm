@@ -9,6 +9,10 @@ import { REACTION_EMOJI } from '@/utils/chatReactions'
 //
 // setFlag is stubbed via the handler's game accessor so a callback can be invoked
 // without a live world.
+// The world switch for the feature (featureToggles.ts), read off the `game`
+// stubs below. On except where a case turns it off.
+let reactionsOn = true
+
 const setFlagMock = vi.fn(async () => ({}))
 const fakeMessage = { flags: { tablemate: {} }, setFlag: setFlagMock }
 vi.mock('@/foundry/utils/foundry', async (importActual) => {
@@ -35,10 +39,12 @@ function collect(existing: unknown[] = []): Entry[] {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  reactionsOn = true
   ;(globalThis as Record<string, unknown>).game = {
     user: { _id: 'gm-1', isGM: true },
     users: { get: () => ({ name: 'GM' }), activeGM: { id: 'gm-1' } },
-    socket: { emit: vi.fn() }
+    socket: { emit: vi.fn() },
+    settings: { get: () => reactionsOn }
   }
 })
 
@@ -91,7 +97,8 @@ describe('registerContextEntries', () => {
     const entries = collect()
     ;(globalThis as Record<string, unknown>).game = {
       user: { _id: 'u1', isGM: false },
-      users: { get: () => undefined, activeGM: null }
+      users: { get: () => undefined, activeGM: null },
+      settings: { get: () => reactionsOn }
     }
     expect(entries[0].visible?.(document.createElement('div'))).toBe(false)
   })
@@ -100,9 +107,22 @@ describe('registerContextEntries', () => {
     const entries = collect()
     ;(globalThis as Record<string, unknown>).game = {
       user: { _id: 'u1', isGM: false },
-      users: { get: () => undefined, activeGM: { id: 'gm-1' } }
+      users: { get: () => undefined, activeGM: { id: 'gm-1' } },
+      settings: { get: () => reactionsOn }
     }
     expect(entries[0].visible?.(document.createElement('div'))).toBe(true)
+  })
+
+  it('hides the entries when the world has reactions switched off', () => {
+    // The entry array is built once at `init`, long before settings exist, so
+    // the switch can only be honoured by the visibility check core re-runs on
+    // every open. A GM sees no entries either: off means off at the table's own
+    // screens, not just on the tablets.
+    const entries = collect()
+    reactionsOn = false
+
+    expect(entries[0].visible?.(document.createElement('div'))).toBe(false)
+    expect(entries[0].condition?.(document.createElement('div'))).toBe(false)
   })
 
   it('resolves the message id from the right-clicked element', async () => {
