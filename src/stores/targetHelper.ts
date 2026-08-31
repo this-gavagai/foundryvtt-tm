@@ -126,9 +126,21 @@ export const useTargetHelperStore = defineStore('targetHelper', () => {
   }
 
   function updateTargets(user: string, next: MirroredTargets) {
-    if (user === targetingProxyId.value) {
-      targets.value = next
+    if (user !== targetingProxyId.value) {
+      // Every client self-reports, so most of these are simply other people's
+      // targeting and dropping them is the point. Logged anyway, with both ids,
+      // because the failure mode when it IS our proxy is completely silent: the
+      // sheet keeps rolling untargeted while the proxy's reticle sits on screen,
+      // and nothing anywhere says the report arrived and was refused.
+      logger.debug('TM: ignoring target report from a non-proxy', {
+        from: user,
+        proxy: targetingProxyId.value ?? '(none)',
+        targets: next.tokenIds
+      })
+      return
     }
+    logger.debug('TM: mirroring proxy targets', { from: user, targets: next.tokenIds })
+    targets.value = next
   }
 
   function getTargets(): MirroredTargets {
