@@ -3,17 +3,22 @@ import type { RunMacroArgs } from '@/types/api-types'
 import { getGame, makeAck } from '../utils/foundry'
 import { resolveUuid } from '../globals'
 import { getRequestingUser, userCanRunMacro } from '../utils/permissions'
-import { resolveRequestedTargets } from '../utils/target'
+import { resolveRequestedTargets, withMirroredTargets } from '../utils/target'
 
 // Run an arbitrary macro by UUID. Scope follows Foundry's canonical shape:
 // `{ actor, token, targets, ...rest }`. _executeScript destructures `actor`
 // and `token` for the speaker; remaining keys (we add `targets`) are exposed
 // as named parameters inside the macro body, so authors can write e.g.
-// `for (const t of targets) { ... }` without going through game.user.targets
-// (which on the GM machine reflects the GM's UI, not the tablet user's).
+// `for (const t of targets) { ... }`.
 //
-// Macros that read `game.user.targets` directly won't see the tablet's
-// selection — they need to be adapted to use the scope `targets` instead.
+// A macro that reads `game.user.targets` directly sees the tablet's selection
+// too: execution runs inside withMirroredTargets, which presents the player's
+// targets for its duration. That used to be the one documented exception here
+// ("won't see the tablet's selection"), but the failure was worse than the note
+// admitted — an unshielded macro didn't see NOTHING, it saw the handling GM's
+// own reticle, and acted on it. Stock community macros are written against
+// game.user.targets, so they were the likeliest thing in the module to hit the
+// wrong creature while looking entirely correct.
 
 export async function foundryRunMacro(args: RunMacroArgs) {
   const source = getGame()
@@ -36,10 +41,14 @@ export async function foundryRunMacro(args: RunMacroArgs) {
     throw new Error(`User may not execute macro ${args.macroUuid}`)
   }
 
-  await macro.execute({
-    actor,
-    token: tokens[0],
-    targets: tokens
-  } as Parameters<MacroPF2e['execute']>[0])
+  // `async` so an untyped macro.execute() result still satisfies the
+  // `() => Promise<T>` the mirror takes.
+  await withMirroredTargets(source, tokens, async () =>
+    macro.execute({
+      actor,
+      token: tokens[0],
+      targets: tokens
+    } as Parameters<MacroPF2e['execute']>[0])
+  )
   return makeAck(args)
 }

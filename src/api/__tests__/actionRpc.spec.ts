@@ -91,6 +91,28 @@ describe('sendAction ack correlation', () => {
   })
 })
 
+// `uuid` is read straight off a shared socket channel, so it is untrusted input
+// into whatever the queue is keyed by. Backed by a Map for that reason: an object
+// literal answers 'constructor' and 'toString' with inherited functions, and the
+// drain path would have called one as a resolver. Same hazard, same reasoning as
+// the hasOwnProperty guard in foundry/rpcTable.ts.
+describe('an ack naming an inherited property', () => {
+  for (const key of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+    it(`ignores an ack for '${key}' instead of calling it`, () => {
+      expect(() => resolveAck(key, ackFor(key))).not.toThrow()
+    })
+  }
+
+  it('still settles a real request afterwards', async () => {
+    resolveAck('constructor', ackFor('constructor'))
+    const pending = sendItemToChat('actor-1', 'item-1')
+    await flushMicrotasks()
+    const uuid = lastEmittedUuid()
+    resolveAck(uuid, ackFor(uuid))
+    await expect(pending).resolves.toMatchObject({ uuid })
+  })
+})
+
 describe('stale-target refusal', () => {
   // The module refuses a request whose targets it cannot find rather than
   // rolling untargeted. The app treats that as "my mirror of the proxy's

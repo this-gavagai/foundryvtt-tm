@@ -577,9 +577,9 @@ export interface RunMacroArgs {
   // Resolved server-side via fromUuidSync.
   macroUuid: string
   // Target token IDs on `targetScene` — resolved to Token objects and passed in
-  // the macro's execution scope as `token` (first) and `targets` (all). Macros
-  // that reference game.user.targets directly will see the GM's UI state instead
-  // and won't pick these up.
+  // the macro's execution scope as `token` (first) and `targets` (all), and
+  // presented as `game.user.targets` for the duration of the macro, so one
+  // written against the ambient set picks them up too.
   targets: string[]
   targetScene?: string
   uuid: string

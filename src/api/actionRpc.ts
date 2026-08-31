@@ -16,13 +16,23 @@ import type {
 import { logger, uuidv4 } from '@/utils/utilities'
 import { getAuthenticatedSocket } from './internal'
 import { requireStoreBridge } from './storeBridge'
-import { TM, TM_ERROR_TARGET_UNRESOLVED } from './protocol'
+import { TM, TM_ERROR_TARGET_UNRESOLVED, REQUEST_ACK_TIMEOUT_MS } from './protocol'
 
 // Pending ack queue: uuid → resolver. Populated when an action RPC is sent,
 // drained either by resolveAck() when the server acknowledges or by the
 // timeout below.
-const ackQueue: { [key: string]: (args: RequestResolutionArgs) => void } = {}
-const ACK_TIMEOUT_MS = 30_000
+//
+// A Map, not a plain object: the key is `args.uuid` off a shared socket channel,
+// so a payload naming 'constructor' or 'toString' would find an inherited
+// function on an object literal and call it as a resolver. Same hazard, and the
+// same reason, as the hasOwnProperty guard in foundry/rpcTable.ts — a Map simply
+// has no prototype chain to fall through to.
+const ackQueue = new Map<string, (args: RequestResolutionArgs) => void>()
+
+// How long a caller waits for its ack. Shared with the Foundry side (protocol.ts)
+// because the module has to know it too: a request that sat in the dispatch queue
+// longer than this has a requester that already gave up, and must not be executed.
+const ACK_TIMEOUT_MS = REQUEST_ACK_TIMEOUT_MS
 
 function pushToAckQueue(
   uuid: string,
@@ -31,14 +41,14 @@ function pushToAckQueue(
   timeoutMs = ACK_TIMEOUT_MS
 ) {
   const timer = setTimeout(() => {
-    if (ackQueue[uuid]) {
-      delete ackQueue[uuid]
+    if (ackQueue.has(uuid)) {
+      ackQueue.delete(uuid)
       const message = `TM-WARN: request ${uuid} timed out after ${timeoutMs}ms`
       logger.warn(message)
       reject(new Error(message))
     }
   }, timeoutMs)
-  ackQueue[uuid] = (args) => {
+  ackQueue.set(uuid, (args) => {
     clearTimeout(timer)
     // A handler that threw on the Foundry side answers with an ack carrying an
     // `error` string; reject so the caller sees the real failure instead of
@@ -66,16 +76,16 @@ function pushToAckQueue(
       return
     }
     resolve(args)
-  }
+  })
 }
 
 // Called by the socket listener when the server sends an 'acknowledged' event.
 // Resolves the matching pending request, if any.
 export function resolveAck(uuid: string, args: RequestResolutionArgs) {
-  if (ackQueue[uuid]) {
-    ackQueue[uuid](args)
-    delete ackQueue[uuid]
-  }
+  const settle = ackQueue.get(uuid)
+  if (!settle) return
+  settle(args)
+  ackQueue.delete(uuid)
 }
 
 // Reject every in-flight RPC. Called when the active server changes or is
@@ -90,7 +100,7 @@ export function rejectAllPending(reason: string) {
   // Snapshot the keys first — resolveAck mutates ackQueue as it drains each
   // entry. Routed through resolveAck (not a manual drain) so any future
   // bookkeeping added to the single documented drain path applies here too.
-  for (const uuid of Object.keys(ackQueue)) {
+  for (const uuid of [...ackQueue.keys()]) {
     resolveAck(uuid, { action: TM.ACK, uuid, userId: '', error: reason })
   }
 }
@@ -445,9 +455,10 @@ export const freeRoll = (
 
 // Run an arbitrary macro by UUID against the app character + the proxy's
 // current targets. The macro receives `actor`, `token` (first target), and
-// `targets` (all targets, as Token objects) in its execution scope. Macros
-// that reference game.user.targets won't see the tablet's targets — they
-// need to read from the scope instead.
+// `targets` (all targets, as Token objects) in its execution scope, and
+// `game.user.targets` presents the same selection while it runs — so a macro
+// written against the ambient set works unchanged instead of acting on the
+// handling GM's own reticle.
 export const runMacro = (actor: TablemateActorRef, macroUuid: string) =>
   sendAction(TM.RUN_MACRO, {
     ...fromActorTargeted(actor),

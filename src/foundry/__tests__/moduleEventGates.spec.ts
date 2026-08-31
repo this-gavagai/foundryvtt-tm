@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { TM, TM_ERROR_MANUAL_ROLLS_DISABLED, TM_ERROR_UNAUTHORIZED } from '@/api/protocol'
+import {
+  TM,
+  TM_ERROR_MANUAL_ROLLS_DISABLED,
+  TM_ERROR_UNAUTHORIZED,
+  TM_ERROR_REQUEST_EXPIRED,
+  REQUEST_ACK_TIMEOUT_MS
+} from '@/api/protocol'
 import type { ManualRollPolicy, ModuleEventArgs } from '@/types/api-types'
 import type { ActorLike, AuthRequirement, AuthWorld } from '@/foundry/rpcAuthorize'
 
@@ -240,6 +246,61 @@ describe('authorization and the manual-roll policy, in that order', () => {
 
     expect(policy).not.toHaveBeenCalled()
     expect(handler).toHaveBeenCalledTimes(1)
+  })
+})
+
+// Handlers run one at a time, so a request can wait here for an unbounded time
+// behind slow ones — the app's ack timeout runs from SEND and the queue's from
+// handler START, so nothing bounded the wait. Past that budget the app has
+// already rejected and told the player the action failed; executing anyway
+// spends the slot / applies the damage for someone who was told it didn't
+// happen, and there is no ack left to tell them otherwise.
+describe('a request its requester already gave up on', () => {
+  it('is refused unexecuted once it has waited out the ack budget', async () => {
+    const handler = vi.fn().mockResolvedValue({ ok: true })
+    table[TM.ROLL_CHECK] = { handler, auth: 'owner' }
+    const deps = makeDeps()
+
+    let release: (() => void) | undefined
+    table['tm.slow'] = {
+      handler: () => new Promise<unknown>((r) => (release = () => r({}))),
+      auth: 'owner'
+    }
+    handleModuleEvent(event({ action: 'tm.slow', characterId: 'actor-1', uuid: 'slow-1' }), deps)
+    handleModuleEvent(
+      event({ action: TM.ROLL_CHECK, characterId: 'actor-1', uuid: 'late-1' }),
+      deps
+    )
+    // Let the slow one reach the front and hang, with the roll queued behind it.
+    await settle()
+    expect(release).toBeTypeOf('function')
+
+    // Its wait crosses the budget while the slow one holds the chain — which is
+    // simply what a handler taking longer than the app waits looks like.
+    const realNow = Date.now()
+    const now = vi.spyOn(Date, 'now').mockReturnValue(realNow + REQUEST_ACK_TIMEOUT_MS + 1)
+    release!()
+    await settle()
+    now.mockRestore()
+
+    expect(handler).not.toHaveBeenCalled()
+    const acks = deps.emit.mock.calls.map((c) => (c[0] as { error?: string }).error)
+    expect(acks).toContain(TM_ERROR_REQUEST_EXPIRED)
+  })
+
+  it('runs a request that reached the front inside the budget', async () => {
+    const handler = vi.fn().mockResolvedValue({ ok: true })
+    table[TM.ROLL_CHECK] = { handler, auth: 'owner' }
+    const deps = makeDeps()
+
+    handleModuleEvent(
+      event({ action: TM.ROLL_CHECK, characterId: 'actor-1', uuid: 'prompt-1' }),
+      deps
+    )
+    await settle()
+
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(emittedError(deps.emit)).toBeUndefined()
   })
 })
 

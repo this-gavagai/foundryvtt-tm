@@ -41,6 +41,25 @@ export const MODULE_ID = 'tablemate'
 //       self-report at all, so a newer app sees the version banner.
 export const PROTOCOL_VERSION = 4
 
+// How long the app waits for an ack before rejecting (api/actionRpc.ts).
+//
+// Shared with the Foundry side rather than duplicated, because the module needs
+// the same number to answer a question only it can ask: has this request's
+// requester already given up? Handlers run one at a time, so a request can sit in
+// the dispatch queue for an unbounded time behind slow ones — long enough for the
+// app to time out and tell the player the action failed, after which executing it
+// anyway spends the slot / applies the damage / posts the card for a player who
+// was told none of that happened. The module refuses a request that waited longer
+// than this instead. See the queue in foundry/listener.ts.
+export const REQUEST_ACK_TIMEOUT_MS = 30_000
+
+// Error-ack sentinel: a request reached the front of the dispatch queue only
+// after its requester's ack timeout had already elapsed, so it was refused
+// unexecuted. Distinct from a handler failure: nothing was attempted. The app
+// has by definition stopped listening by the time this is emitted — it exists so
+// the refusal is legible in the module's log and to any other client watching.
+export const TM_ERROR_REQUEST_EXPIRED = 'TM_REQUEST_EXPIRED'
+
 // Error-ack sentinel: the request carried player-determined dice results while
 // the world's manual-roll policy is 'reject'. The app matches this string
 // verbatim to distinguish a policy refusal from a real handler failure (and to

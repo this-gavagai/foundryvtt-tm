@@ -3,7 +3,7 @@ import type { RunActionableArgs } from '@/types/api-types'
 import { actorSpeaker, getGame, makeAck } from '../utils/foundry'
 import { chatMessageClass, resolveUuid } from '../globals'
 import { getRequestingUser, userCanRunMacro } from '../utils/permissions'
-import { resolveRequestedTargets } from '../utils/target'
+import { resolveRequestedTargets, withMirroredTargets } from '../utils/target'
 
 // Run a PF2e-toolbelt "actionable" macro attached to an action/feat item.
 // Matches toolbelt's own useAction() helper (pf2e-toolbelt/scripts/main.js,
@@ -19,7 +19,11 @@ import { resolveRequestedTargets } from '../utils/target'
 //   actor   — the character using the action
 //   item    — the action/feat item the macro is attached to
 //   token   — the first targeted Token, if any
-//   targets — full array of targeted Tokens
+//   targets — full array of targeted Tokens. `game.user.targets` presents the
+//             same selection for the duration (withMirroredTargets), so a
+//             toolbelt macro written against the ambient set — most of them
+//             are — acts on the player's target rather than on whatever the
+//             handling GM happens to be pointing at.
 //   event   — synthetic PointerEvent whose modifier keys are wired to skip
 //             every PF2e roll/damage dialog regardless of the GM's settings.
 //             PF2e's eventToRollParams computes
@@ -126,16 +130,22 @@ export async function foundryRunActionable(args: RunActionableArgs) {
   })
   // A throwing macro propagates to the central dispatch catch (error ack);
   // only the user.character restoration must survive the unwind.
+  //
+  // user.character and user.targets are the same kind of substitution — this
+  // client's own UI state standing in for the requester's — and the macro needs
+  // both to act as the tablet user rather than as the GM running its client.
   try {
-    await macro.execute({
-      actor,
-      item,
-      token: tokens[0],
-      targets: tokens,
-      event: skipDialogEvent,
-      use,
-      cancel
-    } as Parameters<MacroPF2e['execute']>[0])
+    await withMirroredTargets(source, tokens, async () =>
+      macro.execute({
+        actor,
+        item,
+        token: tokens[0],
+        targets: tokens,
+        event: skipDialogEvent,
+        use,
+        cancel
+      } as Parameters<MacroPF2e['execute']>[0])
+    )
   } finally {
     if (ownCharDescriptor) {
       Object.defineProperty(user, 'character', ownCharDescriptor)

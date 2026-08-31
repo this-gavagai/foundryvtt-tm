@@ -12,6 +12,8 @@ import {
   TM,
   TM_ERROR_MANUAL_ROLLS_DISABLED,
   TM_ERROR_UNAUTHORIZED,
+  TM_ERROR_REQUEST_EXPIRED,
+  REQUEST_ACK_TIMEOUT_MS,
   PROTOCOL_VERSION,
   CAPABILITY_VOICE_MEMO,
   CAPABILITY_VOICE_MEMO_TRANSCRIPT,
@@ -101,9 +103,11 @@ let chatOriginStampingRegistered = false
 // whichever comes first — a handler that never settles (e.g. a macro
 // awaiting a GM dialog that's never dismissed) degrades to concurrent
 // dispatch with a warning instead of wedging every request in the world.
-// 30s matches the app-side ack timeout, so by the time the queue advances
-// past a hung handler its requester has already given up.
-const HANDLER_QUEUE_TIMEOUT_MS = 30_000
+// Derived from the app's ack budget rather than restated as its own 30_000, so
+// the two can't drift: by the time the queue advances past a hung handler, its
+// requester has already given up. The same budget bounds how long a request may
+// WAIT here before being refused unexecuted — see the dispatch chain below.
+const HANDLER_QUEUE_TIMEOUT_MS = REQUEST_ACK_TIMEOUT_MS
 let dispatchChain: Promise<unknown> = Promise.resolve()
 
 function isCharacterRequest(args: ModuleEventArgs): args is RequestCharacterDetailsArgs {
@@ -351,9 +355,35 @@ export function handleModuleEvent(args: ModuleEventArgs, deps: ModuleEventDeps) 
     // already resolved and owner-checked this id for every 'owner' action.
     actorId: targetActorId(args)
   }
+  // When this request joined the queue, so its wait can be measured against the
+  // requester's patience below.
+  const enqueuedAt = Date.now()
   dispatchChain = dispatchChain.then(
     () =>
       new Promise<void>((advance) => {
+        // Refuse a request whose requester has already given up.
+        //
+        // Handlers run one at a time, so a request can sit here for an unbounded
+        // time behind slow ones — the app's ack timeout is measured from SEND and
+        // the queue timeout from handler START, so nothing bounded the wait. Past
+        // that budget the app has rejected the promise and told the player the
+        // action failed; running the handler now would spend the slot, apply the
+        // damage or post the card for someone who was told none of it happened,
+        // with no way to notice. Refusing unexecuted is the honest outcome — a
+        // failure the player was already shown, rather than a silent mutation
+        // behind it.
+        const waited = Date.now() - enqueuedAt
+        if (waited > REQUEST_ACK_TIMEOUT_MS) {
+          logger.warn(
+            'TABLEMATE: refusing a request its requester already gave up on',
+            args.action,
+            { waitedMs: waited, budgetMs: REQUEST_ACK_TIMEOUT_MS }
+          )
+          ackError(deps, args, TM_ERROR_REQUEST_EXPIRED)
+          advance()
+          return
+        }
+
         // Dedup at execution time, not receive time: the queue wait is
         // exactly the window in which a competing client's ack (two GMs
         // racing an election through a handoff) can arrive and mark this uuid.

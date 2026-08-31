@@ -10,6 +10,7 @@ import { getGame, makeAck } from '../utils/foundry'
 import { registerCapture } from '../chatCapture'
 import { applySpellVariantToCard, spellCardOf } from './spellVariant'
 import { hooks } from '../globals'
+import { resolveRequestedTargets } from '../utils/target'
 
 type TablemateFlagData = {
   flags?: { tablemate?: Record<string, unknown>; [key: string]: unknown }
@@ -65,6 +66,12 @@ function pendingMessageOf(message: unknown, data: unknown): PendingMessage {
 // Tablemate-targeted, and stamping `[]` marked a no-target cast as targeted —
 // which then forced the card to no-target for everyone who clicked it, including
 // a GM with their own token selected in their own UI.
+//
+// The ids reaching here have been through resolveRequestedTargets (see
+// castTargetIds), so the card carries only targets that actually exist. A cast
+// used to stamp the raw wire ids unchecked, which is the one targeted path that
+// never refused a stale mirror: the slot was spent, the card looked targeted, and
+// every attack or damage button on it silently resolved to nothing later.
 async function withCastTargets<T>(
   cast: { spellUuid: string; spellId: string; actorId: string | null | undefined },
   targetTokenIds: string[],
@@ -147,10 +154,27 @@ async function applyChosenVariant(
   }
 }
 
+// The targets a cast should stamp on its card: resolved, not merely reported.
+//
+// Runs BEFORE the cast so a stale mirror refuses while the slot is still unspent
+// — the same bargain every other targeted handler makes (TM_ERROR_TARGET_UNRESOLVED),
+// and the reason it matters more here is that a cast is the one that costs
+// something. Returns the ids that resolved, so a partial loss stamps what is
+// really there rather than what the tablet last heard about.
+function castTargetIds(
+  source: ReturnType<typeof getGame>,
+  args: CastSpellArgs | CastStaffSpellArgs
+) {
+  return resolveRequestedTargets(source, args)
+    .tokenDocs.map((doc) => doc.id)
+    .filter((id): id is string => !!id)
+}
+
 export async function foundryCastSpell(args: CastSpellArgs) {
   logger.debug('cast spell', args)
   const source = getGame()
   const actor = source.actors.get(args.characterId, { strict: true })
+  const targetIds = castTargetIds(source, args)
   const item = actor.items.get(args.id, { strict: true }) as SpellPF2e<ActorPF2e<null>>
   const locationId = item.system.location.value
   const spellLocation = locationId
@@ -164,7 +188,7 @@ export async function foundryCastSpell(args: CastSpellArgs) {
   const messageId = await castMessageId(args.uuid, () =>
     withCastTargets(
       { spellUuid: item.uuid, spellId: item.id, actorId: actor.id },
-      args.targets,
+      targetIds,
       args.targetScene,
       () =>
         spellLocation.cast(item, {
@@ -181,6 +205,7 @@ export async function foundryCastStaffSpell(args: CastStaffSpellArgs) {
   logger.debug('cast staff spell', args)
   const source = getGame()
   const actor = source.actors.get(args.characterId, { strict: true })
+  const targetIds = castTargetIds(source, args)
   const entryId = `${args.staffId}-casting`
   type SpellCol = { get: (id: string) => SpellPF2e<ActorPF2e<null>> | undefined }
   type Spellcasting = {
@@ -201,7 +226,7 @@ export async function foundryCastStaffSpell(args: CastStaffSpellArgs) {
   const messageId = await castMessageId(args.uuid, () =>
     withCastTargets(
       { spellUuid: spell.uuid, spellId: spell.id, actorId: actor.id },
-      args.targets,
+      targetIds,
       args.targetScene,
       () =>
         (
