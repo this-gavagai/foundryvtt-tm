@@ -1,9 +1,16 @@
 export function printPrice(
-  price: { gp: number | undefined; sp: number | undefined; cp: number | undefined } | undefined
+  price:
+    | {
+        pp?: number | undefined
+        gp: number | undefined
+        sp: number | undefined
+        cp: number | undefined
+      }
+    | undefined
 ) {
   if (!price) return ''
-  return [price?.gp, price?.sp, price?.cp]
-    .map((x, i) => (x ? x + ['gp', 'sp', 'cp']?.[i] : undefined))
+  return [price?.pp, price?.gp, price?.sp, price?.cp]
+    .map((x, i) => (x ? x + ['pp', 'gp', 'sp', 'cp']?.[i] : undefined))
     .filter((x) => x !== undefined)
     .join(' ')
 }

@@ -299,6 +299,32 @@
     "currentBulk": "Aktuelle Last",
     "maxBulk": "Max."
   },
+  "coins": {
+    "title": "Münzen",
+    "denominations": {
+      "pp": "PM",
+      "gp": "GM",
+      "sp": "SM",
+      "cp": "KM"
+    },
+    "names": {
+      "pp": "Platinmünzen",
+      "gp": "Goldmünzen",
+      "sp": "Silbermünzen",
+      "cp": "Kupfermünzen"
+    },
+    "modeCharacter": "Charakter",
+    "modeParty": "Gruppe",
+    "stepLabel": "Schritt",
+    "increase": "{coin} hinzufügen",
+    "decrease": "{coin} entfernen",
+    "pendingChange": "Ausstehende Änderung: {change}",
+    "transferTo": "An {purse} übertragen",
+    "transferFrom": "Von {purse} übertragen",
+    "transferBoth": "An/von {purse} übertragen",
+    "reset": "Zurücksetzen",
+    "apply": "Übernehmen"
+  },
   "spells": {
     "noSpells": "Dieser Charakter wirkt keine Zauber.",
     "focusPool": "Fokusvorrat",

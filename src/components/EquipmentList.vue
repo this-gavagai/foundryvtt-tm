@@ -13,6 +13,7 @@ import { useListenersStore } from '@/stores/listenersOnline'
 import { inventoryTypes } from '@/utils/constants'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 import { usePartyTransfer } from '@/composables/usePartyTransfer'
+import { isCoin } from '@/utils/coins'
 
 import EquipmentInvested from '@/components/EquipmentInvested.vue'
 import EquipmentListItem from '@/components/EquipmentListItem.vue'
@@ -23,6 +24,7 @@ import InfoModal from '@/components/InfoModal.vue'
 import EquipmentDetails from '@/components/EquipmentDetails.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import EquipmentBulk from './EquipmentBulk.vue'
+import EquipmentCoins from './EquipmentCoins.vue'
 import EquipmentHeld from './EquipmentHeld.vue'
 import ChoiceWidget from '@/components/widgets/ChoiceWidget.vue'
 import meepleIcon from '@/assets/icons/meeple.svg'
@@ -43,7 +45,7 @@ const { isListening } = storeToRefs(useListenersStore())
 
 // The party-inventory transfer protocol (find the party actor, keep its
 // inventory synced, move items with confirmation) lives in its own composable.
-const { partyActorId, partyInventory, transferItem } = usePartyTransfer({
+const { partyActorId, partyActor, partyInventory, transferItem } = usePartyTransfer({
   characterId: _id,
   characterActor: _actor,
   individualInventory: inventory
@@ -59,12 +61,28 @@ watch(partyActorId, (id) => {
   if (!id) inventoryMode.value = 'individual'
 })
 
+// Coins have their own panel now, so they come out of the lists: a row reading
+// "Gold Pieces (x143)" among the daggers is exactly the item-shaped treatment
+// the purse exists to replace. They still count toward Bulk, which PF2e derives
+// on the actor rather than from what is rendered here. EquipmentCoins keeps
+// reading the unfiltered inventories, since coin stacks are what it edits.
+const listedInventory = computed(() => inventory.value?.filter((i: InventoryItem) => !isCoin(i)))
+const listedPartyInventory = computed(() =>
+  partyInventory.value?.filter((i: InventoryItem) => !isCoin(i))
+)
+
 const displayInventory = computed<InventoryItem[] | undefined>(() => {
   if (showPartyInventory.value && partyActorId.value) {
-    return partyInventory.value
+    return listedPartyInventory.value
   }
-  return inventory.value
+  return listedInventory.value
 })
+
+// A character carrying nothing but coins still has a purse worth showing, so
+// the empty state asks the inventory itself rather than the filtered list.
+const panelInventory = computed(() =>
+  showPartyInventory.value && partyActorId.value ? partyInventory.value : inventory.value
+)
 
 const itemViewedId = ref<string | undefined>()
 const itemViewed = computed(() =>
@@ -164,7 +182,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
 </script>
 <template>
   <div data-component="EquipmentList">
-    <div v-if="displayInventory?.length === 0" class="px-6 pt-4 pb-8 italic">
+    <div v-if="panelInventory?.length === 0" class="px-6 pt-4 pb-8 italic">
       {{ $t('equipment.noInventory') }}
     </div>
     <div v-else class="px-6 pt-4 pb-8">
@@ -221,6 +239,14 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
                 }}
               </ViewableItem>
             </div>
+            <!-- Coins sit directly under the bulk/invested row: fungible, so
+                 they get a purse rather than a place in the item lists. -->
+            <EquipmentCoins
+              class="mb-4"
+              :partyActorId="partyActorId"
+              :partyActor="partyActor"
+              :partyInventory="partyInventory"
+            />
             <div class="gap-8 xl:columns-2">
               <SheetSection
                 v-for="inventoryType in inventoryTypes"
@@ -232,7 +258,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
               >
                 <ul>
                   <li
-                    v-for="item in inventory?.filter(
+                    v-for="item in listedInventory?.filter(
                       (i: InventoryItem) => i.type === inventoryType.type && !i.system?.containerId
                     )"
                     :key="item._id"
@@ -240,7 +266,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
                     <EquipmentListItem :item="item" @item-clicked="viewItem" />
                     <ul class="pb-2" v-if="item.type === 'backpack'">
                       <li
-                        v-for="stowed in inventory?.filter(
+                        v-for="stowed in listedInventory?.filter(
                           (i: InventoryItem) => i.system?.containerId === item._id
                         )"
                         :key="stowed._id"
@@ -278,6 +304,14 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
             <div class="flex h-12 items-start pr-28">
               <h2 class="text-xl font-semibold">{{ $t('equipment.partyStash') }}</h2>
             </div>
+            <!-- The stash keeps coins too, and they are edited the same way. -->
+            <EquipmentCoins
+              class="mb-4"
+              panel="party"
+              :partyActorId="partyActorId"
+              :partyActor="partyActor"
+              :partyInventory="partyInventory"
+            />
             <div class="gap-8 xl:columns-2">
               <SheetSection
                 v-for="inventoryType in inventoryTypes"
@@ -289,7 +323,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
               >
                 <ul>
                   <li
-                    v-for="item in partyInventory?.filter(
+                    v-for="item in listedPartyInventory?.filter(
                       (i: InventoryItem) => i.type === inventoryType.type && !i.system?.containerId
                     )"
                     :key="item._id"
@@ -297,7 +331,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
                     <EquipmentListItem :item="item" @item-clicked="viewItem" />
                     <ul class="pb-2" v-if="item.type === 'backpack'">
                       <li
-                        v-for="stowed in partyInventory?.filter(
+                        v-for="stowed in listedPartyInventory?.filter(
                           (i: InventoryItem) => i.system?.containerId === item._id
                         )"
                         :key="stowed._id"

@@ -101,6 +101,20 @@
     --tm-tab-accent: var(--color-focus); /* selected-tab underline */
     --tm-tab-fill: transparent; /* selected-tab wash; skins set an accent tint */
 
+    /* Coin metals. Money is read by colour before it is read as a number, so
+     the four denominations get hues rather than four identical grey chips.
+     These are the metals themselves — the one part of the palette that means
+     the same thing on a light parchment and a dark slate — so they default
+     here and no theme has needed to override them yet. The rim keeps a pale
+     platinum dot from disappearing into a light surface. */
+    --color-coin-pp: oklch(88% 0.032 240);
+    --color-coin-gp: oklch(80.5% 0.145 85);
+    --color-coin-sp: oklch(74% 0.014 265);
+    --color-coin-cp: oklch(64% 0.12 45);
+    --color-coin-rim: oklch(45% 0.02 260 / 0.45);
+    --color-coin-ink: oklch(25% 0.02 60); /* text on a coin-coloured chip */
+    --color-coin-gain: oklch(58% 0.16 150); /* a draft that adds coins */
+
     /* Shape scale — one knob per step so a theme's "roundness" is three
      values, not a radius re-typed across every card/menu/pill rule. Themes
      override these (moonlit flatter, sunny rounder); consumed by the base's
@@ -1026,6 +1040,281 @@
         font-size: 11pt;
         transform: translateY(6px);
       }
+    }
+
+    /* --- EquipmentCoins: the purse bar --------------------------------
+     Sits directly under the bulk bar and borrows its geometry (38px, the
+     small radius) so the two read as one stack of equally-weighted summary
+     controls rather than a bar and a stray row of text. */
+    [data-component='EquipmentCoins'] {
+      [data-part='purse'] {
+        height: 38px;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        background-color: var(--color-surface);
+        color: var(--color-text);
+        font-variant-numeric: tabular-nums;
+        transition: background-color 150ms ease;
+      }
+
+      [data-part='purse']:active {
+        background-color: var(--color-surface-active);
+      }
+
+      /* Four counts and a sum are five numbers in a 38px bar, so they are
+       ruled apart: a hairline between the denominations, and a stronger one
+       before the total, which is a different kind of figure — the whole purse
+       in one unit rather than a count of coins. The padding sets the rules'
+       height, so they read as ticks inside the bar rather than as a grid drawn
+       across it. */
+      [data-part='purse-coin'] {
+        padding-block: 0.4rem;
+      }
+
+      [data-part='purse-coin'] + [data-part='purse-coin'] {
+        border-left: 1px solid var(--color-divider);
+      }
+
+      /* The total's rule is the border token, not the divider one: sunny's
+       divider and divider-strong sit within a couple of percent of each other,
+       so "stronger" only reads as stronger if it steps to the outline colour. */
+      [data-part='purse-total'] {
+        padding-block: 0.4rem;
+        padding-left: 0.55rem;
+        margin-left: 0.2rem;
+        border-left: 1px solid var(--color-border);
+      }
+
+      /* A denomination the character holds none of stays legible but recedes,
+       so the purse reads as "gold and silver" at a glance without hiding the
+       empty slots a player is about to fill. */
+      [data-part='purse-coin'][data-empty='true'] {
+        opacity: 0.4;
+      }
+
+      [data-part='coin-dot'] {
+        width: 0.65rem;
+        height: 0.65rem;
+        border-radius: 9999px;
+        box-shadow: inset 0 0 0 1px var(--color-coin-rim);
+        align-self: center;
+      }
+
+      [data-part='coin-amount'] {
+        font-weight: 600;
+      }
+
+      [data-part='coin-unit'],
+      [data-part='purse-total'] {
+        font-size: 0.72rem;
+        color: var(--color-heading);
+      }
+    }
+
+    /* --- The coin editor. Teleported into #modals, so it is scoped by its own
+     component hook rather than nested in the panel above. ---------------- */
+    [role='dialog']:has([data-component='EquipmentCoinEditor']) h3 {
+      font-size: 1.1rem;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: var(--color-heading);
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid;
+      /* Gold, from the panel's own coin palette, rather than the trained-blue
+       the other sheet headers fade from: this section's subject is the metal,
+       and a proficiency rank's hue means something else everywhere else. */
+      border-image: linear-gradient(to right, var(--color-coin-gp), transparent) 1;
+    }
+
+    [data-component='EquipmentCoinEditor'] {
+      [data-part='step-label'] {
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-heading);
+      }
+
+      /* Four columns: badge, minus, the figure, plus. The steppers are 2.5rem
+       so they stay thumb-sized on a phone; the figure takes the rest, since
+       the count and its pending modifier are the thing being read. */
+      [data-part='coin-row'] {
+        display: grid;
+        grid-template-columns: 2.5rem 2.5rem 1fr 2.5rem;
+        align-items: center;
+        gap: 0.35rem;
+        padding-block: 0.4rem;
+        border-top: 1px solid var(--color-divider);
+      }
+
+      [data-part='coin-row']:first-child {
+        border-top: none;
+      }
+
+      [data-part='coin-badge'] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding-block: 0.15rem;
+        border-radius: var(--radius-sm);
+        box-shadow: inset 0 0 0 1px var(--color-coin-rim);
+        color: var(--color-coin-ink);
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      [data-part='coin-step'] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 2.25rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        background-color: var(--color-surface);
+        color: var(--color-text);
+        cursor: pointer;
+        /* A held stepper must not also pan the modal, and the repeat must not
+         leave a selection behind on the number it is driving. */
+        touch-action: none;
+        user-select: none;
+      }
+
+      [data-part='coin-step']:active {
+        background-color: var(--color-surface-active);
+      }
+
+      [data-part='coin-step']:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+
+      /* The count sizes to its digits (inline width, set by the row) so it and
+       its modifier sit together as one figure rather than at opposite edges of
+       a full-width field. */
+      [data-part='coin-figure'] {
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        gap: 0.3rem;
+        max-width: 100%;
+      }
+
+      [data-part='coin-count'] {
+        min-width: 2ch;
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm);
+        background-color: transparent;
+        color: var(--color-text);
+        font-size: 1.3rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+      }
+
+      /* The pending change, in the modifier voice the rest of the sheet uses:
+       the stored count stays neutral, and only what has yet to be written
+       carries colour. */
+      [data-part='coin-modifier'] {
+        font-size: 1rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      [data-part='coin-modifier'][data-sign='up'] {
+        color: var(--color-coin-gain);
+      }
+
+      [data-part='coin-modifier'][data-sign='down'] {
+        color: var(--color-danger);
+      }
+
+      [data-part='coin-count']:focus {
+        outline: none;
+        border-color: var(--color-focus);
+        background-color: var(--color-input);
+      }
+
+      /* The transfer checkbox sits between the totals and the buttons: the last
+       thing read before Apply, because it decides where the coins come from. */
+      [data-part='transfer-toggle'] {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        cursor: pointer;
+        user-select: none;
+        font-size: 0.85rem;
+        color: var(--color-text);
+      }
+
+      [data-part='transfer-toggle'] input {
+        width: 1rem;
+        height: 1rem;
+        accent-color: var(--color-primary);
+        cursor: pointer;
+      }
+
+      [data-part='coin-totals'] {
+        margin-top: 0.75rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid var(--color-divider-strong);
+      }
+
+      [data-part='total-row'] {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.5rem;
+      }
+
+      [data-part='total-row'] dt {
+        font-size: 0.75rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--color-heading);
+      }
+
+      [data-part='total-row'] dd {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+      }
+
+      [data-part='coin-total'] {
+        font-size: 1.1rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* The totals' running change takes the row modifiers' colours, so a
+       purse gaining and a purse losing read the same way at both scales. */
+      [data-part='coin-change'] {
+        font-size: 0.8rem;
+        font-variant-numeric: tabular-nums;
+      }
+
+      [data-part='coin-change'][data-sign='up'] {
+        color: var(--color-coin-gain);
+      }
+
+      [data-part='coin-change'][data-sign='down'] {
+        color: var(--color-danger);
+      }
+    }
+
+    /* The metals themselves, shared by the purse dots and the editor badges. */
+    [data-denomination='pp'] :is([data-part='coin-dot'], [data-part='coin-badge']) {
+      background-color: var(--color-coin-pp);
+    }
+    [data-denomination='gp'] :is([data-part='coin-dot'], [data-part='coin-badge']) {
+      background-color: var(--color-coin-gp);
+    }
+    [data-denomination='sp'] :is([data-part='coin-dot'], [data-part='coin-badge']) {
+      background-color: var(--color-coin-sp);
+    }
+    [data-denomination='cp'] :is([data-part='coin-dot'], [data-part='coin-badge']) {
+      background-color: var(--color-coin-cp);
     }
 
     /* --- Spell lists (two-level hierarchy: source card > rank groups).

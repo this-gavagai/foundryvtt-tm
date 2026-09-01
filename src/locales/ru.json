@@ -299,6 +299,32 @@
     "currentBulk": "Текущая ноша",
     "maxBulk": "Макс."
   },
+  "coins": {
+    "title": "Монеты",
+    "denominations": {
+      "pp": "пм",
+      "gp": "зм",
+      "sp": "см",
+      "cp": "мм"
+    },
+    "names": {
+      "pp": "Платиновые монеты",
+      "gp": "Золотые монеты",
+      "sp": "Серебряные монеты",
+      "cp": "Медные монеты"
+    },
+    "modeCharacter": "Персонаж",
+    "modeParty": "Группа",
+    "stepLabel": "Шаг",
+    "increase": "Добавить {coin}",
+    "decrease": "Убрать {coin}",
+    "pendingChange": "Ожидаемое изменение: {change}",
+    "transferTo": "Передать: {purse}",
+    "transferFrom": "Взять: {purse}",
+    "transferBoth": "Передать/взять: {purse}",
+    "reset": "Сбросить",
+    "apply": "Применить"
+  },
   "spells": {
     "noSpells": "Этот персонаж не сотворяет заклинания.",
     "focusPool": "Запас",

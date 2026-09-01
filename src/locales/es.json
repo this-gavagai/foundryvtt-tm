@@ -299,6 +299,32 @@
     "currentBulk": "Carga actual",
     "maxBulk": "Máx."
   },
+  "coins": {
+    "title": "Monedas",
+    "denominations": {
+      "pp": "ppt",
+      "gp": "po",
+      "sp": "pp",
+      "cp": "pc"
+    },
+    "names": {
+      "pp": "Piezas de platino",
+      "gp": "Piezas de oro",
+      "sp": "Piezas de plata",
+      "cp": "Piezas de cobre"
+    },
+    "modeCharacter": "Personaje",
+    "modeParty": "Grupo",
+    "stepLabel": "Paso",
+    "increase": "Añadir {coin}",
+    "decrease": "Quitar {coin}",
+    "pendingChange": "Cambio pendiente: {change}",
+    "transferTo": "Transferir a {purse}",
+    "transferFrom": "Transferir de {purse}",
+    "transferBoth": "Transferir a/de {purse}",
+    "reset": "Restablecer",
+    "apply": "Aplicar"
+  },
   "spells": {
     "noSpells": "Este personaje no lanza conjuros.",
     "focusPool": "Reserva de Foco",

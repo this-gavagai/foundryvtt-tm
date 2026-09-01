@@ -299,6 +299,32 @@
     "currentBulk": "Current Bulk",
     "maxBulk": "Max"
   },
+  "coins": {
+    "title": "Coins",
+    "denominations": {
+      "pp": "pp",
+      "gp": "gp",
+      "sp": "sp",
+      "cp": "cp"
+    },
+    "names": {
+      "pp": "Platinum pieces",
+      "gp": "Gold pieces",
+      "sp": "Silver pieces",
+      "cp": "Copper pieces"
+    },
+    "modeCharacter": "Character",
+    "modeParty": "Party",
+    "stepLabel": "Step",
+    "increase": "Add {coin}",
+    "decrease": "Remove {coin}",
+    "pendingChange": "Pending change: {change}",
+    "transferTo": "Transfer to {purse}",
+    "transferFrom": "Transfer from {purse}",
+    "transferBoth": "Transfer to/from {purse}",
+    "reset": "Reset",
+    "apply": "Apply"
+  },
   "spells": {
     "noSpells": "This character does not cast spells.",
     "focusPool": "Focus Pool",

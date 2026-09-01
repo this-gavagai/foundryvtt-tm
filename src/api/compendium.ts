@@ -187,3 +187,31 @@ export async function getCompendiumItem(
   const packLabel = findPack(ref.packId)?.label ?? ref.packId
   return { compendiumItem: shapeCompendiumItem(doc, packLabel) }
 }
+
+// Raw source data for a compendium document, for creating a copy of it on an
+// actor. getCompendiumItem() shapes its answer for display and drops everything
+// a create needs, so this returns the document untouched (minus its pack `_id`,
+// which a create must not carry).
+export async function getCompendiumSource(
+  itemUuid: string
+): Promise<Record<string, unknown> | null> {
+  const ref = parseCompendiumUuid(itemUuid)
+  if (!ref) {
+    logger.warn('TM-COMPENDIUM: not a compendium uuid', itemUuid)
+    return null
+  }
+  const raw = await socketDatabaseGet({
+    type: ref.documentType,
+    pack: ref.packId,
+    index: false,
+    query: { _id: ref.id }
+  })
+  const doc = raw[0]
+  if (!doc || typeof doc !== 'object') {
+    logger.warn('TM-COMPENDIUM: could not resolve source for', itemUuid)
+    return null
+  }
+  const source = { ...(doc as Record<string, unknown>) }
+  delete source._id
+  return source
+}

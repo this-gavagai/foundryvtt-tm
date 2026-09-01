@@ -196,5 +196,7 @@ export function usePartyTransfer(opts: {
     return { removed: false }
   }
 
-  return { partyActorId, partyInventory, transferItem }
+  // partyActor rides along so a second view of the same stash (the coin panel)
+  // can write to it without standing up another socket listener on the actor.
+  return { partyActorId, partyActor: partyActorForItems, partyInventory, transferItem }
 }

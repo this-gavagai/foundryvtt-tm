@@ -5,16 +5,11 @@ import ViewableItem from '@/components/widgets/ViewableItem.vue'
 const { item } = defineProps(['item'])
 const emits = defineEmits(['itemClicked'])
 
-// Coins are negligible individually but accrue 1 Bulk per 1000 (PF2e RAW): 999
-// coins are 0 Bulk, 1000 are 1, 2000 are 2. Their per-unit source bulk.value is
-// meaningless for this, so compute the stack Bulk directly from quantity.
-const COINS_PER_BULK = 1000
-
+// Coin stacks used to need their own Bulk rule here (PF2e accrues 1 Bulk per
+// 1000 coins, so their per-unit bulk.value says nothing useful). They no longer
+// reach this component — the purse panel owns them, and EquipmentList filters
+// them out of every list — so the rule went with them.
 const totalWeight = computed(() => {
-  if (item?.system?.stackGroup === 'coins') {
-    const bulk = Math.floor((item?.system?.quantity ?? 0) / COINS_PER_BULK)
-    return bulk === 0 ? '-' : bulk
-  }
   if (item?.system?.bulk?.value === 0) return '-'
   else if (item?.system?.bulk?.value < 1)
     return (

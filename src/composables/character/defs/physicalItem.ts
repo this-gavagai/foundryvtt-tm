@@ -22,7 +22,7 @@ export interface PhysicalItemSystem extends ItemSystem {
   containerId: Maybe<string>
   quantity: Maybe<number>
   price: {
-    value: { gp: Maybe<number>; sp: Maybe<number>; cp: Maybe<number> }
+    value: { pp: Maybe<number>; gp: Maybe<number>; sp: Maybe<number>; cp: Maybe<number> }
     per: Maybe<number>
   }
   subitems: Maybe<Item[]>
@@ -80,6 +80,9 @@ export function makePhysicalItem(root: PhysicalItemPF2e): PhysicalItem {
       quantity: root.system.quantity,
       price: {
         value: {
+          // Platinum reads as a price only on coinage, where it is the whole
+          // denomination — a pp-priced stack drops to a blank price without it.
+          pp: root.system.price?.value?.pp,
           gp: root.system.price?.value?.gp,
           sp: root.system.price?.value?.sp,
           cp: root.system.price?.value?.cp
