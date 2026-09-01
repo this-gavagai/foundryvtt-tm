@@ -296,8 +296,8 @@
     "notInvested": "Предмет не задействован",
     "quantityShort": "Кол-во:",
     "quantityTitle": "{name} (количество)",
-    "currentBulk": "Текущая ноша",
-    "maxBulk": "Макс."
+    "bulkReadout": "Текущая ноша: {value} / {encumbered}",
+    "bulkMax": "(Макс.: {max})"
   },
   "coins": {
     "title": "Монеты",

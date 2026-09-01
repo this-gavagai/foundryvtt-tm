@@ -827,31 +827,41 @@
       color: oklch(70% 0.02 285);
     }
 
-    /* --- EquipmentBulk bar --- */
+    /* --- EquipmentBulk readout + rail --- */
     [data-component='EquipmentBulk'] {
-      background-color: oklch(95% 0.012 95);
+      /* One value for the rail's outline and the threshold tick inside it. */
+      --tm-bulk-rule: oklch(40% 0.02 285 / 0.4);
 
+      [data-part='bulk-rail'] {
+        background-color: oklch(89% 0.02 95);
+      }
+
+      /* Fills deepen a step from the old bar's: six pixels of colour need to
+       be darker than thirty did to hold against the paper. */
       [data-part='bulk-fill'][data-state='safe'] {
-        fill: oklch(72% 0.16 140);
+        background-color: oklch(64% 0.17 140);
       }
       [data-part='bulk-fill'][data-state='encumbered'] {
-        fill: oklch(78% 0.15 82);
+        background-color: oklch(70% 0.16 82);
       }
       [data-part='bulk-fill'][data-state='over-max'] {
-        fill: oklch(65% 0.18 25);
+        background-color: oklch(60% 0.19 25);
       }
 
-      [data-part='bulk-safe-divider'] {
-        stroke: oklch(40% 0.02 285 / 0.45);
+      /* Territory, not a warning — the fill already goes amber at the
+       threshold and red at the cap. A step of the track's own colour, darker
+       here, since on paper a shade reads as marked-out. */
+      [data-part='bulk-encumbered-zone'] {
+        background-color: oklch(81% 0.025 95);
       }
 
-      [data-part='bulk-border'] {
-        stroke: var(--color-border);
-      }
-
-      [data-part='bulk-label'] {
-        fill: oklch(32% 0.03 285);
+      [data-part='bulk-readout'] {
+        color: oklch(32% 0.03 285);
         font-weight: 600;
+      }
+
+      [data-part='bulk-max'] {
+        color: var(--color-heading);
       }
     }
 

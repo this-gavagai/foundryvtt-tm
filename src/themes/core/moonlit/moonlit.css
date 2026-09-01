@@ -835,31 +835,43 @@
       color: oklch(55% 0.01 258);
     }
 
-    /* --- EquipmentBulk bar ------------------------------- */
+    /* --- EquipmentBulk readout + rail ------------------------------- */
     [data-component='EquipmentBulk'] {
-      background-color: oklch(20% 0.02 258);
+      /* One value for the rail's outline and the threshold tick inside it. */
+      --tm-bulk-rule: oklch(100% 0 0 / 0.45);
 
+      [data-part='bulk-rail'] {
+        background-color: oklch(20% 0.02 258);
+      }
+
+      /* Fills brighten a step from the old bar's: six pixels of colour need
+       more chroma than thirty did to read at the same strength. */
       [data-part='bulk-fill'][data-state='safe'] {
-        fill: oklch(40% 0.14 135);
+        background-color: oklch(52% 0.15 135);
       }
       [data-part='bulk-fill'][data-state='encumbered'] {
-        fill: oklch(44% 0.13 80);
+        background-color: oklch(56% 0.14 80);
       }
       [data-part='bulk-fill'][data-state='over-max'] {
-        fill: oklch(38% 0.13 25);
+        background-color: oklch(50% 0.15 25);
       }
 
-      [data-part='bulk-safe-divider'] {
-        stroke: oklch(100% 0 0 / 0.55);
+      /* The stretch past the encumbrance threshold is territory, not a
+       warning: what state you are in is already carried by the fill, which
+       goes amber at the threshold and red at the cap. So the band is a step of
+       the track's own colour — lighter here, since on a dark ground a lift
+       reads as marked-out — and no second hue competes with the fill. */
+      [data-part='bulk-encumbered-zone'] {
+        background-color: oklch(27% 0.022 258);
       }
 
-      [data-part='bulk-border'] {
-        stroke: oklch(36% 0.022 258);
-      }
-
-      [data-part='bulk-label'] {
-        fill: var(--color-text);
+      [data-part='bulk-readout'] {
+        color: var(--color-text);
         font-weight: 500;
+      }
+
+      [data-part='bulk-max'] {
+        color: var(--color-heading);
       }
     }
 

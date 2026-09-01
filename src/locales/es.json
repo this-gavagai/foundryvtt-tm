@@ -296,8 +296,8 @@
     "notInvested": "Objeto no invertido",
     "quantityShort": "Cant.:",
     "quantityTitle": "{name} (cantidad)",
-    "currentBulk": "Carga actual",
-    "maxBulk": "Máx."
+    "bulkReadout": "Carga actual: {value} / {encumbered}",
+    "bulkMax": "(Máx.: {max})"
   },
   "coins": {
     "title": "Monedas",

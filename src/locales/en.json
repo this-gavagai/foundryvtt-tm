@@ -296,8 +296,8 @@
     "notInvested": "Item not invested",
     "quantityShort": "Qty:",
     "quantityTitle": "{name} (quantity)",
-    "currentBulk": "Current Bulk",
-    "maxBulk": "Max"
+    "bulkReadout": "Current Bulk: {value} / {encumbered}",
+    "bulkMax": "(Max: {max})"
   },
   "coins": {
     "title": "Coins",

@@ -220,9 +220,9 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
             <div data-part="held-items" :class="partyActorId ? 'min-h-10 pr-28' : ''">
               <EquipmentHeld @item-clicked="viewItem" />
             </div>
-            <div v-if="inventory?.length" class="mb-4 flex items-center gap-2">
-              <!-- Wrap in a block flex item: an inline <svg width="100%"> collapses to
-                   0 width when it is itself the flex child (WebKit/iOS), hiding the bar. -->
+            <!-- The invested pill is the taller of the two (it matches the
+                 purse bar below), so the bulk block centres against it. -->
+            <div v-if="inventory?.length" class="mb-3 flex items-center gap-3">
               <div class="min-w-0 flex-1">
                 <EquipmentBulk />
               </div>

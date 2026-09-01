@@ -241,10 +241,13 @@ function openEditor() {
 
 <template>
   <div data-component="EquipmentCoins">
+    <!-- Height, radius, border and the dot's shape are the unthemed ("None")
+         treatment; every theme overrides them. Without the border the purse
+         has no edge of its own and runs into the lists below it. -->
     <button
       type="button"
       data-part="purse"
-      class="flex w-full cursor-pointer items-center gap-1 px-2"
+      class="flex h-[38px] w-full cursor-pointer items-center gap-1 rounded-xs border border-gray-300 px-2"
       :aria-label="$t('coins.title')"
       @click="openEditor"
     >
@@ -256,11 +259,17 @@ function openEditor() {
         :data-empty="barCounts[denomination] === 0 ? 'true' : 'false'"
         class="flex flex-1 items-baseline justify-center gap-1"
       >
-        <span data-part="coin-dot" aria-hidden="true" />
+        <!-- The metals themselves are per-denomination theme rules; unthemed,
+             the dots are a neutral marker rather than four invisible ones. -->
+        <span data-part="coin-dot" class="h-2.5 w-2.5 self-center rounded-full bg-gray-400" />
         <span data-part="coin-amount">{{ barCounts[denomination] }}</span>
-        <span data-part="coin-unit">{{ $t(`coins.denominations.${denomination}`) }}</span>
+        <span data-part="coin-unit" class="text-xs text-gray-600">{{
+          $t(`coins.denominations.${denomination}`)
+        }}</span>
       </span>
-      <span data-part="purse-total">{{ formatGold(copperValue(barCounts)) }}</span>
+      <span data-part="purse-total" class="text-xs whitespace-nowrap text-gray-600">{{
+        formatGold(copperValue(barCounts))
+      }}</span>
     </button>
 
     <Teleport to="#modals">
