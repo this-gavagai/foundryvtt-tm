@@ -159,9 +159,19 @@ function buildComment(comment: ChatComment, onEdit: () => void): HTMLElement {
   wrapper.append(author, body)
 
   if (mayModify(comment)) {
-    wrapper.style.cssText += 'cursor:text;'
-    wrapper.title = 'Click to edit this comment'
-    wrapper.addEventListener('click', (event) => {
+    // Right-click, not left. A comment sits inside the message body, where a
+    // left-click is how you select and copy the text someone wrote — and the
+    // chat log is full of left-clickable things (inline rolls, content links)
+    // that a comment should not behave differently from. Editing is the
+    // secondary action, so it goes on the secondary button, which is also where
+    // Foundry puts every other per-message action.
+    wrapper.style.cssText += 'cursor:context-menu;'
+    wrapper.title = 'Right-click to edit this comment'
+    wrapper.addEventListener('contextmenu', (event) => {
+      // preventDefault drops the browser's own menu; stopPropagation keeps the
+      // message's Foundry context menu from opening on top of the dialog. Core
+      // binds that one to the chat log with delegation, in the bubble phase
+      // (ContextMenu#bind), so stopping here is enough to keep it shut.
       event.preventDefault()
       event.stopPropagation()
       onEdit()
@@ -212,15 +222,23 @@ async function promptForComment(id: string, comment?: ChatComment): Promise<void
   textarea.name = 'text'
   textarea.rows = 4
   textarea.maxLength = COMMENT_MAX_LENGTH
-  textarea.value = comment?.text ?? ''
+  // textContent, not .value: DialogV2 serializes the content element (see
+  // below), and a textarea's value is a property with no HTML representation —
+  // set that way it serializes to an empty box, which is what an edit used to
+  // open with. Its default value IS its child text, so that survives the round
+  // trip. Escaping is the serializer's: text in, text out.
+  textarea.textContent = comment?.text ?? ''
   textarea.style.cssText = 'width:100%;resize:vertical;'
 
   const content = document.createElement('div')
   content.appendChild(textarea)
 
-  // A <div> element rather than an HTML string: core cleans a string with
-  // cleanHTML, and an element is passed through untouched — which also keeps the
-  // existing comment's text out of a string-concatenation path entirely.
+  // A <div> element rather than an HTML string: core runs a string through
+  // cleanHTML and takes an element's innerHTML as-is (DialogV2
+  // #_initializeApplicationOptions), so the comment's text never goes near a
+  // sanitizer that could rewrite what someone wrote. It is still serialized to
+  // markup on the way in, which is why the textarea above carries its text as a
+  // child node rather than as a property.
   const result = await foundry.applications.api.DialogV2.prompt({
     window: { title: comment ? 'Edit comment' : 'Add comment' },
     content,

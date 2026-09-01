@@ -276,6 +276,22 @@ const CONTEXT_HOOKS = ['getChatMessageContextOptions', 'getChatLogEntryContext']
 // tightly enough that it needs no !important.
 const REACTION_MENU_STYLE_ID = 'tm-reaction-menu-style'
 const REACTION_MENU_STYLE = `
+/* Core separates groups with a border-BOTTOM on every group but the last
+   (#context-menu li.context-group), which puts the rule between the palette and
+   the "Add comment" entry that follows it — the two module entries that belong
+   together, split apart from Foundry's own. Move the line to the top of the
+   palette so it divides core's entries from ours instead.
+
+   These two carry #context-menu, unlike the layout rules below: core's
+   :last-child reset is #context-menu li.context-group:last-child, and matching
+   its specificity is what keeps the line when the palette is the last group
+   (comments off, or unavailable). At equal specificity this sheet wins on
+   order, being appended to head long after core's. */
+#context-menu li.context-group[data-group-id='tm-reactions'] {
+  border-top: 1px solid var(--group-separator);
+  border-bottom: none;
+}
+
 li.context-group[data-group-id='tm-reactions'] > ol {
   display: flex;
   flex-wrap: nowrap;
