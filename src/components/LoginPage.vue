@@ -76,14 +76,21 @@ function cancelAutoRetry() {
 function scheduleAutoRetry() {
   const delay = Math.min(AUTO_RETRY_BASE_DELAY_MS * 2 ** autoRetries, AUTO_RETRY_MAX_DELAY_MS)
   autoRetries += 1
-  retryTimer = setTimeout(loadUsers, delay)
+  retryTimer = setTimeout(() => {
+    retryTimer = undefined
+    void loadUsers()
+  }, delay)
 }
 
 async function loadUsers() {
   if (loadInFlight) return
   cancelAutoRetry()
   loadingUsers.value = true
-  error.value = ''
+  // The standing error deliberately survives until this attempt reaches its own
+  // verdict — blanking it here made every automatic retry flash the form
+  // between "No users yet" and "Loading…". The Retry button clears it itself,
+  // so a tap still reads as having done something.
+  //
   // No live socket yet? Don't call getJoinData — in the browser build it's
   // socket-only, so each attempt would just burn its 3s budget waiting on a
   // socket that doesn't exist (3s × 3 = the ~9s post-reboot "Loading…" stall)
@@ -115,11 +122,15 @@ async function loadUsers() {
       // next attempt.
       logger.debug('TM-DIAG loadUsers: empty user list', { connected: isConnected.value })
       error.value = t('login.noUsersRetry')
-      void requestReconnect()
+      // Schedule first, then reconnect: the pending timer is what tells the
+      // isConnected watch below that the reconnect about to land is one we
+      // asked for, and so must not be answered with an immediate reload.
       scheduleAutoRetry()
+      void requestReconnect()
       return
     }
     autoRetries = 0
+    error.value = ''
     // Prefer this server's remembered login user (if it still exists and isn't
     // already signed in), otherwise fall back to the first available user.
     const remembered = rememberedLoginUser()
@@ -137,27 +148,27 @@ async function loadUsers() {
     // fresh socket so the next attempt lands on a live one.
     logger.debug('TM-DIAG loadUsers: getJoinData threw — repairing socket')
     error.value = t('login.couldNotLoadUsers')
-    void requestReconnect()
     scheduleAutoRetry()
+    void requestReconnect()
   } finally {
     loadInFlight = false
     loadingUsers.value = false
   }
 }
 
-// Manual retry resets the backoff so the user can keep trying at full speed.
-function retryUsers() {
-  autoRetries = 0
-  void loadUsers()
-}
-
-// The retry *button* additionally forces a fresh socket — the in-app
-// equivalent of the relaunch users discovered cures a wedged connection.
-// (Not part of retryUsers: the isConnected watch below calls that on every
-// reconnect, and reconnecting from there would loop.)
+// The retry button resets the backoff so the user can keep trying at full
+// speed, and forces a fresh socket — the in-app equivalent of the relaunch
+// users discovered cures a wedged connection. Only the button does either:
+// automatic retries must keep climbing the ladder.
 function manualRetry() {
+  autoRetries = 0
+  error.value = ''
+  // Reconnect first: it drops the current socket synchronously, so the load
+  // below sees no connection, parks on "Loading…", and lets the isConnected
+  // watch run it against the fresh socket. Loading first would put an emit on
+  // a socket this call is about to tear out from under it.
   void requestReconnect()
-  retryUsers()
+  void loadUsers()
 }
 
 // Only attempt the load on mount if the socket is already up; otherwise stay on
@@ -170,11 +181,20 @@ onMounted(() => {
 // When the socket (re)connects while we're sitting here without a user list,
 // load immediately — this is both the first-load trigger on a cold start (the
 // socket wasn't up at mount) and the recovery trigger when a fresh socket
-// replaces a stale/pre-world one. Gate on loadInFlight (not loadingUsers) so
-// the connecting-state "Loading…" display doesn't block this first load.
+// replaces one that dropped underneath us. Gate on loadInFlight (not
+// loadingUsers) so the connecting-state "Loading…" display doesn't block this
+// first load.
+//
+// A pending auto-retry means this reconnect is the one the empty-list branch
+// just asked for, and loading here would answer it the instant it lands: empty
+// list -> reconnect -> connect -> load -> empty list, as fast as the server can
+// open sockets. That is the loop that pinned the page between "No users yet"
+// and the reconnecting banner, flickering, forever — the backoff existed but
+// nothing ever waited on it. Let the timer own that attempt.
 watch(isConnected, (connected) => {
   if (!connected || loadInFlight || users.value.length > 0) return
-  retryUsers()
+  if (retryTimer !== undefined) return
+  void loadUsers()
 })
 
 onUnmounted(async () => {
