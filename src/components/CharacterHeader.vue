@@ -5,6 +5,7 @@ import { Bars3Icon } from '@heroicons/vue/24/solid'
 import HitPoints from '@/components/HitPoints.vue'
 import CharacterPortrait from '@/components/CharacterPortrait.vue'
 import CharacterSelector from '@/components/CharacterSelector.vue'
+import CombatTurnBar from '@/components/CombatTurnBar.vue'
 import IconButtonWidget from '@/components/widgets/IconButtonWidget.vue'
 import { useChatStore } from '@/stores/chat'
 import { useSettingsStore } from '@/stores/settings'
@@ -34,38 +35,44 @@ function activateChat() {
 </script>
 
 <template>
-  <div
-    data-component="CharacterHeader"
-    class="border-divider flex cursor-pointer items-center gap-2 border-b p-4"
-  >
-    <div class="xs:block relative hidden">
-      <CharacterPortrait @click="activateChat" />
-      <span
-        v-if="showUnreadBadge"
-        data-part="chat-unread-badge"
-        class="absolute right-2 bottom-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-bold text-white shadow"
-        :aria-label="$t('chat.unreadMessages', { count: chatStore.unreadCount })"
-      >
-        {{ unreadBadge }}
-      </span>
-    </div>
-    <div class="relative z-10 min-w-36 flex-1">
-      <CharacterSelector />
-      <div class="flex justify-start gap-8 align-middle">
-        <HitPoints />
-        <!-- No fallback: the header is shared chrome, so each sheet supplies
-             its own secondary stat (HeroPoints, familiar attack, ...). -->
-        <slot name="secondary-stat" />
+  <!-- Two stacked sections: the identity row, which is the fixed-height part
+       every sheet sizes its sticky header by, and the encounter turn bar, which
+       is present only during combat and grows the header while it lasts. The
+       height and the native status-bar padding therefore live on the identity
+       row rather than on this root (see main.css) — putting them here would
+       clamp the header and clip the turn bar. -->
+  <div data-component="CharacterHeader" class="border-divider flex flex-col border-b">
+    <div data-part="identity" class="flex h-32 cursor-pointer items-center gap-2 p-4">
+      <div class="xs:block relative hidden">
+        <CharacterPortrait @click="activateChat" />
+        <span
+          v-if="showUnreadBadge"
+          data-part="chat-unread-badge"
+          class="absolute right-2 bottom-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-bold text-white shadow"
+          :aria-label="$t('chat.unreadMessages', { count: chatStore.unreadCount })"
+        >
+          {{ unreadBadge }}
+        </span>
       </div>
+      <div class="relative z-10 min-w-36 flex-1">
+        <CharacterSelector />
+        <div class="flex justify-start gap-8 align-middle">
+          <HitPoints />
+          <!-- No fallback: the header is shared chrome, so each sheet supplies
+             its own secondary stat (HeroPoints, familiar attack, ...). -->
+          <slot name="secondary-stat" />
+        </div>
+      </div>
+      <IconButtonWidget
+        data-part="sidebar-toggle"
+        class="relative z-10 my-auto h-10 w-10 cursor-pointer rounded-md p-1 text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-300"
+        :class="sidebarToggleClass"
+        :label="$t('sideMenu.openSidebar')"
+        @click="() => emit('sidebarActivated')"
+      >
+        <Bars3Icon aria-hidden="true" class="h-full w-full" />
+      </IconButtonWidget>
     </div>
-    <IconButtonWidget
-      data-part="sidebar-toggle"
-      class="relative z-10 my-auto h-10 w-10 cursor-pointer rounded-md p-1 text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-300"
-      :class="sidebarToggleClass"
-      :label="$t('sideMenu.openSidebar')"
-      @click="() => emit('sidebarActivated')"
-    >
-      <Bars3Icon aria-hidden="true" class="h-full w-full" />
-    </IconButtonWidget>
+    <CombatTurnBar />
   </div>
 </template>

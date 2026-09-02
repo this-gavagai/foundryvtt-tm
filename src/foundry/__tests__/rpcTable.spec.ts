@@ -52,6 +52,13 @@ const EXPECTED: Record<RpcAction, Expected> = {
   // module automation can add conditions and post chat of its own.
   [TM.SET_HIT_POINTS]: { auth: 'owner' },
   [TM.REROLL_CHAT_ROLL]: { auth: 'owner' },
+  // Advances the encounter, which is a write no player may make directly. The
+  // gate proves the requester owns the actor they named; the handler adds the
+  // rule that stops them ending anyone ELSE's turn (that actor must hold the
+  // current turn) and refuses a request whose round/turn has gone stale. Not
+  // concurrent: PF2e runs turn-boundary automation, including chat, off the
+  // resulting update.
+  [TM.NEXT_TURN]: { auth: 'owner' },
 
   // ── Read-only compendium browsing: no target actor, and safe to run off the
   // dispatch chain so a slow pack fetch can't delay a queued attack roll.

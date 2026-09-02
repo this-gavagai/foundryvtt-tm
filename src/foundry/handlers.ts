@@ -16,6 +16,7 @@
 //     reactions.ts          toggleReaction (emoji reactions on chat messages)
 //     comment.ts         setComment (free-text notes on chat messages)
 //     rollInlineCheck.ts    inline @Check with target-defense routing
+//     nextTurn.ts           nextTurn (end the current combatant's turn)
 //     runMacro.ts           generic macro execution by UUID
 //     checks/               one file per check kind (strike, blast, …)
 
@@ -55,5 +56,6 @@ export { foundryListCompendia } from './handlers/listCompendia'
 export { foundryGetCompendiumIndex } from './handlers/getCompendiumIndex'
 export { foundryApplyDamage } from './handlers/applyDamage'
 export { foundrySetHitPoints } from './handlers/setHitPoints'
+export { foundryNextTurn } from './handlers/nextTurn'
 export { foundryToggleReaction } from './handlers/reactions'
 export { foundrySetComment } from './handlers/comments'

@@ -53,6 +53,14 @@ export function onTmAction<K extends ModuleEventArgs['action']>(
 
 export type ModifyDocumentHandler = (args: DocumentSocketResponse) => void
 
+// What the server sends when one operation produced several responses. The
+// entries a batch carries are ordinary responses; only the delivery differs.
+// A side-effect response is flagged `sideEffect` and the operation's own
+// response comes last (see the batch handling in socketSetup / documents.ts).
+export interface ModifyDocumentBatch {
+  results?: Array<DocumentSocketResponse & { sideEffect?: boolean }>
+}
+
 const modifySubs = new Set<ModifyDocumentHandler>()
 
 export function onModifyDocument(handler: ModifyDocumentHandler): () => void {
@@ -144,6 +152,7 @@ function guarded(run: () => void) {
 let attachedSocket: Socket | null = null
 let tmDispatch: ((args: ModuleEventArgs) => void) | null = null
 let modifyDispatch: ModifyDocumentHandler | null = null
+let modifyBatchDispatch: ((payload: ModifyDocumentBatch) => void) | null = null
 let userActivityDispatch: UserActivityHandler | null = null
 let progressDispatch: (() => void) | null = null
 let shareImageDispatch: ShareImageHandler | null = null
@@ -158,6 +167,7 @@ export async function setupSocketListenersForApp() {
   if (attachedSocket) {
     if (tmDispatch) attachedSocket.off(TM.CHANNEL, tmDispatch)
     if (modifyDispatch) attachedSocket.off('modifyDocument', modifyDispatch)
+    if (modifyBatchDispatch) attachedSocket.off('modifyDocumentBatch', modifyBatchDispatch)
     if (userActivityDispatch) attachedSocket.off('userActivity', userActivityDispatch)
     if (progressDispatch) attachedSocket.off('progress', progressDispatch)
     if (shareImageDispatch) attachedSocket.off('shareImage', shareImageDispatch)
@@ -187,6 +197,32 @@ export async function setupSocketListenersForApp() {
     modifySubs.forEach((h) => guarded(() => h(args)))
   }
   socket.on('modifyDocument', modifyDispatch)
+
+  // The SAME document changes, delivered under a different event name.
+  //
+  // One operation can produce more than one response: the server collects
+  // "side effects" during an update and, when there are any, broadcasts every
+  // response together as `modifyDocumentBatch` instead of emitting the single
+  // `modifyDocument` (see ServerDatabaseBackend's socket handler — it branches
+  // on `responses.length === 1`). Subscribing to only the singular event means
+  // silently missing every change an operation with a side effect made.
+  //
+  // The case that found this: advancing an encounter past the end of a round
+  // carries `worldTime: {delta}`, so the server also writes the world clock and
+  // pushes that Setting update as a side effect. Round boundaries — forward and
+  // back — therefore arrived as a batch and were dropped, while turn changes
+  // inside a round (delta 0, no side effect) came through normally.
+  //
+  // Each entry is a complete response, so they fan into the same subscribers.
+  modifyBatchDispatch = (payload: ModifyDocumentBatch) => {
+    const results = Array.isArray(payload?.results) ? payload.results : []
+    if (!results.length) {
+      logger.warn('TM-WARN: dropping malformed modifyDocumentBatch', payload)
+      return
+    }
+    for (const response of results) modifyDispatch?.(response)
+  }
+  socket.on('modifyDocumentBatch', modifyBatchDispatch)
 
   userActivityDispatch = (user, args) => {
     userActivitySubs.forEach((h) => guarded(() => h(user, args)))

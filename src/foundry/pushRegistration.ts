@@ -19,13 +19,13 @@ import { logger } from '@/utils/utilities'
 import { makeAck } from './utils/foundry'
 import { settingsApi } from './globals'
 
-
 // The single shared relay. Everyone running Tabula Mensa uses this instance.
 export const PUSH_RELAY_URL = 'https://tablemate-push-relay.openinst.workers.dev'
 
 export const PUSH_ENABLED_SETTING = 'pushEnabled'
 export const PUSH_INCLUDE_BODY_SETTING = 'pushIncludeBody'
 export const PUSH_SCOPE_SETTING = 'pushScope'
+export const PUSH_TURN_ALERTS_SETTING = 'pushTurnAlerts'
 export const PUSH_RELAY_URL_SETTING = 'pushRelayUrl'
 const PUSH_WORLD_ID_SETTING = 'pushWorldId' // auto-generated, hidden
 const PUSH_WORLD_KEY_SETTING = 'pushWorldKey' // auto-generated, hidden
@@ -73,6 +73,17 @@ export function registerPushSettings() {
     type: String,
     choices: { mentions: 'Whispers & mentions', all: 'All messages' },
     default: 'mentions'
+  })
+  settingsApi().register(MODULE_ID, PUSH_TURN_ALERTS_SETTING, {
+    name: 'Notify players when their turn starts',
+    hint:
+      'Send a push notification to the owners of a character when its turn ' +
+      'comes up in an encounter. Independent of the chat setting above: it ' +
+      'carries only the round and the character name, never message text.',
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: true
   })
   settingsApi().register(MODULE_ID, PUSH_RELAY_URL_SETTING, {
     name: 'Push relay URL',
@@ -141,6 +152,10 @@ export interface PushConfig {
   worldKey: string
   includeBody: boolean
   scope: PushScope
+  // Whether "it's your turn" alerts are on. A separate opt-in from the chat
+  // settings above, because it is a different kind of notification: it reaches
+  // one player about their own character rather than relaying table talk.
+  turnAlerts: boolean
 }
 
 // The relay this world talks to: the GM's setting when it is a usable http(s)
@@ -164,7 +179,13 @@ export function readPushConfig(): PushConfig | null {
     worldId,
     worldKey,
     includeBody: readBool(PUSH_INCLUDE_BODY_SETTING),
-    scope: readStr(PUSH_SCOPE_SETTING) === 'all' ? 'all' : 'mentions'
+    scope: readStr(PUSH_SCOPE_SETTING) === 'all' ? 'all' : 'mentions',
+    // Defaults ON within an already-opted-in world: a turn alert is the reason
+    // most tables want push at all, and it only ever reaches the player whose
+    // character is up. readBool answers false for a module upgraded mid-session
+    // before Foundry has the registration, which is a quiet miss rather than a
+    // wrong send; the next load reads the real default.
+    turnAlerts: readBool(PUSH_TURN_ALERTS_SETTING)
   }
 }
 
@@ -264,7 +285,11 @@ async function provision(worldId: string, worldKey: string): Promise<number> {
       body: JSON.stringify({ worldPushId: worldId, worldKey })
     })
     if (!res.ok && res.status !== 409) {
-      logger.warn('TABLEMATE: push provision rejected', res.status, await res.text().catch(() => ''))
+      logger.warn(
+        'TABLEMATE: push provision rejected',
+        res.status,
+        await res.text().catch(() => '')
+      )
     }
     return res.status
   } catch (error) {
@@ -286,10 +311,19 @@ function base64UrlFromBytes(bytes: ArrayBuffer): string {
 
 // base64url(payload).base64url(HMAC-SHA256(payload)) — the shape the relay's
 // verifyRegToken() checks.
-async function mintRegToken(payload: { worldId: string; userId: string; exp: number }, key: string): Promise<string> {
+async function mintRegToken(
+  payload: { worldId: string; userId: string; exp: number },
+  key: string
+): Promise<string> {
   const enc = new TextEncoder()
   const payloadB64 = base64UrlFromString(JSON.stringify(payload))
-  const cryptoKey = await crypto.subtle.importKey('raw', enc.encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(key),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
   const sig = await crypto.subtle.sign('HMAC', cryptoKey, enc.encode(payloadB64))
   return `${payloadB64}.${base64UrlFromBytes(sig)}`
 }
@@ -303,6 +337,9 @@ export async function foundryRegisterPush(
     throw new Error('Tabula Mensa push is not enabled for this world')
   }
   const exp = Math.floor(Date.now() / 1000) + REG_TOKEN_TTL_SECONDS
-  const regToken = await mintRegToken({ worldId: config.worldId, userId: args.userId, exp }, config.worldKey)
+  const regToken = await mintRegToken(
+    { worldId: config.worldId, userId: args.userId, exp },
+    config.worldKey
+  )
   return { ...makeAck(args), regToken, relayUrl: config.relayUrl }
 }

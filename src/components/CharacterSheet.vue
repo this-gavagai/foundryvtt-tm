@@ -158,7 +158,7 @@ defineExpose({ actor, character, actorOrWorldActor })
         data-part="sheet-left"
         class="border-divider app-scroll hidden border-r md:block md:h-full md:w-80"
       >
-        <CharacterHeader class="sticky top-0 z-10 h-32" @chat-activated="sideMenu.openChat()">
+        <CharacterHeader class="sticky top-0 z-10" @chat-activated="sideMenu.openChat()">
           <template #secondary-stat><HeroPoints /></template>
         </CharacterHeader>
         <FrontPage />
@@ -176,7 +176,7 @@ defineExpose({ actor, character, actorOrWorldActor })
         >
           <TabPanels tabindex="-1" class="app-scroll w-full flex-1 md:order-last" ref="panels">
             <CharacterHeader
-              class="sticky top-0 z-10 h-32 md:hidden"
+              class="sticky top-0 z-10 md:hidden"
               @sidebar-activated="sideMenu.sidebarOpen = true"
               @chat-activated="sideMenu.openChat()"
             >

@@ -1,5 +1,6 @@
 import { mergeWith } from 'lodash-es'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
+import type { ModifyDocumentBatch } from './socketSetup'
 import type { TablemateActorRef } from '@/types/character-types'
 import {
   getSocket,
@@ -64,6 +65,23 @@ export type ModifyDocumentPayload =
 // apply callback), and a timeout rejects rather than hanging forever.
 const MODIFY_DOCUMENT_TIMEOUT_MS = 15_000
 
+// An operation that produced server-side side effects is acknowledged as a
+// BATCH — `{results: [...]}` — rather than as the single response this used to
+// assume. Unwrap it to the operation's own response, which is the one without
+// the `sideEffect` flag (and, in the server's ordering, the last).
+//
+// Without this a write that happened to trigger a side effect came back with no
+// `result` array and was reported as a FAILED write: the caller threw, and
+// recoverFailedWrite re-fetched the actor, for a mutation the server had
+// applied. Same root cause as the dropped batch broadcasts in socketSetup —
+// see the comment on modifyBatchDispatch there.
+function mainResponse(raw: DocumentSocketResponse | ModifyDocumentBatch): DocumentSocketResponse {
+  const results = (raw as ModifyDocumentBatch)?.results
+  if (!Array.isArray(results)) return raw as DocumentSocketResponse
+  const own = [...results].reverse().find((r) => !r.sideEffect)
+  return (own ?? results[results.length - 1]) as DocumentSocketResponse
+}
+
 export async function modifyDocument(
   payload: ModifyDocumentPayload,
   onResponse?: (r: DocumentSocketResponse) => void
@@ -78,10 +96,11 @@ export async function modifyDocument(
       reject(new Error(`modifyDocument ${label} timed out after ${MODIFY_DOCUMENT_TIMEOUT_MS}ms`))
     }, MODIFY_DOCUMENT_TIMEOUT_MS)
 
-    socket.emit('modifyDocument', payload, (r: DocumentSocketResponse) => {
+    socket.emit('modifyDocument', payload, (raw: DocumentSocketResponse | ModifyDocumentBatch) => {
       if (settled) return
       settled = true
       clearTimeout(timer)
+      const r = mainResponse(raw)
       if (!Array.isArray((r as { result?: unknown })?.result)) {
         const detail = (r as { error?: unknown })?.error ?? r
         reject(new Error(`modifyDocument ${label} failed: ${JSON.stringify(detail)}`))

@@ -494,6 +494,20 @@ export const sendCompendiumItemToChat = (characterId: string, itemUuid: string) 
 export const setHitPoints = (actor: TablemateActorRef, target: { value?: number; temp?: number }) =>
   sendAction(TM.SET_HIT_POINTS, { ...fromActor(actor), ...target })
 
+// End the current combatant's turn. Not `fromActor` (which spells the actor
+// `characterId`): the module authorizes this against `actorId` because the actor
+// in question is whoever holds the turn, which for a GM's tap is an NPC rather
+// than the sheet they happen to have open.
+//
+// `round`/`turn` are the turn the player was looking at. The module refuses the
+// request if the encounter has since moved on, so a tap that queued behind a
+// slow roll fails instead of skipping the next player. See
+// foundry/handlers/nextTurn.ts.
+export const nextTurn = (
+  actorId: string,
+  combat: { combatId: string; round: number; turn: number }
+) => sendAction(TM.NEXT_TURN, { actorId, ...combat })
+
 export const applyDamage = (
   actor: TablemateActorRef,
   messageId: string,

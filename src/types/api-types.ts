@@ -49,6 +49,7 @@ export type ModuleEventArgs =
   | SendCompendiumItemToChatArgs
   | ApplyDamageArgs
   | SetHitPointsArgs
+  | NextTurnArgs
   | RerollChatRollArgs
   | ToggleReactionArgs
   | SetCommentArgs
@@ -678,6 +679,29 @@ export interface SetHitPointsArgs {
   temp?: number
 }
 
+// "End turn" from the app's header turn bar.
+//
+// `actorId` is the actor the requester claims the turn belongs to — their own
+// character — and is what the 'owner' authorization gate checks. It is NOT
+// enough on its own: owning an actor says nothing about whose turn it is, so the
+// handler additionally requires that actor to BE the current combatant (a GM may
+// end anyone's turn, as they can in Foundry).
+//
+// `combatId`, `round` and `turn` describe the turn the player was looking at
+// when they tapped. Requests are dispatched one at a time and a tap can queue
+// behind a slow roll, so by the time this runs the turn may already have
+// advanced — without the check, a late tap would skip the NEXT player's turn.
+// The handler refuses a request that no longer matches the live encounter.
+export interface NextTurnArgs {
+  action: typeof TM.NEXT_TURN
+  uuid: string
+  userId: string
+  actorId: string
+  combatId: string
+  round: number
+  turn: number
+}
+
 export interface RerollChatRollArgs {
   action: typeof TM.REROLL_CHAT_ROLL
   uuid: string
@@ -903,6 +927,7 @@ export interface ResponseByAction {
   [TM.ADD_COMPENDIUM_ITEM]: PlainAck
   [TM.APPLY_DAMAGE]: PlainAck
   [TM.SET_HIT_POINTS]: PlainAck
+  [TM.NEXT_TURN]: PlainAck
   // The updated reaction list, so the caller can reconcile its optimistic write
   // against what the GM actually stored (concurrent taps, a rejected emoji).
   [TM.TOGGLE_REACTION]: { reactions: ChatReaction[] }

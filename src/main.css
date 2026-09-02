@@ -140,7 +140,10 @@ html.tm-native #app {
   bottom: 0;
 }
 
-html.tm-native [data-component='CharacterHeader'] {
+/* The identity ROW, not the header root: during an encounter the header also
+   carries the combat turn bar below this row, and sizing the root would clamp
+   the header to the identity row's height and clip the bar. */
+html.tm-native [data-component='CharacterHeader'] [data-part='identity'] {
   height: calc(8rem + var(--tm-status-pad)); /* h-32 + inset */
   padding-top: calc(1rem + var(--tm-status-pad)); /* p-4 top + inset */
 }
@@ -213,6 +216,19 @@ html.tm-native [data-part='panel-scroll'] {
 @media (min-width: 768px) {
   html.tm-native [data-part='panel-scroll'] {
     height: calc(100% - 5.5rem - var(--tm-status-pad));
+  }
+}
+
+/* Hide the scrollbar on an element that still scrolls. Referenced by
+   CharacterSheet since before this existed, so it was a no-op class; the combat
+   turn bar needs it for real — a horizontal scrollbar under a 32px strip of
+   portraits eats most of the strip on a desktop pointer, and on touch the bars
+   are overlays that cost nothing anyway. Scrolling itself is untouched. */
+@utility no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+  &::-webkit-scrollbar {
+    display: none;
   }
 }
 

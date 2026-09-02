@@ -35,7 +35,7 @@ const masterName = computed(() => worldStore.actorById(familiar.masterId.value)?
   <!-- Same sidebar width as the NPC sheet — see the note there. -->
   <div data-component="FamiliarSheet" class="flex h-full min-h-0 w-full flex-none flex-col md:w-80">
     <CharacterHeader
-      class="sticky top-0 z-10 h-32 flex-none"
+      class="sticky top-0 z-10 flex-none"
       sidebar-toggle-class=""
       @sidebar-activated="sideMenu.sidebarOpen = true"
       @chat-activated="sideMenu.openChat()"

@@ -195,6 +195,44 @@ export function registerServerEventWiring() {
 let worldModifyUnsub: (() => void) | null = null
 let worldUserActivityUnsub: (() => void) | null = null
 
+// Give the named encounters a fresh object identity after an in-place mutation.
+//
+// EVERY encounter mutation needs this, whether it landed on the Combat document
+// or on one of its combatants. `processChanges` merges into the existing object,
+// so `activeCombat = combats.find(c => c.active)` recomputes to an
+// Object.is-equal value — and a Vue 3.4+ computed whose value is unchanged by
+// that test does not notify its dependents. The mutation is therefore in the
+// data but invisible to anything already rendered from it, until the next full
+// world refresh.
+//
+// It first bit the initiative roll button (a combatant write), which is why the
+// Combatant branch had a copy and the Combat branch did not. That asymmetry
+// then hid a worse bug: round and turn live on the COMBAT document, so a round
+// rollover — Foundry's nextTurn() delegating to nextRound(), one Combat update
+// changing both, no combatant touched — left the header's turn bar showing the
+// previous round's order. Turn advances within a round appeared to work only
+// because PF2e stamps flags.pf2e.roundOfLastTurn on the combatant a moment
+// later, and THAT broadcast refreshed the reference. Relying on another
+// package's bookkeeping to notice our own state changed is not a mechanism.
+//
+// Hence one helper, called by both branches, rather than a copy per case.
+function refreshCombatRefs(combats: DocumentData[] | undefined, combatIds: string[]) {
+  if (!combats) return
+  for (const id of combatIds) {
+    const idx = combats.findIndex((c) => c._id === id)
+    if (idx !== -1) combats[idx] = { ...combats[idx] }
+  }
+}
+
+// The ids an update broadcast names. Creates and deletes change which object
+// `find` lands on all by themselves, so only updates need the copy above.
+function updatedIds(args: DocumentSocketResponse): string[] {
+  if (args.action !== 'update' || !Array.isArray(args.result)) return []
+  return (args.result as ModifyDocumentUpdate[])
+    .map((change) => change._id)
+    .filter((id): id is string => typeof id === 'string')
+}
+
 // World-scoped handlers, registered once a world exists. Re-calling replaces
 // the previous registration (same handler-slot semantics as before the
 // registry refactor); no socket access is needed because the registries are
@@ -203,23 +241,24 @@ export function setupSocketListenersForWorld(world: Ref<GamePF2e | undefined>) {
   worldModifyUnsub?.()
   worldModifyUnsub = onModifyDocument((args: DocumentSocketResponse) => {
     switch (args.type) {
-      case 'Combat':
-        processChanges(args, asDocumentArray(world.value?.combats))
+      case 'Combat': {
+        // Round and turn live here, so this is the branch the header's turn bar
+        // reads — see refreshCombatRefs for why the copy is not optional.
+        const combats = asDocumentArray(world.value?.combats)
+        processChanges(args, combats)
+        refreshCombatRefs(combats, updatedIds(args))
         triggerRef(world)
         break
+      }
       case 'Combatant': {
         const combatId = args.operation.parentUuid?.split('.')?.[1]
         const combats = asDocumentArray(world.value?.combats)
-        const idx = combats?.findIndex((c) => c._id === combatId) ?? -1
-        if (combats && idx !== -1) {
-          const combat = combats[idx] as DocumentData & { combatants?: unknown }
+        const combat = combats?.find((c) => c._id === combatId) as
+          | (DocumentData & { combatants?: unknown })
+          | undefined
+        if (combat) {
           processChanges(args, asDocumentArray(combat.combatants))
-          // Replace the combat with a fresh reference. We mutate combatants in
-          // place, so `activeCombat = combats.find(c => c.active)` would otherwise
-          // recompute to the same object — and Vue 3.4+ computeds short-circuit
-          // when their value is Object.is-equal, leaving dependents (e.g. the
-          // initiative roll button) stale until a full world refresh.
-          combats[idx] = { ...combat }
+          refreshCombatRefs(combats, combatId ? [combatId] : [])
         }
         triggerRef(world)
         break

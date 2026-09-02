@@ -78,7 +78,7 @@ const senseLabel = (sense: { type?: string; label?: string; range?: number }) =>
        flex item whose width drifts with its content. -->
   <div data-component="NpcSheet" class="flex h-full min-h-0 w-full flex-none flex-col md:w-80">
     <CharacterHeader
-      class="sticky top-0 z-10 h-32 flex-none"
+      class="sticky top-0 z-10 flex-none"
       sidebar-toggle-class=""
       @sidebar-activated="sideMenu.sidebarOpen = true"
       @chat-activated="sideMenu.openChat()"

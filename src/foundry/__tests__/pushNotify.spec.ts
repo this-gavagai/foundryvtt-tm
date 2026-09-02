@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { notifyChatMessage, lastPushDeliveryIssue } from '../pushNotify'
+import { notifyChatMessage } from '../pushNotify'
+import { lastPushDeliveryIssue } from '../pushDelivery'
 
 // The audience split is what keeps a whisper clear of ambient table chat, so
 // these tests drive notifyChatMessage end to end and assert on the payload the

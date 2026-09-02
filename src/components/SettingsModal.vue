@@ -20,7 +20,8 @@ const emit = defineEmits<{ manageServers: [] }>()
 
 const { locale, t } = useI18n()
 const { activeTheme, setTheme } = useTheme()
-const { showUnreadOnPortrait, showSharedImages, manualDicePicker } = storeToRefs(useSettingsStore())
+const { showUnreadOnPortrait, showSharedImages, showTurnBar, manualDicePicker } =
+  storeToRefs(useSettingsStore())
 const { manualRollsBlocked } = storeToRefs(useGmPolicyStore())
 const { isNativeMobile } = storeToRefs(useServerAddressStore())
 
@@ -88,6 +89,9 @@ defineExpose({ open, close })
       </Toggle>
       <Toggle :active="showSharedImages" @changed="(v: boolean) => (showSharedImages = v)">
         <span class="text-lg italic">{{ $t('settings.showSharedImages') }}</span>
+      </Toggle>
+      <Toggle :active="showTurnBar" @changed="(v: boolean) => (showTurnBar = v)">
+        <span class="text-lg italic">{{ $t('settings.showTurnBar') }}</span>
       </Toggle>
       <div>
         <!-- The switch reads as off while the GM rejects manual results; the

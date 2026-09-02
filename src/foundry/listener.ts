@@ -19,6 +19,7 @@ import {
   CAPABILITY_VOICE_MEMO_TRANSCRIPT,
   CAPABILITY_IMAGE_UPLOAD,
   CAPABILITY_REACTIONS,
+  CAPABILITY_END_TURN,
   CAPABILITY_SET_HIT_POINTS,
   CAPABILITY_COMMENTS,
   MODULE_ID
@@ -55,6 +56,7 @@ import {
 import { refreshReactionDisplay } from './reactionDisplay'
 import { refreshCommentDisplay } from './commentDisplay'
 import { notifyChatMessage } from './pushNotify'
+import { notifyTurnStart } from './pushTurn'
 
 type GetEvent = { action: 'get' }
 
@@ -210,6 +212,13 @@ function setupChatOriginStamping() {
     // push config inside; safe to call on every client).
     void notifyChatMessage(message)
   })
+}
+
+// "It's your turn" push. Registered on every client and leader-elected inside
+// notifyTurnStart, exactly like the chat-message push above — `updateCombat`
+// fires everywhere, and only one client may send.
+function setupTurnAlerts() {
+  hooks().on('updateCombat', (combat, changed) => void notifyTurnStart(combat, changed))
 }
 
 // Everything the dispatch loop below needs from the Foundry client, named so it
@@ -491,6 +500,7 @@ export function setupListener() {
   // GM-only: generate + provision this world's push identity if enabled.
   void ensureWorldPushIdentity()
   setupChatOriginStamping()
+  setupTurnAlerts()
   // Runs on every client, not just the elected GM: each reports its own
   // targeting so mirroring tablets get it from the one place that knows it.
   setupTargetReporting()
@@ -629,7 +639,10 @@ function announceSelf() {
       CAPABILITY_VOICE_MEMO_TRANSCRIPT,
       // Unconditional too: it says this module can resolve an HP edit through
       // PF2e rather than the app writing the field itself.
-      CAPABILITY_SET_HIT_POINTS
+      CAPABILITY_SET_HIT_POINTS,
+      // Likewise: it says this module can advance the encounter on a player's
+      // behalf, so the app's turn bar can offer an End Turn button.
+      CAPABILITY_END_TURN
     ]
   })
 }

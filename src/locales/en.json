@@ -1,8 +1,9 @@
 {
   "settings": {
     "title": "Settings",
-    "showUnreadOnPortrait": "Show unread message count on character portrait",
+    "showUnreadOnPortrait": "Show unread messages on character portrait",
     "showSharedImages": "Show images the GM shares",
+    "showTurnBar": "Show encounter turn bar",
     "transcription": {
       "title": "Voice memo transcription",
       "description": "Voice memos you record on this device can be transcribed automatically, and the text posts with the memo for everyone to read. Transcription happens on this device, so each device is configured separately.",
@@ -154,7 +155,15 @@
     "will": "Will Save"
   },
   "combat": {
-    "initiative": "Initiative"
+    "initiative": "Initiative",
+    "round": "Round",
+    "notStarted": "Not started",
+    "yourTurn": "Your turn",
+    "turnOrder": "Turn order",
+    "endTurn": "End turn",
+    "nextRound": "Next round",
+    "endTurnFailed": "Couldn't end the turn — it may have already moved on.",
+    "hiddenCombatant": "Someone unseen"
   },
   "hp": {
     "heading": "Hit Points",
@@ -473,7 +482,7 @@
     "pixelDice": "Pixel Dice",
     "language": "Language",
     "theme": "Theme",
-    "manualDicePicker": "Allow manual dice results",
+    "manualDicePicker": "Show manual dice input",
     "manualRollsDisabledByGm": "Manual and Pixel dice results are turned off by the GM",
     "freeRoll": "Roll Check",
     "freeRollTitle": "Check Roll (d20)",

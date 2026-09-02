@@ -1,8 +1,9 @@
 {
   "settings": {
     "title": "Configuración",
-    "showUnreadOnPortrait": "Mostrar número de mensajes sin leer en el retrato del personaje",
+    "showUnreadOnPortrait": "Mostrar mensajes sin leer en el retrato del personaje",
     "showSharedImages": "Mostrar las imágenes que comparte el GM",
+    "showTurnBar": "Mostrar la barra de turnos en combate",
     "transcription": {
       "title": "Transcripción de notas de voz",
       "description": "Las notas de voz que grabes en este dispositivo pueden transcribirse automáticamente, y el texto se publica junto con la nota para que todos lo lean. La transcripción se hace en este dispositivo, así que cada dispositivo se configura por separado.",
@@ -154,7 +155,15 @@
     "will": "Tirada de Voluntad"
   },
   "combat": {
-    "initiative": "Iniciativa"
+    "initiative": "Iniciativa",
+    "round": "Ronda",
+    "notStarted": "Sin empezar",
+    "yourTurn": "Es tu turno",
+    "turnOrder": "Orden de turnos",
+    "endTurn": "Terminar turno",
+    "nextRound": "Ronda siguiente",
+    "endTurnFailed": "No se pudo terminar el turno; puede que ya haya avanzado.",
+    "hiddenCombatant": "Alguien no visible"
   },
   "hp": {
     "heading": "Puntos de golpe",
@@ -473,7 +482,7 @@
     "pixelDice": "Dados Pixel",
     "language": "Idioma",
     "theme": "Tema",
-    "manualDicePicker": "Permitir resultados manuales de dados",
+    "manualDicePicker": "Mostrar entrada manual de dados",
     "manualRollsDisabledByGm": "El DJ ha desactivado los resultados manuales y de dados Pixel",
     "freeRoll": "Tirar prueba",
     "freeRollTitle": "Tirada de prueba (d20)",

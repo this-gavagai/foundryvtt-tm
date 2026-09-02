@@ -39,6 +39,7 @@ import {
   foundryGetSpellDamage,
   foundryGetStrikeDamage,
   foundryListCompendia,
+  foundryNextTurn,
   foundryRerollChatRoll,
   foundryRollCheck,
   foundryRollDamage,
@@ -118,6 +119,13 @@ export const RPC_TABLE: RpcTable = {
   [TM.APPLY_DAMAGE]: { handler: foundryApplyDamage, auth: 'owner' },
   [TM.SET_HIT_POINTS]: { handler: foundrySetHitPoints, auth: 'owner' },
   [TM.REROLL_CHAT_ROLL]: { handler: foundryRerollChatRoll, auth: 'owner' },
+
+  // End turn. 'owner' proves the requester owns the actor they named; whether
+  // that actor actually holds the turn — the rule that stops a player ending
+  // someone else's — is the handler's, since the table has no view of the
+  // encounter. Deliberately NOT concurrent: it advances shared encounter state
+  // and PF2e runs its turn-boundary automation off the resulting update.
+  [TM.NEXT_TURN]: { handler: foundryNextTurn, auth: 'owner' },
 
   // Compendium browsing: read-only, no target actor, so any known world user may
   // do it — the per-pack observe check lives in the handlers (utils/permissions).

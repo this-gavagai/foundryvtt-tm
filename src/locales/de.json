@@ -1,8 +1,9 @@
 {
   "settings": {
     "title": "Einstellungen",
-    "showUnreadOnPortrait": "Anzahl ungelesener Nachrichten auf Charakterporträt anzeigen",
+    "showUnreadOnPortrait": "Ungelesene Nachrichten auf Charakterporträt anzeigen",
     "showSharedImages": "Vom SL geteilte Bilder anzeigen",
+    "showTurnBar": "Zugleiste im Kampf anzeigen",
     "transcription": {
       "title": "Transkription von Sprachnachrichten",
       "description": "Sprachnachrichten, die du auf diesem Gerät aufnimmst, können automatisch transkribiert werden; der Text wird zusammen mit der Nachricht für alle sichtbar gepostet. Die Transkription läuft auf diesem Gerät, daher wird jedes Gerät einzeln eingerichtet.",
@@ -154,7 +155,15 @@
     "will": "Willenswurf"
   },
   "combat": {
-    "initiative": "Initiative"
+    "initiative": "Initiative",
+    "round": "Runde",
+    "notStarted": "Nicht begonnen",
+    "yourTurn": "Du bist dran",
+    "turnOrder": "Zugreihenfolge",
+    "endTurn": "Zug beenden",
+    "nextRound": "Nächste Runde",
+    "endTurnFailed": "Zug konnte nicht beendet werden – möglicherweise ist er schon weiter.",
+    "hiddenCombatant": "Jemand Unsichtbares"
   },
   "hp": {
     "heading": "Trefferpunkte",
@@ -473,7 +482,7 @@
     "pixelDice": "Pixel-Würfel",
     "language": "Sprache",
     "theme": "Thema",
-    "manualDicePicker": "Manuelle Würfelergebnisse erlauben",
+    "manualDicePicker": "Manuelle Würfeleingabe anzeigen",
     "manualRollsDisabledByGm": "Manuelle und Pixel-Würfelergebnisse wurden von der SL deaktiviert",
     "freeRoll": "Probe würfeln",
     "freeRollTitle": "Probe (W20)",

@@ -126,6 +126,14 @@ export const CAPABILITY_REACTIONS = 'reactions'
 // would sit out the full 30s ack timeout.
 export const CAPABILITY_COMMENTS = 'comments'
 
+// Ending a turn from the app's header turn bar (NEXT_TURN). Unconditional — it
+// needs no world configuration and is purely a version signal: a module without
+// the handler would leave the tap sitting out the full 30s ack timeout and then
+// do nothing, so the app hides the button instead. The rest of the turn bar
+// (round, turn order, "your turn") is read straight off the world data every
+// module already serves, so it shows regardless.
+export const CAPABILITY_END_TURN = 'endTurn'
+
 export const TM = {
   // Socket.io channel name. All tablemate messages flow over this channel.
   CHANNEL: 'module.tablemate',
@@ -198,6 +206,14 @@ export const TM = {
   // client that calls actor.update(), and a raw modifyDocument emit calls it on
   // none. See foundry/handlers/setHitPoints.ts.
   SET_HIT_POINTS: 'setHitPoints',
+  // Advance the encounter to the next combatant ("End Turn" in the app's
+  // header turn bar). An RPC because a player cannot write the Combat document:
+  // Foundry gates document updates on ownership and a Combat has none, so only a
+  // GM client can call Combat#nextTurn — the same reason reactions and comments
+  // are RPCs. The handler is where "you may only end YOUR OWN turn" is enforced
+  // (rpcAuthorize only proves the requester owns the actor they named, not that
+  // that actor is the one holding the turn). See foundry/handlers/nextTurn.ts.
+  NEXT_TURN: 'nextTurn',
   REROLL_CHAT_ROLL: 'rerollChatRoll',
   // Emoji reaction toggle. Unlike posting/editing/deleting a message — which the
   // app now does directly over the modifyDocument socket as its own user — a

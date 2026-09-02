@@ -11,7 +11,7 @@ import {
   relayUrl,
   ensureWorldPushIdentity
 } from './pushRegistration'
-import { lastPushDeliveryIssue } from './pushNotify'
+import { lastPushDeliveryIssue } from './pushDelivery'
 import { MODULE_ID } from '@/api/protocol'
 import { logger } from '@/utils/utilities'
 import { settingsApi } from './globals'

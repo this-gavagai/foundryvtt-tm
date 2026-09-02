@@ -6,6 +6,7 @@ import { readTranscriptionKey, writeTranscriptionKey } from '@/api/transcription
 const MANUAL_DICE_PICKER_KEY = 'tm-manual-dice-picker'
 const SHOW_UNREAD_ON_PORTRAIT_KEY = 'tm-show-unread-on-portrait'
 const SHOW_SHARED_IMAGES_KEY = 'tm-show-shared-images'
+const SHOW_TURN_BAR_KEY = 'tm-show-turn-bar'
 const TRANSCRIPTION_ENABLED_KEY = 'tm-transcription-enabled'
 const TRANSCRIPTION_ENDPOINT_KEY = 'tm-transcription-endpoint'
 const TRANSCRIPTION_MODEL_KEY = 'tm-transcription-model'
@@ -22,6 +23,10 @@ function loadShowUnreadOnPortrait(): boolean {
 
 function loadShowSharedImages(): boolean {
   return localStorage.getItem(SHOW_SHARED_IMAGES_KEY) === '1'
+}
+
+function loadShowTurnBar(): boolean {
+  return localStorage.getItem(SHOW_TURN_BAR_KEY) === '1'
 }
 
 function persistFlag(key: string, value: boolean) {
@@ -54,6 +59,15 @@ export const useSettingsStore = defineStore('settings', () => {
   // should have to opt into. Persisted to localStorage.
   const showSharedImages = ref(loadShowSharedImages())
   watch(showSharedImages, (v) => persistFlag(SHOW_SHARED_IMAGES_KEY, v))
+
+  // When enabled, the sheet header carries the encounter turn bar: round, the
+  // turn order, whose turn it is, and an End Turn button (see CombatTurnBar).
+  // Off by default because it is the one piece of header chrome that grows the
+  // header — during an encounter it adds a row above the sheet on every device —
+  // and a table that runs combat on the canvas has no use for it. Persisted to
+  // localStorage, so it is a per-device choice like the rest of these.
+  const showTurnBar = ref(loadShowTurnBar())
+  watch(showTurnBar, (v) => persistFlag(SHOW_TURN_BAR_KEY, v))
 
   // ── Voice memo transcription ───────────────────────────────────────────────
   // This device's transcription service, used for the memos recorded ON this
@@ -123,6 +137,7 @@ export const useSettingsStore = defineStore('settings', () => {
     manualDicePicker,
     showUnreadOnPortrait,
     showSharedImages,
+    showTurnBar,
     transcriptionEnabled,
     transcriptionEndpoint,
     transcriptionModel,

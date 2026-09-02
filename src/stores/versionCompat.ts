@@ -7,7 +7,8 @@ import {
   CAPABILITY_IMAGE_UPLOAD,
   CAPABILITY_REACTIONS,
   CAPABILITY_COMMENTS,
-  CAPABILITY_SET_HIT_POINTS
+  CAPABILITY_SET_HIT_POINTS,
+  CAPABILITY_END_TURN
 } from '@/api/protocol'
 
 // Tracks whether the connected Foundry module speaks the same wire protocol as
@@ -67,6 +68,12 @@ export const useVersionCompatStore = defineStore('versionCompat', () => {
     moduleCapabilities.value.includes(CAPABILITY_SET_HIT_POINTS)
   )
 
+  // Gate for the turn bar's End Turn button. A module too old to advertise it
+  // has no NEXT_TURN handler, so the tap would sit out the full 30s ack timeout
+  // and change nothing — hide the button instead. The rest of the turn bar is
+  // read from world data every module serves, so it stays visible.
+  const supportsEndTurn = computed(() => moduleCapabilities.value.includes(CAPABILITY_END_TURN))
+
   function reportModule(
     protocol: number | undefined,
     version: string | undefined,
@@ -101,6 +108,7 @@ export const useVersionCompatStore = defineStore('versionCompat', () => {
     supportsReactions,
     supportsComments,
     supportsSetHitPoints,
+    supportsEndTurn,
     isMismatched,
     reportModule,
     reset
