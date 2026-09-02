@@ -326,6 +326,34 @@
         color: var(--color-icon-muted-hover);
       }
 
+      /* Splitting and merging a stack are ordinary actions, so their rows take
+       the neutral surface pair the kebab menus use — the component's bare
+       bg-gray-100 is a light-theme hover that reads as a white bar on a dark
+       card. Only the delete row below is tinted. */
+      [data-part='equipment-menu-item']:is([data-action='split'], [data-action='merge']) {
+        &[data-active='true'],
+        &:hover {
+          background-color: var(--color-surface-hover);
+        }
+
+        &:active {
+          background-color: var(--color-surface-active);
+        }
+      }
+
+      /* What the split leaves behind: secondary to the number being picked,
+       muted with the same heading token the other secondary readouts use. */
+      [data-part='split-summary'] {
+        color: var(--color-heading);
+      }
+
+      /* Merge-all sits under the per-stack rows, separated from them — the rule
+       is the only chrome in the picker, so it has to be a themed border rather
+       than the component's light-theme gray. */
+      [data-part='merge-all'] {
+        border-top-color: var(--color-border);
+      }
+
       [data-part='equipment-menu-item'][data-action='delete'] {
         color: var(--color-danger);
 

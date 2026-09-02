@@ -1,6 +1,7 @@
 import { computed, type Ref } from 'vue'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { ContainerCapacity, TablemateCharacter } from '@/types/character-types'
+import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type { Field, Maybe } from './helpers'
 import { type PhysicalItem, type PhysicalItemSystem } from './defs/physicalItem'
 import { makeEquipment } from './defs/equipmentDef'
@@ -10,10 +11,12 @@ import { type Consumable, makeConsumable } from './defs/consumable'
 import { type Feat, makeFeat } from './defs/feat'
 import { type Effect, makeEffect } from './defs/effect'
 import { makeCondition } from './defs/condition'
-import { deleteActorItem, updateActorItem } from '@/api/documents'
+import { createActorItem, deleteActorItem, updateActorItem } from '@/api/documents'
+import { asDocumentArray } from '@/api/internal'
 import { attachItem, consumeItem, detachItem } from '@/api/actionRpc'
 import { inventoryTypes } from '@/utils/constants'
 import { removalLockedBy, type GrantAwareItem } from '@/utils/itemGrants'
+import { stackCandidateIds, stackQuantity, type StackableItem } from '@/utils/itemStacks'
 import type {
   AbstractEffectPF2e,
   ArmorPF2e,
@@ -34,6 +37,19 @@ export type InventoryItem = PhysicalItem & {
   attachTo?: (parentId: string) => ReturnType<typeof attachItem>
   // Detaches this subitem from its parent, restoring it as a standalone item.
   detach?: () => ReturnType<typeof detachItem>
+  // Splits `count` off a stack into a second item on the same actor, leaving
+  // `quantity - count` behind. Resolves null without writing anything when the
+  // count wouldn't divide the stack (outside 1…quantity-1).
+  splitStack?: (count: number) => Promise<DocumentSocketResponse | null>
+  // The ids of the other stacks this one could absorb, by PF2e's own
+  // stackability rule (utils/itemStacks). A method rather than a field: the rule
+  // compares two items' whole system data, and only the item whose menu is open
+  // needs the answer, so the sweep is paid for when it's asked for.
+  stackableIds?: () => string[]
+  // Folds the given stacks into this one — this item keeps the combined
+  // quantity, the sources are deleted. Ids that aren't stackable with this item
+  // are ignored; resolves null when none of them were.
+  mergeStack?: (sourceIds: string[]) => Promise<DocumentSocketResponse | null>
   // How full this container is, for `backpack` items — resolved Foundry-side
   // from PF2e's own container getters (see ContainerCapacity). Absent on every
   // other item type, and on module builds predating the field.
@@ -180,6 +196,11 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
 
     return [...stored, ...derived, ...divineIntercessions]
   })
+  // The stored item documents, as the stackability rule needs to see them: the
+  // whole `system` source data rather than the sheet's narrowed model, and a
+  // real array (`items` is typed as a Foundry collection but arrives as JSON).
+  const storedItems = () => (asDocumentArray(actor.value?.items) ?? []) as StackableItem[]
+
   const inventory = computed(() =>
     actor.value?.items
       ?.filter((i): i is PhysicalItemPF2e<CharacterPF2e> =>
@@ -205,6 +226,65 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
           i.system.quantity = Math.max(newValue, 0)
           const update = { system: { quantity: Math.max(newValue, 0) } }
           return updateActorItem(actor, i._id!, update)
+        },
+        splitStack: async (count: number) => {
+          const total = i?.system?.quantity
+          if (typeof total !== 'number') return null
+          const amount = Math.floor(count)
+          if (!Number.isFinite(amount) || amount < 1 || amount >= total) return null
+          // Cloned from the stored document rather than from this derived model,
+          // so the new stack keeps everything PF2e put on the item (runes,
+          // identification, flags) instead of only the fields the sheet reads.
+          const copy = JSON.parse(JSON.stringify(i)) as Record<string, unknown>
+          delete copy._id
+          const system = copy.system as Record<string, unknown>
+          system.quantity = amount
+          // Attached items are documents in their own right, so carrying them
+          // along would conjure a second shield boss out of a split. The new
+          // stack comes out bare; the attachments stay with the original.
+          delete system.subitems
+          // A grant link belongs to the item that was granted, not to a copy of
+          // it: left in place, the split-off stack would answer to a feat that
+          // never granted it (and itemGrants would claim items granted to the
+          // original), which utils/itemGrants reads as a reason to lock it.
+          const pf2e = (copy.flags as { pf2e?: Record<string, unknown> } | undefined)?.pf2e
+          if (pf2e) {
+            delete pf2e.grantedBy
+            delete pf2e.itemGrants
+          }
+          // The create goes first and is awaited: the original is only decremented
+          // once the new stack exists, so a rejected write can't make the
+          // difference disappear. Same ordering rule as a party transfer.
+          await createActorItem(actor, [copy])
+          i.system.quantity = total - amount
+          return updateActorItem(actor, i._id!, { system: { quantity: total - amount } })
+        },
+        stackableIds: () => stackCandidateIds(storedItems(), i),
+        mergeStack: async (sourceIds: string[]) => {
+          const total = i?.system?.quantity
+          if (typeof total !== 'number') return null
+          // Re-checked here rather than trusting the caller's ids: the menu that
+          // offered them was built against an older inventory, and merging an
+          // item that is no longer stackable is how runes get destroyed.
+          const stackable = stackCandidateIds(storedItems(), i)
+          const absorbed = storedItems().filter(
+            (other) => !!other._id && stackable.includes(other._id) && sourceIds.includes(other._id)
+          )
+          if (!absorbed.length) return null
+          const merged = absorbed.reduce((sum, source) => sum + stackQuantity(source), total)
+          // The survivor is credited BEFORE the sources are deleted, which is
+          // the opposite of PF2e's own stackWith (it deletes, then updates).
+          // Reversed for the same reason the split creates before decrementing:
+          // these are separate socket writes with no transaction around them, so
+          // the order decides what a failure between them leaves behind — a
+          // visible duplicate rather than quantity that no longer exists
+          // anywhere. updateActorItem rethrows, so a failed credit stops here.
+          i.system.quantity = merged
+          await updateActorItem(actor, i._id!, { system: { quantity: merged } })
+          return deleteActorItem(
+            actor,
+            absorbed.map((source) => source._id!)
+          )
         },
         changeCarry: (
           carryType: Maybe<string>,

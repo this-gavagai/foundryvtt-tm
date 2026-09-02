@@ -3,7 +3,7 @@ import type { InventoryItem } from '@/composables/character'
 import type { ActiveRoll } from '@/types/api-types'
 import { nextTick, ref, computed, watch } from 'vue'
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
-import { EllipsisVerticalIcon } from '@heroicons/vue/24/outline'
+import { EllipsisVerticalIcon, PlusCircleIcon, MinusCircleIcon } from '@heroicons/vue/24/outline'
 import { printPrice } from '@/utils/formatters'
 import { useTraitLabels } from '@/composables/useTraitLabels'
 import { getPath } from '@/utils/utilities'
@@ -34,6 +34,8 @@ import meepleGroupIcon from '@/assets/icons/meeple-group.svg'
 const infoModal = ref()
 const investedModal = ref()
 const attachModal = ref()
+const splitModal = ref()
+const mergeModal = ref()
 const equipmentDetails = ref<InstanceType<typeof EquipmentDetails>>()
 const equipmentActiveRoll = ref<ActiveRoll>()
 const inlineRolls = useRollsFromActiveRoll(equipmentActiveRoll)
@@ -171,6 +173,68 @@ function viewItem(item: InventoryItem) {
 function deleteViewedItem() {
   infoModal.value.close()
   return itemViewed.value?.delete?.()
+}
+
+// A stack of more than one can be divided into two: the picker below chooses how
+// many come off, and the rest stay on the original item. Read off `itemViewed`
+// (not the frozen snapshot) so the bounds follow the live quantity — someone
+// else spending arrows while the modal is open lowers the ceiling.
+const splitCount = ref(1)
+const maxSplitCount = computed(() => Math.max(1, (itemViewed.value?.system?.quantity ?? 1) - 1))
+const canSplitViewedItem = computed(() => (itemViewed.value?.system?.quantity ?? 0) > 1)
+
+function setSplitCount(value: number) {
+  if (Number.isNaN(value)) return
+  splitCount.value = Math.min(Math.max(Math.floor(value), 1), maxSplitCount.value)
+}
+
+function onSplitInput(e: Event) {
+  setSplitCount(Number((e.target as HTMLInputElement).value))
+}
+
+function openSplitModal() {
+  // Half the stack is the split people reach for most often, so it's the
+  // number already in the box; the picker is there for every other split.
+  setSplitCount(Math.floor((itemViewed.value?.system?.quantity ?? 2) / 2))
+  splitModal.value?.open()
+}
+
+// The detail modal stays open on the item that was split: its quantity is now
+// the remainder, which is the answer to "did that do what I meant?".
+async function splitViewedItem() {
+  const count = Math.min(splitCount.value, maxSplitCount.value)
+  await itemViewed.value?.splitStack?.(count)
+  splitModal.value?.close()
+}
+
+// The other stacks the viewed item could absorb. Offered whenever one exists —
+// quantity 1 included, since two lone arrows are exactly the case worth
+// merging, which makes this a different gate from the split's. Only the item
+// itself can answer: PF2e's stackability rule compares whole documents, and the
+// sheet's item model keeps too little of one (utils/itemStacks).
+const mergeCandidates = computed<InventoryItem[]>(() => {
+  const ids = itemViewed.value?.stackableIds?.() ?? []
+  return (displayInventory.value ?? []).filter((i: InventoryItem) => i._id && ids.includes(i._id))
+})
+const mergeTotal = computed(
+  () =>
+    (itemViewed.value?.system?.quantity ?? 0) +
+    mergeCandidates.value.reduce((sum, i) => sum + (i.system?.quantity ?? 0), 0)
+)
+
+// One candidate needs no picker — the menu row already names it. Several do.
+function mergeClicked() {
+  const only = mergeCandidates.value.length === 1 ? mergeCandidates.value[0]._id : undefined
+  if (only) return mergeStacks([only])
+  mergeModal.value?.open()
+}
+
+// The viewed item is always the survivor, so the detail modal stays open and
+// its Qty ticks up — the inverse of a split leaving the remainder in front of
+// you. mergeStack re-checks stackability, so a stale id is dropped, not merged.
+async function mergeStacks(sourceIds: string[]) {
+  await itemViewed.value?.mergeStack?.(sourceIds)
+  mergeModal.value?.close()
 }
 
 // Thin view-side wrapper over the transfer protocol: supply the viewed item,
@@ -385,6 +449,38 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
               data-part="equipment-menu-items"
               class="absolute top-full right-0 z-20 mt-1 w-40 rounded-md border border-gray-200 bg-white py-1 text-sm font-semibold shadow-lg ring-1 ring-black/5 focus:outline-hidden"
             >
+              <MenuItem v-if="canSplitViewedItem" v-slot="{ active }">
+                <button
+                  type="button"
+                  data-action="split"
+                  data-part="equipment-menu-item"
+                  class="block w-full px-3 py-2 text-left"
+                  :data-active="active ? true : undefined"
+                  :class="active ? 'bg-gray-100' : ''"
+                  @click="openSplitModal"
+                >
+                  {{ $t('equipment.splitStack') }}
+                </button>
+              </MenuItem>
+              <MenuItem v-if="mergeCandidates.length" v-slot="{ active }">
+                <button
+                  type="button"
+                  data-action="merge"
+                  data-part="equipment-menu-item"
+                  class="block w-full px-3 py-2 text-left"
+                  :data-active="active ? true : undefined"
+                  :class="active ? 'bg-gray-100' : ''"
+                  @click="mergeClicked"
+                >
+                  {{
+                    mergeCandidates.length === 1
+                      ? $t('equipment.mergeWith', {
+                          count: mergeCandidates[0].system?.quantity ?? 0
+                        })
+                      : $t('equipment.mergeStack')
+                  }}
+                </button>
+              </MenuItem>
               <MenuItem v-slot="{ active }" :disabled="itemHasContents">
                 <button
                   type="button"
@@ -471,6 +567,84 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
           </div>
         </template>
       </InfoModal>
+      <Modal
+        ref="splitModal"
+        :title="$t('equipment.splitTitle', { name: frozenItem?.label ?? frozenItem?.name ?? '' })"
+      >
+        <div class="flex items-center justify-between py-6 text-3xl">
+          <Button
+            color="unstyled"
+            :disabled="splitCount <= 1"
+            :clicked="() => setSplitCount(splitCount - 1)"
+          >
+            <MinusCircleIcon class="h-8 w-8" />
+          </Button>
+          <input
+            type="number"
+            min="1"
+            :max="maxSplitCount"
+            data-part="split-count"
+            class="w-28 rounded-md border border-gray-300 py-2 text-center text-3xl"
+            :value="splitCount"
+            @change="onSplitInput"
+          />
+          <Button
+            color="unstyled"
+            :disabled="splitCount >= maxSplitCount"
+            :clicked="() => setSplitCount(splitCount + 1)"
+          >
+            <PlusCircleIcon class="h-8 w-8" />
+          </Button>
+        </div>
+        <!-- Both halves are spelled out: the number in the box is what leaves,
+             and the one worth double-checking is what's left behind. -->
+        <p data-part="split-summary" class="text-center text-sm">
+          {{
+            $t('equipment.splitSummary', {
+              split: Math.min(splitCount, maxSplitCount),
+              remaining: (itemViewed?.system?.quantity ?? 0) - Math.min(splitCount, maxSplitCount)
+            })
+          }}
+        </p>
+        <div class="mt-6 flex justify-end gap-2">
+          <Button color="lightgray" :clicked="() => splitModal.close()">
+            {{ $t('common.cancel') }}
+          </Button>
+          <Button color="blue" :disabled="!canSplitViewedItem" :clicked="splitViewedItem">
+            {{ $t('equipment.splitConfirm') }}
+          </Button>
+        </div>
+      </Modal>
+      <!-- Same shape as the attach picker below: the choice is which item, so a
+           list of items is the whole interface. -->
+      <Modal
+        ref="mergeModal"
+        :title="$t('equipment.mergeTitle', { name: frozenItem?.label ?? frozenItem?.name ?? '' })"
+      >
+        <ul>
+          <li v-for="candidate in mergeCandidates" :key="candidate._id">
+            <button
+              type="button"
+              data-part="merge-candidate"
+              class="flex w-full cursor-pointer items-center gap-2 py-1 text-left active:text-gray-500"
+              @click="mergeStacks([candidate._id!])"
+            >
+              <img v-if="candidate.img" :src="getPath(candidate.img)" class="h-6 w-6" alt="" />
+              <span class="w-full truncate">{{ candidate.label ?? candidate.name }}</span>
+              <span class="text-sm">×{{ candidate.system?.quantity }}</span>
+            </button>
+          </li>
+        </ul>
+        <button
+          v-if="mergeCandidates.length > 1"
+          type="button"
+          data-part="merge-all"
+          class="mt-2 w-full cursor-pointer border-t border-gray-200 pt-2 text-left active:text-gray-500"
+          @click="mergeStacks(mergeCandidates.map((c: InventoryItem) => c._id!))"
+        >
+          {{ $t('equipment.mergeAll', { count: mergeTotal }) }}
+        </button>
+      </Modal>
       <Modal ref="attachModal" :title="$t('equipment.attachTitle')">
         <ul>
           <li v-for="parent in attachCandidates" :key="parent._id">

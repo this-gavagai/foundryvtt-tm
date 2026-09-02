@@ -195,6 +195,33 @@ export function updateActor(actor: TablemateActorRef, update: object) {
   ).catch((error) => recoverFailedWrite(actor, error))
 }
 
+// Create one or more items on an actor. The ack is echoed into the local items
+// array before it resolves: Foundry answers only the emitting socket here (the
+// broadcast goes to *other* clients), so without the echo a freshly created
+// item stays invisible until something else forces a refresh — the same reason
+// useCoins and usePartyTransfer echo their own creates.
+//
+// No recoverFailedWrite here: nothing was written locally ahead of the socket,
+// so a rejection leaves no optimistic state to walk back, and callers (the
+// stack split) depend on seeing it.
+export function createActorItem(actor: TablemateActorRef, data: Record<string, unknown>[]) {
+  return modifyDocument(
+    {
+      action: 'create',
+      type: 'Item',
+      operation: {
+        render: true,
+        parentUuid: 'Actor.' + actor.value!._id!,
+        data
+      }
+    },
+    (r) => {
+      processChanges(r, asDocumentArray(actor.value!.items))
+      fireRefresh(actor.value!._id)
+    }
+  )
+}
+
 export function updateActorItem(
   actor: TablemateActorRef,
   itemId: string | string[],
