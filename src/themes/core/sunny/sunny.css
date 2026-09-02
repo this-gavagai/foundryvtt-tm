@@ -760,7 +760,8 @@
         [data-component='NpcNotes']
       )
       section[data-section],
-    :is([data-component='SpellList'], [data-component='NpcSpellList']) section[data-section] {
+    :is([data-component='SpellList'], [data-component='NpcSpellList']) section[data-section],
+    [data-component='EquipmentCoins'] [data-part='purse'] {
       /* Lit from above, the paper equivalent of moonlit's card gradient: a
        brighter top edge easing to the base fill. Text sits on the near-uniform
        body of the card, so legibility is unchanged; the translucency still

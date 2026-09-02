@@ -1162,11 +1162,13 @@
      small radius) so the two read as one stack of equally-weighted summary
      controls rather than a bar and a stray row of text. */
     [data-component='EquipmentCoins'] {
+      /* The purse is one of the tab's cards, so it takes the glass treatment
+       from the palette alongside every section — background, border and radius
+       included. No background-color is set here for the same reason the section
+       cards set none: an opaque fill underneath would sit behind the palette's
+       translucent gradient and cancel the blur it refracts. */
       [data-part='purse'] {
         height: var(--tm-control-height);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        background-color: var(--color-surface);
         color: var(--color-text);
         font-variant-numeric: tabular-nums;
         transition: background-color 150ms ease;
