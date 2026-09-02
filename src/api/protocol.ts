@@ -103,6 +103,15 @@ export const CAPABILITY_IMAGE_UPLOAD = 'imageUpload'
 // an older module would leave it nowhere to put.
 export const CAPABILITY_VOICE_MEMO_TRANSCRIPT = 'voiceMemoTranscript'
 
+// Hit-point edits resolved through PF2e's applyDamage on the GM's client
+// (SET_HIT_POINTS). Advertised unconditionally — it needs no world
+// configuration; its only job is version detection. A module predating it would
+// log 'event not caught' and never answer, leaving an HP edit to sit out the
+// full 30s ack timeout and then silently do nothing. The app falls back to
+// writing hit points directly when this is absent, which is exactly what it did
+// before — automation-free, but it lands.
+export const CAPABILITY_SET_HIT_POINTS = 'setHitPoints'
+
 // Emoji reactions on chat messages. Unlike the media capabilities this needs no
 // world configuration, so it's advertised unconditionally — its only job is
 // version detection: a module predating reactions would log 'event not caught'
@@ -182,6 +191,13 @@ export const TM = {
   GET_COMPENDIUM_INDEX: 'getCompendiumIndex',
   SEND_COMPENDIUM_ITEM_TO_CHAT: 'sendCompendiumItemToChat',
   APPLY_DAMAGE: 'applyDamage',
+  // Manual hit-point edit from the sheet's HP modal. Writes the same plain field
+  // PF2e's own sheet does; it is an RPC rather than a direct socket write only
+  // so that the write happens ON a Foundry client. `preUpdateActor` — where
+  // Workbench hangs auto-Dying and auto-remove-Unconscious — fires only on the
+  // client that calls actor.update(), and a raw modifyDocument emit calls it on
+  // none. See foundry/handlers/setHitPoints.ts.
+  SET_HIT_POINTS: 'setHitPoints',
   REROLL_CHAT_ROLL: 'rerollChatRoll',
   // Emoji reaction toggle. Unlike posting/editing/deleting a message — which the
   // app now does directly over the modifyDocument socket as its own user — a

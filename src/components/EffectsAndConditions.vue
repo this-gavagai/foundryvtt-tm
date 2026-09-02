@@ -14,7 +14,11 @@ import type { EffectItem } from '@/composables/character'
 import type { ActiveRoll } from '@/types/api-types'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
 import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
+import { GrantRestrictionError } from '@/utils/itemGrants'
+import AddConditionModal from '@/components/AddConditionModal.vue'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const character = useInjectedActor()
 const { effects, rollOptionLabels } = character
 
@@ -29,16 +33,31 @@ const effectViewedId = ref<string | undefined>()
 const effectViewed = computed(() => effects.value?.find((e) => e._id === effectViewedId.value))
 const activeRoll = ref<ActiveRoll>()
 const inlineRolls = useRollsFromActiveRoll(activeRoll)
+const removalPrevented = ref<string | undefined>()
+const addConditionModal = ref<InstanceType<typeof AddConditionModal>>()
 
 function viewEffect(effect: EffectItem) {
   effectViewedId.value = effect._id
   activeRoll.value = undefined
+  removalPrevented.value = undefined
   infoModal.value.open()
 }
 
-function removeViewedEffect() {
-  infoModal.value.close()
-  if (effectViewed.value?.delete) return effectViewed.value.delete()
+// PF2e marks some grants `restrict` — Unconscious can't be dismissed while
+// Dying is what's causing it (see utils/itemGrants). Keep the modal open and
+// say which condition is holding this one in place, rather than closing on a
+// removal that never happened.
+async function removeViewedEffect() {
+  removalPrevented.value = undefined
+  if (!effectViewed.value?.delete) return infoModal.value.close()
+  try {
+    await effectViewed.value.delete()
+    infoModal.value.close()
+  } catch (error) {
+    if (!(error instanceof GrantRestrictionError)) throw error
+    const { item, preventer } = error.blocked[0]
+    removalPrevented.value = t('effects.removalPrevented', { item, preventer })
+  }
 }
 
 function adjustViewedEffectQty(delta: number) {
@@ -46,16 +65,22 @@ function adjustViewedEffectQty(delta: number) {
 }
 </script>
 <template>
-  <div class="px-0! py-0!" :class="{ 'border-none': effects?.length === 0 }">
-    <div
-      class="relative flex flex-wrap gap-2 overflow-hidden px-6"
-      :class="[
-        animationsReady ? 'transition-all duration-300' : '',
-        effects?.length && effects?.length > 0
-          ? 'border-opacity-100 scale-y-100 py-4'
-          : 'border-opacity-0 scale-y-0 py-0'
-      ]"
-    >
+  <div class="px-0! py-0!">
+    <!-- The panel used to collapse to nothing when empty; it now always holds
+         either the chips or the line offering to add a condition, so there is
+         no zero-height state to animate away and the divider always earns its
+         keep. Individual chips still animate in and out. -->
+    <div class="relative flex flex-wrap items-center gap-2 px-6 py-4">
+      <button
+        v-if="!effects?.length"
+        type="button"
+        class="cursor-pointer text-left text-sm underline decoration-dotted underline-offset-4 opacity-70"
+        data-part="empty"
+        @pointerdown="triggerLightHapticFeedback()"
+        @click="addConditionModal?.open()"
+      >
+        {{ $t('effects.none') }}
+      </button>
       <TransitionGroup
         :enter-active-class="animationsReady ? 'transform duration-300 ease-out' : ''"
         :enter-from-class="animationsReady ? ' opacity-0 max-h-0' : ''"
@@ -97,6 +122,7 @@ function adjustViewedEffectQty(delta: number) {
       </TransitionGroup>
     </div>
     <Teleport to="#modals">
+      <AddConditionModal ref="addConditionModal" />
       <InfoModal
         ref="infoModal"
         :itemId="effectViewed?._id"
@@ -118,8 +144,25 @@ function adjustViewedEffectQty(delta: number) {
             @update:activeRoll="activeRoll = $event"
           />
         </template>
+        <template #bottomLeft>
+          <!-- Why Remove is greyed out. `lockedBy` is set at render time from
+               the grant graph; `removalPrevented` is the same answer arriving
+               the hard way, when the write was refused after the fact. -->
+          <p v-if="effectViewed?.lockedBy" class="text-xs opacity-70" data-part="locked-by">
+            {{ $t('effects.lockedBy', { source: effectViewed.lockedBy }) }}
+          </p>
+          <p
+            v-else-if="removalPrevented"
+            class="text-xs text-red-500"
+            data-part="removal-prevented"
+          >
+            {{ removalPrevented }}
+          </p>
+        </template>
         <template #actionButtons>
-          <Button color="red" :clicked="removeViewedEffect">{{ $t('common.remove') }}</Button>
+          <Button color="red" :disabled="!!effectViewed?.lockedBy" :clicked="removeViewedEffect">
+            {{ $t('common.remove') }}
+          </Button>
           <Button
             v-if="effectViewed?.system?.value?.isValued"
             color="lightgray"

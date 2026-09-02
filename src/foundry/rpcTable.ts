@@ -46,6 +46,7 @@ import {
   foundryRunActionable,
   foundryRunMacro,
   foundrySetComment,
+  foundrySetHitPoints,
   foundrySelectSpellVariant,
   foundrySendChatMessage,
   foundrySendCompendiumItemToChat,
@@ -115,6 +116,7 @@ export const RPC_TABLE: RpcTable = {
   [TM.UPDATE_ACTOR]: { handler: foundryUpdateActor, auth: 'owner' },
   [TM.ADD_COMPENDIUM_ITEM]: { handler: foundryAddCompendiumItem, auth: 'owner' },
   [TM.APPLY_DAMAGE]: { handler: foundryApplyDamage, auth: 'owner' },
+  [TM.SET_HIT_POINTS]: { handler: foundrySetHitPoints, auth: 'owner' },
   [TM.REROLL_CHAT_ROLL]: { handler: foundryRerollChatRoll, auth: 'owner' },
 
   // Compendium browsing: read-only, no target actor, so any known world user may

@@ -25,6 +25,7 @@ import { makeIWRs } from '@/composables/character/characterStats'
 import { makeSpellRankResolver } from '@/utils/spellcasting'
 import { tokenPortrait } from '@/utils/tokenPortrait'
 import { deleteActorItem, updateActor, updateActorItem } from '@/api/documents'
+import { setHitPoints, type HitPointTarget } from '@/composables/setHitPoints'
 import { castSpell, getSpellDamage, getStrikeDamage, rollCheck, rollDamage } from '@/api/actionRpc'
 import { formatTraitLabel } from '@/utils/traitLabels'
 import type { DiceResults } from '@/types/api-types'
@@ -149,29 +150,11 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
     adjustment: computed(() => actor.value?.system?.attributes?.adjustment ?? null),
 
     hp: {
-      current: computed({
-        get: () => actor.value?.system?.attributes?.hp?.value,
-        set: (newValue) => {
-          if (!actor.value || newValue === undefined) return
-          actor.value.system.attributes.hp.value = newValue
-          // Fire-and-forget: recovery (refresh + rethrow) happens in updateActor.
-          void updateActor(actor, {
-            system: { attributes: { hp: { value: newValue } } }
-          }).catch(() => {})
-        }
-      }),
+      current: computed(() => actor.value?.system?.attributes?.hp?.value),
       max: computed(() => actor.value?.system?.attributes?.hp?.max),
-      temp: computed({
-        get: () => actor.value?.system?.attributes?.hp?.temp,
-        set: (newValue) => {
-          if (!actor.value || newValue === undefined) return
-          actor.value.system.attributes.hp.temp = newValue
-          void updateActor(actor, {
-            system: { attributes: { hp: { temp: newValue } } }
-          }).catch(() => {})
-        }
-      }),
-      modifiers: computed(() => makeModifiers(actor.value?.system?.attributes?.hp?.modifiers))
+      temp: computed(() => actor.value?.system?.attributes?.hp?.temp),
+      modifiers: computed(() => makeModifiers(actor.value?.system?.attributes?.hp?.modifiers)),
+      set: (target: HitPointTarget) => setHitPoints(actor, target)
     },
     hpDetails: computed(() => actor.value?.system?.attributes?.hp?.details || undefined),
 
@@ -292,8 +275,7 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
           // (it round-trips as a full item document) and fall back to the one
           // embedded in the strike.
           const meleeItem =
-            itemsOfType(actor.value, 'melee').find((i) => i._id === attack.item?._id) ??
-            attack.item
+            itemsOfType(actor.value, 'melee').find((i) => i._id === attack.item?._id) ?? attack.item
           const meleeSystem: MeleeSystemView | undefined = meleeItem?.system
           // `weaponType` is what PF2e's MeleePF2e.isMelee/isRanged getters read,
           // and the getters do not survive the socket. See MeleeSystemView.
@@ -416,92 +398,91 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
       const entries = itemsOfType(actor.value, 'spellcastingEntry')
       const entryById = new Map(entries.map((i) => [i._id, i]))
       const rankOf = makeSpellRankResolver(actor.value?.system?.details?.level?.value)
-      return itemsOfType(actor.value, 'spell')
-        .map((item) => {
-          const base = makeSpell(item)
-          const entry = entryById.get(item.system?.location?.value)
-          const innate = entry?.system?.prepared?.value === 'innate'
-          const cantrip = base.system.traits?.value?.includes('cantrip') ?? false
-          // The rank this spell goes off at, resolved exactly as the spellbook
-          // files it (see makeSpellRankResolver). Cantrips are left unset so PF2e
-          // auto-scales them Foundry-side.
-          const castRank = cantrip
-            ? undefined
-            : rankOf(base, entry ? makeSpellcastingEntry(entry) : undefined)
-          // Uses are the innate stand-in for slots. They arrive because the
-          // Foundry side overlays the prepared value (PF2e derives a default of
-          // 1/1 rather than storing one) — see getCharacterDetails.
-          const uses = innate ? item.system?.location?.uses : undefined
-          return {
-            ...base,
-            castRank,
-            uses: uses ? { value: uses.value, max: uses.max } : undefined,
-            setUses: innate
-              ? (newValue: number) =>
-                  updateActorItem(actor, item._id!, {
-                    system: { location: { uses: { value: newValue } } }
-                  })
-              : undefined,
-            // The slot index only means anything to a strict-prepared entry
-            // (PF2e's consume() deducts that specific slot); innate and
-            // spontaneous entries ignore it, so a missing one defaults to 0
-            // rather than blocking the cast the way the character path does.
-            //
-            // Left OFF entirely for a spell attached to no entry: PF2e casts
-            // through SpellcastingEntry#cast, so there is nothing to cast from
-            // and the Foundry handler would throw. The sheet reads the absence
-            // and hides the button.
-            doSpell: entry
-              ? (rank: number | undefined, slot: number | undefined, overlayIds?: string[]) =>
-                  castSpell(actor, item._id!, rank ?? castRank ?? 1, slot ?? 0, overlayIds)
-              : undefined,
-            doSpellAttack: (
-              attackNumber: 1 | 2 | 3,
-              result?: number,
-              modifierOverrides?: Record<string, boolean>,
-              overlayIds?: string[]
-            ) =>
-              rollCheck(
-                actor,
-                'spellAttack',
-                {
-                  entryId: item.system?.location?.value ?? '',
-                  spellId: item._id ?? undefined,
-                  attackNumber,
-                  overlayIds
-                },
-                { d20: [result ?? 0] },
-                [],
-                modifierOverrides ? { modifierOverrides } : {}
-              ),
-            doSpellDamage: (
-              mapIncreases: 0 | 1 | 2 = 0,
-              castingRank?: number,
-              result?: DiceResults,
-              modifierOverrides?: Record<string, boolean>,
-              overlayIds?: string[]
-            ) =>
-              rollCheck(
-                actor,
-                'spellDamage',
-                {
-                  spellId: item._id ?? '',
-                  mapIncreases,
-                  castingRank: castingRank ?? castRank,
-                  overlayIds
-                },
-                result ?? {},
-                [],
-                modifierOverrides ? { modifierOverrides } : {}
-              ),
-            getDamage: (
-              castingRank?: number,
-              modifierOverrides?: Record<string, boolean>,
-              overlayIds?: string[]
-            ) =>
-              getSpellDamage(actor, item._id!, castingRank ?? castRank, modifierOverrides, overlayIds)
-          } as NpcSpell
-        })
+      return itemsOfType(actor.value, 'spell').map((item) => {
+        const base = makeSpell(item)
+        const entry = entryById.get(item.system?.location?.value)
+        const innate = entry?.system?.prepared?.value === 'innate'
+        const cantrip = base.system.traits?.value?.includes('cantrip') ?? false
+        // The rank this spell goes off at, resolved exactly as the spellbook
+        // files it (see makeSpellRankResolver). Cantrips are left unset so PF2e
+        // auto-scales them Foundry-side.
+        const castRank = cantrip
+          ? undefined
+          : rankOf(base, entry ? makeSpellcastingEntry(entry) : undefined)
+        // Uses are the innate stand-in for slots. They arrive because the
+        // Foundry side overlays the prepared value (PF2e derives a default of
+        // 1/1 rather than storing one) — see getCharacterDetails.
+        const uses = innate ? item.system?.location?.uses : undefined
+        return {
+          ...base,
+          castRank,
+          uses: uses ? { value: uses.value, max: uses.max } : undefined,
+          setUses: innate
+            ? (newValue: number) =>
+                updateActorItem(actor, item._id!, {
+                  system: { location: { uses: { value: newValue } } }
+                })
+            : undefined,
+          // The slot index only means anything to a strict-prepared entry
+          // (PF2e's consume() deducts that specific slot); innate and
+          // spontaneous entries ignore it, so a missing one defaults to 0
+          // rather than blocking the cast the way the character path does.
+          //
+          // Left OFF entirely for a spell attached to no entry: PF2e casts
+          // through SpellcastingEntry#cast, so there is nothing to cast from
+          // and the Foundry handler would throw. The sheet reads the absence
+          // and hides the button.
+          doSpell: entry
+            ? (rank: number | undefined, slot: number | undefined, overlayIds?: string[]) =>
+                castSpell(actor, item._id!, rank ?? castRank ?? 1, slot ?? 0, overlayIds)
+            : undefined,
+          doSpellAttack: (
+            attackNumber: 1 | 2 | 3,
+            result?: number,
+            modifierOverrides?: Record<string, boolean>,
+            overlayIds?: string[]
+          ) =>
+            rollCheck(
+              actor,
+              'spellAttack',
+              {
+                entryId: item.system?.location?.value ?? '',
+                spellId: item._id ?? undefined,
+                attackNumber,
+                overlayIds
+              },
+              { d20: [result ?? 0] },
+              [],
+              modifierOverrides ? { modifierOverrides } : {}
+            ),
+          doSpellDamage: (
+            mapIncreases: 0 | 1 | 2 = 0,
+            castingRank?: number,
+            result?: DiceResults,
+            modifierOverrides?: Record<string, boolean>,
+            overlayIds?: string[]
+          ) =>
+            rollCheck(
+              actor,
+              'spellDamage',
+              {
+                spellId: item._id ?? '',
+                mapIncreases,
+                castingRank: castingRank ?? castRank,
+                overlayIds
+              },
+              result ?? {},
+              [],
+              modifierOverrides ? { modifierOverrides } : {}
+            ),
+          getDamage: (
+            castingRank?: number,
+            modifierOverrides?: Record<string, boolean>,
+            overlayIds?: string[]
+          ) =>
+            getSpellDamage(actor, item._id!, castingRank ?? castRank, modifierOverrides, overlayIds)
+        } as NpcSpell
+      })
     }),
 
     focusPoints: {
@@ -519,16 +500,15 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
     },
 
     effects: computed(() =>
-      itemsOfType(actor.value, 'effect', 'condition')
-        .map((i) => {
-          const base = isItemOfType(i, 'condition') ? makeCondition(i) : makeEffect(i)
-          return {
-            ...base,
-            delete: () => deleteActorItem(actor, i._id!),
-            changeQty: (newValue: number) =>
-              updateActorItem(actor, i._id!, { system: { value: { value: newValue } } })
-          }
-        })
+      itemsOfType(actor.value, 'effect', 'condition').map((i) => {
+        const base = isItemOfType(i, 'condition') ? makeCondition(i) : makeEffect(i)
+        return {
+          ...base,
+          delete: () => deleteActorItem(actor, i._id!),
+          changeQty: (newValue: number) =>
+            updateActorItem(actor, i._id!, { system: { value: { value: newValue } } })
+        }
+      })
     ),
 
     languages: computed(() => actor.value?.languages),

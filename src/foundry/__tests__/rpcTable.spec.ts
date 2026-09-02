@@ -47,6 +47,10 @@ const EXPECTED: Record<RpcAction, Expected> = {
   [TM.UPDATE_ACTOR]: { auth: 'owner' },
   [TM.ADD_COMPENDIUM_ITEM]: { auth: 'owner' },
   [TM.APPLY_DAMAGE]: { auth: 'owner' },
+  // Writes hit points on someone's actor, so owner-gated for the same reason
+  // APPLY_DAMAGE is. Not concurrent: the update fires `preUpdateActor`, where
+  // module automation can add conditions and post chat of its own.
+  [TM.SET_HIT_POINTS]: { auth: 'owner' },
   [TM.REROLL_CHAT_ROLL]: { auth: 'owner' },
 
   // ── Read-only compendium browsing: no target actor, and safe to run off the

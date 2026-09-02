@@ -10,6 +10,11 @@ import {
 } from './internal'
 import { fireRefresh } from './characterSync'
 import { sanitizeActorUpdate } from '@/utils/actorUpdatePaths'
+import {
+  GrantRestrictionError,
+  resolveGrantDeletions,
+  type GrantAwareItem
+} from '@/utils/itemGrants'
 import { logger } from '@/utils/utilities'
 
 // Foundry document collections that we mutate via the modifyDocument socket.
@@ -198,21 +203,77 @@ export function updateActorItem(
   ).catch((error) => recoverFailedWrite(actor, error))
 }
 
-export function deleteActorItem(actor: TablemateActorRef, itemId: string) {
+// Drop a dangling `flags.pf2e.grantedBy` from items that outlive their granter.
+// Sent as Foundry's `-=` deletion key, which removes the property outright
+// rather than leaving a half-object behind. processChanges can't express a key
+// removal through lodash merge, so the local mirror is edited directly instead.
+function detachGrantedBy(actor: TablemateActorRef, itemIds: string[]) {
+  if (!itemIds.length) return Promise.resolve()
   return modifyDocument(
     {
-      action: 'delete',
+      action: 'update',
       type: 'Item',
       operation: {
-        ids: [itemId],
-        parentUuid: 'Actor.' + actor.value!._id!
+        // Not diffed: a `-=` key has no counterpart in the current data, and
+        // the point of sending it is that it survives to the server intact.
+        diff: false,
+        render: true,
+        parentUuid: 'Actor.' + actor.value!._id!,
+        updates: itemIds.map((id) => ({ _id: id, flags: { pf2e: { '-=grantedBy': null } } }))
       }
     },
-    (r) => {
-      processChanges(r, asDocumentArray(actor.value!.items))
-      fireRefresh(actor.value!._id)
+    () => {
+      const items = (asDocumentArray(actor.value?.items) ?? []) as GrantAwareItem[]
+      for (const id of itemIds) {
+        const pf2e = items.find((i) => i._id === id)?.flags?.pf2e
+        if (pf2e) delete pf2e.grantedBy
+      }
     }
-  ).catch((error) => recoverFailedWrite(actor, error))
+  )
+}
+
+// Delete one or more of an actor's items, following PF2e's item-grant graph on
+// the way out. The app deletes over the raw modifyDocument socket, so none of
+// the system's client-side `ItemPF2e.deleteDocuments` logic runs — without this
+// expansion, removing Dying left the Unconscious and Blinded it granted behind
+// (adding chained fine, because that path goes through the GM's Foundry client).
+// utils/itemGrants reads the relationship straight off the flags PF2e wrote; no
+// condition is named anywhere.
+export function deleteActorItem(actor: TablemateActorRef, itemId: string | string[]) {
+  const requested = Array.isArray(itemId) ? itemId : [itemId]
+  const items = (asDocumentArray(actor.value?.items) ?? []) as GrantAwareItem[]
+  const plan = resolveGrantDeletions(items, requested)
+
+  // PF2e marks some grants `restrict`: Unconscious can't be dismissed while
+  // Dying is what's causing it. Refuse the same way the system's own sheet
+  // does, and don't refresh — nothing was written.
+  if (plan.blocked.length) {
+    logger.warn('TM-DELETE-ITEM: removal prevented by a granting item', plan.blocked)
+    return Promise.reject(new GrantRestrictionError(plan.blocked))
+  }
+  // An id the local item list doesn't know about (a sheet mid-load, a subitem)
+  // resolves to nothing — fall back to deleting exactly what was asked for
+  // rather than silently deleting nothing.
+  const ids = plan.deleteIds.length ? plan.deleteIds : requested
+
+  return detachGrantedBy(actor, plan.detachIds)
+    .then(() =>
+      modifyDocument(
+        {
+          action: 'delete',
+          type: 'Item',
+          operation: {
+            ids,
+            parentUuid: 'Actor.' + actor.value!._id!
+          }
+        },
+        (r) => {
+          processChanges(r, asDocumentArray(actor.value!.items))
+          fireRefresh(actor.value!._id)
+        }
+      )
+    )
+    .catch((error) => recoverFailedWrite(actor, error))
 }
 
 export function updateUserTargetingProxy(userId: string, proxyId: string) {

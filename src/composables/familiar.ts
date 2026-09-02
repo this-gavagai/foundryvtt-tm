@@ -1,7 +1,5 @@
 import { computed, type Ref } from 'vue'
-import type {
-  SaveType
-} from '@7h3laughingman/pf2e-types'
+import type { SaveType } from '@7h3laughingman/pf2e-types'
 import type { TablemateFamiliar } from '@/types/character-types'
 import type { Actor } from '@/composables/actor'
 import { isItemOfType, itemsOfType, type Field } from '@/composables/character/helpers'
@@ -12,7 +10,8 @@ import type { Stat } from '@/composables/character/defs/stat'
 import { makeStat } from '@/composables/character/defs/stat'
 import { tokenPortrait } from '@/utils/tokenPortrait'
 import { makeModifiers } from '@/composables/character/defs/modifier'
-import { updateActor, deleteActorItem, updateActorItem } from '@/api/documents'
+import { deleteActorItem, updateActorItem } from '@/api/documents'
+import { setHitPoints, type HitPointTarget } from '@/composables/setHitPoints'
 import { rollCheck, rollDamage } from '@/api/actionRpc'
 import type { DiceResults } from '@/types/api-types'
 
@@ -61,29 +60,13 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
     masterAbility: computed(() => actor.value?.system?.master?.ability ?? undefined),
     creature: computed(() => actor.value?.system?.details?.creature?.value),
     hp: {
-      current: computed({
-        get: () => (actor.value?.system?.attributes?.hp as FamiliarHp | undefined)?.value,
-        set: (newValue) => {
-          if (!actor.value || newValue === undefined) return
-          actor.value.system.attributes.hp.value = newValue
-          // Fire-and-forget: recovery (refresh + rethrow) happens in updateActor.
-          void updateActor(actor, {
-            system: { attributes: { hp: { value: newValue } } }
-          }).catch(() => {})
-        }
-      }),
+      current: computed(
+        () => (actor.value?.system?.attributes?.hp as FamiliarHp | undefined)?.value
+      ),
       max: computed(() => (actor.value?.system?.attributes?.hp as FamiliarHp | undefined)?.max),
-      temp: computed({
-        get: () => (actor.value?.system?.attributes?.hp as FamiliarHp | undefined)?.temp,
-        set: (newValue) => {
-          if (!actor.value || newValue === undefined) return
-          actor.value.system.attributes.hp.temp = newValue
-          void updateActor(actor, {
-            system: { attributes: { hp: { temp: newValue } } }
-          }).catch(() => {})
-        }
-      }),
-      modifiers: computed(() => [])
+      temp: computed(() => (actor.value?.system?.attributes?.hp as FamiliarHp | undefined)?.temp),
+      modifiers: computed(() => []),
+      set: (target: HitPointTarget) => setHitPoints(actor, target)
     },
     ac: {
       current: computed(() => actor.value?.system?.attributes?.ac?.value),
@@ -119,34 +102,32 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
       )
     },
     actions: computed(() =>
-      itemsOfType(actor.value, 'action')
-        .map((item) => {
-          const base = makeAction(item)
-          const typeValue = item.system?.actionType?.value
-          return {
-            ...base,
-            actionType:
-              typeValue !== 'action'
-                ? (typeValue ?? null)
-                : item.system?.traits?.value?.includes('skill')
-                  ? 'skill'
-                  : 'action'
-          }
-        })
+      itemsOfType(actor.value, 'action').map((item) => {
+        const base = makeAction(item)
+        const typeValue = item.system?.actionType?.value
+        return {
+          ...base,
+          actionType:
+            typeValue !== 'action'
+              ? (typeValue ?? null)
+              : item.system?.traits?.value?.includes('skill')
+                ? 'skill'
+                : 'action'
+        }
+      })
     ),
     effects: computed(() =>
-      itemsOfType(actor.value, 'effect', 'condition')
-        .map((i) => {
-          const base = isItemOfType(i, 'condition') ? makeCondition(i) : makeEffect(i)
-          return {
-            ...base,
-            delete: () => deleteActorItem(actor, i._id!),
-            changeQty: (newValue: number) => {
-              const update = { system: { value: { value: newValue } } }
-              return updateActorItem(actor, i._id!, update)
-            }
+      itemsOfType(actor.value, 'effect', 'condition').map((i) => {
+        const base = isItemOfType(i, 'condition') ? makeCondition(i) : makeEffect(i)
+        return {
+          ...base,
+          delete: () => deleteActorItem(actor, i._id!),
+          changeQty: (newValue: number) => {
+            const update = { system: { value: { value: newValue } } }
+            return updateActorItem(actor, i._id!, update)
           }
-        })
+        }
+      })
     ),
     rollOptionLabels: computed(() => actor.value?.rollOptionLabels),
     traitLabels: computed(() => actor.value?.traitLabels),

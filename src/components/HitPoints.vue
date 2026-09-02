@@ -25,6 +25,11 @@ const { current: hpCurrent, max: hpMax, temp: hpTemp, modifiers: hpModifiers } =
 const { _actor } = character
 const { lastDamageAmount, lastDamageMessageId } = useLastDamage()
 
+// One call, not two: the write happens on the GM's client (see
+// composables/setHitPoints.ts) so the `preUpdateActor` hooks that drive HP
+// automation run, and a module deciding whether this edit crossed 0 has to see
+// hit points and temporary hit points together. Fields the form left unchanged
+// are omitted so the GM side leaves them alone.
 function updateHitPoints(hp_input: string, temp_input: string) {
   if (hpCurrent.value === undefined || hpTemp.value === undefined || hpMax.value === undefined)
     return
@@ -34,8 +39,13 @@ function updateHitPoints(hp_input: string, temp_input: string) {
   let newTemp = parseIncrement(temp_input, hpTemp.value)
   newTemp = Math.max(newTemp, 0)
 
-  if (newHP !== hpCurrent.value) hpCurrent.value = newHP
-  if (newTemp !== hpTemp.value) hpTemp.value = newTemp
+  // Fire-and-forget: recovery (refresh + rethrow) happens inside the write.
+  void character.hp
+    .set({
+      ...(newHP !== hpCurrent.value ? { value: newHP } : {}),
+      ...(newTemp !== hpTemp.value ? { temp: newTemp } : {})
+    })
+    .catch(() => {})
 }
 
 function handleHpFormSubmit(e: Event) {
@@ -49,12 +59,10 @@ function handleHpFormSubmit(e: Event) {
       updateHitPoints(hpMax.value + '', '0')
       break
     case 'lastDamageMinus':
-      if (lastDamageMessageId.value)
-        applyDamage(_actor, lastDamageMessageId.value, 'damage', 0)
+      if (lastDamageMessageId.value) applyDamage(_actor, lastDamageMessageId.value, 'damage', 0)
       break
     case 'lastDamagePlus':
-      if (lastDamageMessageId.value)
-        applyDamage(_actor, lastDamageMessageId.value, 'heal', 0)
+      if (lastDamageMessageId.value) applyDamage(_actor, lastDamageMessageId.value, 'heal', 0)
       break
   }
   hitpointsModal.value.close()

@@ -485,6 +485,15 @@ export const addCompendiumItem = (
 export const sendCompendiumItemToChat = (characterId: string, itemUuid: string) =>
   sendAction(TM.SEND_COMPENDIUM_ITEM_TO_CHAT, { characterId, itemUuid })
 
+// Manual hit-point edit. A plain field write, exactly as PF2e's own sheet does
+// it — but routed through the GM's client rather than the direct modifyDocument
+// write every other actor field uses, because that is the only way the
+// `preUpdateActor` hooks modules hang HP automation on get to run. See
+// foundry/handlers/setHitPoints.ts. `value` and `temp` are absolute; either is
+// omitted when the edit didn't touch it.
+export const setHitPoints = (actor: TablemateActorRef, target: { value?: number; temp?: number }) =>
+  sendAction(TM.SET_HIT_POINTS, { ...fromActor(actor), ...target })
+
 export const applyDamage = (
   actor: TablemateActorRef,
   messageId: string,

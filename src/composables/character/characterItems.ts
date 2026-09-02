@@ -13,6 +13,7 @@ import { makeCondition } from './defs/condition'
 import { deleteActorItem, updateActorItem } from '@/api/documents'
 import { attachItem, consumeItem, detachItem } from '@/api/actionRpc'
 import { inventoryTypes } from '@/utils/constants'
+import { removalLockedBy, type GrantAwareItem } from '@/utils/itemGrants'
 import type {
   AbstractEffectPF2e,
   ArmorPF2e,
@@ -37,6 +38,10 @@ export type InventoryItem = PhysicalItem & {
 
 export type EffectItem = Effect & {
   system: { value?: { value: Maybe<number>; isValued: Maybe<boolean> } }
+  // Name of the condition or effect holding this one in place, when something
+  // is. Present exactly when `delete` is absent — the sheet renders it as the
+  // reason removal isn't on offer. See utils/itemGrants.removalLockedBy.
+  lockedBy?: string
 }
 
 // export type { PhysicalItem, Weapon, Armor, Consumable, Feat, Effect, Condition }
@@ -82,13 +87,14 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
         ['effect', 'condition'].includes(i?.type ?? '')
       )
       .map((i) => {
-        // Conditions granted by a parent rule element (GrantItem with
-        // inMemoryOnly: true) have no persisted ID Foundry can act on.
-        // The right action is to remove the parent, not the child.
-        const isGranted = !!i.flags?.pf2e?.grantedBy
+        // Whether this one can go on its own is the grant graph's answer, not a
+        // rule of thumb — PF2e's own sheet asks the same question via
+        // ConditionPF2e#isLocked. A held condition keeps the blocker's NAME so
+        // the sheet can say which condition to remove instead.
+        const lockedBy = removalLockedBy(items as GrantAwareItem[], i as GrantAwareItem)
         const base =
           i.type === 'condition' ? makeCondition(i as ConditionPF2e<CharacterPF2e>) : makeEffect(i)
-        if (isGranted) return base
+        if (lockedBy) return { ...base, lockedBy }
         return {
           ...base,
           delete: () => deleteActorItem(actor, i._id!),
@@ -104,16 +110,19 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
     // a static slug → slugs map is sufficient and works immediately when items
     // arrive via the fast Item.create socket path (before a full refresh).
     const IN_MEMORY_GRANTS: Record<string, readonly string[]> = {
-      confused:    ['off-guard'],
-      encumbered:  ['clumsy'],
-      grabbed:     ['off-guard', 'immobilized'],
-      paralyzed:   ['off-guard'],
-      prone:       ['off-guard'],
-      restrained:  ['off-guard', 'immobilized'],
-      unconscious: ['off-guard'],
+      confused: ['off-guard'],
+      encumbered: ['clumsy'],
+      grabbed: ['off-guard', 'immobilized'],
+      paralyzed: ['off-guard'],
+      prone: ['off-guard'],
+      restrained: ['off-guard', 'immobilized'],
+      unconscious: ['off-guard']
     }
     const storedSlugs = new Set(
-      items.filter((i) => i.type === 'condition').map((i) => i.system?.slug).filter(Boolean)
+      items
+        .filter((i) => i.type === 'condition')
+        .map((i) => i.system?.slug)
+        .filter(Boolean)
     )
     const seenDerivedSlugs = new Set<string>()
     const derived: EffectItem[] = []
@@ -125,7 +134,10 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
       for (const slug of grants) {
         if (storedSlugs.has(slug) || seenDerivedSlugs.has(slug)) continue
         seenDerivedSlugs.add(slug)
-        const name = slug.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join('-')
+        const name = slug
+          .split('-')
+          .map((w) => w[0].toUpperCase() + w.slice(1))
+          .join('-')
         derived.push({
           _id: `inmem-${item._id}-${slug}`,
           name,
@@ -133,6 +145,11 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
           img: `systems/pf2e/icons/conditions/${slug}.webp`,
           grantedBy: item._id ?? undefined,
           itemGrants: undefined,
+          // Always held: an in-memory grant has no document anywhere to delete.
+          // PF2e models this as `system.references.parent`, and its own sheet
+          // reads that to lock the condition; here the granting item's name is
+          // what the sheet needs, so carry that directly.
+          lockedBy: item.name ?? undefined,
           system: {
             slug,
             description: { value: '' },
@@ -154,7 +171,7 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
       )
       .map((i) => ({
         ...makeFeat(i),
-        delete: () => deleteActorItem(actor, i._id!),
+        delete: () => deleteActorItem(actor, i._id!)
       })) as EffectItem[]
 
     return [...stored, ...derived, ...divineIntercessions]
@@ -208,8 +225,7 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
           const updates = { system: { uses: { value: newValue } } }
           return updateActorItem(actor, i._id!, updates)
         },
-        attachTo: (parentId: string) =>
-          attachItem(actor, i._id!, parentId)
+        attachTo: (parentId: string) => attachItem(actor, i._id!, parentId)
       }))
       .map((e) => {
         ;(e.system as PhysicalItemSystem).subitems?.forEach((s) => {

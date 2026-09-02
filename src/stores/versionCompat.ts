@@ -6,7 +6,8 @@ import {
   CAPABILITY_VOICE_MEMO_TRANSCRIPT,
   CAPABILITY_IMAGE_UPLOAD,
   CAPABILITY_REACTIONS,
-  CAPABILITY_COMMENTS
+  CAPABILITY_COMMENTS,
+  CAPABILITY_SET_HIT_POINTS
 } from '@/api/protocol'
 
 // Tracks whether the connected Foundry module speaks the same wire protocol as
@@ -59,6 +60,13 @@ export const useVersionCompatStore = defineStore('versionCompat', () => {
   // out the full 30s ack timeout instead of saving.
   const supportsComments = computed(() => moduleCapabilities.value.includes(CAPABILITY_COMMENTS))
 
+  // Gate for routing an HP edit through the GM's client. A module too old to
+  // advertise it has no SET_HIT_POINTS handler, so the request would go
+  // unanswered — write the field directly instead (see composables/setHitPoints).
+  const supportsSetHitPoints = computed(() =>
+    moduleCapabilities.value.includes(CAPABILITY_SET_HIT_POINTS)
+  )
+
   function reportModule(
     protocol: number | undefined,
     version: string | undefined,
@@ -92,6 +100,7 @@ export const useVersionCompatStore = defineStore('versionCompat', () => {
     supportsImageUpload,
     supportsReactions,
     supportsComments,
+    supportsSetHitPoints,
     isMismatched,
     reportModule,
     reset

@@ -249,7 +249,12 @@
     }
   },
   "effects": {
-    "effectIcon": "Icono de efecto"
+    "effectIcon": "Icono de efecto",
+    "removalPrevented": "No se puede quitar {item} mientras {preventer} esté aplicado.",
+    "lockedBy": "Aplicado automáticamente por {source}",
+    "none": "Sin condiciones ni efectos activos",
+    "addCondition": "Añadir condición",
+    "addConditionFailed": "No se pudo contactar con la mesa. Inténtalo de nuevo en un momento."
   },
   "actions": {
     "use": "Usar"

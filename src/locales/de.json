@@ -249,7 +249,12 @@
     }
   },
   "effects": {
-    "effectIcon": "Effekt-Symbol"
+    "effectIcon": "Effekt-Symbol",
+    "removalPrevented": "{item} kann nicht entfernt werden, solange {preventer} aktiv ist.",
+    "lockedBy": "Automatisch verursacht durch {source}",
+    "none": "Keine aktiven Zustände oder Effekte",
+    "addCondition": "Zustand hinzufügen",
+    "addConditionFailed": "Der Tisch ist nicht erreichbar. Versuche es gleich noch einmal."
   },
   "actions": {
     "use": "Nutzen"

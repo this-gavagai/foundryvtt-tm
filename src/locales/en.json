@@ -249,7 +249,12 @@
     }
   },
   "effects": {
-    "effectIcon": "Effect icon"
+    "effectIcon": "Effect icon",
+    "removalPrevented": "{item} can't be removed while {preventer} is applied.",
+    "lockedBy": "Automatically applied by {source}",
+    "none": "No active conditions or effects",
+    "addCondition": "Add condition",
+    "addConditionFailed": "Couldn't reach the table. Try again in a moment."
   },
   "actions": {
     "use": "Use"

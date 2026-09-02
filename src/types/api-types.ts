@@ -48,6 +48,7 @@ export type ModuleEventArgs =
   | GetCompendiumIndexArgs
   | SendCompendiumItemToChatArgs
   | ApplyDamageArgs
+  | SetHitPointsArgs
   | RerollChatRollArgs
   | ToggleReactionArgs
   | SetCommentArgs
@@ -659,6 +660,20 @@ export interface ApplyDamageArgs {
   rollIndex?: number
 }
 
+// A manual hit-point edit. `value` is the ABSOLUTE hit points the sheet asked
+// for, not a delta: the GM side derives the delta from live actor state, so two
+// players nudging the same NPC can't compound a stale local number. `temp` is
+// sent only when the form actually changed it — an absent field means "leave
+// temporary hit points alone", which is not the same as sending 0.
+export interface SetHitPointsArgs {
+  action: typeof TM.SET_HIT_POINTS
+  uuid: string
+  userId: string
+  characterId: string
+  value?: number
+  temp?: number
+}
+
 export interface RerollChatRollArgs {
   action: typeof TM.REROLL_CHAT_ROLL
   uuid: string
@@ -883,6 +898,7 @@ export interface ResponseByAction {
   [TM.UPDATE_ACTOR]: PlainAck
   [TM.ADD_COMPENDIUM_ITEM]: PlainAck
   [TM.APPLY_DAMAGE]: PlainAck
+  [TM.SET_HIT_POINTS]: PlainAck
   // The updated reaction list, so the caller can reconcile its optimistic write
   // against what the GM actually stored (concurrent taps, a rejected emoji).
   [TM.TOGGLE_REACTION]: { reactions: ChatReaction[] }

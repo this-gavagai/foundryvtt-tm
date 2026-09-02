@@ -101,3 +101,9 @@ export const actionTypes = [
   { type: 'free', titleKey: 'actionTypes.free' },
   { type: 'skill', titleKey: 'actionTypes.skill' }
 ]
+
+// The PF2e system's conditions pack. This is the pack every condition UUID in
+// the system points at (Compendium.pf2e.conditionitems.Item.<id>), so the id is
+// as stable as the system's own data — there is nothing to derive it from.
+// Used by the empty effects panel to open the browser straight at conditions.
+export const PF2E_CONDITIONS_PACK = 'pf2e.conditionitems'

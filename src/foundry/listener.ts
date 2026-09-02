@@ -19,6 +19,7 @@ import {
   CAPABILITY_VOICE_MEMO_TRANSCRIPT,
   CAPABILITY_IMAGE_UPLOAD,
   CAPABILITY_REACTIONS,
+  CAPABILITY_SET_HIT_POINTS,
   CAPABILITY_COMMENTS,
   MODULE_ID
 } from '@/api/protocol'
@@ -625,7 +626,10 @@ function announceSelf() {
       // Likewise unconditional — it says this module reports the posted message
       // on a voice memo's final chunk, which is what lets the sending app patch
       // its own transcript onto the memo.
-      CAPABILITY_VOICE_MEMO_TRANSCRIPT
+      CAPABILITY_VOICE_MEMO_TRANSCRIPT,
+      // Unconditional too: it says this module can resolve an HP edit through
+      // PF2e rather than the app writing the field itself.
+      CAPABILITY_SET_HIT_POINTS
     ]
   })
 }
