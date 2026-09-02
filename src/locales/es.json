@@ -473,7 +473,7 @@
     "pixelDice": "Dados Pixel",
     "language": "Idioma",
     "theme": "Tema",
-    "manualDicePicker": "Resultados manuales de dados",
+    "manualDicePicker": "Permitir resultados manuales de dados",
     "manualRollsDisabledByGm": "El DJ ha desactivado los resultados manuales y de dados Pixel",
     "freeRoll": "Tirar prueba",
     "freeRollTitle": "Tirada de prueba (d20)",

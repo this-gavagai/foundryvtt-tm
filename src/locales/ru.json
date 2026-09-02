@@ -473,7 +473,7 @@
     "pixelDice": "Pixel Dice",
     "language": "Язык",
     "theme": "Тема",
-    "manualDicePicker": "Ручной ввод результатов костей",
+    "manualDicePicker": "Разрешить ручной ввод результатов костей",
     "manualRollsDisabledByGm": "Ручные результаты и кубики Pixel отключены мастером",
     "freeRoll": "Проверка броском",
     "freeRollTitle": "Проверка (d20)",

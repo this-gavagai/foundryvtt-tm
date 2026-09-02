@@ -473,7 +473,7 @@
     "pixelDice": "Pixel Dice",
     "language": "Language",
     "theme": "Theme",
-    "manualDicePicker": "Manual dice results",
+    "manualDicePicker": "Allow manual dice results",
     "manualRollsDisabledByGm": "Manual and Pixel dice results are turned off by the GM",
     "freeRoll": "Roll Check",
     "freeRollTitle": "Check Roll (d20)",
