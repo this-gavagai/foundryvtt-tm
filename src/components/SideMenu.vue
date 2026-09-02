@@ -434,6 +434,19 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                       </div>
                       <Button
                         class="w-full"
+                        color="violet"
+                        :clicked="openCompendium"
+                        :aria-label="$t('sideMenu.compendium')"
+                      >
+                        <template #default>
+                          <span class="inline-flex items-center justify-center gap-1">
+                            <BookOpenIcon class="h-5 w-5" aria-hidden="true" />
+                            <span class="whitespace-nowrap">{{ $t('sideMenu.compendium') }}</span>
+                          </span>
+                        </template>
+                      </Button>
+                      <Button
+                        class="w-full"
                         color="green"
                         :clicked="openChat"
                         :aria-label="$t('sideMenu.chat')"
@@ -452,19 +465,6 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                             >
                               {{ unreadBadge }}
                             </span>
-                          </span>
-                        </template>
-                      </Button>
-                      <Button
-                        class="w-full"
-                        color="violet"
-                        :clicked="openCompendium"
-                        :aria-label="$t('sideMenu.compendium')"
-                      >
-                        <template #default>
-                          <span class="inline-flex items-center justify-center gap-1">
-                            <BookOpenIcon class="h-5 w-5" aria-hidden="true" />
-                            <span class="whitespace-nowrap">{{ $t('sideMenu.compendium') }}</span>
                           </span>
                         </template>
                       </Button>
