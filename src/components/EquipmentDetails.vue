@@ -14,6 +14,7 @@ import Button from '@/components/widgets/ButtonWidget.vue'
 import IconButtonWidget from '@/components/widgets/IconButtonWidget.vue'
 import Modal from '@/components/ModalBox.vue'
 import ParsedDescription from '@/components/ParsedDescription.vue'
+import EquipmentContainerCapacity from '@/components/EquipmentContainerCapacity.vue'
 import meepleIcon from '@/assets/icons/meeple.svg'
 import meepleGroupIcon from '@/assets/icons/meeple-group.svg'
 
@@ -134,6 +135,13 @@ defineExpose({ activeRoll, initRolls: () => description.value?.initRolls() })
 <template>
   <div data-component="EquipmentDetails">
     <div class="my-2">
+      <!-- Opened on a container itself, the first thing to answer is how much
+           more it will take — the same readout that sits under it in the list. -->
+      <EquipmentContainerCapacity
+        v-if="item?.type === 'backpack'"
+        class="mb-3"
+        :capacity="item?.capacity"
+      />
       <Transition
         enter-active-class="transform transition-all duration-100 overflow-hidden"
         enter-from-class="opacity-0 max-h-0"

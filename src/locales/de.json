@@ -312,7 +312,12 @@
     "quantityShort": "Anz.:",
     "quantityTitle": "{name} (Anzahl)",
     "bulkReadout": "Aktuelle Last: {value} / {encumbered}",
-    "bulkMax": "(Max.: {max})"
+    "bulkMax": "(Max.: {max})",
+    "containerCapacity": "Verstaut: {value} / {max}",
+    "containerOverCapacity": "Überfüllt",
+    "containerNegatesBulk": "−{bulk} Last",
+    "bulkLight": "{light}L",
+    "bulkWithLight": "{bulk}, {light}L"
   },
   "coins": {
     "title": "Münzen",

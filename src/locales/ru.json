@@ -312,7 +312,12 @@
     "quantityShort": "Кол-во:",
     "quantityTitle": "{name} (количество)",
     "bulkReadout": "Текущая ноша: {value} / {encumbered}",
-    "bulkMax": "(Макс.: {max})"
+    "bulkMax": "(Макс.: {max})",
+    "containerCapacity": "Уложено: {value} / {max}",
+    "containerOverCapacity": "Переполнен",
+    "containerNegatesBulk": "−{bulk} ноши",
+    "bulkLight": "{light}Л",
+    "bulkWithLight": "{bulk}, {light}Л"
   },
   "coins": {
     "title": "Монеты",

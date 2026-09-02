@@ -1076,6 +1076,59 @@
       }
     }
 
+    /* --- EquipmentContainerCapacity: the same readout, one container wide -
+     Borrows the Bulk rail's geometry a size down, and its rule colour, so a
+     container's fill reads as the same instrument as the inventory's. What it
+     does not borrow is the traffic lights: a container has one state worth
+     colouring — over its capacity, where PF2e stops applying the Bulk it
+     negates — so the fill is ink until then, and the note beside it goes red
+     with the same value the rest of the app uses for a consequence. */
+    [data-component='EquipmentContainerCapacity'] {
+      [data-part='capacity-readout'] {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding-bottom: 0.15rem;
+        font-size: 0.7rem;
+        font-variant-numeric: tabular-nums;
+        color: var(--color-heading);
+      }
+
+      [data-part='capacity-note'][data-state='over'] {
+        color: var(--color-danger);
+      }
+
+      /* Thinner than the Bulk rail and drawn without its hairline frame: this
+       one repeats down a list, once per container, and a full backpack at the
+       Bulk rail's weight reads as a divider rule between rows rather than as a
+       meter. The fill is the heading ink held back, so it sits under the item
+       names it belongs to — until it goes over, where it takes the app's
+       consequence colour at full strength. */
+      [data-part='capacity-rail'] {
+        position: relative;
+        height: 4px;
+        border-radius: 999px;
+        background-color: var(--color-border);
+        overflow: hidden;
+      }
+
+      [data-part='capacity-fill'] {
+        position: absolute;
+        inset-block: 0;
+        left: 0;
+        border-radius: 999px;
+        background-color: var(--color-heading);
+        opacity: 0.55;
+        transition: width 500ms ease-in-out;
+      }
+
+      [data-part='capacity-fill'][data-state='over'] {
+        background-color: var(--color-danger);
+        opacity: 1;
+      }
+    }
+
     /* --- EquipmentCoins: the purse bar --------------------------------
      Sits directly under the bulk bar and borrows its geometry (38px, the
      small radius) so the two read as one stack of equally-weighted summary

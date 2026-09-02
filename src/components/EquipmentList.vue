@@ -24,6 +24,7 @@ import InfoModal from '@/components/InfoModal.vue'
 import EquipmentDetails from '@/components/EquipmentDetails.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import EquipmentBulk from './EquipmentBulk.vue'
+import EquipmentContainerCapacity from './EquipmentContainerCapacity.vue'
 import EquipmentCoins from './EquipmentCoins.vue'
 import EquipmentHeld from './EquipmentHeld.vue'
 import ChoiceWidget from '@/components/widgets/ChoiceWidget.vue'
@@ -264,6 +265,13 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
                     :key="item._id"
                   >
                     <EquipmentListItem :item="item" @item-clicked="viewItem" />
+                    <!-- The container's own fill sits between it and what it
+                         holds, indented onto the stowed rows it describes. -->
+                    <EquipmentContainerCapacity
+                      v-if="item.type === 'backpack'"
+                      class="mt-0.5 mb-1 ml-3"
+                      :capacity="item.capacity"
+                    />
                     <ul class="pb-2" v-if="item.type === 'backpack'">
                       <li
                         v-for="stowed in listedInventory?.filter(
@@ -329,6 +337,11 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
                     :key="item._id"
                   >
                     <EquipmentListItem :item="item" @item-clicked="viewItem" />
+                    <EquipmentContainerCapacity
+                      v-if="item.type === 'backpack'"
+                      class="mt-0.5 mb-1 ml-3"
+                      :capacity="item.capacity"
+                    />
                     <ul class="pb-2" v-if="item.type === 'backpack'">
                       <li
                         v-for="stowed in listedPartyInventory?.filter(

@@ -92,6 +92,31 @@ export type SkillActionData = {
   description?: string
 }
 
+// One container's live capacity, resolved Foundry-side from PF2e's own
+// ContainerPF2e getters rather than re-derived from item source data: what a
+// container is holding right now is only knowable from the prepared document,
+// and PF2e counts it the same stack-, size- and subitem-aware way the Bulk
+// meter counts an inventory. Keyed by container item id in
+// `inventory.containers`.
+export type ContainerCapacity = {
+  // Bulk of everything stowed inside, as PF2e counts it.
+  value: number
+  // The container's declared capacity in Bulk. Zero for a container that
+  // doesn't stow (a sheath, a quiver): PF2e gives those no capacity of their
+  // own and counts their contents against the wearer directly.
+  max: number
+  // PF2e's own fill percentage — light-unit based up to 100%, whole-Bulk based
+  // beyond it (Container#percentFull) — so the app doesn't re-derive it.
+  percentFull: number
+  // Bulk this container is negating for its wearer right now. PF2e drops it to
+  // zero while the container is over capacity, and for an extradimensional
+  // container stowed inside another one.
+  ignored: number
+  // What it negates when nothing has suspended it (system.bulk.ignored). The
+  // two differ exactly when the negation has lapsed.
+  ignoredMax: number
+}
+
 export type TablemateActorExtras = {
   activeRules?: string[]
   elementalBlasts?: PF2eElementalBlast
@@ -102,7 +127,12 @@ export type TablemateActorExtras = {
   traitLabels?: Record<string, string>
   iwrLabels?: Record<string, string>
   skillActions?: SkillActionData[]
-  inventory?: Partial<CharacterPF2e['inventory']> & { labels?: Record<string, string | undefined> }
+  inventory?: Partial<CharacterPF2e['inventory']> & {
+    labels?: Record<string, string | undefined>
+    // Container id → capacity. Absent on module builds predating the field,
+    // which is why every reader treats a missing entry as "no readout".
+    containers?: Record<string, ContainerCapacity>
+  }
 }
 
 export type TablemateCharacter = CharacterPF2e & TablemateActorExtras

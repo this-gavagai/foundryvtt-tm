@@ -10,7 +10,11 @@ import type {
   SingleCheckAction
 } from '@7h3laughingman/pf2e-types/module/actor/actions/index.js'
 import type { RequestCharacterDetailsArgs, UpdateCharacterDetailsArgs } from '@/types/api-types'
-import type { SkillActionData, SkillActionVariant } from '@/types/character-types'
+import type {
+  ContainerCapacity,
+  SkillActionData,
+  SkillActionVariant
+} from '@/types/character-types'
 import { TM } from '@/api/protocol'
 import { inventoryTypes } from '@/utils/constants'
 import { logger } from '@/utils/utilities'
@@ -252,6 +256,32 @@ function serializeSkillActions(
   return out.sort((a, b) => a.label.localeCompare(b.label))
 }
 
+// Per-container capacity for every container the actor carries, read off the
+// live ContainerPF2e getters. None of it survives the trip as source data: the
+// contents' Bulk is counted the same stack-, size- and subitem-aware way the
+// Bulk meter counts an inventory, and `bulkIgnored` is the negation PF2e is
+// *actually* applying (it lapses over capacity, and for an extradimensional
+// container inside another one) rather than the number typed on the item.
+export function serializeContainers(actor: ActorPF2e): Record<string, ContainerCapacity> {
+  const containers: Record<string, ContainerCapacity> = {}
+  for (const item of actor.items) {
+    if (!item.isOfType('backpack')) continue
+    // Each read is defended separately: these are prepared getters on a system
+    // class the module doesn't pin, so a shape change should cost this one
+    // readout rather than the whole character payload.
+    const capacity = item.capacity
+    if (!capacity) continue
+    containers[item.id] = {
+      value: capacity.value?.value ?? 0,
+      max: capacity.max?.value ?? 0,
+      percentFull: item.percentFull ?? 0,
+      ignored: item.bulkIgnored?.value ?? 0,
+      ignoredMax: item.system?.bulk?.ignored ?? 0
+    }
+  }
+  return containers
+}
+
 export async function getCharacterDetails(
   args: RequestCharacterDetailsArgs
 ): Promise<UpdateCharacterDetailsArgs> {
@@ -298,7 +328,8 @@ export async function getCharacterDetails(
         ;(i as PhysicalItemPF2e)?.subitems?.forEach((s: ItemPF2e) => (acc[s._id ?? ''] = s.name))
       }
       return acc
-    }, {})
+    }, {}),
+    containers: serializeContainers(actor)
   }
   const activeRules = new Set<string>()
   actor.rules.forEach((r) => {

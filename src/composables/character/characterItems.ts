@@ -1,6 +1,6 @@
 import { computed, type Ref } from 'vue'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
-import type { TablemateCharacter } from '@/types/character-types'
+import type { ContainerCapacity, TablemateCharacter } from '@/types/character-types'
 import type { Field, Maybe } from './helpers'
 import { type PhysicalItem, type PhysicalItemSystem } from './defs/physicalItem'
 import { makeEquipment } from './defs/equipmentDef'
@@ -34,6 +34,10 @@ export type InventoryItem = PhysicalItem & {
   attachTo?: (parentId: string) => ReturnType<typeof attachItem>
   // Detaches this subitem from its parent, restoring it as a standalone item.
   detach?: () => ReturnType<typeof detachItem>
+  // How full this container is, for `backpack` items — resolved Foundry-side
+  // from PF2e's own container getters (see ContainerCapacity). Absent on every
+  // other item type, and on module builds predating the field.
+  capacity?: ContainerCapacity
 }
 
 export type EffectItem = Effect & {
@@ -190,6 +194,7 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
               ? makeConsumable(i as ConsumablePF2e<CharacterPF2e>)
               : makeEquipment(i as EquipmentPF2e<CharacterPF2e>)),
         label: actor.value?.inventory?.labels?.[i._id!],
+        capacity: actor.value?.inventory?.containers?.[i._id!],
         toggleInvested: (newValue: boolean = !i?.system?.equipped?.invested) => {
           const update = { system: { equipped: { invested: newValue } } }
           return updateActorItem(actor, i._id!, update)

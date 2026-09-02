@@ -312,7 +312,12 @@
     "quantityShort": "Qty:",
     "quantityTitle": "{name} (quantity)",
     "bulkReadout": "Current Bulk: {value} / {encumbered}",
-    "bulkMax": "(Max: {max})"
+    "bulkMax": "(Max: {max})",
+    "containerCapacity": "Stowed: {value} / {max}",
+    "containerOverCapacity": "Over capacity",
+    "containerNegatesBulk": "−{bulk} Bulk",
+    "bulkLight": "{light}L",
+    "bulkWithLight": "{bulk}, {light}L"
   },
   "coins": {
     "title": "Coins",
