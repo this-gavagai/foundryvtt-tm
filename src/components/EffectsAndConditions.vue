@@ -18,6 +18,7 @@ import type { Roll } from '@/types/roll-types'
 import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 import { GrantRestrictionError } from '@/utils/itemGrants'
 import AddConditionModal from '@/components/AddConditionModal.vue'
+import { PlusIcon } from '@heroicons/vue/24/outline'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -159,6 +160,21 @@ function adjustViewedEffectQty(delta: number) {
           </div>
         </div>
       </TransitionGroup>
+      <!-- Adding a condition by hand. The empty state says it in words, but once
+           chips are present that line is gone, so this is the way in. Kept quiet
+           (and last, pushed to the panel's right edge) so it reads as a handle
+           rather than another condition. -->
+      <button
+        type="button"
+        data-part="add-condition"
+        class="-mr-1 ml-auto cursor-pointer rounded p-1 opacity-50 transition duration-180 ease-out active:scale-[0.90] active:opacity-30 active:duration-60"
+        :aria-label="$t('effects.addCondition')"
+        :title="$t('effects.addCondition')"
+        @pointerdown="triggerLightHapticFeedback()"
+        @click="addConditionModal?.open()"
+      >
+        <PlusIcon class="h-5 w-5" aria-hidden="true" />
+      </button>
     </div>
     <Teleport to="#modals">
       <AddConditionModal ref="addConditionModal" />

@@ -198,122 +198,131 @@ defineExpose({ open, close, isOpen })
        rather than a child of it: both are dialogs, and nesting one inside the
        other's panel puts two focus traps in the same subtree. (The wrapper adds
        no layout of its own — both children render as fixed overlays.) -->
-  <div data-component="RollResultModal">
+  <div data-component="RollResultModalRoot">
     <Modal ref="modal">
-      <!-- Who the roll was aimed at, above the dice: the token's art and name,
-           and the DC it was measured against when the table plays with those
-           visible. A flat-DC check arrives with no target and shows just the
-           number. -->
-      <div
-        v-if="hasTargetLine"
-        data-part="roll-target"
-        class="mb-3 flex flex-wrap items-center justify-center gap-2"
-      >
-        <img
-          v-if="outcome?.targetImg"
-          :src="getPath(outcome.targetImg)"
-          class="h-7 w-7 rounded-full object-cover ring-1 ring-gray-200"
-          alt=""
-          aria-hidden="true"
-        />
-        <span
-          v-if="outcome?.targetName"
-          data-part="roll-target-name"
-          data-tone="muted"
-          class="text-sm text-gray-500"
+      <!-- The theme hook lives INSIDE the panel: Modal's dialog portals its
+           panel out to the document body, so a hook on the wrapper above would
+           not contain any of this. -->
+      <div data-component="RollResultModal">
+        <!-- Who the roll was aimed at, above the dice: the token's art and name,
+             and the DC it was measured against when the table plays with those
+             visible. A flat-DC check arrives with no target and shows just the
+             number. -->
+        <div
+          v-if="hasTargetLine"
+          data-part="roll-target"
+          class="mb-3 flex flex-wrap items-center justify-center gap-2"
         >
-          {{ $t('rollResult.versus', { name: outcome.targetName }) }}
-        </span>
-        <span
-          v-if="outcome?.dc !== undefined"
-          data-part="roll-dc"
-          class="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 font-mono text-xs text-gray-600"
-        >
-          {{ $t('rollResult.dc', { label: outcome.dcLabel ?? '', dc: outcome.dc }) }}
-        </span>
-      </div>
-      <div class="flex">
-        <div class="m-auto">
-          <div class="m-auto">{{ roll?.formula }}</div>
-          <div
-            class="flex items-center justify-center"
-            v-for="(die, i) in rollDice"
-            :key="'die_' + i"
+          <img
+            v-if="outcome?.targetImg"
+            :src="getPath(outcome.targetImg)"
+            class="h-7 w-7 rounded-full object-cover ring-1 ring-gray-200"
+            alt=""
+            aria-hidden="true"
+          />
+          <span
+            v-if="outcome?.targetName"
+            data-part="roll-target-name"
+            data-tone="muted"
+            class="text-sm text-gray-500"
           >
-            <div class="flex gap-1 text-2xl">
-              <div
-                v-for="(dieResult, j) in die.results"
-                :key="'result_' + j"
-                class="align-items-center mr-1 flex gap-1"
-              >
-                <img
-                  v-if="dieIconForFaces(die.faces)"
-                  :src="dieIconForFaces(die.faces)"
-                  class="mt-1 h-6 w-6"
-                  :alt="$t('infoModal.dieImage', { faces: die.faces })"
-                />
-                <span :class="d20ResultClass(dieResult)">
-                  {{ roll?.isSecret ? '?' : dieResult.result }}
-                </span>
+            {{ $t('rollResult.versus', { name: outcome.targetName }) }}
+          </span>
+          <span
+            v-if="outcome?.dc !== undefined"
+            data-part="roll-dc"
+            class="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 font-mono text-xs text-gray-600"
+          >
+            {{ $t('rollResult.dc', { label: outcome.dcLabel ?? '', dc: outcome.dc }) }}
+          </span>
+        </div>
+        <div class="flex">
+          <div class="m-auto">
+            <div class="m-auto">{{ roll?.formula }}</div>
+            <div
+              class="flex items-center justify-center"
+              v-for="(die, i) in rollDice"
+              :key="'die_' + i"
+            >
+              <div class="flex gap-1 text-2xl">
+                <div
+                  v-for="(dieResult, j) in die.results"
+                  :key="'result_' + j"
+                  class="align-items-center mr-1 flex gap-1"
+                >
+                  <img
+                    v-if="dieIconForFaces(die.faces)"
+                    :src="dieIconForFaces(die.faces)"
+                    class="mt-1 h-6 w-6"
+                    :alt="$t('infoModal.dieImage', { faces: die.faces })"
+                  />
+                  <span :class="d20ResultClass(dieResult)">
+                    {{ roll?.isSecret ? '?' : dieResult.result }}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <div class="m-auto">
-          <div class="text-6xl">
-            {{ roll?.isSecret ? '???' : roll?.total }}
+          <div class="m-auto">
+            <div class="text-6xl">
+              {{ roll?.isSecret ? '???' : roll?.total }}
+            </div>
           </div>
         </div>
-      </div>
-      <!-- How it came out, under the number: the degree of success, the margin
-           it beat the DC by, and — when an adjustment moved it — the degree the
-           dice alone would have given, struck through beside it. -->
-      <div v-if="degreeLabelKey" data-part="roll-outcome" class="mt-3 text-center">
-        <!-- The four degrees carry a state hook as well as the fallback
-             palette below, so a theme can recolour them without restating the
-             component's classes. -->
-        <span
-          data-part="roll-degree"
-          :data-degree="outcome?.degree"
-          class="inline-flex items-baseline gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ring-1 ring-inset"
-          :class="degreeClass"
-        >
+        <!-- How it came out, under the number: the degree of success, the margin
+             it beat the DC by, and — when an adjustment moved it — the degree the
+             dice alone would have given, struck through beside it. -->
+        <div v-if="degreeLabelKey" data-part="roll-outcome" class="mt-3 text-center">
+          <!-- The four degrees carry a state hook as well as the fallback
+               palette below, so a theme can recolour them without restating the
+               component's classes. -->
           <span
-            v-if="unadjustedLabelKey"
-            data-part="roll-degree-unadjusted"
-            class="text-xs font-normal line-through opacity-60"
+            data-part="roll-degree"
+            :data-degree="outcome?.degree"
+            class="inline-flex items-baseline gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ring-1 ring-inset"
+            :class="degreeClass"
           >
-            {{ $t(unadjustedLabelKey) }}
+            <span
+              v-if="unadjustedLabelKey"
+              data-part="roll-degree-unadjusted"
+              class="text-xs font-normal line-through opacity-60"
+            >
+              {{ $t(unadjustedLabelKey) }}
+            </span>
+            <span>{{ $t(degreeLabelKey) }}</span>
+            <span
+              v-if="offset"
+              data-part="roll-degree-offset"
+              class="text-xs font-normal opacity-70"
+            >
+              {{ $t('rollResult.offset', { offset }) }}
+            </span>
           </span>
-          <span>{{ $t(degreeLabelKey) }}</span>
-          <span v-if="offset" data-part="roll-degree-offset" class="text-xs font-normal opacity-70">
-            {{ $t('rollResult.offset', { offset }) }}
-          </span>
-        </span>
-      </div>
-      <!-- Comment affordance, under the result: a plain text button rather than a
-         filled one, so it stays out of the way of the number everyone is
-         actually looking at. Once a comment exists it is shown above the button,
-         which then reads as an edit — the roller can see what they said without
-         leaving for the chat log. -->
-      <div v-if="canComment" data-part="roll-comment" class="mt-4 text-center">
-        <p
-          v-if="ownComment"
-          data-part="roll-comment-text"
-          data-tone="muted"
-          class="mb-1 text-sm whitespace-pre-line opacity-80"
-        >
-          {{ ownComment.text }}
-        </p>
-        <button
-          type="button"
-          data-part="roll-comment-button"
-          class="text-xs font-medium underline underline-offset-2 opacity-60 transition-opacity hover:opacity-100 focus:outline-hidden disabled:opacity-40"
-          :disabled="commentPending"
-          @click="openCommentEditor"
-        >
-          {{ ownComment ? $t('chat.editComment') : $t('chat.addComment') }}
-        </button>
+        </div>
+        <!-- Comment affordance, under the result: a plain text button rather than a
+           filled one, so it stays out of the way of the number everyone is
+           actually looking at. Once a comment exists it is shown above the button,
+           which then reads as an edit — the roller can see what they said without
+           leaving for the chat log. -->
+        <div v-if="canComment" data-part="roll-comment" class="mt-4 text-center">
+          <p
+            v-if="ownComment"
+            data-part="roll-comment-text"
+            data-tone="muted"
+            class="mb-1 text-sm whitespace-pre-line opacity-80"
+          >
+            {{ ownComment.text }}
+          </p>
+          <button
+            type="button"
+            data-part="roll-comment-button"
+            class="text-xs font-medium underline underline-offset-2 opacity-60 transition-opacity hover:opacity-100 focus:outline-hidden disabled:opacity-40"
+            :disabled="commentPending"
+            @click="openCommentEditor"
+          >
+            {{ ownComment ? $t('chat.editComment') : $t('chat.addComment') }}
+          </button>
+        </div>
       </div>
     </Modal>
     <ChatCommentModal

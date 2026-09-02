@@ -320,47 +320,51 @@
 
       /* Roll result: who the roll was aimed at, and how it came out. The
          component ships light-theme fallbacks — a near-white DC chip and
-         emerald/rose degree pills — that glare on the dark panel. */
+         emerald/rose degree pills — that glare on the dark panel. Both are
+         inverted here: a dark fill carrying light text, rather than dark text
+         on a light fill. The DC is the most subdued of the three, barely
+         lifted off the panel — it is the roll's premise, not its news — while
+         the degree keeps enough hue to read at a glance. */
       [data-component='RollResultModal'] {
         [data-part='roll-target-name'] {
           color: oklch(62% 0.01 258);
         }
 
         [data-part='roll-dc'] {
-          background-color: oklch(22% 0.026 258);
-          border-color: oklch(38% 0.024 258);
-          color: oklch(78% 0.012 258);
+          background-color: oklch(19% 0.02 258);
+          border-color: oklch(28% 0.02 258);
+          color: oklch(66% 0.012 258);
         }
 
         /* No degree hook: a result the world withholds still gets a pill. */
         [data-part='roll-degree'] {
-          background-color: oklch(26% 0.02 258);
-          color: oklch(88% 0.008 258);
-          --tw-ring-color: oklch(38% 0.026 258);
+          background-color: oklch(21% 0.018 258);
+          color: oklch(76% 0.008 258);
+          --tw-ring-color: oklch(30% 0.02 258);
         }
 
         [data-part='roll-degree'][data-degree='criticalSuccess'] {
-          background-color: oklch(32% 0.08 155);
-          color: oklch(90% 0.11 155);
-          --tw-ring-color: oklch(50% 0.1 155);
+          background-color: oklch(26% 0.06 155);
+          color: oklch(84% 0.12 155);
+          --tw-ring-color: oklch(38% 0.07 155);
         }
 
         [data-part='roll-degree'][data-degree='success'] {
-          background-color: oklch(27% 0.05 155);
-          color: oklch(86% 0.08 155);
-          --tw-ring-color: oklch(42% 0.07 155);
+          background-color: oklch(22% 0.035 155);
+          color: oklch(78% 0.09 155);
+          --tw-ring-color: oklch(32% 0.045 155);
         }
 
         [data-part='roll-degree'][data-degree='failure'] {
-          background-color: oklch(27% 0.05 25);
-          color: oklch(85% 0.07 25);
-          --tw-ring-color: oklch(42% 0.07 25);
+          background-color: oklch(22% 0.035 25);
+          color: oklch(76% 0.09 25);
+          --tw-ring-color: oklch(32% 0.045 25);
         }
 
         [data-part='roll-degree'][data-degree='criticalFailure'] {
-          background-color: oklch(32% 0.09 25);
-          color: oklch(89% 0.11 25);
-          --tw-ring-color: oklch(50% 0.11 25);
+          background-color: oklch(26% 0.06 25);
+          color: oklch(83% 0.12 25);
+          --tw-ring-color: oklch(38% 0.08 25);
         }
       }
 
