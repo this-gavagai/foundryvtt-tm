@@ -13,6 +13,8 @@ import { getPath } from '@/utils/utilities'
 import type { EffectItem } from '@/composables/character'
 import type { ActiveRoll } from '@/types/api-types'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
+import { rollCheck } from '@/api/actionRpc'
+import type { Roll } from '@/types/roll-types'
 import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
 import { GrantRestrictionError } from '@/utils/itemGrants'
 import AddConditionModal from '@/components/AddConditionModal.vue'
@@ -20,7 +22,7 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const character = useInjectedActor()
-const { effects, rollOptionLabels } = character
+const { _actor, effects, rollOptionLabels } = character
 
 // Suppress the panel's enter/scale transitions until the character's initial
 // data has painted, so a sheet that loads with effects already present (from
@@ -35,6 +37,43 @@ const activeRoll = ref<ActiveRoll>()
 const inlineRolls = useRollsFromActiveRoll(activeRoll)
 const removalPrevented = ref<string | undefined>()
 const addConditionModal = ref<InstanceType<typeof AddConditionModal>>()
+
+// A dying creature's recovery check, offered on the Dying condition itself
+// rather than as its own corner of the sheet: this modal already shows the
+// dying value and steps it with the +/- buttons every valued condition gets, so
+// the one thing missing was the roll.
+//
+// PF2e derives the DC (10 + dying value, adjusted by Toughness and friends) and
+// the outcome notes actor-side, so the request carries nothing but the actor.
+// The roll does not change the dying value — the card says what happened and the
+// value moves separately, by hand here or by a module watching for the card.
+// Same division as PF2e's own sheet; applying it here would double up wherever
+// that automation is switched on.
+const recoveryRolls = computed<Roll[]>(() => {
+  if (effectViewed.value?.system?.slug !== 'dying') return []
+  // The dying value comes off the condition being viewed rather than
+  // `attributes.dying`, which is PF2e's derived mirror of the same number: the
+  // condition is the thing on screen, and it is what the +/- buttons step.
+  // `recoveryDC` has no equivalent on the condition, and is 10 before a feat
+  // like Toughness moves it.
+  const dying = effectViewed.value?.system?.value?.value ?? 1
+  const dc = (_actor.value?.system?.attributes?.dying?.recoveryDC ?? 10) + dying
+  return [
+    {
+      key: 'recovery-check',
+      label: t('effects.recoveryCheck', { dc }),
+      color: 'blue',
+      dice: ['d20'],
+      armed: true,
+      // `d20: [0]` is the pipeline's "roll live" sentinel; a picked or Pixel
+      // face replaces the zero.
+      execute: (faces) => rollCheck(_actor, 'recovery', undefined, { d20: [faces?.[0] ?? 0] })
+    }
+  ]
+})
+// Recovery first: it is the reason the modal was opened, and useInfoModalRolls
+// arms the first dice-eligible roll when nothing is explicitly armed.
+const modalRolls = computed<Roll[]>(() => [...recoveryRolls.value, ...inlineRolls.value])
 
 function viewEffect(effect: EffectItem) {
   effectViewedId.value = effect._id
@@ -128,7 +167,7 @@ function adjustViewedEffectQty(delta: number) {
         :itemId="effectViewed?._id"
         :imageUrl="effectViewed?.img"
         :traits="[]"
-        :rolls="inlineRolls"
+        :rolls="modalRolls"
       >
         <template #title>
           {{ effectViewed?.name }}

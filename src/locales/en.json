@@ -254,7 +254,8 @@
     "lockedBy": "Automatically applied by {source}",
     "none": "No active conditions or effects",
     "addCondition": "Add condition",
-    "addConditionFailed": "Couldn't reach the table. Try again in a moment."
+    "addConditionFailed": "Couldn't reach the table. Try again in a moment.",
+    "recoveryCheck": "Recovery (DC {dc})"
   },
   "actions": {
     "use": "Use"

@@ -11,6 +11,7 @@ import {
 } from '../utils/target'
 import { handleBlast, handleBlastDamage } from './checks/blast'
 import { handleFlat } from './checks/flat'
+import { handleRecovery } from './checks/recovery'
 import { handleSpellAttack, handleSpellDamage } from './checks/spellCheckHandlers'
 import {
   handleFamiliarAttack,
@@ -38,7 +39,8 @@ const CHECK_ROLL_HANDLERS: Record<string, CheckRollHandler> = {
   initiative: handleInitiative,
   spellAttack: handleSpellAttack,
   spellDamage: handleSpellDamage,
-  flat: handleFlat
+  flat: handleFlat,
+  recovery: handleRecovery
 }
 
 // Check kinds whose PF2e entry point takes a placed Token as its `target`

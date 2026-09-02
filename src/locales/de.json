@@ -254,7 +254,8 @@
     "lockedBy": "Automatisch verursacht durch {source}",
     "none": "Keine aktiven Zustände oder Effekte",
     "addCondition": "Zustand hinzufügen",
-    "addConditionFailed": "Der Tisch ist nicht erreichbar. Versuche es gleich noch einmal."
+    "addConditionFailed": "Der Tisch ist nicht erreichbar. Versuche es gleich noch einmal.",
+    "recoveryCheck": "Erholung (SG {dc})"
   },
   "actions": {
     "use": "Nutzen"

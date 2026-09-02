@@ -254,7 +254,8 @@
     "lockedBy": "Aplicado automáticamente por {source}",
     "none": "Sin condiciones ni efectos activos",
     "addCondition": "Añadir condición",
-    "addConditionFailed": "No se pudo contactar con la mesa. Inténtalo de nuevo en un momento."
+    "addConditionFailed": "No se pudo contactar con la mesa. Inténtalo de nuevo en un momento.",
+    "recoveryCheck": "Recuperación (CD {dc})"
   },
   "actions": {
     "use": "Usar"

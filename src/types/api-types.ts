@@ -220,6 +220,10 @@ export interface CheckSubtypeByType {
   familiarAttack: undefined
   initiative: undefined
   flat: undefined
+  // The recovery check a dying creature attempts. No subtype: PF2e derives the
+  // DC and the outcome notes from the actor's own dying track, so the request
+  // carries nothing but the actor. See foundry/handlers/checks/recovery.ts.
+  recovery: undefined
 }
 export type CheckType = keyof CheckSubtypeByType
 export type CheckSubtype = CheckSubtypeByType[CheckType]

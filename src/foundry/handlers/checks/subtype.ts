@@ -66,7 +66,10 @@ const LEGACY_DECODERS: {
   perception: () => undefined,
   familiarAttack: () => undefined,
   initiative: () => undefined,
-  flat: () => undefined
+  flat: () => undefined,
+  // Post-dates the legacy string encoding entirely; the entry exists only
+  // because the map is exhaustive over CheckSubtypeByType.
+  recovery: () => undefined
 }
 
 export function checkSubtypeOf<K extends keyof CheckSubtypeByType>(
