@@ -7,6 +7,7 @@ import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
 
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
+import UsesWidget from '@/components/widgets/UsesWidget.vue'
 import ViewableItem from '@/components/widgets/ViewableItem.vue'
 import SheetSection from '@/components/widgets/SheetSection.vue'
 import Button from './widgets/ButtonWidget.vue'
@@ -48,9 +49,15 @@ function useViewedAction() {
         :key="group.type"
       >
         <ul>
+          <!-- Row splits name-left / uses-right: the frequency indicators line
+               up in a column of their own, so "what do I still have?" is one
+               glance down the edge rather than a hunt through the names.
+               `items-baseline` sits the indicator on the name's first line, so
+               a name that wraps doesn't drag it down the row. -->
           <li
             v-for="action in actions?.filter((a: Action) => a.actionType === group.type)"
             :key="action._id"
+            class="flex items-baseline justify-between gap-2"
           >
             <ViewableItem scale="firm" class="inline-block" @click="viewAction(action)">
               {{ action.name }}
@@ -65,6 +72,15 @@ function useViewedAction() {
                 "
               />
             </ViewableItem>
+            <!-- Limited-use actions (Rage, a 1/day feat activation) are worth
+                 nothing if the sheet can't say whether they're still available,
+                 so the count rides on the row rather than hiding in the modal. -->
+            <UsesWidget
+              class="shrink-0 text-gray-600"
+              :value="action.system?.frequency?.value"
+              :max="action.system?.frequency?.max"
+              :per="action.system?.frequency?.perLabel"
+            />
           </li>
         </ul>
       </SheetSection>

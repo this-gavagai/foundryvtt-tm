@@ -467,7 +467,7 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
               @click="attachToItem(parent._id!)"
             >
               <img v-if="parent.img" :src="getPath(parent.img)" class="h-6 w-6" alt="" />
-              <span class="truncate">{{ parent.label ?? parent.name }}</span>
+              <span class="w-full truncate">{{ parent.label ?? parent.name }}</span>
             </button>
           </li>
         </ul>

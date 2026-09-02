@@ -796,6 +796,19 @@
       padding-bottom: 0;
     }
 
+    /* Remaining limited uses (an action's Frequency, a wand's charge) sitting
+     beside a row's name. Secondary information, muted with the same heading
+     token the non-numeric weight cell uses — and for the same reason: the
+     component's bare text-gray-600 is the unthemed "None" fallback, which is a
+     light-theme secondary and sits too dark on a skinned card. The pips draw
+     themselves in currentColor, so they follow it. */
+    [data-component='EquipmentList'] [data-part='uses'],
+    [data-component='ActionsList'] [data-part='uses'],
+    [data-component='NpcAbilitiesList'] [data-part='uses'],
+    [data-component='FamiliarActionsList'] [data-part='uses'] {
+      color: var(--color-heading);
+    }
+
     /* Uniform horizontal gutter around the section cards across the list tabs.
      Each component sets this as a px-6 utility on its own content wrapper;
      override it to px-3 here so all tabs match the familiar sheet's 0.75rem.

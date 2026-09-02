@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import ViewableItem from '@/components/widgets/ViewableItem.vue'
+import UsesWidget from '@/components/widgets/UsesWidget.vue'
 
 const { item } = defineProps(['item'])
 const emits = defineEmits(['itemClicked'])
@@ -20,6 +21,17 @@ const totalWeight = computed(() => {
     )
   else return Math.floor(item?.system?.bulk?.value * item?.system?.quantity)
 })
+
+// Charges worth showing, following PF2e's own item-line rule: a pool of more
+// than one, or a wand — a wand is 1/day, and "spent until tomorrow" is exactly
+// what a row of one empty pip is there to say. Single-use consumables (potions,
+// scrolls) are excluded: their quantity already answers "how many are left".
+const uses = computed(() => {
+  const max = item?.system?.uses?.max
+  if (typeof max !== 'number' || max < 1) return undefined
+  if (max === 1 && item?.system?.category !== 'wand') return undefined
+  return item.system.uses
+})
 </script>
 <template>
   <div>
@@ -36,13 +48,21 @@ const totalWeight = computed(() => {
       @click="() => emits('itemClicked', item)"
     >
       <div
-        class="truncate"
+        class="flex min-w-0 items-baseline gap-1"
         :class="{
           italic: item.type === 'backpack',
           'text-gray-300': item.system?.equipped?.carryType === 'dropped'
         }"
       >
-        {{ item.label ?? item.name }}
+        <!-- The name truncates; the charges never do — a half-spent wand of
+             fireball is the reason to look at the row at all. -->
+        <span class="w-full truncate">{{ item.label ?? item.name }}</span>
+        <UsesWidget
+          v-if="uses"
+          class="shrink-0 text-gray-600"
+          :value="uses.value"
+          :max="uses.max"
+        />
       </div>
       <div
         class="text-right text-xs font-normal"
@@ -53,9 +73,7 @@ const totalWeight = computed(() => {
       <div
         data-part="item-weight"
         class="text-right text-xs"
-        :class="[
-          typeof totalWeight === 'number' ? 'font-semibold' : 'font-normal text-gray-600'
-        ]"
+        :class="[typeof totalWeight === 'number' ? 'font-semibold' : 'font-normal text-gray-600']"
         :data-numeric="typeof totalWeight === 'number'"
       >
         {{ totalWeight }}

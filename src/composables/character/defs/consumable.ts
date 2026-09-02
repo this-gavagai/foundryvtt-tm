@@ -7,6 +7,9 @@ import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/ab
 
 export interface ConsumableSystem extends PhysicalItemSystem {
   uses: { value: Maybe<number>; max: Maybe<number> }
+  // potion / scroll / wand / talisman / … — the inventory row needs it to
+  // follow PF2e's own rule for when charges are worth showing.
+  category: Maybe<string>
   spell: {
     system: {
       level: { value: Maybe<number> }
@@ -28,6 +31,7 @@ export function makeConsumable(root: ConsumablePF2e): Consumable {
     system: {
       ...base.system,
       uses: { value: root.system.uses?.value, max: root.system.uses?.max },
+      category: root.system.category,
       spell: {
         system: {
           level: { value: root.system.spell?.system?.level?.value },

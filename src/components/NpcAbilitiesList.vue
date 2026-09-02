@@ -4,6 +4,7 @@ import type { Action } from '@/composables/character'
 import { useInjectedNpc } from '@/composables/injectKeys'
 
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
+import UsesWidget from '@/components/widgets/UsesWidget.vue'
 import DetailInfoModal from '@/components/DetailInfoModal.vue'
 import SheetSection from '@/components/widgets/SheetSection.vue'
 import ViewableItem from '@/components/widgets/ViewableItem.vue'
@@ -50,7 +51,11 @@ function glyphFor(ability: Action): string {
       class="[&:not(:has(li))]:hidden"
     >
       <ul>
-        <li v-for="ability in group.abilities" :key="ability._id ?? ability.name ?? ''">
+        <li
+          v-for="ability in group.abilities"
+          :key="ability._id ?? ability.name ?? ''"
+          class="flex items-baseline justify-between gap-2"
+        >
           <ViewableItem scale="firm" class="inline-block" @click="viewAbility(ability)">
             {{ ability.name }}
             <ActionIcons
@@ -59,6 +64,15 @@ function glyphFor(ability: Action): string {
               :actions="glyphFor(ability)"
             />
           </ViewableItem>
+          <!-- Stat-block abilities lean on Frequency far harder than a PC's do
+               ("Frequency once per day"), and a passive one can be limited too,
+               so this hangs off every row rather than the active ones. -->
+          <UsesWidget
+            class="shrink-0 text-gray-600"
+            :value="ability.system?.frequency?.value"
+            :max="ability.system?.frequency?.max"
+            :per="ability.system?.frequency?.perLabel"
+          />
         </li>
       </ul>
     </SheetSection>

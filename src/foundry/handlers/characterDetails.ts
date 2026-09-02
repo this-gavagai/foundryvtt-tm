@@ -16,7 +16,7 @@ import { inventoryTypes } from '@/utils/constants'
 import { logger } from '@/utils/utilities'
 
 import { getGame } from '../utils/foundry'
-import { configPF2E, localize } from '../globals'
+import { configPF2E, localize, localizeOr } from '../globals'
 import {
   buildSpellcastingModifiers,
   localizeIWRLabels,
@@ -394,6 +394,34 @@ export async function getCharacterDetails(
         ;(sys.location as Record<string, unknown>) = {
           ...location,
           uses: { value: uses.value, max: uses.max }
+        }
+      }
+    }
+    // An ability/feat/campaign-feature's Frequency is only half-stored. PF2e's
+    // prepareBaseData fills in `value ??= max`, so an action nobody has spent
+    // yet carries NO `frequency.value` in source at all — read straight off
+    // toObject(), an untouched 1/day action looks like it has no uses left.
+    // `frequency-max` / `frequency-per` item alterations rewrite the prepared
+    // frequency too, and source sees none of that either. Overlay the prepared
+    // values, and carry the interval's label with them: `per` is a bare enum
+    // key ("day", "PT1H") whose CONFIG.PF2E.frequencies entry is an i18n key,
+    // and only Foundry has the catalog loaded (see localizeTraitLabels).
+    if (i.isOfType('action', 'feat', 'campaignFeature')) {
+      const frequency = i.system.frequency
+      if (frequency) {
+        const sys = (obj.system ??= {})
+        const perKeys = configPF2E().frequencies as Record<string, string | undefined>
+        const perKey = perKeys[frequency.per]
+        const interval = perKey ? localize(perKey) : frequency.per
+        ;(sys.frequency as Record<string, unknown>) = {
+          value: frequency.value,
+          max: frequency.max,
+          per: frequency.per,
+          // The whole phrase, composed the way PF2e's own action.hbs composes
+          // it ("per" + interval) rather than joined client-side: word order
+          // around the interval is the translation's to decide, and only this
+          // side knows the world's language.
+          perLabel: `${localizeOr('PF2E.Frequency.per', 'per')} ${interval}`
         }
       }
     }

@@ -4,6 +4,7 @@ import { computed, ref } from 'vue'
 import { useInjectedFamiliar } from '@/composables/injectKeys'
 
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
+import UsesWidget from '@/components/widgets/UsesWidget.vue'
 import ViewableItem from '@/components/widgets/ViewableItem.vue'
 import DetailInfoModal from '@/components/DetailInfoModal.vue'
 
@@ -27,7 +28,11 @@ function viewAction(action: Action) {
         {{ $t('familiar.abilities') }}
       </h3>
       <ul class="space-y-1">
-        <li v-for="action in actions" :key="action._id">
+        <li
+          v-for="action in actions"
+          :key="action._id"
+          class="flex items-baseline justify-between gap-2"
+        >
           <ViewableItem scale="firm" class="inline-block" @click="viewAction(action)">
             {{ action.name }}
             <ActionIcons
@@ -42,6 +47,12 @@ function viewAction(action: Action) {
               "
             />
           </ViewableItem>
+          <UsesWidget
+            class="shrink-0 text-gray-600"
+            :value="action.system?.frequency?.value"
+            :max="action.system?.frequency?.max"
+            :per="action.system?.frequency?.perLabel"
+          />
         </li>
       </ul>
     </section>

@@ -26,7 +26,7 @@ import type {
 } from '@7h3laughingman/pf2e-types'
 
 export type InventoryItem = PhysicalItem & {
-  system: { uses?: { value: Maybe<number>; max: Maybe<number> } }
+  system: { uses?: { value: Maybe<number>; max: Maybe<number> }; category?: Maybe<string> }
   consumeItem?: Consumable['consumeItem']
   changeUses?: Consumable['changeUses']
   // Attaches this loose item onto the given parent item (for items with an
