@@ -10,6 +10,7 @@ import { setupSocketListenersForActor } from '@/composables/serverEventWiring'
 import { sendCharacterRequest, fireRefresh } from '@/api/characterSync'
 import { modifyDocument, processChanges } from '@/api/documents'
 import { asDocumentArray } from '@/api/internal'
+import { sourceFromEmbedded, type StoredItem } from '@/utils/itemSource'
 import { logger } from '@/utils/utilities'
 
 // The party-inventory transfer protocol, lifted out of EquipmentList.vue: find
@@ -143,12 +144,32 @@ export function usePartyTransfer(opts: {
     if (existing) {
       write = Promise.resolve(existing.changeQty?.((existing.system?.quantity ?? 0) + 1))
     } else {
-      const raw = JSON.parse(JSON.stringify(item)) as Record<string, unknown>
-      delete raw._id
-      ;(raw.system as Record<string, unknown>).quantity = 1
-      // The backpack the item was stowed in doesn't exist in the target
-      // inventory, so drop the reference rather than carry a dangling containerId.
-      delete (raw.system as Record<string, unknown>).containerId
+      // Built from the STORED document, not from `item`.
+      //
+      // `item` is an InventoryItem — the sheet's projection
+      // (composables/character/defs/*), which keeps only the fields the sheet
+      // renders. It resembles a document closely enough that cloning it used to
+      // typecheck and silently drop everything else: system.rules, every flag
+      // (ChoiceSet answers included), material, grade, baseItem, category,
+      // group, the damage dice, and all but two fields of the `system.spell`
+      // that makes a wand or scroll cast anything. Foundry then filled the gaps
+      // with schema defaults, so the create succeeded and produced a plausible
+      // item that had lost what mattered — a 1d8 longsword arriving as the
+      // schema's default 1d6, and a martial weapon as a simple one.
+      // utils/itemSource.ts refuses the projection at the type level now; this
+      // reads the real thing to hand it.
+      const sourceActor = targetMode === 'party' ? characterActor.value : partyActorForItems.value
+      const stored = ((asDocumentArray(sourceActor?.items) ?? []) as StoredItem[]).find(
+        (d) => d._id === item._id
+      )
+      // No stored document means the source inventory is mid-load or the item
+      // has just gone. Abort rather than fall back to a lossy copy: a transfer
+      // that didn't happen is recoverable, and a gutted item is not.
+      if (!stored) {
+        logger.warn('TM-TRANSFER: no stored document for item, refusing transfer', item._id)
+        return { removed: false }
+      }
+      const raw = sourceFromEmbedded(stored, { quantity: 1, toActor: true })
       write = modifyDocument(
         {
           action: 'create',

@@ -18,6 +18,7 @@ import type {
 import { TM } from '@/api/protocol'
 import { inventoryTypes } from '@/utils/constants'
 import { logger } from '@/utils/utilities'
+import { attachDisplaced, recordOverlay, type DisplacedValue } from '@/utils/itemSource'
 
 import { getGame } from '../utils/foundry'
 import { configPF2E, localize, localizeOr } from '../globals'
@@ -366,96 +367,87 @@ export async function getCharacterDetails(
   // `actor._source`) drops them entirely. Merge the two sources here so the
   // wire payload reflects what the Foundry runtime actually sees.
   const baseItems = [...actor.items].map((i) => {
-    const obj = i.toObject() as { _id?: string; system?: Record<string, unknown> }
-    // toObject() returns source data, so system.level.value and
-    // system.price.value are the BASE values without runes/precious material.
-    // PF2e's prepareBaseData() recomputes both (level = max of base + each
-    // rune/material level; price = base + rune/material costs) and writes them
-    // back onto the prepared document. Overlay those derived values so weapons,
-    // armor, and shields show their rune-adjusted level and price.
+    const obj = i.toObject() as Record<string, unknown>
+    // PREPARED values overlaid onto source data, so the sheet can show what
+    // PF2e computed rather than what is stored — a rune-adjusted level, a
+    // modular weapon's current damage type, an innate spell's derived uses.
+    //
+    // Each overlay records the source value it displaced (utils/itemSource.ts),
+    // because these values are for DISPLAY: persisted as source they change
+    // what the item is. The app restores them before cloning an item into a
+    // create, which is the one place that distinction bites. An overlay equal
+    // to the value it replaces records nothing, so most items carry no record
+    // at all.
+    const displaced: DisplacedValue[] = []
+    const overlay = (path: string, value: unknown) => recordOverlay(obj, displaced, path, value)
+
     if (i.isOfType('physical')) {
-      const sys = (obj.system ??= {})
-      const level = (sys.level as { value?: number } | undefined) ?? {}
-      ;(sys.level as { value?: number }) = { ...level, value: i.system.level.value }
-      const preparedPrice = i.system.price.value
-      const price = (sys.price as { value?: Record<string, number> } | undefined) ?? {}
-      ;(sys.price as { value?: Record<string, number> }) = {
-        ...price,
-        value: {
-          pp: preparedPrice.pp,
-          gp: preparedPrice.gp,
-          sp: preparedPrice.sp,
-          cp: preparedPrice.cp
-        }
-      }
+      // PF2e's prepareBaseData/prepareDerivedData recompute both from the base
+      // plus every rune, precious material and grade (computeLevelRarityPrice),
+      // and write them back onto the prepared document.
+      overlay('system.level.value', i.system.level.value)
+      const price = i.system.price.value
+      overlay('system.price.value', {
+        pp: price.pp,
+        gp: price.gp,
+        sp: price.sp,
+        cp: price.cp
+      })
       // stackGroup is a derived getter on treasure (coins/gems/upb) rather than
       // a stored schema field, so toObject() drops it — the client then can't
-      // tell a coin stack apart from a 1-Bulk item. Overlay the prepared value.
-      ;(sys as { stackGroup?: string | null }).stackGroup = i.system.stackGroup ?? null
+      // tell a coin stack apart from a 1-Bulk item.
+      overlay('system.stackGroup', i.system.stackGroup ?? null)
     }
-    // toObject() returns source data, so for weapons system.damage.damageType
-    // is the BASE type and the modular toggle is just a numeric index whose
-    // options array isn't serialized. Overlay the *current* damage type so
-    // the client can highlight the right damage-type chip.
     if (i.isOfType('weapon')) {
       // Modular weapons: the active option's damageType lives on the prepared
-      // toggle config. Fall back to the prepared system.damage.damageType for
-      // everything else (e.g. versatile carries the string in `selected` and
-      // base weapons just have their innate type).
+      // toggle config, and source carries only a numeric index into an options
+      // array that isn't serialized. Fall back to the prepared damage type for
+      // everything else (versatile carries the string in `selected`, and base
+      // weapons just have their innate type).
       const modularDmg = i.system.traits?.toggles?.modular?.config?.damageType
       const prepared = modularDmg ?? i.system.damage?.damageType
-      if (prepared) {
-        const sys = (obj.system ??= {})
-        const dmg = (sys.damage as { damageType?: string } | undefined) ?? {}
-        ;(sys.damage as { damageType?: string }) = { ...dmg, damageType: prepared }
-      }
+      if (prepared) overlay('system.damage.damageType', prepared)
     }
-    // An innate spell's per-spell uses are DERIVED, not stored: PF2e's
-    // SpellPF2e#prepareSiblingData merges in `{ value: 1, max: 1 }` (without
-    // overwriting an authored value) for every spell whose entry is innate. So
-    // toObject() omits `location.uses` entirely for the majority of bestiary
-    // innate spells, and without it the client can't tell "one cast available"
-    // from "expended" — nor render the uses counter that is the whole point of
-    // an NPC's innate spell list. Overlay the prepared value.
     if (i.isOfType('spell')) {
+      // An innate spell's per-spell uses are DERIVED, not stored:
+      // SpellPF2e#prepareSiblingData merges in `{ value: 1, max: 1 }` (without
+      // overwriting an authored value) for every spell whose entry is innate.
+      // So toObject() omits `location.uses` for the majority of bestiary innate
+      // spells, and without it the client can't tell "one cast available" from
+      // "expended" — nor render the uses counter that is the whole point of an
+      // NPC's innate spell list.
       const uses = i.system.location?.uses
-      if (uses) {
-        const sys = (obj.system ??= {})
-        const location = (sys.location as Record<string, unknown> | undefined) ?? {}
-        ;(sys.location as Record<string, unknown>) = {
-          ...location,
-          uses: { value: uses.value, max: uses.max }
-        }
-      }
+      if (uses) overlay('system.location.uses', { value: uses.value, max: uses.max })
     }
-    // An ability/feat/campaign-feature's Frequency is only half-stored. PF2e's
-    // prepareBaseData fills in `value ??= max`, so an action nobody has spent
-    // yet carries NO `frequency.value` in source at all — read straight off
-    // toObject(), an untouched 1/day action looks like it has no uses left.
-    // `frequency-max` / `frequency-per` item alterations rewrite the prepared
-    // frequency too, and source sees none of that either. Overlay the prepared
-    // values, and carry the interval's label with them: `per` is a bare enum
-    // key ("day", "PT1H") whose CONFIG.PF2E.frequencies entry is an i18n key,
-    // and only Foundry has the catalog loaded (see localizeTraitLabels).
     if (i.isOfType('action', 'feat', 'campaignFeature')) {
+      // An ability/feat/campaign-feature's Frequency is only half-stored.
+      // prepareBaseData fills in `value ??= max`, so an action nobody has spent
+      // yet carries NO `frequency.value` in source at all — read straight off
+      // toObject(), an untouched 1/day action looks like it has no uses left.
+      // `frequency-max` / `frequency-per` item alterations rewrite the prepared
+      // frequency too, and source sees none of that either.
+      //
+      // The interval's label rides along: `per` is a bare enum key ("day",
+      // "PT1H") whose CONFIG.PF2E.frequencies entry is an i18n key, and only
+      // this side has the catalog loaded (see localizeTraitLabels).
       const frequency = i.system.frequency
       if (frequency) {
-        const sys = (obj.system ??= {})
         const perKeys = configPF2E().frequencies as Record<string, string | undefined>
         const perKey = perKeys[frequency.per]
         const interval = perKey ? localize(perKey) : frequency.per
-        ;(sys.frequency as Record<string, unknown>) = {
+        overlay('system.frequency', {
           value: frequency.value,
           max: frequency.max,
           per: frequency.per,
-          // The whole phrase, composed the way PF2e's own action.hbs composes
-          // it ("per" + interval) rather than joined client-side: word order
-          // around the interval is the translation's to decide, and only this
-          // side knows the world's language.
+          // The whole phrase, composed the way PF2e's own action.hbs composes it
+          // ("per" + interval) rather than joined client-side: word order around
+          // the interval is the translation's to decide.
           perLabel: `${localizeOr('PF2E.Frequency.per', 'per')} ${interval}`
-        }
+        })
       }
     }
+
+    attachDisplaced(obj, displaced)
     return obj
   })
   // In-memory-only conditions (e.g. Off-Guard granted by Grabbed) are now derived

@@ -17,6 +17,7 @@ import { attachItem, consumeItem, detachItem } from '@/api/actionRpc'
 import { inventoryTypes } from '@/utils/constants'
 import { removalLockedBy, type GrantAwareItem } from '@/utils/itemGrants'
 import { stackCandidateIds, stackQuantity, type StackableItem } from '@/utils/itemStacks'
+import { sourceFromEmbedded, type StoredItem } from '@/utils/itemSource'
 import type {
   AbstractEffectPF2e,
   ArmorPF2e,
@@ -200,6 +201,15 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
   // whole `system` source data rather than the sheet's narrowed model, and a
   // real array (`items` is typed as a Foundry collection but arrives as JSON).
   const storedItems = () => (asDocumentArray(actor.value?.items) ?? []) as StackableItem[]
+  // The same documents, for the one other job that needs whole source data:
+  // building the payload for a create. A separate accessor rather than a reuse
+  // of the above because StoredItem is the stricter shape — it requires the
+  // `flags` the sheet's item model hasn't got, which is what stops the
+  // projection being cloned by mistake (utils/itemSource.ts).
+  const storedItem = (id: string | null | undefined): StoredItem | undefined =>
+    id
+      ? ((asDocumentArray(actor.value?.items) ?? []) as StoredItem[]).find((d) => d._id === id)
+      : undefined
 
   const inventory = computed(() =>
     actor.value?.items
@@ -232,26 +242,15 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
           if (typeof total !== 'number') return null
           const amount = Math.floor(count)
           if (!Number.isFinite(amount) || amount < 1 || amount >= total) return null
-          // Cloned from the stored document rather than from this derived model,
+          // Built from the stored document rather than from this derived model,
           // so the new stack keeps everything PF2e put on the item (runes,
-          // identification, flags) instead of only the fields the sheet reads.
-          const copy = JSON.parse(JSON.stringify(i)) as Record<string, unknown>
-          delete copy._id
-          const system = copy.system as Record<string, unknown>
-          system.quantity = amount
-          // Attached items are documents in their own right, so carrying them
-          // along would conjure a second shield boss out of a split. The new
-          // stack comes out bare; the attachments stay with the original.
-          delete system.subitems
-          // A grant link belongs to the item that was granted, not to a copy of
-          // it: left in place, the split-off stack would answer to a feat that
-          // never granted it (and itemGrants would claim items granted to the
-          // original), which utils/itemGrants reads as a reason to lock it.
-          const pf2e = (copy.flags as { pf2e?: Record<string, unknown> } | undefined)?.pf2e
-          if (pf2e) {
-            delete pf2e.grantedBy
-            delete pf2e.itemGrants
-          }
+          // rules, identification, flags) instead of only the fields the sheet
+          // reads — and with the display overlays undone, so it doesn't inherit
+          // a rune-adjusted level or a modular weapon's currently-selected
+          // damage type as its own base data. See utils/itemSource.ts.
+          const stored = storedItem(i._id)
+          if (!stored) return null
+          const copy = sourceFromEmbedded(stored, { quantity: amount })
           // The create goes first and is awaited: the original is only decremented
           // once the new stack exists, so a rejected write can't make the
           // difference disappear. Same ordering rule as a party transfer.
