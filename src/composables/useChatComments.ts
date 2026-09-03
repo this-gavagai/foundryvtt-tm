@@ -32,6 +32,12 @@ import { useUserStore } from '@/stores/user'
 // only write your own document. A GM moderating someone else's comment still
 // works, and directly — Foundry grants a GM update rights on any user.
 //
+// That last part is not free, and reading it as free is what broke it: a write
+// addressed at `useUserStore().userId` can only ever reach the writer's own
+// comments, so a GM's edit of a player's comment was refused by this file before
+// Foundry ever got the chance to allow it. The write is addressed at the
+// COMMENT'S AUTHOR instead — see saveComment. Permission stays the database's.
+//
 // Deliberately NOT optimistic, unlike a reaction chip: this is a considered
 // write behind a Save button rather than a tap that must feel instant. It writes
 // the whole list it computed, so what it applies locally IS what it sent.
@@ -83,8 +89,8 @@ export function useChatComments() {
     // after a failure must not still be showing the last attempt's error.
     failed.value = false
     if (!messageId) return null
-    const userId = useUserStore().userId
-    if (!userId) return null
+    const selfId = useUserStore().userId
+    if (!selfId) return null
 
     // Sanitized here and again on read (utils/chatComments), since the stored
     // flag is world-readable data no reader should trust. An add whose text is
@@ -95,10 +101,31 @@ export function useChatComments() {
     const entry = key(messageId, commentId)
     if (pending.value.has(entry)) return null
 
-    // Editing addresses a comment on OUR OWN document, so an id we don't hold is
-    // either a stale editor or someone else's comment — neither of which this
-    // write can touch. Refuse rather than silently adding a second comment.
-    const stored = readUserComments(worldStore.userById(userId))
+    // WHOSE document this write lands on. A new comment is always our own; an
+    // existing one lives on whoever wrote it, which for a GM moderating the log
+    // is somebody else. Resolved from the thread rather than assumed to be us —
+    // assuming it was what made moderation fail closed, refusing a write Foundry
+    // would have allowed (a GM may update any User; see utils/chatComments.ts).
+    //
+    // Nothing here re-checks the permission, and deliberately: a player
+    // addressing another author's document has the write refused by the server,
+    // which is the whole reason comments moved onto their authors. The affordance
+    // is gated separately, by canModifyComment.
+    const authorId = commentId
+      ? worldStore.commentsFor(messageId).find((c) => c.id === commentId)?.userId
+      : selfId
+    // An id nobody in the thread holds is a stale editor. Refuse rather than
+    // silently adding a second comment.
+    if (!authorId) {
+      failed.value = true
+      return null
+    }
+
+    // Checked again against the author's own stored list, because reading the
+    // thread is not the same as finding the entry to rewrite: a comment an older
+    // build wrote onto the MESSAGE reads back with an author but sits on no user
+    // document, so there is nothing there to edit.
+    const stored = readUserComments(worldStore.userById(authorId))
     if (commentId && !stored.some((c) => c.id === commentId)) {
       failed.value = true
       return null
@@ -113,8 +140,8 @@ export function useChatComments() {
 
     setPending(entry, true)
     try {
-      await updateUserFlag(userId, 'comments', next)
-      worldStore.applyUserAnnotations(userId, 'comments', next)
+      await updateUserFlag(authorId, 'comments', next)
+      worldStore.applyUserAnnotations(authorId, 'comments', next)
       // The message's whole thread, across every author — which is what the
       // caller renders, and which this user's own list is only part of. The
       // roll-result panel in particular may be commenting on a card the app has

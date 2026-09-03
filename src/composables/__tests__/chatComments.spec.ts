@@ -268,3 +268,96 @@ describe('useChatComments', () => {
     expect(updateUserFlag).not.toHaveBeenCalled()
   })
 })
+
+// Moderation is the one case where the writer and the author differ. Foundry
+// allows it — a GM may update any User — but only if the write is addressed at
+// the document that actually holds the comment. Addressing our own instead is
+// how it used to fail: the affordance was offered, and this file refused it
+// before the server could allow it.
+describe('a GM moderating someone else’s comment', () => {
+  beforeEach(() => {
+    useUserStore().setUserId('gm')
+  })
+
+  it('rewrites it on its author’s document, not the GM’s own', async () => {
+    seedWorld()
+    const world = useWorldStore()
+    world.applyUserAnnotations('me', 'comments', [
+      { id: 'c1', messageId: 'msg-1', text: 'unkind', timestamp: 5 }
+    ])
+    const comments = useChatComments()
+
+    const thread = await comments.saveComment('msg-1', 'redacted', 'c1')
+
+    const [userId, key] = updateUserFlag.mock.calls[0]
+    expect(userId).toBe('me')
+    expect(key).toBe('comments')
+    // Edited in place, keeping its timestamp — moderation is a rewrite, not a
+    // new remark posted under the GM's name.
+    expect(written()).toEqual([{ id: 'c1', messageId: 'msg-1', text: 'redacted', timestamp: 5 }])
+    expect(thread).toEqual([expect.objectContaining({ userId: 'me', text: 'redacted' })])
+  })
+
+  it('removes it from its author’s document', async () => {
+    seedWorld()
+    const world = useWorldStore()
+    world.applyUserAnnotations('me', 'comments', [
+      { id: 'c1', messageId: 'msg-1', text: 'unkind', timestamp: 5 }
+    ])
+    const comments = useChatComments()
+
+    await expect(comments.removeComment('msg-1', 'c1')).resolves.toEqual([])
+    expect(updateUserFlag.mock.calls[0][0]).toBe('me')
+    expect(written()).toEqual([])
+  })
+
+  it('leaves the author’s comments on other messages alone', async () => {
+    seedWorld()
+    const world = useWorldStore()
+    world.applyUserAnnotations('me', 'comments', [
+      { id: 'c0', messageId: 'msg-0', text: 'elsewhere', timestamp: 1 },
+      { id: 'c1', messageId: 'msg-1', text: 'unkind', timestamp: 5 }
+    ])
+    const comments = useChatComments()
+
+    await comments.removeComment('msg-1', 'c1')
+
+    // The whole list is rewritten, so moderating one remark must not take the
+    // author's unrelated ones with it.
+    expect(written().map((c) => c.id)).toEqual(['c0'])
+  })
+
+  it('still writes a NEW comment as the GM, not as the thread’s author', async () => {
+    seedWorld()
+    const world = useWorldStore()
+    world.applyUserAnnotations('me', 'comments', [
+      { id: 'c1', messageId: 'msg-1', text: 'unkind', timestamp: 5 }
+    ])
+    const comments = useChatComments()
+
+    await comments.saveComment('msg-1', 'watch your tone')
+
+    expect(updateUserFlag.mock.calls[0][0]).toBe('gm')
+    expect(written()).toEqual([
+      expect.objectContaining({ messageId: 'msg-1', text: 'watch your tone' })
+    ])
+  })
+
+  // A comment an older build wrote onto the MESSAGE reads back with an author,
+  // so the thread offers it — but it sits on no user document, and writing the
+  // author's list would add a duplicate beside the one still on the message.
+  it('refuses a comment that lives on the message rather than on a user', async () => {
+    const message = seedWorld()
+    ;(message as { flags: Record<string, unknown> }).flags = {
+      tablemate: {
+        comments: [{ id: 'legacy-1', userId: 'me', text: 'from an older build', timestamp: 5 }]
+      }
+    }
+    useWorldStore().bumpMessagesRevision()
+    const comments = useChatComments()
+
+    await expect(comments.saveComment('msg-1', 'redacted', 'legacy-1')).resolves.toBeNull()
+    expect(updateUserFlag).not.toHaveBeenCalled()
+    expect(comments.commentFailed.value).toBe(true)
+  })
+})

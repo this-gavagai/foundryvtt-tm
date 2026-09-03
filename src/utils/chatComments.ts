@@ -174,7 +174,10 @@ export function canModifyComment(
 //
 // GM moderation still works, and directly: `common/documents/user.mjs` grants a
 // full GM update rights on any User, so a GM removing someone else's comment is
-// an ordinary write from their own client.
+// an ordinary write from their own client. What that permission does NOT do is
+// pick the document — a moderating write has to be addressed at the comment's
+// author rather than at the writer, which is composables/useChatComments.ts's
+// job and was the one thing missing when this moved.
 //
 // ONE capability was lost in the move, deliberately. A sheet-only user attached
 // to a human through `flags.tablemate.belongsTo` can no longer edit a comment
