@@ -7,11 +7,11 @@
 
 ## How to use this document
 
-Hand this to a Claude Code session with: *"Read docs/BETA_ROLLOVER.md and work through it with me."*
+Hand this to a Claude Code session with: _"Read docs/BETA_ROLLOVER.md and work through it with me."_
 
 **Before executing anything, re-verify current state.** This was written against the
 code as it stood on 2026-08-27 and cites specific files and line numbers. Months of
-commits will have moved them. Every file reference below is a *pointer to intent*, not
+commits will have moved them. Every file reference below is a _pointer to intent_, not
 a guarantee of location. The "State of the code" appendix records what was true at
 writing time so you can diff against it.
 
@@ -38,13 +38,14 @@ They talk over a Foundry socket channel. The contract is `src/api/protocol.ts` +
 module, so a GM who updates the module updates both halves atomically. Only **native
 binaries** can skew, and in both directions:
 
-- *App newer than module* — the GM hasn't updated. Expect this to be the **dominant**
+- _App newer than module_ — the GM hasn't updated. Expect this to be the **dominant**
   case: iOS auto-updates apps by default, while a GM mid-campaign is the single most
   conservative updater in the system. One stale GM strands every tablet at the table.
-- *Module newer than app* — App Store review latency, TestFlight builds users ignore,
+- _Module newer than app_ — App Store review latency, TestFlight builds users ignore,
   auto-update disabled.
 
 **What already exists (this is a good foundation — do not rebuild it).**
+
 - `PROTOCOL_VERSION` in `src/api/protocol.ts`: an integer, currently 4, bumped only on
   breaking wire changes, with a documented history comment.
 - `CAPABILITY_*` string flags for additive features, advertised by the module and
@@ -69,7 +70,7 @@ hold to them.
 1. **A native app update is never required to keep working** — only to gain features.
 2. **The app degrades gracefully against any module back to the beta-0 floor.** It
    connects, authenticates, syncs a character, and hides what the module can't serve.
-   *Not* feature parity — parity with an older module is impossible by construction.
+   _Not_ feature parity — parity with an older module is impossible by construction.
 3. **The module stays backward-compatible with older apps** for the stated window. The
    module is the half you can ship a same-day fix to, so it absorbs incident response.
 4. **Additive changes are capabilities, not protocol bumps.** Reserve the integer for
@@ -83,20 +84,46 @@ hold to them.
 Ask the user each of these. Do not assume defaults.
 
 **0.1 — The support window.** How far back must the app support modules? There is
-**no telemetry in this project**, so you can never *learn* that a floor is safe to
+**no telemetry in this project**, so you can never _learn_ that a floor is safe to
 raise. The window must therefore be time-based, not usage-based.
-*Recommendation:* "modules released within the last 12 months." Without a stated
+_Recommendation:_ "modules released within the last 12 months." Without a stated
 window, every compatibility branch added below lives forever.
 
-**0.2 — Delete or keep the legacy decoders.** `src/foundry/handlers/checks/subtype.ts`
-exists to serve pre-protocol-3 apps. No such app deserves support in beta. Deleting it
-is *correct now* and *wrong the day beta-0 ships*.
-*Recommendation:* delete the pre-beta legacy paths, but keep the fixture-test pattern
+**0.2 — Delete or keep the legacy decoders and the RPC shims.**
+`src/foundry/handlers/checks/subtype.ts` exists to serve pre-protocol-3 apps. No such
+app deserves support in beta. Deleting it is _correct now_ and _wrong the day beta-0
+ships_.
+_Recommendation:_ delete the pre-beta legacy paths, but keep the fixture-test pattern
 from `checkSubtype.spec.ts` — that harness is the valuable part and Step 4 generalizes it.
+
+The same decision governs the **RPC shims**: handlers that are still live and
+`owner`-authorized but that the app no longer calls, because the operation moved to a
+direct `modifyDocument` write. Each exists for one skew direction only — a stale
+**native** binary, since the PWA ships in the module zip and cannot skew — and none of
+them carries an expiry, so absent a decision they live forever.
+
+| Shim                   | Replaced by                                                        | Serves                                 |
+| ---------------------- | ------------------------------------------------------------------ | -------------------------------------- |
+| `UPDATE_ACTOR`         | direct actor write (`api/documents.ts`)                            | app older than the direct-write change |
+| `SEND_CHAT_MESSAGE`    | direct ChatMessage create (`useChatActions.postChatMessageDirect`) | ditto                                  |
+| `LIST_COMPENDIA`       | world payload (`api/compendium.ts`)                                | ditto                                  |
+| `GET_COMPENDIUM_INDEX` | direct database `get`                                              | ditto                                  |
+| `GET_COMPENDIUM_ITEM`  | direct database `get`                                              | ditto                                  |
+| `TOGGLE_REACTION`      | author-owned storage (`utils/chatReactions.ts`)                    | app older than the author-owned move   |
+| `SET_COMMENT`          | author-owned storage (`utils/chatComments.ts`)                     | ditto                                  |
+
+Note that the last two are not merely unused — they write the OLD location (a flag on
+the message), which both ends still read as the legacy half of a union. Deleting those
+handlers is safe; deleting the union read is what would lose data.
+
+_Recommendation:_ tie them to the 0.1 support window rather than judging each — a shim
+whose replacement predates the window by more than the window's length has no caller
+left that anyone promised to support. Record the decision here; the handlers point at
+this section rather than restating a policy that would drift.
 
 **0.3 — The protocol floor number.** Pick the `PROTOCOL_VERSION` that means "first
 beta." Everything below it is unsupported, permanently.
-*Recommendation:* bump once to the next integer as the beta floor and note it in the
+_Recommendation:_ bump once to the next integer as the beta floor and note it in the
 history comment as the floor, rather than renumbering from 1.
 
 **0.4 — The tag scheme.** Tags are currently `alpha-NNNN`. The tag is baked into
@@ -112,11 +139,11 @@ own `dist/`. This eliminates skew by construction, because the UI and module the
 from the same zip. It was deferred because of its costs: a user-supplied Foundry URL
 would own the Capacitor bridge (secure storage holding credentials, push tokens,
 filesystem); offline and pre-connect UI need a local fallback anyway; the installed
-Capacitor plugin set becomes a *third* version axis; and there is moderate App Store
+Capacitor plugin set becomes a _third_ version axis; and there is moderate App Store
 review risk. Revisit only if native skew becomes the dominant support burden. Do not
 re-propose it as part of this rollover.
 
-**Note the inverse of 0.5:** stripping the *Foundry module* down and having it fetch
+**Note the inverse of 0.5:** stripping the _Foundry module_ down and having it fetch
 remote versioned JS was also considered and rejected. It adds flexibility to the half
 that is already flexible, breaks LAN/offline tables, sits badly with Foundry package
 guidelines, and relocates the frozen interface into a loader shim you can never patch.
@@ -127,7 +154,7 @@ Do not propose it.
 ## Step 1 — Wire fields that MUST ship in beta-0 (HARD DEADLINE)
 
 **Why this is the only deadline-bound step:** beta-0 is the oldest build you will ever
-have to support. Whatever it does not *say* about itself, you can never learn from it —
+have to support. Whatever it does not _say_ about itself, you can never learn from it —
 you would be stuck special-casing it forever, exactly like the existing
 `protocol === undefined` branch for pre-handshake builds. These fields are additive and
 cost nothing to ship unused.
@@ -146,13 +173,13 @@ existing `protocol` / `moduleVersion` / `capabilities` / `manualRollPolicy` / `t
 **Why `systemVersion` and `systemIssues` matter more than they look.**
 `src/foundry/systemCompat.ts` is thorough — it reads tested ranges off `module.json` and
 probes the specific PF2e internals each feature hangs off — but it is **module-side only
-and warns the GM**. The app has *zero* PF2e version awareness: it parses PF2e wire JSON
+and warns the GM**. The app has _zero_ PF2e version awareness: it parses PF2e wire JSON
 directly (`src/types/character-types.ts`; the actor objects are plain JSON with no
 runtime PF2e behavior). An old module is almost certainly running an old PF2e, so
 "the app supports all prior modules" silently means "the app parses all prior PF2e data
 shapes" — an axis outside your control, not covered by capabilities, and currently
 invisible to the app. Putting these two fields on the wire is what makes that axis
-*addressable* later.
+_addressable_ later.
 
 ### 1.2 — App → module additions
 
@@ -182,7 +209,7 @@ capabilities, lastSeen }>`, populated on `ANYBODY_HOME`, reachable from the hand
 `src/foundry/rpcTable.ts` via the dispatch context.
 
 This is the precondition for invariant 3 — without it, "the module is the compatible
-half" is aspirational, because the module can *detect* skew but cannot *adapt* to it.
+half" is aspirational, because the module can _detect_ skew but cannot _adapt_ to it.
 It is module-side, so strictly it can land any time; do it now while the wire work is
 already open.
 
@@ -207,10 +234,11 @@ strands a real user population.
 **2.3 — Run the "should this have been a capability?" audit.** Read the
 `PROTOCOL_VERSION` history comment in `src/api/protocol.ts` against invariant 4. As of
 writing it is instructive:
-- *Bump 2* (optional `error` on the ack) — purely additive. An app ignoring `error`
+
+- _Bump 2_ (optional `error` on the ack) — purely additive. An app ignoring `error`
   degrades to a timeout: bad, not broken. **Should have been a capability.**
-- *Bump 3* (typed `checkSubtype` object) — genuinely un-decodable. Correct bump.
-- *Bump 4* — half additive (`targetScene` is optional with a working fallback: an older
+- _Bump 3_ (typed `checkSubtype` object) — genuinely un-decodable. Correct bump.
+- _Bump 4_ — half additive (`targetScene` is optional with a working fallback: an older
   app resolves against the active scene). The `SHARE_TARGETS` reshape is the genuinely
   breaking half. **Should have been split.**
 
@@ -225,7 +253,7 @@ is how the rule becomes instinct before it costs a support cycle.
 ## Step 3 — Replace equality with range negotiation
 
 Both sides currently use strict equality, which is the harshest possible rule and
-misfires on the *benign* direction. The protocol-3 history comment says an older app
+misfires on the _benign_ direction. The protocol-3 history comment says an older app
 "keeps working against a newer module" — and then both sides flag it anyway.
 
 - `src/stores/versionCompat.ts` — `isMismatched` is
@@ -238,7 +266,7 @@ compatible means the ranges intersect. Keep both signals advisory (invariant 5) 
 banner in `VersionMismatchBanner.vue` is already non-blocking and dismissible, which is
 the right shape; the module's GM notification should likewise stay a transient notice.
 
-Also add a *capability-shaped* degradation path so a partial mismatch hides individual
+Also add a _capability-shaped_ degradation path so a partial mismatch hides individual
 features rather than showing a whole-app warning.
 
 ---
@@ -254,12 +282,12 @@ supported protocol version, replayed against the current handlers in
 baseline as you go. Doing it later means reconstructing old wire shapes out of git
 history to seed it.
 
-This is what makes the support window *trustworthy* rather than hopeful — it converts
+This is what makes the support window _trustworthy_ rather than hopeful — it converts
 "we think the old decoder still works" into a build failure when it doesn't.
 
 **Also test the app against capability sets, not module versions.** This is the insight
 that keeps the matrix tractable: if every feature gates on a flag, app behavior is a
-function of the capability *set*, not the version number. Test the floor (empty set),
+function of the capability _set_, not the version number. Test the floor (empty set),
 today (full set), and the real intermediate sets that actually shipped — a handful of
 cases, not N.
 
@@ -274,7 +302,7 @@ of writing) stating:
 - The support window from decision 0.1, and the floor from 0.3.
 - **What earns a protocol bump vs. a capability flag**, with the Step 2.3 audit as
   worked examples.
-- The rule that new features ship with a capability flag *by default*.
+- The rule that new features ship with a capability flag _by default_.
 
 The audit in 2.3 exists because this was not written down. Write it down.
 
@@ -285,7 +313,7 @@ The audit in 2.3 exists because this was not written down. Write it down.
 - Apply the tag scheme from decision 0.4.
 - `.github/workflows/build-and-release.yml` sets `prerelease: true` — decide whether
   beta keeps that (probably yes).
-- Confirm `APP_VERSION` still bakes the tag into the bundle *before* the post-build
+- Confirm `APP_VERSION` still bakes the tag into the bundle _before_ the post-build
   `package.json` / `module.json` edits. The workflow comment already flags this
   ordering as load-bearing; don't let a refactor reorder it.
 - Sanity-check that `module.json`'s `compatibility` and `relationships.systems` ranges
@@ -300,9 +328,9 @@ Before tagging beta-0:
 
 - [ ] Every Step 1 field is on the wire and present in a real build's handshake.
 - [ ] `npm run type-check`, `npm test`, `npm run lint` clean.
-- [ ] The module still answers an app that sends *none* of the new fields (simulate the
+- [ ] The module still answers an app that sends _none_ of the new fields (simulate the
       pre-beta case) without throwing.
-- [ ] The app still renders against a module that sends *none* of the new fields.
+- [ ] The app still renders against a module that sends _none_ of the new fields.
 - [ ] Range negotiation accepts an overlapping pair and flags only a disjoint one.
 - [ ] Mismatch degrades — the app remains usable, no blocking modal, banner dismissible.
 - [ ] Fixture harness records the beta-0 baseline and passes.
@@ -317,7 +345,7 @@ Before tagging beta-0:
 
 1. **The PF2e axis is the real threat.** Not capabilities, not the protocol. Supporting
    old modules means parsing old PF2e data shapes, PF2e reshapes things across majors,
-   and it is entirely outside your control. Step 1.1 makes it *visible*; it does not
+   and it is entirely outside your control. Step 1.1 makes it _visible_; it does not
    solve it. Expect to need app-side shape decoders eventually, and expect this — not
    the protocol — to be what eventually forces the floor up.
 
@@ -339,18 +367,18 @@ Before tagging beta-0:
 
 Diff against this to see what has drifted.
 
-| Fact | Value |
-|---|---|
-| Latest tag | `alpha-0164` |
-| `PROTOCOL_VERSION` | 4 (history for 2, 3, 4 documented in `src/api/protocol.ts`) |
-| Capabilities | `voiceMemo`, `imageUpload`, `voiceMemoTranscript`, `reactions` |
-| App-side gates in use | `ChatOverlay.vue` (3), `useChatActions.ts` (1) |
-| Module handshake | `announceSelf()`, `src/foundry/listener.ts` ~L466 |
-| App handshake | `pingHeartbeat()`, `src/stores/listenersOnline.ts` |
-| Module-side check | `checkClientVersion()`, `src/foundry/listener.ts` ~L59 — discards client protocol |
-| App-side check | `isMismatched`, `src/stores/versionCompat.ts` ~L29 — strict equality |
-| PF2e awareness | Module only (`src/foundry/systemCompat.ts`); app has none |
-| `module.json` ranges | Foundry min 13 / verified 14; PF2e min 7.0.0 / verified 8.3.0 |
-| Legacy decoders | `src/foundry/handlers/checks/subtype.ts` (pre-protocol-3) |
-| Foundry-side LOC | ~5,600 across `src/foundry/` |
-| Docs | None (`docs/` created by this file); no root `CLAUDE.md` |
+| Fact                  | Value                                                                             |
+| --------------------- | --------------------------------------------------------------------------------- |
+| Latest tag            | `alpha-0164`                                                                      |
+| `PROTOCOL_VERSION`    | 4 (history for 2, 3, 4 documented in `src/api/protocol.ts`)                       |
+| Capabilities          | `voiceMemo`, `imageUpload`, `voiceMemoTranscript`, `reactions`                    |
+| App-side gates in use | `ChatOverlay.vue` (3), `useChatActions.ts` (1)                                    |
+| Module handshake      | `announceSelf()`, `src/foundry/listener.ts` ~L466                                 |
+| App handshake         | `pingHeartbeat()`, `src/stores/listenersOnline.ts`                                |
+| Module-side check     | `checkClientVersion()`, `src/foundry/listener.ts` ~L59 — discards client protocol |
+| App-side check        | `isMismatched`, `src/stores/versionCompat.ts` ~L29 — strict equality              |
+| PF2e awareness        | Module only (`src/foundry/systemCompat.ts`); app has none                         |
+| `module.json` ranges  | Foundry min 13 / verified 14; PF2e min 7.0.0 / verified 8.3.0                     |
+| Legacy decoders       | `src/foundry/handlers/checks/subtype.ts` (pre-protocol-3)                         |
+| Foundry-side LOC      | ~5,600 across `src/foundry/`                                                      |
+| Docs                  | None (`docs/` created by this file); no root `CLAUDE.md`                          |

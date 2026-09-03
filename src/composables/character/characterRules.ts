@@ -24,6 +24,10 @@ interface RollOption {
 type RollOptionRule = {
   key?: string
   option?: string
+  // Part of a RollOption's identity, not decoration: PF2e pairs rules by
+  // (domain, option), so two rules sharing an option string in different
+  // domains are independent toggles. See the fan-out below.
+  domain?: string
   toggleable?: boolean
   value?: boolean
   alwaysActive?: boolean
@@ -43,9 +47,13 @@ export function useCharacterRules(actor: Ref<TablemateCharacter | undefined>): C
           activeRules?.includes(rule.option ?? '') &&
           (rule.toggleable === true || (rule.suboptions?.length ?? 0) > 0)
         ) {
-          if (!rollOptions.get(rule.option ?? '')) {
+          // Keyed by (domain, option), the pair PF2e treats as one toggle's
+          // identity — keying on `option` alone collapsed two independent
+          // toggles in different domains into a single row.
+          const optionKey = `${rule.domain ?? ''}:${rule.option ?? ''}`
+          if (!rollOptions.get(optionKey)) {
             const labels = actor.value?.rollOptionLabels
-            rollOptions.set(rule.option ?? '', {
+            rollOptions.set(optionKey, {
               sourceId: item?._id ?? undefined,
               label: (rule.label ? labels?.[rule.label] : undefined) ?? item.name ?? '',
               toggleable: rule?.toggleable,
@@ -53,20 +61,43 @@ export function useCharacterRules(actor: Ref<TablemateCharacter | undefined>): C
               alwaysActive: rule?.alwaysActive,
               suboptions: [],
               selection: rule?.selection,
+              // Write the toggle onto every item contributing this roll option.
+              //
+              // Matching PF2e's own pairing, which is (domain, option) and not
+              // option alone — `#resolveSuboptionRules` filters the actor's
+              // rules on `key`, `toggleable`, `mergeable`, `domain` AND
+              // `option`. Two rules sharing an option string in different
+              // domains are independent toggles there, and were being moved
+              // together here.
+              //
+              // Requiring `key === 'RollOption'` in the SELECTION as well as in
+              // the mutation matters for a second reason: without it an item
+              // could join the set on some other rule that happens to carry the
+              // same `option`, have nothing changed, and still be sent a
+              // whole-array write of its rules.
+              //
+              // ONE deliberate divergence remains. PF2e fans out only for a
+              // `mergeable` rule and otherwise writes the clicked item alone;
+              // this fans out regardless. That is because the row above
+              // aggregates SUBOPTIONS from every contributing item into a
+              // single control, so toggling only one contributor would leave the
+              // control visibly disagreeing with itself. One row, one state, all
+              // contributors — coherent, and a wider net than PF2e casts for a
+              // non-mergeable duplicate.
               updateRule: (newToggleValue, newSelection) => {
+                const isThisOption = (r: RollOptionRule) =>
+                  r?.key === 'RollOption' &&
+                  r?.option === rule?.option &&
+                  r?.domain === rule?.domain
                 const itemSet = actor.value?.items
-                  ?.filter((i) =>
-                    (i?.system?.rules as RollOptionRule[]).some((r) => r?.option === rule?.option)
-                  )
+                  ?.filter((i) => (i?.system?.rules as RollOptionRule[]).some(isThisOption))
                   ?.map((i) => i._id!)
                 const updateSet: object[] = []
                 itemSet?.forEach((i) => {
                   const rules = actor.value?.items.find((j) => j._id === i)?.system.rules as
                     | RollOptionRule[]
                     | undefined
-                  const rollOptionRule = rules?.find(
-                    (r) => r.option === rule?.option && r.key === 'RollOption'
-                  )
+                  const rollOptionRule = rules?.find(isThisOption)
                   if (rollOptionRule) {
                     if (newToggleValue !== null) rollOptionRule.value = newToggleValue ?? undefined
                     if (newSelection !== null) rollOptionRule.selection = newSelection ?? undefined
@@ -78,7 +109,7 @@ export function useCharacterRules(actor: Ref<TablemateCharacter | undefined>): C
               }
             })
           }
-          const rollOption = rollOptions.get(rule.option ?? '')
+          const rollOption = rollOptions.get(optionKey)
           rule.suboptions?.forEach((s) => {
             const labels = actor.value?.rollOptionLabels
             const label = s.label

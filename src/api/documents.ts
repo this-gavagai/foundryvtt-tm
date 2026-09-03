@@ -73,7 +73,12 @@ import { MODULE_ID } from './protocol'
 // Foundry document collections that we mutate via the modifyDocument socket.
 // Restricted to the set the app actually touches — typos for unsupported
 // document types now fail at compile time.
-export type DocumentType = 'Actor' | 'Item' | 'User' | 'Combat' | 'Combatant' | 'ChatMessage'
+//
+// 'Combat' and 'Combatant' were declared here and written by nothing: a Combat
+// has no ownership map, so a player cannot update one at all, and ending a turn
+// goes through the NEXT_TURN RPC for exactly that reason (see gate 1 above).
+// Listing them advertised a lane that does not exist.
+export type DocumentType = 'Actor' | 'Item' | 'User' | 'ChatMessage'
 
 // Discriminated by `action`. Each variant constrains `operation` to the
 // shape Foundry expects: create needs `data`, update needs `updates`,

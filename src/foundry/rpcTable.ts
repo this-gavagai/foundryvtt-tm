@@ -4,6 +4,15 @@
 // about it: which handler answers it, what authorization it requires, and
 // whether it may run off the serialized dispatch chain.
 //
+// SEVEN of the entries below are LEGACY SHIMS: live, owner-authorized handlers
+// the app no longer calls, because the operation moved to a direct write.
+// UPDATE_ACTOR, SEND_CHAT_MESSAGE, the three compendium reads, TOGGLE_REACTION
+// and SET_COMMENT. Each serves one skew direction — a stale NATIVE binary,
+// since the PWA ships in this zip and cannot skew — and when they may go is a
+// decision recorded in docs/BETA_ROLLOVER.md (0.2), tied to the support window
+// rather than judged per handler. Deliberately not restated here: a policy in
+// two places is a policy that drifts.
+//
 // WHETHER an operation belongs here at all is a separate question, and the four
 // tests that decide it are written down once, at the top of api/documents.ts —
 // the other lane. In short: an RPC buys the ability to run code on a Foundry
