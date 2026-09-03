@@ -404,7 +404,7 @@ watch([strikes, blasts], () => {
               <StrikeActionSet
                 type="strike"
                 :id="i"
-                :label="altUsage?.item?.name ?? altUsage?.label"
+                :label="altUsage?.label ?? altUsage?.item?.name"
                 :isRanged="(altUsage?.item?.system?.range ?? 0) > 0"
                 :range="altUsage?.item?.system?.range"
                 :mapLabelSet="altUsage?.variants"
