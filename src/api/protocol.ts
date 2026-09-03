@@ -219,6 +219,21 @@ export const TM = {
   GET_SPELL_DAMAGE: 'getSpellDamage',
   GET_COMPENDIUM_ITEM: 'getCompendiumItem',
   ADD_COMPENDIUM_ITEM: 'addCompendiumItem',
+  // "What would adding this item ask me to choose?" — read-only, creates
+  // nothing. PF2e's ChoiceSet rule elements stop and await a dialog, and the
+  // module creates items on the ELECTED GM's client, so that dialog used to open
+  // on the GM's screen for a choice belonging to the player who tapped Add.
+  //
+  // Answered here instead: the module inflates the choices (only a Foundry
+  // client has the CONFIG catalogs, the actor's derived data and PF2e's
+  // predicate evaluator) and hands back a plain list; the app asks its own
+  // player and sends the answers back with ADD_COMPENDIUM_ITEM, which pre-sets
+  // them so the dialog never fires.
+  //
+  // Takes the answers so far, so a ChoiceSet whose options depend on an earlier
+  // one can be resolved by asking again. Same read-then-act shape as the two
+  // damage previews. See foundry/handlers/itemChoices.ts.
+  GET_ITEM_CHOICES: 'getItemChoices',
   LIST_COMPENDIA: 'listCompendia',
   GET_COMPENDIUM_INDEX: 'getCompendiumIndex',
   SEND_COMPENDIUM_ITEM_TO_CHAT: 'sendCompendiumItemToChat',

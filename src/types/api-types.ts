@@ -45,6 +45,7 @@ export type ModuleEventArgs =
   | GetSpellDamageArgs
   | GetCompendiumItemArgs
   | AddCompendiumItemArgs
+  | GetItemChoicesArgs
   | ListCompendiaArgs
   | GetCompendiumIndexArgs
   | SendCompendiumItemToChatArgs
@@ -611,6 +612,30 @@ export interface GetCompendiumItemArgs {
   itemUuid: string
 }
 
+/** One answer to one ChoiceSet, addressed by its index in `system.rules`. */
+export interface ItemChoiceSelection {
+  // The rule's position in the item's own `system.rules`. Not its `flag`: a flag
+  // is optional, is derived from the slug when absent, and two ChoiceSets on one
+  // item can share one — the index names exactly one rule.
+  ruleIndex: number
+  value: string | number
+}
+
+/** A question adding an item would ask, as the module describes it. */
+export interface ItemChoiceSet {
+  ruleIndex: number
+  flag: string
+  // Both already localized by the module — the CONFIG catalog these come from
+  // lives only on a Foundry client (see localizeTraitLabels).
+  prompt: string
+  label: string
+  options: { value: string | number; label: string; img?: string }[]
+  // Set when the question cannot be answered from a list: a drop-only ChoiceSet
+  // (satisfied by dragging an item onto PF2e's own prompt), or an inflation that
+  // failed. The app has nothing to offer and says so rather than guessing.
+  unanswerable?: true
+}
+
 export interface AddCompendiumItemArgs {
   action: typeof TM.ADD_COMPENDIUM_ITEM
   uuid: string
@@ -618,6 +643,21 @@ export interface AddCompendiumItemArgs {
   characterId: string
   itemUuid: string
   spellcastingEntryId?: string
+  // Answers to the item's ChoiceSets, gathered by the app from GET_ITEM_CHOICES.
+  // Written into the source before creation so PF2e's own prompt never fires.
+  selections?: ItemChoiceSelection[]
+}
+
+export interface GetItemChoicesArgs {
+  action: typeof TM.GET_ITEM_CHOICES
+  uuid: string
+  userId: string
+  characterId: string
+  itemUuid: string
+  // The answers already given. A ChoiceSet whose options are built from an
+  // earlier one's selection resolves only once that selection is known, so the
+  // app asks again after each answer until nothing is pending.
+  selections?: ItemChoiceSelection[]
 }
 
 export interface ListCompendiaArgs {
@@ -909,6 +949,9 @@ export interface ResponseByAction {
   [TM.GET_STRIKE_DAMAGE]: { response: StrikeDamagePreview }
   [TM.GET_SPELL_DAMAGE]: { response: SpellDamagePreview }
   [TM.GET_COMPENDIUM_ITEM]: { compendiumItem: CompendiumItemData | null }
+  // The questions still outstanding, given the answers sent. Empty means the
+  // item can be created without asking anything.
+  [TM.GET_ITEM_CHOICES]: { choices: ItemChoiceSet[] }
   [TM.LIST_COMPENDIA]: { compendia: CompendiumPackInfo[] }
   [TM.GET_COMPENDIUM_INDEX]: { compendiumIndex: CompendiumIndexEntry[] }
   // The chat card the cast posted, when one was captured — lets the app offer

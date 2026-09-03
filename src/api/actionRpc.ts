@@ -11,7 +11,8 @@ import type {
   CheckType,
   BlastDamageQuery,
   ApplyDamageMode,
-  ChatRollRerollMode
+  ChatRollRerollMode,
+  ItemChoiceSelection
 } from '@/types/api-types'
 import { logger, uuidv4 } from '@/utils/utilities'
 import { getAuthenticatedSocket } from './internal'
@@ -491,8 +492,34 @@ export const useAction = (actor: TablemateActorRef, itemId: string) =>
 export const addCompendiumItem = (
   characterId: string,
   itemUuid: string,
-  spellcastingEntryId?: string
-) => sendAction(TM.ADD_COMPENDIUM_ITEM, { characterId, itemUuid, spellcastingEntryId })
+  spellcastingEntryId?: string,
+  // Answers to the item's ChoiceSets, gathered via getItemChoices below. The
+  // module writes them into the source before creating, so PF2e's own prompt
+  // never opens — on the GM's screen or anywhere else.
+  selections?: ItemChoiceSelection[]
+) =>
+  sendAction(TM.ADD_COMPENDIUM_ITEM, {
+    characterId,
+    itemUuid,
+    spellcastingEntryId,
+    ...(selections?.length ? { selections } : {})
+  })
+
+// What adding this item would ask its owner to choose. Read-only — creates
+// nothing. Pass the answers gathered so far and call again until it comes back
+// empty: a ChoiceSet whose options are built from an earlier one's selection can
+// only be inflated once that selection is known. See
+// foundry/handlers/itemChoices.ts.
+export const getItemChoices = (
+  characterId: string,
+  itemUuid: string,
+  selections?: ItemChoiceSelection[]
+) =>
+  sendAction(TM.GET_ITEM_CHOICES, {
+    characterId,
+    itemUuid,
+    ...(selections?.length ? { selections } : {})
+  })
 
 export const sendCompendiumItemToChat = (characterId: string, itemUuid: string) =>
   sendAction(TM.SEND_COMPENDIUM_ITEM_TO_CHAT, { characterId, itemUuid })

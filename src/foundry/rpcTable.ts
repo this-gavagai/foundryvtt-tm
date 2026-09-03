@@ -36,6 +36,7 @@ import {
   foundryFreeRoll,
   foundryGetCompendiumIndex,
   foundryGetCompendiumItem,
+  foundryGetItemChoices,
   foundryGetSpellDamage,
   foundryGetStrikeDamage,
   foundryListCompendia,
@@ -118,6 +119,17 @@ export const RPC_TABLE: RpcTable = {
   [TM.USE_ACTION]: { handler: foundryUseAction, auth: 'owner' },
   [TM.UPDATE_ACTOR]: { handler: foundryUpdateActor, auth: 'owner' },
   [TM.ADD_COMPENDIUM_ITEM]: { handler: foundryAddCompendiumItem, auth: 'owner' },
+
+  // "What would this item ask me to choose?" Read-only — it instantiates a temp
+  // item to inflate PF2e's own ChoiceSet options and creates nothing, so it may
+  // run off the serialized chain like the compendium reads. 'owner' rather than
+  // 'world-user' because it reads the target actor's derived data (its roll
+  // options decide which choices are even offered).
+  [TM.GET_ITEM_CHOICES]: {
+    handler: foundryGetItemChoices,
+    auth: 'owner',
+    concurrent: true
+  },
   [TM.APPLY_DAMAGE]: { handler: foundryApplyDamage, auth: 'owner' },
   [TM.SET_HIT_POINTS]: { handler: foundrySetHitPoints, auth: 'owner' },
   [TM.REROLL_CHAT_ROLL]: { handler: foundryRerollChatRoll, auth: 'owner' },

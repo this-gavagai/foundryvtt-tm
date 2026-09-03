@@ -56,7 +56,11 @@
   "compendium": {
     "addToCharacter": "Añadir al personaje",
     "selectSpellcastingEntry": "Añadir a entrada de lanzamiento de conjuros",
-    "noSpellcastingEntries": "No se encontraron entradas de lanzamiento de conjuros. Añade una al personaje primero."
+    "noSpellcastingEntries": "No se encontraron entradas de lanzamiento de conjuros. Añade una al personaje primero.",
+    "chooseTitle": "Elige una opción",
+    "chooseUnavailable": "Esta elección solo puede hacerse en Foundry: requiere arrastrar un objeto sobre ella.",
+    "choiceRefused": "Este objeto requiere una elección que no puede hacerse aquí. Añádelo desde Foundry.",
+    "addFailed": "No se pudo añadir este objeto."
   },
   "compendiumBrowser": {
     "title": "Explorador de compendios",

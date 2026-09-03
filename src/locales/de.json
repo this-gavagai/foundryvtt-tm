@@ -56,7 +56,11 @@
   "compendium": {
     "addToCharacter": "Zum Charakter hinzufügen",
     "selectSpellcastingEntry": "Zu Zauberliste hinzufügen",
-    "noSpellcastingEntries": "Keine Zauberlisten gefunden. Bitte zuerst eine zum Charakter hinzufügen."
+    "noSpellcastingEntries": "Keine Zauberlisten gefunden. Bitte zuerst eine zum Charakter hinzufügen.",
+    "chooseTitle": "Wähle eine Option",
+    "chooseUnavailable": "Diese Wahl ist nur in Foundry möglich – sie erfordert ein hierauf gezogenes Gegenstand.",
+    "choiceRefused": "Dieser Gegenstand erfordert eine Wahl, die hier nicht getroffen werden kann. Füge ihn in Foundry hinzu.",
+    "addFailed": "Gegenstand konnte nicht hinzugefügt werden."
   },
   "compendiumBrowser": {
     "title": "Kompendium-Browser",

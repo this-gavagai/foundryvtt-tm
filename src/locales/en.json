@@ -56,7 +56,11 @@
   "compendium": {
     "addToCharacter": "Add to Character",
     "selectSpellcastingEntry": "Add to Spellcasting Entry",
-    "noSpellcastingEntries": "No spellcasting entries found. Add one to the character first."
+    "noSpellcastingEntries": "No spellcasting entries found. Add one to the character first.",
+    "chooseTitle": "Make a choice",
+    "chooseUnavailable": "This choice can only be made in Foundry — it needs an item dragged onto it.",
+    "choiceRefused": "This item needs a choice that can’t be made here. Add it from Foundry.",
+    "addFailed": "Could not add this item."
   },
   "compendiumBrowser": {
     "title": "Compendium Browser",

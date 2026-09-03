@@ -4,9 +4,10 @@ import InfoModal from './InfoModal.vue'
 import ParsedDescription from './ParsedDescription.vue'
 import Button from './widgets/ButtonWidget.vue'
 import SpellcastingEntryPickerModal from './SpellcastingEntryPickerModal.vue'
+import ItemChoicePickerModal from './ItemChoicePickerModal.vue'
 import { BookOpenIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useRollsFromActiveRoll } from '@/composables/useRollsFromActiveRoll'
-import { addCompendiumItem } from '@/api/actionRpc'
+import { addCompendiumItem, getItemChoices } from '@/api/actionRpc'
 import { getCompendiumItem } from '@/api/compendium'
 import { parseEmbeddedItemUuid } from '@/utils/compendiumData'
 import { logger } from '@/utils/utilities'
@@ -15,7 +16,7 @@ import { useTraitLabels } from '@/composables/useTraitLabels'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { isStrictPrepared, isFlexiblePrepared } from '@/utils/spellcasting'
 import { storeToRefs } from 'pinia'
-import type { CompendiumItemData } from '@/types/api-types'
+import type { CompendiumItemData, ItemChoiceSelection } from '@/types/api-types'
 
 const { _id: characterId, spellcastingEntries } = useInjectedActor()
 const { labelFor: rarityLabel } = useTraitLabels()
@@ -23,6 +24,10 @@ const { isListening } = storeToRefs(useListenersStore())
 
 const modal = ref()
 const entryPicker = ref<InstanceType<typeof SpellcastingEntryPickerModal>>()
+const choicePicker = ref<InstanceType<typeof ItemChoicePickerModal>>()
+// Set when the add was refused, so the row says why instead of just not
+// happening. Cleared when the next attempt starts.
+const addError = ref<string | null>(null)
 const item = ref<CompendiumItemData | null>(null)
 const loading = ref(false)
 const adding = ref(false)
@@ -92,8 +97,37 @@ async function open(uuid: string) {
   }
 }
 
+// The choices this item would otherwise ask the GM to make.
+//
+// Asked one at a time and re-asked after each answer, because a ChoiceSet's
+// options can be built from an earlier one's selection and can only be inflated
+// once it is known (see foundry/handlers/itemChoices.ts). Resolves with the
+// answers, or null if the player backed out or hit a question that cannot be
+// answered here — in which case nothing is created.
+async function gatherChoices(uuid: string): Promise<ItemChoiceSelection[] | null> {
+  const selections: ItemChoiceSelection[] = []
+  // A ceiling rather than `while (true)`: the module decides what is still
+  // pending, and a version of it that kept answering the same question would
+  // otherwise spin here forever. No real item carries anything like this many.
+  for (let round = 0; round < 12; round++) {
+    const { choices } = await getItemChoices(characterId.value!, uuid, selections)
+    const next = choices[0]
+    if (!next) return selections
+    if (next.unanswerable) {
+      addError.value = 'compendium.choiceRefused'
+      return null
+    }
+    const value = await choicePicker.value?.open(next)
+    if (value === null || value === undefined) return null
+    selections.push({ ruleIndex: next.ruleIndex, value })
+  }
+  addError.value = 'compendium.choiceRefused'
+  return null
+}
+
 async function addToCharacter() {
   if (!characterId.value || !currentUuid.value || adding.value) return
+  addError.value = null
 
   let spellcastingEntryId: string | undefined
   if (item.value?.type === 'spell') {
@@ -107,10 +141,24 @@ async function addToCharacter() {
     }
   }
 
+  // Before the create, not after: an unanswered ChoiceSet would stop the
+  // pipeline on the GM's client and put the dialog on their screen. The module
+  // refuses such a create outright, so this is also what keeps the common case
+  // from becoming a visible failure.
+  const selections = await gatherChoices(currentUuid.value)
+  if (!selections) return
+
   adding.value = true
   try {
-    await addCompendiumItem(characterId.value, currentUuid.value, spellcastingEntryId)
+    await addCompendiumItem(characterId.value, currentUuid.value, spellcastingEntryId, selections)
     added.value = true
+  } catch (error) {
+    logger.warn('TM-COMPENDIUM-ITEM: add failed', error)
+    // The module names an unanswerable choice with its own sentinel; anything
+    // else is an ordinary failure.
+    addError.value = String(error).includes('TM_ITEM_CHOICE_UNANSWERABLE')
+      ? 'compendium.choiceRefused'
+      : 'compendium.addFailed'
   } finally {
     adding.value = false
   }
@@ -166,16 +214,24 @@ defineExpose({ open })
         <div v-else class="py-4 text-center text-gray-400">Item not found.</div>
       </template>
       <template #actionButtons>
-        <Button
-          v-if="canAdd && characterId && isListening"
-          :color="added ? 'green' : 'blue'"
-          :disabled="adding || added"
-          :clicked="addToCharacter"
-        >
-          {{ added ? $t('common.added') : $t('compendium.addToCharacter') }}
-        </Button>
+        <div class="flex flex-wrap items-center justify-end gap-2">
+          <!-- Why the add did not happen. Without it a refused item just fails
+               to appear, which reads as the button doing nothing. -->
+          <p v-if="addError" data-part="add-error" class="text-sm text-red-700 italic">
+            {{ $t(addError) }}
+          </p>
+          <Button
+            v-if="canAdd && characterId && isListening"
+            :color="added ? 'green' : 'blue'"
+            :disabled="adding || added"
+            :clicked="addToCharacter"
+          >
+            {{ added ? $t('common.added') : $t('compendium.addToCharacter') }}
+          </Button>
+        </div>
       </template>
     </InfoModal>
     <SpellcastingEntryPickerModal ref="entryPicker" />
+    <ItemChoicePickerModal ref="choicePicker" />
   </div>
 </template>

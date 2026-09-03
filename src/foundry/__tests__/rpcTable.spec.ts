@@ -50,6 +50,12 @@ const EXPECTED: Record<RpcAction, Expected> = {
   [TM.USE_ACTION]: { auth: 'owner' },
   [TM.UPDATE_ACTOR]: { auth: 'owner' },
   [TM.ADD_COMPENDIUM_ITEM]: { auth: 'owner' },
+  // Read-only: it instantiates a temp item to inflate PF2e's own ChoiceSet
+  // options and creates nothing, so it may run off the serialized chain.
+  // 'owner' rather than 'world-user' despite being a read, because it reads the
+  // TARGET ACTOR's derived data — its roll options decide which choices are
+  // offered at all.
+  [TM.GET_ITEM_CHOICES]: { auth: 'owner', concurrent: true },
   [TM.APPLY_DAMAGE]: { auth: 'owner' },
   // Writes hit points on someone's actor, so owner-gated for the same reason
   // APPLY_DAMAGE is. Not concurrent: the update fires `preUpdateActor`, where
