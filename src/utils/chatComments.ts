@@ -204,10 +204,55 @@ export interface UserComment {
 }
 
 // Ceiling per author, oldest dropped first — the same reasoning as
-// USER_REACTION_MAX, with a tighter number because a comment is free text
-// rather than one of six emoji. COMMENT_MAX_COUNT still bounds how many can
-// pile onto any ONE message; this bounds the author's whole history.
+// USER_REACTION_MAX. COMMENT_MAX_COUNT still bounds how many can pile onto any
+// ONE message; this bounds the author's whole history.
+//
+// ── Why there are two limits, and why a count alone was the wrong one ───────
+//
+// This list is written WHOLE on every save (the flat-array shape has no smaller
+// unit — see the shape note in utils/chatReactions.ts) and it rides in core's
+// world dump on every connect. So its length is not a tidiness question; it is
+// what a tap costs, on a phone, times everyone at the table.
+//
+// A count bounds that only when entries are a fixed size. Reactions are —
+// USER_REACTION_MAX of 500 is 24 KB and cannot be anything else. A comment is
+// free text up to COMMENT_MAX_LENGTH, so a count of 200 bounded the list at
+// anything from 34 KB to 120 KB, and the larger figure is FIVE TIMES the
+// reactions cap this number was set to be "tighter" than. The reasoning was
+// right and the number contradicted it.
+//
+// So the real bound is the character budget below, sized to land in the same
+// place as reactions; the count survives as a cheap upper bound on how much
+// arithmetic the trim has to do. Which one binds depends on what was written:
+// roughly 140 short remarks, or 40 at full length.
 export const USER_COMMENT_MAX = 200
+
+// Total budget for one author's stored comments, in characters, matched to what
+// USER_REACTION_MAX costs a reaction list (~24 KB).
+export const USER_COMMENT_MAX_CHARS = 24 * 1024
+
+// Everything in a stored comment that is not its text: two ids, a timestamp and
+// JSON's own punctuation. Measured at 112 bytes against the serialized shape;
+// an estimate on purpose, because the alternative is stringifying every entry
+// of every author's list on each pass of the cross-user index.
+const COMMENT_ENTRY_OVERHEAD = 112
+
+// Keep the newest comments that fit both limits. Oldest-first is what the caps
+// have always dropped: a remark on a message hundreds of sessions old is not
+// worth the bytes it costs everyone on connect.
+export function trimUserComments(comments: UserComment[]): UserComment[] {
+  const capped = comments.slice(-USER_COMMENT_MAX)
+  let budget = USER_COMMENT_MAX_CHARS
+  let cut = 0
+  for (let i = capped.length - 1; i >= 0; i--) {
+    budget -= capped[i].text.length + COMMENT_ENTRY_OVERHEAD
+    if (budget < 0) {
+      cut = i + 1
+      break
+    }
+  }
+  return cut ? capped.slice(cut) : capped
+}
 
 export function normalizeUserComments(value: unknown): UserComment[] {
   if (!Array.isArray(value)) return []
@@ -235,7 +280,10 @@ export function normalizeUserComments(value: unknown): UserComment[] {
       timestamp: typeof timestamp === 'number' && Number.isFinite(timestamp) ? timestamp : 0
     })
   }
-  return out.slice(-USER_COMMENT_MAX)
+  // Trimmed on READ as well as on write, so a list that predates the budget (or
+  // was written by a build without it) is bounded here and self-heals on the
+  // author's next save.
+  return trimUserComments(out)
 }
 
 export function readUserComments(
@@ -260,10 +308,12 @@ export function readUserComments(
 export function upsertUserComment(current: UserComment[], comment: UserComment): UserComment[] {
   const index = current.findIndex((entry) => entry.id === comment.id)
   if (!comment.text) return current.filter((entry) => entry.id !== comment.id)
-  if (index === -1) return [...current, comment].slice(-USER_COMMENT_MAX)
+  if (index === -1) return trimUserComments([...current, comment])
   const next = [...current]
   next[index] = { ...comment, timestamp: current[index].timestamp }
-  return next
+  // Trimmed on an edit too: a one-word remark rewritten into a paragraph grows
+  // the list the same way a new one does.
+  return trimUserComments(next)
 }
 
 /**

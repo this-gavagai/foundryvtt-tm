@@ -8,7 +8,12 @@ import {
   removeComment,
   sanitizeCommentText,
   upsertComment,
-  type ChatComment
+  USER_COMMENT_MAX,
+  trimUserComments,
+  normalizeUserComments,
+  upsertUserComment,
+  type ChatComment,
+  type UserComment
 } from '@/utils/chatComments'
 
 function comment(overrides: Partial<ChatComment> = {}): ChatComment {
@@ -138,5 +143,86 @@ describe('canModifyComment', () => {
 
   it('lets a GM change anyone’s comment', () => {
     expect(canModifyComment(comment(), 'u2', true)).toBe(true)
+  })
+})
+
+// ── The per-author storage budget ───────────────────────────────────────────
+//
+// This list is written WHOLE on every save and rides in core's world dump on
+// every connect, so its size is what a tap costs the table. A count bounds that
+// only for fixed-size entries — true of reactions, not of a comment, whose text
+// is free up to COMMENT_MAX_LENGTH. USER_COMMENT_MAX alone let one author's list
+// reach 120 KB, five times the reactions cap it was written to undercut.
+
+function userComment(id: string, text = 'ok'): UserComment {
+  return { id, messageId: 'm1', text, timestamp: Number(id.replace(/\D/g, '')) || 0 }
+}
+
+/** A list of `n` comments each carrying `chars` of text. */
+function bulk(n: number, chars: number): UserComment[] {
+  return Array.from({ length: n }, (_, i) => userComment(`c${i + 1}`, 'x'.repeat(chars)))
+}
+
+describe('trimUserComments', () => {
+  it('leaves a list that fits both limits alone', () => {
+    const list = bulk(10, 40)
+    expect(trimUserComments(list)).toEqual(list)
+  })
+
+  it('drops the oldest when the character budget is exceeded', () => {
+    // At full length each entry costs ~612 bytes, so the budget binds long
+    // before the count does.
+    const trimmed = trimUserComments(bulk(200, COMMENT_MAX_LENGTH))
+    expect(trimmed.length).toBeLessThan(200)
+    // Newest kept, oldest dropped.
+    expect(trimmed.at(-1)?.id).toBe('c200')
+    expect(trimmed[0].id).not.toBe('c1')
+  })
+
+  it('keeps more short remarks than long ones, which is the point', () => {
+    const short = trimUserComments(bulk(200, 20)).length
+    const long = trimUserComments(bulk(200, COMMENT_MAX_LENGTH)).length
+    expect(short).toBeGreaterThan(long)
+  })
+
+  it('still honours the count cap when the entries are tiny', () => {
+    expect(trimUserComments(bulk(USER_COMMENT_MAX + 50, 1))).toHaveLength(USER_COMMENT_MAX)
+  })
+
+  // The bound that motivated the budget: whatever an author has written, the
+  // stored list stays in the same range as a full reaction list (~24 KB).
+  it('bounds the serialized list near the reactions cap', () => {
+    const bytes = (list: UserComment[]) => new TextEncoder().encode(JSON.stringify(list)).length
+    expect(bytes(trimUserComments(bulk(400, COMMENT_MAX_LENGTH)))).toBeLessThan(32 * 1024)
+    expect(bytes(trimUserComments(bulk(400, 60)))).toBeLessThan(32 * 1024)
+  })
+})
+
+describe('the budget applies wherever the list is built', () => {
+  it('trims on read, so a list written by an older build is bounded', () => {
+    expect(normalizeUserComments(bulk(200, COMMENT_MAX_LENGTH)).length).toBeLessThan(200)
+  })
+
+  it('trims when a comment is added', () => {
+    const full = bulk(60, COMMENT_MAX_LENGTH)
+    const next = upsertUserComment(full, userComment('newest', 'short'))
+    expect(next.at(-1)?.id).toBe('newest')
+    expect(next.length).toBeLessThan(full.length + 1)
+  })
+
+  // An edit grows the list as surely as an add does — a one-word remark
+  // rewritten into a paragraph is the same bytes.
+  it('trims when a comment is edited into something much longer', () => {
+    const full = bulk(45, COMMENT_MAX_LENGTH)
+    const grown = upsertUserComment(full, {
+      ...full[0],
+      text: 'y'.repeat(COMMENT_MAX_LENGTH)
+    })
+    expect(grown.length).toBeLessThanOrEqual(full.length)
+  })
+
+  it('leaves a removal alone — it only ever shrinks the list', () => {
+    const list = bulk(3, 10)
+    expect(upsertUserComment(list, { ...list[1], text: '' }).map((c) => c.id)).toEqual(['c1', 'c3'])
   })
 })

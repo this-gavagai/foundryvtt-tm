@@ -168,6 +168,30 @@ export function groupReactions(
 // key called `-=<id>`. That is the same trap the message-flag shape note above
 // describes, and it bites harder here, since a phantom key would carry a whole
 // message's worth of reactions. One array always resets as a unit.
+//
+// WHAT THE ARRAY COSTS, and what would buy it back. An array has no unit smaller
+// than itself, so every tap rewrites the whole list and broadcasts it to the
+// table — the caps above are what keep that bounded, and they are the only thing
+// that does.
+//
+// Worth knowing that this is a limit of OUR merge, not of Foundry: the `-=` form
+// above is perfectly good deletion syntax, and mergeWithArrayReset simply does
+// not implement it (api/internal.ts — it forwards arrays and leaves everything
+// else to lodash). Teach that one customizer to honour a `-=` key and the map
+// shape becomes available here, on comments, and on any other flag we would like
+// to write one field of. That is the change to make if these payloads ever
+// actually hurt; shrinking the caps is the cheaper half of the same problem, and
+// no substitute for it.
+//
+// ONE writer per document is what makes the array safe to rewrite, and that is a
+// claim about the DOCUMENT, not about clients: the same person signed in on two
+// devices is two writers of one row, and the loser of a race loses an emoji. The
+// window is a single round trip (the User broadcast reaches the other device —
+// see the User branch in composables/serverEventWiring), and it is strictly
+// better than the message-flag version, which raced across every user at the
+// table and needed the GM's dispatch chain to serialize. Left as it is on
+// purpose: a last-write-wins register is the right shape for this, and the loss
+// is one tap that can be repeated.
 
 /** One reaction as its author stores it. The reactor is the document's owner. */
 export interface UserReaction {
@@ -180,6 +204,13 @@ export interface UserReaction {
 // would grow the payload forever. Generous enough that it is only ever reached
 // by history nobody is looking at any more — a reaction on a message hundreds of
 // sessions old is not worth a byte.
+//
+// A COUNT is a real bound here only because an entry is a fixed size: a message
+// id and one of six emoji, 49 bytes serialized, so 500 of them is 24 KB and
+// cannot be anything else. That is the figure utils/chatComments.ts sizes its
+// own budget against — and the reason it needs a character budget rather than
+// just a count, since a comment's text is the free variable this list has not
+// got.
 export const USER_REACTION_MAX = 500
 
 /** The flag bag on a User, structurally so a document or plain JSON both fit. */

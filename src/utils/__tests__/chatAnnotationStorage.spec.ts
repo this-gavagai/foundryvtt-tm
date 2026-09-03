@@ -193,12 +193,22 @@ describe('stored comments', () => {
     expect(upsertUserComment([comment()], comment({ text: '' }))).toEqual([])
   })
 
+  // Bounded by a character budget as well as a count, because a comment's text
+  // is free where a reaction's emoji is not — see trimUserComments. So the
+  // length this settles at depends on what was written; what it must never do
+  // is keep growing, or drop the newest.
   it('caps the author’s history, dropping the oldest', () => {
     const many = Array.from({ length: USER_COMMENT_MAX + 5 }, (_, i) =>
       comment({ id: `c${i}`, messageId: `m${i}` })
     )
-    expect(normalizeUserComments(many)).toHaveLength(USER_COMMENT_MAX)
-    expect(upsertUserComment(many, comment({ id: 'new' }))).toHaveLength(USER_COMMENT_MAX)
+    const stored = normalizeUserComments(many)
+    expect(stored.length).toBeLessThanOrEqual(USER_COMMENT_MAX)
+    expect(stored.at(-1)?.id).toBe(`c${USER_COMMENT_MAX + 4}`)
+    expect(stored[0].id).not.toBe('c0')
+
+    const added = upsertUserComment(many, comment({ id: 'new' }))
+    expect(added.length).toBeLessThanOrEqual(USER_COMMENT_MAX)
+    expect(added.at(-1)?.id).toBe('new')
   })
 })
 
