@@ -107,7 +107,7 @@ async function handleSubmit() {
           class="flex gap-1 rounded border p-1"
         >
           <button
-            v-for="tab in (['saved', 'new'] as const)"
+            v-for="tab in ['saved', 'new'] as const"
             :key="tab"
             type="button"
             role="tab"

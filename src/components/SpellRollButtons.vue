@@ -22,10 +22,7 @@ const buttonClass = 'px-2 py-1'
 </script>
 <template>
   <div
-    v-if="
-      spell &&
-      (spell.system?.traits?.value?.includes('attack') || spell.system?.hasDamage)
-    "
+    v-if="spell && (spell.system?.traits?.value?.includes('attack') || spell.system?.hasDamage)"
     data-part="spell-roll-buttons"
     class="flex flex-wrap items-center gap-1 text-xs"
   >

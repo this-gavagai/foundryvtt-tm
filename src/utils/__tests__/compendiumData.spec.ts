@@ -86,8 +86,20 @@ describe('isPackVisible', () => {
 describe('listVisiblePacks', () => {
   it('filters + maps metadata to pack info, dropping unobservable packs', () => {
     const packs: PackMetadataLike[] = [
-      { id: 'pf2e.a', label: 'A', type: 'Item', packageName: 'pf2e', ownership: { PLAYER: 'OBSERVER' } },
-      { id: 'pf2e.b', label: 'B', type: 'Actor', packageName: 'pf2e', ownership: { PLAYER: 'LIMITED' } },
+      {
+        id: 'pf2e.a',
+        label: 'A',
+        type: 'Item',
+        packageName: 'pf2e',
+        ownership: { PLAYER: 'OBSERVER' }
+      },
+      {
+        id: 'pf2e.b',
+        label: 'B',
+        type: 'Actor',
+        packageName: 'pf2e',
+        ownership: { PLAYER: 'LIMITED' }
+      },
       { collection: 'world.c', label: 'C', documentName: 'JournalEntry' } // no ownership → visible
     ]
     expect(listVisiblePacks(packs, 1)).toEqual([

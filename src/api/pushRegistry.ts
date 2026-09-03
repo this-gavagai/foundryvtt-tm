@@ -88,7 +88,10 @@ async function unregister(record: PushRegistrationRecord): Promise<void> {
     })
     if (!res.ok) logger.warn('[push] relay /unregister failed:', res.status)
   } catch (err) {
-    logger.warn('[push] relay /unregister skipped:', err instanceof Error ? err.message : String(err))
+    logger.warn(
+      '[push] relay /unregister skipped:',
+      err instanceof Error ? err.message : String(err)
+    )
   }
 }
 

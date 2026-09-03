@@ -32,12 +32,7 @@ const emit = defineEmits(['clicked'])
         <span class="pl-6">{{ feat?.name }}</span>
       </ViewableItem>
     </div>
-    <div
-      data-part="sub-feat"
-      class="ml-3"
-      v-for="grant in feat?.itemGrants"
-      :key="grant"
-    >
+    <div data-part="sub-feat" class="ml-3" v-for="grant in feat?.itemGrants" :key="grant">
       <FeatsListItem :featId="grant" @clicked="(local_featId: string) => sendOff(local_featId)" />
     </div>
   </div>

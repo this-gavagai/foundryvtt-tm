@@ -532,11 +532,7 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
            dragging over this list left the owned-character list above it pinned
            in place. The modal panel grows and ModalBox's outer overflow-y-auto
            scrolls the whole thing as one. -->
-      <ul
-        v-if="allActorOptions.length"
-        data-part="all-actors"
-        class="flex flex-col gap-1 py-2"
-      >
+      <ul v-if="allActorOptions.length" data-part="all-actors" class="flex flex-col gap-1 py-2">
         <li
           v-for="chr in allActorOptions"
           :key="chr._id ?? undefined"

@@ -58,7 +58,18 @@ const ownItemId = computed(() =>
 // journal-content typography hook (see main.css).
 const isJournal = computed(() => /JournalEntry/.test(currentUuid.value))
 
-const ADDABLE_TYPES = new Set(['action', 'effect', 'condition', 'equipment', 'consumable', 'backpack', 'weapon', 'armor', 'shield', 'treasure'])
+const ADDABLE_TYPES = new Set([
+  'action',
+  'effect',
+  'condition',
+  'equipment',
+  'consumable',
+  'backpack',
+  'weapon',
+  'armor',
+  'shield',
+  'treasure'
+])
 const canAdd = computed(() => {
   if (!item.value || isEmbedded.value) return false
   const type = item.value.type ?? ''
@@ -109,54 +120,61 @@ defineExpose({ open })
 </script>
 <template>
   <div data-component="CompendiumItemModalRoot">
-    <InfoModal ref="modal" :imageUrl="item?.img" :itemId="ownItemId" :itemUuid="isEmbedded ? undefined : currentUuid || undefined" :traits="item?.system?.traits?.value" :rolls="rolls">
-    <template #banner="{ close }">
-      <div
-        data-part="compendium-banner"
-        class="-mx-6 -mt-6 mb-4 flex items-center gap-2 px-4 py-2 text-sm"
-      >
-        <BookOpenIcon class="h-4 w-4 shrink-0" />
-        <span class="font-medium">{{ sourceLabel }}</span>
-        <span v-if="!isEmbedded && item?.source" class="opacity-60">· {{ item.source }}</span>
-        <button type="button" data-part="close" class="ml-auto cursor-pointer" @click="close">
-          <XMarkIcon class="h-5 w-5" />
-        </button>
-      </div>
-    </template>
-    <template #title>
-      <span v-if="loading">…</span>
-      <span v-else>{{ item?.name }}</span>
-    </template>
-    <template #description>
-      <div class="flex flex-wrap gap-x-2 gap-y-0.5">
-        <span v-if="item?.system?.level?.value"
-          >{{ $t('common.level') }} {{ item.system.level.value }}</span
+    <InfoModal
+      ref="modal"
+      :imageUrl="item?.img"
+      :itemId="ownItemId"
+      :itemUuid="isEmbedded ? undefined : currentUuid || undefined"
+      :traits="item?.system?.traits?.value"
+      :rolls="rolls"
+    >
+      <template #banner="{ close }">
+        <div
+          data-part="compendium-banner"
+          class="-mx-6 -mt-6 mb-4 flex items-center gap-2 px-4 py-2 text-sm"
         >
-        <span v-if="item?.system?.traits?.rarity"
-          >({{ rarityLabel(item.system.traits.rarity) }})</span
+          <BookOpenIcon class="h-4 w-4 shrink-0" />
+          <span class="font-medium">{{ sourceLabel }}</span>
+          <span v-if="!isEmbedded && item?.source" class="opacity-60">· {{ item.source }}</span>
+          <button type="button" data-part="close" class="ml-auto cursor-pointer" @click="close">
+            <XMarkIcon class="h-5 w-5" />
+          </button>
+        </div>
+      </template>
+      <template #title>
+        <span v-if="loading">…</span>
+        <span v-else>{{ item?.name }}</span>
+      </template>
+      <template #description>
+        <div class="flex flex-wrap gap-x-2 gap-y-0.5">
+          <span v-if="item?.system?.level?.value"
+            >{{ $t('common.level') }} {{ item.system.level.value }}</span
+          >
+          <span v-if="item?.system?.traits?.rarity"
+            >({{ rarityLabel(item.system.traits.rarity) }})</span
+          >
+        </div>
+      </template>
+      <template #body>
+        <div v-if="loading" class="py-4 text-center text-gray-400">Loading…</div>
+        <ParsedDescription
+          v-else-if="item"
+          ref="description"
+          :data-part="isJournal ? 'journal-content' : undefined"
+          :text="item.system?.description?.value"
+        />
+        <div v-else class="py-4 text-center text-gray-400">Item not found.</div>
+      </template>
+      <template #actionButtons>
+        <Button
+          v-if="canAdd && characterId && isListening"
+          :color="added ? 'green' : 'blue'"
+          :disabled="adding || added"
+          :clicked="addToCharacter"
         >
-      </div>
-    </template>
-    <template #body>
-      <div v-if="loading" class="py-4 text-center text-gray-400">Loading…</div>
-      <ParsedDescription
-        v-else-if="item"
-        ref="description"
-        :data-part="isJournal ? 'journal-content' : undefined"
-        :text="item.system?.description?.value"
-      />
-      <div v-else class="py-4 text-center text-gray-400">Item not found.</div>
-    </template>
-    <template #actionButtons>
-      <Button
-        v-if="canAdd && characterId && isListening"
-        :color="added ? 'green' : 'blue'"
-        :disabled="adding || added"
-        :clicked="addToCharacter"
-      >
-        {{ added ? $t('common.added') : $t('compendium.addToCharacter') }}
-      </Button>
-    </template>
+          {{ added ? $t('common.added') : $t('compendium.addToCharacter') }}
+        </Button>
+      </template>
     </InfoModal>
     <SpellcastingEntryPickerModal ref="entryPicker" />
   </div>

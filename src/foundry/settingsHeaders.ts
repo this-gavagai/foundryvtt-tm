@@ -15,9 +15,7 @@
 // will land in front of the wrong setting.
 
 import { MODULE_ID } from '@/api/protocol'
-import {
-  MANUAL_ROLL_POLICY_SETTING
-} from './manualRollPolicy'
+import { MANUAL_ROLL_POLICY_SETTING } from './manualRollPolicy'
 import { VOICE_MEMO_PATH_SETTING } from './voiceMemoSetting'
 import { IMAGE_UPLOAD_PATH_SETTING } from './imageUploadSetting'
 import { REACTIONS_ENABLED_SETTING } from './featureToggles'
@@ -69,9 +67,7 @@ function insertHeaders(scope: ParentNode): number {
     // v14 renders each setting as a .form-group containing an input/select/
     // custom-element with name="module.key" (see createFormGroup in core). There
     // is no data-setting-id, so we anchor on the name attribute.
-    const group = scope
-      .querySelector(`[name="${MODULE_ID}.${beforeKey}"]`)
-      ?.closest('.form-group')
+    const group = scope.querySelector(`[name="${MODULE_ID}.${beforeKey}"]`)?.closest('.form-group')
     if (!group?.parentElement) continue
 
     // Skip if we already inserted this header on a prior pass.
@@ -97,9 +93,7 @@ function moveMenus(scope: ParentNode): number {
     const menuGroup = scope
       .querySelector(`[data-key="${MODULE_ID}.${menuKey}"]`)
       ?.closest('.form-group')
-    const anchor = scope
-      .querySelector(`[name="${MODULE_ID}.${afterKey}"]`)
-      ?.closest('.form-group')
+    const anchor = scope.querySelector(`[name="${MODULE_ID}.${afterKey}"]`)?.closest('.form-group')
     if (!menuGroup || !anchor?.parentElement) continue
 
     moved++
@@ -114,9 +108,7 @@ export function setupSettingsHeaders() {
   // with element being the app's root HTMLElement.
   Hooks.on('renderSettingsConfig', (_app: unknown, element: unknown) => {
     const root: HTMLElement | undefined =
-      element instanceof HTMLElement
-        ? element
-        : (element as { 0?: HTMLElement })?.[0]
+      element instanceof HTMLElement ? element : (element as { 0?: HTMLElement })?.[0]
     if (!root) return
 
     // Defer one frame: at renderSettingsConfig time the category part content is

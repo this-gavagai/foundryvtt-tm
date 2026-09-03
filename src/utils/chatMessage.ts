@@ -93,10 +93,7 @@ function findUser(users: ChatUserLike[], userId: string): ChatUserLike | undefin
 // unless their Tablemate `belongsTo` flag points at an owning login user (a
 // sheet-only user attached to a human), in which case that human's name is
 // used. Mirrors outOfCharacterAlias in foundry/handlers/chat.ts.
-export function outOfCharacterAlias(
-  users: ChatUserLike[],
-  userId: string
-): string | undefined {
+export function outOfCharacterAlias(users: ChatUserLike[], userId: string): string | undefined {
   const user = findUser(users, userId)
   const owner = user?.flags?.tablemate?.belongsTo
   if (typeof owner === 'string' && owner) {

@@ -58,13 +58,24 @@ function setWorld(list: TestUser[], ids: { primaryGm?: string; me?: string } = {
 }
 
 function message(over: Record<string, unknown> = {}) {
-  return { id: 'msg1', alias: 'Seelah', content: '<p>hello</p>', author: { id: 'alice', name: 'Alice' }, ...over }
+  return {
+    id: 'msg1',
+    alias: 'Seelah',
+    content: '<p>hello</p>',
+    author: { id: 'alice', name: 'Alice' },
+    ...over
+  }
 }
 
 // The single /notify payload, or undefined when nothing was sent.
 function payload() {
   const call = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/notify'))
-  return call ? (JSON.parse((call[1] as RequestInit).body as string) as { recipients: string[]; direct: string[] }) : undefined
+  return call
+    ? (JSON.parse((call[1] as RequestInit).body as string) as {
+        recipients: string[]
+        direct: string[]
+      })
+    : undefined
 }
 
 beforeEach(() => {
@@ -171,7 +182,9 @@ describe('mention matching', () => {
 
   it('requires the @ marker, so ordinary table talk does not ping', async () => {
     // A user named "Bear" used to be notified by every mention of a bear.
-    expect(await mentionsOf('a bear bursts from the trees', [{ id: 'u1', name: 'Bear' }])).toEqual([])
+    expect(await mentionsOf('a bear bursts from the trees', [{ id: 'u1', name: 'Bear' }])).toEqual(
+      []
+    )
     expect(await mentionsOf('ask the GM about it', [{ id: 'u1', name: 'GM' }])).toEqual([])
   })
 
@@ -195,7 +208,9 @@ describe('mention matching', () => {
   })
 
   it('matches a multi-word username', async () => {
-    expect(await mentionsOf('thanks @Game Master', [{ id: 'gm2', name: 'Game Master' }])).toEqual(['gm2'])
+    expect(await mentionsOf('thanks @Game Master', [{ id: 'gm2', name: 'Game Master' }])).toEqual([
+      'gm2'
+    ])
   })
 
   it('ignores a one-character username, which would match far too much', async () => {
@@ -211,7 +226,9 @@ describe('mention matching', () => {
   })
 
   it('reads through HTML rather than matching markup', async () => {
-    expect(await mentionsOf('<em>@Bob</em> <strong>go</strong>', [{ id: 'bob', name: 'Bob' }])).toEqual(['bob'])
+    expect(
+      await mentionsOf('<em>@Bob</em> <strong>go</strong>', [{ id: 'bob', name: 'Bob' }])
+    ).toEqual(['bob'])
   })
 })
 
@@ -259,7 +276,8 @@ describe('active-user suppression', () => {
 describe('delivery retries', () => {
   // A push is a one-shot — nothing downstream ever re-sends — so a transient
   // failure used to lose the notification permanently.
-  const notifyCalls = () => fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/notify')).length
+  const notifyCalls = () =>
+    fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/notify')).length
 
   // Retries wait seconds; drive them rather than sleeping through them.
   async function runWithRetries(msg: Record<string, unknown>) {
@@ -428,12 +446,19 @@ describe('notification body', () => {
   // payload() is typed to the audience fields these tests don't use.
   function body(): string | undefined {
     const call = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/notify'))
-    return call ? (JSON.parse((call[1] as RequestInit).body as string) as { body: string }).body : undefined
+    return call
+      ? (JSON.parse((call[1] as RequestInit).body as string) as { body: string }).body
+      : undefined
   }
 
   it('summarises a text-less roll instead of saying "sent a message"', async () => {
     await notifyChatMessage(
-      message({ content: '', rolls: [{ total: 23 }], flavor: '<h4>Athletics Check</h4>', whisper: ['bob'] })
+      message({
+        content: '',
+        rolls: [{ total: 23 }],
+        flavor: '<h4>Athletics Check</h4>',
+        whisper: ['bob']
+      })
     )
     expect(body()).toBe('🎲 Athletics Check: 23')
   })
@@ -447,7 +472,12 @@ describe('notification body', () => {
     pushConfig.includeBody = false
     try {
       await notifyChatMessage(
-        message({ content: '', rolls: [{ total: 23 }], flavor: '<h4>Athletics Check</h4>', whisper: ['bob'] })
+        message({
+          content: '',
+          rolls: [{ total: 23 }],
+          flavor: '<h4>Athletics Check</h4>',
+          whisper: ['bob']
+        })
       )
       expect(body()).toBe('made a roll')
     } finally {

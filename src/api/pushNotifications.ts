@@ -186,7 +186,12 @@ async function tryRegister(): Promise<void> {
     const res = await fetch(`${relayUrl}/register`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ regToken, deviceToken: token, platform: Capacitor.getPlatform(), serverBaseUrl })
+      body: JSON.stringify({
+        regToken,
+        deviceToken: token,
+        platform: Capacitor.getPlatform(),
+        serverBaseUrl
+      })
     })
     if (!res.ok) {
       logger.warn('[push] relay /register failed:', res.status, await res.text())
@@ -197,7 +202,10 @@ async function tryRegister(): Promise<void> {
     // The relay echoes the (world, user) it filed us under — neither of which we
     // can derive locally. Persist it against this origin so forgetting the
     // server can undo the registration later, offline. See pushRegistry.
-    const filed = (await res.json().catch(() => null)) as { worldId?: string; userId?: string } | null
+    const filed = (await res.json().catch(() => null)) as {
+      worldId?: string
+      userId?: string
+    } | null
     if (serverBaseUrl && filed?.worldId && filed.userId) {
       recordPushRegistration(serverBaseUrl, {
         relayUrl,

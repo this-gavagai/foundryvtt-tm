@@ -16,7 +16,6 @@ import { MODULE_ID } from '@/api/protocol'
 import { logger } from '@/utils/utilities'
 import { settingsApi } from './globals'
 
-
 // A single diagnostic line: what was checked, how it went, and the detail that
 // makes it actionable.
 export interface PushCheck {
@@ -95,11 +94,16 @@ export async function collectPushStatus(): Promise<PushStatus> {
     checks.push({
       label: 'World identity',
       state: 'fail',
-      detail: 'This world has no push identity yet. A GM must load the world once with push enabled.'
+      detail:
+        'This world has no push identity yet. A GM must load the world once with push enabled.'
     })
     return { checks, devices: [], canTest: false, relayUrl: url }
   }
-  checks.push({ label: 'World identity', state: 'ok', detail: `Registered as ${config.worldId.slice(0, 8)}…` })
+  checks.push({
+    label: 'World identity',
+    state: 'ok',
+    detail: `Registered as ${config.worldId.slice(0, 8)}…`
+  })
 
   // Reachability first, so an unreachable relay is not misreported as an auth
   // problem — they need different fixes.
@@ -108,7 +112,11 @@ export async function collectPushStatus(): Promise<PushStatus> {
     if (res.ok) {
       checks.push({ label: 'Relay reachable', state: 'ok', detail: url })
     } else {
-      checks.push({ label: 'Relay reachable', state: 'fail', detail: `${url} answered ${res.status}` })
+      checks.push({
+        label: 'Relay reachable',
+        state: 'fail',
+        detail: `${url} answered ${res.status}`
+      })
       return { checks, devices: [], canTest: false, relayUrl: url }
     }
   } catch (err) {
@@ -130,7 +138,10 @@ export async function collectPushStatus(): Promise<PushStatus> {
       const res = await fetchWithTimeout(`${url}/status`, {
         method: 'POST',
         headers: { authorization: `Bearer ${config.worldKey}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ worldId: config.worldId, userIds: userIds.slice(i, i + STATUS_CHUNK) })
+        body: JSON.stringify({
+          worldId: config.worldId,
+          userIds: userIds.slice(i, i + STATUS_CHUNK)
+        })
       })
       if (res.status === 401) {
         checks.push({
@@ -146,14 +157,22 @@ export async function collectPushStatus(): Promise<PushStatus> {
         return { checks, devices: [], canTest: false, relayUrl: url }
       }
       if (!res.ok) {
-        checks.push({ label: 'Relay accepts this world', state: 'fail', detail: `Status check answered ${res.status}` })
+        checks.push({
+          label: 'Relay accepts this world',
+          state: 'fail',
+          detail: `Status check answered ${res.status}`
+        })
         return { checks, devices: [], canTest: false, relayUrl: url }
       }
       const body = (await res.json()) as { devices?: Record<string, number>; unsupported?: number }
       Object.assign(counts, body.devices ?? {})
       unsupported += body.unsupported ?? 0
     }
-    checks.push({ label: 'Relay accepts this world', state: 'ok', detail: 'Provisioned and authorised' })
+    checks.push({
+      label: 'Relay accepts this world',
+      state: 'ok',
+      detail: 'Provisioned and authorised'
+    })
     devices = Object.entries(counts)
       .map(([userId, count]) => ({ userId, name: names.get(userId) ?? userId, count }))
       .sort((a, b) => a.name.localeCompare(b.name))
@@ -169,11 +188,16 @@ export async function collectPushStatus(): Promise<PushStatus> {
   const total = devices.reduce((n, d) => n + d.count, 0)
   checks.push(
     total
-      ? { label: 'Devices registered', state: 'ok', detail: `${total} across ${devices.length} user(s)` }
+      ? {
+          label: 'Devices registered',
+          state: 'ok',
+          detail: `${total} across ${devices.length} user(s)`
+        }
       : {
           label: 'Devices registered',
           state: 'warn',
-          detail: 'None yet. A player registers automatically when they open the app while push is enabled.'
+          detail:
+            'None yet. A player registers automatically when they open the app while push is enabled.'
         }
   )
 
@@ -213,7 +237,11 @@ export async function collectPushStatus(): Promise<PushStatus> {
   const mine = devices.find((d) => d.userId === game.user?.id)
   checks.push(
     mine
-      ? { label: 'Your devices', state: 'ok', detail: `${mine.count} — a test notification can be sent` }
+      ? {
+          label: 'Your devices',
+          state: 'ok',
+          detail: `${mine.count} — a test notification can be sent`
+        }
       : {
           label: 'Your devices',
           state: 'warn',
@@ -230,7 +258,8 @@ export async function collectPushStatus(): Promise<PushStatus> {
 export async function sendTestPush(): Promise<{ ok: boolean; detail: string }> {
   const config = readPushConfig()
   const userId = game.user?.id
-  if (!config) return { ok: false, detail: 'Push is not enabled or this world has no identity yet.' }
+  if (!config)
+    return { ok: false, detail: 'Push is not enabled or this world has no identity yet.' }
   if (!userId) return { ok: false, detail: 'No current user.' }
 
   try {
@@ -252,11 +281,15 @@ export async function sendTestPush(): Promise<{ ok: boolean; detail: string }> {
     } | null
     if (!res.ok) return { ok: false, detail: `Relay answered ${res.status}` }
     const results = body?.results ?? []
-    if (!results.length) return { ok: false, detail: 'No device is registered for you in this world.' }
+    if (!results.length)
+      return { ok: false, detail: 'No device is registered for you in this world.' }
     const delivered = results.filter((r) => r.ok).length
     if (!delivered) {
       const why = results.find((r) => r.skipped || r.error)
-      return { ok: false, detail: why?.skipped ?? why?.error ?? 'The relay accepted it but no device took it.' }
+      return {
+        ok: false,
+        detail: why?.skipped ?? why?.error ?? 'The relay accepted it but no device took it.'
+      }
     }
     return { ok: true, detail: `Sent to ${delivered} device(s).` }
   } catch (err) {

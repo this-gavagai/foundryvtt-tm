@@ -72,7 +72,9 @@ export async function rollDamageFormulaToMessage(
   } = {}
 ): Promise<FoundryRoll> {
   const DamageRoll = getDamageRollClass()
-  const damageRoll = DamageRoll ? new DamageRoll(formula, opts.rollData ?? {}) : new (rollClass())(formula)
+  const damageRoll = DamageRoll
+    ? new DamageRoll(formula, opts.rollData ?? {})
+    : new (rollClass())(formula)
   await damageRoll.evaluate()
   await damageRoll.toMessage(
     { speaker: { actor: actor._id ?? undefined } },

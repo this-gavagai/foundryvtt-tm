@@ -1,5 +1,4 @@
 <script setup lang="ts">
-
 import { useInjectedActor } from '@/composables/injectKeys'
 
 const { languages } = useInjectedActor()

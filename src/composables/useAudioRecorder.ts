@@ -12,7 +12,12 @@ export type RecorderState = 'idle' | 'recording' | 'recorded' | 'error'
 // audio/mp4 (AAC); Chromium produces webm/opus but can't PLAY mp4-less webm on
 // Safari, so mp4 first keeps a memo recorded on desktop playable on iOS and
 // vice-versa. '' lets the browser pick when none are advertised as supported.
-const MIME_CANDIDATES = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus']
+const MIME_CANDIDATES = [
+  'audio/mp4',
+  'audio/webm;codecs=opus',
+  'audio/webm',
+  'audio/ogg;codecs=opus'
+]
 
 function pickMimeType(): string {
   const supported = (

@@ -35,7 +35,7 @@ function entrySubtitle(entry: SpellcastingEntry): string {
   const tradition = entry.system.tradition?.value
   const parts = [
     tradition ? tradition.charAt(0).toUpperCase() + tradition.slice(1) : null,
-    prep ? prep.charAt(0).toUpperCase() + prep.slice(1) : null,
+    prep ? prep.charAt(0).toUpperCase() + prep.slice(1) : null
   ].filter(Boolean)
   return parts.join(' · ')
 }
@@ -55,7 +55,7 @@ defineExpose({ open })
           :key="entry._id"
           type="button"
           data-part="entry-option"
-          class="flex flex-col items-start cursor-pointer rounded-md border border-gray-200 px-3 py-2 text-left text-sm transition-colors hover:bg-gray-50 active:bg-gray-100"
+          class="flex cursor-pointer flex-col items-start rounded-md border border-gray-200 px-3 py-2 text-left text-sm transition-colors hover:bg-gray-50 active:bg-gray-100"
           @click="select(entry._id)"
         >
           <span class="font-medium text-gray-900">{{ entry.name }}</span>

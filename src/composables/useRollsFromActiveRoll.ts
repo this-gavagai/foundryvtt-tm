@@ -96,9 +96,10 @@ export function useRollsFromActiveRoll(
         const saveSlug = slug as SaveSlug
         execute = (faces) => {
           const overrides = modifierOverrides?.value
-          const opts = overrides && Object.keys(overrides).length
-            ? { ...rollOptions, modifierOverrides: overrides }
-            : rollOptions
+          const opts =
+            overrides && Object.keys(overrides).length
+              ? { ...rollOptions, modifierOverrides: overrides }
+              : rollOptions
           return saves[saveSlug].value?.roll?.(faces?.[0], opts) ?? Promise.resolve(null)
         }
       } else if (slug === 'flat') {
@@ -108,11 +109,14 @@ export function useRollsFromActiveRoll(
       } else {
         execute = (faces) => {
           const overrides = modifierOverrides?.value
-          const opts = overrides && Object.keys(overrides).length
-            ? { ...rollOptions, modifierOverrides: overrides }
-            : rollOptions
-          return skills.value?.find((s) => s.slug === slug)?.roll?.(faces?.[0], opts) ??
+          const opts =
+            overrides && Object.keys(overrides).length
+              ? { ...rollOptions, modifierOverrides: overrides }
+              : rollOptions
+          return (
+            skills.value?.find((s) => s.slug === slug)?.roll?.(faces?.[0], opts) ??
             Promise.resolve(null)
+          )
         }
       }
       return [

@@ -34,10 +34,7 @@ defineEmits<{
     @click="$emit('clear')"
   >
     <template v-for="(die, slot) in dice" :key="slot + '_' + die">
-      <div
-        v-if="readyFaceCounts.has(Number(die.slice(1)))"
-        class="relative flex h-8 items-center"
-      >
+      <div v-if="readyFaceCounts.has(Number(die.slice(1)))" class="relative flex h-8 items-center">
         <img
           :src="dieIcons[die] ?? d20Icon"
           class="h-8 transition-opacity"

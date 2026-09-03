@@ -61,7 +61,12 @@ describe('buildSpeaker', () => {
 
   it('carries only the alias for an out-of-character message', () => {
     expect(
-      buildSpeaker({ outOfCharacter: true, actorId: 'actor1', actorName: 'Valeros', oocAlias: 'Peter' })
+      buildSpeaker({
+        outOfCharacter: true,
+        actorId: 'actor1',
+        actorName: 'Valeros',
+        oocAlias: 'Peter'
+      })
     ).toEqual({ alias: 'Peter' })
   })
 

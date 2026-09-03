@@ -36,9 +36,7 @@ const state = computed(() => {
   <div data-component="EquipmentBulk" v-if="bulkMax != null">
     <div data-part="bulk-readout" class="flex items-baseline justify-between gap-3 pb-1 text-xs">
       <span data-part="bulk-label">
-        {{
-          $t('equipment.bulkReadout', { value: bulkValue, encumbered: bulkEncumberedAfter })
-        }}
+        {{ $t('equipment.bulkReadout', { value: bulkValue, encumbered: bulkEncumberedAfter }) }}
       </span>
       <span data-part="bulk-max" class="text-gray-600">
         {{ $t('equipment.bulkMax', { max: bulkMax }) }}

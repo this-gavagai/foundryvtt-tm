@@ -24,7 +24,8 @@ vi.mock('@capacitor/core', () => ({
 
 vi.mock('@capacitor/push-notifications', () => ({
   PushNotifications: {
-    addListener: async (event: string, handler: (arg: unknown) => void) => void listeners.set(event, handler),
+    addListener: async (event: string, handler: (arg: unknown) => void) =>
+      void listeners.set(event, handler),
     requestPermissions: async () => permission,
     register: async () => {}
   }
@@ -35,7 +36,9 @@ vi.mock('@/api/pushRegistry', () => ({
   recordPushRegistration: (...args: unknown[]) => recordPushRegistration(...args)
 }))
 vi.mock('@/stores/chat', () => ({
-  useChatStore: () => ({ requestFocusMessage: (...args: unknown[]) => requestFocusMessage(...args) })
+  useChatStore: () => ({
+    requestFocusMessage: (...args: unknown[]) => requestFocusMessage(...args)
+  })
 }))
 vi.mock('@/stores/serverAddress', () => ({
   useServerAddressStore: () => ({
@@ -81,7 +84,10 @@ beforeEach(() => {
   savedServers = ['https://alpha.example', 'https://beta.example']
   registerPush.mockResolvedValue({ regToken: 'reg.tok', relayUrl: 'https://relay.example' })
   fetchMock = vi.fn(
-    async () => new Response(JSON.stringify({ ok: true, worldId: 'world-1', userId: 'alice' }), { status: 200 })
+    async () =>
+      new Response(JSON.stringify({ ok: true, worldId: 'world-1', userId: 'alice' }), {
+        status: 200
+      })
   )
   vi.stubGlobal('fetch', fetchMock)
   docListeners.clear()
@@ -192,7 +198,9 @@ describe('push registration lifecycle', () => {
     mod.syncPushRegistration()
     release({ regToken: 'reg.tok', relayUrl: 'https://relay.example' })
 
-    await vi.waitFor(() => expect(registerBodies().some((b) => b.serverBaseUrl === 'https://beta.example')).toBe(true))
+    await vi.waitFor(() =>
+      expect(registerBodies().some((b) => b.serverBaseUrl === 'https://beta.example')).toBe(true)
+    )
   })
 
   it('never registers without permission (no device token is issued)', async () => {

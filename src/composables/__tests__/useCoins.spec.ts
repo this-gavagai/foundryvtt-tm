@@ -42,7 +42,10 @@ function stack(denomination: string, quantity: number) {
 
 function purse(items: ReturnType<typeof stack>[]) {
   const inventory = ref(items)
-  return { inventory, ...useCoins({ actorId: ref('actor-1'), actor: ref({ items: [] }), inventory }) }
+  return {
+    inventory,
+    ...useCoins({ actorId: ref('actor-1'), actor: ref({ items: [] }), inventory })
+  }
 }
 
 beforeEach(() => {

@@ -8,7 +8,6 @@ import { MODULE_ID } from '@/api/protocol'
 import type { DiceResults, ManualRollPolicy } from '@/types/api-types'
 import { settingsApi } from './globals'
 
-
 export const MANUAL_ROLL_POLICY_SETTING = 'manualRollPolicy'
 
 // Setting strings are raw English, matching the registerMenu precedent in

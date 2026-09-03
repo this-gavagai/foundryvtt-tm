@@ -19,9 +19,8 @@ export function useLastDamage() {
     return 0
   })
 
-  const lastDamageMessageId = computed(() => lastDamageAmount.value > 0
-    ? (lastDamageMessage.value?._id ?? undefined)
-    : undefined
+  const lastDamageMessageId = computed(() =>
+    lastDamageAmount.value > 0 ? (lastDamageMessage.value?._id ?? undefined) : undefined
   )
 
   return { lastDamageAmount, lastDamageMessageId }

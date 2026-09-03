@@ -118,9 +118,7 @@ watch([mode, inParty], () => {
 })
 
 // The purse the rows read and write, and the one a transfer moves against.
-const subject = computed(() =>
-  mode.value === 'party' ? partyCounts.value : characterCounts.value
-)
+const subject = computed(() => (mode.value === 'party' ? partyCounts.value : characterCounts.value))
 const counterpart = computed(() =>
   mode.value === 'party' ? characterCounts.value : partyCounts.value
 )
@@ -128,11 +126,7 @@ const counterpart = computed(() =>
 // what it already has: only the one in view moves, unless a transfer is pulling
 // the same coins the other way.
 const characterDelta = computed(() =>
-  mode.value === 'character'
-    ? deltas.value
-    : transfer.value
-      ? negated(deltas.value)
-      : emptyCounts()
+  mode.value === 'character' ? deltas.value : transfer.value ? negated(deltas.value) : emptyCounts()
 )
 const partyDelta = computed(() =>
   mode.value === 'party' ? deltas.value : transfer.value ? negated(deltas.value) : emptyCounts()

@@ -35,7 +35,8 @@ export const handleSkill: CheckRollHandler = (ctx) => {
     ctx.actor,
     (a) => a.skills?.[slug] ?? null,
     takeOverrides(ctx),
-    () => requireStatistic(ctx.actor, ctx.actor.skills?.[slug], slug).check.roll(statisticParams(ctx))
+    () =>
+      requireStatistic(ctx.actor, ctx.actor.skills?.[slug], slug).check.roll(statisticParams(ctx))
   )
 }
 
@@ -103,7 +104,8 @@ export const handleSave: CheckRollHandler = (ctx) => {
     ctx.actor,
     (a) => a.saves?.[slug] ?? null,
     takeOverrides(ctx),
-    () => requireStatistic(ctx.actor, ctx.actor.saves?.[slug], slug).check.roll(statisticParams(ctx))
+    () =>
+      requireStatistic(ctx.actor, ctx.actor.saves?.[slug], slug).check.roll(statisticParams(ctx))
   )
 }
 

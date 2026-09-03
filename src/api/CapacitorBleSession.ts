@@ -103,7 +103,9 @@ export class CapacitorBleSession extends PixelSession {
       uuid: s.uuid,
       chars: s.characteristics.map((c) => ({ uuid: c.uuid, ...c.properties }))
     }))
-    throw new Error(`TM-pixl: no usable Pixel service on ${this._systemId}: ${JSON.stringify(dump)}`)
+    throw new Error(
+      `TM-pixl: no usable Pixel service on ${this._systemId}: ${JSON.stringify(dump)}`
+    )
   }
 
   async disconnect(): Promise<void> {

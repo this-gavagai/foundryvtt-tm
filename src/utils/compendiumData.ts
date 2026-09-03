@@ -66,7 +66,8 @@ export function packObserveLevel(ownership: PackOwnership, userRole: number): nu
   let level = 0
   for (let role = 1; role <= userRole; role++) {
     const raw = ownership?.[ROLE_NAMES[role]]
-    const value = typeof raw === 'number' ? raw : typeof raw === 'string' ? OWNERSHIP_LEVELS[raw] : undefined
+    const value =
+      typeof raw === 'number' ? raw : typeof raw === 'string' ? OWNERSHIP_LEVELS[raw] : undefined
     if (typeof value === 'number' && value > level) level = value
   }
   return level
@@ -189,10 +190,7 @@ export function foldJournalDescription(doc: RawCompendiumDoc): string | undefine
     .join('\n')
 }
 
-export function shapeCompendiumItem(
-  doc: RawCompendiumDoc,
-  packLabel: string
-): CompendiumItemData {
+export function shapeCompendiumItem(doc: RawCompendiumDoc, packLabel: string): CompendiumItemData {
   const system = { ...(doc.system ?? {}) } as CompendiumItemData['system']
   const journalHtml = foldJournalDescription(doc)
   if (journalHtml !== undefined) {

@@ -75,11 +75,7 @@ export function useWhisperTargets() {
   const selectedWhisperRecipientIds = computed<string[]>(() => {
     if (selectedWhisperMode.value === GMS_WHISPER_TARGET) return gmUserIds.value
     if (selectedWhisperMode.value !== 'users') return []
-    return [
-      ...new Set(
-        selectedWhisperUserTargets.value.flatMap((target) => target.userIds ?? [])
-      )
-    ]
+    return [...new Set(selectedWhisperUserTargets.value.flatMap((target) => target.userIds ?? []))]
   })
 
   // Whether the user aimed this message at anyone (vs. a public post) — lets the

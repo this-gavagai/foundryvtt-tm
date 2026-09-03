@@ -54,7 +54,7 @@ export function makePhysicalItem(root: PhysicalItemPF2e): PhysicalItem {
       ...base.system,
       description: {
         value: isUnidentified
-          ? identification?.unidentified?.data?.description?.value ?? ''
+          ? (identification?.unidentified?.data?.description?.value ?? '')
           : base.system.description.value
       },
       identification: {

@@ -26,7 +26,10 @@ vi.mock('@/utils/utilities', () => ({
 }))
 
 const SHEET = {
-  config: { defaultColorBand: { startRadius: 0.666, endRadius: 0.72 }, defaultRingColor: '#400c07' },
+  config: {
+    defaultColorBand: { startRadius: 0.666, endRadius: 0.72 },
+    defaultRingColor: '#400c07'
+  },
   frames: {
     'med-ring-bkg': { frame: { x: 0, y: 0, w: 512, h: 512 } },
     'med-ring': { frame: { x: 512, y: 0, w: 512, h: 512 }, gridTarget: 1 }
@@ -45,7 +48,10 @@ const REQUEST = {
 // Minimal canvas stubs: the test is about getting the manifest parsed, not
 // about the compositing, which the pure helpers already cover.
 function stubCanvas() {
-  vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 1024, height: 512 })))
+  vi.stubGlobal(
+    'createImageBitmap',
+    vi.fn(async () => ({ width: 1024, height: 512 }))
+  )
   vi.stubGlobal(
     'OffscreenCanvas',
     class {

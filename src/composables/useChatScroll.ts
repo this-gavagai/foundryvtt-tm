@@ -183,5 +183,13 @@ export function useChatScroll(options: { onAtBottom?: () => void } = {}) {
     stopOpenSettle()
   })
 
-  return { scrollContainer, isAtBottom, onScroll, positionOnOpen, stopOpenSettle, scrollToBottom, scrollToMessage }
+  return {
+    scrollContainer,
+    isAtBottom,
+    onScroll,
+    positionOnOpen,
+    stopOpenSettle,
+    scrollToBottom,
+    scrollToMessage
+  }
 }

@@ -17,7 +17,13 @@ describe('makeIWRs', () => {
   it('survives an entry that omits exceptions', () => {
     const result = makeIWRs(asSet([{ type: 'curse' }]))
     expect(result).toEqual([
-      { type: 'curse', label: 'curse', exceptions: undefined, definition: undefined, value: undefined }
+      {
+        type: 'curse',
+        label: 'curse',
+        exceptions: undefined,
+        definition: undefined,
+        value: undefined
+      }
     ])
   })
 

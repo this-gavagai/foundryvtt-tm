@@ -66,10 +66,7 @@ const MAX_ENCODED_NAME = 200
 const HASHED_PREFIX = '~'
 
 export function encodeName(remote: string): string {
-  return btoa(encodeURIComponent(remote))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '')
+  return btoa(encodeURIComponent(remote)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
 export function decodeName(encoded: string): string {
@@ -120,7 +117,10 @@ async function localSrcFor(fileName: string): Promise<string> {
   return Capacitor.convertFileSrc(uri)
 }
 
-function headerValue(headers: Record<string, string> | undefined, name: string): string | undefined {
+function headerValue(
+  headers: Record<string, string> | undefined,
+  name: string
+): string | undefined {
   if (!headers) return undefined
   const key = Object.keys(headers).find((k) => k.toLowerCase() === name)
   return key !== undefined ? headers[key] : undefined

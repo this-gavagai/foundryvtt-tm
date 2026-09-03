@@ -54,9 +54,7 @@ export function rememberLoginUser(origin: string, userid: string, name?: string)
 export function lastLoginUser(origin: string): string {
   if (!origin) return ''
   return (
-    localStorage.getItem(loginUserKey(origin)) ??
-    localStorage.getItem(LEGACY_LOGIN_USER_KEY) ??
-    ''
+    localStorage.getItem(loginUserKey(origin)) ?? localStorage.getItem(LEGACY_LOGIN_USER_KEY) ?? ''
   )
 }
 

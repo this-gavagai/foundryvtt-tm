@@ -9,7 +9,6 @@
 import { MODULE_ID } from '@/api/protocol'
 import { settingsApi } from './globals'
 
-
 export const IMAGE_UPLOAD_PATH_SETTING = 'imageUploadPath'
 
 // Setting strings are raw English, matching the other module settings (the

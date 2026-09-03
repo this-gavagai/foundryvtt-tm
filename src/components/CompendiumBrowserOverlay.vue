@@ -61,7 +61,9 @@ const filteredEntries = computed(() => {
 const visibleEntries = computed(() => filteredEntries.value.slice(0, renderCount.value))
 const truncatedCount = computed(() => filteredEntries.value.length - visibleEntries.value.length)
 
-watch([selectedPack, filter], () => { renderCount.value = PAGE_SIZE })
+watch([selectedPack, filter], () => {
+  renderCount.value = PAGE_SIZE
+})
 
 const sentinel = ref<HTMLElement | null>(null)
 useIntersectionObserver(sentinel, ([entry]) => {
@@ -214,7 +216,10 @@ defineExpose({ open, close, isOpen })
                             class="flex w-full cursor-pointer items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-left text-sm text-gray-900 transition-colors hover:bg-gray-100 active:bg-gray-200"
                             @click="openPack(pack)"
                           >
-                            <BookOpenIcon class="h-4 w-4 flex-none text-gray-400" aria-hidden="true" />
+                            <BookOpenIcon
+                              class="h-4 w-4 flex-none text-gray-400"
+                              aria-hidden="true"
+                            />
                             <span class="truncate">{{ pack.label }}</span>
                           </button>
                         </li>

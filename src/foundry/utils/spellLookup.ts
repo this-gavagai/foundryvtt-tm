@@ -14,8 +14,9 @@ export function findSpell(
 ): SpellPF2e<ActorPF2e> | undefined {
   type SpellCol = { get: (id: string) => SpellPF2e<ActorPF2e> | undefined }
   type CollectionsMap = { get: (id: string) => SpellCol | undefined; values(): Iterable<SpellCol> }
-  const collections = (actor.spellcasting as typeof actor.spellcasting & { collections: CollectionsMap })
-    .collections
+  const collections = (
+    actor.spellcasting as typeof actor.spellcasting & { collections: CollectionsMap }
+  ).collections
   const entrySpell = entryId ? collections.get(entryId)?.get(spellId) : undefined
   if (entrySpell) return entrySpell
 

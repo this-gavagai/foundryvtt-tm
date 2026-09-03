@@ -12,7 +12,7 @@ const props = defineProps(['src', 'label'])
   >
     <img
       :src="props.src"
-      class="m-auto h-10 select-none transition duration-200 ease-out group-active:scale-90 group-active:opacity-50 group-active:duration-60"
+      class="m-auto h-10 transition duration-200 ease-out select-none group-active:scale-90 group-active:opacity-50 group-active:duration-60"
       :alt="label + 'icon'"
       style="-webkit-touch-callout: none"
     />

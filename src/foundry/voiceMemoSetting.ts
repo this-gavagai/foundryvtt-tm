@@ -8,7 +8,6 @@
 import { MODULE_ID } from '@/api/protocol'
 import { settingsApi } from './globals'
 
-
 export const VOICE_MEMO_PATH_SETTING = 'voiceMemoPath'
 
 // Setting strings are raw English, matching the other module settings (the

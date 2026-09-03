@@ -1,5 +1,4 @@
 <script setup lang="ts">
-
 import { useInjectedCharacter } from '@/composables/injectKeys'
 import type { Equipment } from '@/composables/character'
 import ViewableItem from '@/components/widgets/ViewableItem.vue'

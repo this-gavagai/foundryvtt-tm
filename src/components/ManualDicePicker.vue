@@ -64,7 +64,7 @@ function updateFacesPerRow() {
   const current = facesPerRow.value
   const changed =
     Object.keys(next).length !== Object.keys(current).length ||
-    Object.keys(next).some(die => next[die] !== current[die])
+    Object.keys(next).some((die) => next[die] !== current[die])
   if (changed) facesPerRow.value = next
 }
 

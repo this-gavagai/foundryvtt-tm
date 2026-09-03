@@ -13,10 +13,7 @@ interface DebugPanel {
 
 // Dev-only: expose the active actor/character (and any alternates) plus the
 // world on `window` for console poking. No-op in production builds.
-export function useDevGlobals(
-  characters: Readonly<Ref<unknown>>,
-  urlId: string | null
-): void {
+export function useDevGlobals(characters: Readonly<Ref<unknown>>, urlId: string | null): void {
   if (import.meta.env.MODE !== 'development') return
 
   const { world } = storeToRefs(useWorldStore())

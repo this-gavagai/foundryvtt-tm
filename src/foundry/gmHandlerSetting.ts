@@ -29,7 +29,6 @@ import { MODULE_ID } from '@/api/protocol'
 import { isSheetUser, type SheetFlaggedUser } from './utils/sheetUser'
 import { settingsApi } from './globals'
 
-
 export const GM_HANDLERS_SETTING = 'gmHandlers'
 
 export interface GmHandlerPolicy {

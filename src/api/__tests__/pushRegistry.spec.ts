@@ -47,7 +47,10 @@ describe('recordPushRegistration', () => {
   it('keeps origins independent', () => {
     recordPushRegistration(ORIGIN, record())
     recordPushRegistration('https://other.example', record({ worldId: 'world-2' }))
-    expect(Object.keys(JSON.parse(localStorage.getItem(STORAGE_KEY)!))).toEqual([ORIGIN, 'https://other.example'])
+    expect(Object.keys(JSON.parse(localStorage.getItem(STORAGE_KEY)!))).toEqual([
+      ORIGIN,
+      'https://other.example'
+    ])
   })
 
   it('re-registering the same identity does not unregister anything', async () => {
@@ -63,7 +66,9 @@ describe('recordPushRegistration', () => {
     await flush()
     // Alice's registration would otherwise keep pushing her chat to this device
     // for 30 days after someone else logged in on it.
-    expect(unregisterBodies()).toEqual([{ worldId: 'world-1', userId: 'alice', deviceToken: 'devtokenA' }])
+    expect(unregisterBodies()).toEqual([
+      { worldId: 'world-1', userId: 'alice', deviceToken: 'devtokenA' }
+    ])
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)[ORIGIN].userId).toBe('bob')
   })
 

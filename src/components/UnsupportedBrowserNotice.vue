@@ -29,7 +29,12 @@ const dismissed = ref(false)
       padding: 12px 16px;
       background: #7f1d1d;
       color: #ffffff;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      font-family:
+        system-ui,
+        -apple-system,
+        Segoe UI,
+        Roboto,
+        sans-serif;
       font-size: 14px;
       line-height: 1.5;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
