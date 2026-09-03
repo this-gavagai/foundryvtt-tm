@@ -60,7 +60,12 @@
     "chooseTitle": "Make a choice",
     "chooseUnavailable": "This choice can only be made in Foundry — it needs an item dragged onto it.",
     "choiceRefused": "This item needs a choice that can’t be made here. Add it from Foundry.",
-    "addFailed": "Could not add this item."
+    "addFailed": "Could not add this item.",
+    "addWithoutGm": "The GM is offline. This will be added, but totals like bulk won’t recalculate until they reconnect.",
+    "needsGmRules": "This item needs the GM connected — the system has to apply its rules.",
+    "needsGmKit": "This kit needs the GM connected — the system unpacks it into its contents.",
+    "needsGmBuilding": "This needs the GM connected — adding it recalculates your hit points.",
+    "needsGmOther": "This item needs the GM connected."
   },
   "compendiumBrowser": {
     "title": "Compendium Browser",

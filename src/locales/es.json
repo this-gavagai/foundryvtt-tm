@@ -60,7 +60,12 @@
     "chooseTitle": "Elige una opción",
     "chooseUnavailable": "Esta elección solo puede hacerse en Foundry: requiere arrastrar un objeto sobre ella.",
     "choiceRefused": "Este objeto requiere una elección que no puede hacerse aquí. Añádelo desde Foundry.",
-    "addFailed": "No se pudo añadir este objeto."
+    "addFailed": "No se pudo añadir este objeto.",
+    "addWithoutGm": "El DJ está desconectado. Se añadirá, pero los totales como el volumen no se recalcularán hasta que vuelva.",
+    "needsGmRules": "Este objeto requiere que el DJ esté conectado: el sistema debe aplicar sus reglas.",
+    "needsGmKit": "Este equipo requiere que el DJ esté conectado: el sistema lo desglosa en su contenido.",
+    "needsGmBuilding": "Esto requiere que el DJ esté conectado: añadirlo recalcula tus puntos de golpe.",
+    "needsGmOther": "Este objeto requiere que el DJ esté conectado."
   },
   "compendiumBrowser": {
     "title": "Explorador de compendios",

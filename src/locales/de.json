@@ -60,7 +60,12 @@
     "chooseTitle": "Wähle eine Option",
     "chooseUnavailable": "Diese Wahl ist nur in Foundry möglich – sie erfordert ein hierauf gezogenes Gegenstand.",
     "choiceRefused": "Dieser Gegenstand erfordert eine Wahl, die hier nicht getroffen werden kann. Füge ihn in Foundry hinzu.",
-    "addFailed": "Gegenstand konnte nicht hinzugefügt werden."
+    "addFailed": "Gegenstand konnte nicht hinzugefügt werden.",
+    "addWithoutGm": "Der SL ist offline. Es wird hinzugefügt, aber Werte wie Masse werden erst bei erneuter Verbindung neu berechnet.",
+    "needsGmRules": "Für diesen Gegenstand muss der SL verbunden sein – das System muss seine Regeln anwenden.",
+    "needsGmKit": "Für diesen Ausrüstungssatz muss der SL verbunden sein – das System packt ihn in seine Bestandteile aus.",
+    "needsGmBuilding": "Hierfür muss der SL verbunden sein – das Hinzufügen berechnet deine Trefferpunkte neu.",
+    "needsGmOther": "Für diesen Gegenstand muss der SL verbunden sein."
   },
   "compendiumBrowser": {
     "title": "Kompendium-Browser",
