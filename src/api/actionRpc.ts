@@ -1,3 +1,11 @@
+// Client-initiated RPCs: asking the elected GM's client to do something this
+// app cannot do itself.
+//
+// The other lane is a direct `modifyDocument` write as the app's own user
+// (api/documents.ts), which needs no GM and no round trip. WHICH lane a new
+// operation belongs in is decided by four tests, written down once at the top
+// of that file. Everything here needed at least one of them.
+
 import type { TablemateActorRef } from '@/types/character-types'
 import type {
   AcknowledgementArgs,

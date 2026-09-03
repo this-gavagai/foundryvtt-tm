@@ -4,6 +4,12 @@
 // about it: which handler answers it, what authorization it requires, and
 // whether it may run off the serialized dispatch chain.
 //
+// WHETHER an operation belongs here at all is a separate question, and the four
+// tests that decide it are written down once, at the top of api/documents.ts —
+// the other lane. In short: an RPC buys the ability to run code on a Foundry
+// client, and costs a round trip, this queue, and a GM being online. Most of
+// the sheet's editing surface needs none of that and writes directly instead.
+//
 // This replaces four parallel structures in listener.ts — a handler map, an auth
 // policy, a concurrent set and a passive set — all keyed by the same action
 // string and each maintained by hand. Adding an RPC meant remembering all four,

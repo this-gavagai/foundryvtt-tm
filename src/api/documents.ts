@@ -1,3 +1,54 @@
+// Direct document writes: the app mutating Foundry documents as its OWN user,
+// over the `modifyDocument` socket, with no GM client in the loop.
+//
+// ── Which lane does a new write belong in? ──────────────────────────────────
+//
+// This file is one of two. The other is a request to the elected GM's client
+// (api/actionRpc.ts → foundry/rpcTable.ts), which costs a round trip, a
+// serialized dispatch queue and a GM being online — and buys the one thing this
+// lane cannot do: run code. A write belongs HERE unless it needs one of the
+// four things below, and most of the sheet's editing surface needs none of them.
+//
+//   1. WOULD FOUNDRY'S SERVER REFUSE IT? Documents with no ownership map (a
+//      Combat), or owned by someone else (a flag on another user's chat
+//      message). A player has no write path at all, so there is nothing to
+//      optimise — until the data moves somewhere they DO own, which is what
+//      happened to chat reactions and comments (utils/chatReactions.ts).
+//
+//   2. DOES THE OUTCOME DEPEND ON A `_preUpdate` HOOK? Foundry runs
+//      `_preUpdate` / `preUpdateActor` only on the client that called
+//      `document.update()`, and a raw emit calls it on none. That is where
+//      modules hang hit-point automation — see composables/setHitPoints.ts, the
+//      one operation that keeps both lanes and chooses at runtime.
+//
+//   3. DOES CORRECTNESS NEED PF2e'S OWN CLIENT-SIDE LOGIC? The soft gate, and
+//      the one to think hardest about: nothing stops this file writing the same
+//      fields, so the real question is whether it must also reproduce the
+//      cascade around them. Where that has been taken on deliberately it is a
+//      maintenance liability, and it is where the bugs have been — the delete
+//      cascade (utils/itemGrants), split/merge/transfer (utils/itemStacks,
+//      utils/itemSource), currency (utils/coins), chat speaker shaping
+//      (utils/chatMessage), rules-free creates (utils/directItemCreate).
+//
+//   4. MUST PF2e ROLL IT OR RENDER IT? Dice through the system's check
+//      pipeline, cards through its Handlebars templates. Neither exists off a
+//      Foundry client, and no amount of app-side work substitutes.
+//
+// Clears all four → direct. For an ACTOR field, add its path to
+// utils/actorUpdatePaths as well: an unlisted path is dropped and reported, so
+// a missing entry surfaces in development rather than as a silent write.
+//
+// ── The cost that is not a gate ─────────────────────────────────────────────
+//
+// A direct write is GM-free for the WRITE and not for its consequences.
+// Everything PF2e derives — AC, bulk, `system.actions`, spell DCs — is
+// recomputed only when the elected GM answers the refresh the write fires, so
+// with none listening the sheet keeps showing figures from before the change.
+// That is surfaced rather than hidden (composables/useDerivedStale), and it is
+// the honest bound on preferring this lane. It also means going direct buys
+// nothing when the only consumer of the write is itself an RPC — which is why
+// the strike toggles stay there.
+
 import { mergeWith } from 'lodash-es'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type { ModifyDocumentBatch } from './socketSetup'
