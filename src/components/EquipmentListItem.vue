@@ -42,27 +42,36 @@ const uses = computed(() => {
          inherited, it reached the weight too, and only the *numeric* weight,
          since the "L"/"—" case sets a colour of its own. -->
     <ViewableItem
-      class="grid grid-cols-[auto_30px_20px] items-end gap-x-1"
+      class="grid grid-cols-[1fr_auto_30px_20px] items-end gap-x-1"
       :class="{ 'ml-3': item?.system?.containerId }"
       :data-dropped="item.system?.equipped?.carryType === 'dropped' ? 'true' : undefined"
       @click="() => emits('itemClicked', item)"
     >
       <div
-        class="flex min-w-0 items-baseline gap-1"
+        class="truncate"
         :class="{
           italic: item.type === 'backpack',
           'text-gray-300': item.system?.equipped?.carryType === 'dropped'
         }"
       >
-        <!-- The name truncates; the charges never do — a half-spent wand of
-             fireball is the reason to look at the row at all. -->
-        <span class="w-full truncate">{{ item.label ?? item.name }}</span>
-        <UsesWidget
-          v-if="uses"
-          class="shrink-0 text-gray-600"
-          :value="uses.value"
-          :max="uses.max"
-        />
+        {{ item.label ?? item.name }}
+      </div>
+      <!-- Charges get a track of their own rather than riding inside the name
+           cell. `truncate` means overflow:hidden, and a box with clipped
+           overflow has no baseline to share — baseline-aligning the charges
+           against the name therefore aligned them to the name box's BOTTOM
+           edge, floating "7/7" a few px above the line. As its own cell it
+           takes the row's `items-end` like the quantity does, so the two sit on
+           exactly the same line — which needs the wrapper on `text-xs` too, or
+           it keeps the row's larger strut and bottom-aligning the taller line
+           box lifts the small text inside it. The wrapper always renders, empty
+           or not: grid auto-placement would otherwise slide quantity and weight
+           left a track on every row without charges. -->
+      <div
+        class="text-xs"
+        :class="{ 'text-gray-300': item.system?.equipped?.carryType === 'dropped' }"
+      >
+        <UsesWidget v-if="uses" class="text-gray-600" :value="uses.value" :max="uses.max" />
       </div>
       <div
         class="text-right text-xs font-normal"

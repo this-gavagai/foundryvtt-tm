@@ -31,12 +31,19 @@ const asPips = computed(() => max.value <= PIP_LIMIT)
 </script>
 
 <template>
-  <span
-    v-if="max > 0"
-    data-part="uses"
-    class="inline-flex items-center gap-1 align-baseline text-xs font-normal whitespace-nowrap"
-  >
-    <span v-if="per">{{ per }}</span>
+  <!-- Plain inline layout, NOT a flex row, and deliberately so. Every row that
+       hosts this baseline-aligns it against an item name a good deal larger
+       than this text. A flex container nested as a flex item doesn't hand its
+       text baseline up: the browser synthesizes one from the bottom margin
+       edge instead, which lands the box's bottom on the name's baseline and
+       leaves "7/7" floating above the line. An inline formatting context has a
+       real first-line baseline, so the digits sit on the name's. Only the pip
+       strip stays a flex row — it holds no text to misalign. -->
+  <span v-if="max > 0" data-part="uses" class="text-xs font-normal whitespace-nowrap">
+    <span v-if="per" class="mr-1">{{ per }}</span>
+    <!-- The pip box has no baseline of its own, so it sits ON the text
+         baseline — which puts a 10px pip at about the cap height of the row's
+         name, reading as one line with it. -->
     <span v-if="asPips" class="inline-flex h-2.5 items-center gap-px">
       <PipWidget v-for="i in max" :key="i" :filled="i <= remaining" class="h-full" />
     </span>

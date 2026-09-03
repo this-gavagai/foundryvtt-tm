@@ -29,8 +29,25 @@ export interface Action extends Item {
   system: ActionSystem
   actionType: string | null
   item: Item
+  // The toolbelt actionable macro attached to this action, if any. Folded into
+  // `usable` and `doUse` below rather than driving a button of its own — a
+  // macro replaces an action's default behavior, it isn't a second thing to do
+  // with it.
   macroId: Maybe<string>
-  doMacro?: () => Promise<unknown> | void
+  // Whether this ability has something to "use" — PF2e's own row-level test
+  // (createAbilityViewData's `usable`), which is what decides whether its
+  // sheets draw a Use button at all. See makeAction for which parts of that
+  // test carry over.
+  usable: boolean
+  // Spend a use and post the card. Undefined on the lists that don't offer it
+  // (a familiar's abilities — PF2e's familiar sheet has no Use button either).
+  doUse?: () => Promise<unknown> | void
+  // Set the remaining uses directly, for the counter in the item's own modal —
+  // the manual correction PF2e's sheets offer as a number input beside their
+  // Use button. A plain field write, NOT a use: it posts no card and is how a
+  // player restores a Frequency their daily preparations refreshed, or takes
+  // back a mis-tap. Undefined on an ability with no Frequency to set.
+  setUses?: (newValue: number) => unknown
 }
 
 export function makeAction(root: AbilityItemPF2e): Action {
@@ -46,7 +63,19 @@ export function makeAction(root: AbilityItemPF2e): Action {
         value: root?.system?.actionType?.value
       },
       frequency: makeFrequency(root?.system?.frequency)
-    }
+    },
+    // PF2e's `usable` is `selfEffect || frequency || crafting`; only the
+    // frequency arm carries over, and the other two are left out because the
+    // app can't finish what their card starts:
+    //   selfEffect — the posted card's Apply Effect button is what actually
+    //     grants the effect, and the app has no handler for it (see the chat
+    //     card-button allowlist in main.css), so tapping Use would post a card
+    //     and grant nothing.
+    //   crafting  — opens PF2e's FormulaPicker dialog, which would appear on
+    //     the handling GM's screen for the tablet user to answer.
+    // Both are worth wiring; neither is a reason to withhold the button from
+    // the limited-use abilities that are the whole point of it.
+    usable: !!root?.system?.frequency
   } as Action
 }
 

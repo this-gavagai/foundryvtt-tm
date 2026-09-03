@@ -192,6 +192,14 @@ export const TM = {
   ROLL_INLINE_CHECK: 'rollInlineCheck',
   RUN_MACRO: 'runMacro',
   RUN_ACTIONABLE: 'runActionable',
+  // "Use" a limited-use action/feat — the Use button PF2e's own actions tab
+  // puts on any ability it considers usable. Spends one of the item's
+  // Frequency uses and posts its card, which is PF2e's `createUseActionMessage`
+  // and reached through the system's own `game.pf2e.rollItemMacro` entry point.
+  // An RPC because both halves are the system's: the frequency write is an item
+  // update a player may not make on someone else's behalf, and the card is
+  // rendered by PF2e's own templates. See foundry/handlers/useAction.ts.
+  USE_ACTION: 'useAction',
   GET_SPELL_DAMAGE: 'getSpellDamage',
   GET_COMPENDIUM_ITEM: 'getCompendiumItem',
   ADD_COMPENDIUM_ITEM: 'addCompendiumItem',

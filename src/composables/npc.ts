@@ -26,7 +26,14 @@ import { makeSpellRankResolver } from '@/utils/spellcasting'
 import { tokenPortrait } from '@/utils/tokenPortrait'
 import { deleteActorItem, updateActor, updateActorItem } from '@/api/documents'
 import { setHitPoints, type HitPointTarget } from '@/composables/setHitPoints'
-import { castSpell, getSpellDamage, getStrikeDamage, rollCheck, rollDamage } from '@/api/actionRpc'
+import {
+  castSpell,
+  getSpellDamage,
+  getStrikeDamage,
+  rollCheck,
+  rollDamage,
+  useAction
+} from '@/api/actionRpc'
 import { formatTraitLabel } from '@/utils/traitLabels'
 import type { DiceResults } from '@/types/api-types'
 
@@ -539,9 +546,25 @@ function npcAbilities(actor: Ref<TablemateNpc | undefined>, active: boolean): Ac
   return itemsOfType(actor.value, 'action')
     .map((item) => {
       const typeValue = item.system?.actionType?.value
+      const itemId = item._id
       return {
         ...makeAction(item),
-        actionType: typeValue !== 'action' ? (typeValue ?? null) : 'action'
+        actionType: typeValue !== 'action' ? (typeValue ?? null) : 'action',
+        // PF2e's NPC sheet carries the same Use button as the character sheet's
+        // actions tab (templates/actors/npc/partials/action.hbs), gated on the
+        // same `usable` flag — and a stat block leans on Frequency ("Frequency
+        // once per day") far harder than a PC's sheet does, so a passive entry
+        // gets it too when it's limited.
+        doUse: () => {
+          if (itemId) return useAction(actor, itemId)
+        },
+        // The number input PF2e's NPC sheet puts beside that button, for the
+        // manual correction: a plain field write, no card posted.
+        setUses:
+          item.system?.frequency && itemId
+            ? (newValue: number) =>
+                updateActorItem(actor, itemId, { system: { frequency: { value: newValue } } })
+            : undefined
       } as Action
     })
     .filter((ability) => (ability.actionType !== 'passive') === active)

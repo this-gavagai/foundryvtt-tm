@@ -28,13 +28,14 @@ function viewAction(action: Action) {
   detailModal.value?.open()
 }
 
-// "Use" the currently-viewed action. If it has a PF2e-toolbelt actionable
-// macro attached, that macro runs server-side with full toolbelt scope
-// (actor, item, token, targets, use, cancel) — same contract as toolbelt's
-// own useAction(). For actions without an actionable macro, this is a no-op
-// for now; future work will route through PF2e's native action.use().
+// "Use" the currently-viewed action, exactly as PF2e's own actions tab does:
+// spend one of its Frequency uses and post its card. If the action has a
+// PF2e-toolbelt actionable macro attached, that macro runs server-side instead
+// with full toolbelt scope (actor, item, token, targets, use, cancel) — same
+// contract as toolbelt's own useAction() — since attaching a macro is how a
+// table replaces an action's default behavior. See `doUse` in characterActions.
 function useViewedAction() {
-  return actionViewed.value?.doMacro?.()
+  return actionViewed.value?.doUse?.()
 }
 </script>
 
@@ -85,13 +86,24 @@ function useViewedAction() {
         </ul>
       </SheetSection>
     </div>
-    <DetailInfoModal ref="detailModal" :item="actionViewed" :labels="rollOptionLabels">
+    <DetailInfoModal
+      ref="detailModal"
+      :item="actionViewed"
+      :labels="rollOptionLabels"
+      :uses="actionViewed?.system?.frequency"
+      :setUses="actionViewed?.setUses"
+    >
       <template #actionButtons v-if="isListening">
         <div class="align-items-center flex gap-2">
+          <!-- Shown on the same footing as PF2e's own sheet: any action it
+               considers usable (see `usable` in defs/action). Deliberately NOT
+               disabled at zero uses remaining — PF2e leaves its button live
+               too, because spending past a Frequency is a table call (a rule
+               element, a GM's ruling), not the sheet's to refuse. -->
           <Button
             color="blue"
             class="capitalize"
-            v-if="actionViewed?.macroId"
+            v-if="actionViewed?.usable"
             :clicked="useViewedAction"
           >
             {{ $t('actions.use') }}

@@ -267,7 +267,8 @@
     "recoveryCheck": "Erholung (SG {dc})"
   },
   "actions": {
-    "use": "Nutzen"
+    "use": "Nutzen",
+    "usesLabel": "Anwendungen"
   },
   "actionTypes": {
     "action": "Aktionen",

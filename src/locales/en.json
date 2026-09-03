@@ -267,7 +267,8 @@
     "recoveryCheck": "Recovery (DC {dc})"
   },
   "actions": {
-    "use": "Use"
+    "use": "Use",
+    "usesLabel": "Uses"
   },
   "actionTypes": {
     "action": "Actions",

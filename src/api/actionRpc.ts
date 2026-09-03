@@ -476,6 +476,18 @@ export const runActionable = (actor: TablemateActorRef, itemId: string) =>
     itemId
   })
 
+// Use an action/feat the PF2e way: spend one of its Frequency uses and post its
+// card, via the system's own createUseActionMessage. `fromActor`, not
+// `fromActorTargeted` — that path reads no targets (see UseActionArgs). For an
+// item carrying a toolbelt actionable macro, use runActionable instead: the
+// macro REPLACES the default behavior, and calls back into this same path
+// itself if it wants it.
+export const useAction = (actor: TablemateActorRef, itemId: string) =>
+  sendAction(TM.USE_ACTION, {
+    ...fromActor(actor),
+    itemId
+  })
+
 export const addCompendiumItem = (
   characterId: string,
   itemUuid: string,

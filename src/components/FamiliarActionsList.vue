@@ -59,7 +59,13 @@ function viewAction(action: Action) {
     <div v-if="actions?.length === 0" class="py-8 text-center text-sm text-gray-500">
       {{ $t('familiar.noAbilities') }}
     </div>
-    <DetailInfoModal ref="detailModal" :item="actionViewed" :labels="rollOptionLabels">
+    <DetailInfoModal
+      ref="detailModal"
+      :item="actionViewed"
+      :labels="rollOptionLabels"
+      :uses="actionViewed?.system?.frequency"
+      :setUses="actionViewed?.setUses"
+    >
       <template #description>
         <span v-if="actionViewed?.actionType === 'passive'">{{ $t('common.passive') }}</span>
       </template>

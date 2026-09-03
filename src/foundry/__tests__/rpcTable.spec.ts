@@ -44,6 +44,10 @@ const EXPECTED: Record<RpcAction, Expected> = {
   [TM.ROLL_INLINE_CHECK]: { auth: 'owner' },
   [TM.RUN_MACRO]: { auth: 'owner' },
   [TM.RUN_ACTIONABLE]: { auth: 'owner' },
+  // Spends a Frequency use on someone's item and posts its card, so owner-gated
+  // like every other spend. Not concurrent: it creates a chat message, and a
+  // self-effect ability's card is one the chat-origin stack has to attribute.
+  [TM.USE_ACTION]: { auth: 'owner' },
   [TM.UPDATE_ACTOR]: { auth: 'owner' },
   [TM.ADD_COMPENDIUM_ITEM]: { auth: 'owner' },
   [TM.APPLY_DAMAGE]: { auth: 'owner' },

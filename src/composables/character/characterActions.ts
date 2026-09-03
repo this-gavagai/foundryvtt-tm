@@ -4,8 +4,8 @@ import type { Field, WritableField } from './helpers'
 import type { DiceResults, RequestResolutionArgs } from '@/types/api-types'
 import { type Modifier, makeModifiers } from './defs/modifier'
 import { type Action, makeAction } from './defs/action'
-import { characterAction, rollCheck, runActionable, rollDamage } from '@/api/actionRpc'
-import { updateActor } from '@/api/documents'
+import { characterAction, rollCheck, runActionable, rollDamage, useAction } from '@/api/actionRpc'
+import { updateActor, updateActorItem } from '@/api/documents'
 import { actionTypes } from '@/utils/constants'
 
 export interface CharacterActions {
@@ -72,8 +72,8 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
         // older versions used `actionable.macro`. We check both so the same
         // build works regardless of which version the GM is running. The
         // actual macro execution is server-side (see runActionable handler)
-        // because the macro needs a Foundry context — we just expose the
-        // presence of the link so the UI can show a Use button.
+        // because the macro needs a Foundry context — what the link decides
+        // here is only whether the Use button appears and where it routes.
         const tbFlag = (
           i?.flags as Record<
             string,
@@ -83,8 +83,9 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
         const macroId = tbFlag?.linked ?? tbFlag?.macro
         const typeValue = i.system?.actionType?.value
         const itemId = i._id
+        const base = makeAction(i as AbilityItemPF2e<CharacterPF2e>) as Action
         return {
-          ...(makeAction(i as AbilityItemPF2e<CharacterPF2e>) as Action),
+          ...base,
           actionType:
             typeValue !== 'action'
               ? (typeValue ?? null)
@@ -92,9 +93,27 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
                 ? 'skill'
                 : 'action',
           macroId,
-          doMacro: () => {
-            if (macroId && itemId) return runActionable(actor, itemId)
-          }
+          // A toolbelt actionable macro makes ANY action usable — that is the
+          // whole point of attaching one — so it widens PF2e's own test rather
+          // than being a separate button.
+          usable: base.usable || !!macroId,
+          // One tap, two possible routes. An actionable macro REPLACES the
+          // default behavior (toolbelt hands the macro a `use()` callback to
+          // opt back into it), so when one is attached it wins; otherwise this
+          // is PF2e's own use path. Both spend the frequency — the native one
+          // directly, the macro's by calling `use()`.
+          doUse: () => {
+            if (!itemId) return
+            return macroId ? runActionable(actor, itemId) : useAction(actor, itemId)
+          },
+          // Only where there is a Frequency to correct. A direct field write,
+          // the way PF2e's own sheet writes its frequency input — no card, no
+          // handler, nothing for a macro to intercept.
+          setUses:
+            base.system?.frequency && itemId
+              ? (newValue: number) =>
+                  updateActorItem(actor, itemId, { system: { frequency: { value: newValue } } })
+              : undefined
         }
       })
   )

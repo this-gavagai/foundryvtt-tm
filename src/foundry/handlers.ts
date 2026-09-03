@@ -18,6 +18,7 @@
 //     rollInlineCheck.ts    inline @Check with target-defense routing
 //     nextTurn.ts           nextTurn (end the current combatant's turn)
 //     runMacro.ts           generic macro execution by UUID
+//     useAction.ts          useAction (PF2e's Use button on a limited-use action)
 //     checks/               one file per check kind (strike, blast, …)
 
 export {
@@ -49,6 +50,7 @@ export { foundryRollDamage } from './handlers/rollDamage'
 export { foundryRollInlineCheck } from './handlers/rollInlineCheck'
 export { foundryRunMacro } from './handlers/runMacro'
 export { foundryRunActionable } from './handlers/runActionable'
+export { foundryUseAction } from './handlers/useAction'
 export { foundryUpdateActor } from './handlers/updateActor'
 export { foundryGetCompendiumItem } from './handlers/getCompendiumItem'
 export { foundryAddCompendiumItem } from './handlers/addCompendiumItem'

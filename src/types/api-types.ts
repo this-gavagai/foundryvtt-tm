@@ -41,6 +41,7 @@ export type ModuleEventArgs =
   | RollInlineCheckArgs
   | RunMacroArgs
   | RunActionableArgs
+  | UseActionArgs
   | GetSpellDamageArgs
   | GetCompendiumItemArgs
   | AddCompendiumItemArgs
@@ -574,6 +575,18 @@ export interface RunActionableArgs {
   uuid: string
 }
 
+export interface UseActionArgs {
+  action: typeof TM.USE_ACTION
+  userId: string
+  characterId: string
+  // The action / feat item being used. Deliberately NO targets: PF2e's
+  // createUseActionMessage reads none — it spends a use, posts the item's card
+  // and (for a self-effect ability) offers the effect to the item's OWN actor —
+  // so mirroring the tablet's reticle here would buy nothing.
+  itemId: string
+  uuid: string
+}
+
 export interface RunMacroArgs {
   action: typeof TM.RUN_MACRO
   userId: string
@@ -923,6 +936,7 @@ export interface ResponseByAction {
   [TM.TOGGLE_KINETIC_AURA]: PlainAck
   [TM.RUN_MACRO]: PlainAck
   [TM.RUN_ACTIONABLE]: PlainAck
+  [TM.USE_ACTION]: PlainAck
   [TM.UPDATE_ACTOR]: PlainAck
   [TM.ADD_COMPENDIUM_ITEM]: PlainAck
   [TM.APPLY_DAMAGE]: PlainAck

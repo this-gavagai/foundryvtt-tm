@@ -58,7 +58,8 @@ import {
   foundrySetWeaponLoaded,
   foundryToggleKineticAura,
   foundryToggleReaction,
-  foundryUpdateActor
+  foundryUpdateActor,
+  foundryUseAction
 } from './handlers'
 import { foundryRegisterPush } from './pushRegistration'
 
@@ -114,6 +115,7 @@ export const RPC_TABLE: RpcTable = {
   [TM.ROLL_INLINE_CHECK]: { handler: foundryRollInlineCheck, auth: 'owner' },
   [TM.RUN_MACRO]: { handler: foundryRunMacro, auth: 'owner' },
   [TM.RUN_ACTIONABLE]: { handler: foundryRunActionable, auth: 'owner' },
+  [TM.USE_ACTION]: { handler: foundryUseAction, auth: 'owner' },
   [TM.UPDATE_ACTOR]: { handler: foundryUpdateActor, auth: 'owner' },
   [TM.ADD_COMPENDIUM_ITEM]: { handler: foundryAddCompendiumItem, auth: 'owner' },
   [TM.APPLY_DAMAGE]: { handler: foundryApplyDamage, auth: 'owner' },

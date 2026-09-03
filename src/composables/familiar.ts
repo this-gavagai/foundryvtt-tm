@@ -105,6 +105,7 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
       itemsOfType(actor.value, 'action').map((item) => {
         const base = makeAction(item)
         const typeValue = item.system?.actionType?.value
+        const itemId = item._id
         return {
           ...base,
           actionType:
@@ -112,7 +113,16 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
               ? (typeValue ?? null)
               : item.system?.traits?.value?.includes('skill')
                 ? 'skill'
-                : 'action'
+                : 'action',
+          // No `doUse` here — PF2e's familiar sheet has no Use button, so
+          // neither does this list. Correcting a Frequency by hand is a
+          // different thing, and the app already shows the count on the row:
+          // showing a number nobody can fix is the worse of the two.
+          setUses:
+            item.system?.frequency && itemId
+              ? (newValue: number) =>
+                  updateActorItem(actor, itemId, { system: { frequency: { value: newValue } } })
+              : undefined
         }
       })
     ),

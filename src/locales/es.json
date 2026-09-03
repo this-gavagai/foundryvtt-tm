@@ -267,7 +267,8 @@
     "recoveryCheck": "Recuperación (CD {dc})"
   },
   "actions": {
-    "use": "Usar"
+    "use": "Usar",
+    "usesLabel": "Usos"
   },
   "actionTypes": {
     "action": "Acciones",

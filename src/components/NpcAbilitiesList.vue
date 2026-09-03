@@ -2,8 +2,11 @@
 import { computed, ref } from 'vue'
 import type { Action } from '@/composables/character'
 import { useInjectedNpc } from '@/composables/injectKeys'
+import { storeToRefs } from 'pinia'
+import { useListenersStore } from '@/stores/listenersOnline'
 
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
+import Button from '@/components/widgets/ButtonWidget.vue'
 import UsesWidget from '@/components/widgets/UsesWidget.vue'
 import DetailInfoModal from '@/components/DetailInfoModal.vue'
 import SheetSection from '@/components/widgets/SheetSection.vue'
@@ -11,9 +14,12 @@ import ViewableItem from '@/components/widgets/ViewableItem.vue'
 
 // The stat block's ability entries, split the way PF2e's own NPC sheet splits
 // them: anything with an action cost under "Actions", the rest under
-// "Passive". Tapping one opens the shared detail sheet — NPC abilities aren't
-// "used" from here (they have no roll of their own), so there's no Use button.
+// "Passive". Tapping one opens the shared detail sheet, which offers a Use
+// button for the limited-use ones — the same button, on the same `usable`
+// test, that PF2e's NPC sheet puts on the row.
 const { activeAbilities, passiveAbilities, rollOptionLabels } = useInjectedNpc()
+
+const { isListening } = storeToRefs(useListenersStore())
 
 const groups = computed(() => [
   { section: 'action', titleKey: 'npc.activeAbilities', abilities: activeAbilities.value ?? [] },
@@ -39,6 +45,12 @@ function glyphFor(ability: Action): string {
   if (ability.actionType === 'reaction') return 'r'
   if (ability.actionType === 'free') return 'f'
   return ability.system?.actions?.value?.toString() ?? ''
+}
+
+// Spend one of the ability's Frequency uses and post its card, via PF2e's own
+// use path. Only reachable for the abilities `usable` covers.
+function useViewedAbility() {
+  return abilityViewed.value?.doUse?.()
 }
 </script>
 <template>
@@ -76,6 +88,23 @@ function glyphFor(ability: Action): string {
         </li>
       </ul>
     </SheetSection>
-    <DetailInfoModal ref="detailModal" :item="abilityViewed" :labels="rollOptionLabels" />
+    <DetailInfoModal
+      ref="detailModal"
+      :item="abilityViewed"
+      :labels="rollOptionLabels"
+      :uses="abilityViewed?.system?.frequency"
+      :setUses="abilityViewed?.setUses"
+    >
+      <template #actionButtons v-if="isListening">
+        <Button
+          color="blue"
+          class="capitalize"
+          v-if="abilityViewed?.usable"
+          :clicked="useViewedAbility"
+        >
+          {{ $t('actions.use') }}
+        </Button>
+      </template>
+    </DetailInfoModal>
   </div>
 </template>

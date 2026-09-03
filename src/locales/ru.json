@@ -267,7 +267,8 @@
     "recoveryCheck": "Восстановление (Сл {dc})"
   },
   "actions": {
-    "use": "Использовать"
+    "use": "Использовать",
+    "usesLabel": "Использования"
   },
   "actionTypes": {
     "action": "Действия",
