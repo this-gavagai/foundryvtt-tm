@@ -10,7 +10,7 @@ import {
   setWeaponDamageType,
   toggleKineticAura
 } from '@/api/actionRpc'
-import { recoverFailedWrite, updateActorItem } from '@/api/documents'
+import { recoverFailedWrite, replaceItemRules, updateActorItem } from '@/api/documents'
 import { useListenersStore } from '@/stores/listenersOnline'
 import { logger } from '@/utils/utilities'
 import type { CharacterStrike, DamageType, WeaponPF2e } from '@7h3laughingman/pf2e-types'
@@ -316,7 +316,11 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
       | undefined
     if (actionRule) actionRule.selection = newValue
     if (!blastItemId) return undefined
-    return updateActorItem(actor, blastItemId, { system: { rules } })
+    // The blast item's WHOLE rules array — a broad write, and named as one.
+    // `rules ?? []` deliberately reaches the guard rather than short-circuiting:
+    // a blast item the mirror cannot resolve is the inconsistency worth hearing
+    // about, not a quiet no-op. See api/documents.ts.
+    return replaceItemRules(actor, [{ itemId: blastItemId, rules: rules ?? [] }])
   }
 
   const blastActions = computed({

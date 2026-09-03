@@ -12,10 +12,14 @@ import type { TablemateCharacter } from '@/types/character-types'
 // shared an option string in different domains, and sent whole-array writes to
 // items that had nothing to change.
 
-const updateActorItem = vi.fn<(...args: unknown[]) => Promise<unknown>>(() => Promise.resolve({}))
+// The toggle writes each contributing item's WHOLE rules array, so it goes
+// through the named broad-write function rather than updateActorItem — see
+// api/documents.ts. What this spec pins is unchanged either way: which items are
+// written, and what their rule arrays say when they are.
+const replaceItemRules = vi.fn<(...args: unknown[]) => Promise<unknown>>(() => Promise.resolve({}))
 
 vi.mock('@/api/documents', () => ({
-  updateActorItem: (...args: unknown[]) => updateActorItem(...args)
+  replaceItemRules: (...args: unknown[]) => replaceItemRules(...args)
 }))
 
 const { useCharacterRules } = await import('@/composables/character/characterRules')
@@ -52,8 +56,12 @@ function rulesOf(items: Item[]) {
 
 /** The ids and rule arrays handed to the write, as one readable pair. */
 function written() {
-  const [, ids, updates] = updateActorItem.mock.calls.at(-1) ?? []
-  return { ids: ids as string[], updates: updates as { system: { rules: Rule[] } }[] }
+  const [, updates] = replaceItemRules.mock.calls.at(-1) ?? []
+  const entries = (updates ?? []) as { itemId: string; rules: Rule[] }[]
+  return {
+    ids: entries.map((entry) => entry.itemId),
+    updates: entries.map((entry) => ({ system: { rules: entry.rules } }))
+  }
 }
 
 beforeEach(() => vi.clearAllMocks())

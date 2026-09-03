@@ -43,11 +43,22 @@
 // having it. Items are also narrower in blast radius: one typed document at a
 // time rather than the actor's whole mixed field space.
 //
-// So the guard fits one shape and half-fits the other. If the item path ever
-// grows, the better move is to make its BROAD writes named rather than
-// incidental — a separate function for a whole-array or whole-document write,
-// so it is deliberate and greppable — instead of an allowlist that can only
-// cover the easy half.
+// So the guard fits one shape and half-fits the other. The better move for the
+// item path was to make its BROAD writes named rather than incidental — a
+// separate function for a whole-array write, so it is deliberate and greppable —
+// instead of an allowlist that can only cover the easy half. That is now
+// `replaceItemRules` in api/documents.ts, and `system.rules` is the only array
+// the app writes whole: the other 21 updateActorItem call sites are narrow
+// scalars, checked one by one.
+//
+// The two lanes therefore fail loudly for the same class of mistake, by
+// different means and with different reach. On the actor, an unlisted PATH is
+// dropped and reported, which catches a write that was never meant to be made.
+// On an item there is no path list to check against, so what is checked is the
+// only thing that can be: that a whole-array write is replacing something with
+// something, rather than stripping an item's rule elements because the mirror it
+// was built from had moved on. Neither is a security boundary — the user owns
+// the actor — and neither pretends to cover the other's ground.
 export const ALLOWED_UPDATE_PATHS = new Set([
   // Hit points normally route through SET_HIT_POINTS so the preUpdateActor
   // automation modules hang off it runs (composables/setHitPoints.ts). These

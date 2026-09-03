@@ -1,7 +1,7 @@
 import { type Ref, computed } from 'vue'
 import type { Field, Maybe } from './helpers'
 import type { TablemateCharacter } from '@/types/character-types'
-import { updateActorItem } from '@/api/documents'
+import { replaceItemRules } from '@/api/documents'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 
 export interface CharacterRules {
@@ -92,9 +92,14 @@ export function useCharacterRules(actor: Ref<TablemateCharacter | undefined>): C
                 const itemSet = actor.value?.items
                   ?.filter((i) => (i?.system?.rules as RollOptionRule[]).some(isThisOption))
                   ?.map((i) => i._id!)
-                const updateSet: object[] = []
-                itemSet?.forEach((i) => {
-                  const rules = actor.value?.items.find((j) => j._id === i)?.system.rules as
+                // Each contributing item's WHOLE rules array, edited in place
+                // and handed back — so this goes through replaceItemRules
+                // rather than updateActorItem, which is what marks it as the
+                // broad write it is and refuses one built from a mirror that no
+                // longer holds the item. See api/documents.ts.
+                const updates: { itemId: string; rules: object[] }[] = []
+                itemSet?.forEach((itemId) => {
+                  const rules = actor.value?.items.find((j) => j._id === itemId)?.system.rules as
                     | RollOptionRule[]
                     | undefined
                   const rollOptionRule = rules?.find(isThisOption)
@@ -102,10 +107,9 @@ export function useCharacterRules(actor: Ref<TablemateCharacter | undefined>): C
                     if (newToggleValue !== null) rollOptionRule.value = newToggleValue ?? undefined
                     if (newSelection !== null) rollOptionRule.selection = newSelection ?? undefined
                   }
-                  const update = { system: { rules: rules } }
-                  updateSet.push(update)
+                  if (rules) updates.push({ itemId, rules })
                 })
-                return updateActorItem(actor, itemSet ?? [], updateSet ?? [])
+                return replaceItemRules(actor, updates)
               }
             })
           }

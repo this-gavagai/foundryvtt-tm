@@ -306,6 +306,54 @@ export function updateActorItem(
   ).catch((error) => recoverFailedWrite(actor, error))
 }
 
+// A BROAD item write: replaces an item's whole `system.rules` array, rather than
+// setting one field inside it.
+//
+// Spelled differently from updateActorItem ON PURPOSE. Every other item write in
+// the app is a narrow scalar — a quantity, a slot, an investment flag — and
+// reads as one at the call site. These two (the roll-option toggles in
+// characterRules, the blast action cost in characterStrikes) hand back a whole
+// array the app read off its own mirror, edited in place, and is now persisting:
+// the widest write the codebase makes, and until it had a name it was spelled
+// exactly like the narrowest. utils/actorUpdatePaths.ts sets out why an
+// allowlist cannot bound this shape and asks for a named function instead — so
+// that a broad write is deliberate, and so that finding every one of them is a
+// grep rather than a reading of all 23 updateActorItem call sites.
+//
+// The guard is the other half of the point, and the only thing on the item lane
+// that fails loudly. A rules array that is missing or empty means the caller's
+// mirror did not hold what it thought it did — a refresh landing mid-edit, an id
+// that no longer resolves — and writing it would STRIP every rule element off
+// the item, taking its modifiers, notes and toggles with them. Foundry drops an
+// `undefined` during serialization, so that case used to no-op in silence; an
+// empty array would not have. Both are refused here, and refused the way an
+// unlisted actor path is: through recoverFailedWrite, so it refreshes and
+// throws rather than reporting a success it did not have.
+export function replaceItemRules(
+  actor: TablemateActorRef,
+  updates: { itemId: string; rules: object[] }[]
+) {
+  const unusable = updates.filter(
+    (u) => !u.itemId || !Array.isArray(u.rules) || u.rules.length === 0
+  )
+  if (!updates.length || unusable.length) {
+    return Promise.resolve().then(() =>
+      recoverFailedWrite(
+        actor,
+        new Error(
+          `Refusing to replace rules with an empty or missing array ` +
+            `(items: ${unusable.map((u) => u.itemId || '<no id>').join(', ') || '<none given>'})`
+        )
+      )
+    )
+  }
+  return updateActorItem(
+    actor,
+    updates.map((u) => u.itemId),
+    updates.map((u) => ({ system: { rules: u.rules } }))
+  )
+}
+
 // Drop a dangling `flags.pf2e.grantedBy` from items that outlive their granter.
 // Sent as Foundry's `-=` deletion key, which removes the property outright
 // rather than leaving a half-object behind. processChanges can't express a key
