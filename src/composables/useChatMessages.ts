@@ -137,9 +137,17 @@ export interface ChatMessageView {
   visibilityLabel: string | null
   whisperRecipients: string[]
   isOwnActor: boolean
-  // Authored by this client's user (own posts) — drives right-alignment in the
-  // bubble layout. Distinct from isOwnActor, which is about the message's actor.
+  // This client's message for DISPLAY — drives right-alignment and grouping in
+  // the bubble layout. Distinct from isOwnActor, which is about the message's
+  // actor, and widened across the tablemate origin flag, which is what makes a
+  // roll the GM's client posted still read as the player's.
   isOwnMessage: boolean
+  // Foundry's own `author`, matching this client exactly — the test its update
+  // and delete permissions are decided by. Narrower than isOwnMessage by exactly
+  // the set of messages the GM's client posted on this player's behalf: a roll,
+  // spell or item card keeps the GM as its author, so the server refuses a
+  // player's write to one. Edit and delete are gated on THIS.
+  isAuthor: boolean
   // Stable identity of the displayed sender, for grouping consecutive messages.
   senderKey: string
   // Grouping flags for the bubble layout, filled in a second pass over the
@@ -508,6 +516,7 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
     currentUserIsGM,
     messageVisibleToCurrentUser,
     messageIsFromCurrentUser,
+    messageAuthoredByCurrentUser,
     visibleMessages
   } = useChatVisibility()
 
@@ -725,6 +734,7 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
       whisperRecipients: whisperRecipientNames(message),
       isOwnActor: messageIsOwnActor(message),
       isOwnMessage,
+      isAuthor: messageAuthoredByCurrentUser(message),
       // Group by the displayed sender identity — the speaker (character alias or
       // OOC player name) plus author — so posting as one character then another,
       // or switching in/out of character, starts a fresh group even for your own

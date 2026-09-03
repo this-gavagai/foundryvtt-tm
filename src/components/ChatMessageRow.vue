@@ -87,10 +87,26 @@ const { t } = useI18n()
 const isOwn = computed(() => props.view.isOwnMessage)
 const showHeader = computed(() => props.groupStart)
 
-// Edit/delete affordance, own messages only. Edit is offered just for plain-text
-// posts (no rolls, voice, image, or reroll card — the only kind that can be
-// meaningfully re-typed); delete works on any of the user's own messages.
-const canManage = computed(() => isOwn.value && !!props.view.message._id)
+// Edit/delete affordance. Gated on isAuthor — Foundry's own `author` matching
+// this client — and NOT on isOwn, which is the wider display notion this row
+// aligns and groups by.
+//
+// The two differ by exactly the messages the GM's client posted on this player's
+// behalf. A roll, spell or item card is stamped with the player's
+// `flags.tablemate.originUserId` and rendered under their name, so isOwn answers
+// true; its `author` is the GM who ran the pipeline, so Foundry refuses the
+// player's edit or delete. Gating on isOwn offered Delete on every one of those
+// cards and spent a socket round trip to learn it could not happen. (canEdit
+// dodged it by accident — the no-rolls condition below excludes most of them —
+// but delete had nothing to hide behind.)
+//
+// A message the module posts on request (chat text, a voice memo, an image) is
+// created with `author: args.userId`, so the player really is its author and
+// these stay available.
+//
+// Edit is narrowed further to plain-text posts, the only kind that can be
+// meaningfully re-typed; delete works on any message this user authored.
+const canManage = computed(() => props.view.isAuthor && !!props.view.message._id)
 
 // Reactions apply to ANY message, including other people's — that's the point of
 // them, and it's why the menu affordance below is no longer own-messages-only.
