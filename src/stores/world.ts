@@ -105,41 +105,32 @@ export const useWorldStore = defineStore('world', () => {
 
   // Write a message's emoji reaction list in place.
   //
+  // Patch a message's LEGACY annotation flags in place.
+  //
+  // Reactions and comments are written to their author's user document now
+  // (utils/chatReactions.ts), so nothing in the app writes these any more —
+  // both indexes read the message flags only as the legacy half of a union, for
+  // a world part-way through the rollover. This exists so a test can seed that
+  // half, and so a future migration has one place to clear it from.
+  //
   // Deliberately NOT applyChatUpdate: that shallow-Object.assigns the change
-  // onto the message, so passing `{flags: {tablemate: {reactions}}}` through it
-  // would replace the whole `flags` object — dropping flags.pf2e (roll context,
+  // onto the message, so passing `{flags: {tablemate: {…}}}` through it would
+  // replace the whole `flags` object — dropping flags.pf2e (roll context,
   // origin) and the tablemate voice-memo/image paths the row renders from. This
   // reaches only the one nested field.
-  //
-  // Used for both halves of the optimistic write in useChatActions.toggleReaction:
-  // the immediate local guess, and the reconcile (or rollback) once the GM
-  // answers. The authoritative broadcast lands via the normal modifyDocument
-  // path, so this only has to cover the window before it arrives.
-  function applyChatReactions(messageId: string, reactions: ChatReaction[]): void {
+  function applyLegacyChatAnnotations(
+    messageId: string,
+    key: 'reactions' | 'comments',
+    value: ChatReaction[] | ChatComment[]
+  ): void {
     const root = asDocumentArray(world.value?.messages)
     const message = root?.find((m) => m._id === messageId) as
-      | (DocumentData & { flags?: { tablemate?: { reactions?: ChatReaction[] } } })
+      | (DocumentData & { flags?: Record<string, unknown> })
       | undefined
     if (!message) return
     message.flags ??= {}
-    message.flags.tablemate ??= {}
-    message.flags.tablemate.reactions = reactions
-    messagesRevision.value++
-    triggerRef(world)
-  }
-
-  // Write a message's comment list in place. Nested-write for the same
-  // reason as applyChatReactions, and used the same way: the optimistic guess
-  // in useChatActions.saveComment, then the reconcile once the GM answers.
-  function applyChatComments(messageId: string, comments: ChatComment[]): void {
-    const root = asDocumentArray(world.value?.messages)
-    const message = root?.find((m) => m._id === messageId) as
-      | (DocumentData & { flags?: { tablemate?: { comments?: ChatComment[] } } })
-      | undefined
-    if (!message) return
-    message.flags ??= {}
-    message.flags.tablemate ??= {}
-    message.flags.tablemate.comments = comments
+    const scope = (message.flags['tablemate'] ??= {}) as Record<string, unknown>
+    scope[key] = value
     messagesRevision.value++
     triggerRef(world)
   }
@@ -148,7 +139,7 @@ export const useWorldStore = defineStore('world', () => {
   // Foundry's own chat log) in place, once the sending device's transcription
   // call returns — see attachVoiceMemoTranscript in useChatActions.
   //
-  // Nested-write for the same reason as applyChatReactions: routing this through
+  // Nested-write for the same reason as applyLegacyChatAnnotations: routing this through
   // applyChatUpdate would Object.assign the whole `flags` object over the
   // message and drop audioPath, i.e. the memo's own player.
   function applyChatTranscript(messageId: string, content: string, transcript: string): void {
@@ -274,7 +265,7 @@ export const useWorldStore = defineStore('world', () => {
 
   // Write one user's stored annotation list in place — the optimistic half of a
   // direct write, and the reconcile once the socket answers. Nested-write for
-  // the same reason applyChatReactions is: Object.assigning the whole `flags`
+  // the same reason applyLegacyChatAnnotations is: Object.assigning the whole `flags`
   // object would drop every other flag on the user (targeting_proxy, belongsTo).
   function applyUserAnnotations(
     userId: string,
@@ -428,8 +419,7 @@ export const useWorldStore = defineStore('world', () => {
     applyUserAnnotations,
     reactionsEnabled,
     commentsEnabled,
-    applyChatReactions,
-    applyChatComments,
+    applyLegacyChatAnnotations,
     applyChatTranscript,
     applyChatDelete,
     actorsById,

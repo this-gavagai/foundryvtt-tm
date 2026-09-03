@@ -155,7 +155,7 @@ describe('reaction toggle', () => {
     const message = seedWorld()
     const world = useWorldStore()
     // What a pre-rollover app wrote, via the GM, onto the message itself.
-    world.applyChatReactions('msg-1', [{ emoji: '🎉', userId: 'valeros' }])
+    world.applyLegacyChatAnnotations('msg-1', 'reactions', [{ emoji: '🎉', userId: 'valeros' }])
     world.applyUserAnnotations('me', 'reactions', [{ messageId: 'msg-1', emoji: '👍' }])
 
     // Both, not one or the other: during a rollover a message can carry each.
