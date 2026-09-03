@@ -112,18 +112,23 @@ export const CAPABILITY_VOICE_MEMO_TRANSCRIPT = 'voiceMemoTranscript'
 // before — automation-free, but it lands.
 export const CAPABILITY_SET_HIT_POINTS = 'setHitPoints'
 
-// Emoji reactions on chat messages. Unlike the media capabilities this needs no
-// world configuration, so it's advertised unconditionally — its only job is
-// version detection: a module predating reactions would log 'event not caught'
-// and never answer, leaving the app's tap to time out after 30s. Gating the
-// affordance on the capability hides it instead.
+// Emoji reactions on chat messages. MODULE-SIDE ONLY: still advertised on the
+// handshake (foundry/listener.ts), and read by nothing in this app.
+//
+// It answered "is the module new enough to run the TOGGLE_REACTION handler?",
+// which was the right question while a reaction needed a GM to perform the
+// write. It is now written directly by its reactor, so no handler has to exist
+// for the affordance to work and the only remaining question is whether the
+// world has the feature switched on — REACTIONS_ENABLED_SETTING below, which
+// every client already holds. Advertised anyway so an app predating that move
+// still finds what it gates on; when that stops mattering is the same call as
+// the RPC shims, recorded in docs/BETA_ROLLOVER.md (0.2).
 export const CAPABILITY_REACTIONS = 'reactions'
 
-// Free-text comments on chat messages (flags.tablemate.comments, see
-// utils/chatComments.ts). Unconditional like reactions, and for the same
-// reason: it is purely a version signal, so an app talking to a module with no
-// SET_COMMENT handler hides the affordance instead of firing a request that
-// would sit out the full 30s ack timeout.
+// Free-text comments on chat messages. MODULE-SIDE ONLY, exactly as
+// CAPABILITY_REACTIONS above and for the same reason: advertised on the
+// handshake, read by nothing here, superseded by COMMENTS_ENABLED_SETTING below
+// once comments moved onto their authors (utils/chatComments.ts).
 export const CAPABILITY_COMMENTS = 'comments'
 
 // Ending a turn from the app's header turn bar (NEXT_TURN). Unconditional — it
@@ -140,12 +145,9 @@ export const CAPABILITY_END_TURN = 'endTurn'
 // world dump (utils/worldSettings.ts) instead of learning them from the
 // LISTENER_ONLINE handshake.
 //
-// Why the app stopped using the capability for these two: a capability answers
-// "is a module new enough to run the handler listening?", which was the right
-// question while every reaction and comment needed a GM to perform the write.
-// They are now written directly by their author, so the only remaining question
-// is whether the world has the feature switched on — and that is a world-scope
-// setting, which every client already has.
+// For reactions and comments these REPLACED the capability the app used to gate
+// on, rather than joining it — see CAPABILITY_REACTIONS above for why the
+// question changed.
 export const REACTIONS_ENABLED_SETTING = 'reactionsEnabled'
 export const COMMENTS_ENABLED_SETTING = 'commentsEnabled'
 export const ROLL_OUTCOME_ENABLED_SETTING = 'rollOutcomeEnabled'
@@ -248,24 +250,39 @@ export const TM = {
   // Advance the encounter to the next combatant ("End Turn" in the app's
   // header turn bar). An RPC because a player cannot write the Combat document:
   // Foundry gates document updates on ownership and a Combat has none, so only a
-  // GM client can call Combat#nextTurn — the same reason reactions and comments
-  // are RPCs. The handler is where "you may only end YOUR OWN turn" is enforced
+  // GM client can call Combat#nextTurn. Reactions and comments met the same
+  // refusal and escaped it by MOVING to a document their writer owns; a turn has
+  // nowhere to move to, because the encounter is the whole table's. That is what
+  // makes this one permanent rather than provisional.
+  //
+  // The handler is where "you may only end YOUR OWN turn" is enforced
   // (rpcAuthorize only proves the requester owns the actor they named, not that
   // that actor is the one holding the turn). See foundry/handlers/nextTurn.ts.
   NEXT_TURN: 'nextTurn',
   REROLL_CHAT_ROLL: 'rerollChatRoll',
-  // Emoji reaction toggle. Unlike posting/editing/deleting a message — which the
-  // app now does directly over the modifyDocument socket as its own user — a
-  // reaction writes a flag on SOMEONE ELSE'S message, which Foundry only permits
-  // the author or a GM to do. So it has to be an RPC through the GM client. See
-  // foundry/handlers/reactions.ts.
+  // Emoji reaction toggle. LEGACY SHIM — the app writes a reaction directly to
+  // the reactor's own user document (utils/chatReactions.ts) and no longer sends
+  // this; the handler stays live for stale native builds that still do, and when
+  // it may go is recorded in docs/BETA_ROLLOVER.md (0.2).
+  //
+  // Why it WAS an RPC is worth keeping, because it is the clearest case of the
+  // choice the two write lanes turn on: stored on the MESSAGE, a reaction was a
+  // flag on someone else's document, which Foundry permits only that message's
+  // author or a GM to write — so it needed the proxy. Nothing about that
+  // permission changed. The DATA moved to a document its writer owns, and the
+  // gate went with it. See the head of api/documents.ts, and
+  // foundry/handlers/reactions.ts for the shim itself.
   TOGGLE_REACTION: 'toggleReaction',
-  // Write, edit, or remove one comment on a chat message. An RPC for the same
-  // reason reactions are — and more sharply: a roll made from the app is POSTED
-  // BY the GM's client on the player's behalf, so even the roller's "own" roll
-  // is a message Foundry won't let them update directly. Anyone may comment on
-  // anything; the handler is where "only a comment's author (or a GM) may
-  // rewrite it" is enforced. See foundry/handlers/comments.ts.
+  // Write, edit, or remove one comment on a chat message. LEGACY SHIM, as
+  // TOGGLE_REACTION above: a comment is written directly onto its author's own
+  // user document (utils/chatComments.ts).
+  //
+  // On the message it was refused more sharply than a reaction was — a roll made
+  // from the app is POSTED BY the GM's client on the player's behalf, so even the
+  // roller's own roll was a message Foundry would not let them update. Moving the
+  // comment onto its author sidesteps that, and turns "only a comment's author
+  // (or a GM) may rewrite it" from a check this handler performs into a document
+  // permission nobody has to enforce. See foundry/handlers/comments.ts.
   SET_COMMENT: 'setComment',
   // Push registration: the app asks the module (GM's client) for a short-lived,
   // signed token binding {worldId, userId} plus the relay URL, then registers
