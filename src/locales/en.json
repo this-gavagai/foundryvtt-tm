@@ -268,7 +268,8 @@
     "none": "No active conditions or effects",
     "addCondition": "Add condition",
     "addConditionFailed": "Couldn't reach the table. Try again in a moment.",
-    "recoveryCheck": "Recovery (DC {dc})"
+    "recoveryCheck": "Recovery (DC {dc})",
+    "addConditionNeedsGm": "Applying a condition needs the GM connected."
   },
   "actions": {
     "use": "Use",

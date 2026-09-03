@@ -268,7 +268,8 @@
     "none": "Keine aktiven Zustände oder Effekte",
     "addCondition": "Zustand hinzufügen",
     "addConditionFailed": "Der Tisch ist nicht erreichbar. Versuche es gleich noch einmal.",
-    "recoveryCheck": "Erholung (SG {dc})"
+    "recoveryCheck": "Erholung (SG {dc})",
+    "addConditionNeedsGm": "Zum Anwenden eines Zustands muss der SL verbunden sein."
   },
   "actions": {
     "use": "Nutzen",

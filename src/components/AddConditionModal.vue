@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import Modal from '@/components/ModalBox.vue'
 import Spinner from '@/components/widgets/SpinnerWidget.vue'
 import { useInjectedActor } from '@/composables/injectKeys'
@@ -8,6 +9,7 @@ import { addCompendiumItem } from '@/api/actionRpc'
 import { PF2E_CONDITIONS_PACK } from '@/utils/constants'
 import { getPath, logger } from '@/utils/utilities'
 import { triggerLightHapticFeedback } from '@/composables/useHapticFeedback'
+import { useListenersStore } from '@/stores/listenersOnline'
 import type { CompendiumIndexEntry } from '@/types/api-types'
 
 // A one-tap picker, deliberately NOT the compendium browser. Browsing is for
@@ -21,6 +23,18 @@ import type { CompendiumIndexEntry } from '@/types/api-types'
 
 const modal = ref<InstanceType<typeof Modal>>()
 const { _id: characterId } = useInjectedActor()
+
+// READING the pack is direct over the app's own socket, so the list is here
+// whether or not a GM is. APPLYING is not: it goes through ADD_COMPENDIUM_ITEM
+// so PF2e's creation pipeline runs, because most conditions carry rule elements
+// and several grant other conditions — Dying grants Unconscious, which a raw
+// socket create would leave out.
+//
+// So with no GM the rows have to say so. Before this they looked live, and a tap
+// sat out the full 30-second ack timeout before failing silently: the worst of
+// the three possible answers, and the same gap CompendiumItemModal already
+// avoids by hiding its Add button.
+const { isListening } = storeToRefs(useListenersStore())
 
 const entries = ref<CompendiumIndexEntry[]>([])
 const loading = ref(false)
@@ -53,7 +67,10 @@ function open() {
 }
 
 async function applyCondition(entry: CompendiumIndexEntry) {
-  if (!characterId.value || adding.value) return
+  // Guarded as well as disabled in the template: the rows are inert without a
+  // GM, and firing anyway would spend the full ack timeout to learn what
+  // isListening already knows.
+  if (!characterId.value || adding.value || !isListening.value) return
   adding.value = entry.uuid
   try {
     await addCompendiumItem(characterId.value, entry.uuid)
@@ -79,28 +96,36 @@ defineExpose({ open })
       <p v-else-if="failed" class="py-8 text-center text-sm text-red-500" data-part="failed">
         {{ $t('effects.addConditionFailed') }}
       </p>
-      <ul v-else class="flex flex-col gap-1">
-        <li v-for="entry in entries" :key="entry.uuid">
-          <button
-            type="button"
-            data-part="condition"
-            class="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm transition-colors active:opacity-60"
-            :disabled="!!adding"
-            @pointerdown="triggerLightHapticFeedback()"
-            @click="applyCondition(entry)"
-          >
-            <img
-              v-if="entry.img"
-              :src="getPath(entry.img)"
-              class="h-7 w-7 flex-none rounded-full"
-              alt=""
-              aria-hidden="true"
-            />
-            <span class="min-w-0 flex-1 truncate">{{ entry.name }}</span>
-            <Spinner v-if="adding === entry.uuid" class="h-4 w-4 flex-none" />
-          </button>
-        </li>
-      </ul>
+      <template v-else>
+        <!-- The list still renders, greyed: it says the feature is there and
+             what it is waiting for, which an empty modal would not. -->
+        <p v-if="!isListening" data-part="needs-gm" class="px-3 pb-2 text-sm text-gray-500 italic">
+          {{ $t('effects.addConditionNeedsGm') }}
+        </p>
+        <ul class="flex flex-col gap-1" :class="{ 'opacity-50': !isListening }">
+          <li v-for="entry in entries" :key="entry.uuid">
+            <button
+              type="button"
+              data-part="condition"
+              class="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm transition-colors"
+              :class="isListening ? 'cursor-pointer active:opacity-60' : 'cursor-default'"
+              :disabled="!!adding || !isListening"
+              @pointerdown="triggerLightHapticFeedback()"
+              @click="applyCondition(entry)"
+            >
+              <img
+                v-if="entry.img"
+                :src="getPath(entry.img)"
+                class="h-7 w-7 flex-none rounded-full"
+                alt=""
+                aria-hidden="true"
+              />
+              <span class="min-w-0 flex-1 truncate">{{ entry.name }}</span>
+              <Spinner v-if="adding === entry.uuid" class="h-4 w-4 flex-none" />
+            </button>
+          </li>
+        </ul>
+      </template>
     </div>
   </Modal>
 </template>

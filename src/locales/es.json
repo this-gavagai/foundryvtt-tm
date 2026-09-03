@@ -268,7 +268,8 @@
     "none": "Sin condiciones ni efectos activos",
     "addCondition": "Añadir condición",
     "addConditionFailed": "No se pudo contactar con la mesa. Inténtalo de nuevo en un momento.",
-    "recoveryCheck": "Recuperación (CD {dc})"
+    "recoveryCheck": "Recuperación (CD {dc})",
+    "addConditionNeedsGm": "Aplicar una condición requiere que el DJ esté conectado."
   },
   "actions": {
     "use": "Usar",
