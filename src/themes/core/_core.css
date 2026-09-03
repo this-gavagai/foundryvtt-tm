@@ -652,6 +652,8 @@
     [data-section='skills'],
     [data-section='lore'],
     [data-section='skill'],
+    [data-section='exploration'],
+    [data-section='downtime'],
     [data-section='armor'],
     [data-section='treasure'],
     [data-section='primal'],
@@ -781,6 +783,8 @@
     [data-component='FeatsList'],
     [data-component='EquipmentList'],
     [data-component='ActionsList'],
+    [data-component='ExplorationList'],
+    [data-component='DowntimeList'],
     [data-component='StrikeList'],
     [data-component='FamiliarActionsList'],
     [data-component='NpcStrikeList'],
@@ -833,7 +837,11 @@
     [data-component='EquipmentList'] [data-part='uses'],
     [data-component='ActionsList'] [data-part='uses'],
     [data-component='NpcAbilitiesList'] [data-part='uses'],
-    [data-component='FamiliarActionsList'] [data-part='uses'] {
+    [data-component='FamiliarActionsList'] [data-part='uses'],
+    /* The exploration rows' Active toggle sits in the same right-hand column
+     as those indicators and is secondary in the same way, so it takes the
+     same token — its own dimming carries the on/off state on top of it. */
+    [data-component='ExplorationList'] [data-part='active-toggle'] {
       color: var(--color-heading);
     }
 
@@ -869,6 +877,8 @@
         [data-component='FeatsList'],
         [data-component='EquipmentList'],
         [data-component='ActionsList'],
+        [data-component='ExplorationList'],
+        [data-component='DowntimeList'],
         [data-component='StrikeList'],
         [data-component='FamiliarActionsList'],
         [data-component='NpcStrikeList'],
@@ -897,6 +907,8 @@
         [data-component='FeatsList'],
         [data-component='EquipmentList'],
         [data-component='ActionsList'],
+        [data-component='ExplorationList'],
+        [data-component='DowntimeList'],
         [data-component='StrikeList'],
         [data-component='FamiliarActionsList'],
         [data-component='NpcStrikeList'],
@@ -936,14 +948,6 @@
 
     /* --- StrikeList -------------------------------------- */
     [data-component='StrikeList'] {
-      /* remove the trailing gap so the stacked ActionsList doesn't double up on spacing */
-      > div {
-        padding-bottom: 0;
-      }
-      section[data-section]:last-child {
-        margin-bottom: 0;
-      }
-
       /* tighten the button row — leading-9 adds excess height, mb-1 leaks into li padding */
       [data-part='strike-buttons'] {
         line-height: 1;

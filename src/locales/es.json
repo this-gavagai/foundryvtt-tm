@@ -268,13 +268,17 @@
   },
   "actions": {
     "use": "Usar",
-    "usesLabel": "Usos"
+    "usesLabel": "Usos",
+    "explorationActive": "Activa",
+    "explorationInactive": "Inactiva"
   },
   "actionTypes": {
     "action": "Acciones",
     "reaction": "Reacciones",
     "free": "Acciones libres",
-    "skill": "Acciones de habilidad"
+    "skill": "Acciones de habilidad",
+    "exploration": "Actividades de exploración",
+    "downtime": "Actividades de tiempo libre"
   },
   "inventoryTypes": {
     "weapon": "Armas",

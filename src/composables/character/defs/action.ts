@@ -50,6 +50,20 @@ export interface Action extends Item {
   setUses?: (newValue: number) => unknown
 }
 
+// An exploration activity: something the character can be marked as currently
+// doing while the party is in exploration mode.
+//
+// `active` mirrors membership in PF2e's `system.exploration` array on the
+// actor, which is the entire feature — see the exploration block in
+// useCharacterActions for why nothing else hangs off it.
+export interface ExplorationActivity extends Action {
+  active: boolean
+  // Add this activity to the actor's list, or drop it if it's already there.
+  // Always present (unlike Action's `doUse`): marking one is the only thing
+  // this list is for.
+  toggleActive: () => Promise<unknown> | void
+}
+
 export function makeAction(root: AbilityItemPF2e): Action {
   const base = makeItem(root)
   return {

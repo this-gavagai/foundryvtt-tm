@@ -765,6 +765,8 @@
         [data-component='FeatsList'],
         [data-component='EquipmentList'],
         [data-component='ActionsList'],
+        [data-component='ExplorationList'],
+        [data-component='DowntimeList'],
         [data-component='StrikeList'],
         [data-component='FamiliarActionsList'],
         [data-component='NpcStrikeList'],

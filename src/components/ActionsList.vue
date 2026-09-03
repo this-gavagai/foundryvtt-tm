@@ -41,7 +41,7 @@ function useViewedAction() {
 
 <template>
   <div data-component="ActionsList">
-    <div class="break-inside-avoid-column pt-4 pb-8">
+    <div class="break-inside-avoid-column">
       <SheetSection
         :section="group.type"
         :title="$t(group.titleKey)"

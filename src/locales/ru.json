@@ -268,13 +268,17 @@
   },
   "actions": {
     "use": "Использовать",
-    "usesLabel": "Использования"
+    "usesLabel": "Использования",
+    "explorationActive": "Активна",
+    "explorationInactive": "Неактивна"
   },
   "actionTypes": {
     "action": "Действия",
     "reaction": "Реакции",
     "free": "Свободные действия",
-    "skill": "Действия навыков"
+    "skill": "Действия навыков",
+    "exploration": "Действия исследования",
+    "downtime": "Действия отдыха"
   },
   "inventoryTypes": {
     "weapon": "Оружие",

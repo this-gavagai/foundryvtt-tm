@@ -20,7 +20,7 @@ import type { SkillActionForSkill } from './characterSkillActions'
 import type { Equipment } from './defs/equipmentDef'
 import type { Feat } from './defs/feat'
 import type { Consumable } from './defs/consumable'
-import type { Action } from './defs/action'
+import type { Action, ExplorationActivity } from './defs/action'
 import type { Spell, SpellcastingEntry } from './defs/spellDef'
 import type { Weapon } from './defs/weapon'
 import type { Armor } from './defs/armor'
@@ -40,6 +40,7 @@ export type {
   SpellcastingEntry,
   Spell,
   Action,
+  ExplorationActivity,
   Weapon,
   ElementalBlast,
   SkillActionForSkill,

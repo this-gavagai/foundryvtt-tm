@@ -23,6 +23,10 @@ export const ALLOWED_UPDATE_PATHS = new Set([
   'system.resources.focus.value',
   'system.details.xp.value',
   'system.initiative.statistic',
+  // The character's active exploration activities: a whole array of item ids,
+  // written and read as one value the way PF2e's own toggle does. It is a leaf
+  // here because flattenUpdate stops at arrays.
+  'system.exploration',
   // Staff charges live under the pf2e-dailies module's actor flag.
   'flags.pf2e-dailies.extra.dailies.staves.charges.value'
 ])

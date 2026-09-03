@@ -41,6 +41,7 @@ describe('sanitizeActorUpdate', () => {
       { system: { resources: { focus: { value: 2 } } } },
       { system: { details: { xp: { value: 640 } } } },
       { system: { initiative: { statistic: 'stealth' } } },
+      { system: { exploration: ['abc123', 'def456'] } },
       {
         flags: {
           'pf2e-dailies': { extra: { dailies: { staves: { charges: { value: 3 } } } } }
@@ -52,6 +53,22 @@ describe('sanitizeActorUpdate', () => {
       expect(dropped, JSON.stringify(update)).toEqual([])
       expect(Object.keys(clean), JSON.stringify(update)).toHaveLength(1)
     }
+  })
+
+  it('sends an exploration list whole, as one array-valued leaf', () => {
+    // The activities array is replaced, never patched per entry, so flattening
+    // must stop at the array — an index-wise walk would produce
+    // `system.exploration.0`, which no allowlist entry covers and every write
+    // would silently drop.
+    const { clean, dropped } = sanitizeActorUpdate({ system: { exploration: ['a', 'b'] } })
+    expect(clean).toEqual({ 'system.exploration': ['a', 'b'] })
+    expect(dropped).toEqual([])
+  })
+
+  it('clears the exploration list with an empty array rather than dropping it', () => {
+    const { clean, dropped } = sanitizeActorUpdate({ system: { exploration: [] } })
+    expect(clean).toEqual({ 'system.exploration': [] })
+    expect(dropped).toEqual([])
   })
 
   it('drops privileged roots the old blocklist also caught', () => {
