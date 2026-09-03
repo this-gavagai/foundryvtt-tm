@@ -14,6 +14,8 @@ import type { TablemateCharacter } from '@/types/character-types'
 type WeaponRpc = (...args: unknown[]) => Promise<null>
 const setWeaponDamageType = vi.fn<WeaponRpc>(() => Promise.resolve(null))
 const setWeaponLoaded = vi.fn<WeaponRpc>(() => Promise.resolve(null))
+const updateActorItem = vi.fn<(...args: unknown[]) => Promise<null>>(() => Promise.resolve(null))
+const recoverFailedWrite = vi.fn()
 
 vi.mock('@/api/actionRpc', () => ({
   rollCheck: vi.fn(() => Promise.resolve(null)),
@@ -23,11 +25,12 @@ vi.mock('@/api/actionRpc', () => ({
   setWeaponLoaded: (...args: unknown[]) => setWeaponLoaded(...args)
 }))
 vi.mock('@/api/documents', () => ({
-  recoverFailedWrite: vi.fn(),
-  updateActorItem: vi.fn(() => Promise.resolve(null))
+  recoverFailedWrite: (...args: unknown[]) => recoverFailedWrite(...args),
+  updateActorItem: (...args: unknown[]) => updateActorItem(...args)
 }))
 
 const { useCharacterStrikes } = await import('@/composables/character/characterStrikes')
+const { useListenersStore } = await import('@/stores/listenersOnline')
 
 // Two of the same weapon: identical slug, identical traits, different ids —
 // exactly what carrying a pair of shortswords looks like on an actor.
@@ -119,5 +122,122 @@ describe('resolving a strike back to its weapon', () => {
 
     const { strikes } = useCharacterStrikes(actor)
     expect(strikes.value?.[0]?.item?._id).toBe('weapon-1')
+  })
+})
+
+// ── Changing ammo, the one operation that spans both write lanes ────────────
+//
+// Picking ammo is a scalar on the weapon (direct, GM-free). Emptying a loaded
+// weapon is PF2e's subitem surgery (an RPC, GM-only). When both are needed they
+// are not independent: a selection that lands while the unload does not leaves a
+// weapon reading "loaded with bolts" that fires arrows.
+
+const bow = {
+  _id: 'bow-1',
+  type: 'weapon',
+  name: 'Shortbow',
+  system: { slug: 'shortbow', traits: { value: [], toggles: {} }, damage: {}, runes: {} }
+}
+
+function bowStrike(loaded: boolean) {
+  return {
+    label: 'Shortbow',
+    slug: 'shortbow',
+    item: { _id: 'bow-1' },
+    variants: [],
+    altUsages: [],
+    traits: [],
+    weaponTraits: [],
+    ammunition: {
+      requiresReload: true,
+      loaded: loaded ? [{ quantity: 1 }] : [],
+      compatible: [
+        { id: 'arrows', name: 'Arrows' },
+        { id: 'bolts', name: 'Bolts' }
+      ]
+    },
+    selectedAmmoId: 'arrows',
+    _modifiers: []
+  }
+}
+
+function archer(loaded: boolean): Ref<TablemateCharacter | undefined> {
+  return actorRef({
+    _id: 'seelah',
+    items: [{ ...bow, system: { ...bow.system, selectedAmmoId: 'arrows' } }],
+    system: { actions: [bowStrike(loaded)] }
+  })
+}
+
+/** Put a GM on the wire, so the RPC half is available. */
+function gmListening() {
+  useListenersStore().addListener('gm-client')
+}
+
+describe('changeAmmo with the weapon empty', () => {
+  it('writes the selection and asks no GM for anything', async () => {
+    const { strikes } = useCharacterStrikes(archer(false))
+
+    await strikes.value?.[0]?.changeAmmo?.('bolts')
+
+    expect(updateActorItem).toHaveBeenCalledTimes(1)
+    expect(updateActorItem.mock.calls[0][2]).toEqual({ system: { selectedAmmoId: 'bolts' } })
+    expect(setWeaponLoaded).not.toHaveBeenCalled()
+  })
+})
+
+describe('changeAmmo with the weapon loaded and a GM listening', () => {
+  beforeEach(gmListening)
+
+  it('empties the weapon BEFORE recording what it should take next', async () => {
+    const { strikes } = useCharacterStrikes(archer(true))
+
+    await strikes.value?.[0]?.changeAmmo?.('bolts')
+
+    expect(setWeaponLoaded).toHaveBeenCalledTimes(1)
+    expect(setWeaponLoaded.mock.calls[0][2]).toBe(false)
+    expect(updateActorItem).toHaveBeenCalledTimes(1)
+    // Ordering is the whole point: the refusable write goes first.
+    expect(setWeaponLoaded.mock.invocationCallOrder[0]).toBeLessThan(
+      updateActorItem.mock.invocationCallOrder[0]
+    )
+  })
+
+  // The reported failure. Fired together, the direct write landed on the server
+  // while the RPC sat out its 30s ack timeout, and the weapon was left holding a
+  // round of ammo the sheet no longer named.
+  it('writes no selection at all when the unload is refused', async () => {
+    setWeaponLoaded.mockRejectedValueOnce(new Error('no GM answered'))
+    recoverFailedWrite.mockImplementationOnce((_actor, error) => {
+      throw error
+    })
+    const { strikes } = useCharacterStrikes(archer(true))
+
+    await expect(strikes.value?.[0]?.changeAmmo?.('bolts')).rejects.toThrow('no GM answered')
+    expect(updateActorItem).not.toHaveBeenCalled()
+  })
+})
+
+describe('changeAmmo with the weapon loaded and no GM', () => {
+  it('records the choice for the next reload instead of refusing the edit', async () => {
+    const { strikes } = useCharacterStrikes(archer(true))
+
+    await strikes.value?.[0]?.changeAmmo?.('bolts')
+
+    expect(setWeaponLoaded).not.toHaveBeenCalled()
+    expect(updateActorItem).toHaveBeenCalledTimes(1)
+    expect(updateActorItem.mock.calls[0][2]).toEqual({ system: { selectedAmmoId: 'bolts' } })
+  })
+
+  // Claiming the weapon is empty when the server still says otherwise is the
+  // divergence the whole fix is about — so the degraded path leaves the flag
+  // alone, and the strike list keeps reading it off the actor.
+  it('leaves the weapon reading as loaded, because it still is', async () => {
+    const actor = archer(true)
+    const { strikes } = useCharacterStrikes(actor)
+
+    await strikes.value?.[0]?.changeAmmo?.('bolts')
+
+    expect(strikes.value?.[0]?.loaded).toBe(true)
   })
 })

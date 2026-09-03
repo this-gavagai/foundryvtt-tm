@@ -11,6 +11,8 @@ import {
   toggleKineticAura
 } from '@/api/actionRpc'
 import { recoverFailedWrite, updateActorItem } from '@/api/documents'
+import { useListenersStore } from '@/stores/listenersOnline'
+import { logger } from '@/utils/utilities'
 import type { CharacterStrike, DamageType, WeaponPF2e } from '@7h3laughingman/pf2e-types'
 
 export interface CharacterStrikes {
@@ -29,6 +31,11 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
   // failure flash still observe the rejection.
   const recoverWrite = <T>(promise: Promise<T>): Promise<T> =>
     promise.catch((error) => recoverFailedWrite(actor, error))
+
+  // Read at call time, not during the computed below: whether a GM is listening
+  // decides how far changeAmmo can get, and the answer has to be the one that
+  // holds when the player taps rather than when the strike list was last built.
+  const listeners = useListenersStore()
 
   // In-flight damage-type toggles, keyed by weapon id, so doDamage can wait
   // for the toggle ack before rolling. Lives OUTSIDE the strikes computed:
@@ -188,6 +195,23 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
             })
           return toggle
         },
+        // The one operation on the sheet that spans BOTH write lanes, and the
+        // only one where the halves are not independent.
+        //
+        // Picking ammo is a scalar on the weapon, so it is a direct write and
+        // needs no GM. But a LOADED weapon already holds a round of the old
+        // ammo, and emptying it is PF2e's subitem surgery (`subitem.detach`),
+        // which only a Foundry client can perform — so that half is an RPC.
+        //
+        // Ordering is what makes the pair safe, the same rule the split, merge
+        // and party-transfer paths follow: the write that can be REFUSED goes
+        // first and is awaited, so a refusal leaves nothing behind. Fired
+        // together (as they were), a missing GM meant the selection landed on
+        // the server while the unload timed out 30s later — a weapon reading
+        // "loaded with bolts" that fires arrows, and no way for the player to
+        // tell. The local mutations stay optimistic so the control still moves
+        // under the finger; a rejection recovers them through the shared
+        // refresh-and-rethrow in recoverWrite.
         changeAmmo: (newId) => {
           const item = actor.value?.items.find<WeaponPF2e<CharacterPF2e>>(
             (i) => i._id === action?.item?._id
@@ -199,20 +223,32 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
           if (actorAction)
             (actorAction as { selectedAmmoId?: string | null }).selectedAmmoId = newId || null
 
-          const persistAmmoId =
+          const persistAmmoId = () =>
             updateActorItem(actor, action?.item?._id ?? '', {
               system: { selectedAmmoId: newId || null }
-            }) ?? Promise.resolve(null)
+            })
 
-          if (!loaded || !weaponId) return persistAmmoId
+          // Nothing loaded: the selection IS the whole operation, and it lands
+          // with no GM in the world.
+          if (!loaded || !weaponId) return persistAmmoId()
 
-          // Weapon is loaded — unload so the new ammo selection stays in sync.
+          // Loaded, but no client to unload with. Record the choice anyway
+          // rather than refusing the edit outright — it is what the weapon takes
+          // on its next reload, which is the same trade setHitPoints makes when
+          // it falls back. Deliberately does NOT clear `loaded`: claiming the
+          // weapon is empty when the server still says otherwise is the exact
+          // divergence this branch exists to avoid, and the strike list reads
+          // that flag straight off the actor.
+          if (!listeners.isListening) {
+            logger.debug('TM-AMMO: recording ammo choice only (no GM to unload with)', weaponId)
+            return persistAmmoId()
+          }
+
+          // Both halves available: empty the weapon first, then record what it
+          // should take next.
           const ammoData = action?.ammunition as { loaded?: { quantity?: number }[] } | undefined
           if (ammoData) ammoData.loaded = []
-          return Promise.all([
-            persistAmmoId,
-            recoverWrite(setWeaponLoaded(actor, weaponId, false, null))
-          ])
+          return recoverWrite(setWeaponLoaded(actor, weaponId, false, null)).then(persistAmmoId)
         }
       } as Strike
     })
