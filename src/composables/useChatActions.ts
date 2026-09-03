@@ -18,6 +18,7 @@ import { useWorldStore } from '@/stores/world'
 import { useUserStore } from '@/stores/user'
 import { useSettingsStore } from '@/stores/settings'
 import { useVersionCompatStore } from '@/stores/versionCompat'
+import { useListenersStore } from '@/stores/listenersOnline'
 import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
 import {
   withTranscriptContent,
@@ -143,19 +144,31 @@ export function useChatActions({
   const userStore = useUserStore()
   const settingsStore = useSettingsStore()
   const versionCompat = useVersionCompatStore()
+  const listeners = useListenersStore()
 
   const canSend = computed(
     () => !!actorId.value && draft.value.trim().length > 0 && !isSending.value
   )
 
+  // Every action on a roll card is an RPC — PF2e applies the damage, spends the
+  // hero point, rewrites the card — so with no GM listening none of them can
+  // happen. Offered anyway, they read as live buttons that swallow a tap and
+  // report nothing for thirty seconds. Disabled instead, which is the same
+  // answer the sheet's roll chits and the End Turn button already give.
   function canApplyDamage(roll: ChatRollSummary): boolean {
-    return roll.className === 'DamageRoll' && roll.total !== undefined && !!actor.value
+    return (
+      roll.className === 'DamageRoll' &&
+      roll.total !== undefined &&
+      !!actor.value &&
+      listeners.isListening
+    )
   }
 
   function canReroll(message: ChatMessageData, roll: ChatRollSummary): boolean {
     return (
       roll.className === 'CheckRoll' &&
       !!actor.value &&
+      listeners.isListening &&
       messageIsOwnActor(message) &&
       message.isRerollable !== false &&
       !messageIsReroll(message)
@@ -295,6 +308,16 @@ export function useChatActions({
     const msgEl = btn.closest<HTMLElement>('[data-message-id]')
     const message = messages.value.find((m) => m._id === msgEl?.dataset.messageId)
     if (!message || !messageIsOwnActor(message) || !actor.value) return
+
+    // Both card actions are RPCs — PF2e consumes the item, PF2e rewrites the
+    // spell card — and a card's buttons are its own HTML inside the message, so
+    // unlike every other affordance there is nothing to hide. Refuse the tap and
+    // report it, rather than spend the ack timeout learning what the presence
+    // store already knows.
+    if (!listeners.isListening) {
+      actionError.value = true
+      return
+    }
 
     const action = btn.dataset.action
     // Resolve the call BEFORE claiming the pending slot, so a card whose action

@@ -20,6 +20,8 @@ import { GrantRestrictionError } from '@/utils/itemGrants'
 import AddConditionModal from '@/components/AddConditionModal.vue'
 import { PlusIcon } from '@heroicons/vue/24/outline'
 import { useI18n } from 'vue-i18n'
+import { storeToRefs } from 'pinia'
+import { useListenersStore } from '@/stores/listenersOnline'
 
 const { t } = useI18n()
 const character = useInjectedActor()
@@ -50,8 +52,14 @@ const addConditionModal = ref<InstanceType<typeof AddConditionModal>>()
 // value moves separately, by hand here or by a module watching for the card.
 // Same division as PF2e's own sheet; applying it here would double up wherever
 // that automation is switched on.
+const { isListening } = storeToRefs(useListenersStore())
+
 const recoveryRolls = computed<Roll[]>(() => {
   if (effectViewed.value?.system?.slug !== 'dying') return []
+  // The recovery check is a roll, so it needs the GM's client. No button rather
+  // than a dead one — the same answer the sheet's roll chits give, and the
+  // condition's own text and the +/- buttons beside it still work.
+  if (!isListening.value) return []
   // The dying value comes off the condition being viewed rather than
   // `attributes.dying`, which is PF2e's derived mirror of the same number: the
   // condition is the thing on screen, and it is what the +/- buttons step.

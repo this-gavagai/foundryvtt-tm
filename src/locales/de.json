@@ -504,6 +504,7 @@
     "noActorsFound": "Keine Akteure passen zu dieser Suche.",
     "targetingProxy": "Ziel-Stellvertreter",
     "proxyOffline": "Diese Spielerin oder dieser Spieler ist nicht verbunden, daher wird nichts anvisiert.",
+    "rollsNeedGm": "Würfeln erfordert eine Verbindung zum SL.",
     "pairPixelDice": "Pixel-Würfel koppeln",
     "reconnectDie": "Würfel neu verbinden",
     "forgetDie": "Würfel entfernen",

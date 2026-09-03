@@ -8,6 +8,8 @@ import Modal from '@/components/ModalBox.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import { useLastDamage } from '@/composables/useLastDamage'
 import { applyDamage } from '@/api/actionRpc'
+import { storeToRefs } from 'pinia'
+import { useListenersStore } from '@/stores/listenersOnline'
 
 interface SubmissionEvent {
   submitter: { name: string }
@@ -24,6 +26,12 @@ const character = useInjectedActor()
 const { current: hpCurrent, max: hpMax, temp: hpTemp, modifiers: hpModifiers } = character.hp
 const { _actor } = character
 const { lastDamageAmount, lastDamageMessageId } = useLastDamage()
+// Typing hit points into the field beside these falls back to a direct write
+// with no GM (composables/setHitPoints), but these two buttons cannot: applying
+// a card's damage is PF2e's own IWR pass on the GM's client. Fire-and-forget
+// with the modal closing behind it, an ungated tap did nothing at all and said
+// nothing about it — so they are hidden instead, and the field still works.
+const { isListening } = storeToRefs(useListenersStore())
 
 // One call, not two: the write happens on the GM's client (see
 // composables/setHitPoints.ts) so the `preUpdateActor` hooks that drive HP
@@ -127,14 +135,14 @@ function openInfoFromHpModal() {
                 name="lastDamageMinus"
                 color="red"
                 :label="'-' + lastDamageAmount"
-                v-if="lastDamageAmount > 0"
+                v-if="lastDamageAmount > 0 && isListening"
               />
               <Button
                 type="submit"
                 name="lastDamagePlus"
                 :label="'+' + lastDamageAmount"
                 color="green"
-                v-if="lastDamageAmount > 0"
+                v-if="lastDamageAmount > 0 && isListening"
               />
             </span>
           </div>

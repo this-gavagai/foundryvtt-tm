@@ -12,8 +12,44 @@ const HEARTBEAT_INTERVAL_MS = 30_000
 // (and with it every roll button in the app); one and a half is the margin.
 const LISTENER_TTL_MS = 45_000
 
+// ── What `isListening` is for, and the three answers it has ────────────────
+//
+// Some twenty components read this ref, which invites the thought that the
+// decision should be centralized. It should not, and the reason is worth
+// writing down once: the choice is per AFFORDANCE, not per operation. The same
+// ADD_COMPENDIUM_ITEM request is answered two ways on purpose — the compendium
+// modal falls back to a direct create for gear that needs no rules pipeline,
+// while the condition picker cannot and greys out. A table keyed by RPC would
+// have to be wrong about one of them.
+//
+// What IS shared is the vocabulary. Anything reaching the elected GM's client
+// picks one of these, and no fourth:
+//
+//   FALL BACK   — the operation has a direct-write half that lands without a
+//                 GM. Hit points (composables/setHitPoints), a compendium add
+//                 of a rules-free physical item (CompendiumItemModal), the ammo
+//                 selection on a loaded weapon (characterStrikes.changeAmmo).
+//                 Always says less than the full path; say so where it shows.
+//   HIDE        — the affordance is meaningless without the answer, and its
+//                 absence reads as "not now" rather than as breakage. Roll
+//                 chits, strike and spell buttons, inline @Check/@Damage
+//                 anchors, the reload button, item send-to-chat.
+//   DISABLE     — the affordance is the reason the surface exists, so removing
+//                 it would leave a blank panel with no explanation. The
+//                 condition picker, End Turn, the side menu's roll builders:
+//                 all stay visible, greyed, with a line saying what is missing.
+//
+// The rule this file cannot enforce is that a new RPC-backed affordance chooses
+// one. Nothing type-checks it, and the failure is quiet: an ungated tap sits out
+// the full REQUEST_ACK_TIMEOUT_MS and then reports nothing, which reads as a
+// broken button rather than an absent GM. If that keeps happening, the backstop
+// to reach for is api/actionRpc.ts — one fast rejection in sendAction would make
+// forgetting merely ugly instead of silent.
 export const useListenersStore = defineStore('listenersOnline', () => {
   const listenersOnline = ref(new Map<string, number>())
+  // Whether any module client is announcing itself. The app's whole GM-proxy
+  // lane hangs off this, so it is deliberately generous about staleness — see
+  // LISTENER_TTL_MS above.
   const isListening = computed(() => listenersOnline.value.size > 0)
 
   function addListener(listenerId: string) {

@@ -5,6 +5,7 @@ import type { Roll } from '@/types/roll-types'
 import { useInjectedActor } from '@/composables/injectKeys'
 import { parseDamageFormulaDice, makeDiceResults } from '@/utils/diceFormula'
 import { rollInlineCheck } from '@/api/actionRpc'
+import { useListenersStore } from '@/stores/listenersOnline'
 
 type SaveSlug = 'fortitude' | 'will' | 'reflex'
 const SAVE_SLUGS: readonly SaveSlug[] = ['fortitude', 'will', 'reflex']
@@ -14,11 +15,18 @@ export function useRollsFromActiveRoll(
   modifierOverrides?: Ref<Record<string, boolean>>
 ): ComputedRef<Roll[]> {
   const { t } = useI18n()
+  const listeners = useListenersStore()
   const { _actor, doCharacterAction, doDamage, doFlatCheck, saves, skills } = useInjectedActor()
 
   return computed<Roll[]>(() => {
     const ar = activeRoll.value
     if (!ar) return []
+    // Every branch below ends in an RPC — the dice are PF2e's, on a Foundry
+    // client — so with no GM listening an inline @Check or @Damage button can
+    // only fail. Answer with no buttons, the same way StatBox's chits vanish
+    // rather than sitting out the ack timeout. The description text they were
+    // enriched from still reads normally.
+    if (!listeners.isListening) return []
     const slug = ar.slug
     const label = ar.label ?? slug ?? ''
     const buttonLabel = `${t('common.roll')} ${label}`.trim()

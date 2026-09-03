@@ -504,6 +504,7 @@
     "noActorsFound": "No actors match that search.",
     "targetingProxy": "Targeting Proxy",
     "proxyOffline": "That player is not connected, so nothing is being targeted.",
+    "rollsNeedGm": "Rolling needs the GM connected.",
     "pairPixelDice": "Pair Pixel Die",
     "reconnectDie": "Reconnect die",
     "forgetDie": "Forget die",

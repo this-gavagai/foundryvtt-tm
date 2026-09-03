@@ -419,18 +419,30 @@ defineExpose({ sidebarOpen, openChat, openCompendium })
                     </li>
                     <li class="flex flex-col gap-3">
                       <div class="flex gap-2">
+                        <!-- Both builders can only end in a roll on the GM's
+                             client, so with none listening they are disabled
+                             rather than opening a modal whose Roll button waits
+                             out the ack timeout. Disabled and labelled, not
+                             hidden: the menu is where a player looks to find
+                             out what the app can do, and the line below says
+                             what is missing. -->
                         <Button
                           class="flex-1"
                           :label="$t('sideMenu.freeRoll')"
                           color="blue"
+                          :disabled="!isListening"
                           :clicked="openFreeRoll"
                         />
                         <Button
                           class="flex-1"
                           :label="$t('sideMenu.damageRoll')"
                           color="red"
+                          :disabled="!isListening"
                           :clicked="openDamageRoll"
                         />
+                      </div>
+                      <div v-if="!isListening" class="text-sm text-amber-700 italic">
+                        {{ $t('sideMenu.rollsNeedGm') }}
                       </div>
                       <Button
                         class="w-full"

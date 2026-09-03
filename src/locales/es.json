@@ -504,6 +504,7 @@
     "noActorsFound": "Ningún actor coincide con esa búsqueda.",
     "targetingProxy": "Proxy de objetivo",
     "proxyOffline": "Ese jugador no está conectado, por lo que no se está seleccionando ningún objetivo.",
+    "rollsNeedGm": "Tirar requiere que el DJ esté conectado.",
     "pairPixelDice": "Vincular dado Pixel",
     "reconnectDie": "Reconectar dado",
     "forgetDie": "Olvidar dado",
