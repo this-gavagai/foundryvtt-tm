@@ -28,7 +28,7 @@ export function useActorSync(
   characterId: string | undefined,
   actor: Ref<TablemateActor | undefined>
 ) {
-  const { markStale, markFresh } = useSyncStatusStore()
+  const { markStale, markFresh, markAwaitingRefresh } = useSyncStatusStore()
   const characterSelect = useCharacterSelectStore()
   const debouncedRequest = debounce(sendCharacterRequest, 500, { leading: true })
 
@@ -48,6 +48,11 @@ export function useActorSync(
   const requestCharacterDetails = async () => {
     if (!characterId) return
     setCharUnsynced(characterId, true)
+    // Every refresh comes through here, including the one a direct write fires.
+    // Flagging it is what lets the sheet admit that its DERIVED figures are
+    // behind when no GM is listening to answer — cleared in the onActorFresh
+    // handler below, when a full payload actually lands.
+    markAwaitingRefresh(characterId)
     debouncedRequest(characterId)
   }
 

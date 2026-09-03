@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useInjectedCharacter } from '@/composables/injectKeys'
+import { useDerivedStale } from '@/composables/useDerivedStale'
 const character = useInjectedCharacter()
 
 const { max: bulkMax, encumberedAfter: bulkEncumberedAfter } = character.bulk
 const { value: bulkValue } = character.bulk.value
+
+// Bulk is derived: PF2e totals it from quantities, carry state and containers.
+// Changing any of those writes the item directly and this readout does not move
+// until a GM answers the refresh. The rail is left unmarked — it is a rough
+// "how close am I", and a dotted rule under a 6px bar would read as damage.
+const derivedStale = useDerivedStale(character._id)
 
 // A readout line over a hairline rail, rather than a bar with the numbers set
 // inside it. The numbers are what a player reads; the rail only has to answer
@@ -35,7 +42,11 @@ const state = computed(() => {
        of it. -->
   <div data-component="EquipmentBulk" v-if="bulkMax != null">
     <div data-part="bulk-readout" class="flex items-baseline justify-between gap-3 pb-1 text-xs">
-      <span data-part="bulk-label">
+      <span
+        data-part="bulk-label"
+        :data-derived-stale="derivedStale || undefined"
+        :title="derivedStale ? $t('sync.awaitingGm') : undefined"
+      >
         {{ $t('equipment.bulkReadout', { value: bulkValue, encumbered: bulkEncumberedAfter }) }}
       </span>
       <span data-part="bulk-max" class="text-gray-600">

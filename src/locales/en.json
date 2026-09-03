@@ -596,5 +596,8 @@
   },
   "modifiers": {
     "outranked": "Outranked by a higher same-type modifier; will not contribute to the roll"
+  },
+  "sync": {
+    "awaitingGm": "Waiting for the GM to recalculate — this may be out of date."
   }
 }

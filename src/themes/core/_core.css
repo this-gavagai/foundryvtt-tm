@@ -168,6 +168,22 @@
       }
     }
 
+    /* --- Awaiting the GM's recalculation ---------------------------------
+     A figure PF2e derives, shown while the refresh that would recompute it has
+     no GM to answer it (see composables/useDerivedStale.ts). Deliberately the
+     quietest mark that still says something: a hairline dotted rule under the
+     value, in the muted icon colour, and nothing else. No badge, no opacity
+     change, no colour on the digits themselves — this is a routine state on a
+     tablet whose GM has stepped away, so it has to sit under the number
+     without competing with it, and it must not shift a single pixel of layout.
+     The same visual language a browser uses for an abbreviation: "provisional",
+     not "wrong". */
+    [data-derived-stale] {
+      text-decoration: underline dotted var(--color-icon-muted);
+      text-decoration-thickness: 1px;
+      text-underline-offset: 0.28em;
+    }
+
     /* --- StatBox / FrontPage headings ------------------------------------
      Uppercase / size / weight live on the components; themes only supply the
      heading color, so the token binding is shared. */

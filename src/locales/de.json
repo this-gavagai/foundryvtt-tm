@@ -596,5 +596,8 @@
   },
   "modifiers": {
     "outranked": "Von einem höheren Modifikator desselben Typs übertroffen; trägt nicht zum Wurf bei"
+  },
+  "sync": {
+    "awaitingGm": "Wartet auf die Neuberechnung durch den SL – möglicherweise veraltet."
   }
 }
