@@ -42,6 +42,39 @@
 //
 // If any of this drifts, it drifts silently: re-check the `_preCreate` chain
 // against the installed system rather than trusting this comment.
+//
+// ── Why the eligible TYPES stay physical-only ───────────────────────────────
+//
+// Recorded because the obvious next request is conditions: removing one is
+// already a direct write (api/documents.ts walks PF2e's grant graph on the way
+// out), so applying one looks like it should be symmetric. Measured against the
+// installed pf2e 8.4.1 conditions pack, 31 of its 43 entries carry no
+// creation-time rule at all — 24 with no rules whatsoever and 7 carrying only
+// FlatModifier/Immunity — so a rule-key test alone would admit most of them.
+//
+// It is not the rules that stop this. `ItemPF2e.createDocuments` does work for
+// `condition`/`effect`/`affliction` sources BEFORE any rule element runs, and
+// none of it has a counterpart here:
+//
+//   • `actor.isImmuneTo(condition)` — the source is DROPPED, with a
+//     notification, when the actor's IWR immunities match its roll options. A
+//     socket create applies it regardless. This bites hardest on the NPC sheets,
+//     where immunity is the norm rather than the exception.
+//   • `actor.isAffectedBy(condition)` — the same drop for persistent damage the
+//     actor cannot take (negative healing, alignment traits).
+//   • Effects sharing a compendium source are deleted first, so re-applying one
+//     replaces it rather than stacking.
+//
+// And a VALUED condition (Frightened 2, Clumsy 3) is raised through
+// `actor.increaseCondition`, not created twice; a raw second create stores a
+// duplicate that `ConditionPF2e#prepareSiblingData` merely deactivates, leaving
+// the player a phantom row to clear.
+//
+// Reproducing three cascades to avoid one round trip is exactly the trade the
+// lane rule warns about (gate 3, api/documents.ts), so conditions stay an RPC
+// and AddConditionModal says so rather than guessing. What would change the
+// answer is the immunity test moving somewhere both ends can read — not a
+// cleverer rule-key allowlist.
 
 import { inventoryTypes } from '@/utils/constants'
 
@@ -89,10 +122,24 @@ interface SourceLike {
  * Can this compendium source be created straight over the socket?
  *
  * A POSITIVE test: eligible only for an enumerated set of types with an empty
- * rules array. Deliberately not a blocklist of known-troublesome rule keys —
- * seven rule-element types do work at creation time and a blocklist of two
- * would wave five of them through, silently, because the create succeeds either
- * way.
+ * rules array. Deliberately not a blocklist of known-troublesome rule keys.
+ *
+ * TEN rule-element keys do work at creation time in pf2e 8.4.1, by two separate
+ * mechanisms, and a blocklist of the two famous ones would wave eight of them
+ * through silently, because the create succeeds either way:
+ *
+ *   `preCreate`, run by ItemPF2e.createDocuments against an actor clone —
+ *   ActiveEffectLike, BattleForm, ChoiceSet, GrantItem, ItemAlteration,
+ *   RollOption, SpecialResource, TokenMark.
+ *
+ *   `onCreate`, run by ItemPF2e#_onCreate and gated on `game.user.id` being the
+ *   CREATING user — TempHP, LoseHitPoints. A socket create has no client acting
+ *   as that user, so these are skipped for the same reason `preUpdate` is
+ *   (utils/actorUpdatePaths.ts, gate 2 in api/documents.ts).
+ *
+ * RollOption in that first list is the one worth remembering: it reads like
+ * pure derived data and is not, which is what makes "obviously harmless rule
+ * keys" the wrong axis to sort on.
  */
 export function checkDirectAdd(source: SourceLike | null | undefined): DirectAddCheck {
   const type = typeof source?.type === 'string' ? source.type : ''
