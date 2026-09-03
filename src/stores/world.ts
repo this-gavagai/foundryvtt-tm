@@ -8,8 +8,10 @@ import { markWorldRequestSent } from '@/api/loadPriority'
 import { emitWithTimeout } from '@/api/socketConnection'
 import { asDocumentArray, type DocumentData } from '@/api/internal'
 import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
-import type { ChatReaction } from '@/utils/chatReactions'
-import type { ChatComment } from '@/utils/chatComments'
+import { indexUserReactions, readReactions, type ChatReaction } from '@/utils/chatReactions'
+import { indexUserComments, readComments, type ChatComment } from '@/utils/chatComments'
+import { readModuleFlag } from '@/utils/worldSettings'
+import { COMMENTS_ENABLED_SETTING, REACTIONS_ENABLED_SETTING } from '@/api/protocol'
 
 const REFRESH_DEBOUNCE_MS = 2000
 // 'world' is answered by the Foundry server itself, not by the module on a GM
@@ -37,6 +39,11 @@ export const useWorldStore = defineStore('world', () => {
   // neither the message count nor the tail identity, so without this signal
   // the cached tail would silently keep the pre-edit copy.
   const messagesRevision = ref(0)
+  // Bumped whenever a user document changes in place, for the same reason
+  // messagesRevision exists: the socket handler mutates the object via
+  // mergeWith, which a computed reading through `world.value` cannot observe.
+  // The reaction and comment indexes below hang off it.
+  const usersRevision = ref(0)
   function bumpMessagesRevision(): void {
     messagesRevision.value++
   }
@@ -196,6 +203,96 @@ export const useWorldStore = defineStore('world', () => {
     return id ? usersById.value.get(id) : undefined
   }
 
+  // ── Author-owned chat annotations ────────────────────────────────────────
+  //
+  // Reactions and comments live on their AUTHOR's user document rather than on
+  // the message (utils/chatReactions.ts), so answering "what is on this
+  // message?" means looking across users. Indexed once per change instead of
+  // scanned per rendered row: a log holds thousands of messages and a table
+  // holds a couple of dozen users, so the sweep is over the small collection
+  // and every row is an O(1) lookup.
+  //
+  // `usersRevision` is what invalidates these. The socket handler mutates a
+  // user's flags in place (processChanges → mergeWith), which a computed reading
+  // through `world.value` cannot see, exactly as messagesRevision exists for the
+  // message list.
+  //
+  // Both indexes union in whatever is still stored on the MESSAGE, so a world
+  // mid-rollover — some annotations written by an older build onto messages,
+  // some by this one onto users — shows all of them rather than half.
+  const legacyMessageAnnotations = computed(() => {
+    void messagesRevision.value
+    const messages = (asDocumentArray(world.value?.messages) ?? []) as (DocumentData & {
+      flags?: Record<string, unknown> | null
+    })[]
+    const reactions: { _id?: string | null; reactions: ChatReaction[] }[] = []
+    const comments: { _id?: string | null; comments: ChatComment[] }[] = []
+    for (const message of messages) {
+      const scope = message.flags?.['tablemate'] as
+        | { reactions?: unknown; comments?: unknown }
+        | undefined
+      if (!scope) continue
+      if (scope.reactions) reactions.push({ _id: message._id, reactions: readReactions(message) })
+      if (scope.comments) comments.push({ _id: message._id, comments: readComments(message) })
+    }
+    return { reactions, comments }
+  })
+
+  const reactionIndex = computed(() => {
+    void usersRevision.value
+    return indexUserReactions(
+      collectionToArray<UserPF2e>(world.value?.users as CollectionLike<UserPF2e>),
+      legacyMessageAnnotations.value.reactions
+    )
+  })
+
+  const commentIndex = computed(() => {
+    void usersRevision.value
+    return indexUserComments(
+      collectionToArray<UserPF2e>(world.value?.users as CollectionLike<UserPF2e>),
+      legacyMessageAnnotations.value.comments
+    )
+  })
+
+  function reactionsFor(messageId: string | null | undefined): ChatReaction[] {
+    return (messageId && reactionIndex.value.get(messageId)) || []
+  }
+  function commentsFor(messageId: string | null | undefined): ChatComment[] {
+    return (messageId && commentIndex.value.get(messageId)) || []
+  }
+
+  // Write one user's stored annotation list in place — the optimistic half of a
+  // direct write, and the reconcile once the socket answers. Nested-write for
+  // the same reason applyChatReactions is: Object.assigning the whole `flags`
+  // object would drop every other flag on the user (targeting_proxy, belongsTo).
+  function applyUserAnnotations(
+    userId: string,
+    key: 'reactions' | 'comments',
+    value: unknown
+  ): void {
+    const root = asDocumentArray(world.value?.users)
+    const user = root?.find((u) => u._id === userId) as
+      | (DocumentData & { flags?: Record<string, unknown> })
+      | undefined
+    if (!user) return
+    user.flags ??= {}
+    const scope = (user.flags['tablemate'] ??= {}) as Record<string, unknown>
+    scope[key] = value
+    usersRevision.value++
+    triggerRef(world)
+  }
+
+  // The module's opt-in world switches, read straight from the world payload
+  // rather than from the GM handshake (utils/worldSettings.ts). That is what
+  // lets the affordance appear with no GM online, which is the entire point of
+  // writing these annotations directly.
+  const reactionsEnabled = computed(() =>
+    readModuleFlag(world.value?.settings, REACTIONS_ENABLED_SETTING)
+  )
+  const commentsEnabled = computed(() =>
+    readModuleFlag(world.value?.settings, COMMENTS_ENABLED_SETTING)
+  )
+
   // Foundry treats ASSISTANT (role 3) and GAMEMASTER (role 4) alike for document
   // ownership: User#isGM is `hasRole(ASSISTANT)`, and Document#testUserPermission
   // short-circuits to true for any such user. Every app-side ownership gate has
@@ -313,6 +410,12 @@ export const useWorldStore = defineStore('world', () => {
     bumpMessagesRevision,
     applyChatCreate,
     applyChatUpdate,
+    usersRevision,
+    reactionsFor,
+    commentsFor,
+    applyUserAnnotations,
+    reactionsEnabled,
+    commentsEnabled,
     applyChatReactions,
     applyChatComments,
     applyChatTranscript,

@@ -533,17 +533,14 @@ export const applyDamage = (
     rollIndex
   })
 
-// Toggle this user's emoji reaction on a chat message. No actor: reactions are
-// the player's, so the payload is just the message and the emoji — the GM side
-// derives the reactor from the request's userId. Resolves with the reaction list
-// as stored, so the caller can reconcile its optimistic write.
+// LEGACY. Nothing in the app calls this: a reaction is written directly to the
+// reactor's own user document (utils/chatReactions.ts). Kept so the wire
+// contract stays complete while stale native builds still send it.
 export const toggleReaction = (messageId: string, emoji: string) =>
   sendAction(TM.TOGGLE_REACTION, { messageId, emoji })
 
-// Write, edit, or remove one comment on a chat message. No actor: a comment
-// belongs to the player, like a reaction — the GM side stamps it with the
-// request's userId. Resolves with the comment list as stored, so the caller can
-// reconcile against what actually landed.
+// LEGACY, as toggleReaction above. A comment is written directly onto its
+// author's own user document (utils/chatComments.ts).
 export const setComment = (messageId: string, text: string, commentId?: string) =>
   sendAction(TM.SET_COMMENT, { messageId, text, commentId })
 

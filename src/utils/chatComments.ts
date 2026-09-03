@@ -156,3 +156,159 @@ export function canModifyComment(
   if (!userIds) return false
   return typeof userIds === 'string' ? comment.userId === userIds : userIds.has(comment.userId)
 }
+
+// ── Author-owned storage ────────────────────────────────────────────────────
+//
+// Comments are stored on their AUTHOR's own document — `flags.tablemate.comments`
+// on User — for the same reason reactions are (see utils/chatReactions.ts), and
+// one sharper: a roll made from the app is POSTED BY the GM's client, so its
+// ChatMessage author is the GM. Even the roller's own roll was not theirs to
+// update, which is why writing a comment needed the proxy at all.
+//
+// What this buys beyond removing that dependency: the "only a comment's author
+// may rewrite it" rule stops being a rule. It was enforced in the handler
+// (canModifyComment, below, against a self-reported userId that Foundry's module
+// channel cannot authenticate); now it is Foundry's own document permission —
+// a player may write their own User and no one else's. The check that used to
+// be trusted code is now the database's.
+//
+// GM moderation still works, and directly: `common/documents/user.mjs` grants a
+// full GM update rights on any User, so a GM removing someone else's comment is
+// an ordinary write from their own client.
+//
+// SHAPE: a flat array of comments carrying their own `messageId`, not a map
+// keyed by message — see the shape note in utils/chatReactions.ts for why a map
+// on a per-user store is a trap. `userId` is GONE from the stored form: the
+// author is the document it sits on, so storing it again invites the two to
+// disagree. It is reattached on read, where every consumer still expects it.
+
+/** One comment as its author stores it. The author is the document's owner. */
+export interface UserComment {
+  id: string
+  messageId: string
+  text: string
+  timestamp: number
+}
+
+// Ceiling per author, oldest dropped first — the same reasoning as
+// USER_REACTION_MAX, with a tighter number because a comment is free text
+// rather than one of six emoji. COMMENT_MAX_COUNT still bounds how many can
+// pile onto any ONE message; this bounds the author's whole history.
+export const USER_COMMENT_MAX = 200
+
+export function normalizeUserComments(value: unknown): UserComment[] {
+  if (!Array.isArray(value)) return []
+  const seen = new Set<string>()
+  const out: UserComment[] = []
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') continue
+    const { id, messageId, text, timestamp } = entry as {
+      id?: unknown
+      messageId?: unknown
+      text?: unknown
+      timestamp?: unknown
+    }
+    if (typeof id !== 'string' || !id) continue
+    if (typeof messageId !== 'string' || !messageId) continue
+    // A comment with no text is not a comment — that state is spelled "removed".
+    const clean = sanitizeCommentText(text)
+    if (!clean) continue
+    if (seen.has(id)) continue
+    seen.add(id)
+    out.push({
+      id,
+      messageId,
+      text: clean,
+      timestamp: typeof timestamp === 'number' && Number.isFinite(timestamp) ? timestamp : 0
+    })
+  }
+  return out.slice(-USER_COMMENT_MAX)
+}
+
+export function readUserComments(
+  user:
+    | { flags?: Record<string, unknown> | null; getFlag?: (s: string, k: string) => unknown }
+    | null
+    | undefined
+): UserComment[] {
+  if (!user) return []
+  const flagged = user.getFlag?.('tablemate', 'comments')
+  const scope = user.flags?.['tablemate'] as { comments?: unknown } | null | undefined
+  return normalizeUserComments((Array.isArray(flagged) ? flagged : undefined) ?? scope?.comments)
+}
+
+/**
+ * Add a comment, replace the one it names, or remove it when `text` is empty.
+ * Returns a new array; never mutates.
+ *
+ * An edit keeps the comment's original timestamp — a corrected typo should not
+ * jump it to the bottom of the thread — which is what its position means.
+ */
+export function upsertUserComment(current: UserComment[], comment: UserComment): UserComment[] {
+  const index = current.findIndex((entry) => entry.id === comment.id)
+  if (!comment.text) return current.filter((entry) => entry.id !== comment.id)
+  if (index === -1) return [...current, comment].slice(-USER_COMMENT_MAX)
+  const next = [...current]
+  next[index] = { ...comment, timestamp: current[index].timestamp }
+  return next
+}
+
+/**
+ * Collapse every author's comments into one message-keyed index, in the
+ * resolved ChatComment shape every consumer already reads.
+ *
+ * Ordering matters more here than for reactions: a thread read out of order
+ * reads as a different conversation. Sorted by timestamp within each message,
+ * which is what makes cross-author ordering work at all — the authors write to
+ * separate documents, so nothing but the clock relates their entries.
+ *
+ * `legacy` folds in comments still stored on the MESSAGE by an older build, as a
+ * union rather than a fallback (see indexUserReactions).
+ */
+export function indexUserComments(
+  users:
+    | Iterable<{ _id?: string | null; flags?: Record<string, unknown> | null }>
+    | null
+    | undefined,
+  legacy?: Iterable<{ _id?: string | null; comments: ChatComment[] }> | null
+): Map<string, ChatComment[]> {
+  const index = new Map<string, ChatComment[]>()
+  const seen = new Set<string>()
+
+  const add = (messageId: string, comment: ChatComment) => {
+    if (seen.has(comment.id)) return
+    seen.add(comment.id)
+    const bucket = index.get(messageId)
+    if (bucket) bucket.push(comment)
+    else index.set(messageId, [comment])
+  }
+
+  for (const user of users ?? []) {
+    const userId = user?._id
+    if (typeof userId !== 'string' || !userId) continue
+    // The author is reattached here: it is the document, not stored data.
+    for (const stored of readUserComments(user)) {
+      add(stored.messageId, {
+        id: stored.id,
+        userId,
+        text: stored.text,
+        timestamp: stored.timestamp
+      })
+    }
+  }
+  for (const entry of legacy ?? []) {
+    const messageId = entry?._id
+    if (typeof messageId !== 'string' || !messageId) continue
+    for (const comment of entry.comments) add(messageId, comment)
+  }
+
+  for (const [messageId, bucket] of index) {
+    index.set(
+      messageId,
+      // Stable sort, so two comments in the same millisecond keep the order
+      // they were collected in rather than shuffling between renders.
+      [...bucket].sort((a, b) => a.timestamp - b.timestamp).slice(-COMMENT_MAX_COUNT)
+    )
+  }
+  return index
+}

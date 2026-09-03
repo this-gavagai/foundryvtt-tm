@@ -1,5 +1,15 @@
 // Write, edit, or remove one free-text comment on a chat message.
 //
+// LEGACY SHIM. The app no longer sends this: comments are written directly to
+// their author's own user document (utils/chatComments.ts), which needs no GM.
+// This remains for a stale NATIVE binary — the PWA ships in the module zip and
+// cannot skew, but an app-store build can. It still writes the OLD location (the
+// message flag), which both ends read as the legacy half of a union, so a world
+// part-way through the rollover shows everything.
+//
+// Removable once no native build older than this change is in the wild; see
+// docs/BETA_ROLLOVER.md.
+//
 // Why this is an RPC rather than a direct write from the app: the app posts,
 // edits and deletes its OWN messages over the modifyDocument socket (see
 // useChatActions.postChatMessageDirect), which works because Foundry authorizes

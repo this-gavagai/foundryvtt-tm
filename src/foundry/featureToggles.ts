@@ -30,12 +30,18 @@
 // before ready, an unexpectedly old world) reads as off, which matches the
 // default and can only ever withhold a feature, never leak one.
 
-import { MODULE_ID } from '@/api/protocol'
+import {
+  MODULE_ID,
+  REACTIONS_ENABLED_SETTING,
+  COMMENTS_ENABLED_SETTING,
+  ROLL_OUTCOME_ENABLED_SETTING
+} from '@/api/protocol'
 import { settingsApi } from './globals'
 
-export const REACTIONS_ENABLED_SETTING = 'reactionsEnabled'
-export const COMMENTS_ENABLED_SETTING = 'commentsEnabled'
-export const ROLL_OUTCOME_ENABLED_SETTING = 'rollOutcomeEnabled'
+// Field names live in api/protocol.ts, with the rest of the shared contract: the
+// app reads these settings out of core's world dump rather than being told about
+// them, so both ends have to spell them the same way.
+export { REACTIONS_ENABLED_SETTING, COMMENTS_ENABLED_SETTING, ROLL_OUTCOME_ENABLED_SETTING }
 
 // Setting strings are raw English, matching the other module settings (the
 // module ships no Foundry lang files).

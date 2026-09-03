@@ -134,6 +134,22 @@ export const CAPABILITY_COMMENTS = 'comments'
 // module already serves, so it shows regardless.
 export const CAPABILITY_END_TURN = 'endTurn'
 
+// World-setting field names for the module's three opt-in features. Here rather
+// than only in foundry/featureToggles.ts because BOTH ends need them now: the
+// module registers the settings, and the app reads them straight out of core's
+// world dump (utils/worldSettings.ts) instead of learning them from the
+// LISTENER_ONLINE handshake.
+//
+// Why the app stopped using the capability for these two: a capability answers
+// "is a module new enough to run the handler listening?", which was the right
+// question while every reaction and comment needed a GM to perform the write.
+// They are now written directly by their author, so the only remaining question
+// is whether the world has the feature switched on — and that is a world-scope
+// setting, which every client already has.
+export const REACTIONS_ENABLED_SETTING = 'reactionsEnabled'
+export const COMMENTS_ENABLED_SETTING = 'commentsEnabled'
+export const ROLL_OUTCOME_ENABLED_SETTING = 'rollOutcomeEnabled'
+
 export const TM = {
   // Socket.io channel name. All tablemate messages flow over this channel.
   CHANNEL: 'module.tablemate',

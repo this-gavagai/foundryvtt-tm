@@ -2,31 +2,42 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ref, computed } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
-import { readComments } from '@/utils/chatComments'
 import type { ChatMessageData } from '@/composables/useChatMessages'
 
-// A comment can't be written directly: a roll made from the app is posted by the
-// GM's client, so even its own roller isn't the message's author. The write goes
-// through the GM as an RPC, and — unlike a reaction chip — is deliberately NOT
-// optimistic: what the ack carries is what lands, because someone else may have
-// commented on the same message while this one was being typed.
+// A comment is stored on its AUTHOR's own user document, which Foundry lets them
+// write — so the write is direct, with no GM in the loop (utils/chatComments.ts).
+//
+// It could not always be: on the message, a comment was a write to someone
+// else's document, and sharply so, because a roll made from the app is posted by
+// the GM's client, making the GM its author. Not even the roller owned their own
+// roll's message.
+//
+// Two invariants moved as a result, and these cover both:
+//
+//   • the "only its author may rewrite it" rule is gone from the code, because
+//     it is now Foundry's document permission — a player cannot write another
+//     user's document at all;
+//   • there is no authoritative list handed back to reconcile against, since
+//     this document has one writer. What the caller reads back is the whole
+//     THREAD, assembled across every author's document.
 //
 // Exercised through useChatActions, which is the chat log's caller; the write
 // itself lives in useChatComments, which the roll-result panel uses directly.
 
-const setComment =
-  vi.fn<(messageId: string, text: string, commentId?: string) => Promise<{ comments: unknown[] }>>()
+const updateUserFlag = vi.fn<(userId: string, key: string, value: unknown) => Promise<unknown>>()
 
 vi.mock('@/api/actionRpc', () => ({
   applyDamage: vi.fn(),
   consumeItem: vi.fn(),
   rerollChatRoll: vi.fn(),
+  selectSpellVariant: vi.fn(),
   sendImage: vi.fn(),
-  sendVoiceMemo: vi.fn(),
-  toggleReaction: vi.fn(),
-  setComment: (...args: Parameters<typeof setComment>) => setComment(...args)
+  sendVoiceMemo: vi.fn()
 }))
-vi.mock('@/api/documents', () => ({ modifyDocument: vi.fn(async () => ({ result: [] })) }))
+vi.mock('@/api/documents', () => ({
+  modifyDocument: vi.fn(async () => ({ result: [] })),
+  updateUserFlag: (...args: Parameters<typeof updateUserFlag>) => updateUserFlag(...args)
+}))
 vi.mock('@/composables/useHapticFeedback', () => ({ triggerLightHapticFeedback: vi.fn() }))
 
 const { useChatActions } = await import('@/composables/useChatActions')
@@ -34,9 +45,16 @@ const { useChatComments } = await import('@/composables/useChatComments')
 const { useWorldStore } = await import('@/stores/world')
 const { useUserStore } = await import('@/stores/user')
 
-function seedMessage() {
-  const message = { _id: 'msg-1', flags: { tablemate: { comments: [] } } }
-  useWorldStore().world = { messages: [message] } as never
+function seedWorld() {
+  const message = { _id: 'msg-1', flags: {} }
+  useWorldStore().world = {
+    messages: [message],
+    users: [
+      { _id: 'me', name: 'Me', flags: {} },
+      { _id: 'gm', name: 'GM', flags: {} }
+    ],
+    settings: [{ key: 'tablemate.commentsEnabled', value: 'true', user: null }]
+  } as never
   return message as unknown as ChatMessageData
 }
 
@@ -49,7 +67,11 @@ function makeActions(message: ChatMessageData) {
   })
 }
 
-const STORED = [{ id: 'c1', userId: 'me', text: 'a called shot', timestamp: 1 }]
+/** The comment list written to `me`'s document by the last call. */
+function written(): { id: string; messageId: string; text: string }[] {
+  const call = updateUserFlag.mock.calls.at(-1)
+  return (call?.[2] ?? []) as { id: string; messageId: string; text: string }[]
+}
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -57,83 +79,119 @@ beforeEach(() => {
   vi.stubGlobal('__APP_VERSION__', '0.0.0-test')
   setActivePinia(createPinia())
   useUserStore().setUserId('me')
+  updateUserFlag.mockResolvedValue(undefined)
 })
 
 describe('saveComment', () => {
-  it('writes back exactly the list the module stored', async () => {
-    const message = seedMessage()
+  it('writes the author’s own user document, not the message', async () => {
+    const message = seedWorld()
     const actions = makeActions(message)
-    // The ack carries a comment this client never wrote — someone else remarked
-    // the same roll mid-flight. It has to survive.
-    setComment.mockResolvedValue({
-      comments: [...STORED, { id: 'c2', userId: 'gm', text: 'and it lands', timestamp: 2 }]
-    })
 
     await expect(actions.saveComment(message, 'a called shot')).resolves.toBe(true)
 
-    expect(setComment).toHaveBeenCalledWith('msg-1', 'a called shot', undefined)
-    expect(readComments(message).map((c) => c.id)).toEqual(['c1', 'c2'])
+    const [userId, key] = updateUserFlag.mock.calls[0]
+    expect(userId).toBe('me')
+    expect(key).toBe('comments')
+    expect(written()).toEqual([
+      expect.objectContaining({ messageId: 'msg-1', text: 'a called shot' })
+    ])
+    // Nothing was written to the message — that is what used to need a GM.
+    expect(message.flags).toEqual({})
   })
 
-  it('sanitizes before sending', async () => {
-    const message = seedMessage()
+  it('reads back the whole thread, not just our own half', async () => {
+    seedWorld()
+    const world = useWorldStore()
+    // The GM remarked on the same roll a minute ago, on their own document.
+    world.applyUserAnnotations('gm', 'comments', [
+      { id: 'c-gm', messageId: 'msg-1', text: 'it lands', timestamp: Date.now() - 60_000 }
+    ])
+    const comments = useChatComments()
+
+    const thread = await comments.saveComment('msg-1', 'a called shot')
+
+    // Both authors' comments, in the order they were said. Cross-author
+    // ordering comes from the clock — the only thing relating entries written
+    // to two different documents — so the GM's earlier remark leads.
+    expect(thread?.map((c) => c.userId)).toEqual(['gm', 'me'])
+    expect(thread?.map((c) => c.text)).toEqual(['it lands', 'a called shot'])
+  })
+
+  it('sanitizes before writing', async () => {
+    const message = seedWorld()
     const actions = makeActions(message)
-    setComment.mockResolvedValue({ comments: STORED })
 
     await actions.saveComment(message, '  a called shot  ')
-    expect(setComment).toHaveBeenCalledWith('msg-1', 'a called shot', undefined)
+    expect(written()[0].text).toBe('a called shot')
   })
 
-  it('names the comment being rewritten', async () => {
-    const message = seedMessage()
+  it('rewrites the comment it names, keeping its original timestamp', async () => {
+    const message = seedWorld()
+    const world = useWorldStore()
+    world.applyUserAnnotations('me', 'comments', [
+      { id: 'c1', messageId: 'msg-1', text: 'a called shot', timestamp: 5 }
+    ])
     const actions = makeActions(message)
-    setComment.mockResolvedValue({ comments: STORED })
 
     await actions.saveComment(message, 'rewritten', 'c1')
-    expect(setComment).toHaveBeenCalledWith('msg-1', 'rewritten', 'c1')
+
+    // One entry, not two — and it keeps its place in the thread, which is what
+    // its timestamp means.
+    expect(written()).toEqual([{ id: 'c1', messageId: 'msg-1', text: 'rewritten', timestamp: 5 }])
   })
 
-  it('sends nothing for an empty new comment', async () => {
-    const message = seedMessage()
+  // Editing addresses a comment on OUR OWN document, so an id we do not hold is
+  // a stale editor or someone else's comment. Neither is ours to write, and
+  // adding a second comment instead would be worse than refusing.
+  it('refuses to edit a comment this user does not hold', async () => {
+    const message = seedWorld()
+    const actions = makeActions(message)
+
+    await expect(actions.saveComment(message, 'rewritten', 'not-mine')).resolves.toBe(false)
+    expect(updateUserFlag).not.toHaveBeenCalled()
+    expect(actions.commentFailed.value).toBe(true)
+  })
+
+  it('writes nothing for an empty new comment', async () => {
+    const message = seedWorld()
     const actions = makeActions(message)
 
     await expect(actions.saveComment(message, '   ')).resolves.toBe(false)
-    expect(setComment).not.toHaveBeenCalled()
+    expect(updateUserFlag).not.toHaveBeenCalled()
   })
 
-  it('reports a failed write and leaves the comments as they were', async () => {
-    const message = seedMessage()
+  it('reports a failed write and leaves the thread as it was', async () => {
+    const message = seedWorld()
+    const world = useWorldStore()
     const actions = makeActions(message)
-    setComment.mockRejectedValue(new Error('no GM online'))
+    updateUserFlag.mockRejectedValue(new Error('write refused'))
 
     await expect(actions.saveComment(message, 'a called shot')).resolves.toBe(false)
     expect(actions.actionError.value).toBe(true)
     expect(actions.commentFailed.value).toBe(true)
-    // Nothing was applied locally, so there is nothing to roll back.
-    expect(readComments(message)).toEqual([])
+    // Not applied locally until the write lands, so there is nothing to undo.
+    expect(world.commentsFor('msg-1')).toEqual([])
   })
 
   it('clears a previous failure when the next write starts', async () => {
-    // The editor stays open on a failure and reports it; retyping and saving
-    // again must not leave the old error standing under the new attempt.
-    const message = seedMessage()
+    const message = seedWorld()
     const actions = makeActions(message)
-    setComment.mockRejectedValueOnce(new Error('no GM online'))
+    updateUserFlag.mockRejectedValueOnce(new Error('write refused'))
     await actions.saveComment(message, 'a called shot')
     expect(actions.commentFailed.value).toBe(true)
 
-    setComment.mockResolvedValue({ comments: STORED })
+    updateUserFlag.mockResolvedValue(undefined)
     await expect(actions.saveComment(message, 'a called shot')).resolves.toBe(true)
     expect(actions.commentFailed.value).toBe(false)
   })
 
   it('refuses a second write while one is in flight', async () => {
-    const message = seedMessage()
+    const message = seedWorld()
     const actions = makeActions(message)
-    let release: (value: { comments: unknown[] }) => void = () => {}
-    setComment.mockReturnValue(
+    let release: () => void = () => {}
+    updateUserFlag.mockReturnValue(
       new Promise((resolve) => {
-        release = resolve
+        release = () => resolve(undefined)
       })
     )
 
@@ -141,49 +199,72 @@ describe('saveComment', () => {
     expect(actions.isCommentPending('msg-1')).toBe(true)
     // A double-tap on Save must not post the comment twice.
     await expect(actions.saveComment(message, 'a called shot')).resolves.toBe(false)
-    expect(setComment).toHaveBeenCalledTimes(1)
+    expect(updateUserFlag).toHaveBeenCalledTimes(1)
 
-    release({ comments: STORED })
+    release()
     await first
     expect(actions.isCommentPending('msg-1')).toBe(false)
   })
 
-  it('removes a comment by writing it empty', async () => {
-    const message = seedMessage()
+  it('removes a comment by writing it out of the list', async () => {
+    const message = seedWorld()
+    const world = useWorldStore()
+    world.applyUserAnnotations('me', 'comments', [
+      { id: 'c1', messageId: 'msg-1', text: 'a called shot', timestamp: 1 }
+    ])
     const actions = makeActions(message)
-    setComment.mockResolvedValue({ comments: [] })
 
     await expect(actions.removeComment(message, 'c1')).resolves.toBe(true)
-    expect(setComment).toHaveBeenCalledWith('msg-1', '', 'c1')
+    expect(written()).toEqual([])
+  })
+
+  it('leaves this user’s comments on other messages alone', async () => {
+    const message = seedWorld()
+    const world = useWorldStore()
+    world.applyUserAnnotations('me', 'comments', [
+      { id: 'c0', messageId: 'msg-0', text: 'earlier', timestamp: 1 }
+    ])
+    const actions = makeActions(message)
+
+    await actions.saveComment(message, 'a called shot')
+
+    // The whole list is rewritten on every save, so the entries for other
+    // messages have to survive it.
+    expect(written().map((c) => c.messageId)).toEqual(['msg-0', 'msg-1'])
   })
 })
 
 // The roll-result panel calls the composable directly — it is a leaf on a
 // character sheet, with no chat surface to hang the write on — and needs the
-// stored list back rather than a bare boolean: it offers a comment on a card
-// that may not have reached the app's message cache yet, so the ack is the only
-// place it can learn which comment it just wrote.
+// thread back rather than a bare boolean: it offers a comment on a card that may
+// not have reached the app's message cache yet, and the index is keyed by
+// message id, so it resolves anyway.
 describe('useChatComments', () => {
-  it('hands back the list the module stored', async () => {
-    seedMessage()
+  it('hands back the thread for a message the app has not cached', async () => {
+    useWorldStore().world = {
+      messages: [],
+      users: [{ _id: 'me', name: 'Me', flags: {} }],
+      settings: []
+    } as never
     const comments = useChatComments()
-    setComment.mockResolvedValue({ comments: STORED })
 
-    await expect(comments.saveComment('msg-1', 'a called shot')).resolves.toEqual(STORED)
+    const thread = await comments.saveComment('uncached-msg', 'a called shot')
+    expect(thread).toEqual([expect.objectContaining({ userId: 'me', text: 'a called shot' })])
   })
 
   it('answers null when the write failed', async () => {
-    seedMessage()
+    seedWorld()
     const comments = useChatComments()
-    setComment.mockRejectedValue(new Error('no GM online'))
+    updateUserFlag.mockRejectedValue(new Error('write refused'))
 
     await expect(comments.saveComment('msg-1', 'a called shot')).resolves.toBeNull()
     expect(comments.commentFailed.value).toBe(true)
   })
 
   it('answers null without a message to comment on', async () => {
+    seedWorld()
     const comments = useChatComments()
     await expect(comments.saveComment(undefined, 'a called shot')).resolves.toBeNull()
-    expect(setComment).not.toHaveBeenCalled()
+    expect(updateUserFlag).not.toHaveBeenCalled()
   })
 })

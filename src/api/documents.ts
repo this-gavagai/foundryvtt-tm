@@ -17,6 +17,7 @@ import {
   type GrantAwareItem
 } from '@/utils/itemGrants'
 import { logger } from '@/utils/utilities'
+import { MODULE_ID } from './protocol'
 
 // Foundry document collections that we mutate via the modifyDocument socket.
 // Restricted to the set the app actually touches — typos for unsupported
@@ -322,12 +323,32 @@ export function deleteActorItem(actor: TablemateActorRef, itemId: string | strin
     .catch((error) => recoverFailedWrite(actor, error))
 }
 
-export function updateUserTargetingProxy(userId: string, proxyId: string) {
+// Write one of this module's flags onto a User document.
+//
+// Foundry's User permission model is what makes this a direct write: a player
+// may update their OWN user and no one else's, and a GM may update anyone's
+// (common/documents/user.mjs — `flags` is not among the fields non-GMs are
+// refused). So anything that belongs to a PERSON rather than to a character or a
+// message can be stored here and written without a GM client in the loop.
+//
+// That is the whole mechanism behind chat reactions and comments: they are their
+// author's, they live on their author, and the "only your own" rule is Foundry's
+// document permission rather than a check in a handler. See utils/chatReactions
+// and utils/chatComments.
+//
+// No optimistic local write and no recoverFailedWrite here: the caller decides
+// what to show while this is in flight — a reaction chip flips immediately and
+// reconciles, a comment editor waits — and neither wants a shared refresh.
+export function updateUserFlag(userId: string, key: string, value: unknown) {
   return modifyDocument({
     action: 'update',
     type: 'User',
     operation: {
-      updates: [{ _id: userId, flags: { tablemate: { targeting_proxy: proxyId } } }]
+      updates: [{ _id: userId, flags: { [MODULE_ID]: { [key]: value } } }]
     }
   })
+}
+
+export function updateUserTargetingProxy(userId: string, proxyId: string) {
+  return updateUserFlag(userId, 'targeting_proxy', proxyId)
 }

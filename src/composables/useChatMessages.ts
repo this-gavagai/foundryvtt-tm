@@ -3,7 +3,6 @@ import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'
 import { useChatStore } from '@/stores/chat'
 import { useUserStore } from '@/stores/user'
-import { useVersionCompatStore } from '@/stores/versionCompat'
 import { getMediaPath } from '@/utils/utilities'
 import { tokenPortrait, type PortraitRing } from '@/utils/tokenPortrait'
 import { prepareChatHtml } from '@/utils/chatHtml'
@@ -11,13 +10,8 @@ import { rollSummaries, type ChatRollSummary, type RollJson } from '@/utils/chat
 import { applyPf2eNotation } from '@/utils/pf2eEnrich'
 import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
 import { useChatVisibility, type UserData } from '@/composables/useChatVisibility'
-import {
-  groupReactions,
-  readReactions,
-  type ChatReaction,
-  type ReactionGroup
-} from '@/utils/chatReactions'
-import { canModifyComment, readComments, type ChatComment } from '@/utils/chatComments'
+import { groupReactions, type ChatReaction, type ReactionGroup } from '@/utils/chatReactions'
+import { canModifyComment, type ChatComment } from '@/utils/chatComments'
 import type { ActiveRoll } from '@/types/api-types'
 
 interface ChatSpeaker {
@@ -523,6 +517,9 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
   // reaction as mine would show a filled chip whose next tap adds a second
   // reaction instead of removing the one on screen.
   const userStore = useUserStore()
+  // Reactions and comments are indexed across users here (see stores/world.ts),
+  // since they are stored on their authors rather than on the message.
+  const worldStore = useWorldStore()
 
   // Whether this world offers reactions and comments at all. Both are GM
   // switches on the module side, off by default, and a world with one off
@@ -535,7 +532,6 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
   // overlay builds on top of it: chips must stay on screen when the last GM
   // drops off (inert until one returns), and only vanish when the world itself
   // has the feature switched off.
-  const versionCompat = useVersionCompatStore()
 
   const users = computed(() =>
     collectionToArray<UserData>(world.value?.users as CollectionLike<UserData>)
@@ -701,7 +697,7 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
   function commentViews(message: ChatMessageData): ChatCommentView[] {
     const selfId = userStore.userId
     const isGM = currentUserIsGM.value
-    return readComments(message).map((comment) => ({
+    return worldStore.commentsFor(message._id).map((comment) => ({
       id: comment.id,
       text: comment.text,
       authorName: resolvedUserName(comment.userId),
@@ -752,13 +748,13 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
       imageHeight: message.flags?.tablemate?.imageHeight ?? undefined,
       // Reactor names resolve through resolvedUserName so a reaction sent from a
       // sheet-only user reads as the human behind it, like message attribution.
-      reactions: versionCompat.supportsReactions
-        ? groupReactions(readReactions(message), {
+      reactions: worldStore.reactionsEnabled
+        ? groupReactions(worldStore.reactionsFor(message._id), {
             selfUserId: userStore.userId,
             nameFor: resolvedUserName
           })
         : [],
-      comments: versionCompat.supportsComments ? commentViews(message) : [],
+      comments: worldStore.commentsEnabled ? commentViews(message) : [],
       // Expensive HTML parsing — memoized by content fingerprint.
       ...expensiveView(message)
     }

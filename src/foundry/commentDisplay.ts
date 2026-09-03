@@ -23,13 +23,16 @@
 // no stylesheet Foundry loads.
 
 import type { ContextMenuEntry } from '@7h3laughingman/foundry-types/client/applications/ux/context-menu.mjs'
-import { TM } from '@/api/protocol'
+import { MODULE_ID } from '@/api/protocol'
 import { logger, uuidv4 } from '@/utils/utilities'
 import {
   COMMENT_MAX_LENGTH,
   canModifyComment,
+  indexUserComments,
   readComments,
+  readUserComments,
   sanitizeCommentText,
+  upsertUserComment,
   type ChatComment
 } from '@/utils/chatComments'
 import {
@@ -37,7 +40,6 @@ import {
   findRenderedChatMessage,
   type TablemateChatMessage
 } from './utils/chatMessage'
-import { foundrySetComment } from './handlers/comments'
 import { commentsEnabled } from './featureToggles'
 import { onHook } from './globals'
 
@@ -88,27 +90,39 @@ function messageId(message: CommentableMessage): string | undefined {
 // dispatch chain, so a GM saving a comment in the same millisecond a tablet's
 // write is mid-flight could lose one of the two. A single click against a
 // concurrent tap, and the loser retypes.
-async function requestComment(messageId: string, text: string, commentId?: string): Promise<void> {
-  const userId = game.user._id
-  if (!userId) return
-  const args = {
-    action: TM.SET_COMMENT,
-    uuid: uuidv4(),
-    userId,
+async function requestComment(
+  messageId: string,
+  text: string,
+  commentId?: string,
+  // The comment's author, when editing or removing one. A GM moderating someone
+  // else's comment writes THEIR document, which Foundry permits
+  // (common/documents/user.mjs grants a GM update rights on any user).
+  authorId?: string
+): Promise<void> {
+  const selfId = game.user?._id
+  if (!selfId) return
+  const targetId = authorId ?? selfId
+  const target = game.users.get(targetId)
+  if (!target) return
+
+  // A direct write to the author's own user document — no socket request, and no
+  // GM/player branch. A comment is stored on whoever wrote it
+  // (utils/chatComments.ts), so "only its author may rewrite it" is Foundry's
+  // document permission rather than a rule this code has to check: a player
+  // editing someone else's comment simply cannot write that document.
+  const current = readUserComments({ flags: target.flags as Record<string, unknown> })
+  const next = upsertUserComment(current, {
+    id: commentId ?? uuidv4(),
     messageId,
-    commentId,
-    text
-  } as const
-  if (game.user.isGM) {
-    await foundrySetComment(args)
-    return
-  }
-  game.socket.emit(TM.CHANNEL, args)
+    text,
+    timestamp: Date.now()
+  })
+  await target.setFlag(MODULE_ID, 'comments', next)
 }
 
-function save(id: string, text: string, commentId?: string): void {
-  void requestComment(id, text, commentId).catch((error) =>
-    logger.warn('TABLEMATE: comment write failed', id, commentId, error)
+function save(id: string, text: string, comment?: ChatComment): void {
+  void requestComment(id, text, comment?.id, comment?.userId).catch((error) =>
+    logger.warn('TABLEMATE: comment write failed', id, comment?.id, error)
   )
 }
 
@@ -180,6 +194,26 @@ function buildComment(comment: ChatComment, onEdit: () => void): HTMLElement {
   return wrapper
 }
 
+// Comments live on their AUTHOR's user document now (utils/chatComments.ts), so
+// drawing a thread means collecting across users rather than reading the
+// message. Cached and invalidated on `updateUser`, for the same reasons as the
+// reaction index — see reactionDisplay.ts.
+let commentIndex: Map<string, ChatComment[]> | null = null
+
+function commentsOn(message: CommentableMessage, id: string): ChatComment[] {
+  commentIndex ??= indexUserComments(game.users)
+  const stored = commentIndex.get(id) ?? []
+  // Union in anything an older app build left on the MESSAGE, so a world
+  // mid-rollover shows the whole thread. Ids are unique per comment, so
+  // dedup is by id and ordering stays the clock's.
+  const legacy = readComments(message)
+  if (!legacy.length) return stored
+  const seen = new Set(stored.map((c) => c.id))
+  return [...stored, ...legacy.filter((c) => !seen.has(c.id))].sort(
+    (a, b) => a.timestamp - b.timestamp
+  )
+}
+
 // Rebuild the comment block from the message's current flag. Wholesale rather
 // than diffed — a handful of nodes, and rebuilding keeps it idempotent, which
 // matters because this runs from both the render hook and the update hook. A
@@ -195,7 +229,7 @@ export function applyCommentDisplay(message: CommentableMessage, element: HTMLEl
   element.querySelector<HTMLElement>(`.${CONTAINER_CLASS}`)?.remove()
   if (!commentsEnabled()) return
 
-  const comments = readComments(message)
+  const comments = commentsOn(message, id)
   if (!comments.length) return
 
   const container = document.createElement('div')
@@ -261,18 +295,17 @@ async function promptForComment(id: string, comment?: ChatComment): Promise<void
   // Nothing typed on a NEW comment is a cancel; on an existing one, emptying the
   // box is how it is removed.
   if (!text && !comment) return
-  save(id, text, comment?.id)
+  save(id, text, comment)
 }
 
 // ── Right-click menu ───────────────────────────────────────────────────────
 
 // Can this client's write actually be serviced? A GM writes the flag itself;
 // anyone else needs a GM online to do it for them. Mirrors reactionsAvailable.
+// The world switch is the whole question, exactly as in reactionsAvailable — a
+// comment goes to its author's own user document, so no GM need be connected.
 function commentsAvailable(): boolean {
-  // The world switch first, exactly as reactionsAvailable does.
-  if (!commentsEnabled()) return false
-  if (game.user.isGM) return true
-  return !!game.users.activeGM
+  return commentsEnabled()
 }
 
 // The right-clicked message's id, from whatever the running core hands the
@@ -352,6 +385,7 @@ function sweepRenderedMessages(): void {
 // directions: applyCommentDisplay removes the existing block before it checks
 // the switch, so one sweep both adds notes and takes them away.
 export function refreshCommentDisplay(): void {
+  commentIndex = null
   sweepRenderedMessages()
 }
 
@@ -363,6 +397,18 @@ export function setupCommentDisplay(): void {
     const element = chatMessageElement(html) ?? findRenderedChatMessage(message)
     if (element) applyCommentDisplay(message, element)
   })
+
+  // Someone commented. Comments are stored on their author's own user, so a
+  // User update — not a ChatMessage update — is the only signal this client
+  // gets that a thread has changed.
+  // The user collection changed. `updateUser` is the one that matters — a
+  // comment is stored on its author's own user, so that is the only signal this
+  // client gets that one was written — but create/delete matter too: the index
+  // below is built from the whole collection, so someone joining or leaving
+  // mid-session would otherwise leave it describing a table that has moved on.
+  for (const hook of ['updateUser', 'createUser', 'deleteUser']) {
+    onHook(hook, () => refreshCommentDisplay())
+  }
 
   // A note is a flag-only update. Foundry normally re-renders the message (which
   // the hook above catches), but re-applying directly is cheap insurance against

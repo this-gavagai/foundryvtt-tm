@@ -7,18 +7,14 @@ import { REACTION_EMOJI } from '@/utils/chatReactions'
 // so what's asserted here is the contract with core: the entry shape it reads,
 // and that a second hook firing can't double the palette.
 //
-// setFlag is stubbed via the handler's game accessor so a callback can be invoked
+// A reaction is written to the reactor's OWN user document, so the callback's
+// target is `game.user.setFlag` — stubbed below so an entry can be invoked
 // without a live world.
 // The world switch for the feature (featureToggles.ts), read off the `game`
 // stubs below. On except where a case turns it off.
 let reactionsOn = true
 
 const setFlagMock = vi.fn(async () => ({}))
-const fakeMessage = { flags: { tablemate: {} }, setFlag: setFlagMock }
-vi.mock('@/foundry/utils/foundry', async (importActual) => {
-  const actual = await importActual<typeof import('@/foundry/utils/foundry')>()
-  return { ...actual, getGame: vi.fn(() => ({ messages: { get: () => fakeMessage } })) }
-})
 
 const { registerContextEntries, setupReactionContextMenu } =
   await import('@/foundry/reactionDisplay')
@@ -41,7 +37,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   reactionsOn = true
   ;(globalThis as Record<string, unknown>).game = {
-    user: { _id: 'gm-1', isGM: true },
+    user: { _id: 'gm-1', isGM: true, flags: {}, setFlag: setFlagMock },
     users: { get: () => ({ name: 'GM' }), activeGM: { id: 'gm-1' } },
     socket: { emit: vi.fn() },
     settings: { get: () => reactionsOn }
@@ -93,14 +89,16 @@ describe('registerContextEntries', () => {
     expect(() => registerContextEntries({})).not.toThrow()
   })
 
-  it('hides the entries for a player with no GM online', () => {
+  it('still offers the entries to a player with no GM online', () => {
     const entries = collect()
     ;(globalThis as Record<string, unknown>).game = {
       user: { _id: 'u1', isGM: false },
       users: { get: () => undefined, activeGM: null },
       settings: { get: () => reactionsOn }
     }
-    expect(entries[0].visible?.(document.createElement('div'))).toBe(false)
+    // A reaction goes to the player's own user document, so nothing is waiting
+    // on a GM any more. This asserted `false` while it was an RPC.
+    expect(entries[0].visible?.(document.createElement('div'))).toBe(true)
   })
 
   it('shows the entries for a player when a GM is online', () => {
@@ -130,8 +128,10 @@ describe('registerContextEntries', () => {
     target.dataset.messageId = 'msg-1'
     collect()[0].callback(target)
     await vi.waitFor(() => expect(setFlagMock).toHaveBeenCalled())
+    // Written to this user's own document, keyed by the message rather than
+    // carrying a userId — the author IS the document it sits on.
     expect(setFlagMock).toHaveBeenCalledWith('tablemate', 'reactions', [
-      { emoji: REACTION_EMOJI[0], userId: 'gm-1' }
+      { messageId: 'msg-1', emoji: REACTION_EMOJI[0] }
     ])
   })
 

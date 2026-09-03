@@ -3,12 +3,9 @@ import { computed, ref } from 'vue'
 import Modal from './ModalBox.vue'
 import ChatCommentModal from './ChatCommentModal.vue'
 import { useChatComments } from '@/composables/useChatComments'
-import { useVersionCompatStore } from '@/stores/versionCompat'
-import { useListenersStore } from '@/stores/listenersOnline'
 import { useUserStore } from '@/stores/user'
 import { useWorldStore } from '@/stores/world'
-import { readComments, type ChatComment } from '@/utils/chatComments'
-import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
+import { type ChatComment } from '@/utils/chatComments'
 import { dieIcons } from '@/utils/chatRollDisplay'
 import { formatModifier } from '@/utils/formatters'
 import { getPath } from '@/utils/utilities'
@@ -22,7 +19,6 @@ type DisplayDieResult = RolledDie['results'][number]
 
 // Just enough of a cached chat message to find this roll's card and read its
 // comment flag off it.
-type ChatMessageLike = { _id?: string | null; flags?: Record<string, unknown> | null }
 
 const rollDice = computed(() => roll.value?.dice ?? [])
 
@@ -109,8 +105,6 @@ function d20ResultClass(dieResult: DisplayDieResult) {
 // card couldn't be identified simply doesn't offer it.
 const commentModal = ref<InstanceType<typeof ChatCommentModal>>()
 const { saveComment, removeComment, isCommentPending, commentFailed } = useChatComments()
-const versionCompat = useVersionCompatStore()
-const listeners = useListenersStore()
 const userStore = useUserStore()
 const worldStore = useWorldStore()
 
@@ -118,7 +112,11 @@ const worldStore = useWorldStore()
 const messageId = computed(() => result.value?.messageId)
 
 const canComment = computed(
-  () => !!messageId.value && versionCompat.supportsComments && listeners.isListening
+  // The world switch alone — no capability, no listener. A comment is written
+  // directly to its author's own user document, so it needs no GM online, and
+  // the setting only exists once a module that registers it has run in the
+  // world, which covers version skew for free. See utils/worldSettings.ts.
+  () => !!messageId.value && worldStore.commentsEnabled
 )
 
 // What this panel just wrote, straight off the ack. The panel opens the instant
@@ -136,11 +134,10 @@ const ownComment = computed(() => {
   const id = messageId.value
   const userId = userStore.userId
   if (!id || !userId) return undefined
-  const messages = collectionToArray<ChatMessageLike>(
-    worldStore.world?.messages as CollectionLike<ChatMessageLike>
-  )
-  const message = messages.find((entry) => entry._id === id)
-  const stored = readComments(message)
+  // Indexed by message id across every author (stores/world.ts), so this
+  // resolves even for a card that has not reached the app's message cache yet —
+  // which is exactly the case this panel exists for. No message lookup needed.
+  const stored = worldStore.commentsFor(id)
   return (
     stored.filter((comment) => comment.userId === userId).at(-1) ?? justWritten.value ?? undefined
   )

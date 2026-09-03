@@ -20,6 +20,7 @@ import { useChatStore } from '@/stores/chat'
 import { useServerAddressStore } from '@/stores/serverAddress'
 import { useVersionCompatStore } from '@/stores/versionCompat'
 import { useListenersStore } from '@/stores/listenersOnline'
+import { useWorldStore } from '@/stores/world'
 import { useChatActions, type ChatRerollRequest } from '@/composables/useChatActions'
 import {
   useChatMessages,
@@ -261,6 +262,7 @@ async function performDeleteMessage() {
 // ── Voice memos ──────────────────────────────────────────────────────────
 const versionCompat = useVersionCompatStore()
 const listeners = useListenersStore()
+const worldStore = useWorldStore()
 const {
   isRecording,
   canPreview: canPreviewVoice,
@@ -405,7 +407,12 @@ function openImagePicker() {
 // The other half of the capability, a world that has reactions switched OFF, is
 // not handled here: there the chips must not appear at all, so the view drops
 // them at the source (useChatMessages) and every consumer follows.
-const reactionsSupported = computed(() => versionCompat.supportsReactions && listeners.isListening)
+// Reactions and comments are written directly to their author's own user
+// document, so neither needs a GM online — the world switch is the whole gate.
+// It is read straight out of core's world dump (utils/worldSettings.ts), and
+// only exists once a module that registers it has run here, so it doubles as
+// the version check the capability used to provide.
+const reactionsSupported = computed(() => worldStore.reactionsEnabled)
 
 // Who-reacted sheet, opened by a long-press on a chip. Holds the message id
 // rather than the view object so the list re-resolves from renderedMessages as
@@ -439,7 +446,7 @@ function toggleDetailReaction(emoji: string) {
 // RPC with no direct-socket fallback. Existing comments still render when this
 // is false — inert, like reaction chips — while a world that has comments
 // switched off has none to render (see useChatMessages).
-const commentsSupported = computed(() => versionCompat.supportsComments && listeners.isListening)
+const commentsSupported = computed(() => worldStore.commentsEnabled)
 
 // What the editor is currently pointed at: a message id (not a view — views are
 // rebuilt on every world trigger, so a captured one would freeze) and, when

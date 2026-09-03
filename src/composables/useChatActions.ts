@@ -7,11 +7,10 @@ import {
   rerollChatRoll,
   selectSpellVariant,
   sendImage,
-  sendVoiceMemo,
-  toggleReaction as toggleReactionRpc
+  sendVoiceMemo
 } from '@/api/actionRpc'
-import { readReactions, toggleReaction as toggleReactionLocal } from '@/utils/chatReactions'
-import { modifyDocument } from '@/api/documents'
+import { readUserReactions, toggleUserReaction } from '@/utils/chatReactions'
+import { modifyDocument, updateUserFlag } from '@/api/documents'
 import { useChatComments } from '@/composables/useChatComments'
 import { transcribeAudioOrNull, type TranscriptionConfig } from '@/api/transcription'
 import type { DocumentData } from '@/api/internal'
@@ -440,16 +439,15 @@ export function useChatActions({
 
   // Toggle this user's emoji reaction on a message.
   //
-  // Unlike send/edit/delete above, this can't be a direct socket write: Foundry
-  // only lets a message's author (or a GM) update it, and a reaction is a write
-  // to someone else's message. So it goes through the GM client as an RPC, which
-  // means it needs a GM online and takes a round-trip — hence the optimistic
-  // apply, so the chip responds to the tap immediately.
+  // A DIRECT socket write, as this app's own Foundry user. A reaction is stored
+  // on the reactor's own User document (utils/chatReactions.ts), and Foundry lets
+  // a user write themselves — so no GM need be online, and there is no
+  // read-modify-write to serialize, because nobody else ever touches this row.
   //
-  // Three-step: guess locally, send, then write back whatever the GM actually
-  // stored. That last step is not just rollback-on-error — it also settles a
-  // genuine race, since another player may have reacted between our read and the
-  // GM's write, and the authoritative list is what came back.
+  // Still optimistic, for latency rather than for correctness: the chip has to
+  // flip under the finger. The reconcile step the RPC version needed is gone —
+  // there is no authoritative list to be handed back, since the only writer of
+  // this list is us.
   async function toggleMessageReaction(message: ChatMessageData, emoji: string): Promise<void> {
     const messageId = message._id
     const userId = userStore.userId
@@ -458,23 +456,19 @@ export function useChatActions({
     const key = `${messageId}:${emoji}`
     if (setHas(pendingReactions, key)) return
 
-    const before = readReactions(message)
-    const optimistic = toggleReactionLocal(before, emoji, userId)
+    const before = readUserReactions(worldStore.userById(userId))
+    const optimistic = toggleUserReaction(before, messageId, emoji)
 
     actionError.value = false
     setPending(pendingReactions, key, true)
-    worldStore.applyChatReactions(messageId, optimistic)
+    worldStore.applyUserAnnotations(userId, 'reactions', optimistic)
     try {
-      const ack = await toggleReactionRpc(messageId, emoji)
-      worldStore.applyChatReactions(messageId, ack.reactions)
+      await updateUserFlag(userId, 'reactions', optimistic)
     } catch {
-      // No GM online, an error ack, or a timeout. Undo our own pair on the list
-      // as it stands now rather than replaying the pre-tap snapshot: another
-      // player may have reacted while the RPC was out, and only this user can
-      // have touched this user's pair, so re-toggling settles exactly our tap
-      // and leaves theirs standing.
-      const current = readReactions(message)
-      worldStore.applyChatReactions(messageId, toggleReactionLocal(current, emoji, userId))
+      // The write was refused or timed out, so nothing landed. Put back exactly
+      // what we had: unlike the RPC version there is no race to settle, because
+      // this document has one writer.
+      worldStore.applyUserAnnotations(userId, 'reactions', before)
       actionError.value = true
     } finally {
       setPending(pendingReactions, key, false)

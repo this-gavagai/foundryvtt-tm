@@ -5,8 +5,6 @@ import {
   CAPABILITY_VOICE_MEMO,
   CAPABILITY_VOICE_MEMO_TRANSCRIPT,
   CAPABILITY_IMAGE_UPLOAD,
-  CAPABILITY_REACTIONS,
-  CAPABILITY_COMMENTS,
   CAPABILITY_SET_HIT_POINTS,
   CAPABILITY_END_TURN
 } from '@/api/protocol'
@@ -51,15 +49,19 @@ export const useVersionCompatStore = defineStore('versionCompat', () => {
     moduleCapabilities.value.includes(CAPABILITY_IMAGE_UPLOAD)
   )
 
-  // Gate for the chat reaction affordance. A module too old to advertise it has
-  // no TOGGLE_REACTION handler, so the request would go unanswered and the tap
-  // would sit out the full 30s ack timeout — hide the picker instead.
-  const supportsReactions = computed(() => moduleCapabilities.value.includes(CAPABILITY_REACTIONS))
-
-  // Gate for the chat comment affordance, mirroring supportsReactions: a module
-  // too old to advertise it has no SET_COMMENT handler, so a comment would sit
-  // out the full 30s ack timeout instead of saving.
-  const supportsComments = computed(() => moduleCapabilities.value.includes(CAPABILITY_COMMENTS))
+  // Reactions and comments deliberately have NO gate here any more.
+  //
+  // They used to need one: the affordance had to be hidden unless a module new
+  // enough to run TOGGLE_REACTION / SET_COMMENT was listening, or the tap would
+  // sit out the full 30s ack timeout. Both are now written directly to their
+  // author's own user document, so there is no handler to be missing and no GM
+  // to be absent — what remains is whether the WORLD has the feature switched
+  // on, which the app reads straight out of the world payload (see
+  // stores/world.ts and utils/worldSettings.ts). That read also covers version
+  // skew, because the setting only exists once a module registering it has run.
+  //
+  // The module still advertises both capabilities, for app builds old enough to
+  // check them.
 
   // Gate for routing an HP edit through the GM's client. A module too old to
   // advertise it has no SET_HIT_POINTS handler, so the request would go
@@ -105,8 +107,6 @@ export const useVersionCompatStore = defineStore('versionCompat', () => {
     supportsVoiceMemo,
     supportsVoiceMemoTranscript,
     supportsImageUpload,
-    supportsReactions,
-    supportsComments,
     supportsSetHitPoints,
     supportsEndTurn,
     isMismatched,

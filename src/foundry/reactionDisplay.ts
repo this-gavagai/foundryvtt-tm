@@ -35,12 +35,16 @@
 // REACTION_MENU_STYLE.
 
 import type { ContextMenuEntry } from '@7h3laughingman/foundry-types/client/applications/ux/context-menu.mjs'
-import { TM } from '@/api/protocol'
-import { logger, uuidv4 } from '@/utils/utilities'
+import { MODULE_ID } from '@/api/protocol'
+import { logger } from '@/utils/utilities'
 import {
   REACTION_EMOJI,
   groupReactions,
+  indexUserReactions,
   readReactions,
+  readUserReactions,
+  toggleUserReaction,
+  type ChatReaction,
   type ReactionGroup
 } from '@/utils/chatReactions'
 import {
@@ -48,7 +52,6 @@ import {
   findRenderedChatMessage,
   type TablemateChatMessage
 } from './utils/chatMessage'
-import { foundryToggleReaction } from './handlers/reactions'
 import { reactionsEnabled } from './featureToggles'
 import { onHook } from './globals'
 
@@ -78,29 +81,44 @@ function messageId(message: ReactableMessage): string | undefined {
 // window is a single click against a concurrent tap, and the loser simply taps
 // again — worth less than plumbing a click through the socket to itself.
 async function requestToggle(id: string, emoji: string): Promise<void> {
-  const userId = game.user._id
+  const user = game.user
+  const userId = user?._id
   if (!userId) return
-  if (game.user.isGM) {
-    await foundryToggleReaction({
-      action: TM.TOGGLE_REACTION,
-      uuid: uuidv4(),
-      userId,
-      messageId: id,
-      emoji
-    })
-    return
-  }
-  game.socket.emit(TM.CHANNEL, {
-    action: TM.TOGGLE_REACTION,
-    uuid: uuidv4(),
-    userId,
-    messageId: id,
-    emoji
-  })
+  // A direct write to our OWN user document — no socket request, and no
+  // GM/player branch, because a reaction is stored on the reactor rather than on
+  // the message (utils/chatReactions.ts) and Foundry lets a user write
+  // themselves. setFlag rather than a raw update so the change goes through the
+  // normal document lifecycle and reaches every client, this one included.
+  //
+  // The read-modify-write race the RPC version had is gone with it: this list
+  // has exactly one writer, so two people reacting at the same instant cannot
+  // lose a toggle any more.
+  const current = readUserReactions({ _id: userId, flags: user.flags as Record<string, unknown> })
+  await user.setFlag(MODULE_ID, 'reactions', toggleUserReaction(current, id, emoji))
 }
 
 function userName(userId: string): string {
   return game.users.get(userId)?.name ?? userId
+}
+
+// Reactions live on their AUTHOR's user document now (utils/chatReactions.ts),
+// so drawing them means looking across users rather than at the message.
+//
+// Cached, because this runs per rendered message: rebuilding the index for each
+// row would rescan every user's whole reaction history a few hundred times on
+// one log render. Invalidated by the `updateUser` hook below, which is also what
+// makes someone else's reaction appear here without a reload.
+let reactionIndex: Map<string, ChatReaction[]> | null = null
+
+function reactionsOn(message: ReactableMessage, id: string): ChatReaction[] {
+  reactionIndex ??= indexUserReactions(game.users)
+  const stored = reactionIndex.get(id) ?? []
+  // Union in anything an older app build left on the MESSAGE, so a world
+  // mid-rollover shows all its reactions rather than half of them.
+  const legacy = readReactions(message)
+  if (!legacy.length) return stored
+  const seen = new Set(stored.map((r) => `${r.emoji}|${r.userId}`))
+  return [...stored, ...legacy.filter((r) => !seen.has(`${r.emoji}|${r.userId}`))]
 }
 
 // user-select:none because a chip is a toggle, not text — a double-click aimed at
@@ -155,7 +173,7 @@ export function applyReactionDisplay(message: ReactableMessage, element: HTMLEle
   element.querySelector<HTMLElement>(`.${CONTAINER_CLASS}`)?.remove()
   if (!reactionsEnabled()) return
 
-  const groups = groupReactions(readReactions(message), {
+  const groups = groupReactions(reactionsOn(message, id), {
     selfUserId: game.user._id,
     nameFor: userName
   })
@@ -179,16 +197,16 @@ export function applyReactionDisplay(message: ReactableMessage, element: HTMLEle
 
 // ── Right-click menu ───────────────────────────────────────────────────────
 
-// Can this client's reaction actually be serviced? A GM writes the flag itself;
-// anyone else needs a GM online to do it for them (see requestToggle). With no
-// GM connected a player's request would go unanswered, so the entries are hidden
-// rather than offered as a silent no-op.
+// Can this client's reaction actually be serviced?
+//
+// The world switch is now the whole question. It used to also require a GM
+// online for a player, because a reaction was a write to someone else's message
+// that only a GM could perform — with none connected the request went
+// unanswered, so the entries were hidden rather than offered as a silent no-op.
+// A reaction is written to the reactor's OWN user document now (requestToggle),
+// which every client may do, so there is nothing left to wait for.
 function reactionsAvailable(): boolean {
-  // The world switch first — a world with reactions off offers them nowhere,
-  // including on the GM's own screen.
-  if (!reactionsEnabled()) return false
-  if (game.user.isGM) return true
-  return !!game.users.activeGM
+  return reactionsEnabled()
 }
 
 // v14 renamed two ContextMenuEntry fields and deprecates the old names:
@@ -343,6 +361,7 @@ function sweepRenderedMessages(): void {
 // directions: applyReactionDisplay removes the existing row before it checks the
 // switch, so one sweep both adds chips and takes them away.
 export function refreshReactionDisplay(): void {
+  reactionIndex = null
   sweepRenderedMessages()
 }
 
@@ -354,6 +373,19 @@ export function setupReactionDisplay(): void {
     const element = chatMessageElement(html) ?? findRenderedChatMessage(message)
     if (element) applyReactionDisplay(message, element)
   })
+
+  // Someone reacted. Reactions are stored on the reactor's own user, so this is
+  // the only hook that hears about one — a User update, not a ChatMessage
+  // update. Without it the log would only ever show reactions made on this
+  // client, and only until the next reload.
+  // The user collection changed. `updateUser` is the one that matters — a
+  // reaction is stored on its author's own user, so that is the only signal this
+  // client gets that one was written — but create/delete matter too: the index
+  // below is built from the whole collection, so someone joining or leaving
+  // mid-session would otherwise leave it describing a table that has moved on.
+  for (const hook of ['updateUser', 'createUser', 'deleteUser']) {
+    onHook(hook, () => refreshReactionDisplay())
+  }
 
   // A reaction is a flag-only update. Foundry normally re-renders the message
   // (which the hook above catches), but re-applying directly is cheap insurance

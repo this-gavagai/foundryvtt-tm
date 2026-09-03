@@ -143,21 +143,18 @@ export const RPC_TABLE: RpcTable = {
     concurrent: true
   },
 
-  // Reactions belong to the player, not a character, so there's no actor to test
-  // ownership against — anyone logged into the world may react. This is the only
-  // 'world-user' action that WRITES, so the containment lives in the handler
-  // instead: it only ever toggles args.userId's own entry, and only for an emoji
-  // from the shared palette (see handlers/reactions.ts). Deliberately NOT
-  // concurrent — the toggle is a read-modify-write on one message's flag, and
-  // the dispatch chain is what serializes two players tapping at once.
+  // LEGACY SHIM, kept for stale native app builds. A reaction is now written
+  // directly to the reactor's own user document, so the app does not send this
+  // and no dispatch-chain serialization is needed for the new path — the write
+  // has one author by construction. Still 'world-user' + non-concurrent for the
+  // old path it continues to serve: a read-modify-write on one message's flag,
+  // containment in the handler (args.userId's own entry, palette emoji only).
   [TM.TOGGLE_REACTION]: { handler: foundryToggleReaction, auth: 'world-user' },
 
-  // A comment is the player's too, so it clears the same 'world-user' bar, and
-  // that IS the whole gate for writing one: anyone in the world may comment on
-  // any message. The narrower rule — only a comment's author (or a GM) may
-  // rewrite it — is about the stored comment rather than the request, so it
-  // lives in the handler. Deliberately NOT concurrent: read-modify-write on one
-  // message's flag, serialized by the dispatch chain.
+  // LEGACY SHIM, as TOGGLE_REACTION above. A comment now goes directly onto its
+  // author's own user document, where "only its author may rewrite it" is
+  // Foundry's document permission rather than the handler check this path still
+  // performs. Non-concurrent for the old path's read-modify-write.
   [TM.SET_COMMENT]: { handler: foundrySetComment, auth: 'world-user' },
 
   // Any known world user may register their own device for push. A read-only

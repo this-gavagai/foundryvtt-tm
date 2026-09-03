@@ -263,6 +263,17 @@ export function setupSocketListenersForWorld(world: Ref<GamePF2e | undefined>) {
         triggerRef(world)
         break
       }
+      // User documents reach the app for the first time here.
+      //
+      // Needed because reactions and comments now live on their author's user
+      // (utils/chatReactions.ts): without this branch, someone else's reaction
+      // would not appear until the next full world fetch, and the app's own
+      // write would only ever be visible through its optimistic guess. The
+      // targeting-proxy flag rides along, which it previously only picked up on
+      // a world refresh.
+      case 'User':
+        processChanges(args, asDocumentArray(world.value?.users))
+        break
       case 'ChatMessage':
         processChanges(args, asDocumentArray(world.value?.messages))
         // Signal the chat cache that messages changed even when the mutation is
