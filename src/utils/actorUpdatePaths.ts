@@ -15,8 +15,45 @@
 //
 // Adding a new editable field to the app means adding its path here — an
 // unlisted path is dropped, surfacing as a visible failure during development
-// rather than a silent privileged write.
+// rather than a silent privileged write. That loud failure is half the point:
+// it is less a filter than a registration requirement, and the only enforced
+// piece of the lane story (api/documents.ts describes the rest, which nothing
+// checks).
+//
+// ── Why this guards the ACTOR path and not the item path ────────────────────
+//
+// Deliberate, not an oversight. updateActorItem / createActorItem /
+// deleteActorItem have no equivalent, and should not: the two document shapes
+// differ in a way that decides whether an allowlist can work at all.
+//
+// Every legitimate app write to an ACTOR is a narrow scalar setter, so the list
+// below is both cheap and COMPLETE — anything outside it is dropped, and the
+// realistic bug it catches is an ordinary one, a whole subtree written back by
+// a spread gone wrong (`updateActor(actor, { system: actor.value.system })`),
+// which flattens to leaves here and fails loudly. That matters most on the
+// actor, which is one document holding `ownership`, `prototypeToken`, every
+// flag, and GM-facing content like `details.biography.campaignNotes` and
+// `biography.visibility`.
+//
+// Item writes are not all narrow. Several legitimate ones are a whole ARRAY
+// (`system.rules`, for roll-option toggles and the blast action cost) or a
+// whole DOCUMENT (a stack split, a party transfer, a coin stack). An allowlist
+// there would bound the dozen narrow paths and structurally could not bound
+// those — advertising a completeness it does not have, which is worse than not
+// having it. Items are also narrower in blast radius: one typed document at a
+// time rather than the actor's whole mixed field space.
+//
+// So the guard fits one shape and half-fits the other. If the item path ever
+// grows, the better move is to make its BROAD writes named rather than
+// incidental — a separate function for a whole-array or whole-document write,
+// so it is deliberate and greppable — instead of an allowlist that can only
+// cover the easy half.
 export const ALLOWED_UPDATE_PATHS = new Set([
+  // Hit points normally route through SET_HIT_POINTS so the preUpdateActor
+  // automation modules hang off it runs (composables/setHitPoints.ts). These
+  // two entries are the NO-GM fallback path and are not redundant: remove them
+  // and hit-point editing breaks for exactly the case the fallback exists to
+  // serve, and only when no GM is listening to notice.
   'system.attributes.hp.value',
   'system.attributes.hp.temp',
   'system.resources.heroPoints.value',
