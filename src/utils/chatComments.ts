@@ -176,6 +176,16 @@ export function canModifyComment(
 // full GM update rights on any User, so a GM removing someone else's comment is
 // an ordinary write from their own client.
 //
+// ONE capability was lost in the move, deliberately. A sheet-only user attached
+// to a human through `flags.tablemate.belongsTo` can no longer edit a comment
+// written under the other identity: the old handler widened "your own" across
+// the pair (commentIdentityIds, still used by the legacy shim), and a document
+// permission cannot. READING still treats them as the same person, so a comment
+// written from either reads as that human's; only cross-identity EDITING is
+// gone. Judged an acceptable trade — it needs one person logged in as both
+// identities at different times — but it is a real regression, not an
+// oversight, and nothing mitigates it.
+//
 // SHAPE: a flat array of comments carrying their own `messageId`, not a map
 // keyed by message — see the shape note in utils/chatReactions.ts for why a map
 // on a per-user store is a trap. `userId` is GONE from the stored form: the
