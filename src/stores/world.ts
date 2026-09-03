@@ -44,6 +44,17 @@ export const useWorldStore = defineStore('world', () => {
   // mergeWith, which a computed reading through `world.value` cannot observe.
   // The reaction and comment indexes below hang off it.
   const usersRevision = ref(0)
+  // Signal that a user document changed in place, for the same reason
+  // bumpMessagesRevision exists: processChanges mutates via mergeWith, which a
+  // computed reading through the shallow `world` ref cannot observe. The
+  // reaction and comment indexes hang off usersRevision, so the socket branch
+  // that folds in someone else's write has to say so — without this their
+  // reactions landed in the data and never rendered.
+  function bumpUsersRevision(): void {
+    usersRevision.value++
+    triggerRef(world)
+  }
+
   function bumpMessagesRevision(): void {
     messagesRevision.value++
   }
@@ -407,6 +418,7 @@ export const useWorldStore = defineStore('world', () => {
     world,
     requestInFlight,
     messagesRevision,
+    bumpUsersRevision,
     bumpMessagesRevision,
     applyChatCreate,
     applyChatUpdate,

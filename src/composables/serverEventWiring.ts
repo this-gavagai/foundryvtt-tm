@@ -273,6 +273,11 @@ export function setupSocketListenersForWorld(world: Ref<GamePF2e | undefined>) {
       // a world refresh.
       case 'User':
         processChanges(args, asDocumentArray(world.value?.users))
+        // Invalidate the cross-user reaction/comment indexes, exactly as the
+        // ChatMessage branch below invalidates the message list: the mutation
+        // above is in place, so nothing reading through the shallow `world` ref
+        // would otherwise notice it.
+        useWorldStore().bumpUsersRevision()
         break
       case 'ChatMessage':
         processChanges(args, asDocumentArray(world.value?.messages))
@@ -313,13 +318,26 @@ export function setupSocketListenersForActor(
   const removeRefresh = addRefresh(actorId, refreshMethod)
 
   // When a GM announces presence, re-fetch any actor still waiting on live
-  // data. We re-fetch if inventory is missing (never loaded) OR the actor is
-  // flagged stale — a cached snapshot from a prior session already carries
-  // inventory, so gating on inventory alone would leave a stale sheet spinning
-  // forever when its initial request was dropped because no GM was listening.
+  // data. Three ways an actor can be waiting:
+  //
+  //   * inventory missing — never loaded;
+  //   * flagged stale — painted from a cached snapshot, which already carries
+  //     inventory, so gating on inventory alone would leave that sheet spinning
+  //     forever when its initial request was dropped for want of a GM;
+  //   * awaiting a refresh — a direct write fired one and nobody was listening
+  //     to answer it. Without this arm the returning GM sent no payload, so the
+  //     derived figures stayed behind while useDerivedStale stopped marking
+  //     them (it gates on !isListening) — hiding the staleness at the exact
+  //     moment it became fixable.
   const syncStatus = useSyncStatusStore()
   const unsubListener = onTmAction(TM.LISTENER_ONLINE, () => {
-    if (!actor.value?.inventory || syncStatus.staleActors.has(actorId)) fireRefresh(actorId)
+    if (
+      !actor.value?.inventory ||
+      syncStatus.staleActors.has(actorId) ||
+      syncStatus.awaitingRefresh.has(actorId)
+    ) {
+      fireRefresh(actorId)
+    }
   })
   const unsubUpdate = onTmAction(TM.UPDATE_CHARACTER, (args) => {
     parseActorData(actorId, actor, args)

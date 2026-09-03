@@ -151,3 +151,35 @@ describe('normalizeDirectItemSource', () => {
     expect(system.damage).toEqual({ dice: 1, die: 'd8' })
   })
 })
+
+// The modal asks this about the DISPLAY payload it already holds rather than
+// paying for a second pack read, so the check has to accept that shape too —
+// shapeCompendiumItem spreads the whole `system`, so `rules` and `type` are
+// both on it, but its declared type names its own fields.
+describe('the display payload', () => {
+  it('is accepted, and read the same way as a raw source', () => {
+    const displayShaped = {
+      _id: 'abc',
+      name: 'Longsword',
+      type: 'weapon',
+      source: 'Equipment',
+      system: {
+        description: { value: '<p>A sword.</p>' },
+        traits: { value: ['versatile-p'], rarity: 'common' },
+        level: { value: 0 },
+        rules: []
+      }
+    }
+    expect(checkDirectAdd(displayShaped)).toEqual({ eligible: true })
+
+    expect(
+      checkDirectAdd({
+        ...displayShaped,
+        system: { ...displayShaped.system, rules: [{ key: 'GrantItem' }] }
+      })
+    ).toEqual({
+      eligible: false,
+      reason: 'has-rules'
+    })
+  })
+})

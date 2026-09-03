@@ -77,9 +77,12 @@ export type DirectAddRefusal =
 
 export type DirectAddCheck = { eligible: true } | { eligible: false; reason: DirectAddRefusal }
 
+// Permissive on purpose: this is asked about a raw compendium source AND about
+// the display payload the modal already holds, whose `system` is typed with its
+// own known fields. `unknown` lets both in and narrows at the one read below.
 interface SourceLike {
   type?: unknown
-  system?: { rules?: unknown } | null
+  system?: unknown
 }
 
 /**
@@ -99,7 +102,7 @@ export function checkDirectAdd(source: SourceLike | null | undefined): DirectAdd
   }
   if (!DIRECT_ELIGIBLE_TYPES.has(type)) return { eligible: false, reason: 'needs-system' }
 
-  const rules = source?.system?.rules
+  const rules = (source?.system as { rules?: unknown } | null | undefined)?.rules
   // A missing array counts as empty: a source with no rules key has no rules.
   if (Array.isArray(rules) && rules.length > 0) return { eligible: false, reason: 'has-rules' }
 

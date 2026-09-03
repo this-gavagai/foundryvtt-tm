@@ -101,7 +101,7 @@ async function open(uuid: string) {
     const result = await getCompendiumItem(uuid)
     logger.debug('TM-COMPENDIUM-ITEM', result)
     item.value = result.compendiumItem ?? null
-    void assessDirectAdd(uuid)
+    assessDirectAdd()
   } finally {
     loading.value = false
   }
@@ -122,13 +122,18 @@ const REFUSAL_MESSAGE = {
   'needs-system': 'compendium.needsGmOther'
 } as const
 
-async function assessDirectAdd(uuid: string) {
+function assessDirectAdd() {
   directNotice.value = null
   blockedReason.value = null
   if (isListening.value) return
-  try {
-    const source = await getCompendiumSource(uuid)
-    const check = checkDirectAdd(source)
+  // Assessed from the item already loaded, not a second pack read: the display
+  // payload spreads the whole `system` (see shapeCompendiumItem), so it carries
+  // the `rules` and `type` this check reads. getCompendiumSource is still what
+  // the CREATE builds from — that needs the untouched source, and this one has
+  // had its description rewritten for rendering.
+  if (!item.value) return
+  {
+    const check = checkDirectAdd(item.value)
     if (check.eligible) {
       // Says what will happen AND what will not: the item lands, the derived
       // totals do not move until a GM answers the refresh. Those figures carry
@@ -137,12 +142,6 @@ async function assessDirectAdd(uuid: string) {
     } else {
       blockedReason.value = REFUSAL_MESSAGE[check.reason]
     }
-  } catch (error) {
-    // The source read is direct over the app's own socket, so a failure here is
-    // a dropped connection rather than an absent GM. Say nothing specific
-    // rather than guess at a reason.
-    logger.debug('TM-COMPENDIUM-ITEM: could not assess a direct add', error)
-    blockedReason.value = 'compendium.needsGmOther'
   }
 }
 
@@ -171,7 +170,7 @@ async function addDirectly(uuid: string): Promise<boolean> {
 // the other direction, a returning GM should restore the full add rather than
 // leave the reduced one on offer.
 watch(isListening, () => {
-  if (currentUuid.value) void assessDirectAdd(currentUuid.value)
+  if (currentUuid.value) assessDirectAdd()
 })
 
 // The choices this item would otherwise ask the GM to make.
