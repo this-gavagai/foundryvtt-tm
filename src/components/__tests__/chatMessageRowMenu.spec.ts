@@ -34,6 +34,7 @@ function view(over: Partial<ChatMessageView> = {}): ChatMessageView {
     groupEnd: true,
     hasPortrait: false,
     portraitScale: { '--sx': 1, '--sy': 1 },
+    isOutOfCharacter: false,
     preparedContent: 'hello',
     showContent: true,
     showEmptyMessage: false,

@@ -284,19 +284,29 @@ function handleContentClick(event: MouseEvent) {
   >
     <!-- Gutter: the speaker's token, drawn once at the top of a run and sitting
          on the sender's side (flex-row-reverse puts it on the right for own
-         messages). It holds its width on continuation rows — and on
-         out-of-character posts, which have no token — so every bubble in a run
-         shares one edge, the way Discord's mobile log does.
+         messages). It holds its width on continuation rows so every bubble in a
+         run shares one edge, the way Discord's mobile log does.
+
+         An out-of-character post has no token, so it draws the PLAYER here
+         instead — their Foundry avatar, or the initials badge below when they
+         have set none. Squared off and outlined in their user color, against
+         the round frame a dynamic-ring token draws: shape says character or
+         human at a glance, and the color is the same signal core's chat log
+         gives by outlining an OOC message in it.
 
          overflow-visible so a token whose art is scaled past its frame
          (scaleX/scaleY > 1) spills out of the avatar box rather than being
          cropped — the usual Foundry large-creature token look. A ring token
-         brings its own round clip instead (see TokenArt). -->
+         brings its own round clip instead (see TokenArt); the player's square
+         clips to its own corners, since a user avatar has no such convention
+         and an uncropped one would break the gutter's edge. -->
     <div data-part="chat-gutter" class="w-10 flex-none">
       <div
         v-if="showHeader && view.hasPortrait"
         data-part="chat-portrait"
-        class="h-10 w-10 overflow-visible rounded"
+        class="h-10 w-10"
+        :class="view.authorBadge ? 'overflow-hidden rounded border-2' : 'overflow-visible rounded'"
+        :style="view.authorBadge ? { borderColor: view.authorBadge.background } : undefined"
       >
         <TokenArt
           v-if="view.portrait"
@@ -309,6 +319,21 @@ function handleContentClick(event: MouseEvent) {
           lazy
           :alt="view.speakerName"
         />
+        <!-- No avatar set: the player's initials on their own color. aria-hidden
+             because the name it abbreviates is already in the header beside it,
+             so a screen reader would otherwise read the sender twice. -->
+        <div
+          v-else-if="view.authorBadge"
+          data-part="chat-author-badge"
+          class="flex h-full w-full items-center justify-center text-sm leading-none font-semibold select-none"
+          :style="{
+            backgroundColor: view.authorBadge.background,
+            color: view.authorBadge.foreground
+          }"
+          aria-hidden="true"
+        >
+          {{ view.authorBadge.initials }}
+        </div>
       </div>
     </div>
 

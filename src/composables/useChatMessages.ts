@@ -5,6 +5,7 @@ import { useChatStore } from '@/stores/chat'
 import { useUserStore } from '@/stores/user'
 import { getMediaPath } from '@/utils/utilities'
 import { tokenPortrait, type PortraitRing } from '@/utils/tokenPortrait'
+import { userBadge, type UserBadge } from '@/utils/userBadge'
 import { prepareChatHtml } from '@/utils/chatHtml'
 import { rollSummaries, type ChatRollSummary, type RollJson } from '@/utils/chatRollSummary'
 import { applyPf2eNotation } from '@/utils/pf2eEnrich'
@@ -33,6 +34,10 @@ export interface ChatMessageData {
   blind?: boolean
   rolls?: Array<string | RollJson>
   type?: string
+  // Foundry's CHAT_MESSAGE_STYLES: OTHER 0, OOC 1, IC 2, EMOTE 3. A number, and
+  // a different axis from `type` above (which is the system's message subtype,
+  // a string). Only OOC is read here — see isOutOfCharacter.
+  style?: number | null
   flags?: {
     tablemate?: {
       originUserId?: string | null
@@ -127,6 +132,17 @@ interface ChatActorData {
   prototypeToken?: ChatTokenData
 }
 
+// CONST.CHAT_MESSAGE_STYLES.OOC. Written out rather than imported: this app
+// never loads Foundry's client bundle, and what arrives over the wire is the
+// number.
+const CHAT_STYLE_OOC = 1
+
+// CONST.DEFAULT_TOKEN — what Foundry's own UI treats as "no avatar chosen" (its
+// players list hides View Avatar on exactly this value). A world can hold it
+// literally, so an out-of-character post gets the player's color badge rather
+// than a silhouette that identifies nobody.
+const FOUNDRY_DEFAULT_AVATAR = 'icons/svg/mystery-man.svg'
+
 export interface ChatMessageView {
   message: ChatMessageData
   key: string
@@ -156,11 +172,22 @@ export interface ChatMessageView {
   groupStart: boolean
   groupEnd: boolean
   hasPortrait: boolean
-  // Unresolved token-art path (see speakerPortrait); TokenArt resolves it.
+  // Unresolved token-art path (see speakerPortrait); TokenArt resolves it. For
+  // an out-of-character post this is the AUTHOR'S OWN avatar instead — there is
+  // no character to draw.
   portrait?: string
   portraitScale: { '--sx': number; '--sy': number }
   // Present when the speaker's token draws a dynamic ring.
   portraitRing?: PortraitRing
+  // Nobody is in character on this one: no speaker actor or token (or Foundry
+  // marked it OOC outright), so it is the human talking. The row draws the
+  // player rather than a character, and marks it with their color.
+  isOutOfCharacter: boolean
+  // The author's initials and their Foundry user color, on out-of-character
+  // posts only. It IS the portrait when they have set no avatar; when they have
+  // one, its color still marks the picture as a player's rather than a
+  // character's — the same job core's OOC message border does.
+  authorBadge?: UserBadge
   preparedFlavor?: string
   preparedContent?: string
   // Playable URL of an attached voice memo (resolved from flags.tablemate);
@@ -546,6 +573,17 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
     collectionToArray<UserData>(world.value?.users as CollectionLike<UserData>)
   )
 
+  // Both id spellings, because a user reaches this app either as source data
+  // (`_id`) or as a document-shaped object (`id`) depending on the payload.
+  const usersById = computed(() => {
+    const byId = new Map<string, UserData>()
+    users.value.forEach((user) => {
+      if (user._id) byId.set(user._id, user)
+      if (user.id) byId.set(user.id, user)
+    })
+    return byId
+  })
+
   const userNamesById = computed(() => {
     const names = new Map<string, string>()
     users.value.forEach((user) => {
@@ -579,6 +617,14 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
       return userNamesById.value.get(ownerId) ?? userNamesById.value.get(userId) ?? userId
     return userNamesById.value.get(userId) ?? userId
   }
+  // The user behind an id, resolved through belongsTo exactly as
+  // resolvedUserName resolves the name — so the avatar beside a name is always
+  // the same human that name refers to, not the sheet-only login that posted.
+  function resolvedUser(userId: string): UserData | undefined {
+    const ownerId = ownerIdByUserId.value.get(userId)
+    return (ownerId ? usersById.value.get(ownerId) : undefined) ?? usersById.value.get(userId)
+  }
+
   const scenes = computed(() =>
     collectionToArray<ChatSceneData>(world.value?.scenes as CollectionLike<ChatSceneData>)
   )
@@ -617,6 +663,18 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
     if (typeof message.author === 'object' && message.author?.name) return message.author.name
     const authorId = typeof message.author === 'string' ? message.author : (message.user ?? '')
     return authorId ? resolvedUserName(authorId) : authorId
+  }
+
+  // The user id a message is attributed TO, which is not always its Foundry
+  // author: a card the GM's client posted for a player carries the player's id
+  // in flags.tablemate.originUserId, and authorName prints that human. Anything
+  // drawing the author has to resolve the same id, or the picture and the name
+  // beside it can disagree.
+  function authorUserId(message: ChatMessageData): string {
+    const tablemateOrigin = tablemateOriginUserId(message)
+    if (tablemateOrigin) return tablemateOrigin
+    if (typeof message.author === 'string') return message.author
+    return message.author?._id ?? message.user ?? ''
   }
 
   function speakerName(message: ChatMessageData, resolvedAuthor = authorName(message)): string {
@@ -666,6 +724,48 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
       src: portrait.url,
       scale: { '--sx': portrait.scaleX, '--sy': portrait.scaleY },
       ring: portrait.ring
+    }
+  }
+
+  // Is this the human talking rather than a character?
+  //
+  // Two ways to say so, because the two producers say it differently. Foundry's
+  // own chat bar stamps style = OOC and deletes the speaker outright (ChatLog's
+  // chat-command processing), while this app posts an out-of-character message
+  // with the player's name as a bare `speaker.alias` and no style at all (see
+  // foundry/handlers/chat.ts). A style-only test would therefore miss every OOC
+  // message sent from a tablet, which here is most of them.
+  //
+  // The speaker test is the general one, and it is the question the portrait
+  // actually asks: with no actor and no token there is no character art to draw
+  // and no character to attribute the words to — which is equally true of a
+  // system or module message posted without a speaker, where the author is
+  // likewise the honest answer.
+  function isOutOfCharacter(message: ChatMessageData): boolean {
+    if (message.style === CHAT_STYLE_OOC) return true
+    return !message.speaker?.actor && !message.speaker?.token
+  }
+
+  // The author's own portrait, for a post with nobody in character behind it:
+  // the avatar they set in Foundry, plus the initials-and-color badge that
+  // stands in when they haven't set one.
+  //
+  // Deliberately NOT falling back to the assigned character's art the way a
+  // Foundry client's prepared `User#avatar` does (`this.avatar ||
+  // this.character?.img || DEFAULT_TOKEN`, in User#prepareDerivedData — a
+  // substitution that never reaches the wire, so this app sees the raw field).
+  // The point of the message is that the player is speaking as themselves, so
+  // their character's face is the one picture that misreports it, and
+  // mystery-man says strictly less than their own color does.
+  function authorPortrait(
+    message: ChatMessageData,
+    name: string
+  ): { avatar?: string; badge: UserBadge } {
+    const user = resolvedUser(authorUserId(message))
+    const avatar = user?.avatar?.trim()
+    return {
+      avatar: avatar && avatar !== FOUNDRY_DEFAULT_AVATAR ? avatar : undefined,
+      badge: userBadge(name, user?.color)
     }
   }
 
@@ -722,6 +822,11 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
     const author = authorName(message)
     const speaker = speakerName(message, author)
     const isOwnMessage = messageIsFromCurrentUser(message)
+    // Nobody in character: draw the human instead. Their avatar replaces the
+    // character art wholesale — including the ring and scale, which describe a
+    // token and mean nothing for a user's picture.
+    const outOfCharacter = isOutOfCharacter(message)
+    const authorArt = outOfCharacter ? authorPortrait(message, author) : undefined
 
     return {
       message,
@@ -747,10 +852,19 @@ export function useChatMessages(currentActorId: Ref<string | null | undefined>) 
       // token or an actor) so the row keeps a stable height even before
       // scene/actor data has hydrated to resolve the actual src. Without this the
       // box pops in late during rehydration and shifts everything below it.
-      hasPortrait: !!message.speaker?.token || !!message.speaker?.actor,
-      portrait: portrait.src,
-      portraitScale: portrait.scale,
-      portraitRing: portrait.ring,
+      // An out-of-character post reserves the box too, on the same static
+      // signal: whether the message names a user at all. Its author id is on
+      // the message itself, so this is settled before the user list hydrates to
+      // say whether that user has an avatar or takes the badge.
+      hasPortrait:
+        !!message.speaker?.token ||
+        !!message.speaker?.actor ||
+        (outOfCharacter && !!authorUserId(message)),
+      portrait: authorArt ? authorArt.avatar : portrait.src,
+      portraitScale: authorArt ? { '--sx': 1, '--sy': 1 } : portrait.scale,
+      portraitRing: authorArt ? undefined : portrait.ring,
+      isOutOfCharacter: outOfCharacter,
+      authorBadge: authorArt?.badge,
       audioUrl: voiceMemoUrl(message),
       transcript: voiceMemoTranscript(message),
       imageUrl: imageUrl(message),

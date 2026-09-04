@@ -5,10 +5,19 @@ import { useUserStore } from '@/stores/user'
 import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
 import type { ChatMessageData } from '@/composables/useChatMessages'
 
+// A world user as chat reads one: enough to resolve whisper visibility (the
+// belongsTo pair) and attribution (the name, and — for a post with no character
+// behind it — the human's own avatar and color; see useChatMessages).
 export interface UserData {
   _id?: string | null
   id?: string | null
   name?: string | null
+  // Source data, so this is whatever the world stored and NOT the prepared
+  // `User#avatar` a Foundry client sees: core fills an empty one in with the
+  // assigned character's art (falling back to mystery-man) while preparing the
+  // document, and that substitution never reaches the wire.
+  avatar?: string | null
+  color?: string | null
   flags?: {
     tablemate?: {
       belongsTo?: string | null
