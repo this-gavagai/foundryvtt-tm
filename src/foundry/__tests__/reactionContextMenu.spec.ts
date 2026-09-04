@@ -129,10 +129,12 @@ describe('registerContextEntries', () => {
     collect()[0].callback(target)
     await vi.waitFor(() => expect(setFlagMock).toHaveBeenCalled())
     // Written to this user's own document, keyed by the message rather than
-    // carrying a userId — the author IS the document it sits on.
-    expect(setFlagMock).toHaveBeenCalledWith('tablemate', 'reactions', [
-      { messageId: 'msg-1', emoji: REACTION_EMOJI[0] }
-    ])
+    // carrying a userId — the author IS the document it sits on. Whole-flag
+    // here, unlike the app's per-row patch: a Foundry client can only set a flag
+    // to a value, and the stored shape is the same either way.
+    expect(setFlagMock).toHaveBeenCalledWith('tablemate', 'reactions', {
+      'msg-1': { e: [REACTION_EMOJI[0]], t: expect.any(Number) }
+    })
   })
 
   it('resolves the id from an inner node, not just the message root', async () => {

@@ -78,9 +78,13 @@ describe('reaction toggle', () => {
 
     await actions.toggleMessageReaction(message, '👍')
 
-    expect(updateUserFlag).toHaveBeenCalledWith('me', 'reactions', [
-      { messageId: 'msg-1', emoji: '👍' }
-    ])
+    // The ROW that changed, not the whole list: reactions are stored as a map
+    // keyed by message id, so a tap costs one row (see reactionWritePlan). This
+    // user had no reactions at all, so the flag is replaced outright — the
+    // `whole` branch, which happens once per user at the rollover.
+    const [userId, key, value] = updateUserFlag.mock.calls[0]
+    expect([userId, key]).toEqual(['me', 'reactions'])
+    expect(value).toEqual({ 'msg-1': { e: ['👍'], t: expect.any(Number) } })
     // Nothing was written to the message — that is what used to need a GM.
     expect(message.flags).toEqual({})
   })

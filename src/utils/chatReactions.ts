@@ -159,29 +159,22 @@ export function groupReactions(
 //   • "Only your own reaction" stops being a rule a handler enforces and becomes
 //     a property of the storage. There is no request to contain.
 //
-// SHAPE: one flat array of {messageId, emoji}, deliberately NOT a map keyed by
-// message id — which is what a per-user store first suggests. Remote updates are
-// folded in with lodash mergeWith + mergeWithArrayReset (api/documents.ts),
-// which replaces arrays wholesale but merges objects key-by-key; with a map,
-// dropping your last reaction on a message makes Foundry broadcast its deletion
-// syntax (`flags.tablemate.reactions.-=<id>`) and the merge installs a literal
-// key called `-=<id>`. That is the same trap the message-flag shape note above
-// describes, and it bites harder here, since a phantom key would carry a whole
-// message's worth of reactions. One array always resets as a unit.
+// SHAPE: a map keyed by message id — `{ [messageId]: { e: [...], t } }`. This
+// was a flat array until the merge could express a removal, and the history is
+// worth keeping because the constraint was ours, not Foundry's: dropping your
+// last reaction on a message makes Foundry broadcast `-=<id>`, which is perfectly
+// good deletion syntax that lodash knew nothing about, so the merge installed it
+// as a literal key and left a phantom row carrying a whole message's reactions.
+// An array sidestepped that by always resetting as a unit.
 //
-// WHAT THE ARRAY COSTS, and what would buy it back. An array has no unit smaller
-// than itself, so every tap rewrites the whole list and broadcasts it to the
-// table — the caps above are what keep that bounded, and they are the only thing
-// that does.
+// mergeDocumentChange (api/internal.ts) honours those deletions now, and the map
+// is what that fix was for. An array has no unit smaller than itself, so every
+// tap rewrote the entire list and broadcast it to the table; a row is about
+// sixty bytes. See reactionWritePlan for what actually goes on the wire, and the
+// note on USER_REACTION_MAX for what the cap is now measuring.
 //
-// Worth knowing that this is a limit of OUR merge, not of Foundry: the `-=` form
-// above is perfectly good deletion syntax, and mergeWithArrayReset simply does
-// not implement it (api/internal.ts — it forwards arrays and leaves everything
-// else to lodash). Teach that one customizer to honour a `-=` key and the map
-// shape becomes available here, on comments, and on any other flag we would like
-// to write one field of. That is the change to make if these payloads ever
-// actually hurt; shrinking the caps is the cheaper half of the same problem, and
-// no substitute for it.
+// The message-flag shape note at the top of this file describes the same trap
+// one level down, and still applies to the legacy data that read path serves.
 //
 // ONE writer per document is what makes the array safe to rewrite, and that is a
 // claim about the DOCUMENT, not about clients: the same person signed in on two
@@ -199,19 +192,19 @@ export interface UserReaction {
   emoji: string
 }
 
-// Ceiling per user, oldest dropped first. Needed rather than tidy: this rides in
-// core's world dump on every connect, so without a cap a long-running world
-// would grow the payload forever. Generous enough that it is only ever reached
-// by history nobody is looking at any more — a reaction on a message hundreds of
-// sessions old is not worth a byte.
+// Ceiling per user, in MESSAGES reacted to, oldest dropped first. Needed rather
+// than tidy: this rides in core's world dump on every connect, so without a cap
+// a long-running world would grow the payload forever.
 //
-// A COUNT is a real bound here only because an entry is a fixed size: a message
-// id and one of six emoji, 49 bytes serialized, so 500 of them is 24 KB and
-// cannot be anything else. That is the figure utils/chatComments.ts sizes its
-// own budget against — and the reason it needs a character budget rather than
-// just a count, since a comment's text is the free variable this list has not
-// got.
-export const USER_REACTION_MAX = 500
+// 200 rather than the 500 reactions it replaced, and the unit changed with it.
+// A stored row is one message id, its emoji, and the moment it was first reacted
+// to — about 55 bytes — so the whole flag is ~11 KB at the cap, against 24 KB
+// before. The reason it can be smaller is that it no longer has to be generous:
+// a tap used to rewrite the entire list, so the cap was also the cost of every
+// tap, and lowering it meant losing history to save bandwidth. A tap now writes
+// one row (see reactionWritePlan), which makes the cap purely about how much
+// history is worth carrying on connect.
+export const USER_REACTION_MAX = 200
 
 /** The flag bag on a User, structurally so a document or plain JSON both fit. */
 export interface UserFlagSource {
@@ -220,38 +213,107 @@ export interface UserFlagSource {
   getFlag?: (scope: string, key: string) => unknown
 }
 
-export function normalizeUserReactions(value: unknown): UserReaction[] {
-  if (!Array.isArray(value)) return []
-  const seen = new Set<string>()
-  const out: UserReaction[] = []
-  for (const entry of value) {
-    if (!entry || typeof entry !== 'object') continue
-    const { messageId, emoji } = entry as { messageId?: unknown; emoji?: unknown }
-    if (typeof messageId !== 'string' || !messageId) continue
-    // The palette is still enforced on read, not merely on write: the flag is
-    // world-readable data, and a stale build or a hand-edited document could
-    // hold anything. Rendering is where it would land.
-    if (!isReactionEmoji(emoji)) continue
-    const key = `${messageId}|${emoji}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    out.push({ messageId, emoji })
+// ── The stored shape ────────────────────────────────────────────────────────
+//
+// One row per MESSAGE — `{ [messageId]: { e: ['👍'], t: <first reacted at> } }`
+// — rather than the flat array this used to be.
+//
+// The array existed because a map could not express a removal: Foundry
+// broadcasts `flags.tablemate.reactions.-=<id>` when a key goes, and the app's
+// merge installed that as a literal property, leaving a phantom row carrying a
+// whole message's reactions. That is fixed at the source (mergeDocumentChange in
+// api/internal.ts), and the map is what the fix was for: a tap now writes the
+// one row it changed instead of the whole list.
+//
+// `t` is not decoration. The cap drops the oldest rows, and a map has no
+// inherent order to drop by — key insertion order is a V8 behaviour, not a
+// guarantee that survives a JSON round trip through the server. Storing when the
+// row was first written makes the trim well-defined; an edit to an existing row
+// keeps its original `t`, so reacting again to an old message does not promote
+// it past newer ones.
+export interface StoredReactionRow {
+  e: string[]
+  t: number
+}
+export type StoredUserReactions = Record<string, StoredReactionRow>
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+// Coerce whatever is stored — the map, or an array written by an older build —
+// into rows. Anything unrecognized is dropped rather than trusted: this flag is
+// world-readable data that a stale app (or a hand-edited document) could have
+// shaped differently, and rendering is where it would land.
+export function normalizeStoredReactions(value: unknown): StoredUserReactions {
+  const rows: StoredUserReactions = {}
+  const push = (messageId: string, emoji: unknown, at: number) => {
+    if (!isReactionEmoji(emoji)) return
+    const row = (rows[messageId] ??= { e: [], t: at })
+    // One entry per (message, emoji): a duplicate would double a count.
+    if (!row.e.includes(emoji)) row.e.push(emoji)
+    row.t = Math.min(row.t, at)
   }
-  return out.slice(-USER_REACTION_MAX)
+
+  if (Array.isArray(value)) {
+    // Legacy: a flat list with no timestamps. Position IS the order there, so
+    // it becomes the order here — earlier entries read as older.
+    value.forEach((entry, i) => {
+      if (!isRecord(entry)) return
+      const { messageId, emoji } = entry
+      if (typeof messageId !== 'string' || !messageId) return
+      push(messageId, emoji, i)
+    })
+  } else if (isRecord(value)) {
+    for (const [messageId, row] of Object.entries(value)) {
+      if (!messageId || !isRecord(row)) continue
+      const at = typeof row.t === 'number' && Number.isFinite(row.t) ? row.t : 0
+      const emojis = Array.isArray(row.e) ? row.e : []
+      for (const emoji of emojis) push(messageId, emoji, at)
+    }
+  }
+
+  for (const [messageId, row] of Object.entries(rows)) if (!row.e.length) delete rows[messageId]
+  return trimStoredReactions(rows)
+}
+
+/** Newest last, so the cap drops from the front. */
+function orderedMessageIds(rows: StoredUserReactions): string[] {
+  return Object.keys(rows).sort((a, b) => rows[a].t - rows[b].t)
+}
+
+export function trimStoredReactions(rows: StoredUserReactions): StoredUserReactions {
+  const ordered = orderedMessageIds(rows)
+  if (ordered.length <= USER_REACTION_MAX) return rows
+  for (const messageId of ordered.slice(0, ordered.length - USER_REACTION_MAX))
+    delete rows[messageId]
+  return rows
+}
+
+export function normalizeUserReactions(value: unknown): UserReaction[] {
+  const rows = normalizeStoredReactions(value)
+  const out: UserReaction[] = []
+  for (const messageId of orderedMessageIds(rows)) {
+    for (const emoji of rows[messageId].e) out.push({ messageId, emoji })
+  }
+  return out
+}
+
+/** The raw stored value, before normalizing — what a write plan starts from. */
+export function storedUserReactions(user: UserFlagSource | null | undefined): unknown {
+  if (!user) return undefined
+  const flagged = user.getFlag?.('tablemate', 'reactions')
+  const scope = user.flags?.['tablemate'] as { reactions?: unknown } | null | undefined
+  return flagged ?? scope?.reactions
 }
 
 export function readUserReactions(user: UserFlagSource | null | undefined): UserReaction[] {
-  if (!user) return []
-  const flagged = user.getFlag?.('tablemate', 'reactions')
-  const scope = user.flags?.['tablemate'] as { reactions?: unknown } | null | undefined
-  return normalizeUserReactions((Array.isArray(flagged) ? flagged : undefined) ?? scope?.reactions)
+  return normalizeUserReactions(storedUserReactions(user))
 }
 
 /**
  * Add this user's reaction to a message, or remove it if it is already there.
  * Returns a new array; never mutates.
- *
- * A newly added reaction goes on the END, so the cap above drops the oldest.
  */
 export function toggleUserReaction(
   current: UserReaction[],
@@ -260,7 +322,67 @@ export function toggleUserReaction(
 ): UserReaction[] {
   const has = current.some((r) => r.messageId === messageId && r.emoji === emoji)
   if (has) return current.filter((r) => !(r.messageId === messageId && r.emoji === emoji))
-  return [...current, { messageId, emoji }].slice(-USER_REACTION_MAX)
+  return [...current, { messageId, emoji }]
+}
+
+/** The stored form of a whole list, for a caller that must rewrite it entire. */
+export function reactionsToStored(list: UserReaction[], now = Date.now()): StoredUserReactions {
+  const rows: StoredUserReactions = {}
+  list.forEach(({ messageId, emoji }, i) => {
+    if (!isReactionEmoji(emoji)) return
+    const row = (rows[messageId] ??= { e: [], t: now + i })
+    if (!row.e.includes(emoji)) row.e.push(emoji)
+  })
+  return trimStoredReactions(rows)
+}
+
+/**
+ * What to send, and what the flag will hold afterwards, for one message's
+ * reactions changing.
+ *
+ * This is the whole point of the map shape. `patch` is what goes on the wire:
+ * normally the single row that changed, or Foundry's `-=<id>` when the last
+ * emoji on a message goes, plus a `-=` for anything the cap pushed out. A tap
+ * costs about sixty bytes instead of the entire list.
+ *
+ * `whole` marks the one case that cannot be a patch: a flag still holding the
+ * legacy array. Merging a map into an array is not a merge, so the first write
+ * after the rollover replaces the value outright — Foundry overwrites rather
+ * than recurses when the two sides are different types. It happens once per user.
+ *
+ * `next` is the same change applied in full, for the optimistic local write. The
+ * local copy has no reason to be minimal, and reconstructing the patch's effect
+ * by hand is how a mirror drifts from what was sent.
+ */
+export function reactionWritePlan(
+  stored: unknown,
+  messageId: string,
+  emojis: string[],
+  now = Date.now()
+): { patch: Record<string, unknown>; next: StoredUserReactions; whole: boolean } {
+  const whole = !isRecord(stored)
+  const next = normalizeStoredReactions(stored)
+  const before = new Set(Object.keys(next))
+
+  const kept = emojis.filter(isReactionEmoji)
+  if (kept.length) {
+    // An edit keeps the row's original `t`: reacting again to an old message
+    // should not promote it past newer ones in the trim order.
+    next[messageId] = { e: kept, t: next[messageId]?.t ?? now }
+  } else {
+    delete next[messageId]
+  }
+  trimStoredReactions(next)
+
+  if (whole) return { patch: { ...next }, next, whole }
+
+  const patch: Record<string, unknown> = {}
+  if (next[messageId]) patch[messageId] = next[messageId]
+  // Every row that was there and is not any more — the toggled-off message, and
+  // whatever the cap dropped — named for deletion.
+  for (const id of before) if (!next[id]) patch[`-=${id}`] = null
+  if (!next[messageId] && before.has(messageId)) patch[`-=${messageId}`] = null
+  return { patch, next, whole }
 }
 
 /**

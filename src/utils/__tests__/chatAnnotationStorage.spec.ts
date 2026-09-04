@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import {
+  REACTION_EMOJI,
   USER_REACTION_MAX,
   indexUserReactions,
   normalizeUserReactions,
   readUserReactions,
+  reactionsToStored,
   toggleUserReaction
 } from '@/utils/chatReactions'
 import {
@@ -87,9 +89,10 @@ describe('stored reactions', () => {
     expect(toggleUserReaction(current, 'm1', '❤️')).toEqual([{ messageId: 'm0', emoji: '🎲' }])
   })
 
-  // This list rides in core's world dump on every connect, so it is capped
-  // rather than left to grow for the life of the world. Oldest goes first: a
-  // reaction on a message hundreds of sessions ago is not worth a byte.
+  // This flag rides in core's world dump on every connect, so it is capped
+  // rather than left to grow for the life of the world. The unit is MESSAGES
+  // reacted to, since that is what a stored row is; oldest goes first, by the
+  // `t` each row carries — a map has no order of its own to trim by.
   it('caps the history, dropping the oldest', () => {
     const many = Array.from({ length: USER_REACTION_MAX + 10 }, (_, i) => ({
       messageId: `m${i}`,
@@ -98,7 +101,15 @@ describe('stored reactions', () => {
     const capped = normalizeUserReactions(many)
     expect(capped).toHaveLength(USER_REACTION_MAX)
     expect(capped[0].messageId).toBe('m10')
-    expect(toggleUserReaction(many, 'new', '👍')).toHaveLength(USER_REACTION_MAX)
+  })
+
+  // Several emoji on one message are one row, so the cap counts it once — where
+  // the old flat list spent an entry on each.
+  it('counts a message once however many emoji it carries', () => {
+    const busy = REACTION_EMOJI.map((emoji) => ({ messageId: 'm1', emoji }))
+    const stored = reactionsToStored(busy)
+    expect(Object.keys(stored)).toEqual(['m1'])
+    expect(stored.m1.e).toEqual([...REACTION_EMOJI])
   })
 })
 

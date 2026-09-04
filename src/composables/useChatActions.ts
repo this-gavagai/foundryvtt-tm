@@ -9,7 +9,13 @@ import {
   sendImage,
   sendVoiceMemo
 } from '@/api/actionRpc'
-import { readUserReactions, toggleUserReaction } from '@/utils/chatReactions'
+import {
+  normalizeStoredReactions,
+  normalizeUserReactions,
+  reactionWritePlan,
+  storedUserReactions,
+  toggleUserReaction
+} from '@/utils/chatReactions'
 import { modifyDocument, updateUserFlag } from '@/api/documents'
 import { useChatComments } from '@/composables/useChatComments'
 import { transcribeAudioOrNull, type TranscriptionConfig } from '@/api/transcription'
@@ -479,14 +485,22 @@ export function useChatActions({
     const key = `${messageId}:${emoji}`
     if (setHas(pendingReactions, key)) return
 
-    const before = readUserReactions(worldStore.userById(userId))
-    const optimistic = toggleUserReaction(before, messageId, emoji)
+    const stored = storedUserReactions(worldStore.userById(userId))
+    const before = normalizeStoredReactions(stored)
+    const nextEmojis = toggleUserReaction(normalizeUserReactions(stored), messageId, emoji)
+      .filter((r) => r.messageId === messageId)
+      .map((r) => r.emoji)
+    // The row that changed, not the whole list — see reactionWritePlan. `next`
+    // is the same change applied in full, which is what the optimistic local
+    // write needs: a mirror reconstructed from the patch is a mirror that can
+    // drift from what was sent.
+    const { patch, next } = reactionWritePlan(stored, messageId, nextEmojis)
 
     actionError.value = false
     setPending(pendingReactions, key, true)
-    worldStore.applyUserAnnotations(userId, 'reactions', optimistic)
+    worldStore.applyUserAnnotations(userId, 'reactions', next)
     try {
-      await updateUserFlag(userId, 'reactions', optimistic)
+      await updateUserFlag(userId, 'reactions', patch)
     } catch {
       // The write was refused or timed out, so nothing landed. Put back exactly
       // what we had: unlike the RPC version there is no race to settle, because

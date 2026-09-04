@@ -43,6 +43,7 @@ import {
   indexUserReactions,
   readReactions,
   readUserReactions,
+  reactionsToStored,
   toggleUserReaction,
   type ChatReaction,
   type ReactionGroup
@@ -93,8 +94,15 @@ async function requestToggle(id: string, emoji: string): Promise<void> {
   // The read-modify-write race the RPC version had is gone with it: this list
   // has exactly one writer, so two people reacting at the same instant cannot
   // lose a toggle any more.
+  //
+  // Written WHOLE here, unlike the app's per-row patch (reactionWritePlan): a
+  // Foundry client can only set a flag to a value, and a toggle from the chat
+  // log is a once-in-a-while click rather than the tap-rate path the patch
+  // exists for. The stored shape is the same either way, so the two writers stay
+  // interchangeable.
   const current = readUserReactions({ _id: userId, flags: user.flags as Record<string, unknown> })
-  await user.setFlag(MODULE_ID, 'reactions', toggleUserReaction(current, id, emoji))
+  const next = reactionsToStored(toggleUserReaction(current, id, emoji))
+  await user.setFlag(MODULE_ID, 'reactions', next)
 }
 
 function userName(userId: string): string {
