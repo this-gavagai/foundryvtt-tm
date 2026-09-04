@@ -12,6 +12,13 @@ import vue from '@vitejs/plugin-vue'
 // exactly the decisions that were being got wrong. See utils/mountComponent.ts.
 export default defineConfig({
   plugins: [vue()],
+  // The app build injects this (vite.config.mts), and the presence ping puts it
+  // on the wire. Undefined here it is not merely absent: the ReferenceError
+  // throws inside pingHeartbeat, whose caller deliberately swallows rejections
+  // — so every ping in the suite died before its emit and no test could see one.
+  define: {
+    __APP_VERSION__: JSON.stringify('test')
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))

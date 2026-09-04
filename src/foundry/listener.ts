@@ -504,6 +504,10 @@ export function setupListener() {
   // Runs on every client, not just the elected GM: each reports its own
   // targeting so mirroring tablets get it from the one place that knows it.
   setupTargetReporting()
+  // Also on every client: whoever the election lands on when a user joins or
+  // leaves announces itself, so an app hears about a GM handoff (or a departure)
+  // without waiting out its presence heartbeat.
+  setupPresenceHandoff()
   announceSelf()
 
   game.socket.onAnyOutgoing((event: string, ...args: ModuleEventArgs[] | GetEvent[]) => {
@@ -701,4 +705,40 @@ function setupTargetReporting() {
   // targets are now empty (or belong to a different scene). Say so rather than
   // leaving mirroring tablets holding ids for a scene we've left.
   hooks().on('canvasReady', () => broadcastOwnTargetsSoon())
+}
+
+// Tell connected apps who is answering, the moment the table's roster changes.
+//
+// Presence is otherwise pull-only: an app asks (ANYBODY_HOME) every 30s and only
+// the elected GM answers, so a GM signing out is invisible for up to the app's
+// listener TTL. The app now prunes and re-probes on core's presence broadcast
+// (stores/listenersOnline.reportUserActivity), which closes the "nobody is
+// home" case; this closes the other one — a second GM who is online and has
+// just inherited the election. That handoff is instant on this side, because
+// every client recomputes iAmFirstGM() from the same `user.active` view, and
+// entirely silent on the app's until the new handler happens to answer a
+// heartbeat.
+//
+// `userConnected` is core's signal for it: Users.#handleUserActivity flips
+// `user.active` and then calls the hook, so the election below already sees the
+// roster the app is about to ask about. Announcing turns the app's wait into a
+// push.
+//
+// Registered on every client and fired for every presence flip, in both
+// directions — a connect can hand the election over just as a disconnect can
+// (a higher-priority GM joining, a client reconnecting after a network drop).
+// Only the one client the election picks says anything, so a flip produces one
+// announcement, and the debounce collapses a burst of them (a world shutting
+// down, a flaky client bouncing) into that one.
+const PRESENCE_ANNOUNCE_DEBOUNCE_MS = 250
+const announceIfElected = debounce(() => {
+  if (iAmFirstGM()) announceSelf()
+}, PRESENCE_ANNOUNCE_DEBOUNCE_MS)
+
+let presenceHandoffRegistered = false
+
+function setupPresenceHandoff() {
+  if (presenceHandoffRegistered) return
+  presenceHandoffRegistered = true
+  hooks().on('userConnected', () => announceIfElected())
 }

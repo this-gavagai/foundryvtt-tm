@@ -301,6 +301,11 @@ export function setupSocketListenersForWorld(world: Ref<GamePF2e | undefined>) {
     // whose targeting we mirror has gone away, and stale targets from a proxy
     // that logged out still resolve (see reportUserActivity).
     useTargetHelperStore().reportUserActivity(user, args.active)
+    // Same flag, the other consumer: it is also the earliest we can know that
+    // the GM answering our requests has gone. The store prunes and re-probes,
+    // so a handoff to a second GM (or the drop to no-GM mode) happens within a
+    // round trip instead of at the end of the listener TTL.
+    useListenersStore().reportUserActivity(user, args.active)
     if (args.active) logger.info('user online', user, args)
   })
 }

@@ -11,6 +11,12 @@ const HEARTBEAT_INTERVAL_MS = 30_000
 // exceed one heartbeat so a single dropped ping doesn't blink the GM offline
 // (and with it every roll button in the app); one and a half is the margin.
 const LISTENER_TTL_MS = 45_000
+// How long a presence probe waits for an answer before concluding that whoever
+// didn't answer is gone. Only used on the paths where we have been TOLD the
+// roster changed (see reportUserActivity), so this is a round trip's grace, not
+// a heartbeat's — long enough for a slow link, far short of the TTL it stands in
+// for.
+const PRESENCE_PROBE_GRACE_MS = 3_000
 
 // ── What `isListening` is for, and the three answers it has ────────────────
 //
@@ -92,12 +98,76 @@ export const useListenersStore = defineStore('listenersOnline', () => {
     void pingHeartbeat().catch(() => undefined)
   }
 
+  // ── Presence, told rather than polled ────────────────────────────────────
+  //
+  // The heartbeat above is a poll, and a poll is only ever as current as its
+  // interval: a GM signing out left `isListening` true for the rest of the TTL
+  // — up to 45 seconds of live roll buttons whose taps had nowhere to land.
+  //
+  // Foundry broadcasts the roster change itself. `userActivity` carries an
+  // explicit `active` flag when a client joins or leaves (the same signal
+  // targetHelper uses to notice a departed targeting proxy), and it arrives on
+  // disconnect as well as on sign-out, so a GM who crashes or drops off the
+  // network counts too.
+  //
+  // Hearing it, we do two things: drop the client that left, and ASK AGAIN.
+  // Asking is what finds the other candidates — ANYBODY_HOME is answered only by
+  // the client the world's GM-handler policy elects, so if a second GM has just
+  // inherited the election, their answer repopulates this map within a round
+  // trip. (The module pushes the same announcement from its `userConnected`
+  // hook, so with a current module the answer usually arrives before the probe
+  // does; the probe is what makes this work against an older one.)
+  //
+  // Anything that does NOT answer the probe is presumed gone, which is the point
+  // of comparing against `askedAt` rather than pruning only the departed id: the
+  // map can hold clients that no longer answer for requests, because every module
+  // client announces once at `ready` while only the elected GM answers a ping. A
+  // player who logged in half a minute ago used to keep `isListening` true
+  // through a GM's departure for the remainder of their entry's TTL.
+  //
+  // The cost of being wrong here is one heartbeat: a client that was live but too
+  // slow to answer within the grace window is re-added by its next announcement.
+  let probeTimer: ReturnType<typeof setTimeout> | undefined
+
+  function probeListeners() {
+    const askedAt = Date.now()
+    ping()
+    clearTimeout(probeTimer)
+    probeTimer = setTimeout(() => {
+      listenersOnline.value.forEach((lastSeen, id, map) => {
+        if (lastSeen < askedAt) map.delete(id)
+      })
+    }, PRESENCE_PROBE_GRACE_MS)
+  }
+
+  // `active` is absent on ordinary activity broadcasts (cursor, ruler, target
+  // changes), so only an explicit boolean is a presence change.
+  function reportUserActivity(id: string, active: boolean | undefined) {
+    if (active === undefined) return
+    if (!active) {
+      // Logged at the same level as the arrival above: "the GM went away" is the
+      // event a support log most often needs to place in time.
+      if (listenersOnline.value.delete(id)) logger.debug('TM listener signed out', id)
+      probeListeners()
+      return
+    }
+    // A client joining tells us nothing by itself — it may be a player, and a
+    // fresh login announces itself from the module's `ready` hook anyway. It is
+    // worth a probe only while we believe nobody is home, where the answer can
+    // only add: socket.io's soft reconnects don't re-run `ready`, so a GM whose
+    // client dropped and came back never re-announces on its own.
+    if (!isListening.value) probeListeners()
+  }
+
   // Everything we know about who is listening belongs to one world. Called on a
   // server/user switch, where carrying it over means the new world inherits the
   // old world's GM — up to a full TTL of `isListening` describing a client that
   // cannot answer anything here.
   function reset() {
     listenersOnline.value = new Map()
+    // A probe armed against the old world would prune a map that no longer
+    // holds what it was asked about.
+    clearTimeout(probeTimer)
   }
 
   // Start the presence machinery: a heartbeat, an immediate ping, and a
@@ -123,7 +193,16 @@ export const useListenersStore = defineStore('listenersOnline', () => {
   onScopeDispose(() => {
     if (heartbeatInterval) clearInterval(heartbeatInterval)
     stopForeground?.()
+    clearTimeout(probeTimer)
   })
 
-  return { listenersOnline, isListening, addListener, ping, reset, start }
+  return {
+    listenersOnline,
+    isListening,
+    addListener,
+    reportUserActivity,
+    ping,
+    reset,
+    start
+  }
 })
