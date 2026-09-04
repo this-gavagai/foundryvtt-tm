@@ -2,6 +2,10 @@
   "name": "tm",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": "^24",
+    "npm": ">=11"
+  },
   "scripts": {
     "dev": "vite --host",
     "live": "NODE_ENV=development vite build --watch --mode development",
@@ -84,8 +88,14 @@
     "vue-tsc": "^2.1.10"
   },
   "overrides": {
+    "sharp": "^0.35.0",
     "@headlessui/tailwindcss": {
       "tailwindcss": "$tailwindcss"
     }
+  },
+  "allowScripts": {
+    "sharp": false,
+    "fsevents": false,
+    "vue-demi": false
   }
 }
