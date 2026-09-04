@@ -37,6 +37,11 @@ const props = defineProps<{
   // Likewise for comments — an older module has no SET_COMMENT handler, so the
   // entry is hidden rather than offered and left to time out.
   commentsSupported: boolean
+  // Whether the viewer is a GM, which for Foundry means role >= ASSISTANT. A
+  // property of the person, not of the row, so the overlay resolves it once —
+  // and read from the world store's threshold, which is the one that matches
+  // Foundry's document permissions.
+  viewerIsGM: boolean
 }>()
 
 // Label-less @UUID[...] links render as a "…" placeholder because their text is
@@ -108,6 +113,21 @@ const showHeader = computed(() => props.groupStart)
 // meaningfully re-typed; delete works on any message this user authored.
 const canManage = computed(() => props.view.isAuthor && !!props.view.message._id)
 
+// Deleting is wider than editing, and follows Foundry exactly: `user.isGM ||
+// author === user.id`. A GM moderates the log in Foundry's own chat sidebar, so
+// the sheet offering less than the client it stands in for was a gap rather than
+// a safeguard — and the write is a plain modifyDocument that the server will
+// accept from them.
+//
+// Editing deliberately does NOT widen the same way. Rewriting someone else's
+// message leaves their name on words they did not write, with nothing on the
+// message to say otherwise; removing it at least reads as removal. Same line the
+// comment rules draw, where a GM may take a remark down but the text stays its
+// author's.
+const canDelete = computed(
+  () => (props.view.isAuthor || props.viewerIsGM) && !!props.view.message._id
+)
+
 // Reactions apply to ANY message, including other people's — that's the point of
 // them, and it's why the menu affordance below is no longer own-messages-only.
 const canReact = computed(() => props.reactionsSupported && !!props.view.message._id)
@@ -121,7 +141,9 @@ const canAddComment = computed(() => props.commentsSupported && !!props.view.mes
 
 // Any reason to offer the menu at all: the reaction palette, the manage items,
 // comment, or any combination.
-const hasMenu = computed(() => canReact.value || canManage.value || canAddComment.value)
+const hasMenu = computed(
+  () => canReact.value || canManage.value || canDelete.value || canAddComment.value
+)
 
 // The palette, marked with what this user has already reacted with so a tap on a
 // filled pick reads as "remove mine".
@@ -164,7 +186,7 @@ const menuItems = computed(() => {
   if (canAddComment.value) items.push({ id: 'comment', label: t('chat.addComment') })
   // Gated like the edit entries: hasMenu opens for a reaction alone, so on
   // someone else's message this menu exists with nothing manageable in it.
-  if (canManage.value) items.push({ id: 'delete', label: t('common.delete'), danger: true })
+  if (canDelete.value) items.push({ id: 'delete', label: t('common.delete'), danger: true })
   return items
 })
 
@@ -574,7 +596,7 @@ function handleContentClick(event: MouseEvent) {
             ref="kebab"
             :items="menuItems"
             :quick-picks="quickPicks"
-            :label="canManage ? $t('chat.messageActions') : $t('chat.addReaction')"
+            :label="canManage || canDelete ? $t('chat.messageActions') : $t('chat.addReaction')"
             @select="onMenuSelect"
             @quick-pick="toggleReaction($event)"
           />

@@ -448,6 +448,11 @@ function toggleDetailReaction(emoji: string) {
 // switched off has none to render (see useChatMessages).
 const commentsSupported = computed(() => worldStore.commentsEnabled)
 
+// Resolved once here rather than per row: a GM may delete any message, the same
+// as in Foundry's own chat sidebar. The world store's threshold is the one that
+// matches Foundry's document permissions (ASSISTANT counts).
+const viewerIsGM = computed(() => worldStore.currentUserIsGM)
+
 // What the editor is currently pointed at: a message id (not a view — views are
 // rebuilt on every world trigger, so a captured one would freeze) and, when
 // rewriting rather than adding, the comment's id.
@@ -850,6 +855,7 @@ defineExpose({ open, close, isOpen })
                       :group-end="view.groupEnd || renderedMessages[i + 1]?.key === firstUnreadKey"
                       :reactions-supported="reactionsSupported"
                       :comments-supported="commentsSupported"
+                      :viewerIsGM="viewerIsGM"
                       @select-author="selectWhisperUserFromMessage(view)"
                       @content-click="handleChatContentClick($event)"
                       @open-inline-check="openLocalizedInlineRoll($event)"
