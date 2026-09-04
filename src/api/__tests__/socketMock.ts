@@ -37,6 +37,9 @@ export function fakeStoreBridge(overrides: Partial<StoreBridge> = {}): StoreBrid
     userId: () => 'user-1',
     getTargets: () => ({ sceneId: null, tokenIds: [] }),
     resyncTargets: () => {},
+    // A GM is present by default: an api-layer test that says nothing about
+    // presence is testing the request, not the backstop.
+    isListening: () => true,
     activeServerOrigin: () => 'https://vtt.example.com',
     getWorldPacks: () => [],
     getUserRole: () => 0,

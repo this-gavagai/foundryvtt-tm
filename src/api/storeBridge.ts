@@ -38,6 +38,11 @@ export interface StoreBridge {
   // Raw world actor source data by id, for resolving actor-embedded item links
   // (Actor.<id>.Item.<id>) out of the already-loaded world payload.
   getWorldActor: (actorId: string) => unknown
+  // Whether any module client is announcing itself, i.e. whether an RPC has
+  // anyone to answer it. Read by sendAction as a last-resort backstop — the
+  // affordance-level gates in the UI are what should normally keep a request
+  // from being sent at all. See stores/listenersOnline.ts.
+  isListening: () => boolean
 }
 
 let bridge: StoreBridge | undefined

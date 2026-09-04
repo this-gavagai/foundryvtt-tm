@@ -40,11 +40,13 @@ const LISTENER_TTL_MS = 45_000
 //                 all stay visible, greyed, with a line saying what is missing.
 //
 // The rule this file cannot enforce is that a new RPC-backed affordance chooses
-// one. Nothing type-checks it, and the failure is quiet: an ungated tap sits out
-// the full REQUEST_ACK_TIMEOUT_MS and then reports nothing, which reads as a
-// broken button rather than an absent GM. If that keeps happening, the backstop
-// to reach for is api/actionRpc.ts — one fast rejection in sendAction would make
-// forgetting merely ugly instead of silent.
+// one. Nothing type-checks it, and forgetting used to be quiet: an ungated tap
+// sat out the full REQUEST_ACK_TIMEOUT_MS and then reported nothing, which reads
+// as a broken button rather than as an absent GM. There is now a backstop for
+// that in api/actionRpc.ts — sendAction refuses before it sends, so a forgotten
+// gate fails at once and says why. It is a backstop and not a substitute:
+// rejecting a request the player should never have been offered is a worse
+// experience than the affordance not being there, just a much shorter one.
 export const useListenersStore = defineStore('listenersOnline', () => {
   const listenersOnline = ref(new Map<string, number>())
   // Whether any module client is announcing itself. The app's whole GM-proxy

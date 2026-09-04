@@ -119,11 +119,36 @@ export function rejectAllPending(reason: string) {
 // the payload object is type-checked against the right shape without an
 // explicit `<XArgs>` generic at the call site) and resolves with that
 // action's response contract from ResponseByAction.
+// Refused before it is sent, when nothing is listening to answer it.
+//
+// A BACKSTOP, not the gate. Which affordance to hide, disable or fall back to
+// when no GM is online is decided per affordance, in the UI, and documented in
+// stores/listenersOnline.ts — that is what a player should ever experience. This
+// catches the case where one of those gates is missing: without it a forgotten
+// affordance sits out the full 30s ack budget and then reports nothing, which
+// reads as a broken button rather than as an absent GM.
+//
+// Deliberately checked at SEND time and nowhere else. Presence can lapse while a
+// request is in flight (the heartbeat has a 45s TTL against a 30s budget), and
+// rejecting mid-flight would fail requests a GM is already executing.
+//
+// The startup window is the reason this is worth being careful about: between
+// connecting and the first heartbeat answer, `isListening` is false while a GM
+// may well be online. Every affordance that can fire an RPC is gated on the same
+// flag, so it is hidden or disabled during exactly that window and a player
+// cannot reach one — but a caller that fires anyway gets a fast, distinguishable
+// failure rather than a silent one, which is the trade this exists to make.
+export const TM_ERROR_NO_LISTENER = 'TM_NO_LISTENER'
+
 async function sendAction<K extends RpcAction>(
   action: K,
   payload: Omit<Extract<ModuleEventArgs, { action: K }>, 'action' | 'userId' | 'uuid'>,
   timeoutMs?: number
 ): Promise<AcknowledgementArgs & ResponseByAction[K]> {
+  if (!requireStoreBridge().isListening()) {
+    logger.warn(`TM-WARN: refusing ${action} — no module client is listening`)
+    throw new Error(TM_ERROR_NO_LISTENER)
+  }
   const uuid = uuidv4()
   const { socket, userId } = await getAuthenticatedSocket()
   const args = { ...payload, action, userId, uuid }

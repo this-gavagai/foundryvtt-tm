@@ -23,6 +23,8 @@ import { useWorldStore } from '@/stores/world'
 import { useCombatStore } from '@/stores/combat'
 import { useVersionCompatStore } from '@/stores/versionCompat'
 import { rejectAllPending } from '@/api/actionRpc'
+import { registerStoreBridge, resetStoreBridgeForTest } from '@/api/storeBridge'
+import { fakeStoreBridge } from '@/api/__tests__/socketMock'
 import { TM, CAPABILITY_END_TURN } from '@/api/protocol'
 
 const ACTORS = [
@@ -67,10 +69,15 @@ beforeEach(() => {
   emit.mockClear()
   setActivePinia(createPinia())
   localStorage.clear()
+  // End Turn is an RPC, and sendAction refuses to send one with nothing
+  // listening — the bar's own button is disabled in that case, so a test that
+  // reaches the wire is by definition a test with a GM on it.
+  registerStoreBridge(fakeStoreBridge())
 })
 
 afterEach(() => {
   rejectAllPending('test teardown')
+  resetStoreBridgeForTest()
 })
 
 describe('End Turn reaches the wire', () => {

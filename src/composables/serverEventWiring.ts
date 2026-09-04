@@ -80,7 +80,8 @@ export function installApiStoreBridge() {
       const user = useWorldStore().userById(useUserStore().userId) as { role?: number } | undefined
       return user?.role ?? 0
     },
-    getWorldActor: (actorId) => useWorldStore().actorById(actorId)
+    getWorldActor: (actorId) => useWorldStore().actorById(actorId),
+    isListening: () => useListenersStore().isListening
   })
 }
 
