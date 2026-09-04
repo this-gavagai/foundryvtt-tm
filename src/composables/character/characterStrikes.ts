@@ -213,9 +213,22 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
         // under the finger; a rejection recovers them through the shared
         // refresh-and-rethrow in recoverWrite.
         changeAmmo: (newId) => {
-          const item = actor.value?.items.find<WeaponPF2e<CharacterPF2e>>(
-            (i) => i._id === action?.item?._id
-          )
+          // `weaponId`, not `action.item._id`. They are the same for every
+          // strike PF2e builds from a real weapon — `prepareStrike(w)` hands the
+          // weapon back as `item` — and they diverge only where the resolver
+          // above had to work for it: a Strike rule element names the item
+          // CARRYING the rule (`_id: this.fist ? 'xxxxxxFISTxxxxxx' :
+          // this.item.id`), so a feat that both declares a Strike and grants a
+          // weapon resolves to the weapon while `action.item._id` still names
+          // the feat. Writing there would put a stray `selectedAmmoId` on the
+          // feat — and succeed, since it is a perfectly good item update.
+          //
+          // Unreachable in pf2e 8.4.1: of 459 items carrying a Strike rule, none
+          // declares `reload` or `ammunition`, and this control only appears on a
+          // strike that has one or the other. Using the resolved id anyway keeps
+          // the two halves of the operation addressing one document, which is
+          // the property the ordering below depends on.
+          const item = actor.value?.items.find<WeaponPF2e<CharacterPF2e>>((i) => i._id === weaponId)
           const actorAction = (actor.value?.system.actions as CharacterStrike[])?.find(
             (a) => a.slug === action?.slug
           )
@@ -224,9 +237,9 @@ export function useCharacterStrikes(actor: Ref<TablemateCharacter | undefined>):
             (actorAction as { selectedAmmoId?: string | null }).selectedAmmoId = newId || null
 
           const persistAmmoId = () =>
-            updateActorItem(actor, action?.item?._id ?? '', {
-              system: { selectedAmmoId: newId || null }
-            })
+            weaponId
+              ? updateActorItem(actor, weaponId, { system: { selectedAmmoId: newId || null } })
+              : Promise.resolve(null)
 
           // Nothing loaded: the selection IS the whole operation, and it lands
           // with no GM in the world.

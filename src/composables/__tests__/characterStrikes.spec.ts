@@ -241,3 +241,59 @@ describe('changeAmmo with the weapon loaded and no GM', () => {
     expect(strikes.value?.[0]?.loaded).toBe(true)
   })
 })
+
+// A Strike rule element names the item CARRYING the rule, not a weapon:
+// `_id: this.fist ? 'xxxxxxFISTxxxxxx' : this.item.id`. So a feat that both
+// declares a Strike and grants a weapon leaves `action.item._id` pointing at the
+// feat while the real weapon sits in its itemGrants — which the resolver chases,
+// and which the ammo write must follow rather than writing a stray
+// `selectedAmmoId` onto the feat. (Unreachable in pf2e 8.4.1: none of its 459
+// Strike rules declares reload or ammunition. Pinned so it stays that way.)
+describe('a strike whose item id names the granting feat', () => {
+  function grantedBow(): Ref<TablemateCharacter | undefined> {
+    return actorRef({
+      _id: 'seelah',
+      items: [
+        { _id: 'feat-1', type: 'feat', name: 'Bow Feat', system: { slug: 'bow-feat', rules: [] } },
+        {
+          ...bow,
+          _id: 'granted-bow',
+          system: { ...bow.system, selectedAmmoId: 'arrows' }
+        }
+      ],
+      system: {
+        actions: [
+          {
+            ...bowStrike(false),
+            // The strike points at the feat; the feat points at the weapon.
+            item: { _id: 'feat-1' }
+          }
+        ]
+      }
+    })
+  }
+
+  it('resolves the strike through the feat to the granted weapon', () => {
+    const actor = grantedBow()
+    ;(
+      actor.value as unknown as { items: { _id: string; itemGrants?: string[] }[] }
+    ).items[0].itemGrants = ['granted-bow']
+    const { strikes } = useCharacterStrikes(actor)
+    // The strike model surfaces the weapon the resolver found, not the feat the
+    // rule element named.
+    expect(strikes.value?.[0]?.item?._id).toBe('granted-bow')
+  })
+
+  it('writes the ammo selection to the weapon, not to the feat', async () => {
+    const actor = grantedBow()
+    ;(
+      actor.value as unknown as { items: { _id: string; itemGrants?: string[] }[] }
+    ).items[0].itemGrants = ['granted-bow']
+    const { strikes } = useCharacterStrikes(actor)
+
+    await strikes.value?.[0]?.changeAmmo?.('bolts')
+
+    expect(updateActorItem).toHaveBeenCalledTimes(1)
+    expect(updateActorItem.mock.calls[0][1]).toBe('granted-bow')
+  })
+})
