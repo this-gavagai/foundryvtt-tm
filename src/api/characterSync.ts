@@ -1,11 +1,10 @@
 import type { Ref } from 'vue'
-import { mergeWith } from 'lodash-es'
 import type { TablemateActor } from '@/types/character-types'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import { debounce } from 'lodash-es'
 import { uuidv4 } from '@/utils/utilities'
 import { saveActorSnapshot } from '@/utils/actorCache'
-import { getAuthenticatedSocket, mergeWithArrayReset, asDocumentArray } from './internal'
+import { getAuthenticatedSocket, mergeDocumentChange, asDocumentArray } from './internal'
 import { requireStoreBridge } from './storeBridge'
 import { TM } from './protocol'
 
@@ -142,7 +141,7 @@ export function parseActorData(
     skillActions: args.skillActions
   } as Partial<TablemateActor>
 
-  mergeWith(actor.value, incoming, mergeWithArrayReset)
+  mergeDocumentChange(actor.value, incoming)
 
   // ID-based merge for items: deep-merge matching items, remove missing ones,
   // append genuinely new ones. Avoids position-based array merging entirely.
@@ -155,7 +154,7 @@ export function parseActorData(
       for (let i = existing.length - 1; i >= 0; i--) {
         const match = incomingById.get(existing[i]._id)
         if (!match) existing.splice(i, 1)
-        else mergeWith(existing[i], match, mergeWithArrayReset)
+        else mergeDocumentChange(existing[i], match)
       }
       const existingIds = new Set(existing.map((i) => i._id))
       for (const item of incomingItems) {

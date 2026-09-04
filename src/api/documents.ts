@@ -49,13 +49,12 @@
 // nothing when the only consumer of the write is itself an RPC — which is why
 // the strike toggles stay there.
 
-import { mergeWith } from 'lodash-es'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type { ModifyDocumentBatch } from './socketSetup'
 import type { TablemateActorRef } from '@/types/character-types'
 import {
   getSocket,
-  mergeWithArrayReset,
+  mergeDocumentChange,
   asDocumentArray,
   type ModifyDocumentUpdate,
   type DocumentData
@@ -184,7 +183,7 @@ export function processChanges(args: DocumentSocketResponse, root: DocumentData[
     case 'update':
       ;(args.result as ModifyDocumentUpdate[]).forEach((change) => {
         const item = root.find((a) => a._id === change._id)
-        if (item) mergeWith(item, change, mergeWithArrayReset)
+        if (item) mergeDocumentChange(item, change)
       })
       break
     case 'delete':
@@ -245,7 +244,7 @@ export function updateActor(actor: TablemateActorRef, update: object) {
     },
     (r) => {
       ;(r.result as ModifyDocumentUpdate[]).forEach((change) => {
-        mergeWith(actor.value!, change, mergeWithArrayReset)
+        mergeDocumentChange(actor.value!, change)
       })
       fireRefresh(actor.value!._id)
     }

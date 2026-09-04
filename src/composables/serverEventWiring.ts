@@ -1,6 +1,5 @@
 import type { Ref } from 'vue'
 import { triggerRef } from 'vue'
-import { mergeWith } from 'lodash-es'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 import type { GamePF2e } from '@7h3laughingman/pf2e-types'
 import type { TablemateActor } from '@/types/character-types'
@@ -28,7 +27,7 @@ import {
   onWorldProgress
 } from '@/api/socketSetup'
 import {
-  mergeWithArrayReset,
+  mergeDocumentChange,
   asDocumentArray,
   type ModifyDocumentUpdate,
   type DocumentData
@@ -349,7 +348,7 @@ export function setupSocketListenersForActor(
       case 'Actor':
         ;(args.result as ModifyDocumentUpdate[]).forEach((result: ModifyDocumentUpdate) => {
           if (result._id === actorId) {
-            mergeWith(actor.value, result, mergeWithArrayReset)
+            mergeDocumentChange(actor.value, result)
             fireRefresh(actorId)
           }
         })

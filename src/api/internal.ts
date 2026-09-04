@@ -1,3 +1,4 @@
+import { mergeWith } from 'lodash-es'
 import { watch } from 'vue'
 import type { Socket } from 'socket.io-client'
 import { requireStoreBridge } from './storeBridge'
@@ -55,6 +56,45 @@ export async function getAuthenticatedSocket(): Promise<{ socket: Socket; userId
 // rules, traits, etc.) where full replacement is always the right behavior.
 export function mergeWithArrayReset(_objValue: unknown, srcValue: unknown) {
   if (Array.isArray(srcValue)) return srcValue
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+// Foundry deletes a key by sending `-=<key>: null` in the object that holds it,
+// and echoes the same form to every other client. lodash has no notion of it, so
+// a plain merge installed a literal property called `-=<key>` and left the
+// original in place: the deletion never happened, and a phantom key sat in the
+// mirror until the next full refresh replaced the document.
+//
+// That is the whole reason the annotation flags are flat arrays rather than maps
+// (see the shape notes in utils/chatReactions.ts): an array always resets as a
+// unit, so it sidesteps a merge that could not express a removal. Removing that
+// constraint is what this exists for.
+//
+// Applied to `target` as the change is walked, and stripped from the copy handed
+// on to the merge. Arrays are not descended into — Foundry sends no deletions
+// inside one, and mergeWithArrayReset replaces them wholesale anyway.
+function applyKeyDeletions(target: unknown, change: unknown): unknown {
+  if (!isPlainRecord(change)) return change
+  const holder = isPlainRecord(target) ? target : undefined
+  const kept: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(change)) {
+    if (key.startsWith('-=')) {
+      if (holder) delete holder[key.slice(2)]
+      continue
+    }
+    kept[key] = applyKeyDeletions(holder?.[key], value)
+  }
+  return kept
+}
+
+// The one way a server-sent change should be folded into a mirrored document:
+// Foundry's key deletions honoured, arrays replaced wholesale, everything else
+// deep-merged. Mutates and returns `target`.
+export function mergeDocumentChange<T>(target: T, change: unknown): T {
+  return mergeWith(target as object, applyKeyDeletions(target, change), mergeWithArrayReset) as T
 }
 
 // Foundry may hand us plain arrays or collection-like objects with a
