@@ -5,7 +5,11 @@ import { makeItem } from './item'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 
 export interface PhysicalItemSystem extends ItemSystem {
-  bulk: { value: Maybe<number> }
+  // `per` is the quantity this Bulk value is quoted for — 10 for arrows.
+  // Absent unless it differs from PF2e's default of 1 (and absent entirely from
+  // older Foundry-side builds), so every reader must treat missing as 1. See
+  // utils/formatters.stackBulk, which is the only place that should do the sum.
+  bulk: { value: Maybe<number>; per: Maybe<number> }
   stackGroup: Maybe<string>
   identification: {
     status: Maybe<string>
@@ -66,7 +70,7 @@ export function makePhysicalItem(root: PhysicalItemPF2e): PhysicalItem {
           }
         }
       },
-      bulk: { value: root.system.bulk?.value },
+      bulk: { value: root.system.bulk?.value, per: root.system.bulk?.per },
       stackGroup: root.system.stackGroup,
       equipped: {
         carryType: root.system.equipped?.carryType,

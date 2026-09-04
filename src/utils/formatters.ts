@@ -32,3 +32,30 @@ export function bulkParts(value: number | undefined) {
   const lightUnits = Math.max(0, Math.round((value ?? 0) * 10))
   return { normal: Math.floor(lightUnits / 10), light: lightUnits % 10 }
 }
+
+// What a whole stack of an item weighs, as PF2e's PhysicalItemPF2e#bulk
+// computes it: `per` is the quantity a Bulk value is quoted for (10 for
+// arrows), and anything short of a full stack is negligible — so the stack
+// count FLOORS before it multiplies, and 5 of a 10-per item weigh nothing at
+// all. Dividing the product instead (0.1 × 5 ÷ 10) quietly bills a partial
+// stack for a partial Bulk, which is a unit the game does not have.
+//
+// `per` is missing for every item that doesn't stack, and missing from every
+// item in a payload from an older Foundry-side build; both read as 1, which is
+// PF2e's own default.
+//
+// One row is not the encumbrance meter, and they may legitimately disagree:
+// ActorPF2e's computeTotalBulk groups same-base-item stacks and floors their
+// COMBINED quantity, so two quivers of 5 arrows weigh a light between them
+// while each row on its own reads as nothing. The meter is the actor's own
+// figure (system.attributes.bulk) and is unaffected by this.
+export function stackBulk(
+  value: number | undefined,
+  quantity: number | undefined,
+  per: number | undefined
+): number {
+  const bulk = value ?? 0
+  if (bulk <= 0) return 0
+  const stackSize = per && per > 0 ? per : 1
+  return bulk * Math.floor((quantity ?? 0) / stackSize)
+}

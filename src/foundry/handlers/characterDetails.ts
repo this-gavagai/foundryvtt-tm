@@ -397,6 +397,22 @@ export async function getCharacterDetails(
       // a stored schema field, so toObject() drops it — the client then can't
       // tell a coin stack apart from a 1-Bulk item.
       overlay('system.stackGroup', i.system.stackGroup ?? null)
+      // `bulk.per` — the quantity a Bulk value is quoted FOR, 10 for arrows.
+      // The whole of system.bulk is derived (prepareBaseData overwrites it with
+      // prepareBulkData's result, which reads `per` off the stack group's size),
+      // so source holds `value` alone and the client has no way to weigh a
+      // stack: PF2e's own PhysicalItemPF2e#bulk is `value × floor(quantity /
+      // per)`. Without this the row divided by `price.per` instead — the two
+      // agree on ammo, which is why it read correctly for years, but they are
+      // independent fields (PF2e clamps price.per to 1–999 and sets it to 10 on
+      // backpack ballista bolts, whose bulk.per stays 1).
+      //
+      // Sent only when it isn't PF2e's own default of 1, so the great majority
+      // of items still record no overlay at all; a missing `per` reads as 1 on
+      // the client, which is the same rule. The typeof guard covers a system
+      // version that hasn't got the field.
+      const bulkPer = i.system.bulk?.per
+      if (typeof bulkPer === 'number' && bulkPer !== 1) overlay('system.bulk.per', bulkPer)
     }
     if (i.isOfType('weapon')) {
       // Modular weapons: the active option's damageType lives on the prepared

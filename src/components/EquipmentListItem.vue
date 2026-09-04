@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { bulkParts, stackBulk } from '@/utils/formatters'
 import ViewableItem from '@/components/widgets/ViewableItem.vue'
 import UsesWidget from '@/components/widgets/UsesWidget.vue'
 
@@ -11,15 +12,17 @@ const emits = defineEmits(['itemClicked'])
 // reach this component — the purse panel owns them, and EquipmentList filters
 // them out of every list — so the rule went with them.
 const totalWeight = computed(() => {
-  if (item?.system?.bulk?.value === 0) return '-'
-  else if (item?.system?.bulk?.value < 1)
-    return (
-      Math.floor(
-        ((item?.system?.bulk?.value * item?.system?.quantity) / (item?.system?.price?.per ?? 1)) *
-          10
-      ) + 'L'
-    )
-  else return Math.floor(item?.system?.bulk?.value * item?.system?.quantity)
+  const total = stackBulk(
+    item?.system?.bulk?.value,
+    item?.system?.quantity,
+    item?.system?.bulk?.per
+  )
+  // Negligible, and a stack too short to weigh anything, read the same way: a
+  // dash rather than a "0L" that invites the reader to wonder what zero lights
+  // are. bulkParts does the tenths, and rounds where a float sum would drift.
+  if (total <= 0) return '-'
+  const { normal, light } = bulkParts(total)
+  return normal > 0 ? String(normal) : `${light}L`
 })
 
 // Charges worth showing, following PF2e's own item-line rule: a pool of more
