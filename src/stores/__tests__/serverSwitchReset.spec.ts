@@ -47,6 +47,8 @@ import { useVersionCompatStore } from '@/stores/versionCompat'
 import { useGmPolicyStore } from '@/stores/gmPolicy'
 import { useTokenRingStore } from '@/stores/tokenRing'
 import { useTargetHelperStore } from '@/stores/targetHelper'
+import { useLabelCatalogsStore } from '@/stores/labelCatalogs'
+import { labelPayload } from '@/utils/__tests__/fixtures/labelPayload'
 
 // A world that has announced itself: a GM online, a module of known version and
 // capabilities, a manual-roll rule, ring art, and a proxy reporting targets.
@@ -56,6 +58,7 @@ function loadWorldScopedState() {
   useGmPolicyStore().reportPolicy('reject')
   useTokenRingStore().reportSpritesheet('modules/themed/rings.json')
   useTargetHelperStore().updateTargets('gm-1', { sceneId: 'scene-1', tokenIds: ['token-1'] })
+  useLabelCatalogsStore().remember(labelPayload({ rollOptionLabels: { finesse: 'Finesse' } }))
 }
 
 beforeEach(() => {
@@ -90,6 +93,9 @@ describe('switching servers', () => {
     expect(useTokenRingStore().spritesheet).toBeUndefined()
     // Mirrored targets resolve to token ids from a scene in another world.
     expect(useTargetHelperStore().getTargets()).toEqual({ sceneId: null, tokenIds: [] })
+    // Display labels are the previous world's locale and item names; the new
+    // world re-establishes them from its own payloads (or its own cached row).
+    expect(useLabelCatalogsStore().catalogs.rollOptions).toEqual({})
   })
 
   // The seamless-resume case: reconnecting to the SAME server must not throw
@@ -106,5 +112,6 @@ describe('switching servers', () => {
     expect(useVersionCompatStore().moduleVersion).toBe('1.4.0')
     expect(useGmPolicyStore().manualRollsBlocked).toBe(true)
     expect(useTokenRingStore().spritesheet).toBe('modules/themed/rings.json')
+    expect(useLabelCatalogsStore().catalogs.rollOptions).toEqual({ finesse: 'Finesse' })
   })
 })

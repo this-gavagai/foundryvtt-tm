@@ -1,4 +1,5 @@
 import { computed, type Ref } from 'vue'
+import { useWorldLabels } from '@/composables/useWorldLabels'
 import type { CharacterPF2e, AbilityItemPF2e, FeatPF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField } from './helpers'
 import type { DiceResults, RequestResolutionArgs } from '@/types/api-types'
@@ -86,6 +87,7 @@ function isActivity(item: AbilityLike, trait: ActivityTrait) {
 }
 
 export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): CharacterActions {
+  const { frequencyLabels } = useWorldLabels(actor)
   const doCharacterAction = (
     slug: string,
     options: object | undefined = {},
@@ -138,7 +140,7 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
         const macroId = tbFlag?.linked ?? tbFlag?.macro
         const typeValue = i.system?.actionType?.value
         const itemId = i._id
-        const base = makeAction(i as AbilityItemPF2e<CharacterPF2e>) as Action
+        const base = makeAction(i as AbilityItemPF2e<CharacterPF2e>, frequencyLabels.value) as Action
         return {
           ...base,
           actionType:
@@ -180,7 +182,7 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
       ?.filter((i): i is AbilityItemPF2e<CharacterPF2e> | FeatPF2e<CharacterPF2e> =>
         isActivity(i, trait)
       )
-      .map((i) => makeAction(i as AbilityItemPF2e<CharacterPF2e>) as Action)
+      .map((i) => makeAction(i as AbilityItemPF2e<CharacterPF2e>, frequencyLabels.value) as Action)
 
   const byName = (a: Action, b: Action) => (a.name ?? '').localeCompare(b.name ?? '')
 

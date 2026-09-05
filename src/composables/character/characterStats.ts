@@ -17,6 +17,7 @@ import type { RequestResolutionArgs } from '@/types/api-types'
 import { kebabCase } from 'lodash-es'
 import { calcAttribute } from './calcAttributes'
 import { i18n } from '@/plugins/i18n'
+import { useWorldLabels } from '@/composables/useWorldLabels'
 
 export interface IWR {
   type: Maybe<string>
@@ -93,6 +94,9 @@ export interface CharacterStats {
 }
 
 export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): CharacterStats {
+  // IWR and proficiency names are the world's, not this actor's — see
+  // composables/useWorldLabels.
+  const { iwrLabels, proficiencyLabels } = useWorldLabels(actor)
   const attributes = {
     str: computed(() => actor.value?.system?.abilities?.str?.mod ?? calcAttribute(actor, 'str')),
     dex: computed(() => actor.value?.system?.abilities?.dex?.mod ?? calcAttribute(actor, 'dex')),
@@ -185,7 +189,7 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
   })
 
   const proficiencies = computed(() => {
-    const labels = actor.value?.proficiencyLabels ?? {}
+    const labels = proficiencyLabels.value
     return [
       ...Object.entries(
         (actor.value?.system?.proficiencies?.['attacks'] ?? []) as Record<
@@ -236,13 +240,13 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
   })
 
   const immunities = computed(() =>
-    makeIWRs(actor.value?.system?.attributes?.immunities, actor.value?.iwrLabels)
+    makeIWRs(actor.value?.system?.attributes?.immunities, iwrLabels.value)
   )
   const weaknesses = computed(() =>
-    makeIWRs(actor.value?.system?.attributes?.weaknesses, actor.value?.iwrLabels)
+    makeIWRs(actor.value?.system?.attributes?.weaknesses, iwrLabels.value)
   )
   const resistances = computed(() =>
-    makeIWRs(actor.value?.system?.attributes?.resistances, actor.value?.iwrLabels)
+    makeIWRs(actor.value?.system?.attributes?.resistances, iwrLabels.value)
   )
   const spellDC = computed(() => actor.value?.system?.attributes?.spellDC?.value)
 

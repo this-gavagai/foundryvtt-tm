@@ -46,15 +46,11 @@ function makePayload(
     system: {
       attributes: { hp: { value: 17 } }
     } as UpdateCharacterDetailsArgs['system'],
-    languages: ['common'],
-    proficiencyLabels: {},
     inventory: [] as UpdateCharacterDetailsArgs['inventory'],
     activeRules: [],
     elementalBlasts: null,
     spellcastingModifiers: {},
     rollOptionLabels: {},
-    traitLabels: {},
-    iwrLabels: {},
     skillActions: [],
     ...overrides
   }
@@ -82,7 +78,6 @@ describe('parseActorData gates', () => {
     parseActorData('actor-1', actor, makePayload('actor-1', uuid))
 
     expect(actor.value?.name).toBe('Amiri')
-    expect(actor.value?.languages).toEqual(['common'])
     expect(
       (actor.value?.system as { attributes: { hp: { value: number } } }).attributes.hp.value
     ).toBe(17)

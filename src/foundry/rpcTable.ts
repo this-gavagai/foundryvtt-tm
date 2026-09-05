@@ -52,6 +52,7 @@ import {
   foundryGetCompendiumIndex,
   foundryGetCompendiumItem,
   foundryGetItemChoices,
+  foundryGetLabelCatalogs,
   foundryGetSpellDamage,
   foundryGetStrikeDamage,
   foundryListCompendia,
@@ -178,6 +179,17 @@ export const RPC_TABLE: RpcTable = {
   [TM.LIST_COMPENDIA]: { handler: foundryListCompendia, auth: 'world-user', concurrent: true },
   [TM.GET_COMPENDIUM_INDEX]: {
     handler: foundryGetCompendiumIndex,
+    auth: 'world-user',
+    concurrent: true
+  },
+
+  // The world's label catalogs. 'world-user' because it names no actor and
+  // reads no document — it is CONFIG.PF2E plus the world's locale, the same
+  // answer for everyone at the table. Concurrent for the same reason the
+  // compendium reads are: the app asks for it the moment a GM appears, which is
+  // exactly when a queued roll must not be waiting behind it.
+  [TM.GET_LABEL_CATALOGS]: {
+    handler: foundryGetLabelCatalogs,
     auth: 'world-user',
     concurrent: true
   },

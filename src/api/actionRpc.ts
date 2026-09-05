@@ -625,3 +625,12 @@ export const rerollChatRoll = (
     diceResults,
     rollIndex
   })
+
+// The world's slug → display-name catalogs, in one read.
+//
+// Asked for once per label stamp (see stores/labelCatalogs), not per sheet and
+// not per refresh: the answer is a pure function of CONFIG.PF2E and the world's
+// locale, so it is the same for every actor and stays valid until the system,
+// the locale or the module changes. Everything after that first successful call
+// is served from the app's own cache, with no GM involved.
+export const getLabelCatalogs = () => sendAction(TM.GET_LABEL_CATALOGS, {})

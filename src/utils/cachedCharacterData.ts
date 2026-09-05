@@ -1,11 +1,12 @@
 import { clearActorSnapshotsForServer } from '@/utils/actorCache'
 import { clearChatCacheForServer } from '@/utils/chatCache'
+import { clearLabelCatalogsForServer } from '@/utils/labelCache'
 import { clearImageCacheForServer } from '@/api/imageCache'
 import { clearLastCharacterId } from '@/utils/utilities'
 
 // Everything a server's characters leave behind on this device, in one place:
 // the actor snapshots, the chat tail + read markers, the cached portraits/token
-// art, and the remembered character selection.
+// art, the world's display labels, and the remembered character selection.
 //
 // Two paths must leave none of it: forgetting a server (a re-add has to start
 // clean) and signing out of one (the next person to sign in on this device is a
@@ -25,6 +26,9 @@ export function clearCachedCharacterData(origin: string): Promise<void> {
   return Promise.all([
     clearActorSnapshotsForServer(origin),
     clearChatCacheForServer(origin),
+    // The label catalog carries the world's own item and rule names, so it is
+    // the previous user's data in the same way a cached sheet is.
+    clearLabelCatalogsForServer(origin),
     clearImageCacheForServer(origin)
   ]).then(() => undefined)
 }

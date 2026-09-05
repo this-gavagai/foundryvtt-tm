@@ -81,6 +81,9 @@ const EXPECTED: Record<RpcAction, Expected> = {
   [TM.GET_COMPENDIUM_ITEM]: { auth: 'world-user', concurrent: true },
   [TM.LIST_COMPENDIA]: { auth: 'world-user', concurrent: true },
   [TM.GET_COMPENDIUM_INDEX]: { auth: 'world-user', concurrent: true },
+  // Names no actor and reads no document — CONFIG.PF2E plus the world locale,
+  // the same answer for every user at the table.
+  [TM.GET_LABEL_CATALOGS]: { auth: 'world-user', concurrent: true },
 
   // ── Player-scoped, not character-scoped.
   [TM.TOGGLE_REACTION]: { auth: 'world-user' },

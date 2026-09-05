@@ -11,8 +11,10 @@ const DB_NAME = 'tablemate'
 // v3 re-keyed both stores per server origin; legacy unscoped entries are
 // dropped on upgrade (see openDb) so one server's snapshots/chat can't surface
 // on another.
-const DB_VERSION = 3
-const STORE_NAMES = ['actors', 'chat'] as const
+// v4 added the 'labels' store: one merged label catalog per server, shared by
+// every actor, rather than a private copy inside each actor snapshot.
+const DB_VERSION = 4
+const STORE_NAMES = ['actors', 'chat', 'labels'] as const
 export type StoreName = (typeof STORE_NAMES)[number]
 
 let dbPromise: Promise<IDBDatabase | undefined> | undefined
@@ -139,6 +141,29 @@ export async function idbDeleteByPrefix(store: StoreName, prefix: string): Promi
       }
     } catch (e) {
       logger.debug('idb: deleteByPrefix failed', store, prefix, e)
+      resolve()
+    }
+  })
+}
+
+// Delete exactly one key. Distinct from idbDeleteByPrefix because a store whose
+// key IS the server origin has no delimiter to bound a prefix range against:
+// with origins alone, the range for 'https://foo.com' also spans
+// 'https://foo.com.example.net'. Callers holding a whole key use this instead.
+export async function idbDelete(store: StoreName, key: string): Promise<void> {
+  const db = await openDb()
+  if (!db) return
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(store, 'readwrite')
+      tx.objectStore(store).delete(key)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => {
+        logger.debug('idb: delete failed', store, key, tx.error)
+        resolve()
+      }
+    } catch (e) {
+      logger.debug('idb: delete failed', store, key, e)
       resolve()
     }
   })

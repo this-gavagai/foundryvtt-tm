@@ -15,6 +15,7 @@ import { type ClassType, makeClassType } from './defs/classType'
 import { type Stat, makeStat } from './defs/stat'
 import { updateActor } from '@/api/documents'
 import { tokenPortrait, type PortraitRing } from '@/utils/tokenPortrait'
+import { useWorldLabels } from '@/composables/useWorldLabels'
 
 export interface CharacterCore {
   // Live underlying PF2e actor — escape hatch for code that needs prototype
@@ -92,9 +93,10 @@ export function useCharacterCore(actor: Ref<TablemateCharacter | undefined>): Ch
     fly: computed(() => makeStat(actor.value?.system?.movement?.speeds?.fly ?? undefined)),
     burrow: computed(() => makeStat(actor.value?.system?.movement?.speeds?.burrow ?? undefined))
   }
-  const languages = computed(() => actor.value?.languages)
-  const rollOptionLabels = computed(() => actor.value?.rollOptionLabels)
-  const traitLabels = computed(() => actor.value?.traitLabels)
+  // Labels come from the world catalog, not the actor — so a sheet painted from
+  // the world dump alone still names its traits and languages. See
+  // composables/useWorldLabels.
+  const { languages, rollOptionLabels, traitLabels } = useWorldLabels(actor)
 
   return {
     _actor: actor,

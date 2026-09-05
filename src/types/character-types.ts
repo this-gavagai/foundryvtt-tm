@@ -117,15 +117,14 @@ export type ContainerCapacity = {
   ignoredMax: number
 }
 
+// Deliberately no label maps here any more. Every slug → display-name lookup
+// now goes through stores/labelCatalogs, which holds ONE copy for the world and
+// keeps it across sessions — so a label no longer depends on this particular
+// actor having been serialized by a GM. See utils/labelCache.ts.
 export type TablemateActorExtras = {
   activeRules?: string[]
   elementalBlasts?: PF2eElementalBlast
-  languages?: string[]
-  proficiencyLabels?: Record<string, string>
   spellcastingModifiers?: Record<string, SpellcastingModifierData>
-  rollOptionLabels?: Record<string, string>
-  traitLabels?: Record<string, string>
-  iwrLabels?: Record<string, string>
   skillActions?: SkillActionData[]
   inventory?: Partial<CharacterPF2e['inventory']> & {
     labels?: Record<string, string | undefined>

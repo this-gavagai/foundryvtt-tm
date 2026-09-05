@@ -2,6 +2,7 @@ import { type Ref, computed } from 'vue'
 import type { Field, Maybe } from './helpers'
 import type { TablemateCharacter } from '@/types/character-types'
 import { replaceItemRules } from '@/api/documents'
+import { useWorldLabels } from '@/composables/useWorldLabels'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
 
 export interface CharacterRules {
@@ -37,6 +38,7 @@ type RollOptionRule = {
 }
 
 export function useCharacterRules(actor: Ref<TablemateCharacter | undefined>): CharacterRules {
+  const { rollOptionLabels } = useWorldLabels(actor)
   const rollOptions = computed(() => {
     const rollOptions = new Map<string, RollOption>()
     const activeRules = actor.value?.activeRules
@@ -52,7 +54,7 @@ export function useCharacterRules(actor: Ref<TablemateCharacter | undefined>): C
           // toggles in different domains into a single row.
           const optionKey = `${rule.domain ?? ''}:${rule.option ?? ''}`
           if (!rollOptions.get(optionKey)) {
-            const labels = actor.value?.rollOptionLabels
+            const labels = rollOptionLabels.value
             rollOptions.set(optionKey, {
               sourceId: item?._id ?? undefined,
               label: (rule.label ? labels?.[rule.label] : undefined) ?? item.name ?? '',
@@ -100,8 +102,7 @@ export function useCharacterRules(actor: Ref<TablemateCharacter | undefined>): C
                 const updates: { itemId: string; rules: object[] }[] = []
                 itemSet?.forEach((itemId) => {
                   const rules = actor.value?.items.find((j) => j._id === itemId)?.system.rules as
-                    | RollOptionRule[]
-                    | undefined
+                    RollOptionRule[] | undefined
                   const rollOptionRule = rules?.find(isThisOption)
                   if (rollOptionRule) {
                     if (newToggleValue !== null) rollOptionRule.value = newToggleValue ?? undefined
@@ -115,7 +116,7 @@ export function useCharacterRules(actor: Ref<TablemateCharacter | undefined>): C
           }
           const rollOption = rollOptions.get(optionKey)
           rule.suboptions?.forEach((s) => {
-            const labels = actor.value?.rollOptionLabels
+            const labels = rollOptionLabels.value
             const label = s.label
               ? s.label.includes('{item|')
                 ? s.label.replace(/\{item\|name\}/g, item.name ?? s.label)

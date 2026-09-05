@@ -21,8 +21,7 @@ import {
   CAPABILITY_REACTIONS,
   CAPABILITY_END_TURN,
   CAPABILITY_SET_HIT_POINTS,
-  CAPABILITY_COMMENTS,
-  MODULE_ID
+  CAPABILITY_COMMENTS
 } from '@/api/protocol'
 import { makeAck, stampTablemateChatOrigin, tablemateChatOriginUuid } from './utils/foundry'
 import { markRequestSeen, requestAlreadySeen } from './requestDedup'
@@ -36,7 +35,8 @@ import {
   type ChatOriginStamp
 } from './chatOrigin'
 import { abandonRequestContext } from './requestTeardown'
-import { drawnSceneId, hooks, notifications } from './globals'
+import { drawnSceneId, hooks, moduleVersion, notifications } from './globals'
+import { labelCatalogStamp } from './utils/labels'
 import {
   registerManualRollPolicySetting,
   manualRollPolicy,
@@ -59,11 +59,6 @@ import { notifyChatMessage } from './pushNotify'
 import { notifyTurnStart } from './pushTurn'
 
 type GetEvent = { action: 'get' }
-
-// Running module release, read from the manifest Foundry parsed at load.
-function moduleVersion(): string | undefined {
-  return game.modules?.get?.(MODULE_ID)?.version ?? undefined
-}
 
 // Warn the GM at most once per incompatible client per window, so the 30s
 // presence heartbeat doesn't spam a persistent error notification.
@@ -624,6 +619,11 @@ function announceSelf() {
     // ID, and the registry that maps IDs to spritesheets (including the custom
     // rings modules and adventure paths register) exists only in the client.
     tokenRing: { spritesheet: tokenRingSpritesheet() },
+    // Identifies the world's label catalogs. The app compares it against the
+    // stamp it has cached and asks for the catalogs only when they differ — so
+    // the common heartbeat costs one short string and no round trip, and a
+    // system upgrade or a locale change re-labels every sheet on the next beat.
+    labelStamp: labelCatalogStamp(),
     // Additive feature flags — the app hides features this module can't serve,
     // and now also the ones this world has switched off. Each media capability
     // is advertised only once the GM has configured its destination folder, so

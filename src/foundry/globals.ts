@@ -23,6 +23,7 @@
 // is the entire point of that file — a precise shared type would defeat it.
 
 import type { GamePF2e } from '@7h3laughingman/pf2e-types'
+import { MODULE_ID } from '@/api/protocol'
 
 // ── game ───────────────────────────────────────────────────────────────────
 
@@ -263,6 +264,15 @@ export type ConfigPF2E = ConfigPF2e['PF2E']
 
 export function configPF2E(): ConfigPF2E {
   return CONFIG.PF2E
+}
+
+// Running module release, read from the manifest Foundry parsed at load.
+//
+// Here rather than in listener.ts, its original home, because the label catalog
+// stamp needs it too (utils/labels.ts) and labels must not import the listener —
+// the listener imports the handlers, which import labels.
+export function moduleVersion(): string | undefined {
+  return game.modules?.get?.(MODULE_ID)?.version ?? undefined
 }
 
 // PF2e's registered Roll subclasses, searched for DamageRoll. See utils/roll.ts.

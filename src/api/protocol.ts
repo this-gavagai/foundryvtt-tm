@@ -257,6 +257,16 @@ export const TM = {
   GET_ITEM_CHOICES: 'getItemChoices',
   LIST_COMPENDIA: 'listCompendia',
   GET_COMPENDIUM_INDEX: 'getCompendiumIndex',
+  // The world's slug → display-name catalogs, in one read.
+  //
+  // Fetched once per label stamp (system version + world locale + module
+  // version) rather than riding every character payload, which is what it used
+  // to do. The catalogs are a pure function of CONFIG.PF2E and the locale — no
+  // actor is consulted — so once the app holds one for the announced stamp it
+  // never needs a GM again to name a trait, a language or a proficiency. That is
+  // the point: it is the one label read that has to happen while a GM is online,
+  // and after it, none do. See foundry/utils/labels.buildWorldLabelCatalogs.
+  GET_LABEL_CATALOGS: 'getLabelCatalogs',
   SEND_COMPENDIUM_ITEM_TO_CHAT: 'sendCompendiumItemToChat',
   APPLY_DAMAGE: 'applyDamage',
   // Manual hit-point edit from the sheet's HP modal. Writes the same plain field

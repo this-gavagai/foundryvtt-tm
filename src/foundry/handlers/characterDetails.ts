@@ -21,14 +21,8 @@ import { logger } from '@/utils/utilities'
 import { attachDisplaced, recordOverlay, type DisplacedValue } from '@/utils/itemSource'
 
 import { getGame } from '../utils/foundry'
-import { configPF2E, localize, localizeOr } from '../globals'
-import {
-  buildSpellcastingModifiers,
-  localizeIWRLabels,
-  localizeProficiencyLabels,
-  localizeRollOptionLabels,
-  localizeTraitLabels
-} from '../utils/labels'
+import { localize } from '../globals'
+import { buildSpellcastingModifiers, localizeActorRollOptionLabels } from '../utils/labels'
 
 // JSON-replacer for ElementalBlast: drops the circular `actor` back-reference,
 // shrinks nested item references to bare `{ _id }`, and flattens `statistic` to
@@ -341,20 +335,13 @@ export async function getCharacterDetails(
   const cleanBlasts = elementalBlasts
     ? JSON.parse(JSON.stringify(elementalBlasts, blastReplacer))
     : null
-  // Languages are stored on the actor as bare slugs; need to be localized
-  const langKeys = configPF2E().languages as Record<string, string>
-  const actorSystem = actor.system as {
-    details?: { languages?: { value?: string[] } }
-  }
-  const languages = (actorSystem.details?.languages?.value ?? []).map((slug: string) =>
-    langKeys[slug] ? localize(langKeys[slug]) : slug
-  )
-  const proficiencyLabels = isCharacter ? localizeProficiencyLabels(actor.system) : {}
-  const rollOptionLabels = localizeRollOptionLabels(actor)
-  const traitLabels = localizeTraitLabels()
-  // IWR reads straight off system.attributes, so it works for any creature —
-  // NPCs lean on it far more heavily than characters do.
-  const iwrLabels = localizeIWRLabels(actor)
+  // Only the actor's own RollOption rule labels travel with the actor now. The
+  // world's trait / proficiency / IWR / language / statistic names are the same
+  // for every creature here and are served once by TM.GET_LABEL_CATALOGS, so
+  // sending them on each refresh was pure repetition — the traits map alone runs
+  // to four figures. Languages likewise: the app holds the actor's slugs in
+  // source data and resolves them through the cached catalog itself.
+  const rollOptionLabels = localizeActorRollOptionLabels(actor)
   // Entry statistics are read off the live spellcasting entries, so this works
   // for any caster. NPCs need it more than characters do: their source
   // `spelldc.dc`/`.value` are hand-authored numbers that the elite/weak
@@ -434,20 +421,16 @@ export async function getCharacterDetails(
       //
       // The interval's label rides along: `per` is a bare enum key ("day",
       // "PT1H") whose CONFIG.PF2E.frequencies entry is an i18n key, and only
-      // this side has the catalog loaded (see localizeTraitLabels).
+      // this side has the catalog loaded (see buildWorldLabelCatalogs).
       const frequency = i.system.frequency
       if (frequency) {
-        const perKeys = configPF2E().frequencies as Record<string, string | undefined>
-        const perKey = perKeys[frequency.per]
-        const interval = perKey ? localize(perKey) : frequency.per
+        // Numbers only. The "per day" phrase used to be composed here, once per
+        // ability per refresh, for a catalog of eight intervals that is the same
+        // for the whole world — it now rides TM.GET_LABEL_CATALOGS instead.
         overlay('system.frequency', {
           value: frequency.value,
           max: frequency.max,
-          per: frequency.per,
-          // The whole phrase, composed the way PF2e's own action.hbs composes it
-          // ("per" + interval) rather than joined client-side: word order around
-          // the interval is the translation's to decide.
-          perLabel: `${localizeOr('PF2E.Frequency.per', 'per')} ${interval}`
+          per: frequency.per
         })
       }
     }
@@ -556,15 +539,11 @@ export async function getCharacterDetails(
     // are checked `as`, so a drift in their wire shape still fails to compile.
     actor: actorPayload as unknown as UpdateCharacterDetailsArgs['actor'],
     system: systemPayload as UpdateCharacterDetailsArgs['system'],
-    languages,
-    proficiencyLabels,
     inventory: inventory as UpdateCharacterDetailsArgs['inventory'],
     activeRules: [...activeRules],
     elementalBlasts: cleanBlasts,
     spellcastingModifiers,
     rollOptionLabels,
-    traitLabels,
-    iwrLabels,
     skillActions: isCharacter ? serializeSkillActions(actor, skillActionDescs) : [],
     uuid: args.uuid,
     userId: source.user._id ?? ''

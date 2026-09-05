@@ -1,3 +1,4 @@
+import { useWorldLabels } from '@/composables/useWorldLabels'
 import { computed, type Ref } from 'vue'
 import type { NPCStrike as PF2eNpcStrike, SaveType, SlotKey } from '@7h3laughingman/pf2e-types'
 import type { TablemateNpc } from '@/types/character-types'
@@ -124,7 +125,10 @@ export interface Npc extends Actor {
 }
 
 export function useNpc(actor: Ref<TablemateNpc | undefined>) {
-  const traitLabels = computed(() => actor.value?.traitLabels ?? {})
+  // Labels are the world's, not this stat block's — an NPC the app has never
+  // asked a GM about still names its traits and immunities.
+  const { traitLabels, iwrLabels, languages, rollOptionLabels, frequencyLabels } =
+    useWorldLabels(actor)
 
   const makeSave = (subtype: SaveType) =>
     computed(() => ({
@@ -240,13 +244,13 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
     },
 
     immunities: computed(() =>
-      makeIWRs(actor.value?.system?.attributes?.immunities, actor.value?.iwrLabels)
+      makeIWRs(actor.value?.system?.attributes?.immunities, iwrLabels.value)
     ),
     weaknesses: computed(() =>
-      makeIWRs(actor.value?.system?.attributes?.weaknesses, actor.value?.iwrLabels)
+      makeIWRs(actor.value?.system?.attributes?.weaknesses, iwrLabels.value)
     ),
     resistances: computed(() =>
-      makeIWRs(actor.value?.system?.attributes?.resistances, actor.value?.iwrLabels)
+      makeIWRs(actor.value?.system?.attributes?.resistances, iwrLabels.value)
     ),
     spellDC: computed(() => actor.value?.system?.attributes?.spellDC?.value),
 
@@ -346,8 +350,8 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
         })
     ),
 
-    activeAbilities: computed(() => npcAbilities(actor, true)),
-    passiveAbilities: computed(() => npcAbilities(actor, false)),
+    activeAbilities: computed(() => npcAbilities(actor, true, frequencyLabels.value)),
+    passiveAbilities: computed(() => npcAbilities(actor, false, frequencyLabels.value)),
 
     // Spellcasting is the same PF2e machinery characters use — entries own the
     // statistic and any slots, spells point back at their entry via
@@ -523,8 +527,8 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
       })
     ),
 
-    languages: computed(() => actor.value?.languages),
-    rollOptionLabels: computed(() => actor.value?.rollOptionLabels),
+    languages,
+    rollOptionLabels,
     traitLabels,
 
     // doCharacterAction / doFlatCheck deliberately absent: the NPC sheet is a
@@ -547,13 +551,17 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
 // Ability ("action") items, split on whether they cost an action to use.
 // PF2e stores a passive stat-block entry as an action item whose actionType is
 // 'passive'; everything else (actions, reactions, free actions) is active.
-function npcAbilities(actor: Ref<TablemateNpc | undefined>, active: boolean): Action[] {
+function npcAbilities(
+  actor: Ref<TablemateNpc | undefined>,
+  active: boolean,
+  frequencyLabels: Record<string, string>
+): Action[] {
   return itemsOfType(actor.value, 'action')
     .map((item) => {
       const typeValue = item.system?.actionType?.value
       const itemId = item._id
       return {
-        ...makeAction(item),
+        ...makeAction(item, frequencyLabels),
         actionType: typeValue !== 'action' ? (typeValue ?? null) : 'action',
         // PF2e's NPC sheet carries the same Use button as the character sheet's
         // actions tab (templates/actors/npc/partials/action.hbs), gated on the

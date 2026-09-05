@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ref, type Ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import type { TablemateCharacter } from '@/types/character-types'
 
 // Toggling a roll option writes it onto every item that contributes it, which
@@ -64,7 +65,12 @@ function written() {
   }
 }
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  // The character model reads its labels from a store now (useWorldLabels), so
+  // the model under test needs an active Pinia.
+  setActivePinia(createPinia())
+})
 
 describe('roll option rows', () => {
   // Keyed by (domain, option). On `option` alone these collapsed into one row,

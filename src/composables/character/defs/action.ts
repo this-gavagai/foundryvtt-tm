@@ -3,11 +3,12 @@ import type { Item, ItemSystem } from './item'
 import type { Maybe } from '@/composables/character/helpers'
 import { makeItem } from './item'
 
-// A limited-use action's Frequency ("2 per hour"). `perLabel` is the ready-made
-// "per day" / "per hour" phrase, composed and localized Foundry-side — `per`
-// itself is a bare enum key ("day", "PT1H") the app has no catalog for. Both
-// arrive on the wire; see the frequency overlay in
-// foundry/handlers/characterDetails.
+// A limited-use action's Frequency ("2 per hour"). `per` is a bare enum key
+// ("day", "PT1H"); `perLabel` is the ready-made phrase, looked up in the world's
+// frequency catalog (stores/labelCatalogs) rather than composed per item by the
+// GM. `value` and `max` still arrive on the wire — PF2e fills `value ??= max` in
+// prepareBaseData and item alterations can rewrite `max`, neither of which is
+// visible in source data.
 export interface ActionFrequency {
   value: Maybe<number>
   max: Maybe<number>
@@ -64,7 +65,12 @@ export interface ExplorationActivity extends Action {
   toggleActive: () => Promise<unknown> | void
 }
 
-export function makeAction(root: AbilityItemPF2e): Action {
+// `frequencyLabels` is REQUIRED, not defaulted: a default would let a new call
+// site compile while quietly rendering "PT1H" instead of "per hour".
+export function makeAction(
+  root: AbilityItemPF2e,
+  frequencyLabels: Record<string, string>
+): Action {
   const base = makeItem(root)
   return {
     ...base,
@@ -76,7 +82,7 @@ export function makeAction(root: AbilityItemPF2e): Action {
       actionType: {
         value: root?.system?.actionType?.value
       },
-      frequency: makeFrequency(root?.system?.frequency)
+      frequency: makeFrequency(root?.system?.frequency, frequencyLabels)
     },
     // PF2e's `usable` is `selfEffect || frequency || crafting`; only the
     // frequency arm carries over, and the other two are left out because the
@@ -93,21 +99,20 @@ export function makeAction(root: AbilityItemPF2e): Action {
   } as Action
 }
 
-// PF2e types the source `per` as its own enum and knows nothing of `perLabel`,
-// which the Foundry side adds on the way out — narrow to the shape actually on
-// the wire rather than restating the item's whole system data.
 function makeFrequency(
-  frequency: AbilityItemPF2e['system']['frequency'] | undefined
+  frequency: AbilityItemPF2e['system']['frequency'] | undefined,
+  frequencyLabels: Record<string, string>
 ): ActionFrequency | undefined {
   if (!frequency) return undefined
-  const wire = frequency as typeof frequency & { perLabel?: string }
   return {
     // Unspent frequencies have no stored `value` — PF2e fills it from `max` at
     // prepare time, and so does the overlay, but a payload from an older
     // Foundry-side build won't have been through it.
-    value: wire.value ?? wire.max,
-    max: wire.max,
-    per: wire.per,
-    perLabel: wire.perLabel
+    value: frequency.value ?? frequency.max,
+    max: frequency.max,
+    per: frequency.per,
+    // An interval with no catalog entry falls through to its raw key, which is
+    // what an unlocalized frequency showed before.
+    perLabel: frequency.per ? (frequencyLabels[frequency.per] ?? frequency.per) : undefined
   }
 }

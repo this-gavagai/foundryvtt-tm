@@ -83,6 +83,11 @@ const actor: Ref<TablemateActor | undefined> = ref()
 const worldActor = computed<TablemateActor | undefined>(
   () => worldStore.actorById(props.characterId) as TablemateActor | undefined
 )
+// The world dump is SOURCE data: it carries the actor and its items, but none
+// of what a getCharacterDetails payload adds. That used to include the label
+// maps, so this fallback rendered raw slugs; labels now come from the world
+// catalog instead (stores/labelCatalogs), which every actor model reads through
+// composables/useWorldLabels — so the bare world actor needs no decoration.
 const actorOrWorldActor = computed<TablemateActor | undefined>(
   () => actor.value ?? worldActor.value
 )

@@ -129,15 +129,10 @@ export function parseActorData(
   const incoming = {
     ...(actorWithoutItems as Partial<TablemateActor>),
     system: args.system,
-    languages: args.languages,
-    proficiencyLabels: args.proficiencyLabels,
     elementalBlasts: args.elementalBlasts ?? undefined,
     inventory: args.inventory,
     activeRules: args.activeRules,
     spellcastingModifiers: args.spellcastingModifiers,
-    rollOptionLabels: args.rollOptionLabels,
-    traitLabels: args.traitLabels,
-    iwrLabels: args.iwrLabels,
     skillActions: args.skillActions
   } as Partial<TablemateActor>
 

@@ -2,9 +2,10 @@
 // stores in raw form (skills, saves, item rules, weapon/armor proficiencies,
 // IWR entries) into display-ready strings for the client.
 
-import type { ActorPF2e, CharacterPF2e, ItemPF2e, RawModifier } from '@7h3laughingman/pf2e-types'
-import { configPF2E, localize, type ConfigPF2E } from '../globals'
+import type { ActorPF2e, ItemPF2e, RawModifier } from '@7h3laughingman/pf2e-types'
+import { configPF2E, getGame, localize, localizeOr, moduleVersion, type ConfigPF2E } from '../globals'
 import type { SpellcastingModifierData } from '@/types/character-types'
+import type { WorldLabelCatalogs } from '@/types/api-types'
 
 // One of PF2e's slug → i18n-key dictionaries, read by a slug that is not one of
 // the keys pf2e-types enumerates. Proficiency and trait slugs come out of actor
@@ -12,56 +13,6 @@ import type { SpellcastingModifierData } from '@/types/character-types'
 // string. Widening is a plain assignment, not a cast: the dictionaries stay
 // checked against PF2e's config, and only the key type opens up.
 type LabelDictionary = Record<string, string | undefined>
-
-export function localizeProficiencyLabels(system: CharacterPF2e['system']): Record<string, string> {
-  const WEAPON_CATEGORIES = ['unarmed', 'simple', 'martial', 'advanced']
-  const cfg = configPF2E()
-  const weaponCategories: LabelDictionary = cfg.weaponCategories
-  const weaponGroups: LabelDictionary = cfg.weaponGroups
-  const baseWeaponTypes: LabelDictionary = cfg.baseWeaponTypes
-  const baseShieldTypes: LabelDictionary = cfg.baseShieldTypes
-  const armorCategories: LabelDictionary = cfg.armorCategories
-  const toPascal = (slug: string) =>
-    slug.replace(/(?:^|-)(\w)/g, (_m, c: string) => c.toUpperCase())
-  const labels: Record<string, string> = {}
-
-  const attacks = (system?.proficiencies?.attacks ?? {}) as Record<string, { label?: string }>
-  for (const [key, data] of Object.entries(attacks)) {
-    const group = /^weapon-group-([-\w]+)$/.exec(key)
-    const base = /^weapon-base-([-\w]+)$/.exec(key)
-    let label: string | undefined
-    const categoryKey = weaponCategories[key]
-    if (categoryKey !== undefined) {
-      label = WEAPON_CATEGORIES.includes(key)
-        ? localize('PF2E.Actor.Character.Proficiency.Attack.' + toPascal(key))
-        : localize(categoryKey)
-    } else if (group) {
-      label = localize(weaponGroups[group[1]] ?? group[1])
-    } else if (base) {
-      const bt = base[1]
-      label = localize(baseWeaponTypes[bt] ?? baseShieldTypes[bt] ?? bt)
-    } else if (data.label) {
-      label = localize(data.label)
-    }
-    if (label) labels[key] = label
-  }
-
-  const defenses = (system?.proficiencies?.defenses ?? {}) as Record<string, { label?: string }>
-  for (const [key, data] of Object.entries(defenses)) {
-    if (armorCategories[key] !== undefined) {
-      labels[key] = localize('PF2E.Actor.Character.Proficiency.Defense.' + toPascal(key))
-    } else if (data.label) {
-      labels[key] = localize(data.label)
-    }
-  }
-
-  const classDCs = (system?.proficiencies?.classDCs ?? {}) as Record<string, { label?: string }>
-  for (const [key, data] of Object.entries(classDCs)) {
-    if (data.label) labels[key] = localize(data.label)
-  }
-
-  return labels
-}
 
 // Localize a single rarity slug (common/uncommon/rare/unique) via the
 // rarityTraits dictionary. Used by the compendium index, which localizes just
@@ -144,53 +95,135 @@ export function localizeTraitLabels(): Record<string, string> {
   return labels
 }
 
-export function localizeRollOptionLabels(actor: ActorPF2e): Record<string, string> {
-  type StatWithLabel = { label?: string }
+// The RollOption labels that genuinely belong to ONE actor: the i18n keys its
+// items' RollOption rules declare, resolved against the world's locale.
+//
+// Everything else that used to be gathered here has moved:
+//
+//   * skill / save / perception names → the world catalog below. They are the
+//     same sixteen-odd strings for every creature in the world, so sending them
+//     with each actor was the clearest case of the duplication this split
+//     exists to remove.
+//   * `item.slug → item.name` → derived app-side. Both halves are plain source
+//     data the app already holds, so a round trip bought nothing.
+//
+// What is left cannot move: a rule's `label` is an arbitrary i18n key chosen by
+// whatever item (or homebrew module) declares it, so it is not enumerable from
+// CONFIG and only a Foundry client can resolve it. It is also small — a handful
+// of entries for a typical character.
+export function localizeActorRollOptionLabels(actor: ActorPF2e): Record<string, string> {
   type RuleWithLabel = { key?: string; label?: string; suboptions?: { label?: string }[] }
-  // Which statistic blocks a creature's system carries varies by actor type —
-  // a hazard has no saves, a familiar no skills — so they are all optional here
-  // and each is walked for whatever labels it holds.
-  const system = actor.system as {
-    skills?: Record<string, StatWithLabel>
-    saves?: Record<string, StatWithLabel>
-    perception?: StatWithLabel
-  }
   const labels: Record<string, string> = {}
-  for (const [slug, skill] of Object.entries(system.skills ?? {}))
-    if (skill.label) labels[slug] = localize(skill.label)
-  for (const [slug, save] of Object.entries(system.saves ?? {}))
-    if (save.label) labels[slug] = localize(save.label)
-  const percLabel = system.perception?.label
-  if (percLabel) labels['perception'] = localize(percLabel)
   for (const item of actor.items) {
-    if (item.slug && item.name) labels[item.slug] = item.name
     for (const rule of (item.system.rules as RuleWithLabel[]) ?? []) {
-      if (rule.key === 'RollOption') {
-        if (rule.label) labels[rule.label] = localize(rule.label)
-        for (const sub of rule.suboptions ?? [])
-          if (sub.label) labels[sub.label] = localize(sub.label)
+      if (rule.key !== 'RollOption') continue
+      if (rule.label) labels[rule.label] = localize(rule.label)
+      for (const sub of rule.suboptions ?? []) {
+        if (sub.label) labels[sub.label] = localize(sub.label)
       }
     }
   }
   return labels
 }
 
-export function localizeIWRLabels(actor: ActorPF2e): Record<string, string> {
-  type IWREntry = { type?: string; label?: string }
-  const attrs = actor.system?.attributes as {
-    immunities?: IWREntry[]
-    weaknesses?: IWREntry[]
-    resistances?: IWREntry[]
+// Localize a whole CONFIG.PF2E dictionary (slug → i18n key) in one go, optionally
+// re-keying each entry. Entries whose value is not a string are skipped: several
+// dictionaries hold nested objects for a few of their keys.
+function localizeDictionary(
+  dict: unknown,
+  rekey: (slug: string) => string = (slug) => slug
+): Record<string, string> {
+  if (!dict || typeof dict !== 'object') return {}
+  const out: Record<string, string> = {}
+  for (const [slug, key] of Object.entries(dict as Record<string, unknown>)) {
+    if (typeof key !== 'string') continue
+    out[rekey(slug)] = localize(key)
   }
-  const labels: Record<string, string> = {}
-  for (const e of [
-    ...(attrs?.immunities ?? []),
-    ...(attrs?.weaknesses ?? []),
-    ...(attrs?.resistances ?? [])
-  ]) {
-    if (e.type && e.label) labels[e.type] = e.label
+  return out
+}
+
+// Everything the app needs to turn a slug into a display name, for the WHOLE
+// world rather than one actor.
+//
+// This is the payload of GET_LABEL_CATALOGS, fetched once per label stamp (see
+// labelCatalogStamp) instead of riding every character refresh. It is bigger
+// than any single actor's slice — baseWeaponTypes alone runs to a couple of
+// hundred entries — and that is the point: fetched once, it covers every actor
+// in the world, including ones no GM has ever serialized.
+//
+// Everything here is a pure function of CONFIG.PF2E and the world's locale. No
+// actor is consulted, which is what makes the result cacheable at all.
+export function buildWorldLabelCatalogs(): WorldLabelCatalogs {
+  const cfg = configPF2E()
+  const toPascal = (slug: string) =>
+    slug.replace(/(?:^|-)(\w)/g, (_m, c: string) => c.toUpperCase())
+
+  // Weapon and armor CATEGORIES get PF2e's sheet-specific wording ("Simple",
+  // "Unarmored") rather than the generic dictionary entry, matching what the
+  // character sheet shows. The group/base keys carry the same `weapon-group-` /
+  // `weapon-base-` prefixes the actor's proficiency object uses, so the app can
+  // look them up by the key it already holds.
+  const proficiencies: Record<string, string> = {
+    ...localizeDictionary(cfg.weaponCategories),
+    ...localizeDictionary(cfg.weaponGroups, (slug) => `weapon-group-${slug}`),
+    ...localizeDictionary(cfg.baseWeaponTypes, (slug) => `weapon-base-${slug}`),
+    ...localizeDictionary(cfg.baseShieldTypes, (slug) => `weapon-base-${slug}`),
+    ...localizeDictionary(cfg.armorCategories)
   }
-  return labels
+  for (const slug of ['unarmed', 'simple', 'martial', 'advanced']) {
+    proficiencies[slug] = localize(`PF2E.Actor.Character.Proficiency.Attack.${toPascal(slug)}`)
+  }
+  for (const slug of Object.keys((cfg.armorCategories ?? {}) as Record<string, unknown>)) {
+    proficiencies[slug] = localize(`PF2E.Actor.Character.Proficiency.Defense.${toPascal(slug)}`)
+  }
+
+  return {
+    traits: localizeTraitLabels(),
+    proficiencies,
+    // Statistic slugs, as the roll-options panel and inline references key them.
+    rollOptions: {
+      ...localizeDictionary(cfg.skills),
+      ...localizeDictionary(cfg.saves),
+      ...localizeDictionary(cfg.abilities),
+      perception: localize('PF2E.PerceptionLabel')
+    },
+    // One flat map across all three: an app looking up "fire" does not care
+    // which of the three lists it came from, and PF2e uses the same wording.
+    iwr: {
+      ...localizeDictionary(cfg.immunityTypes),
+      ...localizeDictionary(cfg.weaknessTypes),
+      ...localizeDictionary(cfg.resistanceTypes)
+    },
+    languages: localizeDictionary(cfg.languages),
+    // The composed phrase per interval, not the bare interval: `per` is an enum
+    // key whose CONFIG entry is an i18n key, and the word order around it
+    // belongs to the translation. Eight-odd entries, built once for the world
+    // instead of once per limited-use ability on every character refresh.
+    frequencies: Object.fromEntries(
+      Object.entries((cfg.frequencies ?? {}) as Record<string, unknown>)
+        .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+        .map(([per, key]) => [per, `${localizeOr('PF2E.Frequency.per', 'per')} ${localize(key)}`])
+    )
+  }
+}
+
+// What the catalog above depends on, as one comparable string.
+//
+// A catalog changes when the system changes (new traits), when the world's
+// language changes (every value), or when this module changes (a dictionary
+// added to the list). Nothing else can move it — it consults no actor and no
+// world content — so an app holding a catalog for this stamp can keep it
+// indefinitely and never ask again.
+//
+// Announced on every LISTENER_ONLINE so the app can compare without a round
+// trip, and returned with the catalog so what it stores is self-describing.
+export function labelCatalogStamp(): string {
+  const source = getGame() as unknown as {
+    system?: { id?: string; version?: string }
+    i18n?: { lang?: string }
+  }
+  const system = `${source.system?.id ?? 'unknown'}@${source.system?.version ?? '0'}`
+  return `${system}|${source.i18n?.lang ?? 'en'}|${moduleVersion()}`
 }
 
 // Build the per-spellcasting-entry modifier snapshot the client uses to render

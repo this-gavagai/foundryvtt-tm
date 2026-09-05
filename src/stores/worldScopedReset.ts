@@ -3,6 +3,7 @@ import { useVersionCompatStore } from '@/stores/versionCompat'
 import { useGmPolicyStore } from '@/stores/gmPolicy'
 import { useTokenRingStore } from '@/stores/tokenRing'
 import { useTargetHelperStore } from '@/stores/targetHelper'
+import { useLabelCatalogsStore } from '@/stores/labelCatalogs'
 
 // Everything the connected world told us about itself, dropped in one place.
 //
@@ -36,4 +37,9 @@ export function resetWorldScopedStores() {
   // server/user switch would leave the sheet holding token ids that resolve to
   // nothing — or, worse, to something.
   useTargetHelperStore().reset()
+  // Display labels are one world's locale, system version and item names. The
+  // in-memory copy goes here; the persisted row is per origin and stays for a
+  // return visit (clearCachedCharacterData removes it when the server is
+  // forgotten or signed out of).
+  useLabelCatalogsStore().reset()
 }

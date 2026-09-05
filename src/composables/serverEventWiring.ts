@@ -14,6 +14,7 @@ import { useTokenRingStore } from '@/stores/tokenRing'
 import { useSyncStatusStore } from '@/stores/syncStatus'
 import { useFoundryWorldStatusStore } from '@/stores/foundryWorldStatus'
 import { useWorldStore } from '@/stores/world'
+import { useLabelCatalogsStore } from '@/stores/labelCatalogs'
 import { useSettingsStore } from '@/stores/settings'
 import { usePixelDiceStore } from '@/stores/pixelDice'
 import { resetWorldScopedStores } from '@/stores/worldScopedReset'
@@ -125,6 +126,11 @@ export function registerServerEventWiring() {
     // therefore don't trip useSession's socket-watch.
     onSessionAuthenticated: () => {
       void useWorldStore().refreshWorldNow()
+      // Last-known labels for this server, off disk, so a sheet can paint with
+      // real names before any GM answers. Idempotent per origin and ordered
+      // after the reset in onUserChanged, so a switch re-reads the new world's
+      // row rather than keeping the previous one's.
+      void useLabelCatalogsStore().hydrate()
       fireAllRefresh()
       // Any gap in the connection is a gap in what the world told us, so
       // everything fed by an unsolicited push has to be re-asked for here.
@@ -142,6 +148,17 @@ export function registerServerEventWiring() {
       // token with the relay. Fires on reconnects too; the call is idempotent.
       syncPushRegistration()
     }
+  })
+
+  // Harvest the world's label maps out of every character payload.
+  //
+  // Registered app-wide rather than per sheet (setupSocketListenersForActor)
+  // because the labels are world-scoped, not actor-scoped: a payload for ANY
+  // actor carries the same catalog, so one arriving for a sheet that is not
+  // open still improves what every sheet reads. Per-sheet it would also run
+  // once per mounted sheet for the same payload.
+  onTmAction(TM.UPDATE_CHARACTER, (args) => {
+    useLabelCatalogsStore().remember(args)
   })
 
   // A client reporting its OWN targeting — the single source for mirrored
@@ -165,6 +182,12 @@ export function registerServerEventWiring() {
     useGmPolicyStore().reportPolicy(args.manualRollPolicy)
     // Which ring art the world uses, for the token rings drawn on avatars.
     useTokenRingStore().reportSpritesheet(args.tokenRing?.spritesheet)
+    // The world's label catalogs, if what we hold no longer matches what it
+    // announces. Almost always a no-op: the stamp only moves on a system
+    // upgrade, a locale change or a module update. This is the one moment a GM
+    // is needed for labels at all — after it lands the sheet names everything
+    // it renders with nobody online.
+    void useLabelCatalogsStore().ensureCatalog(args.labelStamp)
   })
 
   // Core "show players" image share. Gated on an opt-in setting, and checked
@@ -254,8 +277,7 @@ export function setupSocketListenersForWorld(world: Ref<GamePF2e | undefined>) {
         const combatId = args.operation.parentUuid?.split('.')?.[1]
         const combats = asDocumentArray(world.value?.combats)
         const combat = combats?.find((c) => c._id === combatId) as
-          | (DocumentData & { combatants?: unknown })
-          | undefined
+          (DocumentData & { combatants?: unknown }) | undefined
         if (combat) {
           processChanges(args, asDocumentArray(combat.combatants))
           refreshCombatRefs(combats, combatId ? [combatId] : [])

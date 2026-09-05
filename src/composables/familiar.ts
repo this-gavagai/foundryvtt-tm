@@ -1,3 +1,4 @@
+import { useWorldLabels } from '@/composables/useWorldLabels'
 import { computed, type Ref } from 'vue'
 import type { SaveType } from '@7h3laughingman/pf2e-types'
 import type { TablemateFamiliar } from '@/types/character-types'
@@ -38,6 +39,7 @@ export interface Familiar extends Actor {
 }
 
 export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
+  const { rollOptionLabels, traitLabels, frequencyLabels } = useWorldLabels(actor)
   const makeSave = (subtype: SaveType) =>
     computed(() => ({
       ...(makeStat(actor.value?.system?.saves?.[subtype]) as Stat),
@@ -103,7 +105,7 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
     },
     actions: computed(() =>
       itemsOfType(actor.value, 'action').map((item) => {
-        const base = makeAction(item)
+        const base = makeAction(item, frequencyLabels.value)
         const typeValue = item.system?.actionType?.value
         const itemId = item._id
         return {
@@ -139,8 +141,8 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
         }
       })
     ),
-    rollOptionLabels: computed(() => actor.value?.rollOptionLabels),
-    traitLabels: computed(() => actor.value?.traitLabels),
+    rollOptionLabels,
+    traitLabels,
     saves: {
       fortitude: makeSave('fortitude'),
       reflex: makeSave('reflex'),

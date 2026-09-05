@@ -49,6 +49,7 @@ export type ModuleEventArgs =
   | GetItemChoicesArgs
   | ListCompendiaArgs
   | GetCompendiumIndexArgs
+  | GetLabelCatalogsArgs
   | SendCompendiumItemToChatArgs
   | ApplyDamageArgs
   | SetHitPointsArgs
@@ -98,6 +99,12 @@ export interface ListenderOnlineArgs {
   // worlds where the ring framework never initialized — avatars then render
   // without rings.
   tokenRing?: { spritesheet?: string }
+  // Identifies the world's label catalogs (see TM.GET_LABEL_CATALOGS): system
+  // version, world locale and module version, joined. Announced on every
+  // heartbeat so the app can tell — with no round trip — whether the catalog it
+  // already holds is still current. Absent on modules predating the split, which
+  // the app reads as "no catalog available from this world".
+  labelStamp?: string
 }
 export interface UpdateCharacterDetailsArgs {
   action: typeof TM.UPDATE_CHARACTER
@@ -115,15 +122,17 @@ export interface UpdateCharacterDetailsArgs {
   // shapes meet.
   actor: Partial<TablemateActor>
   system: Partial<TablemateActor['system']>
-  languages: string[]
-  proficiencyLabels: Record<string, string>
   inventory: TablemateActorExtras['inventory']
   activeRules: string[]
   elementalBlasts: TablemateActorExtras['elementalBlasts'] | null
   spellcastingModifiers: Record<string, SpellcastingModifierData>
+  // The ONLY labels still riding a character payload: the i18n keys this actor's
+  // RollOption rules declare. Arbitrary strings chosen by whatever item declares
+  // them, so they are not enumerable from CONFIG and the world catalog cannot
+  // carry them. Everything else that used to be here — traits, proficiencies,
+  // IWR, languages, statistic names — is world-scoped and now arrives once via
+  // TM.GET_LABEL_CATALOGS. Merged into the same app-side store either way.
   rollOptionLabels: Record<string, string>
-  traitLabels: Record<string, string>
-  iwrLabels: Record<string, string>
   skillActions: SkillActionData[]
   uuid: string
   userId: string
@@ -675,6 +684,27 @@ export interface GetCompendiumIndexArgs {
   packId: string
 }
 
+// One flat map per catalog: slug (or i18n key) → display name in the world's
+// locale. Shaped to be merged straight into the app's label store.
+export interface WorldLabelCatalogs {
+  traits: Record<string, string>
+  proficiencies: Record<string, string>
+  rollOptions: Record<string, string>
+  iwr: Record<string, string>
+  languages: Record<string, string>
+  // Frequency interval key ("day", "PT1H") → the WHOLE phrase, "per day".
+  // Composed Foundry-side rather than joined by the app: where the interval sits
+  // relative to "per" is the translation's decision, and PF2e's own action
+  // template composes it the same way.
+  frequencies: Record<string, string>
+}
+
+export interface GetLabelCatalogsArgs {
+  action: typeof TM.GET_LABEL_CATALOGS
+  uuid: string
+  userId: string
+}
+
 export interface SendCompendiumItemToChatArgs {
   action: typeof TM.SEND_COMPENDIUM_ITEM_TO_CHAT
   uuid: string
@@ -971,6 +1001,10 @@ export interface ResponseByAction {
   [TM.GET_ITEM_CHOICES]: { choices: ItemChoiceSet[] }
   [TM.LIST_COMPENDIA]: { compendia: CompendiumPackInfo[] }
   [TM.GET_COMPENDIUM_INDEX]: { compendiumIndex: CompendiumIndexEntry[] }
+  // The catalogs plus the stamp they were built for, so what the app stores is
+  // self-describing: it can decide whether a later announcement invalidates it
+  // without having to remember what it asked for.
+  [TM.GET_LABEL_CATALOGS]: { stamp: string; catalogs: WorldLabelCatalogs }
   // The chat card the cast posted, when one was captured — lets the app offer
   // the spell's variants for that card. Absent when the cast produced no card.
   [TM.CAST_SPELL]: { messageId?: string }

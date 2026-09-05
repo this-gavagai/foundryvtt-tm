@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import type { Ref } from 'vue'
 import type { TablemateCharacter } from '@/types/character-types'
 
@@ -72,6 +73,9 @@ function actionsFor(items: unknown[]) {
 }
 
 beforeEach(() => {
+  // The character model reads its labels from a store now
+  // (useWorldLabels), so the model under test needs an active Pinia.
+  setActivePinia(createPinia())
   runActionable.mockClear()
   useAction.mockClear()
   updateActorItem.mockClear()

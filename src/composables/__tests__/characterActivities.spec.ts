@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import type { Ref } from 'vue'
 import type { TablemateCharacter } from '@/types/character-types'
 
@@ -62,7 +63,12 @@ function characterWith(items: unknown[], exploration?: unknown) {
   return useCharacterActions(actor)
 }
 
-beforeEach(() => updateActor.mockClear())
+beforeEach(() => {
+  updateActor.mockClear()
+  // The character model reads its labels from a store now
+  // (useWorldLabels), so the model under test needs an active Pinia.
+  setActivePinia(createPinia())
+})
 
 describe('which items are offered as exploration activities', () => {
   it('lists ability items carrying the exploration trait', () => {

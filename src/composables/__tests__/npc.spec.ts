@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
+import { useLabelCatalogsStore } from '@/stores/labelCatalogs'
 import type { Ref } from 'vue'
 import type { TablemateNpc } from '@/types/character-types'
 
@@ -35,7 +37,6 @@ function wolf(): TablemateNpc {
     name: 'Wolf',
     type: 'npc',
     img: 'systems/pf2e/icons/default-icons/npc.svg',
-    traitLabels: { animal: 'Animal', common: 'Common', knockdown: 'Knockdown' },
     system: {
       abilities: {
         str: { mod: 2 },
@@ -147,6 +148,17 @@ function wolf(): TablemateNpc {
 const actorRef = (actor?: TablemateNpc): Ref<TablemateNpc | undefined> =>
   ref(actor) as Ref<TablemateNpc | undefined>
 
+// Trait names are WORLD data now, not something an actor carries: the model
+// reads them from the label store (useWorldLabels), so the fixtures seed the
+// store rather than the actor. That is the point of the split — these names are
+// the same for every creature in the world and outlive any one payload.
+beforeEach(() => {
+  setActivePinia(createPinia())
+  useLabelCatalogsStore().$patch((state) => {
+    state.catalogs.traits = { animal: 'Animal', common: 'Common', knockdown: 'Knockdown' }
+  })
+})
+
 describe('useNpc', () => {
   it('exposes the stat-block identity fields', () => {
     const { npc } = useNpc(actorRef(wolf()))
@@ -256,7 +268,6 @@ function hag(): TablemateNpc {
     _id: 'hagActor01',
     name: 'Cuckoo Hag',
     type: 'npc',
-    traitLabels: {},
     spellcastingModifiers: {
       innate01: { mod: 21, dc: 31, modifiers: [{ slug: 'base', modifier: 21, enabled: true }] },
       prep01: { mod: 18, dc: 28, modifiers: [] }
