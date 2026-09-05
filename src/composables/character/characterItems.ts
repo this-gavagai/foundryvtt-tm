@@ -15,6 +15,8 @@ import { createActorItem, deleteActorItem, updateActorItem } from '@/api/documen
 import { asDocumentArray } from '@/api/internal'
 import { attachItem, consumeItem, detachItem } from '@/api/actionRpc'
 import { inventoryTypes } from '@/utils/constants'
+import { containerCapacity, inventoryBulk, type BulkItem } from '@/utils/bulk'
+import { calcAttribute } from './calcAttributes'
 import { removalLockedBy, type GrantAwareItem } from '@/utils/itemGrants'
 import { stackCandidateIds, stackQuantity, type StackableItem } from '@/utils/itemStacks'
 import { sourceFromEmbedded, type StoredItem } from '@/utils/itemSource'
@@ -82,6 +84,34 @@ export interface CharacterItems {
 }
 
 export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): CharacterItems {
+  // A character's size lives on `system.traits`, which PF2e assembles from the
+  // ancestry and therefore omits from source; fall back to the ancestry item,
+  // which is where it came from.
+  const actorSize = computed(
+    () =>
+      (actor.value?.system?.traits as { size?: { value?: string } } | undefined)?.size?.value ??
+      (actor.value?.items?.find((i) => i.type === 'ancestry')?.system as
+        | { size?: string }
+        | undefined)?.size
+  )
+
+  // A container's capacity readout, derived when no payload has supplied one.
+  // Shaped as the wire type so the row reads it the same way either way; PF2e's
+  // `ignoredMax` is the number typed on the item, `ignored` what it is actually
+  // negating (see utils/bulk.containerCapacity).
+  const derivedCapacity = (container: BulkItem): ContainerCapacity | undefined => {
+    if (container.type !== 'backpack') return undefined
+    const items = (asDocumentArray(actor.value?.items) ?? []) as BulkItem[]
+    const capacity = containerCapacity(container, items, actorSize.value)
+    return {
+      value: capacity.value.value,
+      max: capacity.max.value,
+      percentFull: capacity.percentFull,
+      ignored: capacity.ignored.value,
+      ignoredMax: container.system?.bulk?.ignored ?? 0
+    }
+  }
+
   const DIVINE_INTERCESSION_CATEGORIES = ['deityboon', 'curse']
 
   const feats = computed(() =>
@@ -225,7 +255,7 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
               ? makeConsumable(i as ConsumablePF2e<CharacterPF2e>)
               : makeEquipment(i as EquipmentPF2e<CharacterPF2e>)),
         label: actor.value?.inventory?.labels?.[i._id!],
-        capacity: actor.value?.inventory?.containers?.[i._id!],
+        capacity: actor.value?.inventory?.containers?.[i._id!] ?? derivedCapacity(i as BulkItem),
         toggleInvested: (newValue: boolean = !i?.system?.equipped?.invested) => {
           const update = { system: { equipped: { invested: newValue } } }
           return updateActorItem(actor, i._id!, update)
@@ -321,13 +351,52 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
         return e as InventoryItem
       })
   )
+  // Bulk, derived from source when no payload has supplied it.
+  //
+  // The one Tier-2 figure that owes nothing to the synthetics pipeline: it is a
+  // sum over stored item data, so utils/bulk reproduces PF2e's own arithmetic
+  // exactly rather than approximating it. The prepared figure still wins when it
+  // is there — it carries the rule-element addends this cannot see.
+  //
+  const derivedBulk = computed(() =>
+    inventoryBulk(
+      (asDocumentArray(actor.value?.items) ?? []) as BulkItem[],
+      actor.value?.system?.abilities?.str?.mod ?? calcAttribute(actor, 'str') ?? 0,
+      actorSize.value
+    )
+  )
+  const preparedBulk = computed(() => actor.value?.inventory?.bulk)
+  const bulkField = <T>(
+    fromPrepared: (b: NonNullable<typeof preparedBulk.value>) => T | undefined,
+    fromItems: (b: ReturnType<typeof inventoryBulk>) => T
+  ) =>
+    computed(() => {
+      const prepared = preparedBulk.value
+      return prepared ? fromPrepared(prepared) : fromItems(derivedBulk.value)
+    })
+
   const bulk = {
-    max: computed(() => actor.value?.inventory?.bulk?.max),
-    encumberedAfter: computed(() => actor.value?.inventory?.bulk?.encumberedAfter),
+    max: bulkField(
+      (b) => b.max,
+      (b) => b.max
+    ),
+    encumberedAfter: bulkField(
+      (b) => b.encumberedAfter,
+      (b) => b.encumberedAfter
+    ),
     value: {
-      value: computed(() => actor.value?.inventory?.bulk?.value.value),
-      light: computed(() => actor.value?.inventory?.bulk?.value.light),
-      normal: computed(() => actor.value?.inventory?.bulk?.value.normal)
+      value: bulkField(
+        (b) => b.value.value,
+        (b) => b.value.value
+      ),
+      light: bulkField(
+        (b) => b.value.light,
+        (b) => b.value.light
+      ),
+      normal: bulkField(
+        (b) => b.value.normal,
+        (b) => b.value.normal
+      )
     }
   }
   return {
