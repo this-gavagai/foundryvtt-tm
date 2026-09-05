@@ -10,7 +10,7 @@ import { asDocumentArray, type DocumentData } from '@/api/internal'
 import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
 import { indexUserReactions, readReactions, type ChatReaction } from '@/utils/chatReactions'
 import { indexUserComments, readComments, type ChatComment } from '@/utils/chatComments'
-import { readModuleFlag } from '@/utils/worldSettings'
+import { readModuleFlag, readWorldSetting } from '@/utils/worldSettings'
 import { COMMENTS_ENABLED_SETTING, REACTIONS_ENABLED_SETTING } from '@/api/protocol'
 
 const REFRESH_DEBOUNCE_MS = 2000
@@ -44,6 +44,10 @@ export const useWorldStore = defineStore('world', () => {
   // mergeWith, which a computed reading through `world.value` cannot observe.
   // The reaction and comment indexes below hang off it.
   const usersRevision = ref(0)
+  // Settings are mutated in place by the socket branch, exactly as users and
+  // messages are, so anything computed off them needs its own invalidation
+  // signal. The world clock is the only reader today, and it ticks often.
+  const settingsRevision = ref(0)
   // Signal that a user document changed in place, for the same reason
   // bumpMessagesRevision exists: processChanges mutates via mergeWith, which a
   // computed reading through the shallow `world` ref cannot observe. The
@@ -52,6 +56,11 @@ export const useWorldStore = defineStore('world', () => {
   // reactions landed in the data and never rendered.
   function bumpUsersRevision(): void {
     usersRevision.value++
+    triggerRef(world)
+  }
+
+  function bumpSettingsRevision(): void {
+    settingsRevision.value++
     triggerRef(world)
   }
 
@@ -295,6 +304,22 @@ export const useWorldStore = defineStore('world', () => {
     readModuleFlag(world.value?.settings, COMMENTS_ENABLED_SETTING)
   )
 
+  // The world clock, in seconds. Foundry keeps it in the world-scope `core.time`
+  // setting (verified against a live world's store, where the value is the bare
+  // JSON number), so it arrives in the same payload the module flags above are
+  // read from and needs no GM and no round trip.
+  //
+  // It is what makes an effect's remaining duration a real answer rather than a
+  // snapshot: PF2e anchors every timed effect to this clock, and the socket
+  // branch for Setting documents keeps it current as the GM advances time. Zero
+  // is the honest fallback — a world that has never advanced its clock reads 0,
+  // and so does one whose setting hasn't arrived, and in both cases an effect's
+  // start stamp is measured against the same zero.
+  const worldTime = computed(() => {
+    void settingsRevision.value
+    return readWorldSetting<number>(world.value?.settings, 'core.time', 0)
+  })
+
   // Foundry treats ASSISTANT (role 3) and GAMEMASTER (role 4) alike for document
   // ownership: User#isGM is `hasRole(ASSISTANT)`, and Document#testUserPermission
   // short-circuits to true for any such user. Every app-side ownership gate has
@@ -410,6 +435,8 @@ export const useWorldStore = defineStore('world', () => {
     requestInFlight,
     messagesRevision,
     bumpUsersRevision,
+    bumpSettingsRevision,
+    worldTime,
     bumpMessagesRevision,
     applyChatCreate,
     applyChatUpdate,

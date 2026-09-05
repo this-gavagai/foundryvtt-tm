@@ -274,7 +274,20 @@
     "addCondition": "Добавить состояние",
     "addConditionFailed": "Нет связи со столом. Попробуйте ещё раз через минуту.",
     "recoveryCheck": "Восстановление (Сл {dc})",
-    "addConditionNeedsGm": "Чтобы применить состояние, ГМ должен быть на связи."
+    "addConditionNeedsGm": "Чтобы применить состояние, ГМ должен быть на связи.",
+    "duration": {
+      "rounds": "Осталось {count} раундов",
+      "minutes": "Осталось {count} минут",
+      "hours": "Осталось {count} часов",
+      "days": "Осталось {count} дней",
+      "encounter": "До конца сражения",
+      "expired": "Длительность истекла",
+      "shortRounds": "{count}р",
+      "shortMinutes": "{count}м",
+      "shortHours": "{count}ч",
+      "shortDays": "{count}д",
+      "shortExpired": "!"
+    }
   },
   "actions": {
     "use": "Использовать",

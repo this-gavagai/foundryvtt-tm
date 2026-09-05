@@ -22,6 +22,8 @@ import { PlusIcon } from '@heroicons/vue/24/outline'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useListenersStore } from '@/stores/listenersOnline'
+import { useWorldStore } from '@/stores/world'
+import { describeDuration, durationBadge, durationLabel } from '@/utils/effectDuration'
 
 const { t } = useI18n()
 const character = useInjectedActor()
@@ -32,6 +34,33 @@ const { _actor, effects, rollOptionLabels } = character
 // the IndexedDB cache or the first live fetch) shows them at rest instead of
 // animating each one in; effects added deliberately later still animate.
 const animationsReady = useAnimationsReady()
+
+// How long each effect has left, against the world clock the world store keeps
+// current (stores/world.worldTime). A computed off that ref rather than a value
+// captured on render, so the numbers count down as the GM advances time instead
+// of holding whatever they read when the sheet loaded.
+const { worldTime } = storeToRefs(useWorldStore())
+const durationOf = (effect: EffectItem | undefined) =>
+  describeDuration(effect?.system?.duration, effect?.system?.start, worldTime.value)
+
+// Resolved to finished strings here rather than per row in the template: a
+// template calling a function is calling it once per interpolation, so the
+// v-if and the two halves of the badge were three passes over the same effect
+// on every render. A Map also lets the row read `get(id)` with no non-null
+// assertion, since an effect with no duration simply isn't in it.
+const durationBadges = computed(() => {
+  const badges = new Map<string, string>()
+  for (const effect of effects.value ?? []) {
+    const badge = durationBadge(durationOf(effect))
+    if (badge && effect._id) badges.set(effect._id, t(badge.key, badge.params ?? {}))
+  }
+  return badges
+})
+
+const viewedDuration = computed(() => {
+  const label = durationLabel(durationOf(effectViewed.value))
+  return label ? t(label.key, label.params ?? {}) : ''
+})
 
 const infoModal = ref()
 const effectViewedId = ref<string | undefined>()
@@ -153,6 +182,18 @@ function adjustViewedEffectQty(delta: number) {
               >
                 {{ effect.system?.value?.value }}
               </div>
+              <!-- Top-right, because bottom-right is the valued-condition
+                   badge above. The two rarely meet — a duration belongs to an
+                   effect and a value to a condition — but a chip is 38px wide
+                   and two numbers sharing a corner would be unreadable on the
+                   one occasion they do. -->
+              <div
+                v-if="durationBadges.get(effect._id ?? '')"
+                class="absolute top-0 right-0 px-1 text-[0.6rem] leading-tight"
+                data-part="effect-duration"
+              >
+                {{ durationBadges.get(effect._id ?? '') }}
+              </div>
               <img
                 :src="getPath(effect.img ?? '')"
                 class="rounded-full"
@@ -199,6 +240,10 @@ function adjustViewedEffectQty(delta: number) {
         </template>
         <template #description>
           <span class="capitalize">{{ effectViewed?.type }}</span>
+          <!-- The modal is where the duration gets words: the chip badge has
+               room for "2r" and nothing else, and an encounter-scoped effect
+               has no number to abbreviate at all. -->
+          <span v-if="viewedDuration" data-part="effect-duration">· {{ viewedDuration }}</span>
         </template>
         <template #body>
           <ParsedDescription

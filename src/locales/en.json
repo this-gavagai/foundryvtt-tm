@@ -274,7 +274,20 @@
     "addCondition": "Add condition",
     "addConditionFailed": "Couldn't reach the table. Try again in a moment.",
     "recoveryCheck": "Recovery (DC {dc})",
-    "addConditionNeedsGm": "Applying a condition needs the GM connected."
+    "addConditionNeedsGm": "Applying a condition needs the GM connected.",
+    "duration": {
+      "rounds": "{count} rounds remaining",
+      "minutes": "{count} minutes remaining",
+      "hours": "{count} hours remaining",
+      "days": "{count} days remaining",
+      "encounter": "Until the encounter ends",
+      "expired": "Duration expired",
+      "shortRounds": "{count}r",
+      "shortMinutes": "{count}m",
+      "shortHours": "{count}h",
+      "shortDays": "{count}d",
+      "shortExpired": "!"
+    }
   },
   "actions": {
     "use": "Use",

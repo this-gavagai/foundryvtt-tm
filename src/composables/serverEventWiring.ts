@@ -279,6 +279,16 @@ export function setupSocketListenersForWorld(world: Ref<GamePF2e | undefined>) {
         // would otherwise notice it.
         useWorldStore().bumpUsersRevision()
         break
+      // The world clock lives in the `core.time` world setting, and advancing an
+      // encounter past a round boundary rewrites it (which is what the batch
+      // note in api/socketSetup.ts is about — the clock update arrives as a side
+      // effect alongside the Combat change). Applying it here is what keeps
+      // every effect's remaining duration counting down instead of holding the
+      // value it had when the sheet last loaded.
+      case 'Setting':
+        processChanges(args, asDocumentArray(world.value?.settings))
+        useWorldStore().bumpSettingsRevision()
+        break
       case 'ChatMessage':
         processChanges(args, asDocumentArray(world.value?.messages))
         // Signal the chat cache that messages changed even when the mutation is
