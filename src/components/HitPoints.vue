@@ -7,9 +7,6 @@ import StatBox from '@/components/widgets/StatBox.vue'
 import Modal from '@/components/ModalBox.vue'
 import Button from '@/components/widgets/ButtonWidget.vue'
 import { useLastDamage } from '@/composables/useLastDamage'
-import { applyDamage } from '@/api/actionRpc'
-import { storeToRefs } from 'pinia'
-import { useListenersStore } from '@/stores/listenersOnline'
 
 interface SubmissionEvent {
   submitter: { name: string }
@@ -25,13 +22,26 @@ const hitpointsModal = ref()
 const character = useInjectedActor()
 const { current: hpCurrent, max: hpMax, temp: hpTemp, modifiers: hpModifiers } = character.hp
 const { _actor } = character
-const { lastDamageAmount, lastDamageMessageId } = useLastDamage()
-// Typing hit points into the field beside these falls back to a direct write
-// with no GM (composables/setHitPoints), but these two buttons cannot: applying
-// a card's damage is PF2e's own IWR pass on the GM's client. Fire-and-forget
-// with the modal closing behind it, an ungated tap did nothing at all and said
-// nothing about it — so they are hidden instead, and the field still works.
-const { isListening } = storeToRefs(useListenersStore())
+// One button, not two: which roll it is about and which direction it applies
+// are the composable's to decide, so the label can't disagree with what the tap
+// does (see composables/useLastDamage — a PF2e heal is a DamageRoll, and the
+// old pair offered to apply one as damage).
+const {
+  canApply: canApplyLastDamage,
+  label: lastDamageLabel,
+  color: lastDamageColor,
+  applyLastDamage
+} = useLastDamage(_actor)
+
+// Deliberately NOT a submit button like its neighbours, which close the modal
+// as they fire. This is the one write here with no direct-write fallback, so it
+// has to be able to report failing: ButtonWidget spins while the RPC is in
+// flight and flashes red if it rejects, which only means anything with the
+// modal still on screen. Closes on success only.
+async function applyLastDamageAndClose() {
+  await applyLastDamage()
+  hitpointsModal.value.close()
+}
 
 // One call, not two: the write happens on the GM's client (see
 // composables/setHitPoints.ts) so the `preUpdateActor` hooks that drive HP
@@ -65,12 +75,6 @@ function handleHpFormSubmit(e: Event) {
       break
     case 'reset':
       updateHitPoints(hpMax.value + '', '0')
-      break
-    case 'lastDamageMinus':
-      if (lastDamageMessageId.value) applyDamage(_actor, lastDamageMessageId.value, 'damage', 0)
-      break
-    case 'lastDamagePlus':
-      if (lastDamageMessageId.value) applyDamage(_actor, lastDamageMessageId.value, 'heal', 0)
       break
   }
   hitpointsModal.value.close()
@@ -129,22 +133,13 @@ function openInfoFromHpModal() {
           <div class="mt-5 flex flex-row-reverse flex-wrap-reverse gap-1 sm:mt-4">
             <Button type="submit" name="update" :label="$t('common.update')" color="blue" />
             <Button type="submit" name="reset" color="gray" :label="$t('hp.reset')" />
-            <span class="flex gap-1">
-              <Button
-                type="submit"
-                name="lastDamageMinus"
-                color="red"
-                :label="'-' + lastDamageAmount"
-                v-if="lastDamageAmount > 0 && isListening"
-              />
-              <Button
-                type="submit"
-                name="lastDamagePlus"
-                :label="'+' + lastDamageAmount"
-                color="green"
-                v-if="lastDamageAmount > 0 && isListening"
-              />
-            </span>
+            <Button
+              v-if="canApplyLastDamage"
+              name="lastDamage"
+              :color="lastDamageColor"
+              :label="lastDamageLabel"
+              :clicked="applyLastDamageAndClose"
+            />
           </div>
         </form>
       </Modal>

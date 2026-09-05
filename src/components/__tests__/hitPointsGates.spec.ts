@@ -1,24 +1,38 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ref, computed } from 'vue'
+import type { VueWrapper } from '@vue/test-utils'
 import { mountComponent, buttonTexts } from './mountComponent'
 import HitPoints from '@/components/HitPoints.vue'
 import { actorKey } from '@/composables/injectKeys'
-import { useListenersStore } from '@/stores/listenersOnline'
+import { useTopOverlayZIndex } from '@/composables/useOverlayStack'
 
-// The hit-point modal holds one of each kind of write, side by side, and that
-// is the whole reason this is worth mounting: typing a number falls back to a
-// direct write with no GM (composables/setHitPoints), while the -N/+N buttons
-// beside it apply a card's damage through PF2e's IWR pass on the GM's client and
-// cannot. Ungated, those two buttons were fire-and-forget with the modal closing
-// behind them: a tap did nothing and said nothing, forever.
+// The hit-point modal holds one of each kind of write side by side, and that is
+// the whole reason this is worth mounting: typing a number falls back to a
+// direct write with no GM (composables/setHitPoints), while the last-damage
+// button beside it applies a card's damage through PF2e's IWR pass on the GM's
+// client and cannot.
+//
+// WHICH roll that button is about, and which direction it applies, are decided
+// in composables/useLastDamage and tested there. What only a mount can show is
+// the consequence of it not being a submit button like its neighbours: a tap
+// that fails has to leave the modal on screen, because the failure is reported
+// on the button itself.
 
-vi.mock('@/api/actionRpc', () => ({ applyDamage: vi.fn() }))
-vi.mock('@/composables/useHapticFeedback', () => ({ triggerLightHapticFeedback: vi.fn() }))
+const canApply = ref(true)
+const applyLastDamage = vi.fn(() => Promise.resolve())
+
+vi.mock('@/composables/useHapticFeedback', () => ({
+  triggerLightHapticFeedback: vi.fn(),
+  triggerDismissHapticFeedback: vi.fn()
+}))
 vi.mock('@/composables/useLastDamage', () => ({
   useLastDamage: () => ({
-    lastDamageAmount: computed(() => 7),
-    lastDamageMessageId: computed(() => 'msg-1')
+    offer: computed(() => ({ messageId: 'msg-1', total: 7, isHealing: false })),
+    canApply: computed(() => canApply.value),
+    label: computed(() => '-7'),
+    color: computed(() => 'red'),
+    applyLastDamage
   })
 }))
 
@@ -35,38 +49,82 @@ const character = {
 
 // The modal's panel is only in the DOM once opened, and it teleports out of the
 // component tree — so open it the way a player does and read the document.
+let wrapper: VueWrapper | undefined
+
 async function openHpModal() {
-  const w = mountComponent(HitPoints, {
+  wrapper = mountComponent(HitPoints, {
     global: { provide: { [actorKey as symbol]: character } }
   })
-  await w.find('[role="button"]').trigger('click')
-  await w.vm.$nextTick()
-  return w
+  await wrapper.find('[role="button"]').trigger('click')
+  await wrapper.vm.$nextTick()
+  return wrapper
 }
 
-describe('the last-damage buttons', () => {
-  it('are offered when a GM is listening', async () => {
-    // The store is created by the mount, so a listener can only be added after
-    // it — which is also the real sequence: the heartbeat answers while the
-    // sheet is already up, and the buttons appear.
-    const w = await openHpModal()
-    useListenersStore().addListener('gm-client')
-    await w.vm.$nextTick()
+function lastDamageButton(): HTMLButtonElement | undefined {
+  return [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === '-7') as
+    HTMLButtonElement | undefined
+}
+
+// Asked of the overlay stack, NOT of the DOM: closing runs a 200ms leave
+// transition whose `transitionend` jsdom never fires, so a closed modal's panel
+// is still in the document here. The stack is what `close()` pops synchronously,
+// and it is 0 exactly when nothing is on screen.
+const modalIsOpen = () => useTopOverlayZIndex().value > 0
+
+beforeEach(() => {
+  canApply.value = true
+  applyLastDamage.mockReset()
+  applyLastDamage.mockResolvedValue(undefined)
+})
+
+// The overlay stack is module state shared by every modal in the app, so a
+// wrapper left mounted would keep its layer on it and the next test would open
+// onto a non-empty stack.
+afterEach(() => {
+  wrapper?.unmount()
+  wrapper = undefined
+})
+
+describe('the last-damage button', () => {
+  it('is offered when the composable says it can be applied', async () => {
+    await openHpModal()
     expect(buttonTexts()).toContain('-7')
-    expect(buttonTexts()).toContain('+7')
   })
 
-  // applyDamage is an RPC with no direct-write half, so with no GM the tap can
-  // only be swallowed. Hidden rather than offered.
-  it('are withheld with no GM listening', async () => {
+  // applyDamage is an RPC with no direct-write half, so when the composable
+  // withholds the offer (no GM listening, nothing recent to apply, or a roll
+  // this client made itself) there must be no button to swallow the tap.
+  it('is withheld when the composable withholds the offer', async () => {
+    canApply.value = false
     await openHpModal()
     expect(buttonTexts()).not.toContain('-7')
-    expect(buttonTexts()).not.toContain('+7')
   })
 
-  // The point of the pairing: the field beside them still works, because
+  it('closes the modal once the damage has landed', async () => {
+    const w = await openHpModal()
+    expect(modalIsOpen()).toBe(true)
+    lastDamageButton()!.click()
+    await w.vm.$nextTick()
+    await w.vm.$nextTick()
+    expect(applyLastDamage).toHaveBeenCalled()
+    expect(modalIsOpen()).toBe(false)
+  })
+
+  // The reason this one is not a submit button. Closing over a failed tap is
+  // exactly the bug the gate was added for: nothing happened and nothing said so.
+  it('stays open when the damage does not land', async () => {
+    applyLastDamage.mockRejectedValue(new Error('no listener'))
+    const w = await openHpModal()
+    lastDamageButton()!.click()
+    await w.vm.$nextTick()
+    await w.vm.$nextTick()
+    expect(modalIsOpen()).toBe(true)
+  })
+
+  // The point of the pairing: the field beside it still works, because
   // setHitPoints falls back to a direct write.
-  it('leave the hit-point field and its Update button in place', async () => {
+  it('leaves the hit-point field and its Update button in place', async () => {
+    canApply.value = false
     await openHpModal()
     expect(document.querySelector('input[name="hp"]')).not.toBeNull()
     expect(buttonTexts().join(' ')).toMatch(/Update/i)

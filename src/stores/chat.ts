@@ -254,6 +254,13 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   return {
+    // Re-exported so every consumer that asks "what is the newest message, and
+    // is it one this client can see?" reads the SAME filtered, sorted list the
+    // overlay renders and the badge counts — the hit-point modal's last-damage
+    // offer included (composables/useLastDamage). Sharing the store's instance
+    // also means the sort is paid once, not once per asker.
+    visibleMessages,
+    messageIsFromCurrentUser,
     cachedMessages,
     lastReadTimestamp,
     dividerTimestamp,
