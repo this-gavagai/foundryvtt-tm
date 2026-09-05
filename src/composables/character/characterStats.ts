@@ -17,6 +17,7 @@ import type { RequestResolutionArgs } from '@/types/api-types'
 import { kebabCase } from 'lodash-es'
 import { calcAttribute } from './calcAttributes'
 import { i18n } from '@/plugins/i18n'
+import { heldShield, type ShieldSource } from '@/utils/heldShield'
 import { useWorldLabels } from '@/composables/useWorldLabels'
 
 export interface IWR {
@@ -109,10 +110,32 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
     current: computed(() => actor.value?.system?.attributes?.ac?.value),
     modifiers: computed(() => makeModifiers(actor.value?.system?.attributes?.ac?.modifiers))
   }
+  // PF2e's shield block is a copy off the held shield item, so it rides a
+  // character payload and is absent from the world dump. Fall back to deriving
+  // it from the actor's own items (utils/heldShield) — otherwise the whole
+  // readout stays hidden on a sheet no GM has answered for. The prepared block
+  // wins whenever it is there, since it carries rune-adjusted numbers this
+  // cannot; see the bound documented in that module.
+  const derivedShield = computed(() => heldShield(actor.value?.items as ShieldSource[] | undefined))
+  const preparedShield = computed(() => actor.value?.system?.attributes?.shield)
+  const shieldField = <T>(
+    fromPrepared: (s: NonNullable<typeof preparedShield.value>) => T | undefined,
+    fromItems: (s: NonNullable<ReturnType<typeof heldShield>>) => T
+  ) =>
+    computed(() => {
+      const prepared = preparedShield.value
+      if (prepared?.itemId) return fromPrepared(prepared)
+      const derived = derivedShield.value
+      return derived ? fromItems(derived) : undefined
+    })
+
   const shield = {
     hp: {
       current: computed({
-        get: () => actor.value?.system?.attributes?.shield?.hp?.value,
+        get: () =>
+          preparedShield.value?.itemId
+            ? actor.value?.system?.attributes?.shield?.hp?.value
+            : derivedShield.value?.hp.value,
         set: (newValue) => {
           const shieldId = actor.value?.system?.attributes?.shield?.itemId
           actor.value!.system.attributes.shield.hp.value = newValue!
@@ -121,19 +144,38 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
           updateActorItem(actor, shieldId ?? '', update).catch(() => {})
         }
       }),
-      max: computed(() => actor.value?.system?.attributes?.shield?.hp?.max),
-      brokenThreshold: computed(
-        () =>
-          (actor.value?.system?.attributes?.shield?.hp as { brokenThreshold?: number })
-            ?.brokenThreshold
+      max: shieldField(
+        (s) => s.hp?.max,
+        (s) => s.hp.max
+      ),
+      brokenThreshold: shieldField(
+        (s) => (s.hp as { brokenThreshold?: number })?.brokenThreshold,
+        (s) => s.hp.brokenThreshold
       )
     },
-    ac: computed(() => actor.value?.system?.attributes?.shield?.ac),
-    hardness: computed(() => actor.value?.system?.attributes?.shield?.hardness),
+    ac: shieldField(
+      (s) => s.ac,
+      (s) => s.ac
+    ),
+    hardness: shieldField(
+      (s) => s.hardness,
+      (s) => s.hardness
+    ),
+    // `raised` is an active effect, not a shield property — the sheet derives it
+    // from the actor's effects either way, so there is nothing to fall back to.
     raised: computed(() => actor.value?.system?.attributes?.shield?.raised),
-    broken: computed(() => actor.value?.system?.attributes?.shield?.broken),
-    destroyed: computed(() => actor.value?.system?.attributes?.shield?.destroyed),
-    itemId: computed(() => actor.value?.system?.attributes?.shield?.itemId ?? undefined)
+    broken: shieldField(
+      (s) => s.broken,
+      (s) => s.broken
+    ),
+    destroyed: shieldField(
+      (s) => s.destroyed,
+      (s) => s.destroyed
+    ),
+    itemId: shieldField(
+      (s) => s.itemId ?? undefined,
+      (s) => s.itemId
+    )
   }
   const makeSave = (subtype: SaveType) =>
     computed(() => ({
