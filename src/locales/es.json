@@ -290,6 +290,13 @@
     "exploration": "Actividades de exploración",
     "downtime": "Actividades de tiempo libre"
   },
+  "rest": {
+    "title": "Descansar",
+    "blurb": "Termina el día: recupera Puntos de Golpe, reduce condiciones y repone los recursos diarios.",
+    "button": "Descansar por la noche",
+    "confirm": "¿Descansar por la noche? Esto restaura Puntos de Golpe, espacios de conjuro, Puntos de Foco y otros recursos diarios, y reduce condiciones como condenado, drenado, fatigado y herido.",
+    "needsGm": "Para descansar hace falta un GM conectado."
+  },
   "inventoryTypes": {
     "weapon": "Armas",
     "shield": "Escudos",

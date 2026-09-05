@@ -290,6 +290,13 @@
     "exploration": "Exploration Activities",
     "downtime": "Downtime Activities"
   },
+  "rest": {
+    "title": "Rest",
+    "blurb": "Ends the day: recovers hit points, steps down conditions, and refills daily resources.",
+    "button": "Rest for the Night",
+    "confirm": "Rest for the night? This restores hit points, spell slots, focus points and other daily resources, and reduces conditions such as doomed, drained, fatigued and wounded.",
+    "needsGm": "Resting needs a GM logged in."
+  },
   "inventoryTypes": {
     "weapon": "Weapons",
     "shield": "Shields",

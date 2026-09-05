@@ -290,6 +290,13 @@
     "exploration": "Erkundungsaktivitäten",
     "downtime": "Auszeitaktivitäten"
   },
+  "rest": {
+    "title": "Ausruhen",
+    "blurb": "Beendet den Tag: stellt Trefferpunkte wieder her, senkt Zustände und füllt tägliche Ressourcen auf.",
+    "button": "Über Nacht ausruhen",
+    "confirm": "Über Nacht ausruhen? Dies stellt Trefferpunkte, Zauberplätze, Fokuspunkte und andere tägliche Ressourcen wieder her und verringert Zustände wie Verdammt, Entkräftet, Erschöpft und Verwundet.",
+    "needsGm": "Zum Ausruhen muss ein SL angemeldet sein."
+  },
   "inventoryTypes": {
     "weapon": "Waffen",
     "shield": "Schilde",

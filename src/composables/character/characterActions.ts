@@ -4,7 +4,14 @@ import type { Field, WritableField } from './helpers'
 import type { DiceResults, RequestResolutionArgs } from '@/types/api-types'
 import { type Modifier, makeModifiers } from './defs/modifier'
 import { type Action, type ExplorationActivity, makeAction } from './defs/action'
-import { characterAction, rollCheck, runActionable, rollDamage, useAction } from '@/api/actionRpc'
+import {
+  characterAction,
+  rollCheck,
+  runActionable,
+  rollDamage,
+  restForTheNight,
+  useAction
+} from '@/api/actionRpc'
 import { updateActor, updateActorItem } from '@/api/documents'
 import { actionTypes } from '@/utils/constants'
 
@@ -28,6 +35,11 @@ export interface CharacterActions {
   actions: Field<Action[]>
   explorationActivities: Field<ExplorationActivity[]>
   downtimeActivities: Field<Action[]>
+  // The day's end: PF2e's own daily reset, run on a GM's client. Rejects like
+  // any other RPC — a caller shows the failure rather than assuming the night
+  // passed. The confirmation belongs to the caller too (see RestForTheNight.vue):
+  // the system's own prompt would open on the GM's screen.
+  doRestForTheNight: () => Promise<RequestResolutionArgs | null>
   initiative: {
     stat: WritableField<string>
     modifiers: Field<Modifier[]>
@@ -250,6 +262,10 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
     }
   }
 
+  // Straight through to the RPC. Nothing to assemble: the actor is the whole
+  // request, and everything the rest DOES belongs to PF2e (see the handler).
+  const doRestForTheNight = () => restForTheNight(actor)
+
   const doDamage = (
     formula: string,
     opts: {
@@ -266,6 +282,7 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
     actions,
     explorationActivities,
     downtimeActivities,
+    doRestForTheNight,
     initiative
   }
 }

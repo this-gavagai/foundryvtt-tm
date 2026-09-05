@@ -3,6 +3,7 @@ import StrikeList from '@/components/StrikeList.vue'
 import ActionsList from '@/components/ActionsList.vue'
 import ExplorationList from '@/components/ExplorationList.vue'
 import DowntimeList from '@/components/DowntimeList.vue'
+import RestForTheNight from '@/components/RestForTheNight.vue'
 </script>
 <template>
   <!-- The tab's own padding lives here rather than on each list, so a card
@@ -16,5 +17,9 @@ import DowntimeList from '@/components/DowntimeList.vue'
          minute while exploring, then what you do by the day between adventures. -->
     <ExplorationList />
     <DowntimeList />
+    <!-- Last, and after the downtime list, because it is the end of the day in
+         the same sense those are: the button that closes a session, below what
+         you do during one. -->
+    <RestForTheNight />
   </div>
 </template>
