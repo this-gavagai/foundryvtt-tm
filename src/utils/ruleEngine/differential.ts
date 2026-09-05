@@ -1,5 +1,16 @@
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
+import { ref, type Ref } from 'vue'
+import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import { deriveFigure, type EngineInput } from './index'
+import {
+  deriveArmorClass,
+  deriveHitPointsMax,
+  derivePerception,
+  deriveSave,
+  deriveSkill,
+  type DerivationInput
+} from './statistics'
+import { calcAttribute } from '@/composables/character/calcAttributes'
 import { AC_DOMAINS, PERCEPTION_DOMAINS, saveDomains, skillDomains, SAVE_ATTRIBUTES } from './domains'
 import type { EngineItem } from './flatModifiers'
 
@@ -29,6 +40,17 @@ import type { EngineItem } from './flatModifiers'
 //                  the implementation — the ledger was supposed to make it
 //                  impossible, so any occurrence is a bug in the honesty
 //                  machinery itself and outranks the other two.
+//
+// It also compares WHOLE TOTALS, which is a strictly stronger check than the
+// modifier sets: it exercises the base arithmetic — proficiency ranks, the class
+// item's stored values, dex caps, ancestry hit points — that the modifier
+// comparison cannot see at all. A figure can have a perfect modifier set and
+// still be six points out because its proficiency rank was never upgraded.
+//
+// Attributes are compared separately. `calcAttribute` reconstructs them from
+// build data, and every statistic keys off one, so an error there would surface
+// as divergence in a dozen figures at once and look like a dozen bugs. Checked
+// on its own, it reads as what it is.
 
 export interface FigureDivergence {
   figure: string
@@ -36,14 +58,23 @@ export interface FigureDivergence {
   engineOnly: string[]
   silentMiss: string[]
   skipped: number
+  // The whole statistic, engine against PF2e. Absent when the payload reports no
+  // total for this figure, or when the engine declined to derive one.
+  total?: { engine: number; pf2e: number }
 }
 
 export interface DifferentialReport {
   actorId: string
   figures: FigureDivergence[]
+  // `calcAttribute` against PF2e's own modifiers. Its own line because every
+  // statistic depends on it: one wrong attribute reads as many wrong figures.
+  attributes: { attribute: string; engine: number; pf2e: number }[]
   // Convenience for a log line: whether anything at all diverged.
   clean: boolean
   silentMisses: number
+  // Totals that disagreed, which is the number worth watching as the engine
+  // matures — a modifier set can be right while the figure is wrong.
+  totalMismatches: number
 }
 
 interface WireModifier {
@@ -94,7 +125,8 @@ function compareFigure(
   figure: string,
   input: EngineInput,
   domains: readonly string[],
-  reported: WireModifier[] | undefined
+  reported: WireModifier[] | undefined,
+  total?: { engine: number | undefined; pf2e: number | undefined }
 ): FigureDivergence {
   const derived = deriveFigure(input, domains)
   const truth = pf2eModifiers(reported)
@@ -137,7 +169,11 @@ function compareFigure(
     valueMismatch,
     engineOnly,
     silentMiss,
-    skipped: derived.ledger.skipped.length
+    skipped: derived.ledger.skipped.length,
+    total:
+      typeof total?.engine === 'number' && typeof total?.pf2e === 'number' && total.engine !== total.pf2e
+        ? { engine: total.engine, pf2e: total.pf2e }
+        : undefined
   }
 }
 
@@ -152,11 +188,15 @@ export function runDifferential(
   const system = args.system as
     | {
         details?: { level?: { value?: number } }
+        abilities?: Record<string, { mod?: number } | undefined>
         traits?: { value?: string[] }
-        attributes?: { ac?: { modifiers?: WireModifier[] } }
-        saves?: Record<string, { modifiers?: WireModifier[]; attribute?: string } | undefined>
-        skills?: Record<string, { modifiers?: WireModifier[]; attribute?: string } | undefined>
-        perception?: { modifiers?: WireModifier[] }
+        attributes?: { ac?: { value?: number; modifiers?: WireModifier[] }; hp?: { max?: number } }
+        saves?: Record<string, { modifiers?: WireModifier[]; attribute?: string; totalModifier?: number } | undefined>
+        skills?: Record<
+          string,
+          { modifiers?: WireModifier[]; attribute?: string; totalModifier?: number; rank?: number; lore?: boolean } | undefined
+        >
+        perception?: { modifiers?: WireModifier[]; totalModifier?: number }
       }
     | undefined
 
@@ -173,37 +213,112 @@ export function runDifferential(
     stamp
   }
 
+  // PF2e's own attribute modifiers, so the statistic comparison isolates the
+  // statistic. calcAttribute is checked separately below.
+  const attributes: Record<string, number> = {}
+  for (const key of ['str', 'dex', 'con', 'int', 'wis', 'cha']) {
+    attributes[key] = system?.abilities?.[key]?.mod ?? 0
+  }
+  const derivationInput: DerivationInput | undefined =
+    typeof level === 'number'
+      ? { items, level, attributes, traits: system?.traits?.value ?? [], activeRules: args.activeRules ?? [], stamp }
+      : undefined
+
   const figures: FigureDivergence[] = []
-  figures.push(compareFigure('ac', input, AC_DOMAINS, system?.attributes?.ac?.modifiers))
-  figures.push(compareFigure('perception', input, PERCEPTION_DOMAINS, system?.perception?.modifiers))
+  figures.push(
+    compareFigure('ac', input, AC_DOMAINS, system?.attributes?.ac?.modifiers, {
+      engine: derivationInput ? deriveArmorClass(derivationInput).value : undefined,
+      pf2e: system?.attributes?.ac?.value
+    })
+  )
+  figures.push(
+    compareFigure('perception', input, PERCEPTION_DOMAINS, system?.perception?.modifiers, {
+      engine: derivationInput ? derivePerception(derivationInput).value : undefined,
+      pf2e: system?.perception?.totalModifier
+    })
+  )
+  // Hit points have no modifier list of their own on the wire, so this row is a
+  // pure total comparison — and the one most likely to expose a wrong class or
+  // ancestry reading, since nothing else on the sheet uses those fields.
+  if (derivationInput) {
+    figures.push({
+      figure: 'hp-max',
+      valueMismatch: [],
+      engineOnly: [],
+      silentMiss: [],
+      skipped: deriveHitPointsMax(derivationInput).ledger.skipped.length,
+      total:
+        typeof system?.attributes?.hp?.max === 'number' &&
+        deriveHitPointsMax(derivationInput).value !== system.attributes.hp.max
+          ? { engine: deriveHitPointsMax(derivationInput).value, pf2e: system.attributes.hp.max }
+          : undefined
+    })
+  }
   for (const [slug, save] of Object.entries(system?.saves ?? {})) {
     if (!save) continue
     figures.push(
-      compareFigure(slug, input, saveDomains(slug, save.attribute ?? SAVE_ATTRIBUTES[slug]), save.modifiers)
+      compareFigure(
+        slug,
+        input,
+        saveDomains(slug, save.attribute ?? SAVE_ATTRIBUTES[slug]),
+        save.modifiers,
+        {
+          engine: derivationInput ? deriveSave(derivationInput, slug).value : undefined,
+          pf2e: save.totalModifier
+        }
+      )
     )
   }
   for (const [slug, skill] of Object.entries(system?.skills ?? {})) {
     if (!skill) continue
-    figures.push(compareFigure(slug, input, skillDomains(slug, skill.attribute ?? 'int'), skill.modifiers))
+    figures.push(
+      compareFigure(slug, input, skillDomains(slug, skill.attribute ?? 'int'), skill.modifiers, {
+        engine: derivationInput
+          ? deriveSkill(derivationInput, slug, skill.rank ?? 0, {
+              lore: skill.lore,
+              attribute: skill.attribute
+            }).value
+          : undefined,
+        pf2e: skill.totalModifier
+      })
+    )
+  }
+
+  // calcAttribute wants a ref, and reconstructs the modifier from build data —
+  // the same path the sheet takes when a payload's `abilities` is null.
+  const attributeDivergence: DifferentialReport['attributes'] = []
+  const asRef = ref({ items, system: args.system }) as unknown as Ref<CharacterPF2e | undefined>
+  for (const key of ['str', 'dex', 'con', 'int', 'wis', 'cha'] as const) {
+    const pf2e = system?.abilities?.[key]?.mod
+    if (typeof pf2e !== 'number') continue
+    const engine = calcAttribute(asRef, key)
+    if (typeof engine === 'number' && engine !== pf2e) {
+      attributeDivergence.push({ attribute: key, engine, pf2e })
+    }
   }
 
   const silentMisses = figures.reduce((sum, figure) => sum + figure.silentMiss.length, 0)
-  const clean = figures.every(
-    (figure) =>
-      figure.valueMismatch.length === 0 &&
-      figure.engineOnly.length === 0 &&
-      figure.silentMiss.length === 0
-  )
-  return { actorId: args.actorId, figures, clean, silentMisses }
+  const totalMismatches = figures.filter((figure) => figure.total).length
+  const clean =
+    attributeDivergence.length === 0 &&
+    figures.every(
+      (figure) =>
+        figure.valueMismatch.length === 0 &&
+        figure.engineOnly.length === 0 &&
+        figure.silentMiss.length === 0 &&
+        !figure.total
+    )
+  return { actorId: args.actorId, figures, attributes: attributeDivergence, clean, silentMisses, totalMismatches }
 }
 
 // A compact summary for a log line: only the figures that diverged.
 export function describeDifferential(report: DifferentialReport): string {
   if (report.clean) return `rule engine: clean on ${report.actorId}`
   const parts = report.figures
-    .filter((f) => f.valueMismatch.length || f.engineOnly.length || f.silentMiss.length)
+    .filter((f) => f.valueMismatch.length || f.engineOnly.length || f.silentMiss.length || f.total)
     .map((f) => {
       const bits: string[] = []
+      if (f.total) bits.push(`TOTAL ${f.total.engine}≠${f.total.pf2e}`)
       if (f.silentMiss.length) bits.push(`SILENT MISS ${f.silentMiss.join(',')}`)
       if (f.engineOnly.length) bits.push(`over-applied ${f.engineOnly.join(',')}`)
       if (f.valueMismatch.length) {
@@ -211,5 +326,7 @@ export function describeDifferential(report: DifferentialReport): string {
       }
       return `${f.figure}: ${bits.join('; ')}`
     })
+  const attributes = report.attributes.map((a) => `${a.attribute} ${a.engine}≠${a.pf2e}`)
+  if (attributes.length) parts.unshift(`ATTRIBUTES ${attributes.join(',')}`)
   return `rule engine: ${report.actorId} — ${parts.join(' | ')}`
 }

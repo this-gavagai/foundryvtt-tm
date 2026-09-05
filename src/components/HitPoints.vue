@@ -20,7 +20,13 @@ const hpStat = ref()
 const hitpointsModal = ref()
 
 const character = useInjectedActor()
-const { current: hpCurrent, max: hpMax, temp: hpTemp, modifiers: hpModifiers } = character.hp
+const {
+  current: hpCurrent,
+  max: hpMax,
+  maxProvisional,
+  temp: hpTemp,
+  modifiers: hpModifiers
+} = character.hp
 const { _actor } = character
 // One button, not two: which roll it is about and which direction it applies
 // are the composable's to decide, so the label can't disagree with what the tap
@@ -90,6 +96,7 @@ function openInfoFromHpModal() {
     <StatBox
       :heading="$t('hp.heading')"
       :subheading="$t('hp.totalMax', { max: hpMax })"
+      :subheadingProvisional="maxProvisional"
       @click="hitpointsModal.open()"
       ref="hpStat"
       :modifiers="hpModifiers"

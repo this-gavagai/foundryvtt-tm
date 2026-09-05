@@ -58,6 +58,10 @@ export interface StatBoxVariant {
 const props = defineProps<{
   heading?: string
   subheading?: string
+  // Whether the subheading quotes a figure this device computed rather than one
+  // PF2e supplied — currently the hit-point maximum. Marked with the same dotted
+  // underline every other unconfirmed number uses.
+  subheadingProvisional?: boolean
   fullHeading?: string
   modalHeading?: string
   proficiency?: number
@@ -284,7 +288,13 @@ defineExpose({ infoModal })
               ({{ $t(proficiencyLevels[props.proficiency].labelKey) }})
             </span>
           </h3>
-          <h4 v-if="subheading" class="text-l mb-2">{{ subheading }}</h4>
+          <h4
+            v-if="subheading"
+            class="text-l mb-2"
+            :data-derived-provisional="subheadingProvisional || undefined"
+          >
+            {{ subheading }}
+          </h4>
           <div v-if="!selectedVariant && props?.breakdown">{{ props?.breakdown }}</div>
           <!-- Skill actions usable with this stat, grouped in a contained
                sub-box so they read as their own set of toggles rather than

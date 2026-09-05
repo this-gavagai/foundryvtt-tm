@@ -1,10 +1,27 @@
 <script setup lang="ts">
 import StatBox from './widgets/StatBox.vue'
 import { formatModifier } from '@/utils/formatters'
+import { computed } from 'vue'
 import { useInjectedActor } from '@/composables/injectKeys'
+import { useDerivedStale } from '@/composables/useDerivedStale'
+import { useProvisionalFigure } from '@/composables/useProvisionalFigure'
 
 const character = useInjectedActor()
 const { fortitude, reflex, will } = character.saves
+
+// A save the sheet computed itself is marked, not presented as PF2e's. Each is
+// wrapped separately because they diverge independently — a class feature can
+// leave Fortitude provisional while Reflex is exact.
+const derivedStale = useDerivedStale(character._id)
+const mark = (save: typeof fortitude) =>
+  useProvisionalFigure(
+    derivedStale,
+    computed(() => save.value?.provisional ?? undefined),
+    computed(() => save.value?.caveat ?? undefined)
+  ).attrs
+const fortitudeAttrs = mark(fortitude)
+const reflexAttrs = mark(reflex)
+const willAttrs = mark(will)
 </script>
 <template>
   <div data-component="SavingThrows" class="contents">
@@ -15,7 +32,7 @@ const { fortitude, reflex, will } = character.saves
       :modifiers="fortitude?.modifiers"
       :rollAction="fortitude?.roll"
     >
-      {{ formatModifier(fortitude?.totalModifier) }}
+      <span v-bind="fortitudeAttrs">{{ formatModifier(fortitude?.totalModifier) }}</span>
     </StatBox>
     <StatBox
       :heading="$t('saves.reflex')"
@@ -24,7 +41,7 @@ const { fortitude, reflex, will } = character.saves
       :modifiers="reflex?.modifiers"
       :rollAction="reflex?.roll"
     >
-      {{ formatModifier(reflex?.totalModifier) }}
+      <span v-bind="reflexAttrs">{{ formatModifier(reflex?.totalModifier) }}</span>
     </StatBox>
     <StatBox
       :heading="$t('saves.will')"
@@ -33,7 +50,7 @@ const { fortitude, reflex, will } = character.saves
       :modifiers="will?.modifiers"
       :rollAction="will?.roll"
     >
-      {{ formatModifier(will?.totalModifier) }}
+      <span v-bind="willAttrs">{{ formatModifier(will?.totalModifier) }}</span>
     </StatBox>
   </div>
 </template>

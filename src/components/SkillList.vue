@@ -46,7 +46,16 @@ withDefaults(
               :variants="skill.slug ? skillActionsBySkill?.[skill.slug] : undefined"
               :rollAction="skill?.roll"
             >
-              {{ formatModifier(skill.totalModifier) }}
+              <!-- Marked when the sheet computed it rather than PF2e. Skills
+                   diverge independently: a rank stored on the actor derives
+                   exactly, while one an untyped feat touches may not. -->
+              <span
+                :data-derived-provisional="skill.provisional || undefined"
+                :title="
+                  skill.provisional ? $t('sync.provisional', { caveat: skill.caveat }) : undefined
+                "
+                >{{ formatModifier(skill.totalModifier) }}</span
+              >
             </StatBox>
           </li>
         </ul>
@@ -71,7 +80,16 @@ withDefaults(
               :variants="skill.slug ? skillActionsBySkill?.[skill.slug] : undefined"
               :rollAction="skill?.roll"
             >
-              {{ formatModifier(skill.totalModifier) }}
+              <!-- Marked when the sheet computed it rather than PF2e. Skills
+                   diverge independently: a rank stored on the actor derives
+                   exactly, while one an untyped feat touches may not. -->
+              <span
+                :data-derived-provisional="skill.provisional || undefined"
+                :title="
+                  skill.provisional ? $t('sync.provisional', { caveat: skill.caveat }) : undefined
+                "
+                >{{ formatModifier(skill.totalModifier) }}</span
+              >
             </StatBox>
           </li>
         </ul>

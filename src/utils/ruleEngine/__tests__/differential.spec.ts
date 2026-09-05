@@ -171,12 +171,99 @@ describe('coverage', () => {
       } as unknown as UpdateCharacterDetailsArgs['system']
     })
     const report = runDifferential(args, STAMP)
+    // hp-max joins the list unconditionally: it has no modifier list to key
+    // off, so it is compared whenever the payload reports a level.
     expect(report.figures.map((f) => f.figure).sort()).toEqual([
       'ac',
       'athletics',
       'fortitude',
+      'hp-max',
       'perception',
       'reflex'
     ])
+  })
+})
+
+describe('whole totals', () => {
+  // Strictly stronger than the modifier comparison: it exercises the base
+  // arithmetic — proficiency ranks, class fields, dex caps, ancestry hit points
+  // — which the modifier sets cannot see. A figure can have a perfect modifier
+  // set and still be six points out.
+  const fighter = [
+    {
+      name: 'Fighter',
+      type: 'class',
+      system: {
+        slug: 'fighter',
+        rules: [],
+        savingThrows: { fortitude: 2, reflex: 2, will: 1 },
+        defenses: { unarmored: 1, light: 1, medium: 1, heavy: 1 },
+        perception: 2,
+        hp: 10
+      }
+    },
+    { name: 'Human', type: 'ancestry', system: { slug: 'human', rules: [], hp: 8 } }
+  ]
+
+  const withTotals = (system: Record<string, unknown>) =>
+    labelPayload({
+      actorId: 'seelah',
+      actor: asActor(fighter),
+      system: {
+        details: { level: { value: 8 } },
+        abilities: {
+          str: { mod: 4 },
+          dex: { mod: 2 },
+          con: { mod: 3 },
+          int: { mod: 0 },
+          wis: { mod: 1 },
+          cha: { mod: 0 }
+        },
+        ...system
+      } as unknown as UpdateCharacterDetailsArgs['system']
+    })
+
+  it('agrees with PF2e when the derivation is right', () => {
+    // Fortitude: con 3 + (expert 2 x 2 + 8) = 15
+    const report = runDifferential(
+      withTotals({ saves: { fortitude: { modifiers: [], totalModifier: 15 } } }),
+      STAMP
+    )
+    expect(report.figures.find((f) => f.figure === 'fortitude')?.total).toBeUndefined()
+  })
+
+  it('catches a total that is wrong despite a matching modifier set', () => {
+    // The case the modifier comparison is blind to: no rule elements involved
+    // at all, and the number is still six out.
+    const report = runDifferential(
+      withTotals({ saves: { fortitude: { modifiers: [], totalModifier: 21 } } }),
+      STAMP
+    )
+    const fortitude = report.figures.find((f) => f.figure === 'fortitude')!
+    expect(fortitude.valueMismatch).toEqual([])
+    expect(fortitude.total).toEqual({ engine: 15, pf2e: 21 })
+    expect(report.totalMismatches).toBe(1)
+    expect(describeDifferential(report)).toContain('TOTAL 15≠21')
+  })
+
+  it('compares maximum hit points, which have no modifier list at all', () => {
+    // 8 + (10 + 3) x 8 = 112
+    const good = runDifferential(withTotals({ attributes: { hp: { max: 112 } } }), STAMP)
+    expect(good.figures.find((f) => f.figure === 'hp-max')?.total).toBeUndefined()
+    const bad = runDifferential(withTotals({ attributes: { hp: { max: 130 } } }), STAMP)
+    expect(bad.figures.find((f) => f.figure === 'hp-max')?.total).toEqual({
+      engine: 112,
+      pf2e: 130
+    })
+  })
+
+  it('checks calcAttribute on its own line', () => {
+    // One wrong attribute would otherwise surface as a dozen wrong figures and
+    // read as a dozen bugs.
+    const report = runDifferential(withTotals({}), STAMP)
+    // The fixture has no build data, so calcAttribute returns 0 against PF2e's
+    // reported modifiers — exactly the divergence this line exists to name.
+    expect(report.attributes.map((a) => a.attribute)).toContain('str')
+    expect(describeDifferential(report)).toContain('ATTRIBUTES')
   })
 })
