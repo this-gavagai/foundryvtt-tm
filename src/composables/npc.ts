@@ -22,7 +22,7 @@ import {
   makeSpellcastingEntry
 } from '@/composables/character/defs/spellDef'
 import { makeIWRs } from '@/composables/character/characterStats'
-import { makeSpellRankResolver } from '@/utils/spellcasting'
+import { innateUses, makeSpellRankResolver } from '@/utils/spellcasting'
 import { tokenPortrait } from '@/utils/tokenPortrait'
 import { deleteActorItem, updateActor, updateActorItem } from '@/api/documents'
 import { setHitPoints, type HitPointTarget } from '@/composables/setHitPoints'
@@ -416,14 +416,19 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
         const castRank = cantrip
           ? undefined
           : rankOf(base, entry ? makeSpellcastingEntry(entry) : undefined)
-        // Uses are the innate stand-in for slots. They arrive because the
-        // Foundry side overlays the prepared value (PF2e derives a default of
-        // 1/1 rather than storing one) — see getCharacterDetails.
-        const uses = innate ? item.system?.location?.uses : undefined
+        // Uses are the innate stand-in for slots, and PF2e derives them rather
+        // than storing them — so source omits them for most bestiary innates.
+        // Reproduced app-side (utils/spellcasting.innateUses) rather than
+        // overlaid by the GM, which is what makes the counter correct on an NPC
+        // no GM has ever serialized.
+        const uses = innateUses(
+          item.system?.location,
+          entry ? makeSpellcastingEntry(entry) : undefined
+        )
         return {
           ...base,
           castRank,
-          uses: uses ? { value: uses.value, max: uses.max } : undefined,
+          uses,
           setUses: innate
             ? (newValue: number) =>
                 updateActorItem(actor, item._id!, {

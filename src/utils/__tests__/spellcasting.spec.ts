@@ -11,7 +11,8 @@ import {
   buildOrphanSpells,
   buildPrepList,
   hasAnySpells,
-  MAX_SPELL_RANK
+  MAX_SPELL_RANK,
+  innateUses
 } from '@/utils/spellcasting'
 
 // Slot accounting is the sheet's core spellcasting logic, and the
@@ -387,5 +388,38 @@ describe('buildOrphanSpells', () => {
   it('treats every spell as an orphan when there are no entries', () => {
     const ranks = buildOrphanSpells([], [attached])
     expect(ranks['3'].map((s) => s?._id)).toEqual(['attached'])
+  })
+})
+
+describe('innateUses', () => {
+  const entry = (category: string) =>
+    ({ system: { prepared: { value: category } } }) as unknown as SpellcastingEntry
+
+  it('is undefined for anything but an innate entry', () => {
+    expect(innateUses({ uses: { value: 1, max: 1 } }, entry('prepared'))).toBeUndefined()
+    expect(innateUses(undefined, entry('spontaneous'))).toBeUndefined()
+    expect(innateUses(undefined, undefined)).toBeUndefined()
+  })
+
+  it('defaults an unstored innate spell to one cast of one', () => {
+    // The case the whole helper exists for: PF2e derives {value:1,max:1} and
+    // never stores it, so source omits it for most bestiary innates — and a raw
+    // read cannot tell "one cast available" from "expended".
+    expect(innateUses(undefined, entry('innate'))).toEqual({ value: 1, max: 1 })
+    expect(innateUses({}, entry('innate'))).toEqual({ value: 1, max: 1 })
+  })
+
+  it('keeps an authored value and max', () => {
+    expect(innateUses({ uses: { value: 0, max: 3 } }, entry('innate'))).toEqual({
+      value: 0,
+      max: 3
+    })
+  })
+
+  it('fills each half independently, as PF2e’s non-overwriting merge does', () => {
+    // mergeObject(..., { overwrite: false }) is a DEEP merge: an entry carrying
+    // only `max` keeps it and gains a default `value`, not a whole new object.
+    expect(innateUses({ uses: { max: 3 } }, entry('innate'))).toEqual({ value: 1, max: 3 })
+    expect(innateUses({ uses: { value: 2 } }, entry('innate'))).toEqual({ value: 2, max: 1 })
   })
 })

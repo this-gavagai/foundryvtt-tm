@@ -20,6 +20,30 @@ export const isSlotCaster = (e?: SpellcastingEntry) =>
 export const isInnate = (e?: SpellcastingEntry) => e?.system.prepared?.value === 'innate'
 export const isFocusPool = (e?: SpellcastingEntry) => e?.system.prepared?.value === 'focus'
 
+// An innate spell's per-cast uses.
+//
+// PF2e does not store these. `SpellPF2e#prepareSiblingData` runs
+//
+//   mergeObject(system.location, { uses: { value: 1, max: 1 } }, { overwrite: false })
+//
+// for every spell whose entry is innate — a DEEP merge that fills each half only
+// when it is absent, which is why this defaults `value` and `max` separately
+// rather than substituting a whole object. Source therefore omits `location.uses`
+// for the great majority of bestiary innates, and reading it raw cannot tell "one
+// cast available" from "expended".
+//
+// Reproduced here rather than overlaid Foundry-side because it is the whole rule:
+// two defaults, no content tables, no synthetics. That makes an innate spell's
+// uses counter correct on a sheet no GM has ever answered for.
+export function innateUses(
+  location: { uses?: { value?: number; max?: number } } | undefined,
+  entry: SpellcastingEntry | undefined
+): { value: number; max: number } | undefined {
+  if (!isInnate(entry)) return undefined
+  const uses = location?.uses
+  return { value: uses?.value ?? 1, max: uses?.max ?? 1 }
+}
+
 const isCantrip = (spell: Spell) => !!spell.system.traits?.value?.includes('cantrip')
 // PF2e's SpellPF2e#isFocusSpell. The traditions check catches focus cantrips,
 // which the wire payload doesn't carry a traditions list for — the `focus` trait

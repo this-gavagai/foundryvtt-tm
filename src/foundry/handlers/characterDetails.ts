@@ -424,17 +424,6 @@ export async function getCharacterDetails(
       const prepared = modularDmg ?? i.system.damage?.damageType
       if (prepared) overlay('system.damage.damageType', prepared)
     }
-    if (i.isOfType('spell')) {
-      // An innate spell's per-spell uses are DERIVED, not stored:
-      // SpellPF2e#prepareSiblingData merges in `{ value: 1, max: 1 }` (without
-      // overwriting an authored value) for every spell whose entry is innate.
-      // So toObject() omits `location.uses` for the majority of bestiary innate
-      // spells, and without it the client can't tell "one cast available" from
-      // "expended" — nor render the uses counter that is the whole point of an
-      // NPC's innate spell list.
-      const uses = i.system.location?.uses
-      if (uses) overlay('system.location.uses', { value: uses.value, max: uses.max })
-    }
     if (i.isOfType('action', 'feat', 'campaignFeature')) {
       // An ability/feat/campaign-feature's Frequency is only half-stored.
       // prepareBaseData fills in `value ??= max`, so an action nobody has spent
