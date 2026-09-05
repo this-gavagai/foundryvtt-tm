@@ -48,6 +48,12 @@ const EXPECTED: Record<RpcAction, Expected> = {
   // like every other spend. Not concurrent: it creates a chat message, and a
   // self-effect ability's card is one the chat-origin stack has to attribute.
   [TM.USE_ACTION]: { auth: 'owner' },
+  // Rests a character: writes the actor, creates and updates embedded items,
+  // deletes temporary ones and posts a card. Owner-gated, and that is the whole
+  // gate — resting is something done to one's own character, with no shared
+  // state to arbitrate. Not concurrent: PF2e's recharge pass reads the actor's
+  // derived state as it goes, and it speaks in chat.
+  [TM.REST_FOR_THE_NIGHT]: { auth: 'owner' },
   [TM.UPDATE_ACTOR]: { auth: 'owner' },
   [TM.ADD_COMPENDIUM_ITEM]: { auth: 'owner' },
   // Read-only: it instantiates a temp item to inflate PF2e's own ChoiceSet

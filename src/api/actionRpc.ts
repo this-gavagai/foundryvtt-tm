@@ -580,6 +580,13 @@ export const nextTurn = (
   combat: { combatId: string; round: number; turn: number }
 ) => sendAction(TM.NEXT_TURN, { actorId, ...combat })
 
+// Rest for the Night — PF2e's whole daily reset, run on a GM's client. The app
+// asks the player to confirm BEFORE calling this: PF2e's own confirmation is a
+// dialog on whichever client runs the rest, and that is not the one holding the
+// tablet. See foundry/handlers/restForTheNight.ts.
+export const restForTheNight = (actor: TablemateActorRef) =>
+  sendAction(TM.REST_FOR_THE_NIGHT, { ...fromActor(actor) })
+
 export const applyDamage = (
   actor: TablemateActorRef,
   messageId: string,

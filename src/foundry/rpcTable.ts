@@ -57,6 +57,7 @@ import {
   foundryListCompendia,
   foundryNextTurn,
   foundryRerollChatRoll,
+  foundryRestForTheNight,
   foundryRollCheck,
   foundryRollDamage,
   foundryRollInlineCheck,
@@ -155,6 +156,17 @@ export const RPC_TABLE: RpcTable = {
   // encounter. Deliberately NOT concurrent: it advances shared encounter state
   // and PF2e runs its turn-boundary automation off the resulting update.
   [TM.NEXT_TURN]: { handler: foundryNextTurn, auth: 'owner' },
+
+  // Rest for the Night. 'owner' is the whole gate: resting is something a player
+  // does to their OWN character, and unlike NEXT_TURN there is no shared state
+  // to arbitrate — no second check is needed because owning the actor is
+  // precisely the right to rest it.
+  //
+  // Deliberately NOT concurrent. It writes the actor, creates and updates
+  // embedded items, deletes temporary ones and posts a chat card, and PF2e's
+  // recharge pass reads the actor's derived state as it goes; a roll resolving
+  // half way through would be reading an actor mid-rest.
+  [TM.REST_FOR_THE_NIGHT]: { handler: foundryRestForTheNight, auth: 'owner' },
 
   // Compendium browsing: read-only, no target actor, so any known world user may
   // do it — the per-pack observe check lives in the handlers (utils/permissions).

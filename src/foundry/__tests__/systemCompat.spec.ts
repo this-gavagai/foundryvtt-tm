@@ -43,7 +43,7 @@ function healthyGlobals() {
       },
       pf2e: {
         Modifier: { prototype: { test: () => {}, applyAdjustments: () => {} } },
-        actions: { get: () => {} },
+        actions: { get: () => {}, restForTheNight: () => {} },
         TextEditor: { _onClickInlineRoll: () => {} },
         Check: { rerollFromMessage: () => {} },
         ElementalBlast: class {}

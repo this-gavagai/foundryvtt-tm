@@ -43,7 +43,7 @@ type CompatGame = {
   }
   pf2e?: {
     Modifier?: { prototype?: { test?: unknown; applyAdjustments?: unknown } }
-    actions?: { get?: unknown }
+    actions?: { get?: unknown; restForTheNight?: unknown }
     TextEditor?: { _onClickInlineRoll?: unknown }
     Check?: { rerollFromMessage?: unknown }
     ElementalBlast?: unknown
@@ -113,6 +113,15 @@ function probeInternals(): string[] {
   }
   if (typeof pf2e?.actions?.get !== 'function') {
     issues.push('character actions (game.pf2e.actions missing)')
+  }
+  // A separate probe from the Collection above: the quasi-action functions hang
+  // off game.pf2e.actions as plain properties, so one can move without the
+  // other. Rest for the Night is the app's only caller, and it is a button that
+  // would simply fail rather than roll a wrong number — named here anyway,
+  // because a rest that silently does nothing at the end of a session is not
+  // discovered until the next one.
+  if (typeof pf2e?.actions?.restForTheNight !== 'function') {
+    issues.push('rest for the night (game.pf2e.actions.restForTheNight missing)')
   }
   if (typeof pf2e?.TextEditor?._onClickInlineRoll !== 'function') {
     issues.push('inline check/damage links (TextEditor inline-roll pipeline missing)')

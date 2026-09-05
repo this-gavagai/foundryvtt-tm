@@ -218,6 +218,25 @@ export const TM = {
   // update a player may not make on someone else's behalf, and the card is
   // rendered by PF2e's own templates. See foundry/handlers/useAction.ts.
   USE_ACTION: 'useAction',
+  // Rest for the Night — the daily reset PF2e's own sheet puts behind its Rest
+  // button. Restores hit points by the night's recovery, steps down doomed,
+  // drained, fatigued and wounded, refills spell slots, focus, wand charges,
+  // infused reagents, daily crafting and every `day`-duration resource, drops
+  // temporary items, and posts a card saying what changed.
+  //
+  // An RPC, and deliberately a thin one: the handler calls PF2e's own
+  // `game.pf2e.actions.restForTheNight` rather than reproducing any of that
+  // list. Reproducing it would be a second implementation of a rule the system
+  // already owns, drifting a release at a time — and it would skip the
+  // `pf2e.restForTheNight` hook that pf2e-dailies and friends hang their own
+  // daily preparations off, which is the whole reason a table's rest does more
+  // than the system's.
+  //
+  // The dialog is skipped on the Foundry side because it would open on the
+  // GM's screen, for a question the player at the tablet is the one answering.
+  // The app asks first, on the device that tapped. See
+  // foundry/handlers/restForTheNight.ts.
+  REST_FOR_THE_NIGHT: 'restForTheNight',
   GET_SPELL_DAMAGE: 'getSpellDamage',
   GET_COMPENDIUM_ITEM: 'getCompendiumItem',
   ADD_COMPENDIUM_ITEM: 'addCompendiumItem',

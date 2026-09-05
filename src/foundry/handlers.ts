@@ -57,6 +57,7 @@ export { foundryAddCompendiumItem, foundryGetItemChoices } from './handlers/addC
 export { foundryListCompendia } from './handlers/listCompendia'
 export { foundryGetCompendiumIndex } from './handlers/getCompendiumIndex'
 export { foundryApplyDamage } from './handlers/applyDamage'
+export { foundryRestForTheNight } from './handlers/restForTheNight'
 export { foundrySetHitPoints } from './handlers/setHitPoints'
 export { foundryNextTurn } from './handlers/nextTurn'
 export { foundryToggleReaction } from './handlers/reactions'

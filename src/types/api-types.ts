@@ -42,6 +42,7 @@ export type ModuleEventArgs =
   | RunMacroArgs
   | RunActionableArgs
   | UseActionArgs
+  | RestForTheNightArgs
   | GetSpellDamageArgs
   | GetCompendiumItemArgs
   | AddCompendiumItemArgs
@@ -755,6 +756,22 @@ export interface NextTurnArgs {
   turn: number
 }
 
+// Rest for the Night. `characterId` is the actor to rest — the 'owner' gate
+// proves the requester owns it, and PF2e's own implementation refuses anything
+// that isn't a character, so the handler checks that before calling rather than
+// letting it surface as a notification on the GM's screen.
+//
+// No options ride along on purpose. PF2e's own signature takes `skipDialog`,
+// which the handler always sets: the dialog would open on the GM's client, and
+// the player at the tablet is the one being asked. Making that a wire field
+// would offer the app a choice it must never make.
+export interface RestForTheNightArgs {
+  action: typeof TM.REST_FOR_THE_NIGHT
+  uuid: string
+  userId: string
+  characterId: string
+}
+
 export interface RerollChatRollArgs {
   action: typeof TM.REROLL_CHAT_ROLL
   uuid: string
@@ -985,6 +1002,7 @@ export interface ResponseByAction {
   [TM.APPLY_DAMAGE]: PlainAck
   [TM.SET_HIT_POINTS]: PlainAck
   [TM.NEXT_TURN]: PlainAck
+  [TM.REST_FOR_THE_NIGHT]: PlainAck
   // The updated reaction list, so the caller can reconcile its optimistic write
   // against what the GM actually stored (concurrent taps, a rejected emoji).
   [TM.TOGGLE_REACTION]: { reactions: ChatReaction[] }
