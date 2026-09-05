@@ -28,6 +28,13 @@ export interface Stat {
   dc: Maybe<number>
   lore: Maybe<boolean>
   visible: Maybe<boolean>
+  // True when this number was computed app-side rather than by PF2e, and the
+  // rule engine could not account for everything that reaches it. Never set on a
+  // figure that came from a character payload — those are PF2e's own answer.
+  provisional: Maybe<boolean>
+  // What the engine could not evaluate, for a tooltip. Present only alongside
+  // `provisional`.
+  caveat: Maybe<string>
   roll?: (
     result?: number | undefined,
     options?: object | undefined
@@ -47,6 +54,8 @@ export function makeStat(root: StatInput | undefined, key: string | null = null)
     totalModifier: root?.totalModifier,
     dc: root?.dc,
     lore: root?.lore,
+    provisional: undefined,
+    caveat: undefined,
     modifiers: makeModifiers(root?.modifiers)
   }
 }

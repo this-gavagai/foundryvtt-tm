@@ -624,6 +624,7 @@
     "outranked": "Superado por un modificador del mismo tipo de mayor rango; no contribuirá a la tirada"
   },
   "sync": {
-    "awaitingGm": "Esperando que el DJ recalcule: puede estar desactualizado."
+    "awaitingGm": "Esperando que el DJ recalcule: puede estar desactualizado.",
+    "provisional": "Calculado en este dispositivo — {caveat}. El DJ no lo ha confirmado."
   }
 }

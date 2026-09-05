@@ -163,6 +163,11 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
     hp: {
       current: computed(() => actor.value?.system?.attributes?.hp?.value),
       max: computed(() => actor.value?.system?.attributes?.hp?.max),
+      // No engine estimate stands behind this number, so it is never
+      // provisional: an NPC's maximum is authored in source, and a familiar's
+      // comes from its master. The field exists because the shared Actor
+      // surface carries it for characters.
+      maxProvisional: computed(() => false),
       temp: computed(() => actor.value?.system?.attributes?.hp?.temp),
       modifiers: computed(() => makeModifiers(actor.value?.system?.attributes?.hp?.modifiers)),
       set: (target: HitPointTarget) => setHitPoints(actor, target)
@@ -172,6 +177,11 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
     ac: {
       current: computed(() => actor.value?.system?.attributes?.ac?.value),
       modifiers: computed(() => makeModifiers(actor.value?.system?.attributes?.ac?.modifiers))
+    ,
+      // No engine estimate stands behind an NPC or familiar AC — theirs is
+      // authored or inherited — so it is never provisional.
+      provisional: computed(() => false),
+      caveat: computed(() => undefined)
     },
     acDetails: computed(
       () =>

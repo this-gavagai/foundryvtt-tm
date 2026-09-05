@@ -178,7 +178,8 @@
      without competing with it, and it must not shift a single pixel of layout.
      The same visual language a browser uses for an abbreviation: "provisional",
      not "wrong". */
-    [data-derived-stale] {
+    [data-derived-stale],
+    [data-derived-provisional] {
       text-decoration: underline dotted var(--color-icon-muted);
       text-decoration-thickness: 1px;
       text-underline-offset: 0.28em;

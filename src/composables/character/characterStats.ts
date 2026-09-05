@@ -19,6 +19,7 @@ import { calcAttribute } from './calcAttributes'
 import { i18n } from '@/plugins/i18n'
 import { heldShield, type ShieldSource } from '@/utils/heldShield'
 import { useWorldLabels } from '@/composables/useWorldLabels'
+import { useDerivedStatistics } from './derivedStatistics'
 
 export interface IWR {
   type: Maybe<string>
@@ -61,6 +62,10 @@ export interface CharacterStats {
   ac: {
     current: Field<number>
     modifiers: Field<Modifier[]>
+    // True when this AC is the rule engine's rather than PF2e's AND the engine
+    // had gaps. Never true for a figure that came from a character payload.
+    provisional: Field<boolean>
+    caveat: Field<string>
   }
   shield: {
     hp: {
@@ -98,6 +103,32 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
   // IWR and proficiency names are the world's, not this actor's — see
   // composables/useWorldLabels.
   const { iwrLabels, proficiencyLabels } = useWorldLabels(actor)
+  // Tier-2 figures, for the sheet no GM has answered for. Every one of these is
+  // consulted only when the payload has no number of its own, and carries a
+  // provisional marker when the rule engine could not account for everything.
+  const derived = useDerivedStatistics(actor)
+
+  // A statistic the payload supplied, or the engine's stand-in for it. The
+  // prepared trace wins whenever it exists — it is PF2e's own answer, modifier
+  // breakdown and all, which the engine cannot reproduce.
+  const statOrDerived = (
+    prepared: Stat | undefined,
+    fallback: { value: number; provisional: boolean; caveat: string } | undefined,
+    slug: string,
+    label: string
+  ): Stat | undefined => {
+    if (prepared?.value !== undefined || prepared?.totalModifier !== undefined) return prepared
+    if (!fallback) return prepared
+    return {
+      ...(prepared ?? { slug, label }),
+      slug: prepared?.slug ?? slug,
+      label: prepared?.label ?? label,
+      value: fallback.value,
+      totalModifier: fallback.value,
+      provisional: fallback.provisional,
+      caveat: fallback.caveat
+    } as Stat
+  }
   const attributes = {
     str: computed(() => actor.value?.system?.abilities?.str?.mod ?? calcAttribute(actor, 'str')),
     dex: computed(() => actor.value?.system?.abilities?.dex?.mod ?? calcAttribute(actor, 'dex')),
@@ -106,8 +137,21 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
     wis: computed(() => actor.value?.system?.abilities?.wis?.mod ?? calcAttribute(actor, 'wis')),
     cha: computed(() => actor.value?.system?.abilities?.cha?.mod ?? calcAttribute(actor, 'cha'))
   }
+  const derivedAc = derived.armorClass
   const ac = {
-    current: computed(() => actor.value?.system?.attributes?.ac?.value),
+    current: computed(
+      () => actor.value?.system?.attributes?.ac?.value ?? derivedAc.value?.value
+    ),
+    // Whether the AC on screen is the engine's rather than PF2e's, and whether
+    // the engine had gaps. Read by ArmorClass to mark the figure.
+    provisional: computed(
+      () =>
+        actor.value?.system?.attributes?.ac?.value === undefined &&
+        !!derivedAc.value?.provisional
+    ),
+    caveat: computed(() =>
+      actor.value?.system?.attributes?.ac?.value === undefined ? derivedAc.value?.caveat : undefined
+    ),
     modifiers: computed(() => makeModifiers(actor.value?.system?.attributes?.ac?.modifiers))
   }
   // PF2e's shield block is a copy off the held shield item, so it rides a
@@ -177,19 +221,31 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
       (s) => s.itemId
     )
   }
-  const makeSave = (subtype: SaveType) =>
-    computed(() => ({
-      ...(makeStat(actor.value?.system?.saves?.[subtype]) as Stat),
+  const makeSave = (subtype: SaveType) => {
+    const fallback = derived.save(subtype)
+    return computed(() => ({
+      ...(statOrDerived(
+        makeStat(actor.value?.system?.saves?.[subtype]),
+        fallback.value,
+        subtype,
+        subtype
+      ) as Stat),
       roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
         rollCheck(actor, 'save', { slug: subtype }, { d20: [result ?? 0] }, [], options ?? {})
     }))
+  }
   const saves = {
     fortitude: makeSave('fortitude'),
     reflex: makeSave('reflex'),
     will: makeSave('will')
   }
   const perception = computed(() => ({
-    ...(makeStat(actor.value?.system?.perception) as Stat),
+    ...(statOrDerived(
+      makeStat(actor.value?.system?.perception),
+      derived.perception.value,
+      'perception',
+      'Perception'
+    ) as Stat),
     roll: (result: number | undefined = undefined, options: object | undefined = {}) =>
       rollCheck(actor, 'perception', undefined, { d20: [result ?? 0] }, [], options ?? {})
   }))
@@ -198,7 +254,12 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
     const skills = Object.entries(actor.value?.system?.skills ?? [])?.map(
       ([key, skill]) =>
         ({
-          ...makeStat(skill, key),
+          ...statOrDerived(
+            makeStat(skill, key),
+            derived.skill(key, (skill as { rank?: number })?.rank ?? 0),
+            key,
+            key
+          ),
           roll: (result, options = {}) =>
             rollCheck(
               actor,
@@ -215,11 +276,19 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
       .filter((i) => i.type === 'lore' && !skillSlugs.has(kebabCase(i.name)))
       .map((lore) => {
         const slug = kebabCase(lore.name)
+        const rank = (lore.system as { proficient?: { value?: number } })?.proficient?.value ?? 0
+        const fallback = derived.skill(slug, rank, true)
         return {
           slug,
           label: lore.name,
           lore: true,
-          rank: (lore.system as { proficient?: { value?: number } })?.proficient?.value,
+          rank,
+          // A lore never appears in the payload's skill list, so it has no
+          // prepared figure to prefer — the engine's is all there is.
+          value: fallback?.value,
+          totalModifier: fallback?.value,
+          provisional: fallback?.provisional,
+          caveat: fallback?.caveat,
           // PF2e exposes lore stats at actor.skills[slug] just like core skills,
           // so the foundry-side 'skill' check handler dispatches them via the
           // same path.

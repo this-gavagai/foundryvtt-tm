@@ -624,6 +624,7 @@
     "outranked": "Outranked by a higher same-type modifier; will not contribute to the roll"
   },
   "sync": {
-    "awaitingGm": "Waiting for the GM to recalculate — this may be out of date."
+    "awaitingGm": "Waiting for the GM to recalculate — this may be out of date.",
+    "provisional": "Calculated on this device — {caveat}. The GM has not confirmed it."
   }
 }

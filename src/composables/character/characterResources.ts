@@ -4,11 +4,14 @@ import type { Field, WritableField } from './helpers'
 import { type Modifier, makeModifiers } from './defs/modifier'
 import { updateActor } from '@/api/documents'
 import { setHitPoints, type HitPointTarget } from '@/composables/setHitPoints'
+import { useDerivedStatistics } from './derivedStatistics'
+import type { TablemateCharacter } from '@/types/character-types'
 
 export interface CharacterResources {
   hp: {
     current: Field<number>
     max: Field<number>
+    maxProvisional: Field<boolean>
     temp: Field<number>
     modifiers: Field<Modifier[]>
     // Hit points are written through one combined call rather than per-field
@@ -28,9 +31,21 @@ export interface CharacterResources {
 }
 
 export function useCharacterResources(actor: Ref<CharacterPF2e | undefined>): CharacterResources {
+  // Maximum hit points, for the sheet no GM has answered for. `value` and `temp`
+  // are stored and need nothing; `max` is derived, and PF2e's answer wins
+  // whenever the payload carries one.
+  const derived = useDerivedStatistics(actor as Ref<TablemateCharacter | undefined>)
   const hp = {
     current: computed(() => actor.value?.system?.attributes?.hp?.value),
-    max: computed(() => actor.value?.system?.attributes?.hp?.max),
+    max: computed(
+      () => actor.value?.system?.attributes?.hp?.max ?? derived.hitPointsMax.value?.value
+    ),
+    // Whether the maximum on screen is the engine's, with gaps.
+    maxProvisional: computed(
+      () =>
+        actor.value?.system?.attributes?.hp?.max === undefined &&
+        !!derived.hitPointsMax.value?.provisional
+    ),
     temp: computed(() => actor.value?.system?.attributes?.hp?.temp),
     modifiers: computed(() => makeModifiers(actor.value?.system?.attributes?.hp?.modifiers)),
     set: (target: HitPointTarget) => setHitPoints(actor, target)

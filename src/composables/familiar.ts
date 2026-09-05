@@ -66,6 +66,11 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
         () => (actor.value?.system?.attributes?.hp as FamiliarHp | undefined)?.value
       ),
       max: computed(() => (actor.value?.system?.attributes?.hp as FamiliarHp | undefined)?.max),
+      // No engine estimate stands behind this number, so it is never
+      // provisional: an NPC's maximum is authored in source, and a familiar's
+      // comes from its master. The field exists because the shared Actor
+      // surface carries it for characters.
+      maxProvisional: computed(() => false),
       temp: computed(() => (actor.value?.system?.attributes?.hp as FamiliarHp | undefined)?.temp),
       modifiers: computed(() => []),
       set: (target: HitPointTarget) => setHitPoints(actor, target)
@@ -73,6 +78,11 @@ export function useFamiliar(actor: Ref<TablemateFamiliar | undefined>) {
     ac: {
       current: computed(() => actor.value?.system?.attributes?.ac?.value),
       modifiers: computed(() => makeModifiers(actor.value?.system?.attributes?.ac?.modifiers))
+    ,
+      // No engine estimate stands behind an NPC or familiar AC — theirs is
+      // authored or inherited — so it is never provisional.
+      provisional: computed(() => false),
+      caveat: computed(() => undefined)
     },
     movement: {
       land: computed(() =>
