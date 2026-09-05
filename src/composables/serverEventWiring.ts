@@ -19,6 +19,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { usePixelDiceStore } from '@/stores/pixelDice'
 import { resetWorldScopedStores } from '@/stores/worldScopedReset'
 import { logger } from '@/utils/utilities'
+import { describeDifferential, runDifferential } from '@/utils/ruleEngine/differential'
 import {
   onModifyDocument,
   onShareImage,
@@ -158,7 +159,32 @@ export function registerServerEventWiring() {
   // open still improves what every sheet reads. Per-sheet it would also run
   // once per mounted sheet for the same payload.
   onTmAction(TM.UPDATE_CHARACTER, (args) => {
-    useLabelCatalogsStore().remember(args)
+    const labelCatalogs = useLabelCatalogsStore()
+    labelCatalogs.remember(args)
+    // Measure the rule engine against PF2e's own answer for this actor.
+    //
+    // Every payload is a labelled example — the same character, with the
+    // system's real figures beside the inputs the engine would work from — so
+    // this is a continuous accuracy check over live characters rather than
+    // fixtures. Nothing it finds changes a displayed number; the engine is being
+    // measured, not trusted, and this is what will eventually say whether it is
+    // good enough to show. Development only: it costs a full engine pass per
+    // payload, which is not a price a phone should pay for telemetry nobody
+    // reads. See utils/ruleEngine/differential.ts.
+    if (import.meta.env.DEV) {
+      try {
+        const report = runDifferential(args, labelCatalogs.stamp)
+        if (!report.clean) {
+          // A silent miss indicts the ledger itself — the engine was supposed to
+          // be incapable of dropping a rule without recording it — so it is
+          // logged at a level that interrupts, unlike ordinary divergence.
+          const log = report.silentMisses > 0 ? logger.error : logger.debug
+          log(describeDifferential(report))
+        }
+      } catch (error) {
+        logger.debug('TM: rule engine differential failed', error)
+      }
+    }
   })
 
   // A client reporting its OWN targeting — the single source for mirrored
