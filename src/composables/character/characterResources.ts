@@ -1,4 +1,6 @@
 import { computed, type Ref } from 'vue'
+import { useDerivedModifiers } from './derivedModifiers'
+import type { RawModifier } from '@7h3laughingman/pf2e-types'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField } from './helpers'
 import { type Modifier, makeModifiers } from './defs/modifier'
@@ -37,6 +39,7 @@ export function useCharacterResources(actor: Ref<CharacterPF2e | undefined>): Ch
   // are stored and need nothing; `max` is derived, and PF2e's answer wins
   // whenever the payload carries one.
   const derived = useDerivedStatistics(actor as Ref<TablemateCharacter | undefined>)
+  const derivedModifiers = useDerivedModifiers()
   const hp = {
     current: computed(() => actor.value?.system?.attributes?.hp?.value),
     max: computed(
@@ -49,7 +52,21 @@ export function useCharacterResources(actor: Ref<CharacterPF2e | undefined>): Ch
         !!derived.hitPointsMax.value?.provisional
     ),
     temp: computed(() => actor.value?.system?.attributes?.hp?.temp),
-    modifiers: computed(() => makeModifiers(actor.value?.system?.attributes?.hp?.modifiers)),
+    // `_modifiers`, with the underscore, is what actually survives.
+    //
+    // PF2e's HitPointsStatistic keeps the list in a PROTECTED field, so JSON
+    // serialization captures `_modifiers` and there is no `modifiers` on the
+    // wire at all. Reading the public name meant this was `undefined` on every
+    // character, with a GM online — not a GM dependency, a silent miss. The
+    // strike serializer already accepts both for the same reason
+    // (foundry/handlers/checks/strikeCheckHandlers.ts).
+    modifiers: computed(() => {
+      const hp = actor.value?.system?.attributes?.hp as
+        { modifiers?: RawModifier[]; _modifiers?: RawModifier[] } | undefined
+      const reported = hp?.modifiers ?? hp?._modifiers
+      if (reported) return makeModifiers(reported)
+      return derivedModifiers.present(derived.hitPointsMax.value?.modifiers)
+    }),
     set: (target: HitPointTarget) => setHitPoints(actor, target)
   }
   const heroPoints = {

@@ -1,6 +1,11 @@
 import { useWorldLabels } from '@/composables/useWorldLabels'
 import { computed, type Ref } from 'vue'
-import type { NPCStrike as PF2eNpcStrike, SaveType, SlotKey } from '@7h3laughingman/pf2e-types'
+import type {
+  NPCStrike as PF2eNpcStrike,
+  RawModifier,
+  SaveType,
+  SlotKey
+} from '@7h3laughingman/pf2e-types'
 import type { TablemateNpc } from '@/types/character-types'
 import type { Actor } from '@/composables/actor'
 import {
@@ -169,15 +174,20 @@ export function useNpc(actor: Ref<TablemateNpc | undefined>) {
       // surface carries it for characters.
       maxProvisional: computed(() => false),
       temp: computed(() => actor.value?.system?.attributes?.hp?.temp),
-      modifiers: computed(() => makeModifiers(actor.value?.system?.attributes?.hp?.modifiers)),
+      // `_modifiers` is the name that survives serialization; see the character
+      // resources composable for why.
+      modifiers: computed(() => {
+        const hp = actor.value?.system?.attributes?.hp as
+          { modifiers?: RawModifier[]; _modifiers?: RawModifier[] } | undefined
+        return makeModifiers(hp?.modifiers ?? hp?._modifiers)
+      }),
       set: (target: HitPointTarget) => setHitPoints(actor, target)
     },
     hpDetails: computed(() => actor.value?.system?.attributes?.hp?.details || undefined),
 
     ac: {
       current: computed(() => actor.value?.system?.attributes?.ac?.value),
-      modifiers: computed(() => makeModifiers(actor.value?.system?.attributes?.ac?.modifiers))
-    ,
+      modifiers: computed(() => makeModifiers(actor.value?.system?.attributes?.ac?.modifiers)),
       // No engine estimate stands behind an NPC or familiar AC — theirs is
       // authored or inherited — so it is never provisional.
       provisional: computed(() => false),
