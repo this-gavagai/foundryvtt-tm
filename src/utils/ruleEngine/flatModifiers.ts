@@ -65,11 +65,27 @@ interface FlatModifierRule {
 // figures read provisional when the engine had missed nothing that affects the
 // number — on one live character they were 46 of 115 recorded skips, drowning
 // the four that mattered.
-const NEVER_AFFECTS_A_TOTAL = new Set(['Note', 'AdjustDegreeOfSuccess', 'RollTwice', 'SubstituteRoll'])
+const NEVER_AFFECTS_A_TOTAL = new Set([
+  'Note',
+  'AdjustDegreeOfSuccess',
+  'RollTwice',
+  'SubstituteRoll'
+])
 
+// PF2e's own `sluggify`, in the part that matters here: apostrophes are
+// DELETED, not turned into a separator, so "Mage's Hat" is `mages-hat` and not
+// `mage-s-hat`. Everything else non-alphanumeric becomes a hyphen.
+//
+// Not cosmetic. A modifier's slug is its identity: the harness matches the
+// engine's list against PF2e's by slug, and the roll path sends
+// `modifierOverrides` keyed by slug when a player toggles one off. A slug that
+// disagrees with PF2e's reads as a modifier PF2e never applied, and a toggle
+// against it would silently fail to bind. Three items on the live table hit
+// this — a Mage's Hat, a Crafter's Eyepiece and Healer's Gloves.
 const sluggify = (input: string) =>
   input
     .toLowerCase()
+    .replace(/['’]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
 
@@ -128,7 +144,12 @@ export function collectFlatModifiers(
         // GrantItem grants an item) cannot be matched, so it is reported only
         // when it names a domain we care about.
         if (selectors.some((selector) => wanted.has(selector))) {
-          draft.skipped.push({ reason: 'unsupported-key', key, slug: ruleSlug, itemName: item.name })
+          draft.skipped.push({
+            reason: 'unsupported-key',
+            key,
+            slug: ruleSlug,
+            itemName: item.name
+          })
         }
         continue
       }
@@ -234,7 +255,8 @@ export function resolveStacking(modifiers: readonly EngineModifier[]): EngineMod
     if (!modifier.enabled || modifier.type === 'untyped' || modifier.force) continue
     const bucket = best.get(modifier.type) ?? {}
     if (modifier.modifier >= 0) {
-      if (!bucket.positive || modifier.modifier > bucket.positive.modifier) bucket.positive = modifier
+      if (!bucket.positive || modifier.modifier > bucket.positive.modifier)
+        bucket.positive = modifier
     } else if (!bucket.negative || modifier.modifier < bucket.negative.modifier) {
       bucket.negative = modifier
     }

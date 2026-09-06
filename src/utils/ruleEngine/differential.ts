@@ -27,7 +27,8 @@ import {
   skillDomains,
   SAVE_ATTRIBUTES
 } from './domains'
-import type { EngineItem } from './flatModifiers'
+import type { EngineItem, EngineModifier } from './flatModifiers'
+import type { Ledger } from './ledger'
 
 // What the payload reports for one spellcasting entry, keyed by the entry's id.
 type SpellModifiers = { dc?: number; mod?: number; modifiers?: WireModifier[] }
@@ -153,6 +154,10 @@ function candidateSlugs(items: readonly EngineItem[], domains: readonly string[]
         rule.slug ??
         (rule.label ?? item.name ?? '')
           .toLowerCase()
+          // Apostrophes are dropped, matching PF2e — see the note on the
+          // engine's own sluggify. The candidate set is compared against slugs
+          // PF2e produced, so it has to agree with them.
+          .replace(/['’]/g, '')
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/^-+|-+$/g, '')
       if (slug) slugs.add(slug)
@@ -166,9 +171,20 @@ function compareFigure(
   input: EngineInput,
   domains: readonly string[],
   reported: WireModifier[] | undefined,
-  total?: { engine: number | undefined; pf2e: number | undefined }
+  total?: { engine: number | undefined; pf2e: number | undefined },
+  // The modifier list the SHEET would render, when the caller has already built
+  // it. Passing it is what makes this compare the real derivation.
+  //
+  // Without it the comparison fell back to `deriveFigure`, which collects flat
+  // modifiers and returns them UNRESOLVED — no stacking applied, and no
+  // attribute or proficiency in the contest at all. So a proficiency-typed feat
+  // that loses to a trained skill's own bonus came out enabled here and disabled
+  // in PF2e's list, and the harness reported a divergence out of two lists that
+  // agree exactly. Every trained skill on every character carrying Untrained
+  // Improvisation, on every payload.
+  actual?: { modifiers: EngineModifier[]; ledger: Ledger }
 ): FigureDivergence {
-  const derived = deriveFigure(input, domains)
+  const derived = actual ?? deriveFigure(input, domains)
   const truth = pf2eModifiers(reported)
   const candidates = candidateSlugs(input.items, domains)
   // Attribution is by slug, which is why the ledger records one. Matching on the
@@ -185,7 +201,13 @@ function compareFigure(
   // manufacture divergence out of agreement.
   for (const modifier of derived.modifiers.filter((m) => m.enabled)) {
     if (!truth.has(modifier.slug)) {
-      engineOnly.push(modifier.slug)
+      // Only a slug a FlatModifier on this actor could have produced counts as
+      // over-application — the same filter the silent-miss pass uses, and for
+      // the same reason. The engine's own base entries (an attribute, a
+      // proficiency, an armour bonus) are arithmetic rather than rules; PF2e
+      // reports them too, but a payload that shapes them differently is a
+      // serialization difference, not the engine applying a rule PF2e did not.
+      if (candidates.has(modifier.slug)) engineOnly.push(modifier.slug)
       continue
     }
     const expected = truth.get(modifier.slug) ?? 0
@@ -308,16 +330,30 @@ export function runDifferential(
 
   const figures: FigureDivergence[] = []
   figures.push(
-    compareFigure('ac', input, AC_DOMAINS, system?.attributes?.ac?.modifiers, {
-      engine: derivationInput ? deriveArmorClass(derivationInput).value : undefined,
-      pf2e: system?.attributes?.ac?.value
-    })
+    compareFigure(
+      'ac',
+      input,
+      AC_DOMAINS,
+      system?.attributes?.ac?.modifiers,
+      {
+        engine: derivationInput ? deriveArmorClass(derivationInput).value : undefined,
+        pf2e: system?.attributes?.ac?.value
+      },
+      derivationInput ? deriveArmorClass(derivationInput) : undefined
+    )
   )
   figures.push(
-    compareFigure('perception', input, PERCEPTION_DOMAINS, system?.perception?.modifiers, {
-      engine: derivationInput ? derivePerception(derivationInput).value : undefined,
-      pf2e: system?.perception?.totalModifier
-    })
+    compareFigure(
+      'perception',
+      input,
+      PERCEPTION_DOMAINS,
+      system?.perception?.modifiers,
+      {
+        engine: derivationInput ? derivePerception(derivationInput).value : undefined,
+        pf2e: system?.perception?.totalModifier
+      },
+      derivationInput ? derivePerception(derivationInput) : undefined
+    )
   )
   // Hit points have no modifier list of their own on the wire, so this row is a
   // pure total comparison — and the one most likely to expose a wrong class or
@@ -352,22 +388,35 @@ export function runDifferential(
         {
           engine: derivationInput ? deriveSave(derivationInput, slug).value : undefined,
           pf2e: save.totalModifier
-        }
+        },
+        derivationInput ? deriveSave(derivationInput, slug) : undefined
       )
     )
   }
   for (const [slug, skill] of Object.entries(system?.skills ?? {})) {
     if (!skill) continue
     figures.push(
-      compareFigure(slug, input, skillDomains(slug, skill.attribute ?? 'int'), skill.modifiers, {
-        engine: derivationInput
+      compareFigure(
+        slug,
+        input,
+        skillDomains(slug, skill.attribute ?? 'int'),
+        skill.modifiers,
+        {
+          engine: derivationInput
+            ? deriveSkill(derivationInput, slug, skill.rank ?? 0, {
+                lore: skill.lore,
+                attribute: skill.attribute
+              }).value
+            : undefined,
+          pf2e: skill.totalModifier
+        },
+        derivationInput
           ? deriveSkill(derivationInput, slug, skill.rank ?? 0, {
               lore: skill.lore,
               attribute: skill.attribute
-            }).value
-          : undefined,
-        pf2e: skill.totalModifier
-      })
+            })
+          : undefined
+      )
     )
   }
 
@@ -462,7 +511,8 @@ export function runDifferential(
         input,
         spellcastingDomains(attribute, tradition, 'dc'),
         reported.modifiers,
-        { engine: deriveSpellDC(derivationInput, entry).value, pf2e: reported.dc }
+        { engine: deriveSpellDC(derivationInput, entry).value, pf2e: reported.dc },
+        deriveSpellDC(derivationInput, entry)
       )
     )
     figures.push(
@@ -471,7 +521,8 @@ export function runDifferential(
         input,
         spellcastingDomains(attribute, tradition, 'attack'),
         reported.modifiers,
-        { engine: deriveSpellAttack(derivationInput, entry).value, pf2e: reported.mod }
+        { engine: deriveSpellAttack(derivationInput, entry).value, pf2e: reported.mod },
+        deriveSpellAttack(derivationInput, entry)
       )
     )
   }

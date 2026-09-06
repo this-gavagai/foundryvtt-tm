@@ -28,7 +28,7 @@ function handleXpFormSubmit(e: Event) {
 }
 </script>
 <template>
-  <div>
+  <div class="shrink-0">
     <StatBox :heading="$t('xp.heading')" @click="experienceModal.open()" class="cursor-pointer">
       <div>
         <svg width="75" height="18" class="trasition-all duration-500">

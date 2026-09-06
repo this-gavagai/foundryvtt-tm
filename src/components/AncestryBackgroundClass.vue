@@ -21,7 +21,7 @@ function viewItem(item: Item | undefined) {
 }
 </script>
 <template>
-  <div>
+  <div class="min-w-0">
     <div class="my-auto shrink">
       <div class="overflow-hidden whitespace-nowrap">
         <ViewableItem class="inline-block" @click="viewItem(ancestry)"

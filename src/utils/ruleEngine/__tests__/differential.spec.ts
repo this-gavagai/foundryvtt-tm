@@ -50,14 +50,28 @@ describe('agreement', () => {
     expect(describeDifferential(report)).toContain('clean')
   })
 
-  it('ignores modifiers no FlatModifier on the actor could have produced', () => {
-    // PF2e reports base and proficiency modifiers in the same list. The engine
-    // is not supposed to produce those, so counting them would drown the signal.
+  it('does not count a slug the engine cannot produce at all as over-application', () => {
+    // PF2e reports entries the engine has no rule for. Absent from our list is
+    // not the engine applying something extra, so it must not read as one.
+    const report = runDifferential(
+      payload([], [{ slug: 'from-somewhere-else', modifier: 9, enabled: true }]),
+      STAMP
+    )
+    expect(report.figures.find((f) => f.figure === 'ac')?.engineOnly).toEqual([])
+  })
+
+  // The engine now emits its own base entries — attribute, proficiency, worn
+  // armour — because the sheet renders them, so the harness compares them too.
+  // That is a gain rather than noise: a proficiency whose VALUE disagrees is a
+  // wrong rank, which is defect 1 and defect 5 on this page.
+  it('compares the base entries by value, catching a rank that disagrees', () => {
     const report = runDifferential(
       payload([], [{ slug: 'proficiency', modifier: 9, enabled: true }]),
       STAMP
     )
-    expect(report.clean).toBe(true)
+    const ac = report.figures.find((f) => f.figure === 'ac')
+    expect(ac?.engineOnly).toEqual([])
+    expect(ac?.valueMismatch.map((m) => m.slug)).toContain('proficiency')
   })
 
   it('ignores a modifier PF2e reports as disabled', () => {
@@ -109,7 +123,11 @@ describe('divergence', () => {
               selector: 'ac',
               type: 'item',
               slug: 'mystery',
-              value: '@actor.abilities.str.mod'
+              // Was `@actor.abilities.str.mod`, which the REAL derivation
+              // resolves — its value context carries the attribute modifiers,
+              // where the bare collector's did not. A path nothing can reach is
+              // what this test actually needs.
+              value: '@actor.flags.somemodule.mystery'
             }
           ]
         }

@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { deriveFigure, saveDomains, AC_DOMAINS, describeLedger } from '@/utils/ruleEngine'
-import { applyStacking, type EngineModifier } from '@/utils/ruleEngine/flatModifiers'
+import {
+  applyStacking,
+  collectFlatModifiers,
+  type EngineItem,
+  type EngineModifier
+} from '@/utils/ruleEngine/flatModifiers'
 
 const STAMP = 'pf2e@8.4.1|en|1.4.0'
 
@@ -45,7 +50,9 @@ describe('collecting modifiers', () => {
     // checked the slug would drop most of the modifiers in the compendium.
     const result = deriveFigure(
       input([
-        item('Resilient', [{ key: 'FlatModifier', selector: 'saving-throw', type: 'item', value: 1 }]),
+        item('Resilient', [
+          { key: 'FlatModifier', selector: 'saving-throw', type: 'item', value: 1 }
+        ]),
         item('Blessing', [{ key: 'FlatModifier', selector: 'all', type: 'status', value: 1 }])
       ]),
       saveDomains('fortitude')
@@ -74,7 +81,10 @@ describe('the ledger', () => {
     )
     expect(result.total).toBe(0)
     expect(result.ledger.confidence).toBe('provisional')
-    expect(result.ledger.skipped[0]).toMatchObject({ reason: 'unsupported-key', key: 'AdjustModifier' })
+    expect(result.ledger.skipped[0]).toMatchObject({
+      reason: 'unsupported-key',
+      key: 'AdjustModifier'
+    })
   })
 
   it('counts a predicate it cannot resolve, and applies nothing for it', () => {
@@ -83,7 +93,13 @@ describe('the ledger', () => {
     const result = deriveFigure(
       input([
         item('Shield Block', [
-          { key: 'FlatModifier', selector: 'ac', type: 'circumstance', value: 2, predicate: ['self:armored'] }
+          {
+            key: 'FlatModifier',
+            selector: 'ac',
+            type: 'circumstance',
+            value: 2,
+            predicate: ['self:armored']
+          }
         ])
       ]),
       AC_DOMAINS
@@ -159,7 +175,10 @@ describe('the version gate', () => {
     // Nothing here LOOKS wrong, which is the point: a rule element whose
     // behaviour moved under the engine is invisible from inside it.
     const result = deriveFigure(
-      input([item('Ring', [{ key: 'FlatModifier', selector: 'ac', type: 'item', value: 1 }])], 'pf2e@9.0.0|en|1.4.0'),
+      input(
+        [item('Ring', [{ key: 'FlatModifier', selector: 'ac', type: 'item', value: 1 }])],
+        'pf2e@9.0.0|en|1.4.0'
+      ),
       AC_DOMAINS
     )
     expect(result.total).toBe(1)
@@ -172,10 +191,7 @@ describe('the version gate', () => {
     // five figures with the same caveat, which ranks nothing and teaches a
     // reader to stop looking. A mismatched stamp is a real signal; a missing one
     // is not.
-    const result = deriveFigure(
-      { items: [], options: {}, paths: {}, stamp: undefined },
-      AC_DOMAINS
-    )
+    const result = deriveFigure({ items: [], options: {}, paths: {}, stamp: undefined }, AC_DOMAINS)
     expect(result.ledger.skipped).toHaveLength(0)
     expect(result.ledger.confidence).toBe('exact')
   })
@@ -234,5 +250,42 @@ describe('stacking', () => {
         mod({ type: 'status', modifier: 1, force: true })
       ])
     ).toBe(3)
+  })
+})
+
+// A modifier's slug is its identity: the harness matches ours against PF2e's by
+// slug, and the roll path keys `modifierOverrides` by it. So ours has to be the
+// slug PF2e would produce, and PF2e DELETES apostrophes rather than turning them
+// into a separator.
+describe('slugs derived from an item name', () => {
+  const named = (name: string): EngineItem =>
+    ({
+      name,
+      type: 'equipment',
+      system: {
+        slug: name.toLowerCase().replace(/\W+/g, '-'),
+        rules: [{ key: 'FlatModifier', selector: 'arcana', type: 'item', value: 1 }]
+      }
+    }) as never
+
+  // An option set that answers every predicate, so the collection is about the
+  // slug rather than about gating.
+  const everything = { has: () => true, knows: () => true }
+  const slugFor = (name: string) =>
+    collectFlatModifiers([named(name)], ['arcana'], everything, { paths: {} }).modifiers[0]?.slug
+
+  it('drops apostrophes rather than hyphenating them', () => {
+    // Three live items hit this: PF2e says `mages-hat`, not `mage-s-hat`.
+    expect(slugFor("Mage's Hat")).toBe('mages-hat')
+    expect(slugFor("Crafter's Eyepiece")).toBe('crafters-eyepiece')
+    expect(slugFor("Healer's Gloves")).toBe('healers-gloves')
+  })
+
+  it('handles the typographic apostrophe the same way', () => {
+    expect(slugFor('Mage’s Hat')).toBe('mages-hat')
+  })
+
+  it('still hyphenates everything else non-alphanumeric', () => {
+    expect(slugFor('Ring of the Weary Traveller')).toBe('ring-of-the-weary-traveller')
   })
 })
