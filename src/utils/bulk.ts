@@ -50,6 +50,13 @@ export class Bulk {
     return this.value === 0
   }
 
+  // One step up the Bulk ladder: negligible becomes Light, Light becomes 1, and
+  // anything heavier gains a whole Bulk. What armour costs to carry instead of
+  // wear.
+  increment(): Bulk {
+    return this.isNegligible ? new Bulk(0.1) : this.isLight ? new Bulk(1) : new Bulk(this.value + 1)
+  }
+
   get isLight(): boolean {
     return this.value > 0 && this.value < 1
   }
@@ -106,7 +113,18 @@ export interface BulkItem {
   _id?: string | null
   type?: string
   system?: {
-    bulk?: { value?: number; per?: number; capacity?: number; ignored?: number }
+    bulk?: {
+      value?: number
+      per?: number
+      capacity?: number
+      ignored?: number
+      // What the item weighs when it is NOT worn or wielded. See carriedBulk.
+      heldOrStowed?: number
+    }
+    // How the item is meant to be carried, which decides which of those two
+    // Bulk values applies. Armour stores none — PF2e assigns it in preparation.
+    usage?: { value?: string | null }
+    equipped?: { carryType?: string; handsHeld?: number; inSlot?: boolean }
     baseItem?: string | null
     // Source for a consumable; absent for treasure and ammunition, which PF2e
     // computes it for. See stackGroupOf.
@@ -179,17 +197,98 @@ export function bulkPerOf(item: BulkItem): number {
 // carry an alteration this cannot see. Absent, the stack group decides.
 const bulkPer = (item: BulkItem) => item.system?.bulk?.per || bulkPerOf(item)
 const isContainer = (item: BulkItem) => item.type === 'backpack'
+
+// PF2e resolves `containerId` through the actor's own inventory and accepts it
+// only when it names a BACKPACK that is not the item itself (updateContainerCache).
+// Anything else — a container since deleted, a reference to something that is
+// not a container, a self-reference — leaves the item at the top level, where it
+// is carried and weighs what it weighs.
+//
+// Worth stating because the obvious test is wrong in a way that hides itself. A
+// filter on the id merely being SET drops such an item out of the carried list
+// AND out of every container's contents at once, so it weighs nothing anywhere
+// and the total is quietly light — no error, no missing row, just a number a
+// little too small. One live character's Elixir of Life points at a container
+// that no longer exists.
+const isStowed = (item: BulkItem, all: readonly BulkItem[]): boolean => {
+  const containerId = item.system?.containerId
+  if (!containerId || containerId === item._id) return false
+  return all.some((candidate) => candidate._id === containerId && isContainer(candidate))
+}
+
+// The same rule read from the container's side. `candidate._id !== item._id`
+// keeps a self-referencing item out of its own contents, where it would recur
+// until the stack gave out.
 const contentsOf = (item: BulkItem, all: readonly BulkItem[]) =>
-  all.filter((candidate) => candidate.system?.containerId === item._id)
+  all.filter(
+    (candidate) => candidate.system?.containerId === item._id && candidate._id !== item._id
+  )
 
 // One item's own Bulk: its stored value, size-converted, times the number of
 // whole stacks its quantity makes up. `per` is the quantity a Bulk value is
 // quoted FOR — 10 for arrows — so nine arrows weigh nothing.
+// PF2e's `getUsageDetails`, in the part Bulk depends on: how an item is MEANT
+// to be carried, which decides whether the way it is currently carried counts as
+// equipped.
+const USAGE_HANDS: Record<string, number> = {
+  'held-in-one-hand': 1,
+  'held-in-one-plus-hands': 1,
+  'held-in-one-or-two-hands': 1,
+  'held-in-two-hands': 2
+}
+
+function usageOf(item: BulkItem): { type: string; where?: string; hands?: number } {
+  // Armour stores no usage at all: ArmorPF2e assigns `wornarmor` during
+  // preparation, so a world-dump armour arrives with the field missing and
+  // would otherwise read as `carried`, which is always equipped — and armour
+  // being always equipped is exactly the case this exists to get right.
+  const value = item.type === 'armor' ? 'wornarmor' : (item.system?.usage?.value ?? '')
+  if (!value || value === 'carried') return { type: 'carried' }
+  if (value in USAGE_HANDS) return { type: 'held', hands: USAGE_HANDS[value] }
+  if (value === 'implanted') return { type: 'implanted' }
+  if (value.startsWith('attached-to')) return { type: 'attached' }
+  if (value.startsWith('installed-in')) return { type: 'installed' }
+  // `worn`, and every `wornXXX` naming a slot: wornbackpack, wornarmor, wornring.
+  return value.length > 4 && value.startsWith('worn')
+    ? { type: 'worn', where: value.substring(4) }
+    : { type: 'worn' }
+}
+
+// PF2e's `isEquipped(usage, equipped)`. The one departure: PF2e resolves an
+// `installed` item through its parent, and gives unarmed and jousting weapons
+// their own answer. Both are zero-Bulk cases, so neither moves a total here.
+function isEquipped(item: BulkItem): boolean {
+  const equipped = item.system?.equipped ?? {}
+  const usage = usageOf(item)
+  if (equipped.carryType === 'dropped') return false
+  if (usage.type === 'carried') return true
+  if (usage.type !== equipped.carryType) return false
+  if (usage.type === 'worn' && usage.where && !equipped.inSlot) return false
+  if (usage.type !== 'held') return true
+  return (equipped.handsHeld ?? 0) >= (usage.hands ?? 1)
+}
+
+// PF2e's `prepareBulkData`: what one of these weighs depends on whether you are
+// WEARING or WIELDING it, not merely on owning it.
+//
+//   equipped     its stored Bulk
+//   armour       one step heavier than worn — negligible→L, L→1, otherwise +1.
+//                Armour is easier to wear than to carry, and this is that rule
+//   anything     its stored `heldOrStowed` when it declares one, which is how a
+//   else         worn backpack weighs nothing and a stowed one weighs Light
+//
+// Reading `bulk.value` alone silently understated every stowed suit of armour on
+// the table by a whole Bulk.
+function carriedBulk(item: BulkItem): number {
+  const bulk = item.system?.bulk
+  if (isEquipped(item)) return bulk?.value ?? 0
+  if (item.type === 'armor') return new Bulk(bulk?.value ?? 0).increment().value
+  return bulk?.heldOrStowed ?? bulk?.value ?? 0
+}
+
 function itemBulk(item: BulkItem, actorSize: string | undefined): Bulk {
   const stacks = Math.floor((item.system?.quantity ?? 0) / bulkPer(item))
-  return new Bulk(item.system?.bulk?.value ?? 0)
-    .convertToSize(item.system?.size, actorSize)
-    .times(stacks)
+  return new Bulk(carriedBulk(item)).convertToSize(item.system?.size, actorSize).times(stacks)
 }
 
 // A container that does not stow (a sheath, a quiver) is not a thing you carry
@@ -276,7 +375,10 @@ export function computeTotalBulk(
 
   const groups = new Map<string, { unit: Bulk; per: number; quantity: number }>()
   for (const item of grouped) {
-    const unit = new Bulk(item.system?.bulk?.value ?? 0).convertToSize(item.system?.size, actorSize)
+    // Through carriedBulk like the individual path, so a stowed copy of a thing
+    // and a worn one weigh what each actually weighs — and land in different
+    // groups, which is the point of the unit being part of the key.
+    const unit = new Bulk(carriedBulk(item)).convertToSize(item.system?.size, actorSize)
     const per = bulkPer(item)
     const key = `${item.system?.baseItem ?? null}-${per}-${unit.toLightUnits()}`
     const entry = groups.get(key) ?? { unit, per, quantity: 0 }
@@ -307,7 +409,7 @@ export function inventoryBulk(
   actorSize: string | undefined,
   addends: { max?: number; encumberedAfter?: number } = {}
 ): InventoryBulk {
-  const carried = items.filter((item) => !item.system?.containerId)
+  const carried = items.filter((item) => !isStowed(item, items))
   const value = computeTotalBulk(carried, items, actorSize)
   // 10 + Str for the carrying maximum, 5 + Str before encumbrance. Both floored,
   // because a rule element addend may be fractional.

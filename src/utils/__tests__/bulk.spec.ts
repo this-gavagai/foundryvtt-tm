@@ -264,3 +264,141 @@ describe('bulk with a derived stack group', () => {
     expect(computeTotalBulk([odd] as never, [odd] as never, 'med').value).toBe(2)
   })
 })
+
+// PF2e accepts a `containerId` only when it names a backpack in the same
+// inventory that is not the item itself; anything else leaves the item at the
+// top level. Reading the id as "stowed, therefore not my problem" dropped such
+// an item out of the carried list AND out of every container's contents, so it
+// weighed nothing anywhere — a total quietly too small, with nothing to see.
+describe('a containerId that does not resolve', () => {
+  const pack = { _id: 'pack', type: 'backpack', system: { bulk: { value: 0, capacity: 4 } } }
+  const elixir = (containerId: string | null) => ({
+    _id: 'elixir',
+    type: 'consumable',
+    system: { quantity: 1, bulk: { value: 0.1 }, containerId }
+  })
+
+  it('carries an item whose container is gone', () => {
+    // The live case: an Elixir of Life pointing at a container that no longer
+    // exists, and a character 0.1 Bulk light for it.
+    const items = [pack, elixir('deleted-container')]
+    expect(inventoryBulk(items as never, 0, 'med').value.value).toBe(0.1)
+  })
+
+  it('still stows it when the container is there', () => {
+    const items = [pack, elixir('pack')]
+    // Inside a backpack that ignores nothing, so the Bulk still tells.
+    expect(inventoryBulk(items as never, 0, 'med').value.value).toBe(0.1)
+    expect(containerCapacity(pack as never, items as never, 'med').value.value).toBe(0.1)
+  })
+
+  it('carries an item pointing at something that is not a container', () => {
+    const rope = { _id: 'rope', type: 'equipment', system: { quantity: 1, bulk: { value: 1 } } }
+    const items = [rope, elixir('rope')]
+    expect(inventoryBulk(items as never, 0, 'med').value.value).toBe(1.1)
+  })
+
+  it('carries an item that names itself, rather than recurring on it', () => {
+    const items = [{ ...pack, system: { ...pack.system, containerId: 'pack' } }]
+    expect(inventoryBulk(items as never, 0, 'med').value.value).toBe(0)
+  })
+})
+
+// PF2e's prepareBulkData: what a thing weighs depends on whether you are wearing
+// or wielding it. Reading `bulk.value` alone understated every stowed suit of
+// armour on the live table by a whole Bulk, and a doffed backpack by a Light.
+describe('the Bulk of a thing you are not using', () => {
+  const armour = (carryType: string, value = 1) => ({
+    _id: 'armour',
+    type: 'armor',
+    // Armour stores NO usage: PF2e assigns `wornarmor` in preparation, so a
+    // world-dump armour arrives with the field missing.
+    system: { quantity: 1, bulk: { value }, equipped: { carryType, inSlot: true } }
+  })
+
+  it('weighs worn armour as stored', () => {
+    expect(
+      computeTotalBulk([armour('worn')] as never, [armour('worn')] as never, 'med').value
+    ).toBe(1)
+  })
+
+  it('weighs stowed armour a whole Bulk heavier', () => {
+    // The live case: Studded Leather stowed in a backpack, 1 Bulk worn and 2
+    // carried, and a character a full Bulk light for it.
+    expect(
+      computeTotalBulk([armour('stowed')] as never, [armour('stowed')] as never, 'med').value
+    ).toBe(2)
+  })
+
+  it('steps a Light suit up to 1 rather than adding a whole Bulk', () => {
+    expect(
+      computeTotalBulk([armour('stowed', 0.1)] as never, [armour('stowed', 0.1)] as never, 'med')
+        .value
+    ).toBe(1)
+  })
+
+  it('steps a negligible suit up to Light', () => {
+    expect(
+      computeTotalBulk([armour('stowed', 0)] as never, [armour('stowed', 0)] as never, 'med').value
+    ).toBe(0.1)
+  })
+
+  const pack = (carryType: string) => ({
+    _id: 'pack',
+    type: 'backpack',
+    system: {
+      quantity: 1,
+      usage: { value: 'wornbackpack' },
+      // A container that does not stow is replaced by its contents, so the
+      // flag has to be here for the backpack itself to weigh anything.
+      stowing: true,
+      bulk: { value: 0, heldOrStowed: 0.1, capacity: 4, ignored: 2 },
+      equipped: { carryType, inSlot: true }
+    }
+  })
+
+  it('weighs a worn backpack as nothing and a held one as Light', () => {
+    expect(computeTotalBulk([pack('worn')] as never, [pack('worn')] as never, 'med').value).toBe(0)
+    expect(computeTotalBulk([pack('held')] as never, [pack('held')] as never, 'med').value).toBe(
+      0.1
+    )
+  })
+
+  it('needs the worn slot, not merely the carry type', () => {
+    // `wornbackpack` names a slot, so PF2e wants `inSlot` too.
+    const outOfSlot = {
+      ...pack('worn'),
+      system: { ...pack('worn').system, equipped: { carryType: 'worn', inSlot: false } }
+    }
+    expect(computeTotalBulk([outOfSlot] as never, [outOfSlot] as never, 'med').value).toBe(0.1)
+  })
+
+  it('counts a held weapon as equipped only with hands enough for it', () => {
+    const halberd = (handsHeld: number) => ({
+      _id: 'halberd',
+      type: 'weapon',
+      system: {
+        quantity: 1,
+        usage: { value: 'held-in-two-hands' },
+        bulk: { value: 2, heldOrStowed: 2 },
+        equipped: { carryType: 'held', handsHeld }
+      }
+    })
+    expect(computeTotalBulk([halberd(2)] as never, [halberd(2)] as never, 'med').value).toBe(2)
+    expect(computeTotalBulk([halberd(1)] as never, [halberd(1)] as never, 'med').value).toBe(2)
+  })
+
+  it('weighs a dropped item by its stowed Bulk', () => {
+    const dropped = {
+      _id: 'd',
+      type: 'equipment',
+      system: {
+        quantity: 1,
+        usage: { value: 'held-in-one-hand' },
+        bulk: { value: 0, heldOrStowed: 1 },
+        equipped: { carryType: 'dropped', handsHeld: 0 }
+      }
+    }
+    expect(computeTotalBulk([dropped] as never, [dropped] as never, 'med').value).toBe(1)
+  })
+})
