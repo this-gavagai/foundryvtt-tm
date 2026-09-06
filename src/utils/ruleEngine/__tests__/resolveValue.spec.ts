@@ -38,6 +38,44 @@ describe('formulas', () => {
   })
 })
 
+describe('PF2e’s own Math helpers', () => {
+  // These are the largest single source of unresolvable values on a real
+  // character: Untrained Improvisation is a match/when chain, and rank upgrades
+  // routinely use ternary.
+  it('evaluates Untrained Improvisation verbatim', () => {
+    const formula =
+      'match(when(lte(@actor.level, 4), @actor.level - 2), ' +
+      'when(btwn(@actor.level, 5, 6), @actor.level - 1), ' +
+      'when(gte(@actor.level, 7), @actor.level))'
+    // Level 7 arm: the whole level.
+    expect(resolveValue(formula, { paths: { 'actor.level': 9 } })).toEqual({ ok: true, value: 9 })
+    // Level 5-6 arm: level - 1. This is the case seen live, and it read 4.
+    expect(resolveValue(formula, { paths: { 'actor.level': 5 } })).toEqual({ ok: true, value: 4 })
+    // Level <= 4 arm: level - 2.
+    expect(resolveValue(formula, { paths: { 'actor.level': 3 } })).toEqual({ ok: true, value: 1 })
+  })
+
+  it('evaluates ternary, as rank upgrades use it', () => {
+    const formula = 'ternary(gte(@actor.level,5),2,1)'
+    expect(resolveValue(formula, { paths: { 'actor.level': 5 } })).toEqual({ ok: true, value: 2 })
+    expect(resolveValue(formula, { paths: { 'actor.level': 4 } })).toEqual({ ok: true, value: 1 })
+  })
+
+  it('lets when yield null and match pick the first non-null', () => {
+    // The pair is the point: a number-only evaluator cannot express `when`.
+    const ctx = { paths: { 'actor.level': 5 } }
+    expect(resolveValue('match(when(gt(@actor.level,10), 99), when(gt(@actor.level,1), 7))', ctx)).toEqual({ ok: true, value: 7 })
+    // No arm matches: match's own `?? 0`.
+    expect(resolveValue('match(when(gt(@actor.level,10), 99))', ctx)).toEqual({ ok: true, value: 0 })
+  })
+
+  it('coerces a bare comparison the way arithmetic would', () => {
+    const ctx = { paths: { 'actor.level': 5 } }
+    expect(resolveValue('gte(@actor.level, 5)', ctx)).toEqual({ ok: true, value: 1 })
+    expect(resolveValue('lt(@actor.level, 5)', ctx)).toEqual({ ok: true, value: 0 })
+  })
+})
+
 describe('refusals', () => {
   it('refuses a path it was not given', () => {
     // The central refusal: most of what a rule wants to read about an actor is

@@ -181,7 +181,12 @@ export function registerServerEventWiring() {
       // confusion the engine's ledger exists to prevent everywhere else.
       armHarness()
       try {
-        recordReport(runDifferential(args, labelCatalogs.stamp))
+        // The world dump's copy of this actor: source data, exactly what the
+        // engine works from in production.
+        const source = useWorldStore().actorById(args.actorId) as
+          | { items?: never[]; system?: unknown }
+          | undefined
+        recordReport(runDifferential(args, labelCatalogs.stamp, source))
       } catch (error) {
         // A failure to RUN is not a clean result and must not read like one.
         recordFailure(args.actorId, error)

@@ -51,6 +51,13 @@ export function proficiencyBonus(rank: number, level: number): number {
 export interface DerivationInput {
   items: readonly EngineItem[]
   level: number
+  // Proficiency ranks the actor already carries, keyed by the same paths PF2e
+  // writes them to. The class item is a FLOOR, not the value — PF2e's own
+  // `prepareActorData` does `Math.max(current, class.savingThrows[save])` — so
+  // anything stored here has to go in first or a rank raised some other way is
+  // silently overwritten downwards. Absent from the world dump for saves and
+  // perception, which is exactly why the class floor is usually all there is.
+  storedRanks?: Record<string, number>
   // Attribute modifiers, already computed from build data app-side.
   attributes: Record<string, number>
   traits?: readonly string[]
@@ -90,6 +97,29 @@ function optionsFor(input: DerivationInput, ranks: Record<string, number>): Roll
 
 const classItem = (items: readonly EngineItem[]) => items.find((item) => item.type === 'class')
 
+// Pull whatever proficiency ranks an actor's system already carries, keyed by
+// the paths PF2e writes them to. Everything here is optional by design: a world
+// dump routinely has none of it, which is the case the engine exists for.
+export function readStoredRanks(system: unknown): Record<string, number> {
+  const source = (system ?? {}) as {
+    saves?: Record<string, { rank?: number } | undefined>
+    skills?: Record<string, { rank?: number } | undefined>
+    perception?: { rank?: number }
+    proficiencies?: { defenses?: Record<string, { rank?: number } | undefined> }
+  }
+  const ranks: Record<string, number> = {}
+  const put = (path: string, rank: unknown) => {
+    if (typeof rank === 'number') ranks[path] = rank
+  }
+  for (const [slug, save] of Object.entries(source.saves ?? {})) put(`system.saves.${slug}.rank`, save?.rank)
+  for (const [slug, skill] of Object.entries(source.skills ?? {})) put(`system.skills.${slug}.rank`, skill?.rank)
+  put('system.perception.rank', source.perception?.rank)
+  for (const [slug, defense] of Object.entries(source.proficiencies?.defenses ?? {})) {
+    put(`system.proficiencies.defenses.${slug}.rank`, defense?.rank)
+  }
+  return ranks
+}
+
 interface ClassSystem {
   savingThrows?: Record<string, number>
   defenses?: Record<string, number>
@@ -111,20 +141,37 @@ export function deriveProficiencyRanks(input: DerivationInput): {
   applied: number
 } {
   const klass = classItem(input.items)?.system as ClassSystem | undefined
+  const stored = input.storedRanks ?? {}
   const seed: Record<string, number> = {}
+  // The class is a floor over whatever the actor already has, never a
+  // replacement for it. Getting this backwards read a Kineticist's expert Will
+  // as trained and put the save two points low, with nothing recorded — the
+  // class had said 1 and that overwrote the 2 already there.
+  const floor = (path: string, classValue: number | undefined) => {
+    seed[path] = Math.max(stored[path] ?? 0, classValue ?? 0)
+  }
 
   for (const save of Object.keys(SAVE_ATTRIBUTES)) {
-    seed[`system.saves.${save}.rank`] = klass?.savingThrows?.[save] ?? 0
+    floor(`system.saves.${save}.rank`, klass?.savingThrows?.[save])
   }
   for (const category of ['unarmored', 'light', 'medium', 'heavy']) {
-    seed[`system.proficiencies.defenses.${category}.rank`] = klass?.defenses?.[category] ?? 0
+    floor(`system.proficiencies.defenses.${category}.rank`, klass?.defenses?.[category])
   }
-  seed['system.perception.rank'] = klass?.perception ?? 0
-  seed['system.proficiencies.classDCs.rank'] = klass ? 1 : 0
+  floor('system.perception.rank', klass?.perception)
+  floor('system.proficiencies.classDCs.rank', klass ? 1 : 0)
 
-  // Skill ranks ARE stored on the actor, so they are not seeded here — but an
-  // AE-like can still raise one, and a skill the class grants at level 1 comes
-  // through the actor's own stored rank rather than the class's list.
+  // Skills are seeded too, and from the same two sources. They were left out
+  // originally on the belief that their ranks are always stored on the actor —
+  // true of a prepared payload, but the WORLD DUMP carried ranks for only four
+  // of one character's eight trained skills. The rest arrive as AE-like
+  // upgrades from feats and class features, which cannot land on a path that
+  // was never seeded.
+  for (const slug of Object.keys(SKILL_ATTRIBUTES)) {
+    floor(`system.skills.${slug}.rank`, klass?.trainedSkills?.value?.includes(slug) ? 1 : 0)
+  }
+  for (const path of Object.keys(stored)) {
+    if (!(path in seed)) seed[path] = stored[path]
+  }
   const context = contextFor(input)
   const bootstrap = buildRollOptions({
     level: input.level,
@@ -169,7 +216,10 @@ export function deriveSkill(
 ): DerivedStatistic {
   const { ranks, ...carried } = deriveProficiencyRanks(input)
   const attribute = options.lore ? 'int' : (options.attribute ?? SKILL_ATTRIBUTES[slug] ?? 'int')
-  const base = (input.attributes[attribute] ?? 0) + proficiencyBonus(storedRank, input.level)
+  // The resolved rank wins over the caller's: it already folds the caller's in
+  // as a floor, and it also carries any AE-like upgrade the caller cannot see.
+  const rank = Math.max(ranks[`system.skills.${slug}.rank`] ?? 0, storedRank)
+  const base = (input.attributes[attribute] ?? 0) + proficiencyBonus(rank, input.level)
   const domains = options.lore ? loreDomains(slug) : skillDomains(slug, attribute)
   return build(input, base, domains, ranks, carried)
 }

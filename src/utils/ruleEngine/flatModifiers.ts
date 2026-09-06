@@ -26,6 +26,9 @@ export interface EngineModifier {
 export interface EngineItem {
   name?: string
   type?: string
+  // Top-level, not under `system` — which is where `{item|flags…}` injections
+  // read from, and where PF2e records a ChoiceSet's selection.
+  flags?: Record<string, unknown>
   system?: {
     slug?: string | null
     rules?: unknown[]
@@ -53,6 +56,16 @@ interface FlatModifierRule {
   damageType?: string
   battleForm?: boolean
 }
+
+// Rule elements that never contribute a modifier, and so are not gaps in a
+// number even when they name a domain the caller cares about.
+//
+// `Note` attaches text to a roll; `AdjustDegreeOfSuccess` shifts an outcome
+// band. Neither changes a total by so much as a point. Counting them made
+// figures read provisional when the engine had missed nothing that affects the
+// number — on one live character they were 46 of 115 recorded skips, drowning
+// the four that mattered.
+const NEVER_AFFECTS_A_TOTAL = new Set(['Note', 'AdjustDegreeOfSuccess', 'RollTwice', 'SubstituteRoll'])
 
 const sluggify = (input: string) =>
   input
@@ -108,6 +121,7 @@ export function collectFlatModifiers(
       const ruleSlug = rule.slug ?? sluggify(rule.label ?? item.name ?? '')
 
       if (key !== 'FlatModifier') {
+        if (NEVER_AFFECTS_A_TOTAL.has(key)) continue
         // Only report a rule that could plausibly touch these domains, so the
         // ledger measures THIS figure's gaps rather than every rule on the
         // actor. A rule with no selector at all (ActiveEffectLike writes a path,

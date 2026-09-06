@@ -33,6 +33,35 @@ const NUMERIC_MODES = new Set<Mode>([
   'override'
 ])
 
+// Paths the applier will accept even when the seed does not name them, because
+// the set is open: a character can be trained in a lore nobody enumerated, and a
+// "choose a skill" feat writes to whichever slug was chosen. Anything matching
+// starts at 0 rather than being dropped.
+const DYNAMIC_PATHS = [/^system\.skills\.[a-z0-9-]+\.rank$/]
+
+// Resolve `{item|some.path}` inside a rule's `path`.
+//
+// PF2e's `resolveInjectedProperties`, narrowed to the one form that appears in a
+// path: a read off the rule's own item. "Skilled Human (Thievery)" writes to
+// `system.skills.{item|flags.system.rulesSelections.skill}.rank`, and every
+// choose-a-skill feat does the same — so without this they are not merely
+// unresolved, they never match a seed key and are dropped before the ledger can
+// see them. Silent, which is the one thing the ledger exists to prevent.
+function resolveInjectedPath(path: string, item: EngineItem): string | null {
+  if (!path.includes('{')) return path
+  let failed = false
+  const resolved = path.replace(/\{item\|([^}]+)\}/g, (_match, inner: string) => {
+    let cursor: unknown = item
+    for (const step of inner.split('.')) {
+      if (cursor === null || typeof cursor !== 'object') return (failed = true), ''
+      cursor = (cursor as Record<string, unknown>)[step]
+    }
+    if (typeof cursor !== 'string' || !cursor) return (failed = true), ''
+    return cursor
+  })
+  return failed || resolved.includes('{') ? null : resolved
+}
+
 interface AeLikeRule {
   key?: string
   mode?: string
@@ -87,22 +116,46 @@ export function applyActiveEffectLikes(
   const paths = { ...seed }
   const draft = emptyLedger()
 
-  const candidates: { rule: AeLikeRule; item: EngineItem }[] = []
+  const wanted = (path: string) => path in paths || DYNAMIC_PATHS.some((re) => re.test(path))
+
+  const candidates: { rule: AeLikeRule; item: EngineItem; path: string | null }[] = []
   for (const item of items) {
     for (const raw of item.system?.rules ?? []) {
       const rule = raw as AeLikeRule
       if (rule.key !== 'ActiveEffectLike' || rule.ignored) continue
       if (typeof rule.path !== 'string') continue
-      if (!(rule.path in paths)) continue
-      candidates.push({ rule, item })
+      const resolved = resolveInjectedPath(rule.path, item)
+      // An unresolvable injection still has to be judged: if the LITERAL path
+      // could only ever have been one this caller cares about, it is a gap worth
+      // reporting rather than a rule aimed elsewhere.
+      if (resolved === null) {
+        if (DYNAMIC_PATHS.some((re) => re.test(rule.path!.replace(/\{[^}]+\}/, 'x')))) {
+          candidates.push({ rule, item, path: null })
+        }
+        continue
+      }
+      if (!wanted(resolved)) continue
+      candidates.push({ rule, item, path: resolved })
     }
   }
   candidates.sort(
     (a, b) => (a.rule.priority ?? DEFAULT_PRIORITY) - (b.rule.priority ?? DEFAULT_PRIORITY)
   )
 
-  for (const { rule, item } of candidates) {
-    const path = rule.path as string
+  for (const { rule, item, path: resolvedPath } of candidates) {
+    if (resolvedPath === null) {
+      draft.skipped.push({
+        reason: 'unresolvable-value',
+        key: 'ActiveEffectLike',
+        slug: rule.path,
+        itemName: item.name,
+        detail: `unresolvable path ${rule.path}`
+      })
+      continue
+    }
+    const path = resolvedPath
+    // A dynamic path the seed never named starts untrained rather than absent.
+    if (!(path in paths)) paths[path] = 0
     const mode = rule.mode as Mode | undefined
     if (!mode || !NUMERIC_MODES.has(mode)) {
       draft.skipped.push({

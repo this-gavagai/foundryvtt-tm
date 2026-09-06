@@ -16,6 +16,7 @@ function report(over: Partial<DifferentialReport> = {}): DifferentialReport {
     clean: true,
     silentMisses: 0,
     totalMismatches: 0,
+    usedSource: true,
     ...over
   }
 }

@@ -11,6 +11,7 @@ import {
   deriveSave,
   deriveSkill,
   type DerivationInput,
+  readStoredRanks,
   type DerivedStatistic
 } from '@/utils/ruleEngine/statistics'
 import type { EngineItem } from '@/utils/ruleEngine/flatModifiers'
@@ -77,6 +78,10 @@ export function useDerivedStatistics(
         cha: attribute('cha')
       },
       traits: (actor.value?.system?.traits as { value?: string[] } | undefined)?.value ?? [],
+      // Whatever ranks this actor already carries. On the world-dump path that
+      // is usually nothing for saves and perception, and a partial set for
+      // skills — the class item's ranks then act as the floor.
+      storedRanks: readStoredRanks(actor.value?.system),
       activeRules: actor.value?.activeRules ?? [],
       stamp: stamp.value
     }

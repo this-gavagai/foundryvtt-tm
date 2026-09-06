@@ -286,3 +286,103 @@ describe('the ledger travels with the figure', () => {
     expect(deriveSave(input, 'fortitude').ledger.confidence).toBe('unverified')
   })
 })
+
+describe('the class rank is a floor, not the value', () => {
+  // Found live: a Kineticist whose class declares Will 1 but whose actor carries
+  // rank 2. Seeding straight from the class overwrote it downwards and put the
+  // save two points low — with NOTHING recorded, because the ledger watches
+  // modifiers and this was the base.
+  it('keeps a stored rank that is higher than the class’s', () => {
+    const input = {
+      ...fighter(),
+      storedRanks: { 'system.saves.will.rank': 2 }
+    }
+    const { ranks } = deriveProficiencyRanks(input)
+    expect(ranks['system.saves.will.rank']).toBe(2)
+    // wis 1 + (expert 2 x 2 + 8) = 13, not the 11 the class floor alone gives.
+    expect(deriveSave(input, 'will').value).toBe(13)
+  })
+
+  it('still raises a stored rank the class exceeds', () => {
+    const input = { ...fighter(), storedRanks: { 'system.saves.fortitude.rank': 0 } }
+    expect(deriveProficiencyRanks(input).ranks['system.saves.fortitude.rank']).toBe(2)
+  })
+})
+
+describe('skill ranks come from more than the actor', () => {
+  // The world dump carried ranks for four of one character's eight trained
+  // skills; the rest arrive as AE-like upgrades, which cannot land on a path
+  // that was never seeded.
+  it('applies an AE-like upgrade to a skill the caller thinks is untrained', () => {
+    const input = fighter([
+      feature('Fire Gate', [
+        { key: 'ActiveEffectLike', mode: 'upgrade', path: 'system.skills.intimidation.rank', value: 1 }
+      ])
+    ])
+    // cha 0 + (trained 1 x 2 + 8) = 10, where a bare untrained read gives 0.
+    expect(deriveSkill(input, 'intimidation', 0).value).toBe(10)
+  })
+
+  it('resolves an injected path, as every choose-a-skill feat uses one', () => {
+    const input = fighter([
+      {
+        name: 'Skilled Human (Thievery)',
+        type: 'heritage',
+        // flags sit at the item's top level, which is where the injection reads.
+        flags: { system: { rulesSelections: { skill: 'thievery' } } },
+        system: {
+          slug: 'skilled-human',
+          rules: [
+            {
+              key: 'ActiveEffectLike',
+              mode: 'upgrade',
+              path: 'system.skills.{item|flags.system.rulesSelections.skill}.rank',
+              value: 'ternary(gte(@actor.level,5),2,1)'
+            }
+          ]
+        }
+      } as never
+    ])
+    // Level 8, so the ternary picks 2: dex 2 + (expert 2 x 2 + 8) = 14.
+    expect(deriveSkill(input, 'thievery', 0).value).toBe(14)
+  })
+
+  it('records an injected path it cannot resolve rather than dropping it', () => {
+    // The silent case: an unresolvable injection never matched a seed key, so it
+    // was discarded before the ledger could see it.
+    const input = fighter([
+      {
+        name: 'Broken Choice',
+        type: 'feat',
+        system: {
+          slug: 'broken-choice',
+          rules: [
+            {
+              key: 'ActiveEffectLike',
+              mode: 'upgrade',
+              path: 'system.skills.{item|flags.system.rulesSelections.missing}.rank',
+              value: 2
+            }
+          ]
+        }
+      } as never
+    ])
+    const result = deriveSkill(input, 'thievery', 0)
+    expect(result.ledger.confidence).toBe('provisional')
+    expect(result.ledger.skipped.some((skip) => skip.detail?.includes('unresolvable path'))).toBe(true)
+  })
+})
+
+describe('rules that cannot move a number are not gaps', () => {
+  it('ignores Note and AdjustDegreeOfSuccess', () => {
+    // They attach text and shift outcome bands. Counting them made figures read
+    // provisional when nothing affecting the number had been missed.
+    const input = fighter([
+      feature('Assurance', [
+        { key: 'Note', selector: 'fortitude', text: 'something' },
+        { key: 'AdjustDegreeOfSuccess', selector: 'fortitude', adjustment: {} }
+      ])
+    ])
+    expect(deriveSave(input, 'fortitude').ledger.confidence).toBe('exact')
+  })
+})

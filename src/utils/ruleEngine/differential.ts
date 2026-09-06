@@ -3,6 +3,7 @@ import { ref, type Ref } from 'vue'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import { deriveFigure, type EngineInput } from './index'
 import {
+  readStoredRanks,
   deriveArmorClass,
   deriveHitPointsMax,
   derivePerception,
@@ -79,6 +80,10 @@ export interface DifferentialReport {
   // Totals that disagreed, which is the number worth watching as the engine
   // matures — a modifier set can be right while the figure is wrong.
   totalMismatches: number
+  // Whether this ran against SOURCE data, as production does, or fell back to
+  // the payload's prepared system. A report built the second way flatters the
+  // engine and must not be read as a measurement of the real path.
+  usedSource: boolean
 }
 
 interface WireModifier {
@@ -186,10 +191,23 @@ function compareFigure(
 // say where it diverged.
 export function runDifferential(
   args: UpdateCharacterDetailsArgs,
-  stamp: string | undefined
+  stamp: string | undefined,
+  // The SAME actor as the world dump holds it — source data, no prepared
+  // overlays. Passing it is what makes this a measurement of the fallback path
+  // rather than of a situation the engine never faces.
+  //
+  // Without it the harness fed the engine the payload's own prepared system,
+  // whose skill ranks and save ranks are already resolved. On one live
+  // character the dump carried ranks for four of eight trained skills and no
+  // saves or perception at all, so the harness was measuring a materially
+  // easier problem and reporting the result as if it were the real one.
+  sourceActor?: { items?: EngineItem[]; system?: unknown }
 ): DifferentialReport {
   const actor = args.actor as { items?: EngineItem[] } | undefined
-  const items = actor?.items ?? []
+  // Prefer source; fall back to the payload so the harness still says something
+  // when the world has not loaded yet.
+  const items = sourceActor?.items ?? actor?.items ?? []
+  const usedSource = !!sourceActor?.items
   const system = args.system as
     | {
         details?: { level?: { value?: number } }
@@ -226,7 +244,16 @@ export function runDifferential(
   }
   const derivationInput: DerivationInput | undefined =
     typeof level === 'number'
-      ? { items, level, attributes, traits: system?.traits?.value ?? [], activeRules: args.activeRules ?? [], stamp }
+      ? {
+          items,
+          level,
+          attributes,
+          traits: system?.traits?.value ?? [],
+          activeRules: args.activeRules ?? [],
+          // From SOURCE when we have it, which is the whole point.
+          storedRanks: readStoredRanks(sourceActor?.system ?? undefined),
+          stamp
+        }
       : undefined
 
   const figures: FigureDivergence[] = []
@@ -317,7 +344,15 @@ export function runDifferential(
         figure.silentMiss.length === 0 &&
         !figure.total
     )
-  return { actorId: args.actorId, figures, attributes: attributeDivergence, clean, silentMisses, totalMismatches }
+  return {
+    actorId: args.actorId,
+    figures,
+    attributes: attributeDivergence,
+    clean,
+    silentMisses,
+    totalMismatches,
+    usedSource
+  }
 }
 
 // A compact summary for a log line: only the figures that diverged.

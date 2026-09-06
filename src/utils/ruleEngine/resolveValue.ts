@@ -28,13 +28,41 @@ export interface ValueContext {
   itemBadge?: number
 }
 
-const FUNCTIONS: Record<string, (args: number[]) => number> = {
-  floor: ([a]) => Math.floor(a),
-  ceil: ([a]) => Math.ceil(a),
-  round: ([a]) => Math.round(a),
-  abs: ([a]) => Math.abs(a),
-  min: (args) => Math.min(...args),
-  max: (args) => Math.max(...args)
+// PF2e installs its own helpers onto `Math` at startup, and content uses them
+// heavily — Untrained Improvisation's value is a `match`/`when` chain, and rank
+// upgrades commonly use `ternary`. They are the largest single source of
+// unresolvable values on a real character, so they are reproduced here verbatim.
+//
+// Note the types: `when` returns NULL when its condition is false, `match` picks
+// the first non-null, and the comparisons return BOOLEANS. So the evaluator
+// works over `number | boolean | null` rather than numbers, and coerces only at
+// the very end. A number-only evaluator cannot express `when` at all.
+type Val = number | boolean | null
+
+// Arithmetic coercion, matching what JavaScript does when these reach an
+// operator: false/null are 0, true is 1.
+const num = (value: Val): number => (value === null ? 0 : typeof value === 'boolean' ? (value ? 1 : 0) : value)
+
+const FUNCTIONS: Record<string, (args: Val[]) => Val> = {
+  floor: ([a]) => Math.floor(num(a)),
+  ceil: ([a]) => Math.ceil(num(a)),
+  round: ([a]) => Math.round(num(a)),
+  abs: ([a]) => Math.abs(num(a)),
+  min: (args) => Math.min(...args.map(num)),
+  max: (args) => Math.max(...args.map(num)),
+  // PF2e's additions, copied from its `Math.*` assignments.
+  eq: ([a, b]) => num(a) === num(b),
+  ne: ([a, b]) => num(a) !== num(b),
+  gt: ([a, b]) => num(a) > num(b),
+  gte: ([a, b]) => num(a) >= num(b),
+  lt: ([a, b]) => num(a) < num(b),
+  lte: ([a, b]) => num(a) <= num(b),
+  btwn: ([a, min, max]) => num(a) >= num(min) && num(a) <= num(max),
+  ternary: ([condition, a, b]) => (condition ? a : b),
+  // `when` is the only one that can yield null, and `match` is the only thing
+  // that reads null as meaningful — they are designed as a pair.
+  when: ([condition, value]) => (condition ? value : null),
+  match: (args) => args.find((arg) => arg !== null) ?? 0
 }
 
 type Token = { kind: 'num'; value: number } | { kind: 'op' | 'name' | 'paren' | 'comma'; text: string }
@@ -84,50 +112,52 @@ function tokenize(input: string): Token[] | null {
 
 // Recursive descent: expression → term → factor. Small enough to read, and it
 // refuses anything it was not built for instead of falling through to eval.
-function parse(tokens: Token[]): number | null {
+function parse(tokens: Token[]): Val | undefined {
   let pos = 0
   const peek = () => tokens[pos]
 
-  function expression(): number | null {
+  function expression(): Val | undefined {
     let left = term()
-    if (left === null) return null
+    if (left === undefined) return undefined
     for (;;) {
       const token = peek()
       if (token?.kind !== 'op' || (token.text !== '+' && token.text !== '-')) return left
       pos++
       const right = term()
-      if (right === null) return null
-      left = token.text === '+' ? left + right : left - right
+      if (right === undefined) return undefined
+      left = token.text === '+' ? num(left) + num(right) : num(left) - num(right)
     }
   }
 
-  function term(): number | null {
+  function term(): Val | undefined {
     let left = factor()
-    if (left === null) return null
+    if (left === undefined) return undefined
     for (;;) {
       const token = peek()
       if (token?.kind !== 'op' || !'*/%'.includes(token.text)) return left
       pos++
       const right = factor()
-      if (right === null) return null
-      if (token.text === '*') left = left * right
+      if (right === undefined) return undefined
+      const a = num(left)
+      const b = num(right)
+      if (token.text === '*') left = a * b
       else if (token.text === '/') {
-        if (right === 0) return null
-        left = left / right
+        if (b === 0) return undefined
+        left = a / b
       } else {
-        if (right === 0) return null
-        left = left % right
+        if (b === 0) return undefined
+        left = a % b
       }
     }
   }
 
-  function factor(): number | null {
+  function factor(): Val | undefined {
     const token = peek()
-    if (!token) return null
+    if (!token) return undefined
     if (token.kind === 'op' && token.text === '-') {
       pos++
       const inner = factor()
-      return inner === null ? null : -inner
+      return inner === undefined ? undefined : -num(inner)
     }
     if (token.kind === 'op' && token.text === '+') {
       pos++
@@ -139,14 +169,14 @@ function parse(tokens: Token[]): number | null {
     }
     if (token.kind === 'name') {
       const fn = FUNCTIONS[token.text]
-      if (!fn) return null
+      if (!fn) return undefined
       pos++
-      if (peek()?.kind !== 'paren' || (peek() as { text: string }).text !== '(') return null
+      if (peek()?.kind !== 'paren' || (peek() as { text: string }).text !== '(') return undefined
       pos++
-      const args: number[] = []
+      const args: Val[] = []
       for (;;) {
         const arg = expression()
-        if (arg === null) return null
+        if (arg === undefined) return undefined
         args.push(arg)
         const next = peek()
         if (next?.kind === 'comma') {
@@ -156,24 +186,24 @@ function parse(tokens: Token[]): number | null {
         break
       }
       const close = peek()
-      if (close?.kind !== 'paren' || close.text !== ')') return null
+      if (close?.kind !== 'paren' || close.text !== ')') return undefined
       pos++
       return fn(args)
     }
     if (token.kind === 'paren' && token.text === '(') {
       pos++
       const inner = expression()
-      if (inner === null) return null
+      if (inner === undefined) return undefined
       const close = peek()
-      if (close?.kind !== 'paren' || close.text !== ')') return null
+      if (close?.kind !== 'paren' || close.text !== ')') return undefined
       pos++
       return inner
     }
-    return null
+    return undefined
   }
 
   const result = expression()
-  return result !== null && pos === tokens.length ? result : null
+  return result !== undefined && pos === tokens.length ? result : undefined
 }
 
 // Substitute `@path` references. A path the context does not carry makes the
@@ -237,7 +267,11 @@ export function resolveValue(raw: unknown, context: ValueContext): Resolution {
 
   const tokens = tokenize(substituted)
   if (!tokens) return unresolved(`unparsable formula "${trimmed}"`)
-  const value = parse(tokens)
-  if (value === null || !Number.isFinite(value)) return unresolved(`unevaluable formula "${trimmed}"`)
+  const parsed = parse(tokens)
+  if (parsed === undefined) return unresolved(`unevaluable formula "${trimmed}"`)
+  // A whole expression resolving to null (an unmatched `when`) is zero, which is
+  // what `match`'s own `?? 0` does and what Number(null) would give.
+  const value = num(parsed)
+  if (!Number.isFinite(value)) return unresolved(`unevaluable formula "${trimmed}"`)
   return { ok: true, value }
 }
