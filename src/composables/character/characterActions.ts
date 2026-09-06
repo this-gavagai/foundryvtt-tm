@@ -1,4 +1,5 @@
 import { computed, type Ref } from 'vue'
+import { useDerivedModifiers } from './derivedModifiers'
 import { useDerivedStatistics } from './derivedStatistics'
 import { useWorldLabels } from '@/composables/useWorldLabels'
 import type { CharacterPF2e, AbilityItemPF2e, FeatPF2e } from '@7h3laughingman/pf2e-types'
@@ -94,6 +95,7 @@ function isActivity(item: AbilityLike, trait: ActivityTrait) {
 
 export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): CharacterActions {
   const derived = useDerivedStatistics(actor)
+  const derivedModifiers = useDerivedModifiers()
   // Lazy, like every other fallback: a computed is not evaluated until read, and
   // with a GM online the prepared total short-circuits before it is.
   const derivedInitiative = computed(() => {
@@ -279,7 +281,14 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
         updateActor(actor, update).catch(() => {})
       }
     }),
-    modifiers: computed(() => makeModifiers(actor.value?.system?.initiative?.modifiers)),
+    // The combat bar reads this list, so leaving it empty without a GM was a
+    // visible gap rather than a dead field — the same one AC and hit points
+    // had. `deriveInitiative` already builds it; this is the wiring.
+    modifiers: computed(() => {
+      const reported = actor.value?.system?.initiative?.modifiers
+      if (reported) return makeModifiers(reported)
+      return derivedModifiers.present(derivedInitiative.value?.modifiers)
+    }),
     // The statistic that rolls initiative is stored; its total is not. Derived
     // from whichever statistic is named — the sheet showed `??` without a GM,
     // for a number the engine could already compute.

@@ -1,4 +1,5 @@
 import { computed, type Ref } from 'vue'
+import { useDerivedModifiers } from './derivedModifiers'
 import { useDerivedStatistics } from './derivedStatistics'
 import type { EngineItem } from '@/utils/ruleEngine/flatModifiers'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
@@ -57,6 +58,7 @@ export interface CharacterSpells {
 
 export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): CharacterSpells {
   const derived = useDerivedStatistics(actor)
+  const derivedModifiers = useDerivedModifiers()
   const spellcastingEntries = computed(() =>
     actor.value?.items
       ?.filter((i): i is SpellcastingEntryPF2e<CharacterPF2e> => i?.type === 'spellcastingEntry')
@@ -82,7 +84,11 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
           spellDCProvisional: derivedDc?.provisional ?? false,
           spellAttackModifier: spellModData?.mod ?? derivedAttack?.value,
           spellAttackProvisional: derivedAttack?.provisional ?? false,
-          spellAttackModifiers: makeModifiers(spellModData?.modifiers),
+          // Three modals render this. PF2e's wins; the engine's stands in, from
+          // the same statistic that produced the attack modifier above.
+          spellAttackModifiers: spellModData?.modifiers
+            ? makeModifiers(spellModData.modifiers)
+            : derivedModifiers.present(derivedAttack?.modifiers),
           doSpellAttack: (result?: number, modifierOverrides?: Record<string, boolean>) =>
             rollCheck(
               actor,

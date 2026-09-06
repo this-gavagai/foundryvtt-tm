@@ -209,3 +209,47 @@ describe('the hit point fallback reaches the sheet', () => {
     )
   })
 })
+
+// Initiative and the spellcasting check breakdown were the last two lists the
+// engine built and nothing read. Both are rendered — the combat bar and three
+// spell modals — so an empty list without a GM was a visible gap, not a dead
+// field. Shapes here are taken from a live payload: initiative reports
+// `wis`/`Wisdom` and `proficiency`/`Trained`, spell attack `int`/`Intelligence`.
+describe('the last two modifier lists', () => {
+  const { present } = useDerivedModifiers()
+
+  it('presents initiative as the statistic it follows', async () => {
+    const { deriveInitiative } = await import('@/utils/ruleEngine/statistics')
+    const rows = present(deriveInitiative(wizard(), 'perception', 0).modifiers)
+    expect(rows?.map((r) => [r.slug, r.label])).toEqual([
+      ['wis', 'Wisdom'],
+      ['proficiency', 'Trained']
+    ])
+  })
+
+  it('follows a named skill rather than perception when one is set', async () => {
+    const { deriveInitiative } = await import('@/utils/ruleEngine/statistics')
+    const rows = present(deriveInitiative(wizard(), 'stealth', 1).modifiers)
+    expect(rows?.map((r) => r.label)).toEqual(['Dexterity', 'Trained'])
+  })
+
+  it('presents a spellcasting entry’s check breakdown from its own attribute', async () => {
+    const { deriveSpellAttack } = await import('@/utils/ruleEngine/statistics')
+    const entry = {
+      name: 'Arcane Spellcasting',
+      type: 'spellcastingEntry',
+      system: {
+        slug: 'arcane-spellcasting',
+        rules: [],
+        ability: { value: 'int' },
+        tradition: { value: 'arcane' },
+        proficiency: { value: 1 }
+      }
+    } as unknown as EngineItem
+    const rows = present(deriveSpellAttack(wizard([entry]), entry).modifiers)
+    expect(rows?.map((r) => [r.label, r.modifier])).toEqual([
+      ['Intelligence', 4],
+      ['Trained', 7]
+    ])
+  })
+})
