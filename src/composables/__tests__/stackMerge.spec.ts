@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ref, type Ref } from 'vue'
 import type { TablemateCharacter } from '@/types/character-types'
+import { setActivePinia, createPinia } from 'pinia'
 
 // Merging is a credit followed by a delete, in that order: the quantity has to
 // exist on the survivor before it stops existing on the source, or a failure
@@ -74,6 +75,11 @@ beforeEach(() => {
     return Promise.resolve({})
   })
 })
+
+// useCharacterItems composes item names from the world label catalog, which
+// lives in a store — so these need an active Pinia even though they are about
+// stacking.
+beforeEach(() => setActivePinia(createPinia()))
 
 describe('InventoryItem.stackableIds', () => {
   it('names the stacks this one could absorb', () => {

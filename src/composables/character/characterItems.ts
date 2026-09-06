@@ -1,4 +1,7 @@
 import { computed, type Ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useLabelCatalogsStore } from '@/stores/labelCatalogs'
+import { composeItemName, type NameableItem } from '@/utils/itemName'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { ContainerCapacity, TablemateCharacter } from '@/types/character-types'
 import type DocumentSocketResponse from '@7h3laughingman/foundry-types/common/abstract/socket.mjs'
@@ -84,15 +87,21 @@ export interface CharacterItems {
 }
 
 export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): CharacterItems {
+  // Item names are composed by PF2e from runes, material and grade, and the
+  // pieces now ride the world catalog — so this needs no GM and no round trip.
+  const { catalogs } = storeToRefs(useLabelCatalogsStore())
+  const composedName = (item: NameableItem) => composeItemName(item, catalogs.value.itemNames)
+
   // A character's size lives on `system.traits`, which PF2e assembles from the
   // ancestry and therefore omits from source; fall back to the ancestry item,
   // which is where it came from.
   const actorSize = computed(
     () =>
       (actor.value?.system?.traits as { size?: { value?: string } } | undefined)?.size?.value ??
-      (actor.value?.items?.find((i) => i.type === 'ancestry')?.system as
-        | { size?: string }
-        | undefined)?.size
+      (
+        actor.value?.items?.find((i) => i.type === 'ancestry')?.system as
+          { size?: string } | undefined
+      )?.size
   )
 
   // A container's capacity readout, derived when no payload has supplied one.
@@ -254,7 +263,9 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
             : i.type === 'consumable'
               ? makeConsumable(i as ConsumablePF2e<CharacterPF2e>)
               : makeEquipment(i as EquipmentPF2e<CharacterPF2e>)),
-        label: actor.value?.inventory?.labels?.[i._id!],
+        // The payload's precomputed name wins; without one the sheet composes
+        // it from the catalog exactly as PF2e does. See utils/itemName.
+        label: actor.value?.inventory?.labels?.[i._id!] ?? composedName(i as never),
         capacity: actor.value?.inventory?.containers?.[i._id!] ?? derivedCapacity(i as BulkItem),
         toggleInvested: (newValue: boolean = !i?.system?.equipped?.invested) => {
           const update = { system: { equipped: { invested: newValue } } }
@@ -344,7 +355,7 @@ export function useCharacterItems(actor: Ref<TablemateCharacter | undefined>): C
       .map((e) => {
         ;(e.system as PhysicalItemSystem).subitems?.forEach((s) => {
           const sub = s as InventoryItem
-          sub.label = actor.value?.inventory?.labels?.[s?._id ?? '']
+          sub.label = actor.value?.inventory?.labels?.[s?._id ?? ''] ?? composedName(s as never)
           // The owning item `e` is this subitem's parent; detach goes through it.
           sub.detach = () => detachItem(actor, e._id!, s._id!)
         })

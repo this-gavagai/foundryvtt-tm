@@ -271,6 +271,20 @@ export function configPF2E(): ConfigPF2E {
 // Here rather than in listener.ts, its original home, because the label catalog
 // stamp needs it too (utils/labels.ts) and labels must not import the listener —
 // the listener imports the handlers, which import labels.
+// The loaded translation table, for the one catalog that has to ENUMERATE i18n
+// keys rather than look them up.
+//
+// Every other dictionary the label catalogs read comes from CONFIG.PF2E, which
+// maps a slug to a key. Property rune names do not: PF2e keeps them in a table
+// internal to its bundle, unreachable from a module. What IS reachable is the
+// naming convention — `PF2E.WeaponPropertyRune.<slug>.Name` for weapons and
+// `PF2E.ArmorPropertyRune<Slug>` for armour — so the slugs can be recovered from
+// the translations themselves, which Foundry does expose.
+export function translations(): Record<string, unknown> {
+  const scope = game as unknown as { i18n?: { translations?: Record<string, unknown> } }
+  return (scope.i18n?.translations?.PF2E as Record<string, unknown>) ?? {}
+}
+
 export function moduleVersion(): string | undefined {
   return game.modules?.get?.(MODULE_ID)?.version ?? undefined
 }

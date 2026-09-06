@@ -697,6 +697,11 @@ export interface WorldLabelCatalogs {
   // relative to "per" is the translation's decision, and PF2e's own action
   // template composes it the same way.
   frequencies: Record<string, string>
+  // The pieces of a composed item name — base types, rune names, materials,
+  // grades and the templates that arrange them. Prefixed by kind
+  // (`weapon-base-`, `rune-`, `format-`) because they share one flat map and a
+  // rune and a base type can slug the same.
+  itemNames: Record<string, string>
 }
 
 export interface GetLabelCatalogsArgs {

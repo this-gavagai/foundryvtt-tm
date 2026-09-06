@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ref, type Ref } from 'vue'
 import type { TablemateCharacter } from '@/types/character-types'
+import { setActivePinia, createPinia } from 'pinia'
 
 // Splitting a stack is a create followed by a decrement, in that order: the
 // difference between the two writes is quantity that exists nowhere else, so a
@@ -62,6 +63,11 @@ beforeEach(() => {
   createActorItem.mockClear().mockResolvedValue({})
   updateActorItem.mockClear().mockResolvedValue({})
 })
+
+// useCharacterItems composes item names from the world label catalog, which
+// lives in a store — so these need an active Pinia even though they are about
+// stacking.
+beforeEach(() => setActivePinia(createPinia()))
 
 describe('InventoryItem.splitStack', () => {
   it('creates the split-off stack, then decrements the original', async () => {

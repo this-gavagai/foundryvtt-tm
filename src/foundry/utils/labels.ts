@@ -3,7 +3,15 @@
 // IWR entries) into display-ready strings for the client.
 
 import type { ActorPF2e, ItemPF2e, RawModifier } from '@7h3laughingman/pf2e-types'
-import { configPF2E, getGame, localize, localizeOr, moduleVersion, type ConfigPF2E } from '../globals'
+import {
+  configPF2E,
+  getGame,
+  localize,
+  localizeOr,
+  moduleVersion,
+  translations,
+  type ConfigPF2E
+} from '../globals'
 import type { SpellcastingModifierData } from '@/types/character-types'
 import type { WorldLabelCatalogs } from '@/types/api-types'
 
@@ -142,6 +150,92 @@ function localizeDictionary(
   return out
 }
 
+// The strings PF2e composes a physical item's display name out of.
+//
+// `generateItemName` builds "+1 Striking Longsword" from the base type, the
+// fundamental runes, up to four property runes, a precious material and a grade
+// — every part an i18n string, and every part world-static. So it belongs in the
+// catalog beside the trait names rather than being recomputed per item per
+// refresh, and once it is there the app can compose the name itself.
+//
+// Two of the sources are CONFIG dictionaries and read like every other catalog
+// family. The property runes are not: PF2e keeps those tables inside its own
+// bundle, out of a module's reach. What is reachable is the KEY CONVENTION —
+// weapons nest under `PF2E.WeaponPropertyRune.<slug>.Name`, armour is flat as
+// `PF2E.ArmorPropertyRune<Slug>` — so the slugs come back out of the loaded
+// translations, which is the one place they are enumerable.
+function itemNameParts(): Record<string, string> {
+  const cfg = configPF2E()
+  const t = translations()
+  const out: Record<string, string> = {}
+
+  // Base types. Weapons and shields are already carried for proficiency labels;
+  // armour was not, because nothing needed it until now.
+  const dict = (source: unknown, prefix: string) => {
+    for (const [slug, key] of Object.entries((source ?? {}) as Record<string, unknown>)) {
+      if (typeof key === 'string') out[`${prefix}${slug}`] = localize(key)
+    }
+  }
+  dict(cfg.baseWeaponTypes, 'weapon-base-')
+  dict(cfg.baseArmorTypes, 'armor-base-')
+  dict(cfg.baseShieldTypes, 'shield-base-')
+  dict((cfg as unknown as Record<string, unknown>).preciousMaterials, 'material-')
+  dict((cfg as unknown as Record<string, unknown>).grades, 'grade-')
+
+  // Weapon property runes: a nested object whose keys ARE the slugs.
+  const weaponRunes = t.WeaponPropertyRune
+  if (weaponRunes && typeof weaponRunes === 'object') {
+    for (const slug of Object.keys(weaponRunes as Record<string, unknown>)) {
+      const name = localize(`PF2E.WeaponPropertyRune.${slug}.Name`)
+      if (name && !name.startsWith('PF2E.')) out[`rune-${slug}`] = name
+    }
+  }
+  // Armour property runes: flat keys, the slug with its first letter capitalised
+  // — which inverts exactly, since that is the only transform applied.
+  for (const key of Object.keys(t)) {
+    if (!key.startsWith('ArmorPropertyRune') || key === 'ArmorPropertyRune') continue
+    const tail = key.slice('ArmorPropertyRune'.length)
+    if (!tail) continue
+    const slug = tail.charAt(0).toLowerCase() + tail.slice(1)
+    const name = localize(`PF2E.${key}`)
+    if (name && !name.startsWith('PF2E.')) out[`rune-${slug}`] = name
+  }
+
+  // Fundamentals, by numeric value, matching what generateItemName reads.
+  const fundamentals: [string, string][] = [
+    ['striking-1', 'PF2E.Item.Weapon.Rune.Striking.Striking'],
+    ['striking-2', 'PF2E.Item.Weapon.Rune.Striking.Greater'],
+    ['striking-3', 'PF2E.Item.Weapon.Rune.Striking.Major'],
+    ['striking-4', 'PF2E.Item.Weapon.Rune.Striking.Mythic'],
+    ['resilient-1', 'PF2E.ArmorResilientRune'],
+    ['resilient-2', 'PF2E.ArmorGreaterResilientRune'],
+    ['resilient-3', 'PF2E.ArmorMajorResilientRune'],
+    ['reinforcing-1', 'PF2E.Item.Shield.Rune.Reinforcing.Minor'],
+    ['reinforcing-2', 'PF2E.Item.Shield.Rune.Reinforcing.Lesser'],
+    ['reinforcing-3', 'PF2E.Item.Shield.Rune.Reinforcing.Moderate'],
+    ['reinforcing-4', 'PF2E.Item.Shield.Rune.Reinforcing.Greater'],
+    ['reinforcing-5', 'PF2E.Item.Shield.Rune.Reinforcing.Major'],
+    ['reinforcing-6', 'PF2E.Item.Shield.Rune.Reinforcing.Supreme']
+  ]
+  for (const [slug, key] of fundamentals) {
+    const name = localize(key)
+    if (name && !name.startsWith('PF2E.')) out[slug] = name
+  }
+
+  // The composition templates themselves — "+{potency} {fundamental2} {base}"
+  // and its 35 siblings. Enumerated rather than listed, so a new arrangement in
+  // a later system version arrives without a code change here.
+  const formats = (t.Item as Record<string, unknown> | undefined)?.Physical as
+    Record<string, unknown> | undefined
+  const generated = formats?.GeneratedName
+  if (generated && typeof generated === 'object') {
+    for (const key of Object.keys(generated as Record<string, unknown>)) {
+      out[`format-${key}`] = localize(`PF2E.Item.Physical.GeneratedName.${key}`)
+    }
+  }
+  return out
+}
+
 // Everything the app needs to turn a slug into a display name, for the WHOLE
 // world rather than one actor.
 //
@@ -195,6 +289,8 @@ export function buildWorldLabelCatalogs(): WorldLabelCatalogs {
       ...localizeDictionary(cfg.resistanceTypes)
     },
     languages: localizeDictionary(cfg.languages),
+    // Every string generateItemName composes from. See itemNameParts.
+    itemNames: itemNameParts(),
     // The composed phrase per interval, not the bare interval: `per` is an enum
     // key whose CONFIG entry is an i18n key, and the word order around it
     // belongs to the translation. Eight-odd entries, built once for the world

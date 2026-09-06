@@ -33,7 +33,15 @@ import { logger } from '@/utils/utilities'
 export type LabelCatalogs = WorldLabelCatalogs
 
 export function emptyLabelCatalogs(): LabelCatalogs {
-  return { traits: {}, proficiencies: {}, rollOptions: {}, iwr: {}, languages: {}, frequencies: {} }
+  return {
+    traits: {},
+    proficiencies: {},
+    rollOptions: {},
+    iwr: {},
+    languages: {},
+    frequencies: {},
+    itemNames: {}
+  }
 }
 
 // Narrow an untrusted catalog object — one published into a world setting by
