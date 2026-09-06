@@ -156,3 +156,56 @@ describe('presenting them', () => {
     expect(present(undefined)).toBeUndefined()
   })
 })
+
+// The claim the "Local · provisional" chip makes: with no payload list at all,
+// the sheet still shows a breakdown. Driven through the composable rather than
+// the engine, because the engine having the rows proves nothing about whether
+// anything asks for them.
+describe('the hit point fallback reaches the sheet', () => {
+  it('presents the derived rows when the payload carries no list', async () => {
+    const { setActivePinia, createPinia } = await import('pinia')
+    setActivePinia(createPinia())
+    const { useCharacterResources } = await import('@/composables/character/characterResources')
+    const { ref } = await import('vue')
+
+    const actor = ref({
+      _id: 'x',
+      items: wizard().items,
+      system: {
+        details: { level: { value: 5 } },
+        abilities: { str: {}, dex: {}, con: { mod: 3 }, int: {}, wis: {}, cha: {} },
+        // No max, and crucially no `_modifiers` either: the world-dump shape.
+        attributes: { hp: { value: 53, temp: 0 } }
+      }
+    })
+
+    const { hp } = useCharacterResources(actor as never)
+    expect(hp.modifiers.value?.map((m) => `${m.label} ${m.modifier}`)).toEqual([
+      'Ancestry HP 8',
+      'Class HP 30',
+      'Constitution 15'
+    ])
+  })
+
+  it('prefers PF2e’s own list, under either spelling', async () => {
+    const { setActivePinia, createPinia } = await import('pinia')
+    setActivePinia(createPinia())
+    const { useCharacterResources } = await import('@/composables/character/characterResources')
+    const { ref } = await import('vue')
+
+    const withUnderscore = ref({
+      _id: 'x',
+      items: wizard().items,
+      system: {
+        details: { level: { value: 5 } },
+        abilities: { con: { mod: 3 } },
+        attributes: {
+          hp: { value: 53, max: 53, _modifiers: [{ slug: 'gm', label: 'From PF2e', modifier: 1 }] }
+        }
+      }
+    })
+    expect(useCharacterResources(withUnderscore as never).hp.modifiers.value?.[0].label).toBe(
+      'From PF2e'
+    )
+  })
+})
