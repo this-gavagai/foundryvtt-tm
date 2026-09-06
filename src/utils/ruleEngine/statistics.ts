@@ -279,24 +279,43 @@ export function deriveProficiencyRanks(input: DerivationInput): {
 // answer plainly: `proficiency:0:proficiency:false` beside
 // `untrained-improvisation:4:proficiency:true` on an untrained skill, and the
 // reverse once trained.
-function baseModifiers(
-  attributeSlug: string,
-  attribute: number,
-  proficiency: number
-): EngineModifier[] {
-  const make = (slug: string, modifier: number, type: string): EngineModifier => ({
+// A modifier the engine constructs rather than reads off a rule element.
+//
+// `label` is a stable English string, matching what PF2e names the same entry.
+// It is NOT localized here — the engine has no locale — and the sheet maps the
+// slugs it recognizes through its own i18n before display, falling back to this.
+export function namedModifier(
+  slug: string,
+  label: string,
+  modifier: number,
+  type: string
+): EngineModifier {
+  return {
     slug,
-    label: slug,
+    label,
     modifier,
     type,
     enabled: true,
     hideIfDisabled: false,
     force: false,
     source: ''
-  })
+  }
+}
+
+// PF2e labels the proficiency entry by RANK — "Trained", "Expert" — not by the
+// word "proficiency", so the rank has to travel with the bonus for the reported
+// list to match the one PF2e sends.
+const RANK_NAMES = ['untrained', 'trained', 'expert', 'master', 'legendary']
+
+function baseModifiers(
+  attributeSlug: string,
+  attribute: number,
+  proficiency: number,
+  rank = 0
+): EngineModifier[] {
   return [
-    make(attributeSlug, attribute, 'ability'),
-    make('proficiency', proficiency, 'proficiency')
+    namedModifier(attributeSlug, attributeSlug, attribute, 'ability'),
+    namedModifier('proficiency', RANK_NAMES[rank] ?? 'untrained', proficiency, 'proficiency')
   ]
 }
 
@@ -360,7 +379,12 @@ export function deriveSkill(
   return build(
     input,
     0,
-    baseModifiers(attribute, input.attributes[attribute] ?? 0, proficiencyBonus(rank, input.level)),
+    baseModifiers(
+      attribute,
+      input.attributes[attribute] ?? 0,
+      proficiencyBonus(rank, input.level),
+      rank
+    ),
     domains,
     ranks,
     relevant(carried, [])
@@ -374,7 +398,12 @@ export function deriveSave(input: DerivationInput, slug: string): DerivedStatist
   return build(
     input,
     0,
-    baseModifiers(attribute, input.attributes[attribute] ?? 0, proficiencyBonus(rank, input.level)),
+    baseModifiers(
+      attribute,
+      input.attributes[attribute] ?? 0,
+      proficiencyBonus(rank, input.level),
+      rank
+    ),
     saveDomains(slug, attribute),
     ranks,
     relevant(carried, [`system.saves.${slug}.rank`])
@@ -387,7 +416,7 @@ export function derivePerception(input: DerivationInput): DerivedStatistic {
   return build(
     input,
     0,
-    baseModifiers('wis', input.attributes.wis ?? 0, proficiencyBonus(rank, input.level)),
+    baseModifiers('wis', input.attributes.wis ?? 0, proficiencyBonus(rank, input.level), rank),
     PERCEPTION_DOMAINS,
     ranks,
     relevant(carried, ['system.perception.rank'])
@@ -396,6 +425,8 @@ export function derivePerception(input: DerivationInput): DerivedStatistic {
 
 interface ArmorSystem {
   category?: string
+  // PF2e slugs the armour modifier by `baseType ?? slug ?? sluggify(name)`.
+  baseItem?: string | null
   acBonus?: number
   dexCap?: number | null
   runes?: { potency?: number }
@@ -422,26 +453,32 @@ export function deriveArmorClass(input: DerivationInput): DerivedStatistic {
   // in shape from a check's.
   const dexCap = typeof system?.dexCap === 'number' ? system.dexCap : Infinity
   const dex = Math.min(input.attributes.dex ?? 0, dexCap)
-  // 10 and the armour's own AC bonus contest nothing; dex and proficiency do.
-  // The potency rune is an `item` bonus and belongs in the contest with any
-  // other item bonus to AC.
+  // Only the 10 is a constant. PF2e builds the worn armour's contribution as a
+  // single `item`-typed modifier labelled with the armour's name
+  // (ArmorStatistic#createBonusesAndPenalties), and the potency rune is folded
+  // into `acBonus` at prepare time rather than standing beside it
+  // (ArmorPF2e#prepareDerivedData). Emitting it the same way is what makes the
+  // derived modifier list match the one PF2e sends, and it is also more correct
+  // than the two separate `item` entries this used to build: those contested
+  // with each other, where PF2e contests once with their sum.
+  //
+  // The total is unchanged by construction — the same numbers, moved out of the
+  // constant — which the differential harness checks against PF2e's own AC.
   const potency = system?.runes?.potency ?? 0
-  const seeds = baseModifiers('dex', dex, proficiencyBonus(rank, input.level))
-  if (potency) {
-    seeds.push({
-      slug: 'armor-potency',
-      label: 'armor-potency',
-      modifier: potency,
-      type: 'item',
-      enabled: true,
-      hideIfDisabled: false,
-      force: false,
-      source: ''
-    })
+  const seeds = baseModifiers('dex', dex, proficiencyBonus(rank, input.level), rank)
+  if (armor) {
+    seeds.push(
+      namedModifier(
+        system?.baseItem ?? (armor.system as { slug?: string | null } | undefined)?.slug ?? 'armor',
+        armor.name ?? 'Armor',
+        (system?.acBonus ?? 0) + potency,
+        'item'
+      )
+    )
   }
   return build(
     input,
-    10 + (system?.acBonus ?? 0),
+    10,
     seeds,
     AC_DOMAINS,
     ranks,
@@ -583,7 +620,12 @@ function spellcastingStatistic(
   return build(
     input,
     kind === 'dc' ? 10 : 0,
-    baseModifiers(attribute, input.attributes[attribute] ?? 0, proficiencyBonus(rank, input.level)),
+    baseModifiers(
+      attribute,
+      input.attributes[attribute] ?? 0,
+      proficiencyBonus(rank, input.level),
+      rank
+    ),
     domains,
     ranks,
     relevant(carried, ['system.proficiencies.spellcasting.rank'])
@@ -648,17 +690,25 @@ export function deriveHitPointsMax(input: DerivationInput, bonusPerLevel = 0): D
   const ancestry = input.items.find((item) => item.type === 'ancestry')?.system as
     AncestrySystem | undefined
   const klass = classItem(input.items)?.system as ClassSystem | undefined
-  const perLevel = (klass?.hp ?? 0) + (input.attributes.con ?? 0) + bonusPerLevel
-  // Hit points have no proficiency or attribute modifier of their own — the Con
-  // contribution is already multiplied by level inside the total.
-  return build(
-    input,
-    (ancestry?.hp ?? 0) + perLevel * input.level,
-    [],
-    ['hp', 'con-based'],
-    ranks,
-    relevant(carried, [])
-  )
+  // The same three parts PF2e reports, rather than one opaque total. Verified
+  // against a live character: `ancestry-hp` +8, `class-hp` +30 and `hp-con` +15
+  // for a level 5 wizard, summing to the 53 this used to produce as a constant.
+  //
+  // Splitting them is what lets the sheet show a breakdown without a GM, and it
+  // costs nothing: `untyped` never loses a stacking contest, and `hp-con` is
+  // `ability`-typed exactly as PF2e types it, so it contests with an ability
+  // bonus to hit points the same way PF2e's does.
+  const seeds: EngineModifier[] = [
+    namedModifier('ancestry-hp', 'Ancestry HP', ancestry?.hp ?? 0, 'untyped'),
+    namedModifier(
+      'class-hp',
+      'Class HP',
+      ((klass?.hp ?? 0) + bonusPerLevel) * input.level,
+      'untyped'
+    ),
+    namedModifier('hp-con', 'Constitution', (input.attributes.con ?? 0) * input.level, 'ability')
+  ]
+  return build(input, 0, seeds, ['hp', 'con-based'], ranks, relevant(carried, []))
 }
 
 // The focus pool maximum.

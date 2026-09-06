@@ -179,7 +179,9 @@
     "totalMax": "(Máx. total: {max})",
     "standard": "Estándar:",
     "temporary": "Temporales:",
-    "reset": "Restablecer PG"
+    "reset": "Restablecer PG",
+    "ancestryHp": "PG de linaje",
+    "classHp": "PG de clase"
   },
   "heroPoints": {
     "heading": "Pts. de héroe",

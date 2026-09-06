@@ -20,7 +20,7 @@ import {
   readStoredRanks,
   type DerivedStatistic
 } from '@/utils/ruleEngine/statistics'
-import type { EngineItem } from '@/utils/ruleEngine/flatModifiers'
+import type { EngineItem, EngineModifier } from '@/utils/ruleEngine/flatModifiers'
 import type { MovementType } from '@/utils/ruleEngine/movement'
 import { describeLedger } from '@/utils/ruleEngine/ledger'
 
@@ -41,6 +41,10 @@ export interface DerivedFigure {
   provisional: boolean
   // Human-readable account of what was not evaluated, for a tooltip.
   caveat: string
+  // The parts the figure is made of, with stacking already resolved, in the
+  // engine's own naming. Present on every figure; the sheet reads it only where
+  // PF2e sent no list of its own.
+  modifiers: EngineModifier[]
 }
 
 export interface DerivedStatistics {
@@ -64,7 +68,8 @@ function present(result: DerivedStatistic): DerivedFigure {
   return {
     value: result.value,
     provisional: result.ledger.confidence !== 'exact',
-    caveat: describeLedger(result.ledger)
+    caveat: describeLedger(result.ledger),
+    modifiers: result.modifiers
   }
 }
 
@@ -156,7 +161,8 @@ export function useDerivedStatistics(
       return {
         value: pool.max,
         provisional: pool.ledger.confidence !== 'exact',
-        caveat: describeLedger(pool.ledger)
+        caveat: describeLedger(pool.ledger),
+        modifiers: []
       }
     })
   }

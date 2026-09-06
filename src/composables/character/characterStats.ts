@@ -1,4 +1,5 @@
 import { computed, type Ref } from 'vue'
+import { useDerivedModifiers } from './derivedModifiers'
 import type {
   Immunity,
   Weakness,
@@ -148,21 +149,26 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
     cha: computed(() => actor.value?.system?.abilities?.cha?.mod ?? calcAttribute(actor, 'cha'))
   }
   const derivedAc = derived.armorClass
+  const derivedModifiers = useDerivedModifiers()
   const ac = {
-    current: computed(
-      () => actor.value?.system?.attributes?.ac?.value ?? derivedAc.value?.value
-    ),
+    current: computed(() => actor.value?.system?.attributes?.ac?.value ?? derivedAc.value?.value),
     // Whether the AC on screen is the engine's rather than PF2e's, and whether
     // the engine had gaps. Read by ArmorClass to mark the figure.
     provisional: computed(
       () =>
-        actor.value?.system?.attributes?.ac?.value === undefined &&
-        !!derivedAc.value?.provisional
+        actor.value?.system?.attributes?.ac?.value === undefined && !!derivedAc.value?.provisional
     ),
     caveat: computed(() =>
       actor.value?.system?.attributes?.ac?.value === undefined ? derivedAc.value?.caveat : undefined
     ),
-    modifiers: computed(() => makeModifiers(actor.value?.system?.attributes?.ac?.modifiers))
+    modifiers: computed(() => {
+      const reported = actor.value?.system?.attributes?.ac?.modifiers
+      if (reported) return makeModifiers(reported)
+      // The engine builds the same three rows PF2e does — attribute,
+      // proficiency by rank, and the worn armour as one item bonus — so the AC
+      // modal has a breakdown with no GM instead of an empty list.
+      return derivedModifiers.present(derivedAc.value?.modifiers)
+    })
   }
   // PF2e's shield block is a copy off the held shield item, so it rides a
   // character payload and is absent from the world dump. Fall back to deriving

@@ -179,7 +179,9 @@
     "totalMax": "(Макс. всего: {max})",
     "standard": "Обычные:",
     "temporary": "Временные:",
-    "reset": "Сбросить ОЗ"
+    "reset": "Сбросить ОЗ",
+    "ancestryHp": "ХП происхождения",
+    "classHp": "ХП класса"
   },
   "heroPoints": {
     "heading": "Оч. гер.",

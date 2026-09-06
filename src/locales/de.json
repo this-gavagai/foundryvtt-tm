@@ -179,7 +179,9 @@
     "totalMax": "(Maximal: {max})",
     "standard": "Standard:",
     "temporary": "Temporär:",
-    "reset": "TP zurücksetzen"
+    "reset": "TP zurücksetzen",
+    "ancestryHp": "Völker-TP",
+    "classHp": "Klassen-TP"
   },
   "heroPoints": {
     "heading": "Heldenpkt",
