@@ -27,6 +27,8 @@ export interface CharacterResources {
   focusPoints: {
     current: WritableField<number>
     max: Field<number>
+    maxProvisional: Field<boolean>
+    maxCaveat: Field<string | undefined>
   }
 }
 
@@ -70,7 +72,22 @@ export function useCharacterResources(actor: Ref<CharacterPF2e | undefined>): Ch
         updateActor(actor, update).catch(() => {})
       }
     }),
-    max: computed(() => actor.value?.system?.resources?.focus?.max)
+    // Never stored: PF2e resets the maximum to zero in `prepareBaseData` and
+    // rebuilds it by counting the character's focus spells, so a world dump has
+    // nothing to read and the engine has to count them the same way.
+    max: computed(
+      () => actor.value?.system?.resources?.focus?.max ?? derived.focusPoolMax.value?.value
+    ),
+    maxProvisional: computed(
+      () =>
+        actor.value?.system?.resources?.focus?.max === undefined &&
+        !!derived.focusPoolMax.value?.provisional
+    ),
+    maxCaveat: computed(() =>
+      actor.value?.system?.resources?.focus?.max === undefined
+        ? derived.focusPoolMax.value?.caveat
+        : undefined
+    )
   }
 
   return {

@@ -14,11 +14,14 @@ import {
   deriveSpellAttack,
   deriveSpellDC,
   deriveInitiative,
+  deriveFocusPool,
+  deriveMovement,
   type DerivationInput,
   readStoredRanks,
   type DerivedStatistic
 } from '@/utils/ruleEngine/statistics'
 import type { EngineItem } from '@/utils/ruleEngine/flatModifiers'
+import type { MovementType } from '@/utils/ruleEngine/movement'
 import { describeLedger } from '@/utils/ruleEngine/ledger'
 
 // The Tier-2 figures, derived for this actor.
@@ -51,6 +54,10 @@ export interface DerivedStatistics {
   spellDC: (entry: EngineItem) => DerivedFigure | undefined
   spellAttack: (entry: EngineItem) => DerivedFigure | undefined
   initiative: (named: string | undefined, rank: number) => DerivedFigure | undefined
+  // Null where the character simply has no such speed — distinct from a figure
+  // the engine could not compute, which comes back undefined.
+  speed: (type: MovementType) => (DerivedFigure | null) | undefined
+  focusPoolMax: ComputedRef<DerivedFigure | undefined>
 }
 
 function present(result: DerivedStatistic): DerivedFigure {
@@ -102,6 +109,8 @@ export function useDerivedStatistics(
     }
   })
 
+  const speeds = computed(() => (input.value ? deriveMovement(input.value) : undefined))
+
   const figure = (build: (source: DerivationInput) => DerivedStatistic) =>
     computed(() => {
       const source = input.value
@@ -130,6 +139,25 @@ export function useDerivedStatistics(
     initiative: (named: string | undefined, rank: number) => {
       const source = input.value
       return source ? present(deriveInitiative(source, named, rank)) : undefined
-    }
+    },
+    // One derivation for all five: the non-land speeds are scored against land's
+    // own total, so computing them separately would mean building land five
+    // more times.
+    speed: (type: MovementType) => {
+      const source = input.value
+      if (!source) return undefined
+      const speed = speeds.value?.[type]
+      return speed ? present(speed) : null
+    },
+    focusPoolMax: computed(() => {
+      const source = input.value
+      if (!source) return undefined
+      const pool = deriveFocusPool(source)
+      return {
+        value: pool.max,
+        provisional: pool.ledger.confidence !== 'exact',
+        caveat: describeLedger(pool.ledger)
+      }
+    })
   }
 }

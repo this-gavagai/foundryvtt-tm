@@ -1,4 +1,6 @@
 import type { Ref } from 'vue'
+import { useDerivedStatistics } from './derivedStatistics'
+import type { MovementType } from '@/utils/ruleEngine/movement'
 import { computed } from 'vue'
 import type {
   AncestryPF2e,
@@ -86,12 +88,30 @@ export function useCharacterCore(actor: Ref<TablemateCharacter | undefined>): Ch
     }),
     max: computed(() => actor.value?.system?.details?.xp?.max)
   }
+  // Speeds are prepared data and absent from a world dump entirely — PF2e
+  // writes `system.movement` during preparation, taking land from the ancestry
+  // item. So without a GM the whole panel was blank, including the one figure
+  // every character has.
+  const derived = useDerivedStatistics(actor)
+  const speed = (type: MovementType) =>
+    computed(() => {
+      const reported = actor.value?.system?.movement?.speeds?.[type]
+      if (reported) return makeStat(reported)
+      const engine = derived.speed(type)
+      // `null` is the engine saying this character has no such speed, which is
+      // an answer. `undefined` is it having none to give.
+      if (!engine) return undefined
+      const stat = makeStat({ slug: type, value: engine.value })
+      // `provisional` and `caveat` are not inputs to makeStat — they describe
+      // where a figure came from, which only the caller knows.
+      return stat && { ...stat, provisional: engine.provisional, caveat: engine.caveat }
+    })
   const movement = {
-    land: computed(() => makeStat(actor.value?.system?.movement?.speeds?.land ?? undefined)),
-    swim: computed(() => makeStat(actor.value?.system?.movement?.speeds?.swim ?? undefined)),
-    climb: computed(() => makeStat(actor.value?.system?.movement?.speeds?.climb ?? undefined)),
-    fly: computed(() => makeStat(actor.value?.system?.movement?.speeds?.fly ?? undefined)),
-    burrow: computed(() => makeStat(actor.value?.system?.movement?.speeds?.burrow ?? undefined))
+    land: speed('land'),
+    swim: speed('swim'),
+    climb: speed('climb'),
+    fly: speed('fly'),
+    burrow: speed('burrow')
   }
   // Labels come from the world catalog, not the actor — so a sheet painted from
   // the world dump alone still names its traits and languages. See

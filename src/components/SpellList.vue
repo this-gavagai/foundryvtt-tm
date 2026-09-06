@@ -44,7 +44,12 @@ const {
   rollOptionLabels,
   level: characterLevel
 } = character
-const { max: focusMax, current: focusCurrent } = character.focusPoints
+const {
+  max: focusMax,
+  current: focusCurrent,
+  maxProvisional: focusMaxProvisional,
+  maxCaveat: focusMaxCaveat
+} = character.focusPoints
 const { labelFor: rarityLabel } = useTraitLabels()
 
 const entryById = (id?: string | null) => spellcastingEntries.value?.find((e) => e._id === id)
@@ -310,7 +315,12 @@ function openKnownSpells() {
               class="relative -bottom-0.5 mt-px mr-2 h-4 text-sm"
               :value="focusCurrent"
               :max="focusMax"
-              :title="$t('spells.focusPool')"
+              :data-derived-provisional="focusMaxProvisional || undefined"
+              :title="
+                focusMaxProvisional
+                  ? $t('sync.provisional', { caveat: focusMaxCaveat })
+                  : $t('spells.focusPool')
+              "
               editable
               @change-count="(newTotal) => (focusCurrent = newTotal)"
             />

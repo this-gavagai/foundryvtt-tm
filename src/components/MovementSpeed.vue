@@ -1,16 +1,35 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, type ComputedRef } from 'vue'
 import StatBox from './widgets/StatBox.vue'
 import { useInjectedActor } from '@/composables/injectKeys'
+import { useDerivedStale } from '@/composables/useDerivedStale'
+import { useProvisionalFigure } from '@/composables/useProvisionalFigure'
 import type { Stat } from '@/composables/character'
 
 import d20 from '@/assets/icons/d20.svg'
 
 const character = useInjectedActor()
+const { _id } = character
 const { land, swim, climb, fly, burrow } = character.movement
 const { skills } = character
 
 const athletics = computed(() => skills.value?.find((s) => s.slug === 'athletics'))
+
+// Speeds are prepared data, so the whole panel is the engine's without a GM.
+// One marker helper per speed, since they can differ: a land speed derived from
+// the ancestry can be exact while a granted fly speed is provisional.
+const derivedStale = useDerivedStale(_id)
+const marks = (speed: ComputedRef<Stat | undefined>) =>
+  useProvisionalFigure(
+    derivedStale,
+    computed(() => speed.value?.provisional ?? undefined),
+    computed(() => speed.value?.caveat ?? undefined)
+  ).attrs
+const landMarks = marks(land)
+const swimMarks = marks(swim)
+const climbMarks = marks(climb)
+const flyMarks = marks(fly)
+const burrowMarks = marks(burrow)
 
 function parseSpeed(speed: Stat | undefined) {
   if (speed?.value) return speed?.value
@@ -26,11 +45,11 @@ function parseSpeed(speed: Stat | undefined) {
     </div>
     <div data-part="speeds" class="flex justify-between gap-1 *:w-1/5">
       <StatBox :heading="$t('movement.land')" :breakdown="land?.breakdown">
-        {{ parseSpeed(land) }}
+        <span v-bind="landMarks">{{ parseSpeed(land) }}</span>
       </StatBox>
       <div>
         <StatBox v-if="swim?.value" :heading="$t('movement.swim')" :breakdown="swim?.breakdown">
-          {{ parseSpeed(swim) }}
+          <span v-bind="swimMarks">{{ parseSpeed(swim) }}</span>
         </StatBox>
         <StatBox
           v-else
@@ -50,7 +69,7 @@ function parseSpeed(speed: Stat | undefined) {
       </div>
       <div>
         <StatBox v-if="climb?.value" :heading="$t('movement.climb')" :breakdown="climb?.breakdown">
-          {{ parseSpeed(climb) }}
+          <span v-bind="climbMarks">{{ parseSpeed(climb) }}</span>
         </StatBox>
         <StatBox
           v-else
@@ -64,10 +83,10 @@ function parseSpeed(speed: Stat | undefined) {
         </StatBox>
       </div>
       <StatBox :heading="$t('movement.burrow')" :breakdown="burrow?.breakdown">
-        {{ parseSpeed(burrow) }}
+        <span v-bind="burrowMarks">{{ parseSpeed(burrow) }}</span>
       </StatBox>
       <StatBox :heading="$t('movement.fly')" :breakdown="fly?.breakdown">
-        {{ parseSpeed(fly) }}
+        <span v-bind="flyMarks">{{ parseSpeed(fly) }}</span>
       </StatBox>
     </div>
   </div>
