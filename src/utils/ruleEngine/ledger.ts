@@ -72,6 +72,21 @@ export interface SkippedRule {
 //                 against. Nothing may LOOK wrong; that is the point.
 export type Confidence = 'exact' | 'provisional' | 'unverified'
 
+// What is known about the world's PF2e version.
+//
+// `unknown` is NOT `mismatched`, and conflating them was a real defect. The
+// stamp arrives with the label catalog, which needs a GM — so a first-time
+// no-GM sheet has no stamp at all, and treating that as a version mismatch
+// marked EVERY figure with the same caveat. Five of five, all reading "not
+// verified against this PF2e version", when the truth was only "nobody has told
+// us the version yet".
+//
+// A marker that appears on everything ranks nothing. It cannot say which figure
+// is shakier than its neighbour, which is the only question a player has, and it
+// teaches them to stop looking. The absence of a GM is already stated plainly
+// elsewhere in the sheet; it does not need restating on every number.
+export type VersionVerdict = 'verified' | 'mismatched' | 'unknown'
+
 export interface Ledger {
   applied: number
   skipped: SkippedRule[]
@@ -84,21 +99,26 @@ export function emptyLedger(): { applied: number; skipped: SkippedRule[] } {
 
 // Seal a ledger with the version verdict folded in.
 //
-// `versionMatches` outranks a clean skip list deliberately. "No rule was
+// A MISMATCHED version outranks a clean skip list deliberately. "No rule was
 // skipped" only means no rule the engine RECOGNIZED was skipped; a rule element
 // whose behaviour changed under it is invisible from here, and the system
 // version is the only signal that it might have. A wrong number after a system
 // upgrade arrives without any code changing, which makes it the failure mode
 // least likely to be noticed and the one worth being most conservative about.
+//
+// An UNKNOWN version does not outrank anything. It is the ordinary state before
+// a GM has ever answered, it is identical for every figure on the sheet, and
+// letting it speak would drown the per-figure signal it shares a channel with.
 export function sealLedger(
   draft: { applied: number; skipped: SkippedRule[] },
-  versionMatches: boolean
+  version: VersionVerdict
 ): Ledger {
-  const confidence: Confidence = !versionMatches
-    ? 'unverified'
-    : draft.skipped.length > 0
-      ? 'provisional'
-      : 'exact'
+  const confidence: Confidence =
+    version === 'mismatched'
+      ? 'unverified'
+      : draft.skipped.length > 0
+        ? 'provisional'
+        : 'exact'
   return { applied: draft.applied, skipped: draft.skipped, confidence }
 }
 

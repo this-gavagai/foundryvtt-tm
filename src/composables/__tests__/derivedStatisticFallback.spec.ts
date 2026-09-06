@@ -5,6 +5,26 @@ import { createPinia, setActivePinia } from 'pinia'
 import type { TablemateCharacter } from '@/types/character-types'
 
 vi.mock('@/api/actionRpc', () => ({ rollCheck: vi.fn() }))
+
+// Count engine entries so "did it run at all" is testable, not just "was the
+// answer right". The derivation is only cheap when it does not happen.
+const { engineCalls } = vi.hoisted(() => ({ engineCalls: { count: 0 } }))
+vi.mock('@/utils/ruleEngine/statistics', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/ruleEngine/statistics')>()
+  const counted =
+    <T extends (...args: never[]) => unknown>(fn: T) =>
+    (...args: Parameters<T>) => {
+      engineCalls.count++
+      return fn(...args)
+    }
+  return {
+    ...actual,
+    deriveSkill: counted(actual.deriveSkill),
+    deriveSave: counted(actual.deriveSave),
+    derivePerception: counted(actual.derivePerception),
+    deriveArmorClass: counted(actual.deriveArmorClass)
+  }
+})
 vi.mock('@/api/documents', () => ({ updateActorItem: vi.fn(), updateActor: vi.fn() }))
 
 const { useCharacterStats } = await import('@/composables/character/characterStats')
@@ -59,6 +79,43 @@ beforeEach(() => {
   useLabelCatalogsStore().$patch({ stamp: STAMP })
 })
 
+describe('cost when PF2e has answered', () => {
+  // The fallback used to be passed by VALUE, so it was evaluated as an argument
+  // before anything could decide it was unnecessary — every skill, save and
+  // defence derived in full and discarded on each render, measured at 4.2ms per
+  // sheet for a 100-item character on hardware quicker than the target tablet.
+  it('does not run the engine for a figure the payload supplied', () => {
+    const actor = character({
+      saves: {
+        fortitude: { slug: 'fortitude', label: 'Fortitude', value: 20, totalModifier: 20 },
+        reflex: { slug: 'reflex', label: 'Reflex', value: 20, totalModifier: 20 },
+        will: { slug: 'will', label: 'Will', value: 20, totalModifier: 20 }
+      },
+      perception: { slug: 'perception', label: 'Perception', value: 20, totalModifier: 20 },
+      skills: { athletics: { slug: 'athletics', rank: 1, value: 20, totalModifier: 20 } },
+      attributes: { ac: { value: 30 } }
+    })
+    const { saves, perception, skills, ac } = useCharacterStats(actor)
+    engineCalls.count = 0
+    // Read everything a sheet would.
+    void saves.fortitude.value
+    void saves.reflex.value
+    void saves.will.value
+    void perception.value
+    void skills.value
+    void ac.current.value
+    void ac.provisional.value
+    expect(engineCalls.count).toBe(0)
+  })
+
+  it('still runs it for a figure the payload left out', () => {
+    const { saves } = useCharacterStats(character({}))
+    engineCalls.count = 0
+    expect(saves.fortitude.value?.value).toBe(15)
+    expect(engineCalls.count).toBeGreaterThan(0)
+  })
+})
+
 describe('when PF2e has answered', () => {
   it('keeps the payload’s save and never substitutes its own', () => {
     // The prepared trace says 99 — a number no derivation would produce. If the
@@ -80,18 +137,16 @@ describe('when PF2e has answered', () => {
 })
 
 describe('when no GM has answered', () => {
-  it('derives the save from the class baseline, and admits it cannot confirm the rank', () => {
-    // A world dump carries no `system.saves` at all, and PF2e raises save ranks
-    // through class features that leave no trace in source — "Reflex Expertise"
-    // has an empty rules array. Three live characters read exactly two points
-    // low for this reason, so the figure has to say so rather than claim
-    // exactness it has not earned.
+  it('derives the save from the class baseline, unmarked', () => {
+    // Once "Reflex Expertise" and its kind were found to carry their rank in
+    // `subfeatures.proficiencies`, the baseline stopped being a guess. Marking
+    // it anyway put a caveat on five figures out of five, identical on each,
+    // which ranks nothing — see the note in deriveProficiencyRanks.
     const actor = character({})
     const { saves } = useCharacterStats(actor)
     // Con 3 + (expert 2 x 2 + level 8) = 15
     expect(saves.fortitude.value?.value).toBe(15)
-    expect(saves.fortitude.value?.provisional).toBe(true)
-    expect(saves.fortitude.value?.caveat).toContain('unconfirmable-rank')
+    expect(saves.fortitude.value?.provisional).toBe(false)
   })
 
   it('derives AC from the unarmoured proficiency', () => {

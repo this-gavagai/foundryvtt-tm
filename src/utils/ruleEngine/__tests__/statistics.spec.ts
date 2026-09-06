@@ -435,12 +435,12 @@ describe('the base competes for stacking', () => {
   })
 })
 
-describe('an armour rank taken from the class baseline is not confirmed', () => {
-  // Found live: a level 5 Cleric in Scale Mail derived AC 15 against PF2e's 22,
-  // with an EMPTY ledger — seven points wrong while claiming to be exact, on the
-  // number players trust most. Cleric grants only unarmoured training in its
-  // class data; the medium-armour proficiency arrives through a doctrine that
-  // writes nothing a world dump can see.
+describe('a Cleric in scale mail', () => {
+  // Kyra, verbatim. Her AC read 15 against PF2e's 22 while claiming to be
+  // exact, which is what first argued for a caveat on any rank resting on the
+  // class baseline. The real answer was that her medium-armour proficiency was
+  // readable all along — see the ChoiceSet case below — so the caveat went and
+  // the derivation carries the number instead.
   const cleric = (extra: EngineItem[] = []): DerivationInput => ({
     level: 5,
     attributes: { str: 1, dex: 2, con: 2, int: 0, wis: 4, cha: 1 },
@@ -474,23 +474,15 @@ describe('an armour rank taken from the class baseline is not confirmed', () => 
     ]
   })
 
-  it('marks the figure rather than claiming the baseline is right', () => {
+  it('reads untrained without a proficiency, and says nothing false about it', () => {
+    // 10 + min(dex 2, cap 2) + untrained 0 + acBonus 3 = 15, and the class
+    // baseline genuinely is the answer for a Cleric with no armour feat.
     const result = deriveArmorClass(cleric())
-    // 10 + min(dex 2, cap 2) + untrained 0 + acBonus 3 = 15, which is what the
-    // engine can justify — and it now says so instead of asserting it.
     expect(result.value).toBe(15)
-    expect(result.ledger.confidence).toBe('provisional')
-    expect(result.ledger.skipped.some((s) => s.reason === 'unconfirmable-rank')).toBe(true)
+    expect(result.ledger.confidence).toBe('exact')
   })
 
-  it('claims only the category actually worn', () => {
-    const skipped = deriveArmorClass(cleric()).ledger.skipped.map((s) => s.slug)
-    expect(skipped).toContain('system.proficiencies.defenses.medium.rank')
-    // An unconfirmable heavy rank is no reason to doubt a figure in scale mail.
-    expect(skipped).not.toContain('system.proficiencies.defenses.heavy.rank')
-  })
-
-  it('stays exact when a rule element actually grants the training', () => {
+  it('reaches 22 once the proficiency is granted', () => {
     const result = deriveArmorClass(
       cleric([
         feature('Warpriest Doctrine', [
@@ -503,7 +495,6 @@ describe('an armour rank taken from the class baseline is not confirmed', () => 
         ])
       ])
     )
-    // 10 + 2 + (trained 1 x 2 + 5) + 3 = 22 — PF2e's own number.
     expect(result.value).toBe(22)
     expect(result.ledger.confidence).toBe('exact')
   })
@@ -553,8 +544,10 @@ describe('proficiency subfeatures', () => {
     // subfeature has spoken, keeping it would mark nearly every character and
     // teach the reader to ignore the marker.
     expect(deriveSave(withSubfeature({ will: { rank: 2 } }), 'will').ledger.confidence).toBe('exact')
-    // …and it still fires where nothing explains the rank.
-    expect(deriveSave(fighter(), 'will').ledger.confidence).toBe('provisional')
+    // …and a rank resting on the class baseline is no longer marked either: the
+    // mechanism that made it doubtful is now read, and fourteen payloads across
+    // ten characters showed the baseline right wherever no subfeature speaks.
+    expect(deriveSave(fighter(), 'will').ledger.confidence).toBe('exact')
   })
 })
 

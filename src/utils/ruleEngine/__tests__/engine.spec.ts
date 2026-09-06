@@ -166,15 +166,32 @@ describe('the version gate', () => {
     expect(result.ledger.confidence).toBe('unverified')
   })
 
-  it('outranks a clean ledger', () => {
-    // A module too old to announce a stamp cannot vouch for its system version
-    // either, so an empty ledger is not enough to claim exactness.
+  it('does NOT fire when the version is merely unknown', () => {
+    // No stamp is the ordinary state before a GM has answered, and it is
+    // identical for every figure on the sheet. Letting it speak marked five of
+    // five figures with the same caveat, which ranks nothing and teaches a
+    // reader to stop looking. A mismatched stamp is a real signal; a missing one
+    // is not.
     const result = deriveFigure(
       { items: [], options: {}, paths: {}, stamp: undefined },
       AC_DOMAINS
     )
     expect(result.ledger.skipped).toHaveLength(0)
-    expect(result.ledger.confidence).toBe('unverified')
+    expect(result.ledger.confidence).toBe('exact')
+  })
+
+  it('still reports a gap when the version is unknown', () => {
+    // Dropping the blanket marker must not drop the per-figure one.
+    const result = deriveFigure(
+      {
+        items: [item('Bracers', [{ key: 'AdjustModifier', selector: 'ac', value: 1 }])],
+        options: {},
+        paths: {},
+        stamp: undefined
+      },
+      AC_DOMAINS
+    )
+    expect(result.ledger.confidence).toBe('provisional')
   })
 
   it('tolerates a patch release', () => {

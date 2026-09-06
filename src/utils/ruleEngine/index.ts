@@ -27,7 +27,7 @@
 // persisted it becomes the record, and the oracle that keeps this honest — the
 // GM's own answer, arriving on the next payload — is gone.
 
-import { sealLedger, type Ledger } from './ledger'
+import { sealLedger, type Ledger, type VersionVerdict } from './ledger'
 import { buildRollOptions, type RollOptionSource, type RollOptionSet } from './rollOptions'
 import { applyStacking, collectFlatModifiers, type EngineItem, type EngineModifier } from './flatModifiers'
 import type { ValueContext } from './resolveValue'
@@ -53,6 +53,15 @@ export const VERIFIED_PF2E_VERSION = '8.4.1'
 
 // A world announces `pf2e@8.4.1|en|1.4.0`. Only the system version matters here;
 // the locale and module version move for reasons that cannot affect arithmetic.
+//
+// Three answers, not two. No stamp means no GM has served the label catalog
+// yet — the ordinary state on a cold sheet — and is emphatically not the same
+// as a stamp that disagrees. See VersionVerdict.
+export function versionVerdict(stamp: string | undefined): VersionVerdict {
+  if (!stamp) return 'unknown'
+  return stampMatchesVerifiedVersion(stamp) ? 'verified' : 'mismatched'
+}
+
 export function stampMatchesVerifiedVersion(stamp: string | undefined): boolean {
   if (!stamp) return false
   const system = stamp.split('|')[0] ?? ''
@@ -95,7 +104,7 @@ export function deriveFigure(input: EngineInput, domains: readonly string[]): De
     modifiers: collected.modifiers,
     ledger: sealLedger(
       { applied: collected.applied, skipped: collected.skipped },
-      stampMatchesVerifiedVersion(input.stamp)
+      versionVerdict(input.stamp)
     )
   }
 }

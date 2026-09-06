@@ -9,7 +9,7 @@ import {
 import { AC_DOMAINS, PERCEPTION_DOMAINS, SAVE_ATTRIBUTES, loreDomains, saveDomains, skillDomains } from './domains'
 import { sealLedger, type Ledger, type SkippedRule } from './ledger'
 import { buildRollOptions, type RollOptionSet } from './rollOptions'
-import { stampMatchesVerifiedVersion } from './index'
+import { versionVerdict } from './index'
 import type { ValueContext } from './resolveValue'
 
 // Tier 2: the figures that are reproducible from source ONCE rule elements are
@@ -235,48 +235,21 @@ export function deriveProficiencyRanks(input: DerivationInput): {
   })
   const result = applyActiveEffectLikes(input.items, seed, bootstrap, context)
 
-  // Saves and perception whose rank rests on the class baseline alone. A world
-  // dump carries no `system.saves` at all, so this is the normal case there —
-  // and a class feature that raises the rank in PF2e's own code leaves no trace
-  // for the engine to follow. Reported per path so a figure can decide whether
-  // the gap is one of ITS inputs.
-  const unconfirmed: SkippedRule[] = []
-  const unconfirmablePaths = [
-    ...Object.keys(SAVE_ATTRIBUTES).map((save) => `system.saves.${save}.rank`),
-    'system.perception.rank',
-    'system.proficiencies.spellcasting.rank',
-    // Armour proficiency belongs here for the same reason and was missed on the
-    // first pass. A world dump carries no `system.proficiencies.defenses` at
-    // all, and a class that grants armour training through a doctrine or a feat
-    // — a Warpriest cleric's medium armour — leaves nothing in source. A live
-    // Cleric in Scale Mail came out at 15 against PF2e's 22, with an EMPTY
-    // ledger: seven points wrong while claiming to be exact, on the number
-    // players trust most.
-    ...['unarmored', 'light', 'medium', 'heavy'].map(
-      (category) => `system.proficiencies.defenses.${category}.rank`
-    )
-  ]
-  for (const path of unconfirmablePaths) {
-    if (path in stored) continue
-    // Positive evidence, of either kind: a feat subfeature that named this rank,
-    // or a rule element that moved it. Both mean the engine is not guessing from
-    // the class baseline, and marking them would flag nearly every character for
-    // a case that no longer applies — the fastest way to teach a reader to
-    // ignore the marker.
-    if (explained.has(path)) continue
-    if (result.paths[path] !== seed[path]) continue
-    unconfirmed.push({
-      reason: 'unconfirmable-rank',
-      key: 'ProficiencyRank',
-      slug: path,
-      detail: 'class baseline only; a rules-free class feature could raise it'
-    })
-  }
-  return {
-    ranks: result.paths,
-    skipped: [...result.skipped, ...unconfirmed],
-    applied: result.applied
-  }
+  // The `unconfirmable-rank` caveat used to be emitted here, for every save,
+  // perception and armour rank that rested on the class baseline alone. It was
+  // added when a rank raised by a rules-free class feature looked unrecoverable,
+  // and it is deliberately gone.
+  //
+  // That mechanism turned out to be `subfeatures.proficiencies`, which is now
+  // read — and the harness then measured ZERO total divergence across fourteen
+  // payloads and ten characters, so the baseline is right wherever no subfeature
+  // speaks. The caveat had stopped hedging anything and had become the thing it
+  // was meant to prevent: a marker on five figures out of five, identical on all
+  // of them, ranking nothing and teaching a reader to ignore it.
+  //
+  // If the harness ever shows a base divergence again, this is where the hedge
+  // goes back — but it should come back with evidence, as it should have had.
+  return { ranks: result.paths, skipped: result.skipped, applied: result.applied }
 }
 
 // The attribute and proficiency components of a statistic, as TYPED MODIFIERS
@@ -308,10 +281,10 @@ function baseModifiers(attributeSlug: string, attribute: number, proficiency: nu
   return [make(attributeSlug, attribute, 'ability'), make('proficiency', proficiency, 'proficiency')]
 }
 
-// A figure inherits only the rank gaps that belong to it. Carrying every
-// unconfirmed rank into every statistic would mark a skill provisional because a
-// save's rank was uncertain, which is both false and the fastest way to teach a
-// reader to ignore the marker.
+// A figure inherits only the rank gaps that belong to it. Nothing emits
+// `unconfirmable-rank` today (see deriveProficiencyRanks), but the filter stays:
+// it is the rule that a skill must not be marked because a SAVE's rank was
+// uncertain, and it would be needed again the moment such a gap is recorded.
 function relevant(carried: { applied: number; skipped: SkippedRule[] }, paths: string[]) {
   return {
     applied: carried.applied,
@@ -346,7 +319,7 @@ function build(
         applied: carried.applied + collected.applied,
         skipped: [...carried.skipped, ...collected.skipped]
       },
-      stampMatchesVerifiedVersion(input.stamp)
+      versionVerdict(input.stamp)
     )
   }
 }
