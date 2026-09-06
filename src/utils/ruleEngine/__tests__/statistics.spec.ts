@@ -328,11 +328,12 @@ describe('skill ranks come from more than the actor', () => {
       {
         name: 'Skilled Human (Thievery)',
         type: 'heritage',
-        // flags sit at the item's top level, which is where the injection reads.
-        flags: { system: { rulesSelections: { skill: 'thievery' } } },
         system: {
           slug: 'skilled-human',
+          // The real shape, read off a live character: the flag itself is not
+          // persisted, but the ChoiceSet that writes it stores its answer.
           rules: [
+            { key: 'ChoiceSet', flag: 'skill', selection: 'thievery' },
             {
               key: 'ActiveEffectLike',
               mode: 'upgrade',
@@ -553,5 +554,65 @@ describe('proficiency subfeatures', () => {
     expect(deriveSave(withSubfeature({ will: { rank: 2 } }), 'will').ledger.confidence).toBe('exact')
     // …and it still fires where nothing explains the rank.
     expect(deriveSave(fighter(), 'will').ledger.confidence).toBe('provisional')
+  })
+})
+
+describe('a chosen armour proficiency', () => {
+  // Kyra, verbatim: a Cleric whose class grants only unarmoured training, with
+  // Armor Proficiency (Medium) taken as a feat. Her AC read 15 against PF2e's
+  // 22 — and with an EMPTY ledger, because an unresolvable injection on a
+  // non-skill path was dropped before the ledger could see it.
+  const kyra = (rules: unknown[]): DerivationInput => ({
+    level: 5,
+    attributes: { str: 1, dex: 2, con: 2, int: 0, wis: 4, cha: 1 },
+    stamp: STAMP,
+    items: [
+      {
+        name: 'Cleric',
+        type: 'class',
+        system: {
+          slug: 'cleric',
+          rules: [],
+          savingThrows: { fortitude: 1, reflex: 1, will: 2 },
+          defenses: { unarmored: 1, light: 0, medium: 0, heavy: 0 },
+          perception: 1,
+          hp: 8
+        } as unknown as EngineItem['system']
+      },
+      {
+        name: 'Scale Mail',
+        type: 'armor',
+        system: {
+          slug: 'scale-mail',
+          rules: [],
+          category: 'medium',
+          acBonus: 3,
+          dexCap: 2,
+          equipped: { carryType: 'worn', inSlot: true }
+        } as unknown as EngineItem['system']
+      },
+      { name: 'Armor Proficiency (Medium)', type: 'feat', system: { slug: 'armor-proficiency', rules } } as never
+    ]
+  })
+
+  const choice = { key: 'ChoiceSet', flag: 'armorProficiency', selection: 'medium' }
+  const upgrade = {
+    key: 'ActiveEffectLike',
+    mode: 'upgrade',
+    path: 'system.proficiencies.defenses.{item|flags.system.rulesSelections.armorProficiency}.rank',
+    value: 'ternary(gte(@actor.level,13),2,1)'
+  }
+
+  it('reaches PF2e’s number once the ChoiceSet answers the path', () => {
+    // 10 + min(dex 2, cap 2) + (trained 1 x 2 + 5) + acBonus 3 = 22.
+    const result = deriveArmorClass(kyra([choice, upgrade]))
+    expect(result.value).toBe(22)
+    expect(result.ledger.confidence).toBe('exact')
+  })
+
+  it('records the gap rather than dropping it when the choice is missing', () => {
+    const result = deriveArmorClass(kyra([upgrade]))
+    expect(result.value).toBe(15)
+    expect(result.ledger.skipped.some((s) => s.detail?.includes('unresolvable path'))).toBe(true)
   })
 })

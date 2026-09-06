@@ -30,11 +30,34 @@ describe('atomic statements', () => {
     expect(testStatement('lit-torch', options)).toBe('unknown')
   })
 
-  it('trusts a roll option the GM already resolved', () => {
-    // activeRules is PF2e's own verdict on a RollOption rule, so an option there
-    // is answerable even though its family is not one we enumerate.
-    const withReported = buildRollOptions({ activeRules: ['self:armored'] })
-    expect(testStatement('self:armored', withReported)).toBe('true')
+  it('trusts a roll option the GM resolved AND the rule says is on', () => {
+    // activeRules is PF2e's verdict on the rule's PREDICATE, not on the toggle.
+    // The rule's own `value` carries the state, defaulting to `!toggleable`.
+    const on = buildRollOptions({
+      activeRules: ['self:armored'],
+      items: [{ system: { rules: [{ key: 'RollOption', option: 'self:armored' }] } }]
+    })
+    expect(testStatement('self:armored', on)).toBe('true')
+  })
+
+  it('reads a toggleable option with no stored value as OFF', () => {
+    // PF2e's schema: `value` has `initial: (data) => !data.toggleable`. One live
+    // character's Ageless Patience — a toggle she had never flipped — was being
+    // applied to perception and all sixteen skills.
+    const off = buildRollOptions({
+      activeRules: ['ageless-patience'],
+      items: [
+        { system: { rules: [{ key: 'RollOption', option: 'ageless-patience', toggleable: true }] } }
+      ]
+    })
+    expect(testStatement('ageless-patience', off)).toBe('false')
+  })
+
+  it('refuses an option whose rule it cannot find', () => {
+    // Granted by something outside the items we were handed: "the GM says this
+    // rule applies" is not evidence that it is switched off.
+    const orphan = buildRollOptions({ activeRules: ['self:armored'] })
+    expect(testStatement('self:armored', orphan)).toBe('unknown')
   })
 })
 
@@ -56,8 +79,11 @@ describe('what is absent at rest', () => {
     expect(testStatement({ not: 'target:trait:undead' }, options)).toBe('true')
   })
 
-  it('still defers to a GM-reported option over the assumption', () => {
-    const reported = buildRollOptions({ activeRules: ['action:aid'] })
+  it('still defers to a GM-reported option that a rule says is on', () => {
+    const reported = buildRollOptions({
+      activeRules: ['action:aid'],
+      items: [{ system: { rules: [{ key: 'RollOption', option: 'action:aid' }] } }]
+    })
     expect(testStatement('action:aid', reported)).toBe('true')
   })
 

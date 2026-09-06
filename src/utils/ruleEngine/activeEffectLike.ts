@@ -39,18 +39,62 @@ const NUMERIC_MODES = new Set<Mode>([
 // starts at 0 rather than being dropped.
 const DYNAMIC_PATHS = [/^system\.skills\.[a-z0-9-]+\.rank$/]
 
+// Rank paths, as SHAPES rather than literal keys.
+//
+// Used to judge a path whose injection could not be resolved. The literal key is
+// unknowable by definition in that case, so testing it against the seed always
+// fails and the rule is dropped without a word — which is how an unresolved
+// armour-proficiency choice left an AC seven points low with an empty ledger.
+const RANK_SHAPES = [
+  /^system\.skills\.[^.]+\.rank$/,
+  /^system\.saves\.[^.]+\.rank$/,
+  /^system\.perception\.rank$/,
+  /^system\.proficiencies\.(defenses|attacks)\.[^.]+\.rank$/,
+  /^system\.proficiencies\.(classDCs|spellcasting)\.rank$/
+]
+
+// A ChoiceSet's stored answer, by the flag it writes to.
+//
+// This is what makes an injected path resolvable from source. PF2e populates
+// `flags.<namespace>.rulesSelections.<flag>` at prepare time from a ChoiceSet
+// rule — the flag itself is NOT persisted — but the ChoiceSet's own `selection`
+// IS, on the same item, in plain source data:
+//
+//   { key: "ChoiceSet", flag: "armorProficiency", selection: "medium" }
+//   { key: "ActiveEffectLike", mode: "upgrade",
+//     path: "system.proficiencies.defenses.{item|flags.…rulesSelections.armorProficiency}.rank" }
+//
+// Matching on the flag rather than walking the item's own `flags` is also
+// namespace-agnostic, which matters because the path says `flags.system.…`
+// while the runtime object is keyed by the system id.
+function choiceSelection(item: EngineItem, flag: string): string | null {
+  for (const raw of item.system?.rules ?? []) {
+    const rule = raw as { key?: string; flag?: string; selection?: unknown }
+    if (rule.key !== 'ChoiceSet' || rule.flag !== flag) continue
+    return typeof rule.selection === 'string' && rule.selection ? rule.selection : null
+  }
+  return null
+}
+
 // Resolve `{item|some.path}` inside a rule's `path`.
 //
-// PF2e's `resolveInjectedProperties`, narrowed to the one form that appears in a
-// path: a read off the rule's own item. "Skilled Human (Thievery)" writes to
-// `system.skills.{item|flags.system.rulesSelections.skill}.rank`, and every
-// choose-a-skill feat does the same — so without this they are not merely
-// unresolved, they never match a seed key and are dropped before the ledger can
-// see them. Silent, which is the one thing the ledger exists to prevent.
+// PF2e's `resolveInjectedProperties`, narrowed to the forms that appear in a
+// path. Every "choose a skill" or "choose an armour proficiency" feat uses one —
+// Kyra's Armor Proficiency (Medium) is exactly this shape, and reading it wrong
+// left her AC seven points low.
 function resolveInjectedPath(path: string, item: EngineItem): string | null {
   if (!path.includes('{')) return path
   let failed = false
   const resolved = path.replace(/\{item\|([^}]+)\}/g, (_match, inner: string) => {
+    // A rules selection: answered by the ChoiceSet that writes the flag.
+    const selection = /^flags\.[^.]+\.rulesSelections\.([A-Za-z0-9_-]+)$/.exec(inner)
+    if (selection) {
+      // The ChoiceSet is the reliable source, but fall through to a literal
+      // read if an item does carry the flag: both are legitimate shapes and
+      // preferring one need not exclude the other.
+      const chosen = choiceSelection(item, selection[1])
+      if (chosen) return chosen
+    }
     let cursor: unknown = item
     for (const step of inner.split('.')) {
       if (cursor === null || typeof cursor !== 'object') return (failed = true), ''
@@ -129,7 +173,12 @@ export function applyActiveEffectLikes(
       // could only ever have been one this caller cares about, it is a gap worth
       // reporting rather than a rule aimed elsewhere.
       if (resolved === null) {
-        if (DYNAMIC_PATHS.some((re) => re.test(rule.path!.replace(/\{[^}]+\}/, 'x')))) {
+        // Judge the literal shape with the injection stood in for. Previously
+        // only the skills pattern was considered, so an unresolvable injection
+        // on an armour or save path was dropped without a word — which is how
+        // a seven-point AC error reached the sheet with an empty ledger.
+        const shape = rule.path.replace(/\{[^}]+\}/g, 'x')
+        if (RANK_SHAPES.some((re) => re.test(shape))) {
           candidates.push({ rule, item, path: null })
         }
         continue

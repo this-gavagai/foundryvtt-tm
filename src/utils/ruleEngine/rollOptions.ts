@@ -27,6 +27,7 @@ export interface RollOptionSource {
     name?: string
     system?: {
       slug?: string | null
+      rules?: unknown[]
       traits?: { value?: string[] }
       equipped?: { carryType?: string; handsHeld?: number; invested?: boolean | null }
     }
@@ -103,12 +104,46 @@ export function buildRollOptions(source: RollOptionSource): RollOptionSet {
     }
   }
 
-  // A RollOption rule the GM has told us is on. These are already the answer to
-  // "did this predicate pass", so they need no evaluation — and because the GM
-  // computed them, an option here is known even when its family is not one this
-  // engine enumerates.
+  // `activeRules` says which RollOption rules' PREDICATES pass — it is built
+  // Foundry-side as `if (rule.option && rule.predicate.test([]))`, and says
+  // nothing about whether the option is actually set. The app's own roll-options
+  // panel has always read it that way: the list decides which toggles to SHOW,
+  // and each rule's `value` decides whether it is on.
+  //
+  // Treating membership as "the option is present" switched on every toggleable
+  // option a character had. One live character's Ageless Patience — +2 to
+  // perception and every skill, behind a toggle she has never flipped — was
+  // applied to all seventeen figures.
+  //
+  // PF2e's own schema settles the default: `value` is a ResolvableValueField
+  // with `initial: (data) => !data.toggleable`. A non-toggleable rule with no
+  // value is ON; a TOGGLEABLE one with no value is OFF.
   const reported = new Set(source.activeRules ?? [])
-  for (const option of reported) options.add(option)
+  const undecidable = new Set<string>()
+  // An option the GM adjudicated but whose rule is not among the items we were
+  // given — granted by something we cannot see — has no discoverable toggle
+  // state. Undecidable rather than off: "the GM says this rule applies" is not
+  // evidence that it is switched off.
+  const located = new Set<string>()
+  for (const item of source.items ?? []) {
+    for (const raw of item.system?.rules ?? []) {
+      const rule = raw as { key?: string; option?: string; toggleable?: unknown; value?: unknown }
+      if (rule.key !== 'RollOption' || typeof rule.option !== 'string') continue
+      if (!reported.has(rule.option)) continue
+      located.add(rule.option)
+      const value = rule.value ?? !rule.toggleable
+      if (typeof value !== 'boolean') {
+        // A formula-valued toggle. Resolvable in principle, but not from here,
+        // and guessing either way sets or clears a real modifier.
+        undecidable.add(rule.option)
+        continue
+      }
+      if (value) options.add(rule.option)
+    }
+  }
+  for (const option of reported) {
+    if (!located.has(option)) undecidable.add(option)
+  }
 
   const atRest = (option: string) =>
     ABSENT_AT_REST.some((prefix) => option === prefix || option.startsWith(`${prefix}:`))
@@ -118,9 +153,10 @@ export function buildRollOptions(source: RollOptionSource): RollOptionSet {
     // actually reported the option, which outranks the assumption.
     has: (option) => options.has(option),
     knows: (option) =>
-      reported.has(option) ||
-      atRest(option) ||
-      KNOWN_PREFIXES.some((prefix) => option.startsWith(`${prefix}:`))
+      !undecidable.has(option) &&
+      (reported.has(option) ||
+        atRest(option) ||
+        KNOWN_PREFIXES.some((prefix) => option.startsWith(`${prefix}:`)))
   }
 }
 
