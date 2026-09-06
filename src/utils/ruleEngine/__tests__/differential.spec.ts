@@ -173,17 +173,21 @@ describe('coverage', () => {
       } as unknown as UpdateCharacterDetailsArgs['system']
     })
     const report = runDifferential(args, STAMP)
-    // hp-max and initiative join the list unconditionally: neither has a
-    // modifier list to key off, so both are compared whenever the payload
-    // reports a level.
+    // hp-max, initiative, land speed and the focus pool join the list
+    // unconditionally: none has a modifier list to key off, so all four are
+    // compared whenever the payload reports a level. The other four speeds do
+    // not, because a character with no fly speed and an engine that derives no
+    // fly speed agree — an empty row there would be noise, not coverage.
     expect(report.figures.map((f) => f.figure).sort()).toEqual([
       'ac',
       'athletics',
+      'focus-pool',
       'fortitude',
       'hp-max',
       'initiative',
       'perception',
-      'reflex'
+      'reflex',
+      'speed:land'
     ])
   })
 

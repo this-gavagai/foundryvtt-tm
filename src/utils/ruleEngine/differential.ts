@@ -8,7 +8,9 @@ import {
   deriveArmorClass,
   deriveHitPointsMax,
   derivePerception,
+  deriveFocusPool,
   deriveInitiative,
+  deriveMovement,
   deriveSave,
   deriveSkill,
   deriveSpellAttack,
@@ -81,6 +83,14 @@ export interface FigureDivergence {
   // The whole statistic, engine against PF2e. Absent when the payload reports no
   // total for this figure, or when the engine declined to derive one.
   total?: { engine: number; pf2e: number }
+  // Whether a total comparison actually happened.
+  //
+  // Without this a row that compared NOTHING is indistinguishable from a row
+  // that compared and agreed — both simply have no `total` — so a figure PF2e
+  // never reports reads as permanently, silently correct. That is the same
+  // shape as the spellcasting rows that compared nothing at all, and the reason
+  // this flag exists rather than a comment promising to remember.
+  totalCompared?: boolean
 }
 
 export interface DifferentialReport {
@@ -204,6 +214,7 @@ function compareFigure(
     silentMiss,
     skipped: derived.ledger.skipped.length,
     skippedBy: derived.ledger.skipped.map((skip) => ({ key: skip.key, reason: skip.reason })),
+    totalCompared: typeof total?.engine === 'number' && typeof total?.pf2e === 'number',
     total:
       typeof total?.engine === 'number' &&
       typeof total?.pf2e === 'number' &&
@@ -257,6 +268,8 @@ export function runDifferential(
         >
         perception?: { modifiers?: WireModifier[]; totalModifier?: number }
         initiative?: { statistic?: string; modifiers?: WireModifier[]; totalModifier?: number }
+        movement?: { speeds?: Record<string, { value?: number } | null | undefined> }
+        resources?: { focus?: { max?: number } }
       }
     | undefined
 
@@ -320,6 +333,7 @@ export function runDifferential(
         key: skip.key,
         reason: skip.reason
       })),
+      totalCompared: typeof system?.attributes?.hp?.max === 'number',
       total:
         typeof system?.attributes?.hp?.max === 'number' &&
         deriveHitPointsMax(derivationInput).value !== system.attributes.hp.max
@@ -371,6 +385,7 @@ export function runDifferential(
       silentMiss: [],
       skipped: engine.ledger.skipped.length,
       skippedBy: engine.ledger.skipped.map((skip) => ({ key: skip.key, reason: skip.reason })),
+      totalCompared: typeof system?.initiative?.totalModifier === 'number',
       total:
         typeof system?.initiative?.totalModifier === 'number' &&
         engine.value !== system.initiative.totalModifier
@@ -382,6 +397,51 @@ export function runDifferential(
   // One row per spellcasting entry, twice over: a character with two entries
   // has two different DCs, and the whole reason spell DC needed its own
   // derivation is that it does not follow the class.
+  // Speeds and the focus pool are pure total comparisons: neither carries a
+  // modifier list on the wire that lines up with the engine's domains, and both
+  // are far more likely to be wrong in the base than in the modifiers.
+  if (derivationInput) {
+    const speeds = deriveMovement(derivationInput)
+    for (const [type, speed] of Object.entries(speeds)) {
+      const pf2e = system?.movement?.speeds?.[type]?.value
+      // PF2e reports absent speeds as null; the engine reports them as null
+      // too, so "both say nothing" is agreement, not a missing row.
+      if (typeof pf2e !== 'number' && !speed) continue
+      figures.push({
+        figure: `speed:${type}`,
+        valueMismatch: [],
+        engineOnly: [],
+        silentMiss: [],
+        skipped: speed?.ledger.skipped.length ?? 0,
+        skippedBy: (speed?.ledger.skipped ?? []).map((skip) => ({
+          key: skip.key,
+          reason: skip.reason
+        })),
+        totalCompared: typeof pf2e === 'number',
+        total:
+          typeof pf2e === 'number' && (speed?.value ?? 0) !== pf2e
+            ? { engine: speed?.value ?? 0, pf2e }
+            : undefined
+      })
+    }
+
+    const focus = deriveFocusPool(derivationInput)
+    const reportedFocus = system?.resources?.focus?.max
+    figures.push({
+      figure: 'focus-pool',
+      valueMismatch: [],
+      engineOnly: [],
+      silentMiss: [],
+      skipped: focus.ledger.skipped.length,
+      skippedBy: focus.ledger.skipped.map((skip) => ({ key: skip.key, reason: skip.reason })),
+      totalCompared: typeof reportedFocus === 'number',
+      total:
+        typeof reportedFocus === 'number' && focus.max !== reportedFocus
+          ? { engine: focus.max, pf2e: reportedFocus }
+          : undefined
+    })
+  }
+
   // Top level on the payload, NOT under `actor` — the sheet reads it off the
   // merged TablemateActor, where parseActorData has already hoisted it, and
   // reading it the sheet's way here finds nothing and compares nothing.

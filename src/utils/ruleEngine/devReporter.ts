@@ -21,6 +21,13 @@ export interface HarnessSummary {
   diverged: number
   silentMisses: number
   totalMismatches: number
+  // Total comparisons that actually happened, against those that could not.
+  //
+  // `totalMismatches: 0` alone is not evidence of correctness — a figure PF2e
+  // never reports produces no mismatch forever. Reading these two together is
+  // what separates "the engine agrees" from "nothing was checked".
+  totalsCompared: number
+  totalsUncompared: number
   // Which figures diverge most, worst first — where to look.
   byFigure: { figure: string; diverged: number; totalMismatch: number }[]
   // Which rule element types are costing the most coverage, worst first. This is
@@ -39,6 +46,8 @@ function summarize(): HarnessSummary {
   let clean = 0
   let silentMisses = 0
   let totalMismatches = 0
+  let totalsCompared = 0
+  let totalsUncompared = 0
 
   for (const report of reports) {
     if (report.clean) clean++
@@ -48,6 +57,8 @@ function summarize(): HarnessSummary {
       attributes[attribute.attribute] = (attributes[attribute.attribute] ?? 0) + 1
     }
     for (const figure of report.figures) {
+      if (figure.totalCompared) totalsCompared++
+      else totalsUncompared++
       for (const skip of figure.skippedBy) {
         const label = `${skip.key} (${skip.reason})`
         bySkippedKey.set(label, (bySkippedKey.get(label) ?? 0) + 1)
@@ -71,6 +82,8 @@ function summarize(): HarnessSummary {
     diverged: reports.length - clean,
     silentMisses,
     totalMismatches,
+    totalsCompared,
+    totalsUncompared,
     byFigure: [...byFigure.entries()]
       .map(([figure, counts]) => ({ figure, ...counts }))
       .sort((a, b) => b.diverged - a.diverged),
