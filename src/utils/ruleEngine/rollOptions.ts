@@ -77,6 +77,30 @@ const KNOWN_PREFIXES = [
 // mistake this whole set exists to avoid.
 const ABSENT_AT_REST = ['action', 'self:action', 'target', 'origin'] as const
 
+// Options whose ONLY producer is a RollOption rule element.
+//
+// A third kind of knowledge, and the narrowest. These are not families and not
+// at-rest assumptions: they are individual options that PF2e defines as
+// extension hooks and never sets itself. `armor:ignore-speed-penalty` occurs
+// exactly once in the system's 5.8MB bundle — inside the predicate that reads
+// it — and in none of the shipped compendium packs; the same is true of
+// `self:shield:ignore-speed-penalty`. Nothing but a RollOption rule element, on
+// an item this engine can see, can put either into the option set.
+//
+// That is what makes them answerable, and the entry is only as good as the
+// checking behind it. Adding an option here without confirming that no code path
+// and no content sets it turns "I don't know" back into a silent "no" — which
+// for these two would mean quietly dropping an armour speed penalty, in the
+// flattering direction.
+//
+// Left OUT of the loop below on purpose: they are decided by the rules scan
+// like any other option, so a character who really does carry such a toggle
+// still gets the honest answer.
+const RULE_DECLARED_ONLY = [
+  'armor:ignore-speed-penalty',
+  'self:shield:ignore-speed-penalty'
+] as const
+
 export interface RollOptionSet {
   has: (option: string) => boolean
   // Whether the engine is entitled to an opinion about this option at all.
@@ -156,6 +180,7 @@ export function buildRollOptions(source: RollOptionSource): RollOptionSet {
       !undecidable.has(option) &&
       (reported.has(option) ||
         atRest(option) ||
+        RULE_DECLARED_ONLY.includes(option as (typeof RULE_DECLARED_ONLY)[number]) ||
         KNOWN_PREFIXES.some((prefix) => option.startsWith(`${prefix}:`)))
   }
 }
