@@ -16,7 +16,7 @@ import type { AuthRequirement } from '@/foundry/rpcAuthorize'
 // which is the moment to ask whether 'world-user' is really enough and whether
 // the handler is genuinely free of dice, chat and ambient roll state.
 
-type Expected = { auth: AuthRequirement; concurrent?: true }
+type Expected = { auth: AuthRequirement; concurrent?: true; anyClient?: true }
 
 const EXPECTED: Record<RpcAction, Expected> = {
   // ── Owner-gated: everything that rolls, spends, mutates, or speaks as a
@@ -83,7 +83,10 @@ const EXPECTED: Record<RpcAction, Expected> = {
   [TM.GET_COMPENDIUM_INDEX]: { auth: 'world-user', concurrent: true },
   // Names no actor and reads no document — CONFIG.PF2E plus the world locale,
   // the same answer for every user at the table.
-  [TM.GET_LABEL_CATALOGS]: { auth: 'world-user', concurrent: true },
+  // The ONLY widened entry, and the bar for a second one is high: no actor
+  // named, no document read, nothing to be permitted to, and the same answer on
+  // every client in the world. Label catalogs are CONFIG.PF2E plus the locale.
+  [TM.GET_LABEL_CATALOGS]: { auth: 'world-user', concurrent: true, anyClient: true },
 
   // ── Player-scoped, not character-scoped.
   [TM.TOGGLE_REACTION]: { auth: 'world-user' },
@@ -99,9 +102,16 @@ describe('RPC_TABLE', () => {
     const actual = Object.fromEntries(
       Object.entries(RPC_TABLE).map(([action, descriptor]) => [
         action,
-        descriptor.concurrent
-          ? { auth: descriptor.auth, concurrent: descriptor.concurrent }
-          : { auth: descriptor.auth }
+        {
+          auth: descriptor.auth,
+          ...(descriptor.concurrent ? { concurrent: descriptor.concurrent } : {}),
+          // Projected deliberately. `anyClient` decides whether a request can be
+          // answered by a client with no GM privileges at all, which makes it
+          // the most consequential of the three properties — and it was
+          // invisible here until it was listed, so a second entry could have
+          // been widened without this gate noticing.
+          ...(descriptor.anyClient ? { anyClient: descriptor.anyClient } : {})
+        }
       ])
     )
     expect(actual).toEqual(EXPECTED)

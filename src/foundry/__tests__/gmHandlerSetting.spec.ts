@@ -11,6 +11,7 @@ import {
   type HandlerUser,
   type ElectableUser
 } from '@/foundry/gmHandlerSetting'
+import { SHEET_USER_FLAG, SHEET_USER_VALUE } from '@/foundry/utils/sheetUser'
 
 // The world's GM handler policy decides which GM client handles a Tablemate
 // request. These tests pin the two things listener.ts relies on: an unconfigured
@@ -222,5 +223,60 @@ describe('handler election', () => {
     // The signature is the guarantee: there is nothing about who asked for
     // routing to key on. This pins that the parameter list stays that way.
     expect(isElectedHandler.length).toBeLessThanOrEqual(3)
+  })
+})
+
+// A widened field, for requests that name no actor and read no document. The
+// label catalogs are the case: CONFIG.PF2E plus the world's locale, identical on
+// every client, with nothing to be permitted to. Requiring a GM for that left a
+// sheet unlabelled until somebody with the keys opened Foundry.
+describe('isElectedHandler with the field widened', () => {
+  const wide = { requireGM: false }
+  const client = (id: string, isGM: boolean): ElectableUser => ({ _id: id, isGM, active: true })
+
+  // Runs the real election over a mixed field and names the single winner.
+  function electWide(online: ElectableUser[], p = policy()): string | null | undefined {
+    return online.find((me) => isElectedHandler(me, online, p, wide))?._id
+  }
+
+  it('still elects exactly one client, not everyone', () => {
+    const online = [client('aaa', false), client('bbb', false), client('ccc', false)]
+    expect(online.filter((me) => isElectedHandler(me, online, policy(), wide))).toHaveLength(1)
+  })
+
+  it('lets a player answer when no GM is online', () => {
+    expect(electWide([client('bbb', false), client('ccc', false)])).toBe('bbb')
+  })
+
+  // The property that makes this safe to turn on: nothing about a world with a
+  // GM in it changes.
+  it('gives it to the GM whenever one is eligible, whatever the ids say', () => {
+    // 'aaa' sorts first by id and would win on rank alone; the GM takes it.
+    expect(electWide([client('aaa', false), client('zzz', true)])).toBe('zzz')
+  })
+
+  it('respects the policy opt-out, and falls through to a player', () => {
+    const online = [client('aaa', false), client('zzz', true)]
+    expect(electWide(online, policy([], ['zzz']))).toBe('aaa')
+  })
+
+  it('excludes an inactive client and a sheet user alike', () => {
+    const inactive: ElectableUser = { _id: 'aaa', isGM: false, active: false }
+    expect(isElectedHandler(inactive, [inactive], policy(), wide)).toBe(false)
+    // Built from the module's own constants, not a hand-written literal: the
+    // flag is `tablemate.character_sheet === 'root'`, and a fixture that
+    // invents its own shape passes while testing nothing.
+    const sheet: ElectableUser = {
+      _id: 'bbb',
+      isGM: false,
+      active: true,
+      flags: { tablemate: { [SHEET_USER_FLAG]: SHEET_USER_VALUE } }
+    }
+    expect(isElectedHandler(sheet, [sheet], policy(), wide)).toBe(false)
+  })
+
+  it('leaves the narrow election alone: a player is never elected by default', () => {
+    const online = [client('aaa', false)]
+    expect(isElectedHandler(online[0], online, policy())).toBe(false)
   })
 })

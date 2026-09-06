@@ -26,7 +26,12 @@ import type { ActorLike, AuthRequirement, AuthWorld } from '@/foundry/rpcAuthori
 // by entry, and a real descriptor here would drag a live Foundry handler in.
 let table: Record<
   string,
-  { handler: (a: ModuleEventArgs) => Promise<unknown>; auth: AuthRequirement; concurrent?: true }
+  {
+    handler: (a: ModuleEventArgs) => Promise<unknown>
+    auth: AuthRequirement
+    concurrent?: true
+    anyClient?: true
+  }
 > = {}
 const PASSIVE = new Set<string>(['tm.passiveAction'])
 
@@ -374,5 +379,77 @@ describe('dispatch', () => {
     expect(fast).toHaveBeenCalledTimes(1)
     releaseSerialized()
     await settle()
+  })
+})
+
+// A request that names no actor and reads no document does not need a GM.
+// The dispatch loop asks the responder gate a different question for those, and
+// the descriptor lookup had to move ahead of the gate to make that possible.
+describe('the anyClient widening', () => {
+  it('asks the gate to require a GM for an ordinary request', () => {
+    const scopes: unknown[] = []
+    table['tm.doThing'] = { handler: vi.fn(async () => ({ ok: true })), auth: 'world-user' }
+    handleModuleEvent(
+      event({ action: 'tm.doThing', uuid: 'req-1' }),
+      makeDeps({
+        isResponder: (scope?: { requireGM?: boolean }) => {
+          scopes.push(scope)
+          return true
+        }
+      })
+    )
+    expect(scopes).toEqual([{ requireGM: true }])
+  })
+
+  it('asks the gate to allow any client for one marked anyClient', () => {
+    const scopes: unknown[] = []
+    table['tm.doThing'] = {
+      handler: vi.fn(async () => ({ ok: true })),
+      auth: 'world-user',
+      anyClient: true
+    }
+    handleModuleEvent(
+      event({ action: 'tm.doThing', uuid: 'req-1' }),
+      makeDeps({
+        isResponder: (scope?: { requireGM?: boolean }) => {
+          scopes.push(scope)
+          return true
+        }
+      })
+    )
+    expect(scopes).toEqual([{ requireGM: false }])
+  })
+
+  // The opt-in has to fail closed: an action with no descriptor at all — a
+  // passive one, or a request from an app newer than this module — keeps the GM
+  // requirement rather than inheriting the widening.
+  it('still requires a GM for an action with no table entry', () => {
+    const scopes: unknown[] = []
+    handleModuleEvent(
+      event({ action: 'tm.somethingBrandNew', uuid: 'req-1' }),
+      makeDeps({
+        isResponder: (scope?: { requireGM?: boolean }) => {
+          scopes.push(scope)
+          return true
+        }
+      })
+    )
+    expect(scopes).toEqual([{ requireGM: true }])
+  })
+
+  it('a widened request still runs its authorization check', async () => {
+    const handler = vi.fn(async () => ({ ok: true }))
+    table['tm.doThing'] = { handler, auth: 'owner', anyClient: true }
+    const deps = makeDeps({ isResponder: () => true })
+    // player-2 owns nothing. `anyClient` says who may ANSWER; `auth` still says
+    // who may ASK, and widening one must not relax the other.
+    handleModuleEvent(
+      event({ action: 'tm.doThing', userId: 'player-2', actorId: 'actor-1', uuid: 'req-1' }),
+      deps
+    )
+    await settle()
+
+    expect(handler).not.toHaveBeenCalled()
+    expect(emittedError(deps.emit)).toBe(TM_ERROR_UNAUTHORIZED)
   })
 })

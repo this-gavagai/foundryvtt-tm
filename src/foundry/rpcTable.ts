@@ -102,6 +102,16 @@ export type RpcDescriptor<K extends RpcAction> = {
   // overrides, chat attribution), so two interleaved requests would read each
   // other's context. See the dispatch chain in listener.ts.
   concurrent?: true
+  // Answerable by ANY module-running client, not only the elected GM.
+  //
+  // For requests that name no actor, read no document and need no permission —
+  // where every client computes the same answer from the same world. It widens
+  // the field of the handler election (see isElectedHandler); it does not skip
+  // it, and a GM still wins whenever one is online.
+  //
+  // The authorization requirement above is unaffected and still checked: this
+  // says who may ANSWER, `auth` says who may ASK.
+  anyClient?: true
 }
 
 export type RpcTable = { [K in RpcAction]: RpcDescriptor<K> }
@@ -191,7 +201,13 @@ export const RPC_TABLE: RpcTable = {
   [TM.GET_LABEL_CATALOGS]: {
     handler: foundryGetLabelCatalogs,
     auth: 'world-user',
-    concurrent: true
+    concurrent: true,
+    // The one entry in this table that needs no GM. It is CONFIG.PF2E plus the
+    // world's locale — the same object on a player's client as on a GM's, with
+    // nothing to be permitted to. Requiring a GM for it was architectural
+    // accident, not a rule: it made a sheet sit unlabelled until someone with
+    // the keys opened Foundry.
+    anyClient: true
   },
 
   // LEGACY SHIM, kept for stale native app builds. A reaction is now written
@@ -254,6 +270,16 @@ export type AnyRpcDescriptor = {
   handler: (args: ModuleEventArgs) => Promise<AcknowledgementArgs>
   auth: AuthRequirement
   concurrent?: true
+  // Answerable by ANY module-running client, not only the elected GM.
+  //
+  // For requests that name no actor, read no document and need no permission —
+  // where every client computes the same answer from the same world. It widens
+  // the field of the handler election (see isElectedHandler); it does not skip
+  // it, and a GM still wins whenever one is online.
+  //
+  // The authorization requirement above is unaffected and still checked: this
+  // says who may ANSWER, `auth` says who may ASK.
+  anyClient?: true
 }
 
 // The descriptor for an action off the wire, or undefined when this module has

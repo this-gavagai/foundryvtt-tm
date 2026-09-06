@@ -163,23 +163,55 @@ export function isHandlerCapableClient(user: SheetFlaggedUser | undefined): bool
 // Eligible = an active GM, on a client that can actually handle requests, whom
 // the policy has not opted out. Among those, the comparator decides, and `me`
 // wins by there being nobody ahead.
+// How wide the field is for one request.
+//
+// `requireGM: false` opens the election to any module-running client, for
+// requests that name no actor and read no document — the label catalogs are the
+// case it exists for: a pure function of CONFIG.PF2E and the world's locale,
+// which every client computes identically and no permission gates.
+//
+// It does NOT mean "everyone answers". A dozen players all replying would be a
+// dozen duplicate responses, every time, not the momentary double-answer
+// requestDedup.ts covers. It stays a single-winner election; only the field of
+// candidates grows.
+export interface ElectionScope {
+  requireGM?: boolean
+}
+
 export function isElectedHandler(
   me: ElectableUser | undefined,
   users: ElectableUser[],
-  policy: GmHandlerPolicy = gmHandlerPolicy()
+  policy: GmHandlerPolicy = gmHandlerPolicy(),
+  scope: ElectionScope = {}
 ): boolean {
+  const requireGM = scope.requireGM !== false
+
   // One eligibility test, applied to `me` and to every rival alike. The listener
   // only ever asks about itself, where `active` is necessarily true — but this is
   // a plain predicate now, and one that answered "yes, you are elected" for an
   // offline GM would be a trap for the next caller.
   const eligible = (user: ElectableUser | undefined): boolean =>
-    !!user?.isGM &&
+    !!user &&
+    (requireGM ? user.isGM === true : true) &&
     user.active === true &&
     isHandlerCapableClient(user) &&
     gmHandlesRequests(user, policy)
 
+  // With the field widened, a GM still wins outright whenever one is eligible —
+  // so a world with a GM online behaves exactly as it did, and a player client
+  // answers only when the alternative is nobody answering at all. Without this
+  // axis an unlisted GM and a player tie on rank and break by id, which would
+  // hand some requests to a player while a GM sat there ready.
+  const compare = (a: ElectableUser, b: ElectableUser): number => {
+    if (!requireGM) {
+      const byRole = Number(!!b.isGM) - Number(!!a.isGM)
+      if (byRole !== 0) return byRole
+    }
+    return compareGmHandlers(a, b, policy)
+  }
+
   if (!eligible(me)) return false
-  return !users.filter(eligible).some((other) => compareGmHandlers(other, me!, policy) < 0)
+  return !users.filter(eligible).some((other) => compare(other, me!) < 0)
 }
 
 // Election order: negative when `a` handles requests before `b`. The single

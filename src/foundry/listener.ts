@@ -42,7 +42,12 @@ import {
   manualRollPolicy,
   hasPresetDiceResults
 } from './manualRollPolicy'
-import { registerGmHandlerSetting, gmHandlerPolicy, isElectedHandler } from './gmHandlerSetting'
+import {
+  registerGmHandlerSetting,
+  gmHandlerPolicy,
+  isElectedHandler,
+  type ElectionScope
+} from './gmHandlerSetting'
 import { registerVoiceMemoSetting, voiceMemoEnabled } from './voiceMemoSetting'
 import { registerImageUploadSetting, imageUploadEnabled } from './imageUploadSetting'
 import { registerPushSettings, ensureWorldPushIdentity } from './pushRegistration'
@@ -239,8 +244,10 @@ export interface ModuleEventDeps {
   selfUserId: () => string | undefined
   // Send on the module channel.
   emit: (payload: unknown) => void
-  // Is this client the world's elected handler?
-  isResponder: () => boolean
+  // Is this client the world's elected handler for a request of this kind?
+  // The scope is what makes it per-request: most requests need the elected GM,
+  // a few need only some module-running client.
+  isResponder: (scope?: ElectionScope) => boolean
   // World policy for player-determined dice faces.
   manualRollPolicy: () => ManualRollPolicy
   // Character refresh has its own debounced, per-actor path.
@@ -304,7 +311,13 @@ export function handleModuleEvent(args: ModuleEventArgs, deps: ModuleEventDeps) 
     return
   }
 
-  if (!deps.isResponder()) return
+  // The table lookup moved AHEAD of the responder gate, because the gate's
+  // answer now depends on it: a request that names no actor and reads no
+  // document can be answered by any module-running client, not only by a GM.
+  // Everything without a descriptor — ANYBODY_HOME, passive actions, an action
+  // from a newer app — keeps the GM requirement, since `anyClient` is opt-in.
+  const rpc = rpcDescriptor(args.action)
+  if (!deps.isResponder({ requireGM: rpc?.anyClient !== true })) return
   logger.info('TM.RECV (listener)', args)
 
   if (args.action === TM.ANYBODY_HOME) {
@@ -312,10 +325,6 @@ export function handleModuleEvent(args: ModuleEventArgs, deps: ModuleEventDeps) 
     return
   }
 
-  // One table lookup answers every question the dispatch loop has about this
-  // action: who may ask for it, which handler answers it, and whether it may
-  // run off the serialized chain. See rpcTable.ts.
-  const rpc = rpcDescriptor(args.action)
   if (!rpc) {
     // An action this side only ever sends — observed on the wire, nothing to do.
     if (PASSIVE_ACTIONS.has(args.action)) return
@@ -525,7 +534,7 @@ export function setupListener() {
     world: authWorld,
     selfUserId: () => game.user.id,
     emit: (payload) => game.socket.emit(TM.CHANNEL, payload),
-    isResponder: iAmFirstGM,
+    isResponder: iAmTheHandler,
     manualRollPolicy,
     onCharacterRequest: handleCharacterRequest,
     onAnybodyHome: (args) => {
@@ -589,10 +598,16 @@ export function setupListener() {
 // Every client runs this election locally off the same world setting + the same
 // user.active view, so they agree on the answer; requestDedup.ts covers the
 // handoff window where those views momentarily differ.
-function iAmFirstGM() {
+function iAmTheHandler(scope: ElectionScope = {}) {
   // The election itself lives with the policy it reads, where it is unit-tested
   // (gmHandlerSetting.spec.ts); this supplies the live world state.
-  return isElectedHandler(game.user, game.users.contents ?? [], gmHandlerPolicy())
+  return isElectedHandler(game.user, game.users.contents ?? [], gmHandlerPolicy(), scope)
+}
+
+// The narrow form, for the two callers that are about GM work specifically:
+// answering a character refresh, and deciding who announces the listener.
+function iAmFirstGM() {
+  return iAmTheHandler()
 }
 // The active ring's spritesheet path, or undefined when the ring framework
 // hasn't initialized (no canvas yet) or the config is unavailable.
