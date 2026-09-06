@@ -99,7 +99,7 @@ describe('the prediction it leaves behind', () => {
       figure(
         'ac',
         () => 22,
-        () => ({ value: 22 })
+        () => 22
       )
     ]
     reconcileDerived('a1', actor, undefined)
@@ -122,16 +122,25 @@ describe('the prediction it leaves behind', () => {
     expect(misses[0].key).toBe('ac')
   })
 
-  it('compares a bare total against the object the payload wraps it in', () => {
+  // This used to assert the opposite: that the rule would dig the total out of
+  // whatever object a figure handed it, taking the first number among
+  // `totalModifier`, `value`, `max`, `dc`. That guess cannot be made from a key
+  // name — PF2e's AC object carries `value: 21` AND `totalModifier: 11`, the same
+  // AC with and without its base 10 — and it silently took the wrong one, so AC
+  // reported a miss on every payload with the numbers in agreement. Making the
+  // two sides meet is the FIGURE's job now, and has its own spec.
+  it('compares what the figure hands it, without looking inside', () => {
     figures.current = [
       figure(
         'perception',
         () => 9,
-        () => ({ totalModifier: 9, modifiers: [] })
+        () => ({ totalModifier: 9 })
       )
     ]
     reconcileDerived('a1', actor, undefined)
-    expect(checkPredictions('a1', actor, undefined)).toEqual([])
+    expect(checkPredictions('a1', actor, undefined)).toEqual([
+      { key: 'perception', predicted: 9, reported: { totalModifier: 9 } }
+    ])
   })
 
   it('is not a miss when the payload reports nothing for that figure', () => {

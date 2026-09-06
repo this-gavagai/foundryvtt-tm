@@ -1,5 +1,7 @@
 import { onMounted, onUnmounted, watch, type Ref } from 'vue'
 import { reconcileDerived, checkPredictions, forgetPredictions } from '@/utils/derivedReconcile'
+import { derivableFigures } from '@/utils/derivedFigures'
+import { registerFigures } from '@/utils/ruleEngine/devReporter'
 import { useLabelCatalogsStore } from '@/stores/labelCatalogs'
 import type { TablemateCharacter } from '@/types/character-types'
 import { storeToRefs } from 'pinia'
@@ -76,6 +78,12 @@ export function useActorSync(
   onMounted(() => {
     logger.info('TM-INIT: initiating character', characterId)
     if (!characterId) return
+    // Lend the figure table to the harness, so `window.__tmRuleEngine.figures()`
+    // can ask what every derivation says against what the payload says — at
+    // rest, with no write needed to provoke an answer.
+    registerFigures(characterId, () =>
+      derivableFigures(actor as Ref<TablemateCharacter | undefined>, stamp.value)
+    )
 
     // Paint last-known state immediately from disk, then mark it stale until
     // the live fetch confirms. Guard on `!actor.value` so we never clobber
@@ -125,6 +133,7 @@ export function useActorSync(
     // holding, and would otherwise be compared against a payload from a
     // different session.
     forgetPredictions(characterId)
+    if (characterId) registerFigures(characterId, undefined)
     logger.info('TM-INIT: unmounted actor', characterId)
     stopUserIdWatch?.()
     removeRefresh?.()

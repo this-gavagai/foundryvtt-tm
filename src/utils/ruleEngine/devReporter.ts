@@ -1,5 +1,6 @@
 import type { DifferentialReport } from './differential'
 import { predictionMisses, type PredictionMiss } from '@/utils/derivedReconcile'
+import type { Figure } from '@/utils/derivedFigures'
 import { describeDifferential } from './differential'
 import { logger } from '@/utils/utilities'
 
@@ -107,9 +108,58 @@ declare global {
       // describing the same settled world; these are predictions made across a
       // mutation. See utils/derivedReconcile.
       predictions: () => PredictionMiss[]
+      // Every derivable figure with our answer beside the payload's, right now.
+      //
+      // The third question, and the one that needs no write and no divergence to
+      // answer: in a world nobody has touched, does each figure AGREE with the
+      // payload it is going to be compared against? Six of them could not, ever
+      // — their two sides rendered the same world in different shapes, so each
+      // reported a miss on every payload with the numbers identical. That was
+      // invisible from the other two inspectors and obvious from this one.
+      figures: () => FigureReading[]
       reset: () => void
     }
   }
+}
+
+export interface FigureReading {
+  actorId: string
+  key: string
+  ours: unknown
+  payload: unknown
+  agrees: boolean
+}
+
+// The sheet owns the actor, so it lends its table rather than this reaching for
+// one — and KEYED BY ACTOR, because more than one sheet is mounted at a time.
+// A single slot here read whichever sheet had mounted last while reporting
+// numbers as though they were the one on screen, which is the same mistake as
+// the bug this inspector exists to find: an instrument answering a question
+// next to the one being asked.
+const figureTables = new Map<string, () => Figure[]>()
+
+export function registerFigures(actorId: string, table: (() => Figure[]) | undefined): void {
+  if (table) figureTables.set(actorId, table)
+  else figureTables.delete(actorId)
+}
+
+function readFigures(): FigureReading[] {
+  const out: FigureReading[] = []
+  for (const [actorId, table] of figureTables) {
+    for (const figure of table()) {
+      const ours = figure.value()
+      const payload = figure.reported()
+      out.push({
+        actorId,
+        key: figure.key,
+        ours,
+        payload,
+        // A figure the payload says nothing about is not a disagreement.
+        agrees: payload === undefined || payload === null || Object.is(ours, payload)
+      })
+    }
+  }
+  return out
 }
 
 let armed = false
@@ -129,13 +179,15 @@ export function armHarness(): void {
     reports: () => [...reports],
     last: () => reports[reports.length - 1],
     predictions: predictionMisses,
+    figures: readFigures,
     reset: () => {
       reports.length = 0
     }
   }
   logger.warn(
     'TM: rule engine harness armed — inspect with window.__tmRuleEngine.summary(), ' +
-      'and window.__tmRuleEngine.predictions() for figures a write predicted wrongly. ' +
+      'window.__tmRuleEngine.predictions() for figures a write predicted wrongly, ' +
+      'and window.__tmRuleEngine.figures() for what each says at rest. ' +
       'Both need a GM online to have anything to compare against.'
   )
 }

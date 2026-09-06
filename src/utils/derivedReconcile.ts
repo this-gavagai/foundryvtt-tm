@@ -61,7 +61,9 @@ export function reconcileDerived(
     // dropped: the payload is the best answer until we have seen the world
     // change at least once.
     if (!previous || !previous.has(figure.key)) continue
-    if (Object.is(previous.get(figure.key), value)) continue
+    // Compared as rendered rather than by identity, so a figure that returns a
+    // fresh object each pass does not read as having moved every time.
+    if (comparable(previous.get(figure.key)) === comparable(value)) continue
     moved.push(figure.key)
     figure.clear()
   }
@@ -119,18 +121,22 @@ export function checkPredictions(
   return found
 }
 
-// A statistic's payload copy is an object with a total buried in it; ours is
-// the total. Compare on the number where there is one, and on the JSON
-// otherwise, so the two shapes can meet.
+// Renders a value for comparison and for the log line. Nothing more: it does NOT
+// try to reconcile two shapes.
+//
+// It used to. Handed a payload object it went looking for the total inside,
+// taking the first number among `totalModifier`, `value`, `max`, `dc` — and that
+// guess cannot be made from a key name. PF2e's AC object carries `value: 21` AND
+// `totalModifier: 11`, the same AC with and without its base 10, and the guess
+// took the wrong one, so AC reported a miss on every payload with the numbers in
+// perfect agreement. It read as an engine bug and was a comparison bug.
+//
+// Making the two sides agree is each FIGURE's job now (derivedFigures.ts): a
+// figure knows what it predicts and where the payload keeps it, and this does
+// not have to know either.
 function comparable(value: unknown): string {
   if (value === null || value === undefined) return ''
-  if (typeof value === 'object') {
-    const record = value as Record<string, unknown>
-    for (const key of ['totalModifier', 'value', 'max', 'dc']) {
-      if (typeof record[key] === 'number') return String(record[key])
-    }
-    return JSON.stringify(value)
-  }
+  if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
 }
 

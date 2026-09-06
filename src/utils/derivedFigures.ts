@@ -5,7 +5,6 @@ import {
   deriveArmorClass,
   deriveFocusPool,
   deriveHitPointsMax,
-  deriveIWR,
   deriveInitiative,
   deriveMovement,
   derivePerception,
@@ -16,7 +15,9 @@ import {
 } from '@/utils/ruleEngine/statistics'
 import { MOVEMENT_TYPES } from '@/utils/ruleEngine/movement'
 import { inventoryBulk, containerCapacity, type BulkItem } from '@/utils/bulk'
-import { composeItemName } from '@/utils/itemName'
+import { composeItemName, type NameableItem } from '@/utils/itemName'
+import { useLabelCatalogsStore } from '@/stores/labelCatalogs'
+import { inventoryTypes } from '@/utils/constants'
 import { displayedValuation } from '@/utils/itemValuation'
 import { displacedOverlays } from '@/utils/itemSource'
 import { asDocumentArray } from '@/api/internal'
@@ -77,17 +78,90 @@ function readAt(root: unknown, path: string): unknown {
   return node
 }
 
+// BOTH SIDES OF A COMPARISON GO THROUGH ONE FUNCTION.
+//
+// This is the load-bearing rule of the file, and it is not self-evident. A
+// figure states what we think a value is and what the payload says it is, and
+// the prediction check compares the two — so a figure whose two sides render the
+// same world DIFFERENTLY reports a miss on every payload forever, whatever the
+// numbers say. Six figures did exactly that. Our bulk said `4.4|10|5` against a
+// payload object; our container map held Bulk instances against PF2e's capacity
+// records; our label map covered every item where the payload names only
+// physical ones; our prices omitted the denominations they did not use where
+// PF2e's fill all four with zeros. The numbers agreed in every case. The shapes
+// did not, so all of it read as the engine being wrong.
+//
+// The normalisers below are therefore SHARED: `reported()` runs the payload
+// through the same function `value()` runs our own answer through, and a shape
+// can no longer drift on one side alone.
+
+// Bulk arithmetic runs through tenths, so two routes to one answer can differ in
+// the last float place. Two decimals is finer than any Bulk value.
+const round2 = (n: number | undefined): number => Math.round((n ?? 0) * 100) / 100
+
+const bulkTotals = (
+  bulk: { value?: { value?: number }; max?: number; encumberedAfter?: number } | undefined
+): string | undefined =>
+  bulk ? `${round2(bulk.value?.value)}|${bulk.max ?? 0}|${bulk.encumberedAfter ?? 0}` : undefined
+
+// Sorted by id, because key order is a serialisation detail on both sides and
+// two records that differ only in it hold the same containers.
+const containerTotals = (
+  containers: Record<string, { value?: number } | undefined> | undefined
+): string =>
+  JSON.stringify(
+    Object.entries(containers ?? {})
+      .map(([id, held]) => [id, round2(held?.value)] as const)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+  )
+
+// A coin record from the world dump carries only the denominations it uses;
+// PF2e's prepared copy fills all four. Same money either way.
+const coins = (price: unknown): string => {
+  const c = (price ?? {}) as Record<string, number | undefined>
+  return `${c.pp ?? 0}|${c.gp ?? 0}|${c.sp ?? 0}|${c.cp ?? 0}`
+}
+
+const speedTotals = (
+  speeds: Record<string, { value?: number } | null | undefined> | undefined
+): string => MOVEMENT_TYPES.map((t) => `${t}:${speeds?.[t]?.value ?? ''}`).join('|')
+
+// The world's rune, material and grade names, which is what turns a stored
+// "Dagger" into the "+2 Greater Striking Dagger" PF2e reports. Passing
+// `undefined` here — as this once did — makes composeItemName hand back the
+// stored name untouched, so the figure predicted the wrong name on every item
+// with a rune, on every payload. Pinia is active wherever the sheet is, but this
+// table is also built from tests, so a missing store costs the composed name
+// rather than the whole list.
+function itemNameCatalog(): Record<string, string> | undefined {
+  try {
+    return useLabelCatalogsStore().catalogs.itemNames
+  } catch {
+    return undefined
+  }
+}
+
+const NAMED_ITEM_TYPES = new Set(inventoryTypes.map((t) => t.type))
+
 // A figure whose payload copy lives at one path and whose value is a number.
+//
+// `read` is where the payload keeps the number this figure predicts, which is
+// not always `path` itself: PF2e's AC object carries BOTH `value` (21) and
+// `totalModifier` (11 — the same AC without its base 10), and only `value` is
+// the AC. Guessing between them by key name is what made AC miss on every
+// payload. `clear` still drops all of `path`, so a stale breakdown cannot
+// outlive the total that explains it.
 function atPath(
   actor: Ref<TablemateCharacter | undefined>,
   key: string,
   path: string,
-  value: () => unknown
+  value: () => unknown,
+  read: string = path
 ): Figure {
   return {
     key,
     value,
-    reported: () => readAt(actor.value, path),
+    reported: () => readAt(actor.value, read),
     clear: () => dropAt(actor.value, path)
   }
 }
@@ -107,31 +181,42 @@ export function derivableFigures(
   const size = (a.system as { traits?: { size?: { value?: string } } } | undefined)?.traits?.size
     ?.value
   const strength = a.system?.abilities?.str?.mod ?? 0
+  const named = items.filter((i) => NAMED_ITEM_TYPES.has(i.type ?? ''))
+  const parts = itemNameCatalog()
   out.push(
-    atPath(actor, 'inventory.bulk', 'inventory.bulk', () => {
-      const bulk = inventoryBulk(items, strength, size)
+    {
+      key: 'inventory.bulk',
       // The total is what a write moves; max and encumberedAfter follow Str.
-      return `${bulk.value.value}|${bulk.max}|${bulk.encumberedAfter}`
-    }),
-    atPath(actor, 'inventory.containers', 'inventory.containers', () =>
-      JSON.stringify(
-        Object.fromEntries(
-          items
-            .filter((i) => i.type === 'backpack')
-            .map((i) => [i._id, containerCapacity(i, items, size)?.value ?? 0])
-        )
-      )
-    ),
-    atPath(actor, 'inventory.labels', 'inventory.labels', () =>
-      JSON.stringify(
-        Object.fromEntries(
-          items.map((i) => [
-            i._id,
-            composeItemName(i as never, undefined) ?? (i as { name?: string }).name
-          ])
-        )
-      )
-    )
+      value: () => bulkTotals(inventoryBulk(items, strength, size)),
+      reported: () => bulkTotals(readAt(a, 'inventory.bulk') as never),
+      clear: () => dropAt(a, 'inventory.bulk')
+    },
+    {
+      key: 'inventory.containers',
+      value: () =>
+        containerTotals(
+          Object.fromEntries(
+            items
+              .filter((i) => i.type === 'backpack')
+              .map((i) => [i._id, { value: containerCapacity(i, items, size)?.value?.value }])
+          )
+        ),
+      reported: () => containerTotals(readAt(a, 'inventory.containers') as never),
+      clear: () => dropAt(a, 'inventory.containers')
+    },
+    {
+      key: 'inventory.labels',
+      // Physical items only, and in our own order, on both sides: the payload
+      // names inventory types and their subitems, we name what we can compose,
+      // and a comparison across two different sets of items is not a comparison.
+      value: () =>
+        JSON.stringify(named.map((i) => [i._id, composeItemName(i as NameableItem, parts)])),
+      reported: () => {
+        const labels = readAt(a, 'inventory.labels') as Record<string, string> | undefined
+        return labels && JSON.stringify(named.map((i) => [i._id, labels[i._id ?? '']]))
+      },
+      clear: () => dropAt(a, 'inventory.labels')
+    }
   )
 
   // Item level and price are overlaid ONTO each item rather than sitting in one
@@ -142,7 +227,7 @@ export function derivableFigures(
       JSON.stringify(
         items.map((i) => {
           const v = displayedValuation(i as never, [])
-          return [i._id, v.level, v.price]
+          return [i._id, v.level ?? null, coins(v.price)]
         })
       ),
     reported: () =>
@@ -152,7 +237,7 @@ export function derivableFigures(
             i as never,
             displacedOverlays(i as never).map((e) => e.path)
           )
-          return [i._id, v.level, v.price]
+          return [i._id, v.level ?? null, coins(v.price)]
         })
       ),
     // Clearing means dropping the overlay records, which is what makes
@@ -171,9 +256,21 @@ export function derivableFigures(
   // engine and can be short a rule element it cannot see — and treated
   // identically anyway, which is the point of having one mechanism.
   out.push(
-    atPath(actor, 'ac', 'system.attributes.ac', () => deriveArmorClass(input).value),
+    atPath(
+      actor,
+      'ac',
+      'system.attributes.ac',
+      () => deriveArmorClass(input).value,
+      'system.attributes.ac.value'
+    ),
     atPath(actor, 'hp.max', 'system.attributes.hp.max', () => deriveHitPointsMax(input).value),
-    atPath(actor, 'perception', 'system.perception', () => derivePerception(input).value),
+    atPath(
+      actor,
+      'perception',
+      'system.perception',
+      () => derivePerception(input).value,
+      'system.perception.value'
+    ),
     atPath(actor, 'initiative', 'system.initiative.totalModifier', () => {
       const named = a.system?.initiative?.statistic ?? undefined
       const rank =
@@ -183,15 +280,25 @@ export function derivableFigures(
           : 0
       return deriveInitiative(input, named, rank).value
     }),
-    atPath(actor, 'focus.max', 'system.resources.focus.max', () => deriveFocusPool(input).max),
-    atPath(actor, 'iwr', 'system.attributes.immunities', () => {
-      const iwr = deriveIWR(input, a.system?.attributes)
-      return JSON.stringify([iwr.immunities, iwr.weaknesses, iwr.resistances])
-    })
+    atPath(actor, 'focus.max', 'system.resources.focus.max', () => deriveFocusPool(input).max)
+    // NO IWR FIGURE, deliberately. The payload carries no derived immunities,
+    // weaknesses or resistances — `system.attributes.{immunities,...}` is the
+    // STORED list straight off the world dump, which is the seed our own
+    // derivation starts from rather than an independent answer to compare
+    // against. And the sheet already prefers the derivation unconditionally
+    // (characterStats.ts), so there is no payload copy to invalidate either.
+    // A figure here compared a derived list against its own input and reported
+    // a miss for every rule element that had done its job.
   )
   for (const slug of Object.keys(a.system?.saves ?? {})) {
     out.push(
-      atPath(actor, `save.${slug}`, `system.saves.${slug}`, () => deriveSave(input, slug).value)
+      atPath(
+        actor,
+        `save.${slug}`,
+        `system.saves.${slug}`,
+        () => deriveSave(input, slug).value,
+        `system.saves.${slug}.value`
+      )
     )
   }
   for (const [slug, skill] of Object.entries(a.system?.skills ?? {})) {
@@ -202,16 +309,17 @@ export function derivableFigures(
         actor,
         `skill.${slug}`,
         `system.skills.${slug}`,
-        () => deriveSkill(input, slug, rank, { lore }).value
+        () => deriveSkill(input, slug, rank, { lore }).value,
+        `system.skills.${slug}.value`
       )
     )
   }
-  out.push(
-    atPath(actor, 'movement', 'system.movement.speeds', () => {
-      const speeds = deriveMovement(input)
-      return MOVEMENT_TYPES.map((t) => `${t}:${speeds[t]?.value ?? ''}`).join('|')
-    })
-  )
+  out.push({
+    key: 'movement',
+    value: () => speedTotals(deriveMovement(input) as never),
+    reported: () => speedTotals(readAt(a, 'system.movement.speeds') as never),
+    clear: () => dropAt(a, 'system.movement.speeds')
+  })
   for (const entry of engineItems.filter((i) => i.type === 'spellcastingEntry')) {
     const id = (entry as { _id?: string })._id
     if (!id) continue
