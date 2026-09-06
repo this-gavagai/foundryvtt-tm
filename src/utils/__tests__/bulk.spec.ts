@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest'
 import {
   Bulk,
   computeTotalBulk,
+  bulkPerOf,
   containerCapacity,
   inventoryBulk,
+  stackGroupOf,
   type BulkItem
 } from '@/utils/bulk'
 
@@ -195,5 +197,70 @@ describe('the actor readout', () => {
     const result = inventoryBulk([], 2, 'med', { max: 3, encumberedAfter: 3 })
     expect(result.max).toBe(15)
     expect(result.encumberedAfter).toBe(10)
+  })
+})
+
+// The stack group is not stored for two whole item types — PF2e computes it in
+// a getter for treasure and at prepare time for ammunition — so a sheet painted
+// from source alone had no `per` at all. Without `per` a stack weighs its full
+// quoted Bulk EACH, which is the difference between a coin purse weighing
+// nothing and weighing half a tonne.
+describe('the stack group, where PF2e does not store one', () => {
+  const item = (over: Record<string, unknown>) =>
+    ({ _id: 'x', ...over }) as unknown as Parameters<typeof stackGroupOf>[0]
+
+  it('reads a coin purse as coins, a thousand to the Bulk', () => {
+    const coins = item({ type: 'treasure', system: { category: 'coin', slug: 'gold-pieces' } })
+    expect(stackGroupOf(coins)).toBe('coins')
+    expect(bulkPerOf(coins)).toBe(1000)
+  })
+
+  it('reads gems and universal polymer base', () => {
+    expect(bulkPerOf(item({ type: 'treasure', system: { category: 'gem' } }))).toBe(2000)
+    expect(bulkPerOf(item({ type: 'treasure', system: { slug: 'upb' } }))).toBe(1000)
+  })
+
+  it('leaves other treasure stacking singly', () => {
+    const art = item({ type: 'treasure', system: { category: 'art-object' } })
+    expect(stackGroupOf(art)).toBeNull()
+    expect(bulkPerOf(art)).toBe(1)
+  })
+
+  it('reads ammunition from its base item', () => {
+    // Verified against a live character: 20 bolts arrive with no stackGroup in
+    // source and `{value: 0.1, per: 10}` once PF2e has prepared them.
+    expect(bulkPerOf(item({ type: 'ammo', system: { baseItem: 'bolts' } }))).toBe(10)
+    expect(bulkPerOf(item({ type: 'ammo', system: { baseItem: 'sling-bullets' } }))).toBe(10)
+    expect(bulkPerOf(item({ type: 'ammo', system: { baseItem: 'rounds' } }))).toBe(10)
+  })
+
+  it('stacks unrecognised ammunition singly rather than guessing', () => {
+    expect(bulkPerOf(item({ type: 'ammo', system: { baseItem: 'something-homebrew' } }))).toBe(1)
+  })
+
+  it('takes a consumable’s stored stack group, which IS source', () => {
+    expect(bulkPerOf(item({ type: 'consumable', system: { stackGroup: 'arrows' } }))).toBe(10)
+    expect(bulkPerOf(item({ type: 'consumable', system: { stackGroup: null } }))).toBe(1)
+  })
+})
+
+describe('bulk with a derived stack group', () => {
+  // The failure this closes, at the size it actually occurred.
+  it('weighs 509 silver pieces as nothing, not as 509 Bulk', () => {
+    const coins = {
+      _id: 'c',
+      type: 'treasure',
+      system: { category: 'coin', slug: 'silver-pieces', quantity: 509, bulk: { value: 1 } }
+    }
+    expect(computeTotalBulk([coins] as never, [coins] as never, 'med').value).toBe(0)
+  })
+
+  it('still prefers a `per` the payload supplied', () => {
+    const odd = {
+      _id: 'c',
+      type: 'treasure',
+      system: { category: 'coin', quantity: 100, bulk: { value: 1, per: 50 } }
+    }
+    expect(computeTotalBulk([odd] as never, [odd] as never, 'med').value).toBe(2)
   })
 })

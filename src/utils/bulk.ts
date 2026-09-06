@@ -108,6 +108,11 @@ export interface BulkItem {
   system?: {
     bulk?: { value?: number; per?: number; capacity?: number; ignored?: number }
     baseItem?: string | null
+    // Source for a consumable; absent for treasure and ammunition, which PF2e
+    // computes it for. See stackGroupOf.
+    stackGroup?: string | null
+    category?: string
+    slug?: string | null
     quantity?: number
     containerId?: string | null
     size?: string
@@ -117,7 +122,62 @@ export interface BulkItem {
   }
 }
 
-const bulkPer = (item: BulkItem) => item.system?.bulk?.per || 1
+// PF2e's stack definitions: how many of a thing one quoted Bulk value covers.
+// Ten entries, entirely static, and the whole reason `per` exists.
+const STACK_SIZES: Record<string, number> = {
+  bolts: 10,
+  arrows: 10,
+  slingBullets: 10,
+  blowgunDarts: 10,
+  woodenTaws: 10,
+  rounds5: 5,
+  rounds10: 10,
+  coins: 1000,
+  gems: 2000,
+  upb: 1000
+}
+
+// `baseItem` → stack group, for ammunition. PF2e reads this off
+// CONFIG.PF2E.ammoTypes in AmmoPF2e#prepareBaseData; anything not listed stacks
+// singly, which is also what an unrecognised base falls back to here.
+const AMMO_STACK_GROUPS: Record<string, string> = {
+  arrows: 'arrows',
+  rounds: 'rounds10',
+  bolts: 'bolts',
+  'sling-bullets': 'slingBullets',
+  'blowgun-darts': 'blowgunDarts',
+  'wooden-taws': 'woodenTaws'
+}
+
+// The stack group, which for two whole item types is NOT stored.
+//
+// `toObject()` drops it: treasure computes it from its category in a getter, and
+// ammunition from its base item at prepare time. Only the third case — a
+// consumable that carries one — is source data.
+//
+// Getting this wrong is not cosmetic. Without a stack group there is no `per`,
+// and without `per` every coin weighs a full Bulk each: one live character's 509
+// silver pieces read as 509 Bulk instead of nothing.
+export function stackGroupOf(item: BulkItem): string | null {
+  if (item.type === 'treasure') {
+    if (item.system?.slug === 'upb') return 'upb'
+    const category = item.system?.category
+    return category === 'coin' ? 'coins' : category === 'gem' ? 'gems' : null
+  }
+  if (item.type === 'ammo') {
+    return AMMO_STACK_GROUPS[item.system?.baseItem ?? ''] ?? null
+  }
+  return item.system?.stackGroup ?? null
+}
+
+// PF2e's `prepareBulkData`: `per` is the stack group's size, or one.
+export function bulkPerOf(item: BulkItem): number {
+  return STACK_SIZES[stackGroupOf(item) ?? ''] ?? 1
+}
+
+// A payload's own `per` wins — it has been through PF2e's preparation and may
+// carry an alteration this cannot see. Absent, the stack group decides.
+const bulkPer = (item: BulkItem) => item.system?.bulk?.per || bulkPerOf(item)
 const isContainer = (item: BulkItem) => item.type === 'backpack'
 const contentsOf = (item: BulkItem, all: readonly BulkItem[]) =>
   all.filter((candidate) => candidate.system?.containerId === item._id)
