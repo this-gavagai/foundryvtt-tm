@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { InventoryItem } from '@/composables/character'
+import { displayedValuation } from '@/utils/itemValuation'
+import { displacedOverlays } from '@/utils/itemSource'
 import type { ActiveRoll } from '@/types/api-types'
 import { nextTick, ref, computed, watch } from 'vue'
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
@@ -97,6 +99,15 @@ watch(itemViewed, (val) => {
 })
 const itemHasContents = computed(() =>
   displayInventory.value?.some((item) => item.system?.containerId === frozenItem.value?._id)
+)
+// Level and price are recomputed by PF2e from the item's runes; without a GM
+// the payload carries the STORED values instead. See utils/itemValuation for
+// which cases are recovered and which are only flagged.
+const frozenValuation = computed(() =>
+  displayedValuation(
+    frozenItem.value as never,
+    displacedOverlays(frozenItem.value as never).map((entry) => entry.path)
+  )
 )
 const frozenItemUnidentified = computed(
   () => frozenItem.value?.system?.identification?.status === 'unidentified'
@@ -502,12 +513,16 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
           {{ frozenItem?.label ?? frozenItem?.name }}
         </template>
         <template #description v-if="!frozenItemUnidentified">
-          {{ $t('common.level') }} {{ frozenItem?.system?.level?.value }}
+          <span :data-derived-provisional="frozenValuation.provisional || undefined">
+            {{ $t('common.level') }} {{ frozenValuation.level }}
+          </span>
           <span class="text-sm">
             <template v-if="frozenItem?.system?.traits?.rarity"
               >({{ rarityLabel(frozenItem?.system?.traits?.rarity) }}),
             </template>
-            {{ printPrice(frozenItem?.system?.price?.value) }}
+            <span :data-derived-provisional="frozenValuation.provisional || undefined">
+              {{ printPrice(frozenValuation.price) }}
+            </span>
           </span>
         </template>
         <template #body>

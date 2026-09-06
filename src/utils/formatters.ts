@@ -1,12 +1,10 @@
+// Every denomination optional, because a STORED price really is sparse — a
+// torch is `{cp: 1}` and a bedroll `{cp: 2}`, with the other three keys absent.
+// PF2e normalizes them to all four at prepare time, so the strict shape was
+// describing the prepared form of a field the sheet also reads unprepared. The
+// body already skips anything falsy.
 export function printPrice(
-  price:
-    | {
-        pp?: number | undefined
-        gp: number | undefined
-        sp: number | undefined
-        cp: number | undefined
-      }
-    | undefined
+  price: Partial<Record<'pp' | 'gp' | 'sp' | 'cp', number | undefined>> | undefined
 ) {
   if (!price) return ''
   return [price?.pp, price?.gp, price?.sp, price?.cp]
