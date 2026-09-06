@@ -42,6 +42,7 @@ import {
   manualRollPolicy,
   hasPresetDiceResults
 } from './manualRollPolicy'
+import { registerPublishedLabelsSetting, publishLabelCatalogs } from './publishedLabels'
 import {
   registerGmHandlerSetting,
   gmHandlerPolicy,
@@ -474,6 +475,17 @@ export function setupListener() {
   // elected handler tells connected apps it is live instead of leaving them to
   // wait out the next presence heartbeat.
   registerGmHandlerSetting(() => announceSelf())
+  // The world's label catalogs, cached into a world setting so the app can read
+  // them off the handshake with nobody online. See publishedLabels.ts for why a
+  // setting rather than a file, and why this cannot run at `init`.
+  //
+  // Written by ONE client — whoever the same election picks to answer requests —
+  // because every GM at the table reaching `ready` at once would otherwise race
+  // to write the same 40KB. `can('SETTINGS_MODIFY')` is checked rather than
+  // assumed: the election is about who answers requests, and answering does not
+  // by itself imply the right to write a world setting.
+  registerPublishedLabelsSetting()
+  if (iAmFirstGM() && game.user?.can?.('SETTINGS_MODIFY')) void publishLabelCatalogs()
   // World policy for player-determined dice results. Re-announce on change so
   // connected apps update their manual/Pixel affordances without waiting for
   // the next presence heartbeat.
