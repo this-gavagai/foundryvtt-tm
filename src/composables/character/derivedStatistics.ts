@@ -15,6 +15,7 @@ import {
   deriveSpellDC,
   deriveInitiative,
   deriveFocusPool,
+  deriveIWR,
   deriveMovement,
   type DerivationInput,
   readStoredRanks,
@@ -22,6 +23,7 @@ import {
 } from '@/utils/ruleEngine/statistics'
 import type { EngineItem, EngineModifier } from '@/utils/ruleEngine/flatModifiers'
 import type { MovementType } from '@/utils/ruleEngine/movement'
+import type { DerivedIWR } from '@/utils/ruleEngine/iwr'
 import { describeLedger } from '@/utils/ruleEngine/ledger'
 
 // The Tier-2 figures, derived for this actor.
@@ -62,6 +64,10 @@ export interface DerivedStatistics {
   // the engine could not compute, which comes back undefined.
   speed: (type: MovementType) => (DerivedFigure | null) | undefined
   focusPoolMax: ComputedRef<DerivedFigure | undefined>
+  // Immunities, weaknesses and resistances, seeded from the actor's own
+  // authored entries and grown by rule elements. Undefined only when there is
+  // no actor to derive from.
+  iwr: ComputedRef<DerivedIWR | undefined>
 }
 
 function present(result: DerivedStatistic): DerivedFigure {
@@ -154,6 +160,13 @@ export function useDerivedStatistics(
       const speed = speeds.value?.[type]
       return speed ? present(speed) : null
     },
+    iwr: computed(() => {
+      const source = input.value
+      if (!source) return undefined
+      // The authored entries are the seed, not an alternative to the rules:
+      // PF2e merges rule-element IWR into whatever the actor already carries.
+      return deriveIWR(source, actor.value?.system?.attributes)
+    }),
     focusPoolMax: computed(() => {
       const source = input.value
       if (!source) return undefined

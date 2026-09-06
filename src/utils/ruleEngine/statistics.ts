@@ -19,6 +19,7 @@ import { buildRollOptions, type RollOptionSet } from './rollOptions'
 import { versionVerdict } from './index'
 import type { ValueContext } from './resolveValue'
 import { deriveSpeeds, type DerivedSpeed, type MovementType } from './movement'
+import { deriveIWR as deriveIWRSets, type DerivedIWR } from './iwr'
 
 // Tier 2: the figures that are reproducible from source ONCE rule elements are
 // accounted for.
@@ -780,6 +781,20 @@ export function deriveMovement(input: DerivationInput): Record<MovementType, Der
   return deriveSpeeds({
     items: input.items,
     strength: input.attributes.str ?? 0,
+    options: optionsFor(input, ranks),
+    context: contextFor(input),
+    stamp: input.stamp
+  })
+}
+
+// Immunities, weaknesses and resistances, over the same input as every other
+// figure. The seam that keeps callers from assembling roll options and a value
+// context themselves — and from forgetting the rank pass the options depend on.
+export function deriveIWR(input: DerivationInput, stored?: unknown): DerivedIWR {
+  const { ranks } = deriveProficiencyRanks(input)
+  return deriveIWRSets({
+    items: input.items,
+    stored: (stored ?? {}) as Partial<Record<'immunities' | 'weaknesses' | 'resistances', unknown>>,
     options: optionsFor(input, ranks),
     context: contextFor(input),
     stamp: input.stamp

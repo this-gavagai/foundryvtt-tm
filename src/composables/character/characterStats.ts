@@ -38,7 +38,11 @@ export function makeIWRs(
   if (!set) return undefined
   return set.map((e) => ({
     type: e.type,
-    label: (e.type && labels?.[e.type]) ?? e.type?.replace(/-/g, ' ') ?? '',
+    // A `custom` type has no dictionary entry and no meaning as a slug — PF2e
+    // shows the label the granting rule carries, and so does this.
+    label:
+      (e as { customLabel?: string | null }).customLabel ||
+      ((e.type && labels?.[e.type]) ?? e.type?.replace(/-/g, ' ') ?? ''),
     // Optional in source data even though the PF2e type declares it required:
     // an entry with no exceptions simply omits the key (`{"type":"curse"}`),
     // and the app holds wire JSON rather than a live document that would have
@@ -366,15 +370,26 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
     ]
   })
 
-  const immunities = computed(() =>
-    makeIWRs(actor.value?.system?.attributes?.immunities, iwrLabels.value)
-  )
-  const weaknesses = computed(() =>
-    makeIWRs(actor.value?.system?.attributes?.weaknesses, iwrLabels.value)
-  )
-  const resistances = computed(() =>
-    makeIWRs(actor.value?.system?.attributes?.resistances, iwrLabels.value)
-  )
+  // ONE path, not a payload-wins fallback, because the merge is idempotent:
+  // PF2e keeps the HIGHER value for a type already present, so folding the rule
+  // elements into a list that already contains them changes nothing. On the
+  // world-dump path they are the only IWR there is.
+  //
+  // Worth the departure from the pattern the other figures use. Eight of ten
+  // characters on the test table carry rule-element IWR and six have nothing
+  // authored at all, so a fallback that only fired when the list was absent
+  // would still have shown those six an empty panel — their lists are not
+  // absent, they are empty.
+  const iwrSet = (kind: 'immunities' | 'weaknesses' | 'resistances') =>
+    computed(() => {
+      const derivedSet = derived.iwr.value?.[kind]
+      const stored = actor.value?.system?.attributes?.[kind]
+      if (!derivedSet) return makeIWRs(stored, iwrLabels.value)
+      return makeIWRs(derivedSet as unknown as Immunity[], iwrLabels.value)
+    })
+  const immunities = iwrSet('immunities')
+  const weaknesses = iwrSet('weaknesses')
+  const resistances = iwrSet('resistances')
   // PF2e's `spellDC` is the best DC across the actor's spellcasting entries, so
   // the fallback derives each entry and takes the highest — one character can
   // carry two, keyed off different attributes.
