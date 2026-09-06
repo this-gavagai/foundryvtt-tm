@@ -52,8 +52,7 @@ export const DERIVED_FLAG_KEY = 'derived'
  * REMOVING the key, not writing a null into it.
  */
 export type DisplacedValue =
-  | { path: string; had: true; value: unknown }
-  | { path: string; had: false }
+  { path: string; had: true; value: unknown } | { path: string; had: false }
 
 /**
  * An item as the wire payload carries one: whole source data, opaque here
@@ -173,8 +172,12 @@ export function attachDisplaced(item: Mutable, displaced: DisplacedValue[]): voi
 }
 
 /** The overlays recorded on an item, or an empty list. */
-export function displacedOverlays(item: StoredItem): DisplacedValue[] {
-  const scope = item.flags?.[MODULE_ID]
+// Tolerates an absent item. The sheet's detail panel builds its valuation from
+// a `frozenItem` that is undefined until something is opened, so a reader that
+// assumed an item threw inside a computed — the shape of failure that takes a
+// whole panel down rather than one field.
+export function displacedOverlays(item: StoredItem | undefined): DisplacedValue[] {
+  const scope = item?.flags?.[MODULE_ID]
   const recorded = isObject(scope) ? scope[DERIVED_FLAG_KEY] : undefined
   return Array.isArray(recorded) ? (recorded as DisplacedValue[]) : []
 }

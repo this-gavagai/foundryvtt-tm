@@ -79,6 +79,47 @@ function present(result: DerivedStatistic): DerivedFigure {
   }
 }
 
+// The engine input for one actor, as a plain function.
+//
+// Lifted out of the composable so the write-time reconciler can build the same
+// input without a reactive context: it has to compute every figure at once and
+// compare, which is not a render.
+export function derivationInputFor(
+  actor: Ref<TablemateCharacter | undefined>,
+  stamp: string | undefined
+): DerivationInput | undefined {
+  const level = actor.value?.system?.details?.level?.value
+  if (typeof level !== 'number') return undefined
+  const items = (asDocumentArray(actor.value?.items) ?? []) as EngineItem[]
+  const attribute = (key: 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha') =>
+    actor.value?.system?.abilities?.[key]?.mod ?? calcAttribute(actor, key) ?? 0
+  return {
+    items,
+    level,
+    attributes: {
+      str: attribute('str'),
+      dex: attribute('dex'),
+      con: attribute('con'),
+      int: attribute('int'),
+      wis: attribute('wis'),
+      cha: attribute('cha')
+    },
+    // Prepared traits when a payload supplied them; otherwise assembled from
+    // the ancestry, which is where PF2e gets them. Empty would not be neutral
+    // here — the option set treats `self:trait` as a family it knows, so an
+    // absent trait reads as a definite "no".
+    traits:
+      (actor.value?.system?.traits as { value?: string[] } | undefined)?.value ??
+      deriveActorTraits(items),
+    // Whatever ranks this actor already carries. On the world-dump path that
+    // is usually nothing for saves and perception, and a partial set for
+    // skills — the class item's ranks then act as the floor.
+    storedRanks: readStoredRanks(actor.value?.system),
+    activeRules: actor.value?.activeRules ?? [],
+    stamp
+  }
+}
+
 export function useDerivedStatistics(
   actor: Ref<TablemateCharacter | undefined>
 ): DerivedStatistics {
@@ -87,38 +128,10 @@ export function useDerivedStatistics(
   // Built once per actor change and shared by every figure: the AE-like pass it
   // drives is over the whole item list, so recomputing it per statistic would
   // repeat the same work a dozen times on every render.
-  const input = computed<DerivationInput | undefined>(() => {
-    const level = actor.value?.system?.details?.level?.value
-    if (typeof level !== 'number') return undefined
-    const items = (asDocumentArray(actor.value?.items) ?? []) as EngineItem[]
-    const attribute = (key: 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha') =>
-      actor.value?.system?.abilities?.[key]?.mod ?? calcAttribute(actor, key) ?? 0
-    return {
-      items,
-      level,
-      attributes: {
-        str: attribute('str'),
-        dex: attribute('dex'),
-        con: attribute('con'),
-        int: attribute('int'),
-        wis: attribute('wis'),
-        cha: attribute('cha')
-      },
-      // Prepared traits when a payload supplied them; otherwise assembled from
-      // the ancestry, which is where PF2e gets them. Empty would not be neutral
-      // here — the option set treats `self:trait` as a family it knows, so an
-      // absent trait reads as a definite "no".
-      traits:
-        (actor.value?.system?.traits as { value?: string[] } | undefined)?.value ??
-        deriveActorTraits(items),
-      // Whatever ranks this actor already carries. On the world-dump path that
-      // is usually nothing for saves and perception, and a partial set for
-      // skills — the class item's ranks then act as the floor.
-      storedRanks: readStoredRanks(actor.value?.system),
-      activeRules: actor.value?.activeRules ?? [],
-      stamp: stamp.value
-    }
-  })
+  // Built once per actor change and shared by every figure: the AE-like pass it
+  // drives is over the whole item list, so recomputing it per statistic would
+  // repeat the same work a dozen times on every render.
+  const input = computed<DerivationInput | undefined>(() => derivationInputFor(actor, stamp.value))
 
   const speeds = computed(() => (input.value ? deriveMovement(input.value) : undefined))
 
