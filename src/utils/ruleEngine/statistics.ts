@@ -97,6 +97,32 @@ function optionsFor(input: DerivationInput, ranks: Record<string, number>): Roll
 
 const classItem = (items: readonly EngineItem[]) => items.find((item) => item.type === 'class')
 
+const WEAPON_CATEGORIES = ['unarmed', 'simple', 'martial', 'advanced']
+const ARMOR_CATEGORIES = ['unarmored', 'light', 'medium', 'heavy', 'light-barding', 'heavy-barding']
+
+// Where a feat's `system.subfeatures.proficiencies` entry writes to.
+//
+// This is the mechanism that made save and armour ranks look unrecoverable. A
+// class feature like "Reflex Expertise" has an EMPTY rules array — there is no
+// rule element to find — but it carries
+// `subfeatures.proficiencies.reflex = { rank: 2 }` as plain stored data, and
+// PF2e's `FeatPF2e#prepareActorData` folds it in with Math.max. Every character
+// on a live table had at least one, and reading the rules alone saw none of them.
+//
+// Keys are dispatched exactly as PF2e dispatches them: perception, spellcasting,
+// a save slug, a weapon category, an armour category, or a class trait.
+function subfeatureRankPath(key: string, classSlug: string | undefined): string | null {
+  if (key === 'perception') return 'system.perception.rank'
+  if (key === 'spellcasting') return 'system.proficiencies.spellcasting.rank'
+  if (key in SAVE_ATTRIBUTES) return `system.saves.${key}.rank`
+  if (WEAPON_CATEGORIES.includes(key)) return `system.proficiencies.attacks.${key}.rank`
+  if (ARMOR_CATEGORIES.includes(key)) return `system.proficiencies.defenses.${key}.rank`
+  // A class trait keys the class DC. Only the actor's own class is modelled;
+  // an archetype's DC is a figure this engine does not derive.
+  if (classSlug && key === classSlug) return 'system.proficiencies.classDCs.rank'
+  return null
+}
+
 // Pull whatever proficiency ranks an actor's system already carries, keyed by
 // the paths PF2e writes them to. Everything here is optional by design: a world
 // dump routinely has none of it, which is the case the engine exists for.
@@ -172,6 +198,26 @@ export function deriveProficiencyRanks(input: DerivationInput): {
   for (const path of Object.keys(stored)) {
     if (!(path in seed)) seed[path] = stored[path]
   }
+  // Feats' proficiency subfeatures, folded in before rule elements — the order
+  // PF2e uses, since item `prepareActorData` runs ahead of the synthetics pass.
+  const classSlug = (classItem(input.items)?.system as { slug?: string | null } | undefined)?.slug
+  // Paths a feat's subfeature actually spoke to. That is positive evidence about
+  // the rank, and it is what stops the caveat below firing on every save of
+  // every character now that the mechanism is modelled.
+  const explained = new Set<string>()
+  for (const item of input.items) {
+    const subfeatures = (item.system as { subfeatures?: { proficiencies?: Record<string, { rank?: number }> } } | undefined)
+      ?.subfeatures?.proficiencies
+    for (const [key, entry] of Object.entries(subfeatures ?? {})) {
+      const rank = entry?.rank
+      if (typeof rank !== 'number' || !rank) continue
+      const path = subfeatureRankPath(key, classSlug ?? undefined)
+      if (!path) continue
+      seed[path] = Math.max(seed[path] ?? 0, rank)
+      explained.add(path)
+    }
+  }
+
   const context = contextFor(input)
   const bootstrap = buildRollOptions({
     level: input.level,
@@ -203,10 +249,12 @@ export function deriveProficiencyRanks(input: DerivationInput): {
   ]
   for (const path of unconfirmablePaths) {
     if (path in stored) continue
-    // A rule element that actually moved this rank is positive evidence, and a
-    // far more common way for a class feature to grant expertise than the
-    // rules-free kind. Marking those too would flag most characters for a case
-    // that did not apply to them.
+    // Positive evidence, of either kind: a feat subfeature that named this rank,
+    // or a rule element that moved it. Both mean the engine is not guessing from
+    // the class baseline, and marking them would flag nearly every character for
+    // a case that no longer applies — the fastest way to teach a reader to
+    // ignore the marker.
+    if (explained.has(path)) continue
     if (result.paths[path] !== seed[path]) continue
     unconfirmed.push({
       reason: 'unconfirmable-rank',

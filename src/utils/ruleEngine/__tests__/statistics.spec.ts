@@ -506,3 +506,52 @@ describe('an armour rank taken from the class baseline is not confirmed', () => 
     expect(result.ledger.confidence).toBe('exact')
   })
 })
+
+describe('proficiency subfeatures', () => {
+  // The mechanism that made save and armour ranks look unrecoverable from
+  // source. "Reflex Expertise" has an EMPTY rules array — there is no rule
+  // element to find — but it carries the rank as plain stored data, and every
+  // character on a live table had at least one of these.
+  const withSubfeature = (proficiencies: Record<string, { rank: number }>) =>
+    fighter([
+      {
+        name: 'Will Expertise',
+        type: 'feat',
+        system: { slug: 'will-expertise', rules: [], subfeatures: { proficiencies } }
+      } as never
+    ])
+
+  it('raises a save rank with no rule element in sight', () => {
+    const input = withSubfeature({ will: { rank: 2 } })
+    expect(deriveProficiencyRanks(input).ranks['system.saves.will.rank']).toBe(2)
+    // wis 1 + (expert 2 x 2 + 8) = 13, against the class baseline's 11.
+    expect(deriveSave(input, 'will').value).toBe(13)
+  })
+
+  it('raises an armour rank, which is what AC was missing', () => {
+    const input = withSubfeature({ medium: { rank: 2 } })
+    expect(
+      deriveProficiencyRanks(input).ranks['system.proficiencies.defenses.medium.rank']
+    ).toBe(2)
+  })
+
+  it('raises perception', () => {
+    const input = withSubfeature({ perception: { rank: 3 } })
+    expect(deriveProficiencyRanks(input).ranks['system.perception.rank']).toBe(3)
+  })
+
+  it('never lowers a rank the class already grants', () => {
+    // PF2e folds these in with Math.max, so a lesser subfeature is inert.
+    const input = withSubfeature({ fortitude: { rank: 1 } })
+    expect(deriveProficiencyRanks(input).ranks['system.saves.fortitude.rank']).toBe(2)
+  })
+
+  it('stops the figure claiming its rank is unconfirmable', () => {
+    // The caveat exists for a rank taken from the class baseline alone. Once a
+    // subfeature has spoken, keeping it would mark nearly every character and
+    // teach the reader to ignore the marker.
+    expect(deriveSave(withSubfeature({ will: { rank: 2 } }), 'will').ledger.confidence).toBe('exact')
+    // …and it still fires where nothing explains the rank.
+    expect(deriveSave(fighter(), 'will').ledger.confidence).toBe('provisional')
+  })
+})
