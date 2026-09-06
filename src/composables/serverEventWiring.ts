@@ -19,7 +19,8 @@ import { useSettingsStore } from '@/stores/settings'
 import { usePixelDiceStore } from '@/stores/pixelDice'
 import { resetWorldScopedStores } from '@/stores/worldScopedReset'
 import { logger } from '@/utils/utilities'
-import { describeDifferential, runDifferential } from '@/utils/ruleEngine/differential'
+import { runDifferential } from '@/utils/ruleEngine/differential'
+import { armHarness, recordFailure, recordReport } from '@/utils/ruleEngine/devReporter'
 import {
   onModifyDocument,
   onShareImage,
@@ -172,17 +173,18 @@ export function registerServerEventWiring() {
     // payload, which is not a price a phone should pay for telemetry nobody
     // reads. See utils/ruleEngine/differential.ts.
     if (import.meta.env.DEV) {
+      // Every report is recorded, clean ones included. Logging only divergence
+      // made silence ambiguous — it could equally mean everything matched, the
+      // console was filtering `debug`, the differential was throwing, or no
+      // payload had arrived at all. An instrument that says nothing when healthy
+      // cannot tell "no problem" from "no measurement", which is the exact
+      // confusion the engine's ledger exists to prevent everywhere else.
+      armHarness()
       try {
-        const report = runDifferential(args, labelCatalogs.stamp)
-        if (!report.clean) {
-          // A silent miss indicts the ledger itself — the engine was supposed to
-          // be incapable of dropping a rule without recording it — so it is
-          // logged at a level that interrupts, unlike ordinary divergence.
-          const log = report.silentMisses > 0 ? logger.error : logger.debug
-          log(describeDifferential(report))
-        }
+        recordReport(runDifferential(args, labelCatalogs.stamp))
       } catch (error) {
-        logger.debug('TM: rule engine differential failed', error)
+        // A failure to RUN is not a clean result and must not read like one.
+        recordFailure(args.actorId, error)
       }
     }
   })

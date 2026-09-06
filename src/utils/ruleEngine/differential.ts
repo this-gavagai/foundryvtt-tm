@@ -58,6 +58,10 @@ export interface FigureDivergence {
   engineOnly: string[]
   silentMiss: string[]
   skipped: number
+  // Which rule element types were skipped, and why. Carried rather than counted
+  // because "which key costs the most coverage across a real table" is the
+  // number that says what to implement next — and a bare count cannot answer it.
+  skippedBy: { key: string; reason: string }[]
   // The whole statistic, engine against PF2e. Absent when the payload reports no
   // total for this figure, or when the engine declined to derive one.
   total?: { engine: number; pf2e: number }
@@ -170,6 +174,7 @@ function compareFigure(
     engineOnly,
     silentMiss,
     skipped: derived.ledger.skipped.length,
+    skippedBy: derived.ledger.skipped.map((skip) => ({ key: skip.key, reason: skip.reason })),
     total:
       typeof total?.engine === 'number' && typeof total?.pf2e === 'number' && total.engine !== total.pf2e
         ? { engine: total.engine, pf2e: total.pf2e }
@@ -247,6 +252,10 @@ export function runDifferential(
       engineOnly: [],
       silentMiss: [],
       skipped: deriveHitPointsMax(derivationInput).ledger.skipped.length,
+      skippedBy: deriveHitPointsMax(derivationInput).ledger.skipped.map((skip) => ({
+        key: skip.key,
+        reason: skip.reason
+      })),
       total:
         typeof system?.attributes?.hp?.max === 'number' &&
         deriveHitPointsMax(derivationInput).value !== system.attributes.hp.max
