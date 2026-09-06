@@ -9,8 +9,11 @@ import {
   deriveHitPointsMax,
   derivePerception,
   deriveSave,
+  deriveActorTraits,
   deriveSkill,
+  deriveSpellAttack,
   deriveSpellDC,
+  deriveInitiative,
   type DerivationInput,
   readStoredRanks,
   type DerivedStatistic
@@ -46,6 +49,8 @@ export interface DerivedStatistics {
   // Per spellcasting entry: a character can carry two, keyed off different
   // attributes and proficiencies, so there is no single answer.
   spellDC: (entry: EngineItem) => DerivedFigure | undefined
+  spellAttack: (entry: EngineItem) => DerivedFigure | undefined
+  initiative: (named: string | undefined, rank: number) => DerivedFigure | undefined
 }
 
 function present(result: DerivedStatistic): DerivedFigure {
@@ -81,7 +86,13 @@ export function useDerivedStatistics(
         wis: attribute('wis'),
         cha: attribute('cha')
       },
-      traits: (actor.value?.system?.traits as { value?: string[] } | undefined)?.value ?? [],
+      // Prepared traits when a payload supplied them; otherwise assembled from
+      // the ancestry, which is where PF2e gets them. Empty would not be neutral
+      // here — the option set treats `self:trait` as a family it knows, so an
+      // absent trait reads as a definite "no".
+      traits:
+        (actor.value?.system?.traits as { value?: string[] } | undefined)?.value ??
+        deriveActorTraits(items),
       // Whatever ranks this actor already carries. On the world-dump path that
       // is usually nothing for saves and perception, and a partial set for
       // skills — the class item's ranks then act as the floor.
@@ -111,6 +122,14 @@ export function useDerivedStatistics(
     spellDC: (entry: EngineItem) => {
       const source = input.value
       return source ? present(deriveSpellDC(source, entry)) : undefined
+    },
+    spellAttack: (entry: EngineItem) => {
+      const source = input.value
+      return source ? present(deriveSpellAttack(source, entry)) : undefined
+    },
+    initiative: (named: string | undefined, rank: number) => {
+      const source = input.value
+      return source ? present(deriveInitiative(source, named, rank)) : undefined
     }
   }
 }

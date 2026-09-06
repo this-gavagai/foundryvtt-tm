@@ -66,6 +66,7 @@ export interface SpellcastingEntry extends Item {
   // engine's derivation otherwise, flagged so the sheet can mark it.
   spellDC?: Maybe<number>
   spellDCProvisional?: Maybe<boolean>
+  spellAttackProvisional?: Maybe<boolean>
   // The entry statistic's prepared save DC. Only differs from the stored
   // `system.spelldc.dc` for an elite/weak-adjusted NPC, so consumers fall back
   // to the stored value when this is absent.

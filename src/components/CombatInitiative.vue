@@ -7,6 +7,8 @@ import { storeToRefs } from 'pinia'
 import { useCombatStore } from '@/stores/combat'
 import { useInjectedActor } from '@/composables/injectKeys'
 import { useListenersStore } from '@/stores/listenersOnline'
+import { useDerivedStale } from '@/composables/useDerivedStale'
+import { useProvisionalFigure } from '@/composables/useProvisionalFigure'
 
 import DropdownWidget from './widgets/DropdownWidget.vue'
 
@@ -23,6 +25,16 @@ const initiativeStat = computed({
 const initiativeMods = computed(() => initiative?.modifiers.value)
 const initiativeTotalModifier = computed(() => initiative?.totalModifier.value)
 const rollInitiative = initiative?.roll
+
+// Initiative's total is prepared data, so it is absent without a GM and the
+// engine derives it from whichever statistic rolls it. Same doubt, same marks
+// as AC and the saves.
+const derivedStale = useDerivedStale(currentActorId)
+const { attrs } = useProvisionalFigure(
+  derivedStale,
+  computed(() => initiative?.provisional?.value),
+  computed(() => initiative?.caveat?.value)
+)
 
 const skillsPlusPerception = computed(() =>
   (perception.value ? [perception.value] : []).concat(skills.value ?? [])
@@ -66,7 +78,7 @@ const initiativeReady = computed(() => {
           :modifiers="initiativeMods"
           :rollAction="initiativeReady ? rollInitiative : undefined"
         >
-          {{ formatModifier(initiativeTotalModifier ?? NaN) }}
+          <span v-bind="attrs">{{ formatModifier(initiativeTotalModifier ?? NaN) }}</span>
         </StatBox>
       </div>
     </div>

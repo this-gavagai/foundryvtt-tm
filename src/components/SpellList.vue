@@ -396,7 +396,10 @@ function openKnownSpells() {
         </template>
         <template #description>
           <template v-if="viewedEntry && !viewedItem">
-            <span v-if="viewedEntry.spellAttackModifier != null">
+            <span
+              v-if="viewedEntry.spellAttackModifier != null"
+              :data-derived-provisional="viewedEntry.spellAttackProvisional || undefined"
+            >
               {{ $t('spells.spellAttack') }}
               {{ viewedEntry.spellAttackModifier >= 0 ? '+' : ''
               }}{{ viewedEntry.spellAttackModifier }}

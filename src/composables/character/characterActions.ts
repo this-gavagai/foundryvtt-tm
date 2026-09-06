@@ -1,4 +1,5 @@
 import { computed, type Ref } from 'vue'
+import { useDerivedStatistics } from './derivedStatistics'
 import { useWorldLabels } from '@/composables/useWorldLabels'
 import type { CharacterPF2e, AbilityItemPF2e, FeatPF2e } from '@7h3laughingman/pf2e-types'
 import type { Field, WritableField } from './helpers'
@@ -45,6 +46,11 @@ export interface CharacterActions {
     stat: WritableField<string>
     modifiers: Field<Modifier[]>
     totalModifier: Field<number>
+    // Set when `totalModifier` is the engine's arithmetic rather than PF2e's.
+    // Optional: the NPC and familiar surfaces supply an initiative with no
+    // engine behind it, and nothing derives one for them.
+    provisional?: Field<boolean>
+    caveat?: Field<string>
     roll: (
       result?: number | undefined,
       options?: object | undefined
@@ -87,6 +93,19 @@ function isActivity(item: AbilityLike, trait: ActivityTrait) {
 }
 
 export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): CharacterActions {
+  const derived = useDerivedStatistics(actor)
+  // Lazy, like every other fallback: a computed is not evaluated until read, and
+  // with a GM online the prepared total short-circuits before it is.
+  const derivedInitiative = computed(() => {
+    const named = actor.value?.system?.initiative?.statistic ?? undefined
+    const rank =
+      named && named !== 'perception'
+        ? ((actor.value?.system?.skills as Record<string, { rank?: number }> | undefined)?.[named]
+            ?.rank ?? 0)
+        : 0
+    return derived.initiative(named, rank)
+  })
+
   const { frequencyLabels } = useWorldLabels(actor)
   const doCharacterAction = (
     slug: string,
@@ -140,7 +159,10 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
         const macroId = tbFlag?.linked ?? tbFlag?.macro
         const typeValue = i.system?.actionType?.value
         const itemId = i._id
-        const base = makeAction(i as AbilityItemPF2e<CharacterPF2e>, frequencyLabels.value) as Action
+        const base = makeAction(
+          i as AbilityItemPF2e<CharacterPF2e>,
+          frequencyLabels.value
+        ) as Action
         return {
           ...base,
           actionType:
@@ -258,7 +280,22 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
       }
     }),
     modifiers: computed(() => makeModifiers(actor.value?.system?.initiative?.modifiers)),
-    totalModifier: computed(() => actor.value?.system?.initiative?.totalModifier),
+    // The statistic that rolls initiative is stored; its total is not. Derived
+    // from whichever statistic is named — the sheet showed `??` without a GM,
+    // for a number the engine could already compute.
+    totalModifier: computed(
+      () => actor.value?.system?.initiative?.totalModifier ?? derivedInitiative.value?.value
+    ),
+    provisional: computed(
+      () =>
+        actor.value?.system?.initiative?.totalModifier === undefined &&
+        !!derivedInitiative.value?.provisional
+    ),
+    caveat: computed(() =>
+      actor.value?.system?.initiative?.totalModifier === undefined
+        ? derivedInitiative.value?.caveat
+        : undefined
+    ),
     roll: (result: number | undefined, options: object | undefined = {}) => {
       return rollCheck(actor, 'initiative', undefined, { d20: [result ?? 0] }, [], options ?? {})
     }

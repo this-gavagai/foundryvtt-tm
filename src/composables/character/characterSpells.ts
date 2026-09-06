@@ -72,11 +72,16 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
           spellModData?.dc === undefined
             ? derived.spellDC(item as unknown as EngineItem)
             : undefined
+        const derivedAttack =
+          spellModData?.mod === undefined
+            ? derived.spellAttack(item as unknown as EngineItem)
+            : undefined
         return {
           ...makeSpellcastingEntry(item),
           spellDC: spellModData?.dc ?? derivedDc?.value,
           spellDCProvisional: derivedDc?.provisional ?? false,
-          spellAttackModifier: spellModData?.mod,
+          spellAttackModifier: spellModData?.mod ?? derivedAttack?.value,
+          spellAttackProvisional: derivedAttack?.provisional ?? false,
           spellAttackModifiers: makeModifiers(spellModData?.modifiers),
           doSpellAttack: (result?: number, modifierOverrides?: Record<string, boolean>) =>
             rollCheck(
