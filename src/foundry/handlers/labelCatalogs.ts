@@ -1,4 +1,5 @@
 import type { GetLabelCatalogsArgs } from '@/types/api-types'
+import { buildSkillActionRegistry, getSkillActionDescriptions } from './characterDetails'
 import { makeAck } from '../utils/foundry'
 import { buildWorldLabelCatalogs, labelCatalogStamp } from '../utils/labels'
 
@@ -16,6 +17,11 @@ export async function foundryGetLabelCatalogs(args: GetLabelCatalogsArgs) {
   return {
     ...makeAck(args),
     stamp: labelCatalogStamp(),
-    catalogs: buildWorldLabelCatalogs()
+    catalogs: buildWorldLabelCatalogs(),
+    // The world-static half of every skill action, alongside the label
+    // catalogs rather than inside them: the catalogs are flat slug → string
+    // maps by design, and this is structured. It rides the same stamp, so it
+    // refetches on exactly the same events.
+    skillActions: buildSkillActionRegistry(await getSkillActionDescriptions())
   }
 }

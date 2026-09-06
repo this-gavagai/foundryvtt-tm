@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import type { SkillActionRegistry } from '@/types/character-types'
 import { defineStore } from 'pinia'
 import { debounce } from 'lodash-es'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
@@ -31,6 +32,11 @@ const PERSIST_DEBOUNCE_MS = 1000
 export const useLabelCatalogsStore = defineStore('labelCatalogs', () => {
   const catalogs = ref<LabelCatalogs>(emptyLabelCatalogs())
 
+  // The world-static half of every skill action, keyed by slug. Same stamp and
+  // same lifetime as the catalogs; kept beside them because they are flat
+  // string maps and this is structured.
+  const skillActions = ref<SkillActionRegistry>({})
+
   // The stamp `catalogs` was built for — system version, world locale and module
   // version, as the module announces it. Undefined means "never fetched", which
   // is also what reset() returns to.
@@ -50,7 +56,10 @@ export const useLabelCatalogsStore = defineStore('labelCatalogs', () => {
   // a server switch inside the window must not file this world's labels under
   // the next one.
   const persist = debounce((next: LabelCatalogs, forStamp: string | undefined, origin: string) => {
-    void saveLabelCatalogs({ stamp: forStamp, catalogs: next }, origin)
+    void saveLabelCatalogs(
+      { stamp: forStamp, catalogs: next, skillActions: skillActions.value },
+      origin
+    )
   }, PERSIST_DEBOUNCE_MS)
 
   // Load this server's row from disk. Safe to call repeatedly — it returns
@@ -70,6 +79,11 @@ export const useLabelCatalogsStore = defineStore('labelCatalogs', () => {
     hydratedOrigin.value = origin
     if (!stored) return
     catalogs.value = mergeLabelCatalogs(stored.catalogs, catalogs.value)
+    // Memory wins, as with the catalogs: a fetch that landed during the read is
+    // fresher than the row.
+    if (!Object.keys(skillActions.value).length && stored.skillActions) {
+      skillActions.value = stored.skillActions
+    }
     stamp.value ??= stored.stamp
   }
 
@@ -152,6 +166,10 @@ export const useLabelCatalogsStore = defineStore('labelCatalogs', () => {
         const response = await getLabelCatalogs()
         if (useServerAddressStore().serverUrl?.origin !== origin) return
         catalogs.value = response.catalogs
+        // Absent from a module predating the split — leave whatever is held
+        // rather than blanking it, since the payload's own copy is the
+        // fallback in that case.
+        if (response.skillActions) skillActions.value = response.skillActions
         stamp.value = response.stamp
         hydratedOrigin.value = origin
         persist(response.catalogs, response.stamp, origin)
@@ -196,9 +214,10 @@ export const useLabelCatalogsStore = defineStore('labelCatalogs', () => {
     persist.cancel()
     inFlight = null
     catalogs.value = emptyLabelCatalogs()
+    skillActions.value = {}
     stamp.value = undefined
     hydratedOrigin.value = undefined
   }
 
-  return { catalogs, stamp, hydrate, ensureCatalog, ensureFromWorld, remember, reset }
+  return { catalogs, skillActions, stamp, hydrate, ensureCatalog, ensureFromWorld, remember, reset }
 })

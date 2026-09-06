@@ -76,12 +76,31 @@ export type SkillActionVariant = {
 // A skill action serialized Foundry-side from the live action registry
 // (game.pf2e.actions). `rollOptions` are replayed as extraRollOptions on the
 // actual roll so the rolled number matches the previewed `modifier`.
-export type SkillActionData = {
-  slug: string
+// The half of a skill action that is the same for every character in the world:
+// what the action IS, out of PF2e's own registry. Keyed by slug and published
+// once per label-catalog stamp rather than resent per character — it was 69KB of
+// a 277KB payload, repeated verbatim on every refresh.
+export type SkillActionRegistryEntry = {
   label: string
   cost?: string
   traits: string[]
   rollOptions: string[]
+  variants?: SkillActionVariant[]
+  description?: string
+}
+
+export type SkillActionRegistry = Record<string, SkillActionRegistryEntry>
+
+export type SkillActionData = {
+  slug: string
+  // Everything below `slug` except `statistics` is REGISTRY data and is now
+  // optional on the wire: a current module leaves it out and sends the catalog
+  // instead. Kept in the type because a module predating that still fills it in,
+  // and the app prefers whatever the payload actually carries.
+  label?: string
+  cost?: string
+  traits?: string[]
+  rollOptions?: string[]
   statistics: SkillActionStatistic[]
   // Present only when the action declares more than one variant — exactly the
   // case where PF2e requires one to be named at roll time.

@@ -1,4 +1,6 @@
 import { computed, type Ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useLabelCatalogsStore } from '@/stores/labelCatalogs'
 import type { SkillActionVariant, TablemateCharacter } from '@/types/character-types'
 import type { Field } from './helpers'
 import type { RequestResolutionArgs } from '@/types/api-types'
@@ -35,19 +37,29 @@ export interface CharacterSkillActions {
 export function useCharacterSkillActions(
   actor: Ref<TablemateCharacter | undefined>
 ): CharacterSkillActions {
+  // What each action IS comes from the world catalog; what it is WORTH to this
+  // character comes from the payload. A module predating that split still sends
+  // both together, so the payload's own copy wins where it has one — which also
+  // means an action the catalog has never heard of still renders.
+  const { skillActions: registry } = storeToRefs(useLabelCatalogsStore())
+
   const skillActionsBySkill = computed<Record<string, SkillActionForSkill[]>>(() => {
     const map: Record<string, SkillActionForSkill[]> = {}
     for (const action of actor.value?.skillActions ?? []) {
+      const known = registry.value[action.slug]
+      const label = action.label ?? known?.label
+      // No label from either side is an action nothing can render.
+      if (!label) continue
       for (const stat of action.statistics) {
         const entry: SkillActionForSkill = {
           key: action.slug,
-          label: action.label,
-          cost: action.cost,
-          traits: action.traits,
+          label,
+          cost: action.cost ?? known?.cost,
+          traits: action.traits ?? known?.traits ?? [],
           modifier: stat.modifier,
           modifiers: makeModifiers(stat.modifiers) ?? [],
-          description: action.description,
-          variants: action.variants,
+          description: action.description ?? known?.description,
+          variants: action.variants ?? known?.variants,
           // Rolls through PF2e's native action (the 'skillAction' handler runs
           // game.pf2e.actions.get(slug).use(...)), so the card, traits, target
           // DC, degree of success and notes all come from the system. We split

@@ -6,6 +6,7 @@ import type { ChatReaction } from '@/utils/chatReactions'
 import type { ChatComment } from '@/utils/chatComments'
 import type {
   SkillActionData,
+  SkillActionRegistry,
   SpellcastingModifierData,
   TablemateActor,
   TablemateActorExtras
@@ -1009,7 +1010,14 @@ export interface ResponseByAction {
   // The catalogs plus the stamp they were built for, so what the app stores is
   // self-describing: it can decide whether a later announcement invalidates it
   // without having to remember what it asked for.
-  [TM.GET_LABEL_CATALOGS]: { stamp: string; catalogs: WorldLabelCatalogs }
+  [TM.GET_LABEL_CATALOGS]: {
+    stamp: string
+    catalogs: WorldLabelCatalogs
+    // The world-static half of every skill action. Absent from a module
+    // predating the split, in which case the payload still carries it per
+    // character and the app reads it from there.
+    skillActions?: SkillActionRegistry
+  }
   // The chat card the cast posted, when one was captured — lets the app offer
   // the spell's variants for that card. Absent when the cast produced no card.
   [TM.CAST_SPELL]: { messageId?: string }

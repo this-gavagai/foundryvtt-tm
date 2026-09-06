@@ -13,6 +13,7 @@ import type { RequestCharacterDetailsArgs, UpdateCharacterDetailsArgs } from '@/
 import type {
   ContainerCapacity,
   SkillActionData,
+  SkillActionRegistry,
   SkillActionVariant
 } from '@/types/character-types'
 import { TM } from '@/api/protocol'
@@ -126,7 +127,7 @@ function slugify(name: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
-async function getSkillActionDescriptions(): Promise<Map<string, string>> {
+export async function getSkillActionDescriptions(): Promise<Map<string, string>> {
   if (skillActionDescriptions) return skillActionDescriptions
   const map = new Map<string, string>()
   try {
@@ -170,10 +171,7 @@ function serializeActionVariants(action: Action): SkillActionVariant[] | undefin
   return out.length ? out : undefined
 }
 
-function serializeSkillActions(
-  actor: ActorPF2e,
-  descriptions: Map<string, string>
-): SkillActionData[] {
+function serializeSkillActions(actor: ActorPF2e): SkillActionData[] {
   const pf2e = getGame().pf2e
   // The set of slugs that are actually skills (core + lore) on this actor. Not
   // every action sets `section: "skill"` — Track and Sense Direction, for
@@ -235,20 +233,39 @@ function serializeSkillActions(
       }
     }
     if (!statistics.length) continue
-    out.push({
-      slug: action.slug,
+    // SLUG AND STATISTICS ONLY. Everything else about a skill action — its
+    // label, cost, traits, roll options, variants and description — is the same
+    // for every character in the world and now rides the label catalog instead
+    // (see buildSkillActionRegistry). It was 69KB of a 277KB payload, resent
+    // verbatim on every refresh.
+    out.push({ slug: action.slug, statistics })
+  }
+  // Sorted by slug rather than label, since the label now lives in the catalog.
+  // The app sorts by label for display, which is where the locale belongs.
+  return out.sort((a, b) => a.slug.localeCompare(b.slug))
+}
+
+// The world-static half: what each skill action IS, with no actor involved.
+//
+// Deliberately NOT filtered by which skills a character has — that filter is
+// what makes the other half per-actor. This is every single-check action the
+// registry declares, so one copy serves every character at the table.
+export function buildSkillActionRegistry(descriptions: Map<string, string>): SkillActionRegistry {
+  const registry: SkillActionRegistry = {}
+  for (const action of getGame().pf2e.actions.values()) {
+    if (!isSingleCheckAction(action) || !action.statistic || !action.slug) continue
+    registry[action.slug] = {
       label: action.name ? localize(action.name) : action.slug,
       cost: action.cost === undefined ? undefined : String(action.cost),
       traits: Array.isArray(action.traits) ? action.traits : [],
       // Replayed as extraRollOptions on the actual roll so the rolled number
       // matches the previewed modifier (action-specific bonuses fire again).
-      rollOptions,
-      statistics,
+      rollOptions: action.rollOptions.length ? action.rollOptions : [`action:${action.slug}`],
       variants: serializeActionVariants(action),
-      description: action.slug ? descriptions.get(action.slug) : undefined
-    })
+      description: descriptions.get(action.slug)
+    }
   }
-  return out.sort((a, b) => a.label.localeCompare(b.label))
+  return registry
 }
 
 // Per-container capacity for every container the actor carries, read off the
@@ -520,9 +537,6 @@ export async function getCharacterDetails(
       }
     }
   }
-  const skillActionDescs = isCharacter
-    ? await getSkillActionDescriptions()
-    : new Map<string, string>()
   logger.debug('TABLEMATE: now sending ' + actor.name)
   return {
     action: TM.UPDATE_CHARACTER,
@@ -544,7 +558,7 @@ export async function getCharacterDetails(
     elementalBlasts: cleanBlasts,
     spellcastingModifiers,
     rollOptionLabels,
-    skillActions: isCharacter ? serializeSkillActions(actor, skillActionDescs) : [],
+    skillActions: isCharacter ? serializeSkillActions(actor) : [],
     uuid: args.uuid,
     userId: source.user._id ?? ''
   }

@@ -1,4 +1,5 @@
 import type { UpdateCharacterDetailsArgs, WorldLabelCatalogs } from '@/types/api-types'
+import type { SkillActionRegistry } from '@/types/character-types'
 import { idbGet, idbPut, idbDelete } from '@/utils/idb'
 import { useServerAddressStore } from '@/stores/serverAddress'
 import { logger } from '@/utils/utilities'
@@ -98,6 +99,39 @@ export function mergeLabelCatalogs(base: LabelCatalogs, incoming: LabelCatalogs)
 export interface StoredLabelCatalogs {
   stamp?: string
   catalogs: LabelCatalogs
+  // The skill-action registry, beside the catalogs rather than inside them: they
+  // are flat slug → string maps by design and this is structured. Same stamp,
+  // same lifetime, same row on disk. Optional so a row written before it existed
+  // still reads.
+  skillActions?: SkillActionRegistry
+}
+
+// The registry as it comes off disk or the wire, narrowed to what the sheet
+// renders. Every field optional except the label, because an entry missing its
+// label is one the app cannot show and is better dropped than rendered blank.
+export function coerceSkillActions(value: unknown): SkillActionRegistry | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const out: SkillActionRegistry = {}
+  for (const [slug, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (!raw || typeof raw !== 'object') continue
+    const entry = raw as Record<string, unknown>
+    if (typeof entry.label !== 'string') continue
+    out[slug] = {
+      label: entry.label,
+      cost: typeof entry.cost === 'string' ? entry.cost : undefined,
+      traits: Array.isArray(entry.traits)
+        ? entry.traits.filter((t): t is string => typeof t === 'string')
+        : [],
+      rollOptions: Array.isArray(entry.rollOptions)
+        ? entry.rollOptions.filter((t): t is string => typeof t === 'string')
+        : [],
+      variants: Array.isArray(entry.variants)
+        ? (entry.variants as SkillActionRegistry[string]['variants'])
+        : undefined,
+      description: typeof entry.description === 'string' ? entry.description : undefined
+    }
+  }
+  return out
 }
 
 // Persisted under the bare server origin — one row per server, unlike the actor
@@ -129,7 +163,11 @@ function coerce(stored: unknown): StoredLabelCatalogs | undefined {
   // empty rather than failing to coerce.
   const catalogs = emptyLabelCatalogs()
   for (const name of Object.keys(catalogs) as (keyof LabelCatalogs)[]) catalogs[name] = pick(name)
-  return { stamp: typeof row.stamp === 'string' ? row.stamp : undefined, catalogs }
+  return {
+    stamp: typeof row.stamp === 'string' ? row.stamp : undefined,
+    catalogs,
+    skillActions: coerceSkillActions((stored as { skillActions?: unknown }).skillActions)
+  }
 }
 
 export async function loadLabelCatalogs(origin?: string): Promise<StoredLabelCatalogs | undefined> {
