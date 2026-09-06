@@ -18,6 +18,7 @@ import { sealLedger, type Ledger, type SkippedRule } from './ledger'
 import { buildRollOptions, type RollOptionSet } from './rollOptions'
 import { versionVerdict } from './index'
 import type { ValueContext } from './resolveValue'
+import { deriveSpeeds, type DerivedSpeed, type MovementType } from './movement'
 
 // Tier 2: the figures that are reproducible from source ONCE rule elements are
 // accounted for.
@@ -658,4 +659,79 @@ export function deriveHitPointsMax(input: DerivationInput, bonusPerLevel = 0): D
     ranks,
     relevant(carried, [])
   )
+}
+
+// The focus pool maximum.
+//
+// This page recorded it as the one Tier 2 figure that was not arithmetic at all
+// — "a count of which focus-pool-granting feats an actor has, and that list
+// grows with every published book". That was wrong, and wrong in the same way
+// the proficiency-rank claim was: it describes the RULEBOOK, not the system.
+//
+// PF2e never reads a stored maximum for a character. `prepareBaseData` does
+//
+//   d.focus = { value: d.focus?.value || 0, max: 0, cap: 3 }
+//
+// discarding whatever was on the actor, and then every SPELL the character
+// knows that has the `focus` trait and is not a cantrip adds one
+// (`SpellPF2e#prepareActorData`). The pool is a count of focus spells, which are
+// items in plain source data — not a list of feats needing a lookup table.
+//
+// Two things can still move it, both of which the engine already handles:
+// ActiveEffectLike rules writing `system.resources.focus.max` (a handful of
+// psychic feats — every other such rule was stripped by a system migration) or
+// `…focus.cap`, and the final clamp between zero and that cap.
+export function deriveFocusPool(input: DerivationInput): {
+  max: number
+  cap: number
+  ledger: Ledger
+} {
+  const spells = input.items.filter((item) => {
+    if (item.type !== 'spell') return false
+    const traits = (item.system as { traits?: { value?: string[] } } | undefined)?.traits?.value
+    return !!traits?.includes('focus') && !traits.includes('cantrip')
+  })
+
+  const seed = {
+    // Zero, not the stored value. PF2e overwrites it, so seeding from source
+    // would double-count every focus spell on any character whose sheet had
+    // been saved with a maximum already in it.
+    'system.resources.focus.max': spells.length,
+    'system.resources.focus.cap': 3
+  }
+  const { ranks } = deriveProficiencyRanks(input)
+  const applied = applyActiveEffectLikes(
+    input.items,
+    seed,
+    optionsFor(input, ranks),
+    contextFor(input)
+  )
+
+  const cap = applied.paths['system.resources.focus.cap'] ?? 3
+  const raw = applied.paths['system.resources.focus.max'] ?? 0
+  return {
+    max: Math.floor(Math.min(Math.max(raw, 0), cap)) || 0,
+    cap,
+    ledger: sealLedger(
+      { applied: applied.applied, skipped: applied.skipped },
+      versionVerdict(input.stamp)
+    )
+  }
+}
+
+// Movement speeds, over the same input as every other figure.
+//
+// The arithmetic lives in ./movement, which needs the resolved roll options and
+// value context rather than a DerivationInput. This is the seam that keeps
+// callers from having to build those themselves — and keeps the rank pass, which
+// the option set depends on, from being forgotten.
+export function deriveMovement(input: DerivationInput): Record<MovementType, DerivedSpeed | null> {
+  const { ranks } = deriveProficiencyRanks(input)
+  return deriveSpeeds({
+    items: input.items,
+    strength: input.attributes.str ?? 0,
+    options: optionsFor(input, ranks),
+    context: contextFor(input),
+    stamp: input.stamp
+  })
 }
