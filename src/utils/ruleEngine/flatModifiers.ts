@@ -215,30 +215,42 @@ export function collectFlatModifiers(
   return { modifiers, applied: draft.applied, skipped: draft.skipped }
 }
 
-// PF2e's `applyStackingRules`, over the engine's own modifiers.
+// PF2e's `applyStackingRules`, resolved onto the modifiers themselves.
 //
-// Same shape as the sheet's existing simulation in useModifierOverrides — same
-// non-untyped type, only the best positive and the worst negative survive — but
-// operating on modifiers before they reach the UI, and honouring `force`, which
-// exempts a modifier from the contest entirely.
-export function applyStacking(modifiers: readonly EngineModifier[]): number {
-  const byType = new Map<string, EngineModifier[]>()
-  let total = 0
+// Returns the list with `enabled` set to what actually applies: within each
+// non-untyped type only the best positive and the worst negative survive, and
+// `force` exempts a modifier from the contest.
+//
+// Resolving it onto the list rather than just summing is what makes the
+// breakdown honest. PF2e reports the losers too — a live character's untrained
+// Arcana shows `proficiency:0:proficiency:false` beside
+// `untrained-improvisation:4:proficiency:true`, and the pair reverses once the
+// skill is trained. Marking everything enabled would have shown Untrained
+// Improvisation as applying to a trained skill, which is exactly the thing the
+// stacking fix stopped it from doing to the TOTAL.
+export function resolveStacking(modifiers: readonly EngineModifier[]): EngineModifier[] {
+  const best = new Map<string, { positive?: EngineModifier; negative?: EngineModifier }>()
   for (const modifier of modifiers) {
-    if (!modifier.enabled) continue
-    if (modifier.type === 'untyped' || modifier.force) {
-      total += modifier.modifier
-      continue
+    if (!modifier.enabled || modifier.type === 'untyped' || modifier.force) continue
+    const bucket = best.get(modifier.type) ?? {}
+    if (modifier.modifier >= 0) {
+      if (!bucket.positive || modifier.modifier > bucket.positive.modifier) bucket.positive = modifier
+    } else if (!bucket.negative || modifier.modifier < bucket.negative.modifier) {
+      bucket.negative = modifier
     }
-    const bucket = byType.get(modifier.type) ?? []
-    bucket.push(modifier)
-    byType.set(modifier.type, bucket)
+    best.set(modifier.type, bucket)
   }
-  for (const bucket of byType.values()) {
-    const positives = bucket.filter((m) => m.modifier >= 0).map((m) => m.modifier)
-    const negatives = bucket.filter((m) => m.modifier < 0).map((m) => m.modifier)
-    if (positives.length) total += Math.max(...positives)
-    if (negatives.length) total += Math.min(...negatives)
-  }
-  return total
+  return modifiers.map((modifier) => {
+    if (!modifier.enabled || modifier.type === 'untyped' || modifier.force) return modifier
+    const bucket = best.get(modifier.type)
+    const wins = bucket?.positive === modifier || bucket?.negative === modifier
+    return wins ? modifier : { ...modifier, enabled: false }
+  })
+}
+
+export function applyStacking(modifiers: readonly EngineModifier[]): number {
+  return resolveStacking(modifiers).reduce(
+    (total, modifier) => (modifier.enabled ? total + modifier.modifier : total),
+    0
+  )
 }

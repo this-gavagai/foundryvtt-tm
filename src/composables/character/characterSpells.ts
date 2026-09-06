@@ -1,4 +1,6 @@
 import { computed, type Ref } from 'vue'
+import { useDerivedStatistics } from './derivedStatistics'
+import type { EngineItem } from '@/utils/ruleEngine/flatModifiers'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import type { TablemateCharacter } from '@/types/character-types'
 import type { Field, Maybe } from './helpers'
@@ -54,6 +56,7 @@ export interface CharacterSpells {
 }
 
 export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): CharacterSpells {
+  const derived = useDerivedStatistics(actor)
   const spellcastingEntries = computed(() =>
     actor.value?.items
       ?.filter((i): i is SpellcastingEntryPF2e<CharacterPF2e> => i?.type === 'spellcastingEntry')
@@ -62,8 +65,17 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
       ?.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
       ?.map((item) => {
         const spellModData = item._id ? actor.value?.spellcastingModifiers?.[item._id] : undefined
+        // The entry's save DC, derived when no GM has supplied one. PF2e's is
+        // authoritative whenever it is there — it carries the elite/weak
+        // adjustment and every synthetic this cannot see.
+        const derivedDc =
+          spellModData?.dc === undefined
+            ? derived.spellDC(item as unknown as EngineItem)
+            : undefined
         return {
           ...makeSpellcastingEntry(item),
+          spellDC: spellModData?.dc ?? derivedDc?.value,
+          spellDCProvisional: derivedDc?.provisional ?? false,
           spellAttackModifier: spellModData?.mod,
           spellAttackModifiers: makeModifiers(spellModData?.modifiers),
           doSpellAttack: (result?: number, modifierOverrides?: Record<string, boolean>) =>

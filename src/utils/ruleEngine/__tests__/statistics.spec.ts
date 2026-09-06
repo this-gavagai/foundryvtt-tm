@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   deriveArmorClass,
+  deriveSpellDC,
   deriveClassDC,
   deriveHitPointsMax,
   derivePerception,
@@ -614,5 +615,122 @@ describe('a chosen armour proficiency', () => {
     const result = deriveArmorClass(kyra([upgrade]))
     expect(result.value).toBe(15)
     expect(result.ledger.skipped.some((s) => s.detail?.includes('unresolvable path'))).toBe(true)
+  })
+})
+
+describe('spell DC', () => {
+  // Left out of the first Tier 2 pass on the assumption it was "the same shape
+  // as class DC". It is not: the rank is the GREATER of the entry's own
+  // proficiency and the actor's base-spellcasting rank, and the attribute is the
+  // ENTRY's — so one character can carry two entries with two different DCs.
+  const entry = (over: Record<string, unknown> = {}) =>
+    ({
+      name: 'Arcane Spellcasting',
+      type: 'spellcastingEntry',
+      system: {
+        slug: 'arcane-spellcasting',
+        rules: [],
+        ability: { value: 'int' },
+        tradition: { value: 'arcane' },
+        proficiency: { value: 1 },
+        ...over
+      }
+    }) as never
+
+  const wizard = (extra: EngineItem[] = []): DerivationInput => ({
+    level: 5,
+    attributes: { str: 0, dex: 3, con: 3, int: 4, wis: 2, cha: 0 },
+    stamp: STAMP,
+    items: [
+      {
+        name: 'Wizard',
+        type: 'class',
+        system: {
+          slug: 'wizard',
+          rules: [],
+          savingThrows: { fortitude: 1, reflex: 1, will: 2 },
+          defenses: { unarmored: 1, light: 0, medium: 0, heavy: 0 },
+          perception: 1,
+          spellcasting: 1,
+          hp: 6
+        } as unknown as EngineItem['system']
+      },
+      ...extra
+    ]
+  })
+
+  it('is 10 + the entry’s attribute + its proficiency', () => {
+    // 10 + int 4 + (trained 1 x 2 + 5) = 21
+    expect(deriveSpellDC(wizard([entry()]), entry()).value).toBe(21)
+  })
+
+  it('takes the entry’s own attribute, not the class’s', () => {
+    // A sorcerer-style entry on the same character keys off charisma.
+    const cha = entry({ ability: { value: 'cha' }, tradition: { value: 'divine' } })
+    // 10 + cha 0 + 7 = 17
+    expect(deriveSpellDC(wizard([cha]), cha).value).toBe(17)
+  })
+
+  it('takes the greater of the entry rank and the actor’s spellcasting rank', () => {
+    const input = wizard([
+      entry(),
+      {
+        name: 'Expert Spellcaster',
+        type: 'feat',
+        system: { slug: 'expert-spellcaster', rules: [], subfeatures: { proficiencies: { spellcasting: { rank: 2 } } } }
+      } as never
+    ])
+    // The entry still says trained; the actor says expert, and expert wins.
+    // 10 + int 4 + (2 x 2 + 5) = 23
+    expect(deriveSpellDC(input, entry()).value).toBe(23)
+  })
+
+  it('collects modifiers on the spell-dc domains', () => {
+    const input = wizard([
+      entry(),
+      feature('Ring of Wizardry', [
+        { key: 'FlatModifier', selector: 'spell-dc', type: 'item', value: 1 }
+      ])
+    ])
+    expect(deriveSpellDC(input, entry()).value).toBe(22)
+  })
+})
+
+describe('the reported modifier list', () => {
+  it('marks stacking losers disabled rather than dropping or keeping them', () => {
+    // PF2e reports both and flags the loser — a live character's untrained
+    // Arcana shows `proficiency:0:proficiency:false` beside
+    // `untrained-improvisation:4:proficiency:true`, reversing once trained.
+    const input = fighter([
+      feature('Untrained Improvisation', [
+        {
+          key: 'FlatModifier',
+          selector: 'skill-check',
+          type: 'proficiency',
+          slug: 'untrained-improvisation',
+          value: 4
+        }
+      ])
+    ])
+    const trained = deriveSkill(input, 'athletics', 1).modifiers
+    const byslug = (list: typeof trained, slug: string) => list.find((m) => m.slug === slug)
+    expect(byslug(trained, 'proficiency')?.enabled).toBe(true)
+    expect(byslug(trained, 'untrained-improvisation')?.enabled).toBe(false)
+
+    const untrained = deriveSkill(input, 'arcana', 0).modifiers
+    expect(byslug(untrained, 'proficiency')?.enabled).toBe(false)
+    expect(byslug(untrained, 'untrained-improvisation')?.enabled).toBe(true)
+  })
+
+  it('leaves untyped and forced modifiers enabled alongside a winner', () => {
+    const input = fighter([
+      feature('A', [{ key: 'FlatModifier', selector: 'ac', type: 'item', slug: 'a', value: 1 }]),
+      feature('B', [{ key: 'FlatModifier', selector: 'ac', type: 'item', slug: 'b', value: 2 }]),
+      feature('C', [{ key: 'FlatModifier', selector: 'ac', slug: 'c', value: 1 }])
+    ])
+    const mods = deriveArmorClass(input).modifiers
+    expect(mods.find((m) => m.slug === 'a')?.enabled).toBe(false)
+    expect(mods.find((m) => m.slug === 'b')?.enabled).toBe(true)
+    expect(mods.find((m) => m.slug === 'c')?.enabled).toBe(true)
   })
 })

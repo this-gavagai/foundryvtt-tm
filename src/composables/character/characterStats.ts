@@ -20,6 +20,8 @@ import { i18n } from '@/plugins/i18n'
 import { heldShield, type ShieldSource } from '@/utils/heldShield'
 import { useWorldLabels } from '@/composables/useWorldLabels'
 import { useDerivedStatistics } from './derivedStatistics'
+import type { EngineItem } from '@/utils/ruleEngine/flatModifiers'
+import { asDocumentArray } from '@/api/internal'
 
 export interface IWR {
   type: Maybe<string>
@@ -359,7 +361,20 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
   const resistances = computed(() =>
     makeIWRs(actor.value?.system?.attributes?.resistances, iwrLabels.value)
   )
-  const spellDC = computed(() => actor.value?.system?.attributes?.spellDC?.value)
+  // PF2e's `spellDC` is the best DC across the actor's spellcasting entries, so
+  // the fallback derives each entry and takes the highest — one character can
+  // carry two, keyed off different attributes.
+  const spellDC = computed(() => {
+    const prepared = actor.value?.system?.attributes?.spellDC?.value
+    if (prepared !== undefined) return prepared
+    const entries = ((asDocumentArray(actor.value?.items) ?? []) as EngineItem[]).filter(
+      (item) => item?.type === 'spellcastingEntry'
+    )
+    const derivedDcs = entries
+      .map((entry) => derived.spellDC(entry)?.value)
+      .filter((value): value is number => typeof value === 'number')
+    return derivedDcs.length ? Math.max(...derivedDcs) : undefined
+  })
 
   const doFlatCheck = (
     rollResult: number | undefined = undefined,

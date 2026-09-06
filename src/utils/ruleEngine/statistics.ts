@@ -1,5 +1,11 @@
 import { applyActiveEffectLikes } from './activeEffectLike'
-import { applyStacking, collectFlatModifiers, type EngineItem, type EngineModifier } from './flatModifiers'
+import {
+  applyStacking,
+  collectFlatModifiers,
+  resolveStacking,
+  type EngineItem,
+  type EngineModifier
+} from './flatModifiers'
 import { AC_DOMAINS, PERCEPTION_DOMAINS, SAVE_ATTRIBUTES, loreDomains, saveDomains, skillDomains } from './domains'
 import { sealLedger, type Ledger, type SkippedRule } from './ledger'
 import { buildRollOptions, type RollOptionSet } from './rollOptions'
@@ -150,6 +156,7 @@ interface ClassSystem {
   savingThrows?: Record<string, number>
   defenses?: Record<string, number>
   perception?: number
+  spellcasting?: number
   hp?: number
   trainedSkills?: { value?: string[] }
 }
@@ -185,6 +192,7 @@ export function deriveProficiencyRanks(input: DerivationInput): {
   }
   floor('system.perception.rank', klass?.perception)
   floor('system.proficiencies.classDCs.rank', klass ? 1 : 0)
+  floor('system.proficiencies.spellcasting.rank', klass?.spellcasting)
 
   // Skills are seeded too, and from the same two sources. They were left out
   // originally on the belief that their ranks are always stored on the actor —
@@ -236,6 +244,7 @@ export function deriveProficiencyRanks(input: DerivationInput): {
   const unconfirmablePaths = [
     ...Object.keys(SAVE_ATTRIBUTES).map((save) => `system.saves.${save}.rank`),
     'system.perception.rank',
+    'system.proficiencies.spellcasting.rank',
     // Armour proficiency belongs here for the same reason and was missed on the
     // first pass. A world dump carries no `system.proficiencies.defenses` at
     // all, and a class that grants armour training through a doctrine or a feat
@@ -325,10 +334,13 @@ function build(
   const options = optionsFor(input, ranks)
   const collected = collectFlatModifiers(input.items, domains, options, contextFor(input))
   const all = [...seedModifiers, ...collected.modifiers]
+  const resolved = resolveStacking(all)
   return {
     base: constant + applyStacking(seedModifiers),
     value: constant + applyStacking(all),
-    modifiers: all,
+    // Reported with `enabled` resolved, so a breakdown shows which modifiers
+    // actually applied rather than every one that was considered.
+    modifiers: resolved,
     ledger: sealLedger(
       {
         applied: carried.applied + collected.applied,
@@ -462,6 +474,49 @@ export function deriveClassDC(input: DerivationInput, keyAttribute: string): Der
 
 interface AncestrySystem {
   hp?: number
+}
+
+interface SpellcastingEntrySystem {
+  ability?: { value?: string }
+  tradition?: { value?: string }
+  proficiency?: { value?: number; slug?: string | null }
+}
+
+// A spellcasting entry's DC.
+//
+// Left out of the first Tier 2 pass on the assumption that it was "the same
+// shape as class DC". It is not, and the difference is why: the rank is the
+// GREATER of the entry's own `system.proficiency.value` and the actor's
+// base-spellcasting rank, and the attribute is the entry's, not the class's —
+// so a character with two entries can have two different DCs. PF2e's
+// `SpellcastingEntryPF2e#prepareStatistic` does exactly that Math.max.
+//
+// The domains are the entry statistic's own plus the DC's, which is what PF2e
+// collects a DC's modifiers over.
+export function deriveSpellDC(input: DerivationInput, entry: EngineItem): DerivedStatistic {
+  const { ranks, ...carried } = deriveProficiencyRanks(input)
+  const system = entry.system as unknown as SpellcastingEntrySystem | undefined
+  const attribute = system?.ability?.value ?? 'int'
+  const tradition = system?.tradition?.value ?? 'arcane'
+  const rank = Math.max(
+    system?.proficiency?.value ?? 0,
+    ranks['system.proficiencies.spellcasting.rank'] ?? 0
+  )
+  const domains = [
+    'all',
+    `${attribute}-based`,
+    'spell-attack-dc',
+    `${tradition}-spell-dc`,
+    'spell-dc'
+  ]
+  return build(
+    input,
+    10,
+    baseModifiers(attribute, input.attributes[attribute] ?? 0, proficiencyBonus(rank, input.level)),
+    domains,
+    ranks,
+    relevant(carried, ['system.proficiencies.spellcasting.rank'])
+  )
 }
 
 // Maximum hit points.

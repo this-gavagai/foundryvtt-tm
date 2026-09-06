@@ -149,7 +149,10 @@ function compareFigure(
 
   const valueMismatch: FigureDivergence['valueMismatch'] = []
   const engineOnly: string[] = []
-  for (const modifier of derived.modifiers) {
+  // Disabled on both sides: PF2e reports stacking losers with `enabled: false`
+  // and pf2eModifiers drops them, so comparing our disabled ones would
+  // manufacture divergence out of agreement.
+  for (const modifier of derived.modifiers.filter((m) => m.enabled)) {
     if (!truth.has(modifier.slug)) {
       engineOnly.push(modifier.slug)
       continue
@@ -160,7 +163,7 @@ function compareFigure(
     }
   }
 
-  const produced = new Set(derived.modifiers.map((modifier) => modifier.slug))
+  const produced = new Set(derived.modifiers.filter((m) => m.enabled).map((m) => m.slug))
   const silentMiss: string[] = []
   for (const slug of truth.keys()) {
     if (produced.has(slug)) continue

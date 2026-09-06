@@ -10,6 +10,7 @@ import {
   derivePerception,
   deriveSave,
   deriveSkill,
+  deriveSpellDC,
   type DerivationInput,
   readStoredRanks,
   type DerivedStatistic
@@ -42,6 +43,9 @@ export interface DerivedStatistics {
   perception: ComputedRef<DerivedFigure | undefined>
   save: (slug: string) => ComputedRef<DerivedFigure | undefined>
   skill: (slug: string, rank: number, lore?: boolean) => DerivedFigure | undefined
+  // Per spellcasting entry: a character can carry two, keyed off different
+  // attributes and proficiencies, so there is no single answer.
+  spellDC: (entry: EngineItem) => DerivedFigure | undefined
 }
 
 function present(result: DerivedStatistic): DerivedFigure {
@@ -103,6 +107,10 @@ export function useDerivedStatistics(
     skill: (slug: string, rank: number, lore = false) => {
       const source = input.value
       return source ? present(deriveSkill(source, slug, rank, { lore })) : undefined
+    },
+    spellDC: (entry: EngineItem) => {
+      const source = input.value
+      return source ? present(deriveSpellDC(source, entry)) : undefined
     }
   }
 }
