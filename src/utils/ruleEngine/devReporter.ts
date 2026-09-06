@@ -1,4 +1,5 @@
 import type { DifferentialReport } from './differential'
+import { predictionMisses, type PredictionMiss } from '@/utils/derivedReconcile'
 import { describeDifferential } from './differential'
 import { logger } from '@/utils/utilities'
 
@@ -100,6 +101,12 @@ declare global {
       summary: () => HarnessSummary
       reports: () => DifferentialReport[]
       last: () => DifferentialReport | undefined
+      // What we said PF2e WOULD compute after a write, where it then said
+      // otherwise. A different question from the differential above — that one
+      // compares the engine against the payload it arrived with, both
+      // describing the same settled world; these are predictions made across a
+      // mutation. See utils/derivedReconcile.
+      predictions: () => PredictionMiss[]
       reset: () => void
     }
   }
@@ -121,13 +128,15 @@ export function armHarness(): void {
     summary: summarize,
     reports: () => [...reports],
     last: () => reports[reports.length - 1],
+    predictions: predictionMisses,
     reset: () => {
       reports.length = 0
     }
   }
   logger.warn(
-    'TM: rule engine harness armed — inspect with window.__tmRuleEngine.summary(). ' +
-      'It reports on every character payload, so it needs a GM online to have anything to compare against.'
+    'TM: rule engine harness armed — inspect with window.__tmRuleEngine.summary(), ' +
+      'and window.__tmRuleEngine.predictions() for figures a write predicted wrongly. ' +
+      'Both need a GM online to have anything to compare against.'
   )
 }
 
