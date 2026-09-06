@@ -26,6 +26,11 @@
 
 const MODULE_ID = 'tablemate'
 
+// The world setting a GM's client publishes the catalogs into. Must match
+// `${MODULE_ID}.${PUBLISHED_LABELS_SETTING}` on the Foundry side
+// (foundry/publishedLabels.ts) — the two are joined only by this string.
+const PUBLISHED_LABELS_KEY = `${MODULE_ID}.labelCatalogs`
+
 // The shape this needs out of the handshake. Deliberately structural and
 // entirely optional: it is reading a payload from a server whose version it does
 // not control, and every field missing must degrade to "cannot tell" rather
@@ -34,6 +39,42 @@ export interface StampSource {
   system?: { id?: string; version?: string }
   modules?: readonly { id?: string; version?: string }[]
   settings?: readonly { key?: string; value?: unknown }[]
+}
+
+// The catalog a GM's client published into a world setting, if this world has
+// one. It rides the same handshake as every other setting, so reading it costs
+// nothing and needs nobody online — that is the whole point of putting it there
+// rather than in an uploaded file.
+//
+// Returns the stamp alongside the catalogs UNPARSED into any app type: the
+// caller checks the stamp before adopting anything, and a payload written by a
+// different version of the module must be rejected on that check rather than
+// half-read here.
+export interface PublishedCatalogs {
+  stamp: string
+  catalogs: unknown
+}
+
+export function readPublishedCatalogs(
+  source: StampSource | undefined
+): PublishedCatalogs | undefined {
+  const raw = source?.settings?.find((setting) => setting.key === PUBLISHED_LABELS_KEY)?.value
+  if (typeof raw !== 'string' || !raw) return undefined
+  try {
+    // A setting document's value is a JSON string; this one holds a JSON string,
+    // so it arrives double-encoded. Unwrap once if that is what we got.
+    const outer: unknown = JSON.parse(raw)
+    const inner: unknown = typeof outer === 'string' ? JSON.parse(outer) : outer
+    const record = inner as { stamp?: unknown; catalogs?: unknown } | null
+    if (typeof record?.stamp !== 'string' || !record.stamp) return undefined
+    if (!record.catalogs || typeof record.catalogs !== 'object') return undefined
+    return { stamp: record.stamp, catalogs: record.catalogs }
+  } catch {
+    // Written by a module version that shaped it differently, or truncated.
+    // Indistinguishable from "never published", and handled the same way: ask a
+    // live client, exactly as before this existed.
+    return undefined
+  }
 }
 
 // The world's locale, as `game.i18n.lang` would report it.

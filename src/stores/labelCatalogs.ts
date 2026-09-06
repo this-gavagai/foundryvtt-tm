@@ -4,6 +4,7 @@ import { debounce } from 'lodash-es'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import {
   catalogsFromPayload,
+  coerceLabelCatalogs,
   emptyLabelCatalogs,
   loadLabelCatalogs,
   mergeLabelCatalogs,
@@ -11,7 +12,7 @@ import {
   type LabelCatalogs
 } from '@/utils/labelCache'
 import { getLabelCatalogs } from '@/api/actionRpc'
-import { expectedLabelStamp, type StampSource } from '@/utils/labelStamp'
+import { expectedLabelStamp, readPublishedCatalogs, type StampSource } from '@/utils/labelStamp'
 import { useWorldStore } from '@/stores/world'
 import { useServerAddressStore } from '@/stores/serverAddress'
 import { logger } from '@/utils/utilities'
@@ -86,8 +87,40 @@ export const useLabelCatalogsStore = defineStore('labelCatalogs', () => {
   // never with this guess (see utils/labelStamp.ts), so a guess that is subtly
   // wrong costs a redundant fetch and can never mislabel a sheet.
   async function ensureFromWorld(): Promise<void> {
-    const expected = expectedLabelStamp(useWorldStore().world as StampSource | undefined)
+    const world = useWorldStore().world as StampSource | undefined
+    const expected = expectedLabelStamp(world)
     if (!expected) return
+
+    // The world may be carrying the catalog itself: a GM's client publishes it
+    // into a world setting, and world settings arrive in the same handshake this
+    // stamp came from. When one is there and current, the app is done — no
+    // request, no client online, nothing to wait for.
+    //
+    // The stamp check is what makes adopting it safe, and it is the PUBLISHER'S
+    // stamp that gets stored, not the app's guess. So this keeps the invariant
+    // the guess was built around: what the app records is always a real client's
+    // account of its own CONFIG and i18n. Here that client simply wrote it down
+    // last session instead of answering just now.
+    const published = readPublishedCatalogs(world)
+    if (published && published.stamp === expected) {
+      if (stamp.value === expected) return
+      const origin = useServerAddressStore().serverUrl?.origin
+      if (!origin) return
+      await hydrate()
+      if (useServerAddressStore().serverUrl?.origin !== origin) return
+      // Re-checked after the await: a fetch or an announcement could have
+      // landed the same catalog while the disk read was in flight.
+      if (stamp.value === expected) return
+      catalogs.value = coerceLabelCatalogs(published.catalogs)
+      stamp.value = published.stamp
+      hydratedOrigin.value = origin
+      persist(catalogs.value, published.stamp, origin)
+      return
+    }
+
+    // Nothing published, or published under a stamp this world has moved past —
+    // a system upgrade since the last GM logged in. Ask a live client, which now
+    // means any client running the module rather than a GM specifically.
     await ensureCatalog(expected)
   }
 

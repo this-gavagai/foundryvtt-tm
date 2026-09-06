@@ -36,6 +36,28 @@ export function emptyLabelCatalogs(): LabelCatalogs {
   return { traits: {}, proficiencies: {}, rollOptions: {}, iwr: {}, languages: {}, frequencies: {} }
 }
 
+// Narrow an untrusted catalog object — one published into a world setting by
+// whatever version of the module last ran — into the shape the app renders from.
+//
+// Every family is filtered to its string→string entries and any family the
+// payload omits becomes empty. Both directions of version skew land somewhere
+// safe: a newer module's extra family is dropped, an older one's missing family
+// falls back to raw slugs for that family alone rather than poisoning the rest.
+export function coerceLabelCatalogs(value: unknown): LabelCatalogs {
+  const source = (value ?? {}) as Record<string, unknown>
+  const out = emptyLabelCatalogs()
+  for (const family of Object.keys(out) as (keyof LabelCatalogs)[]) {
+    const entries = source[family]
+    if (!entries || typeof entries !== 'object') continue
+    const clean: Record<string, string> = {}
+    for (const [slug, label] of Object.entries(entries as Record<string, unknown>)) {
+      if (typeof label === 'string') clean[slug] = label
+    }
+    out[family] = clean
+  }
+  return out
+}
+
 // What one character payload contributes: its RollOption rule labels, and
 // nothing else. Everything else the payload used to carry is world-scoped and
 // arrives through the catalog instead.
