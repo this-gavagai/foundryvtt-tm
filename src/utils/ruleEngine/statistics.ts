@@ -6,7 +6,14 @@ import {
   type EngineItem,
   type EngineModifier
 } from './flatModifiers'
-import { AC_DOMAINS, PERCEPTION_DOMAINS, SAVE_ATTRIBUTES, loreDomains, saveDomains, skillDomains } from './domains'
+import {
+  AC_DOMAINS,
+  PERCEPTION_DOMAINS,
+  SAVE_ATTRIBUTES,
+  loreDomains,
+  saveDomains,
+  skillDomains
+} from './domains'
 import { sealLedger, type Ledger, type SkippedRule } from './ledger'
 import { buildRollOptions, type RollOptionSet } from './rollOptions'
 import { versionVerdict } from './index'
@@ -143,8 +150,10 @@ export function readStoredRanks(system: unknown): Record<string, number> {
   const put = (path: string, rank: unknown) => {
     if (typeof rank === 'number') ranks[path] = rank
   }
-  for (const [slug, save] of Object.entries(source.saves ?? {})) put(`system.saves.${slug}.rank`, save?.rank)
-  for (const [slug, skill] of Object.entries(source.skills ?? {})) put(`system.skills.${slug}.rank`, skill?.rank)
+  for (const [slug, save] of Object.entries(source.saves ?? {}))
+    put(`system.saves.${slug}.rank`, save?.rank)
+  for (const [slug, skill] of Object.entries(source.skills ?? {}))
+    put(`system.skills.${slug}.rank`, skill?.rank)
   put('system.perception.rank', source.perception?.rank)
   for (const [slug, defense] of Object.entries(source.proficiencies?.defenses ?? {})) {
     put(`system.proficiencies.defenses.${slug}.rank`, defense?.rank)
@@ -214,8 +223,10 @@ export function deriveProficiencyRanks(input: DerivationInput): {
   // every character now that the mechanism is modelled.
   const explained = new Set<string>()
   for (const item of input.items) {
-    const subfeatures = (item.system as { subfeatures?: { proficiencies?: Record<string, { rank?: number }> } } | undefined)
-      ?.subfeatures?.proficiencies
+    const subfeatures = (
+      item.system as
+        { subfeatures?: { proficiencies?: Record<string, { rank?: number }> } } | undefined
+    )?.subfeatures?.proficiencies
     for (const [key, entry] of Object.entries(subfeatures ?? {})) {
       const rank = entry?.rank
       if (typeof rank !== 'number' || !rank) continue
@@ -267,7 +278,11 @@ export function deriveProficiencyRanks(input: DerivationInput): {
 // answer plainly: `proficiency:0:proficiency:false` beside
 // `untrained-improvisation:4:proficiency:true` on an untrained skill, and the
 // reverse once trained.
-function baseModifiers(attributeSlug: string, attribute: number, proficiency: number): EngineModifier[] {
+function baseModifiers(
+  attributeSlug: string,
+  attribute: number,
+  proficiency: number
+): EngineModifier[] {
   const make = (slug: string, modifier: number, type: string): EngineModifier => ({
     slug,
     label: slug,
@@ -278,7 +293,10 @@ function baseModifiers(attributeSlug: string, attribute: number, proficiency: nu
     force: false,
     source: ''
   })
-  return [make(attributeSlug, attribute, 'ability'), make('proficiency', proficiency, 'proficiency')]
+  return [
+    make(attributeSlug, attribute, 'ability'),
+    make('proficiency', proficiency, 'proficiency')
+  ]
 }
 
 // A figure inherits only the rank gaps that belong to it. Nothing emits
@@ -438,7 +456,11 @@ export function deriveClassDC(input: DerivationInput, keyAttribute: string): Der
   return build(
     input,
     10,
-    baseModifiers(keyAttribute, input.attributes[keyAttribute] ?? 0, proficiencyBonus(rank, input.level)),
+    baseModifiers(
+      keyAttribute,
+      input.attributes[keyAttribute] ?? 0,
+      proficiencyBonus(rank, input.level)
+    ),
     ['class-dc', 'all'],
     ranks,
     relevant(carried, [])
@@ -447,12 +469,83 @@ export function deriveClassDC(input: DerivationInput, keyAttribute: string): Der
 
 interface AncestrySystem {
   hp?: number
+  size?: string
+  speed?: number
+  traits?: { value?: string[] }
 }
 
-interface SpellcastingEntrySystem {
+// A character's traits and size, from the ancestry that grants them.
+//
+// Not a new figure so much as a correction. `system.traits` is absent from a
+// world dump entirely — PF2e assembles it, copying the ancestry's traits and
+// size onto the actor — and the engine's roll-option set declares `self:trait`
+// a KNOWN family. So on a source-only sheet it was answering `self:trait:elf`
+// with a confident FALSE for an elf, dropping every ancestry-predicated modifier
+// with no skip recorded.
+//
+// The harness could not see it: it reads traits from the payload, which has
+// them. That is the same "measuring an easier case" trap as feeding it prepared
+// ranks, in a new place.
+//
+// Fixing it compounds. Trait predicates are a real share of the largest
+// remaining skip category, so every one that now resolves is a modifier the
+// engine stops guessing about.
+export function deriveActorTraits(items: readonly EngineItem[]): string[] {
+  const ancestry = items.find((item) => item.type === 'ancestry')?.system as
+    AncestrySystem | undefined
+  const traits = new Set(ancestry?.traits?.value ?? [])
+  // `ActorTraits` adds and removes on the assembled set — a werewolf's beast
+  // trait, an elixir granting a temporary one.
+  for (const item of items) {
+    for (const raw of item.system?.rules ?? []) {
+      const rule = raw as { key?: string; add?: unknown; remove?: unknown }
+      if (rule.key !== 'ActorTraits') continue
+      for (const trait of Array.isArray(rule.add) ? rule.add : []) {
+        if (typeof trait === 'string') traits.add(trait)
+      }
+      for (const trait of Array.isArray(rule.remove) ? rule.remove : []) {
+        if (typeof trait === 'string') traits.delete(trait)
+      }
+    }
+  }
+  return [...traits]
+}
+
+// The ancestry's size, which is what PF2e copies onto `system.traits.size`.
+// A `CreatureSize` rule element can change it; that is not modelled, and it is
+// rare enough to be worth naming rather than pretending otherwise.
+export function deriveActorSize(items: readonly EngineItem[]): string | undefined {
+  const ancestry = items.find((item) => item.type === 'ancestry')?.system as
+    AncestrySystem | undefined
+  return ancestry?.size
+}
+
+export interface SpellcastingEntrySystem {
   ability?: { value?: string }
   tradition?: { value?: string }
   proficiency?: { value?: number; slug?: string | null }
+}
+
+// The domains PF2e collects a spellcasting entry's modifiers over. Exported
+// because the differential harness has to ask the same question of the payload's
+// modifier list: comparing over a different domain set would report divergence
+// that is only the harness disagreeing with itself.
+export function spellcastingDomains(
+  attribute: string,
+  tradition: string,
+  kind: 'dc' | 'attack'
+): string[] {
+  const shared = ['all', `${attribute}-based`, 'spell-attack-dc']
+  return kind === 'dc'
+    ? [...shared, `${tradition}-spell-dc`, 'spell-dc']
+    : [
+        ...shared,
+        `${tradition}-spell-attack`,
+        'spell-attack',
+        'spell-attack-roll',
+        'attack',
+        'attack-roll'
+      ]
 }
 
 // A spellcasting entry's DC.
@@ -466,7 +559,17 @@ interface SpellcastingEntrySystem {
 //
 // The domains are the entry statistic's own plus the DC's, which is what PF2e
 // collects a DC's modifiers over.
-export function deriveSpellDC(input: DerivationInput, entry: EngineItem): DerivedStatistic {
+// The spellcasting statistic behind both the DC and the attack roll.
+//
+// PF2e builds one statistic per entry and reads a DC off it; the attack
+// modifier is the same figure without the 10, over the attack domains rather
+// than the DC's. Sharing the construction is not tidiness — it is what keeps the
+// two from drifting apart when only one of them is touched.
+function spellcastingStatistic(
+  input: DerivationInput,
+  entry: EngineItem,
+  kind: 'dc' | 'attack'
+): DerivedStatistic {
   const { ranks, ...carried } = deriveProficiencyRanks(input)
   const system = entry.system as unknown as SpellcastingEntrySystem | undefined
   const attribute = system?.ability?.value ?? 'int'
@@ -475,21 +578,61 @@ export function deriveSpellDC(input: DerivationInput, entry: EngineItem): Derive
     system?.proficiency?.value ?? 0,
     ranks['system.proficiencies.spellcasting.rank'] ?? 0
   )
-  const domains = [
-    'all',
-    `${attribute}-based`,
-    'spell-attack-dc',
-    `${tradition}-spell-dc`,
-    'spell-dc'
-  ]
+  const domains = spellcastingDomains(attribute, tradition, kind)
   return build(
     input,
-    10,
+    kind === 'dc' ? 10 : 0,
     baseModifiers(attribute, input.attributes[attribute] ?? 0, proficiencyBonus(rank, input.level)),
     domains,
     ranks,
     relevant(carried, ['system.proficiencies.spellcasting.rank'])
   )
+}
+
+export function deriveSpellDC(input: DerivationInput, entry: EngineItem): DerivedStatistic {
+  return spellcastingStatistic(input, entry, 'dc')
+}
+
+// The entry's spell attack modifier.
+export function deriveSpellAttack(input: DerivationInput, entry: EngineItem): DerivedStatistic {
+  return spellcastingStatistic(input, entry, 'attack')
+}
+
+// Initiative.
+//
+// Nearly free once the statistics exist: `system.initiative.statistic` is stored
+// — it is the player's choice of which check rolls initiative — and the total is
+// simply that statistic's. PF2e adds an `initiative` domain on top, so a
+// modifier aimed there is collected as well.
+export function deriveInitiative(
+  input: DerivationInput,
+  named: string | undefined,
+  storedSkillRank: number
+): DerivedStatistic {
+  const slug = named ?? 'perception'
+  const statistic =
+    slug === 'perception'
+      ? derivePerception(input)
+      : deriveSkill(input, slug, storedSkillRank, { lore: !(slug in SKILL_ATTRIBUTES) })
+  const { ranks, ...carried } = deriveProficiencyRanks(input)
+  const extra = collectFlatModifiers(
+    input.items,
+    ['initiative'],
+    optionsFor(input, ranks),
+    contextFor(input)
+  )
+  return {
+    base: statistic.base,
+    value: statistic.value + applyStacking(extra.modifiers),
+    modifiers: [...statistic.modifiers, ...resolveStacking(extra.modifiers)],
+    ledger: sealLedger(
+      {
+        applied: statistic.ledger.applied + extra.applied,
+        skipped: [...statistic.ledger.skipped, ...extra.skipped, ...carried.skipped]
+      },
+      versionVerdict(input.stamp)
+    )
+  }
 }
 
 // Maximum hit points.
@@ -502,8 +645,7 @@ export function deriveSpellDC(input: DerivationInput, entry: EngineItem): Derive
 export function deriveHitPointsMax(input: DerivationInput, bonusPerLevel = 0): DerivedStatistic {
   const { ranks, ...carried } = deriveProficiencyRanks(input)
   const ancestry = input.items.find((item) => item.type === 'ancestry')?.system as
-    | AncestrySystem
-    | undefined
+    AncestrySystem | undefined
   const klass = classItem(input.items)?.system as ClassSystem | undefined
   const perLevel = (klass?.hp ?? 0) + (input.attributes.con ?? 0) + bonusPerLevel
   // Hit points have no proficiency or attribute modifier of their own — the Con

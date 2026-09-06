@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import {
+  deriveActorSize,
+  deriveActorTraits,
   deriveArmorClass,
+  deriveInitiative,
+  deriveSpellAttack,
   deriveSpellDC,
   deriveClassDC,
   deriveHitPointsMax,
@@ -317,7 +321,12 @@ describe('skill ranks come from more than the actor', () => {
   it('applies an AE-like upgrade to a skill the caller thinks is untrained', () => {
     const input = fighter([
       feature('Fire Gate', [
-        { key: 'ActiveEffectLike', mode: 'upgrade', path: 'system.skills.intimidation.rank', value: 1 }
+        {
+          key: 'ActiveEffectLike',
+          mode: 'upgrade',
+          path: 'system.skills.intimidation.rank',
+          value: 1
+        }
       ])
     ])
     // cha 0 + (trained 1 x 2 + 8) = 10, where a bare untrained read gives 0.
@@ -371,7 +380,9 @@ describe('skill ranks come from more than the actor', () => {
     ])
     const result = deriveSkill(input, 'thievery', 0)
     expect(result.ledger.confidence).toBe('provisional')
-    expect(result.ledger.skipped.some((skip) => skip.detail?.includes('unresolvable path'))).toBe(true)
+    expect(result.ledger.skipped.some((skip) => skip.detail?.includes('unresolvable path'))).toBe(
+      true
+    )
   })
 })
 
@@ -402,7 +413,8 @@ describe('the base competes for stacking', () => {
       selector: 'skill-check',
       type: 'proficiency',
       slug: 'untrained-improvisation',
-      value: 'match(when(btwn(@actor.level,5,6), @actor.level - 1), when(gte(@actor.level,7), @actor.level))'
+      value:
+        'match(when(btwn(@actor.level,5,6), @actor.level - 1), when(gte(@actor.level,7), @actor.level))'
     }
   ])
 
@@ -523,9 +535,7 @@ describe('proficiency subfeatures', () => {
 
   it('raises an armour rank, which is what AC was missing', () => {
     const input = withSubfeature({ medium: { rank: 2 } })
-    expect(
-      deriveProficiencyRanks(input).ranks['system.proficiencies.defenses.medium.rank']
-    ).toBe(2)
+    expect(deriveProficiencyRanks(input).ranks['system.proficiencies.defenses.medium.rank']).toBe(2)
   })
 
   it('raises perception', () => {
@@ -543,7 +553,9 @@ describe('proficiency subfeatures', () => {
     // The caveat exists for a rank taken from the class baseline alone. Once a
     // subfeature has spoken, keeping it would mark nearly every character and
     // teach the reader to ignore the marker.
-    expect(deriveSave(withSubfeature({ will: { rank: 2 } }), 'will').ledger.confidence).toBe('exact')
+    expect(deriveSave(withSubfeature({ will: { rank: 2 } }), 'will').ledger.confidence).toBe(
+      'exact'
+    )
     // …and a rank resting on the class baseline is no longer marked either: the
     // mechanism that made it doubtful is now read, and fourteen payloads across
     // ten characters showed the baseline right wherever no subfeature speaks.
@@ -585,7 +597,11 @@ describe('a chosen armour proficiency', () => {
           equipped: { carryType: 'worn', inSlot: true }
         } as unknown as EngineItem['system']
       },
-      { name: 'Armor Proficiency (Medium)', type: 'feat', system: { slug: 'armor-proficiency', rules } } as never
+      {
+        name: 'Armor Proficiency (Medium)',
+        type: 'feat',
+        system: { slug: 'armor-proficiency', rules }
+      } as never
     ]
   })
 
@@ -670,7 +686,11 @@ describe('spell DC', () => {
       {
         name: 'Expert Spellcaster',
         type: 'feat',
-        system: { slug: 'expert-spellcaster', rules: [], subfeatures: { proficiencies: { spellcasting: { rank: 2 } } } }
+        system: {
+          slug: 'expert-spellcaster',
+          rules: [],
+          subfeatures: { proficiencies: { spellcasting: { rank: 2 } } }
+        }
       } as never
     ])
     // The entry still says trained; the actor says expert, and expert wins.
@@ -725,5 +745,120 @@ describe('the reported modifier list', () => {
     expect(mods.find((m) => m.slug === 'a')?.enabled).toBe(false)
     expect(mods.find((m) => m.slug === 'b')?.enabled).toBe(true)
     expect(mods.find((m) => m.slug === 'c')?.enabled).toBe(true)
+  })
+})
+
+describe('actor traits and size', () => {
+  const elf = {
+    name: 'Elf',
+    type: 'ancestry',
+    system: { slug: 'elf', rules: [], size: 'med', traits: { value: ['elf', 'humanoid'] } }
+  } as unknown as EngineItem
+
+  // The reason this exists: `system.traits` is null in a world dump, but
+  // `self:trait:*` is a KNOWN roll-option family — so without this the engine
+  // answered a confident FALSE for an elf's own trait, and silently applied the
+  // wrong branch of every predicate that asked.
+  it('reads the ancestry item’s traits', () => {
+    expect(deriveActorTraits([elf])).toEqual(['elf', 'humanoid'])
+  })
+
+  it('has no traits without an ancestry, rather than guessing', () => {
+    expect(deriveActorTraits([feature('Toughness', [])])).toEqual([])
+  })
+
+  it('applies ActorTraits adds and removes in item order', () => {
+    const items = [
+      elf,
+      feature('Lycanthropy', [{ key: 'ActorTraits', add: ['beast'] }]),
+      feature('Cleansed', [{ key: 'ActorTraits', remove: ['humanoid'] }])
+    ]
+    expect(deriveActorTraits(items)).toEqual(['elf', 'beast'])
+  })
+
+  it('takes size from the ancestry', () => {
+    expect(deriveActorSize([elf])).toBe('med')
+    expect(deriveActorSize([feature('Toughness', [])])).toBeUndefined()
+  })
+})
+
+describe('spell attack', () => {
+  const entry = () =>
+    ({
+      name: 'Arcane Spellcasting',
+      type: 'spellcastingEntry',
+      system: {
+        slug: 'arcane-spellcasting',
+        rules: [],
+        ability: { value: 'int' },
+        tradition: { value: 'arcane' },
+        proficiency: { value: 1 }
+      }
+    }) as never
+
+  const wizard = (extra: EngineItem[] = []): DerivationInput => ({
+    level: 5,
+    attributes: { str: 0, dex: 3, con: 3, int: 4, wis: 2, cha: 0 },
+    stamp: STAMP,
+    items: [
+      {
+        name: 'Wizard',
+        type: 'class',
+        system: {
+          slug: 'wizard',
+          rules: [],
+          savingThrows: { fortitude: 1, reflex: 1, will: 2 },
+          defenses: { unarmored: 1, light: 0, medium: 0, heavy: 0 },
+          perception: 1,
+          spellcasting: 1,
+          hp: 6
+        } as unknown as EngineItem['system']
+      },
+      ...extra
+    ]
+  })
+
+  // Same statistic as the DC, without the 10 — which is exactly why the two
+  // share a builder.
+  it('is the spell DC minus ten', () => {
+    const input = wizard([entry()])
+    expect(deriveSpellAttack(input, entry()).value).toBe(deriveSpellDC(input, entry()).value - 10)
+    expect(deriveSpellAttack(input, entry()).value).toBe(11)
+  })
+
+  it('collects modifiers on the attack domains, not the DC’s', () => {
+    const input = wizard([
+      entry(),
+      feature('Sure Spell', [
+        { key: 'FlatModifier', selector: 'spell-attack-roll', type: 'item', value: 1 }
+      ])
+    ])
+    expect(deriveSpellAttack(input, entry()).value).toBe(12)
+    expect(deriveSpellDC(input, entry()).value).toBe(21)
+  })
+})
+
+describe('initiative', () => {
+  it('defaults to perception when no statistic is named', () => {
+    const input = fighter()
+    expect(deriveInitiative(input, undefined, 0).value).toBe(derivePerception(input).value)
+  })
+
+  it('follows the named statistic, which is stored on the actor', () => {
+    const input = fighter()
+    // Deception is trained on this character only if the stored rank says so;
+    // the rank travels with the name because skill ranks live in system.skills.
+    expect(deriveInitiative(input, 'deception', 2).value).toBe(
+      deriveSkill(input, 'deception', 2).value
+    )
+  })
+
+  it('adds modifiers aimed at the initiative domain', () => {
+    const input = fighter([
+      feature('Incredible Initiative', [
+        { key: 'FlatModifier', selector: 'initiative', type: 'circumstance', value: 2 }
+      ])
+    ])
+    expect(deriveInitiative(input, undefined, 0).value).toBe(derivePerception(fighter()).value + 2)
   })
 })
