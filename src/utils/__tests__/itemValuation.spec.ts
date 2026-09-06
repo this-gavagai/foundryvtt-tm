@@ -70,37 +70,95 @@ describe('fundamental runes', () => {
     expect(weapon.price).toEqual({ gp: 35 })
   })
 
-  it('keeps a stored price that is larger than the runes are worth', () => {
+  // Corrects an earlier reading in this file. The first version of the
+  // valuation kept the stored price when it exceeded the runes' worth, and a
+  // test here asserted that. PF2e does not: `c` is zeroed outright the moment
+  // any rune or material value exists, so the comparison that follows is
+  // against zero and the base price is always discarded. The live table could
+  // not settle it — every runed item there is worth more than its stored price
+  // either way — so this one is pinned to the system's code.
+  it('discards the stored price entirely once a rune is present', () => {
     const heirloom = deriveItemValuation(
       item({ price: { value: { gp: 900 } }, runes: { potency: 1, property: [] } })
     )
-    expect(heirloom.price).toEqual({ gp: 900 })
+    expect(heirloom.price).toEqual({ gp: 35 })
   })
 })
 
-describe('what it refuses to value', () => {
-  const cases: [string, Record<string, unknown>][] = [
-    ['property rune', { runes: { potency: 1, property: ['flaming'] } }],
-    // One live actor carries `property` as an object with numeric keys.
-    ['property rune as an object', { runes: { potency: 1, property: { 0: 'flaming' } } }],
-    ['precious material', { material: { type: 'silver', grade: 'standard' } }],
-    ['item grade', { grade: 'tactical' }],
-    ['shoddy', { shoddy: true, runes: { potency: 1, property: [] } }],
-    ['non-medium size', { size: 'lg', runes: { potency: 1, property: [] } }]
-  ]
-  for (const [name, over] of cases) {
-    it(`reports ${name} as provisional and leaves the stored values`, () => {
-      const result = deriveItemValuation(item(over))
-      expect(result.provisional).toBe(true)
-      expect(result.price).toEqual({ sp: 2 })
-      expect(result.caveat).toBeTruthy()
+describe('what the transcribed tables buy', () => {
+  // GROUND TRUTH, from the live table: Seoni's Mentalist's Staff carries a +1
+  // potency, a greater striking and a flaming rune, and PF2e values it at level
+  // 12 for 1600gp. 35 + 1065 + 500 is exactly that, which is what says the
+  // transcription is right and not merely plausible.
+  it('values a property rune, matching PF2e on a real item', () => {
+    const staff = item({
+      level: { value: 4 },
+      runes: { potency: 1, striking: 2, property: ['flaming'] }
     })
-  }
+    const valued = deriveItemValuation(staff)
+    expect(valued.price).toEqual({ gp: 1600 })
+    expect(valued.level).toBe(12)
+    expect(valued.provisional).toBe(false)
+  })
 
-  it('counts an empty object of property runes as none', () => {
-    expect(deriveItemValuation(item({ runes: { potency: 1, property: {} } })).provisional).toBe(
-      false
-    )
+  it('takes the worst rarity across runes and material', () => {
+    // ancestralEchoing is rare; a common weapon carrying it becomes rare.
+    const axe = item({ runes: { potency: 1, property: ['ancestralEchoing'] } })
+    expect(deriveItemValuation(axe).rarity).toBe('rare')
+  })
+
+  it('values a precious material, scaled by Bulk', () => {
+    // PF2e charges material + Bulk/10 of it, so a 2-Bulk item pays 1.2x.
+    const silvered = item({
+      bulk: { heldOrStowed: 2 },
+      material: { type: 'silver', grade: 'standard' }
+    })
+    const valued = deriveItemValuation(silvered)
+    expect(valued.provisional).toBe(false)
+    expect(valued.price?.gp).toBeGreaterThan(0)
+  })
+
+  it('values an item grade', () => {
+    const graded = item({ grade: 'tactical' })
+    const valued = deriveItemValuation(graded)
+    expect(valued.provisional).toBe(false)
+    expect(valued.level).toBeGreaterThan(0)
+  })
+
+  it('halves a shoddy item', () => {
+    const shoddy = item({
+      traits: { otherTags: ['shoddy'], value: [] },
+      runes: { potency: 1 }
+    })
+    // 35gp for the potency rune, halved.
+    expect(deriveItemValuation(shoddy).price).toEqual({ gp: 17.5 })
+  })
+
+  it('scales a size-sensitive price by item size', () => {
+    const large = item({ size: 'lg', runes: { potency: 1 } })
+    expect(deriveItemValuation(large).price).toEqual({ gp: 70 })
+  })
+
+  it('leaves a size-insensitive price alone', () => {
+    const large = item({
+      size: 'lg',
+      price: { value: { gp: 10 }, sizeSensitive: false },
+      runes: { potency: 1 }
+    })
+    expect(deriveItemValuation(large).price).toEqual({ gp: 35 })
+  })
+
+  it('falls back to the stored price for a rune it has never heard of', () => {
+    // A rune from a book published after these tables were transcribed. It
+    // contributes nothing rather than being guessed at — see the warning at the
+    // top of pf2eValuationTables.
+    const future = item({ runes: { potency: 1, property: ['runeFromABookNotYetWritten'] } })
+    expect(deriveItemValuation(future).price).toEqual({ gp: 35 })
+  })
+
+  it('reads property runes stored as an object with numeric keys', () => {
+    const odd = item({ runes: { potency: 1, striking: 2, property: { 0: 'flaming' } } })
+    expect(deriveItemValuation(odd).price).toEqual({ gp: 1600 })
   })
 })
 
