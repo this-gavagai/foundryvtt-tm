@@ -53,6 +53,29 @@ const KNOWN_PREFIXES = [
   'self:item'
 ] as const
 
+// Families that are knowably ABSENT from a statistic computed at rest.
+//
+// This is the difference between "I cannot see it" and "it is not there", and it
+// was the single largest source of unresolvable predicates on a live world — 35
+// of the atoms appearing in one table's FlatModifier predicates.
+//
+// A sheet figure is the value with no target selected and no action declared, so
+// nothing can have put `action:aid` or `target:trait:undead` into the option set.
+// PF2e agrees, visibly: it lists Cooperative Nature — predicate `["action:aid"]`
+// — in a skill's modifiers with `enabled: false`, and the modifier contributes
+// nothing to the reported total.
+//
+// The direction matters both ways, and both are faithful. A bare
+// `action:aid` is false at rest, so its modifier is dropped; a negated
+// `{not: "target:trait:undead"}` is TRUE at rest, so its modifier applies —
+// which is exactly what PF2e does against its own empty set.
+//
+// Deliberately NOT here: `item:trait` and bare situational slugs like
+// `lit-torch`. Those may be properties of an item genuinely in play rather than
+// of a roll being made, and guessing them absent would be the silent-false
+// mistake this whole set exists to avoid.
+const ABSENT_AT_REST = ['action', 'self:action', 'target', 'origin'] as const
+
 export interface RollOptionSet {
   has: (option: string) => boolean
   // Whether the engine is entitled to an opinion about this option at all.
@@ -87,10 +110,17 @@ export function buildRollOptions(source: RollOptionSource): RollOptionSet {
   const reported = new Set(source.activeRules ?? [])
   for (const option of reported) options.add(option)
 
+  const atRest = (option: string) =>
+    ABSENT_AT_REST.some((prefix) => option === prefix || option.startsWith(`${prefix}:`))
+
   return {
+    // An at-rest family is answerable and the answer is no — unless the GM has
+    // actually reported the option, which outranks the assumption.
     has: (option) => options.has(option),
     knows: (option) =>
-      reported.has(option) || KNOWN_PREFIXES.some((prefix) => option.startsWith(`${prefix}:`))
+      reported.has(option) ||
+      atRest(option) ||
+      KNOWN_PREFIXES.some((prefix) => option.startsWith(`${prefix}:`))
   }
 }
 

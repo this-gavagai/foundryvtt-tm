@@ -26,7 +26,8 @@ describe('atomic statements', () => {
     // `self:armored` depends on the equipped armour's DERIVED category. The
     // engine has no view of it, so the honest answer is neither yes nor no.
     expect(testStatement('self:armored', options)).toBe('unknown')
-    expect(testStatement('target:condition:flat-footed', options)).toBe('unknown')
+    // A bare situational slug could be a property of an item genuinely in play.
+    expect(testStatement('lit-torch', options)).toBe('unknown')
   })
 
   it('trusts a roll option the GM already resolved', () => {
@@ -34,6 +35,39 @@ describe('atomic statements', () => {
     // is answerable even though its family is not one we enumerate.
     const withReported = buildRollOptions({ activeRules: ['self:armored'] })
     expect(testStatement('self:armored', withReported)).toBe('true')
+  })
+})
+
+describe('what is absent at rest', () => {
+  // A sheet figure is the value with no target selected and no action declared,
+  // so these are knowably ABSENT rather than unseen. PF2e agrees visibly: it
+  // lists Cooperative Nature — predicate ["action:aid"] — among a skill's
+  // modifiers with `enabled: false`, contributing nothing.
+  it('answers no to a roll-context family', () => {
+    expect(testStatement('action:aid', options)).toBe('false')
+    expect(testStatement('target:trait:undead', options)).toBe('false')
+    expect(testStatement('origin:trait:curse', options)).toBe('false')
+    expect(testStatement('self:action:slug:strike', options)).toBe('false')
+  })
+
+  it('lets a negation of one pass, as PF2e does against its own empty set', () => {
+    // The direction that would be dangerous if it were a guess: this ADDS a
+    // modifier. It is faithful because PF2e's set is genuinely empty here too.
+    expect(testStatement({ not: 'target:trait:undead' }, options)).toBe('true')
+  })
+
+  it('still defers to a GM-reported option over the assumption', () => {
+    const reported = buildRollOptions({ activeRules: ['action:aid'] })
+    expect(testStatement('action:aid', reported)).toBe('true')
+  })
+
+  it('drops a whole predicate that needs an action', () => {
+    // Cooperative Nature, verbatim.
+    expect(testPredicate(['action:aid'], options)).toBe('false')
+    // Thieves' Toolkit, verbatim.
+    expect(
+      testPredicate([{ or: ['action:disable-a-device', 'action:pick-a-lock'] }], options)
+    ).toBe('false')
   })
 })
 
