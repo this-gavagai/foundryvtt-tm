@@ -187,7 +187,21 @@ export function deriveProficiencyRanks(input: DerivationInput): {
   // for the engine to follow. Reported per path so a figure can decide whether
   // the gap is one of ITS inputs.
   const unconfirmed: SkippedRule[] = []
-  for (const path of [...Object.keys(SAVE_ATTRIBUTES).map((s) => `system.saves.${s}.rank`), 'system.perception.rank']) {
+  const unconfirmablePaths = [
+    ...Object.keys(SAVE_ATTRIBUTES).map((save) => `system.saves.${save}.rank`),
+    'system.perception.rank',
+    // Armour proficiency belongs here for the same reason and was missed on the
+    // first pass. A world dump carries no `system.proficiencies.defenses` at
+    // all, and a class that grants armour training through a doctrine or a feat
+    // — a Warpriest cleric's medium armour — leaves nothing in source. A live
+    // Cleric in Scale Mail came out at 15 against PF2e's 22, with an EMPTY
+    // ledger: seven points wrong while claiming to be exact, on the number
+    // players trust most.
+    ...['unarmored', 'light', 'medium', 'heavy'].map(
+      (category) => `system.proficiencies.defenses.${category}.rank`
+    )
+  ]
+  for (const path of unconfirmablePaths) {
     if (path in stored) continue
     // A rule element that actually moved this rank is positive evidence, and a
     // far more common way for a class feature to grant expertise than the
@@ -373,7 +387,16 @@ export function deriveArmorClass(input: DerivationInput): DerivedStatistic {
       source: ''
     })
   }
-  return build(input, 10 + (system?.acBonus ?? 0), seeds, AC_DOMAINS, ranks, relevant(carried, []))
+  return build(
+    input,
+    10 + (system?.acBonus ?? 0),
+    seeds,
+    AC_DOMAINS,
+    ranks,
+    // Only the category actually worn: an unconfirmable heavy-armour rank is no
+    // reason to doubt an unarmoured figure.
+    relevant(carried, [`system.proficiencies.defenses.${category}.rank`])
+  )
 }
 
 export function deriveClassDC(input: DerivationInput, keyAttribute: string): DerivedStatistic {
