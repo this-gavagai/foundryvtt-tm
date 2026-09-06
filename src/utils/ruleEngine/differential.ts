@@ -3,17 +3,32 @@ import { ref, type Ref } from 'vue'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
 import { deriveFigure, type EngineInput } from './index'
 import {
+  deriveActorTraits,
   readStoredRanks,
   deriveArmorClass,
   deriveHitPointsMax,
   derivePerception,
+  deriveInitiative,
   deriveSave,
   deriveSkill,
+  deriveSpellAttack,
+  deriveSpellDC,
+  spellcastingDomains,
+  type SpellcastingEntrySystem,
   type DerivationInput
 } from './statistics'
 import { calcAttribute } from '@/composables/character/calcAttributes'
-import { AC_DOMAINS, PERCEPTION_DOMAINS, saveDomains, skillDomains, SAVE_ATTRIBUTES } from './domains'
+import {
+  AC_DOMAINS,
+  PERCEPTION_DOMAINS,
+  saveDomains,
+  skillDomains,
+  SAVE_ATTRIBUTES
+} from './domains'
 import type { EngineItem } from './flatModifiers'
+
+// What the payload reports for one spellcasting entry, keyed by the entry's id.
+type SpellModifiers = { dc?: number; mod?: number; modifiers?: WireModifier[] }
 
 // Measure the engine against PF2e, on real characters, continuously.
 //
@@ -114,10 +129,16 @@ function candidateSlugs(items: readonly EngineItem[], domains: readonly string[]
   const slugs = new Set<string>()
   for (const item of items) {
     for (const raw of item.system?.rules ?? []) {
-      const rule = raw as { key?: string; selector?: string | string[]; slug?: string; label?: string }
+      const rule = raw as {
+        key?: string
+        selector?: string | string[]
+        slug?: string
+        label?: string
+      }
       if (rule.key !== 'FlatModifier') continue
       const selectors = Array.isArray(rule.selector) ? rule.selector : [rule.selector]
-      if (!selectors.some((selector) => typeof selector === 'string' && wanted.has(selector))) continue
+      if (!selectors.some((selector) => typeof selector === 'string' && wanted.has(selector)))
+        continue
       const slug =
         rule.slug ??
         (rule.label ?? item.name ?? '')
@@ -184,7 +205,9 @@ function compareFigure(
     skipped: derived.ledger.skipped.length,
     skippedBy: derived.ledger.skipped.map((skip) => ({ key: skip.key, reason: skip.reason })),
     total:
-      typeof total?.engine === 'number' && typeof total?.pf2e === 'number' && total.engine !== total.pf2e
+      typeof total?.engine === 'number' &&
+      typeof total?.pf2e === 'number' &&
+      total.engine !== total.pf2e
         ? { engine: total.engine, pf2e: total.pf2e }
         : undefined
   }
@@ -217,24 +240,35 @@ export function runDifferential(
         abilities?: Record<string, { mod?: number } | undefined>
         traits?: { value?: string[] }
         attributes?: { ac?: { value?: number; modifiers?: WireModifier[] }; hp?: { max?: number } }
-        saves?: Record<string, { modifiers?: WireModifier[]; attribute?: string; totalModifier?: number } | undefined>
+        saves?: Record<
+          string,
+          { modifiers?: WireModifier[]; attribute?: string; totalModifier?: number } | undefined
+        >
         skills?: Record<
           string,
-          { modifiers?: WireModifier[]; attribute?: string; totalModifier?: number; rank?: number; lore?: boolean } | undefined
+          | {
+              modifiers?: WireModifier[]
+              attribute?: string
+              totalModifier?: number
+              rank?: number
+              lore?: boolean
+            }
+          | undefined
         >
         perception?: { modifiers?: WireModifier[]; totalModifier?: number }
+        initiative?: { statistic?: string; modifiers?: WireModifier[]; totalModifier?: number }
       }
     | undefined
 
   const level = system?.details?.level?.value
+  // Traits from SOURCE when we have it. The payload carries assembled traits;
+  // a world dump carries none, and the option set treats their absence as a
+  // definite "no" — so reading the payload's here would measure a case
+  // production never sees.
+  const traits = usedSource ? deriveActorTraits(items) : (system?.traits?.value ?? [])
   const input: EngineInput = {
     items,
-    options: {
-      level,
-      traits: system?.traits?.value ?? [],
-      items,
-      activeRules: args.activeRules ?? []
-    },
+    options: { level, traits, items, activeRules: args.activeRules ?? [] },
     paths: typeof level === 'number' ? { 'actor.level': level } : {},
     stamp
   }
@@ -251,7 +285,7 @@ export function runDifferential(
           items,
           level,
           attributes,
-          traits: system?.traits?.value ?? [],
+          traits,
           activeRules: args.activeRules ?? [],
           // From SOURCE when we have it, which is the whole point.
           storedRanks: readStoredRanks(sourceActor?.system ?? undefined),
@@ -320,6 +354,65 @@ export function runDifferential(
           : undefined,
         pf2e: skill.totalModifier
       })
+    )
+  }
+
+  // Initiative is a pure total comparison. Its modifier list is the underlying
+  // statistic's, already checked in that statistic's own row, so comparing it
+  // again would double-count one divergence as two.
+  if (derivationInput) {
+    const named = system?.initiative?.statistic
+    const rank = named ? (system?.skills?.[named]?.rank ?? 0) : 0
+    const engine = deriveInitiative(derivationInput, named, rank)
+    figures.push({
+      figure: 'initiative',
+      valueMismatch: [],
+      engineOnly: [],
+      silentMiss: [],
+      skipped: engine.ledger.skipped.length,
+      skippedBy: engine.ledger.skipped.map((skip) => ({ key: skip.key, reason: skip.reason })),
+      total:
+        typeof system?.initiative?.totalModifier === 'number' &&
+        engine.value !== system.initiative.totalModifier
+          ? { engine: engine.value, pf2e: system.initiative.totalModifier }
+          : undefined
+    })
+  }
+
+  // One row per spellcasting entry, twice over: a character with two entries
+  // has two different DCs, and the whole reason spell DC needed its own
+  // derivation is that it does not follow the class.
+  // Top level on the payload, NOT under `actor` — the sheet reads it off the
+  // merged TablemateActor, where parseActorData has already hoisted it, and
+  // reading it the sheet's way here finds nothing and compares nothing.
+  const spellMods = args.spellcastingModifiers as
+    Record<string, SpellModifiers | undefined> | undefined
+  for (const entry of items) {
+    if (entry.type !== 'spellcastingEntry') continue
+    const id = (entry as { _id?: string })._id
+    const reported = id ? spellMods?.[id] : undefined
+    if (!reported || !derivationInput) continue
+    const entrySystem = entry.system as unknown as SpellcastingEntrySystem | undefined
+    const attribute = entrySystem?.ability?.value ?? 'int'
+    const tradition = entrySystem?.tradition?.value ?? 'arcane'
+    const slug = (entry as { name?: string }).name ?? id ?? 'spellcasting'
+    figures.push(
+      compareFigure(
+        `${slug} DC`,
+        input,
+        spellcastingDomains(attribute, tradition, 'dc'),
+        reported.modifiers,
+        { engine: deriveSpellDC(derivationInput, entry).value, pf2e: reported.dc }
+      )
+    )
+    figures.push(
+      compareFigure(
+        `${slug} attack`,
+        input,
+        spellcastingDomains(attribute, tradition, 'attack'),
+        reported.modifiers,
+        { engine: deriveSpellAttack(derivationInput, entry).value, pf2e: reported.mod }
+      )
     )
   }
 

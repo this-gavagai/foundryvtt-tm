@@ -8,8 +8,7 @@ const STAMP = 'pf2e@8.4.1|en|1.4.0'
 // Cast at the fixture boundary, once — the sibling character specs make the same
 // one. `actor` on the wire is serialized source data; the type claims a live
 // PF2e document, which nothing here is or needs to be.
-const asActor = (items: unknown[]) =>
-  ({ items }) as unknown as UpdateCharacterDetailsArgs['actor']
+const asActor = (items: unknown[]) => ({ items }) as unknown as UpdateCharacterDetailsArgs['actor']
 
 // The harness exists to catch the engine being wrong on real characters. These
 // check it can actually tell the three kinds of wrong apart — a harness that
@@ -62,7 +61,10 @@ describe('agreement', () => {
   })
 
   it('ignores a modifier PF2e reports as disabled', () => {
-    const report = runDifferential(payload([], [{ slug: 'ring', modifier: 1, enabled: false }]), STAMP)
+    const report = runDifferential(
+      payload([], [{ slug: 'ring', modifier: 1, enabled: false }]),
+      STAMP
+    )
     expect(report.clean).toBe(true)
   })
 })
@@ -171,16 +173,55 @@ describe('coverage', () => {
       } as unknown as UpdateCharacterDetailsArgs['system']
     })
     const report = runDifferential(args, STAMP)
-    // hp-max joins the list unconditionally: it has no modifier list to key
-    // off, so it is compared whenever the payload reports a level.
+    // hp-max and initiative join the list unconditionally: neither has a
+    // modifier list to key off, so both are compared whenever the payload
+    // reports a level.
     expect(report.figures.map((f) => f.figure).sort()).toEqual([
       'ac',
       'athletics',
       'fortitude',
       'hp-max',
+      'initiative',
       'perception',
       'reflex'
     ])
+  })
+
+  // Spellcasting entries are keyed by item id in a sibling field, not by a
+  // `system` sub-object like every other statistic — so this row is the one
+  // most likely to silently compare nothing at all.
+  it('compares each spellcasting entry’s DC and attack separately', () => {
+    const entry = (id: string, name: string, ability: string) => ({
+      _id: id,
+      name,
+      type: 'spellcastingEntry',
+      system: {
+        slug: name.toLowerCase(),
+        rules: [],
+        ability: { value: ability },
+        tradition: { value: 'arcane' },
+        proficiency: { value: 1 }
+      }
+    })
+    const args = labelPayload({
+      actorId: 'ezren',
+      actor: asActor([entry('a1', 'Arcane', 'int'), entry('b2', 'Bardic', 'cha')]),
+      // Top level, exactly where the Foundry side puts it. Nesting this under
+      // `actor` — where the sheet reads its merged copy from — is what made an
+      // earlier version of this comparison silently compare nothing.
+      spellcastingModifiers: {
+        a1: { dc: 21, mod: 11, modifiers: [] },
+        b2: { dc: 17, mod: 7, modifiers: [] }
+      } as unknown as UpdateCharacterDetailsArgs['spellcastingModifiers'],
+      system: {
+        details: { level: { value: 5 } }
+      } as unknown as UpdateCharacterDetailsArgs['system']
+    })
+    const figures = runDifferential(args, STAMP).figures.map((f) => f.figure)
+    expect(figures).toContain('Arcane DC')
+    expect(figures).toContain('Arcane attack')
+    expect(figures).toContain('Bardic DC')
+    expect(figures).toContain('Bardic attack')
   })
 })
 
