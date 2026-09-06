@@ -27,6 +27,18 @@ export type SkipReason =
   // Understood and resolvable, but the item carrying it is in a state the rule
   // requires and the engine cannot confirm (equipped, invested).
   | 'unconfirmable-requirement'
+  // A proficiency RANK the engine had to take from the class item's baseline
+  // because nothing else in source names it.
+  //
+  // Its own reason because it is the only gap that lives in a figure's BASE
+  // rather than in a modifier, and the base is what the ledger was otherwise
+  // blind to. PF2e raises save and perception ranks through class features that
+  // carry no rule element and write nothing to the actor — "Reflex Expertise"
+  // has an empty rules array — so on a source-only sheet the rank is simply not
+  // recoverable, and every affected save reads two points low. Recording it is
+  // the difference between a figure that admits that and one that claims to be
+  // exact while being wrong.
+  | 'unconfirmable-rank'
 
 export interface SkippedRule {
   reason: SkipReason

@@ -80,12 +80,18 @@ describe('when PF2e has answered', () => {
 })
 
 describe('when no GM has answered', () => {
-  it('derives the save, and marks nothing when the engine was complete', () => {
+  it('derives the save from the class baseline, and admits it cannot confirm the rank', () => {
+    // A world dump carries no `system.saves` at all, and PF2e raises save ranks
+    // through class features that leave no trace in source — "Reflex Expertise"
+    // has an empty rules array. Three live characters read exactly two points
+    // low for this reason, so the figure has to say so rather than claim
+    // exactness it has not earned.
     const actor = character({})
     const { saves } = useCharacterStats(actor)
     // Con 3 + (expert 2 x 2 + level 8) = 15
     expect(saves.fortitude.value?.value).toBe(15)
-    expect(saves.fortitude.value?.provisional).toBe(false)
+    expect(saves.fortitude.value?.provisional).toBe(true)
+    expect(saves.fortitude.value?.caveat).toContain('unconfirmable-rank')
   })
 
   it('derives AC from the unarmoured proficiency', () => {

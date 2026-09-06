@@ -180,22 +180,93 @@ export function deriveProficiencyRanks(input: DerivationInput): {
     activeRules: input.activeRules
   })
   const result = applyActiveEffectLikes(input.items, seed, bootstrap, context)
-  return { ranks: result.paths, skipped: result.skipped, applied: result.applied }
+
+  // Saves and perception whose rank rests on the class baseline alone. A world
+  // dump carries no `system.saves` at all, so this is the normal case there —
+  // and a class feature that raises the rank in PF2e's own code leaves no trace
+  // for the engine to follow. Reported per path so a figure can decide whether
+  // the gap is one of ITS inputs.
+  const unconfirmed: SkippedRule[] = []
+  for (const path of [...Object.keys(SAVE_ATTRIBUTES).map((s) => `system.saves.${s}.rank`), 'system.perception.rank']) {
+    if (path in stored) continue
+    // A rule element that actually moved this rank is positive evidence, and a
+    // far more common way for a class feature to grant expertise than the
+    // rules-free kind. Marking those too would flag most characters for a case
+    // that did not apply to them.
+    if (result.paths[path] !== seed[path]) continue
+    unconfirmed.push({
+      reason: 'unconfirmable-rank',
+      key: 'ProficiencyRank',
+      slug: path,
+      detail: 'class baseline only; a rules-free class feature could raise it'
+    })
+  }
+  return {
+    ranks: result.paths,
+    skipped: [...result.skipped, ...unconfirmed],
+    applied: result.applied
+  }
+}
+
+// The attribute and proficiency components of a statistic, as TYPED MODIFIERS
+// rather than a flat base.
+//
+// This is not presentation — it is what makes stacking correct. PF2e builds both
+// with `createAttributeModifier` / `createProficiencyModifier` and lets them
+// contest anything of the same type. Untrained Improvisation is a
+// `proficiency`-typed modifier, so on a TRAINED skill it loses to the real
+// proficiency bonus and contributes nothing.
+//
+// Held outside the contest, the base had no competitor, and Untrained
+// Improvisation stacked on top of every trained skill — every one of a live
+// character's eight read four points high. Its own modifier list shows PF2e's
+// answer plainly: `proficiency:0:proficiency:false` beside
+// `untrained-improvisation:4:proficiency:true` on an untrained skill, and the
+// reverse once trained.
+function baseModifiers(attributeSlug: string, attribute: number, proficiency: number): EngineModifier[] {
+  const make = (slug: string, modifier: number, type: string): EngineModifier => ({
+    slug,
+    label: slug,
+    modifier,
+    type,
+    enabled: true,
+    hideIfDisabled: false,
+    force: false,
+    source: ''
+  })
+  return [make(attributeSlug, attribute, 'ability'), make('proficiency', proficiency, 'proficiency')]
+}
+
+// A figure inherits only the rank gaps that belong to it. Carrying every
+// unconfirmed rank into every statistic would mark a skill provisional because a
+// save's rank was uncertain, which is both false and the fastest way to teach a
+// reader to ignore the marker.
+function relevant(carried: { applied: number; skipped: SkippedRule[] }, paths: string[]) {
+  return {
+    applied: carried.applied,
+    skipped: carried.skipped.filter(
+      (skip) => skip.reason !== 'unconfirmable-rank' || paths.includes(skip.slug ?? '')
+    )
+  }
 }
 
 function build(
   input: DerivationInput,
-  base: number,
+  // A constant that takes part in no contest — AC's 10, an armour's own AC
+  // bonus. Everything that CAN contest arrives through `seedModifiers`.
+  constant: number,
+  seedModifiers: EngineModifier[],
   domains: readonly string[],
   ranks: Record<string, number>,
   carried: { applied: number; skipped: SkippedRule[] }
 ): DerivedStatistic {
   const options = optionsFor(input, ranks)
   const collected = collectFlatModifiers(input.items, domains, options, contextFor(input))
+  const all = [...seedModifiers, ...collected.modifiers]
   return {
-    base,
-    value: base + applyStacking(collected.modifiers),
-    modifiers: collected.modifiers,
+    base: constant + applyStacking(seedModifiers),
+    value: constant + applyStacking(all),
+    modifiers: all,
     ledger: sealLedger(
       {
         applied: carried.applied + collected.applied,
@@ -219,24 +290,42 @@ export function deriveSkill(
   // The resolved rank wins over the caller's: it already folds the caller's in
   // as a floor, and it also carries any AE-like upgrade the caller cannot see.
   const rank = Math.max(ranks[`system.skills.${slug}.rank`] ?? 0, storedRank)
-  const base = (input.attributes[attribute] ?? 0) + proficiencyBonus(rank, input.level)
   const domains = options.lore ? loreDomains(slug) : skillDomains(slug, attribute)
-  return build(input, base, domains, ranks, carried)
+  return build(
+    input,
+    0,
+    baseModifiers(attribute, input.attributes[attribute] ?? 0, proficiencyBonus(rank, input.level)),
+    domains,
+    ranks,
+    relevant(carried, [])
+  )
 }
 
 export function deriveSave(input: DerivationInput, slug: string): DerivedStatistic {
   const { ranks, ...carried } = deriveProficiencyRanks(input)
   const attribute = SAVE_ATTRIBUTES[slug] ?? 'con'
   const rank = ranks[`system.saves.${slug}.rank`] ?? 0
-  const base = (input.attributes[attribute] ?? 0) + proficiencyBonus(rank, input.level)
-  return build(input, base, saveDomains(slug, attribute), ranks, carried)
+  return build(
+    input,
+    0,
+    baseModifiers(attribute, input.attributes[attribute] ?? 0, proficiencyBonus(rank, input.level)),
+    saveDomains(slug, attribute),
+    ranks,
+    relevant(carried, [`system.saves.${slug}.rank`])
+  )
 }
 
 export function derivePerception(input: DerivationInput): DerivedStatistic {
   const { ranks, ...carried } = deriveProficiencyRanks(input)
   const rank = ranks['system.perception.rank'] ?? 0
-  const base = (input.attributes.wis ?? 0) + proficiencyBonus(rank, input.level)
-  return build(input, base, PERCEPTION_DOMAINS, ranks, carried)
+  return build(
+    input,
+    0,
+    baseModifiers('wis', input.attributes.wis ?? 0, proficiencyBonus(rank, input.level)),
+    PERCEPTION_DOMAINS,
+    ranks,
+    relevant(carried, ['system.perception.rank'])
+  )
 }
 
 interface ArmorSystem {
@@ -267,16 +356,37 @@ export function deriveArmorClass(input: DerivationInput): DerivedStatistic {
   // in shape from a check's.
   const dexCap = typeof system?.dexCap === 'number' ? system.dexCap : Infinity
   const dex = Math.min(input.attributes.dex ?? 0, dexCap)
-  const base =
-    10 + dex + proficiencyBonus(rank, input.level) + (system?.acBonus ?? 0) + (system?.runes?.potency ?? 0)
-  return build(input, base, AC_DOMAINS, ranks, carried)
+  // 10 and the armour's own AC bonus contest nothing; dex and proficiency do.
+  // The potency rune is an `item` bonus and belongs in the contest with any
+  // other item bonus to AC.
+  const potency = system?.runes?.potency ?? 0
+  const seeds = baseModifiers('dex', dex, proficiencyBonus(rank, input.level))
+  if (potency) {
+    seeds.push({
+      slug: 'armor-potency',
+      label: 'armor-potency',
+      modifier: potency,
+      type: 'item',
+      enabled: true,
+      hideIfDisabled: false,
+      force: false,
+      source: ''
+    })
+  }
+  return build(input, 10 + (system?.acBonus ?? 0), seeds, AC_DOMAINS, ranks, relevant(carried, []))
 }
 
 export function deriveClassDC(input: DerivationInput, keyAttribute: string): DerivedStatistic {
   const { ranks, ...carried } = deriveProficiencyRanks(input)
   const rank = ranks['system.proficiencies.classDCs.rank'] ?? 0
-  const base = 10 + (input.attributes[keyAttribute] ?? 0) + proficiencyBonus(rank, input.level)
-  return build(input, base, ['class-dc', 'all'], ranks, carried)
+  return build(
+    input,
+    10,
+    baseModifiers(keyAttribute, input.attributes[keyAttribute] ?? 0, proficiencyBonus(rank, input.level)),
+    ['class-dc', 'all'],
+    ranks,
+    relevant(carried, [])
+  )
 }
 
 interface AncestrySystem {
@@ -297,6 +407,14 @@ export function deriveHitPointsMax(input: DerivationInput, bonusPerLevel = 0): D
     | undefined
   const klass = classItem(input.items)?.system as ClassSystem | undefined
   const perLevel = (klass?.hp ?? 0) + (input.attributes.con ?? 0) + bonusPerLevel
-  const base = (ancestry?.hp ?? 0) + perLevel * input.level
-  return build(input, base, ['hp', 'con-based'], ranks, carried)
+  // Hit points have no proficiency or attribute modifier of their own — the Con
+  // contribution is already multiplied by level inside the total.
+  return build(
+    input,
+    (ancestry?.hp ?? 0) + perLevel * input.level,
+    [],
+    ['hp', 'con-based'],
+    ranks,
+    relevant(carried, [])
+  )
 }

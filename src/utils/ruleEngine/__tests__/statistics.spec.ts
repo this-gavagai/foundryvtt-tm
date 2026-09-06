@@ -377,12 +377,58 @@ describe('rules that cannot move a number are not gaps', () => {
   it('ignores Note and AdjustDegreeOfSuccess', () => {
     // They attach text and shift outcome bands. Counting them made figures read
     // provisional when nothing affecting the number had been missed.
+    // Asserted on a SKILL rather than a save: a save's rank is separately
+    // unconfirmable from source, which would mask what this is testing.
     const input = fighter([
       feature('Assurance', [
-        { key: 'Note', selector: 'fortitude', text: 'something' },
-        { key: 'AdjustDegreeOfSuccess', selector: 'fortitude', adjustment: {} }
+        { key: 'Note', selector: 'athletics', text: 'something' },
+        { key: 'AdjustDegreeOfSuccess', selector: 'athletics', adjustment: {} }
       ])
     ])
-    expect(deriveSave(input, 'fortitude').ledger.confidence).toBe('exact')
+    expect(deriveSkill(input, 'athletics', 1).ledger.confidence).toBe('exact')
+  })
+})
+
+describe('the base competes for stacking', () => {
+  // Found live: every one of a character's eight trained skills read four points
+  // high, because Untrained Improvisation is a `proficiency`-typed modifier and
+  // the real proficiency bonus was being held outside the contest as a flat
+  // base. PF2e's own modifier list shows the intended behaviour plainly.
+  const untrainedImprovisation = feature('Untrained Improvisation', [
+    {
+      key: 'FlatModifier',
+      selector: 'skill-check',
+      type: 'proficiency',
+      slug: 'untrained-improvisation',
+      value: 'match(when(btwn(@actor.level,5,6), @actor.level - 1), when(gte(@actor.level,7), @actor.level))'
+    }
+  ])
+
+  it('lets the real proficiency beat Untrained Improvisation on a trained skill', () => {
+    // dex 2 + max(trained 1 x 2 + 8 = 10, improvisation 8) = 12, not 20.
+    expect(deriveSkill(fighter([untrainedImprovisation]), 'acrobatics', 1).value).toBe(12)
+  })
+
+  it('lets Untrained Improvisation win where there is no proficiency', () => {
+    // dex 2 + max(untrained 0, improvisation 8) = 10.
+    expect(deriveSkill(fighter([untrainedImprovisation]), 'acrobatics', 0).value).toBe(10)
+  })
+
+  it('still stacks a modifier of a different type on top', () => {
+    const input = fighter([
+      untrainedImprovisation,
+      feature('Lucky Charm', [
+        { key: 'FlatModifier', selector: 'acrobatics', type: 'item', value: 1 }
+      ])
+    ])
+    expect(deriveSkill(input, 'acrobatics', 1).value).toBe(13)
+  })
+
+  it('reports the base components in the modifier list', () => {
+    // They are modifiers, so a breakdown that omitted them would be lying about
+    // where the number came from.
+    const slugs = deriveSkill(fighter(), 'athletics', 1).modifiers.map((m) => m.slug)
+    expect(slugs).toContain('proficiency')
+    expect(slugs).toContain('str')
   })
 })
