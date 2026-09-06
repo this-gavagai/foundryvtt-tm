@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { InventoryItem } from '@/composables/character'
+import { useI18n } from 'vue-i18n'
 import { displayedValuation } from '@/utils/itemValuation'
 import { displacedOverlays } from '@/utils/itemSource'
 import type { ActiveRoll } from '@/types/api-types'
@@ -108,6 +109,15 @@ const frozenValuation = computed(() =>
     frozenItem.value as never,
     displacedOverlays(frozenItem.value as never).map((entry) => entry.path)
   )
+)
+// The dotted underline says "not PF2e's answer"; this says which part of the
+// valuation was left out. Every other provisional figure on the sheet carries
+// its caveat this way, and an unexplained mark is barely better than none.
+const { t } = useI18n()
+const frozenValuationTitle = computed(() =>
+  frozenValuation.value.provisional
+    ? t('sync.provisional', { caveat: frozenValuation.value.caveat ?? '' })
+    : undefined
 )
 const frozenItemUnidentified = computed(
   () => frozenItem.value?.system?.identification?.status === 'unidentified'
@@ -513,14 +523,20 @@ async function moveItemToInventory(targetMode: 'individual' | 'party') {
           {{ frozenItem?.label ?? frozenItem?.name }}
         </template>
         <template #description v-if="!frozenItemUnidentified">
-          <span :data-derived-provisional="frozenValuation.provisional || undefined">
+          <span
+            :data-derived-provisional="frozenValuation.provisional || undefined"
+            :title="frozenValuationTitle"
+          >
             {{ $t('common.level') }} {{ frozenValuation.level }}
           </span>
           <span class="text-sm">
             <template v-if="frozenItem?.system?.traits?.rarity"
               >({{ rarityLabel(frozenItem?.system?.traits?.rarity) }}),
             </template>
-            <span :data-derived-provisional="frozenValuation.provisional || undefined">
+            <span
+              :data-derived-provisional="frozenValuation.provisional || undefined"
+              :title="frozenValuationTitle"
+            >
               {{ printPrice(frozenValuation.price) }}
             </span>
           </span>
