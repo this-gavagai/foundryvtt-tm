@@ -24,6 +24,36 @@ import { logger } from '@/utils/utilities'
 //
 // Refreshes are debounced (500ms leading-edge) so rapid back-to-back updates
 // coalesce into one request.
+
+// The moment a write fires a refresh, the payload's inventory block describes
+// the inventory as it was BEFORE that write — so drop it and let the sheet
+// compute its own until a fresh one lands.
+//
+// This is the whole mechanism, and it needs no new machinery because the read
+// sites are already written as "prepared, else derived": removing `prepared` is
+// what makes them derive. `parseActorData` merges the next payload straight back
+// in, so the gap is exactly as long as the round trip — and with no GM online,
+// where that round trip never completes, the sheet keeps showing a correct
+// figure instead of a stale one.
+//
+// Scoped to the inventory on purpose. Bulk, container capacity and item labels
+// are all `Local · exact` — reproductions of PF2e's own arithmetic with no
+// rule-element surface — so the derived value is not a degraded stand-in, it is
+// the same answer arriving sooner. The statistics are a different case: those
+// derive through the rule engine and can be short a rule element it cannot see,
+// so dropping a stale-but-complete AC in favour of a fresh-but-provisional one
+// is a trade, not a win. Left alone deliberately.
+export function dropStaleInventory(actor: Ref<TablemateActor | undefined>): void {
+  // `bulk` is declared non-optional by the PF2e inventory type the app borrows,
+  // though the wire shape is a partial — hence the cast rather than a `delete`
+  // on a required key.
+  const inventory = actor.value?.inventory as Record<string, unknown> | undefined
+  if (!inventory) return
+  delete inventory.bulk
+  delete inventory.containers
+  delete inventory.labels
+}
+
 export function useActorSync(
   characterId: string | undefined,
   actor: Ref<TablemateActor | undefined>
@@ -53,6 +83,7 @@ export function useActorSync(
     // behind when no GM is listening to answer — cleared in the onActorFresh
     // handler below, when a full payload actually lands.
     markAwaitingRefresh(characterId)
+    dropStaleInventory(actor)
     debouncedRequest(characterId)
   }
 
