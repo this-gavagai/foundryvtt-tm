@@ -11,6 +11,8 @@ import {
   type LabelCatalogs
 } from '@/utils/labelCache'
 import { getLabelCatalogs } from '@/api/actionRpc'
+import { expectedLabelStamp, type StampSource } from '@/utils/labelStamp'
+import { useWorldStore } from '@/stores/world'
 import { useServerAddressStore } from '@/stores/serverAddress'
 import { logger } from '@/utils/utilities'
 
@@ -68,6 +70,25 @@ export const useLabelCatalogsStore = defineStore('labelCatalogs', () => {
     if (!stored) return
     catalogs.value = mergeLabelCatalogs(stored.catalogs, catalogs.value)
     stamp.value ??= stored.stamp
+  }
+
+  // Ask for the catalog on the strength of the world handshake alone, without
+  // waiting for a module to announce a stamp.
+  //
+  // The announcement path below is the authority and stays exactly as it was.
+  // This exists because that path needs a GM's client to be open, and until one
+  // is the app cannot tell whether the catalog it cached last session is still
+  // current — a system upgrade between sessions serves last version's labels,
+  // silently. The handshake carries the same three components the module
+  // stamps, so the app can work out for itself that it should ask.
+  //
+  // Whatever comes back overwrites `stamp` with the ANSWERING client's stamp,
+  // never with this guess (see utils/labelStamp.ts), so a guess that is subtly
+  // wrong costs a redundant fetch and can never mislabel a sheet.
+  async function ensureFromWorld(): Promise<void> {
+    const expected = expectedLabelStamp(useWorldStore().world as StampSource | undefined)
+    if (!expected) return
+    await ensureCatalog(expected)
   }
 
   // Make sure the catalog matches what the world is announcing, fetching it if
@@ -146,5 +167,5 @@ export const useLabelCatalogsStore = defineStore('labelCatalogs', () => {
     hydratedOrigin.value = undefined
   }
 
-  return { catalogs, stamp, hydrate, ensureCatalog, remember, reset }
+  return { catalogs, stamp, hydrate, ensureCatalog, ensureFromWorld, remember, reset }
 })

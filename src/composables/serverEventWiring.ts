@@ -127,7 +127,15 @@ export function registerServerEventWiring() {
     // internal soft reconnects, which don't replace the socket ref and
     // therefore don't trip useSession's socket-watch.
     onSessionAuthenticated: () => {
-      void useWorldStore().refreshWorldNow()
+      // Chained rather than fire-and-forget: the handshake this resolves with is
+      // what tells the app which label stamp the world OUGHT to have, so the
+      // catalog check has to wait for it. Until now that check could only happen
+      // when a GM's client announced, which meant a table playing without one
+      // showed whatever labels it cached last session — including across a
+      // system upgrade, silently.
+      void useWorldStore()
+        .refreshWorldNow()
+        .then(() => useLabelCatalogsStore().ensureFromWorld())
       // Last-known labels for this server, off disk, so a sheet can paint with
       // real names before any GM answers. Idempotent per origin and ordered
       // after the reset in onUserChanged, so a switch re-reads the new world's
@@ -184,8 +192,7 @@ export function registerServerEventWiring() {
         // The world dump's copy of this actor: source data, exactly what the
         // engine works from in production.
         const source = useWorldStore().actorById(args.actorId) as
-          | { items?: never[]; system?: unknown }
-          | undefined
+          { items?: never[]; system?: unknown } | undefined
         recordReport(runDifferential(args, labelCatalogs.stamp, source))
       } catch (error) {
         // A failure to RUN is not a clean result and must not read like one.
