@@ -1,4 +1,5 @@
 import type { ElementalBlast, Strike, Weapon } from '@/composables/character'
+import { effectiveDamageType } from '@/utils/weaponDamageType'
 import { isString } from '@/utils/utilities'
 
 export type ViewedStrikeTarget =
@@ -47,11 +48,11 @@ export function damageTypeSelectedForViewed(
   if (!viewed) return undefined
   if (viewed.target.kind === 'blast') return blastDamageType(viewed.target.data)
 
-  return (
-    viewedItem?.system?.traits?.toggles?.versatile?.selected ??
-    viewedItem?.system?.damage?.damageType ??
-    undefined
-  )
+  // `system.damage.damageType` is the PREPARED type when a GM has answered and
+  // the BASE type otherwise, and for a modular weapon those differ — the
+  // selection is an index the sheet has to resolve for itself. See
+  // utils/weaponDamageType.
+  return effectiveDamageType(viewedItem) ?? undefined
 }
 
 export function damageTypeOptionsForViewed(
