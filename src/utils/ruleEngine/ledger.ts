@@ -87,14 +87,40 @@ export type Confidence = 'exact' | 'provisional' | 'unverified'
 // elsewhere in the sheet; it does not need restating on every number.
 export type VersionVerdict = 'verified' | 'mismatched' | 'unknown'
 
+// A modifier that does not apply NOW and would apply under some roll.
+//
+// Not a skip, and the distinction is the point. A skip says the engine failed to
+// account for something; this says the engine accounted for it correctly and the
+// answer is "not yet". PF2e draws the same line by keeping the modifier in its
+// list with `enabled: false` rather than dropping or flagging it.
+//
+// Recorded rather than discarded because it is the sheet's to show: "+2 vs
+// traps" is a thing a player wants to know about their Perception, and the old
+// behaviour threw it away twice over — once from the total, where it belonged,
+// and once from the display, where it did not.
+export interface ConditionalModifier {
+  slug: string
+  label: string
+  modifier: number
+  type: string
+  itemName?: string
+  // The predicate as written, so the sheet can say what it is conditional ON.
+  predicate?: unknown
+}
+
 export interface Ledger {
   applied: number
   skipped: SkippedRule[]
+  conditional: ConditionalModifier[]
   confidence: Confidence
 }
 
-export function emptyLedger(): { applied: number; skipped: SkippedRule[] } {
-  return { applied: 0, skipped: [] }
+export function emptyLedger(): {
+  applied: number
+  skipped: SkippedRule[]
+  conditional: ConditionalModifier[]
+} {
+  return { applied: 0, skipped: [], conditional: [] }
 }
 
 // Seal a ledger with the version verdict folded in.
@@ -110,16 +136,21 @@ export function emptyLedger(): { applied: number; skipped: SkippedRule[] } {
 // a GM has ever answered, it is identical for every figure on the sheet, and
 // letting it speak would drown the per-figure signal it shares a channel with.
 export function sealLedger(
-  draft: { applied: number; skipped: SkippedRule[] },
+  draft: { applied: number; skipped: SkippedRule[]; conditional?: ConditionalModifier[] },
   version: VersionVerdict
 ): Ledger {
+  // Conditionals deliberately do NOT reach this. A figure with six modifiers
+  // waiting on a roll is not a less certain figure — it is the same number PF2e
+  // reports, arrived at the same way. Letting them mark it provisional was the
+  // engine calling its own agreement with PF2e a gap.
   const confidence: Confidence =
-    version === 'mismatched'
-      ? 'unverified'
-      : draft.skipped.length > 0
-        ? 'provisional'
-        : 'exact'
-  return { applied: draft.applied, skipped: draft.skipped, confidence }
+    version === 'mismatched' ? 'unverified' : draft.skipped.length > 0 ? 'provisional' : 'exact'
+  return {
+    applied: draft.applied,
+    skipped: draft.skipped,
+    conditional: draft.conditional ?? [],
+    confidence
+  }
 }
 
 // A one-line summary for a tooltip or a log line. Deliberately names the count

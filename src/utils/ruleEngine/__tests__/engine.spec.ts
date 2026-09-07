@@ -270,7 +270,7 @@ describe('slugs derived from an item name', () => {
 
   // An option set that answers every predicate, so the collection is about the
   // slug rather than about gating.
-  const everything = { has: () => true, knows: () => true }
+  const everything = { has: () => true, knows: () => true, kindOf: () => 'base' as const }
   const slugFor = (name: string) =>
     collectFlatModifiers([named(name)], ['arcana'], everything, { paths: {} }).modifiers[0]?.slug
 

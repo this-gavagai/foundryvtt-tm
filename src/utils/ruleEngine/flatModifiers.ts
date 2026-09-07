@@ -1,7 +1,7 @@
 import { testPredicate, type PredicateStatement } from './predicate'
 import { resolveValue, type ValueContext } from './resolveValue'
-import type { RollOptionSet } from './rollOptions'
-import { emptyLedger, type SkippedRule } from './ledger'
+import { asRolled, asPersistent, type RollOptionSet } from './rollOptions'
+import { emptyLedger, type ConditionalModifier, type SkippedRule } from './ledger'
 
 // Collect the FlatModifier rule elements that reach a set of domains.
 //
@@ -110,6 +110,7 @@ export interface CollectResult {
   modifiers: EngineModifier[]
   applied: number
   skipped: SkippedRule[]
+  conditional: ConditionalModifier[]
 }
 
 export function collectFlatModifiers(
@@ -183,9 +184,14 @@ export function collectFlatModifiers(
         continue
       }
 
-      const verdict = testPredicate(rule.predicate, options)
-      if (verdict === 'false') continue
+      // Asked twice, of two readings of the same option set. `asRolled` answers
+      // the way PF2e answers — roll-context options are absent — and its verdict
+      // decides the number. `asPersistent` withholds those, and is consulted
+      // only to explain a `false`.
+      const verdict = testPredicate(rule.predicate, asRolled(options))
       if (verdict === 'unknown') {
+        // Unknown even when context is granted, so something the engine cannot
+        // see is load-bearing. The only honest gap.
         draft.skipped.push({
           reason: 'unresolvable-predicate',
           key,
@@ -193,6 +199,22 @@ export function collectFlatModifiers(
           itemName: item.name,
           detail: JSON.stringify(rule.predicate).slice(0, 120)
         })
+        continue
+      }
+      if (verdict === 'false') {
+        // False once the roll is supposed, so the roll is what it was waiting
+        // for: conditional rather than inapplicable. False both ways means this
+        // character can never trigger it, and there is nothing to show.
+        if (testPredicate(rule.predicate, asPersistent(options)) === 'unknown') {
+          draft.conditional.push({
+            slug: ruleSlug,
+            label: rule.label ?? item.name ?? ruleSlug,
+            modifier: Number(rule.value) || 0,
+            type: rule.type ?? 'untyped',
+            itemName: item.name,
+            predicate: rule.predicate
+          })
+        }
         continue
       }
 
@@ -233,7 +255,12 @@ export function collectFlatModifiers(
     }
   }
 
-  return { modifiers, applied: draft.applied, skipped: draft.skipped }
+  return {
+    modifiers,
+    applied: draft.applied,
+    skipped: draft.skipped,
+    conditional: draft.conditional
+  }
 }
 
 // PF2e's `applyStackingRules`, resolved onto the modifiers themselves.

@@ -90,6 +90,15 @@ export function derivationInputFor(
 ): DerivationInput | undefined {
   const level = actor.value?.system?.details?.level?.value
   if (typeof level !== 'number') return undefined
+  // Read here rather than passed in, because every caller would otherwise have
+  // to know to fetch it. Pinia is active wherever the sheet is; a missing store
+  // costs the vocabulary, not the derivation.
+  let traits: readonly string[] | undefined
+  try {
+    traits = Object.keys(useLabelCatalogsStore().catalogs.traits ?? {})
+  } catch {
+    traits = undefined
+  }
   const items = (asDocumentArray(actor.value?.items) ?? []) as EngineItem[]
   const attribute = (key: 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha') =>
     actor.value?.system?.abilities?.[key]?.mod ?? calcAttribute(actor, key) ?? 0
@@ -116,6 +125,10 @@ export function derivationInputFor(
     // skills — the class item's ranks then act as the floor.
     storedRanks: readStoredRanks(actor.value?.system),
     activeRules: actor.value?.activeRules ?? [],
+    // The world's trait names, which is how a bare predicate atom is told apart
+    // from a toggle slug. Absent until the catalog is published, and absent is
+    // the conservative reading — every bare atom stays opaque.
+    traitVocabulary: traits,
     stamp
   }
 }

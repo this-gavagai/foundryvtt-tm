@@ -1,7 +1,7 @@
 import { testPredicate, type PredicateStatement } from './predicate'
 import { resolveValue, type ValueContext } from './resolveValue'
-import type { RollOptionSet } from './rollOptions'
-import { emptyLedger, type SkippedRule } from './ledger'
+import { asRolled, asPersistent, type RollOptionSet } from './rollOptions'
+import { emptyLedger, type ConditionalModifier, type SkippedRule } from './ledger'
 import type { EngineItem } from './flatModifiers'
 
 // ActiveEffectLike: a rule element that writes a number straight onto the actor.
@@ -97,10 +97,10 @@ function resolveInjectedPath(path: string, item: EngineItem): string | null {
     }
     let cursor: unknown = item
     for (const step of inner.split('.')) {
-      if (cursor === null || typeof cursor !== 'object') return (failed = true), ''
+      if (cursor === null || typeof cursor !== 'object') return ((failed = true), '')
       cursor = (cursor as Record<string, unknown>)[step]
     }
-    if (typeof cursor !== 'string' || !cursor) return (failed = true), ''
+    if (typeof cursor !== 'string' || !cursor) return ((failed = true), '')
     return cursor
   })
   return failed || resolved.includes('{') ? null : resolved
@@ -144,6 +144,7 @@ export interface AeLikeResult {
   paths: Record<string, number>
   applied: number
   skipped: SkippedRule[]
+  conditional: ConditionalModifier[]
 }
 
 // Fold every ActiveEffectLike aimed at one of `seed`'s paths into it.
@@ -217,8 +218,9 @@ export function applyActiveEffectLikes(
       continue
     }
 
-    const verdict = testPredicate(rule.predicate, options)
-    if (verdict === 'false') continue
+    // Two readings of one option set — see rollOptions.asRolled. The rolled
+    // verdict decides the number; the persistent one only explains a `false`.
+    const verdict = testPredicate(rule.predicate, asRolled(options))
     if (verdict === 'unknown') {
       draft.skipped.push({
         reason: 'unresolvable-predicate',
@@ -227,6 +229,23 @@ export function applyActiveEffectLikes(
         itemName: item.name,
         detail: JSON.stringify(rule.predicate).slice(0, 120)
       })
+      continue
+    }
+    if (verdict === 'false') {
+      // An AE-like writes a path rather than contributing a modifier, so a
+      // conditional one is a rank or a resource that a particular roll would
+      // change. Recorded for the same reason, and with `modifier: 0` because
+      // there is no number to show beside it.
+      if (testPredicate(rule.predicate, asPersistent(options)) === 'unknown') {
+        draft.conditional.push({
+          slug: path,
+          label: item.name ?? path,
+          modifier: 0,
+          type: 'untyped',
+          itemName: item.name,
+          predicate: rule.predicate
+        })
+      }
       continue
     }
 
@@ -249,5 +268,10 @@ export function applyActiveEffectLikes(
     draft.applied++
   }
 
-  return { paths, applied: draft.applied, skipped: draft.skipped }
+  return {
+    paths,
+    applied: draft.applied,
+    skipped: draft.skipped,
+    conditional: draft.conditional
+  }
 }

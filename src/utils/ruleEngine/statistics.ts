@@ -14,7 +14,7 @@ import {
   saveDomains,
   skillDomains
 } from './domains'
-import { sealLedger, type Ledger, type SkippedRule } from './ledger'
+import { sealLedger, type ConditionalModifier, type Ledger, type SkippedRule } from './ledger'
 import { buildRollOptions, type RollOptionSet } from './rollOptions'
 import { versionVerdict } from './index'
 import type { ValueContext } from './resolveValue'
@@ -77,6 +77,11 @@ export interface DerivationInput {
   attributes: Record<string, number>
   traits?: readonly string[]
   activeRules?: readonly string[]
+  // Every trait slug the world's PF2e defines. Distinguishes a bare predicate
+  // atom that names one of the ROLL's traits (`emotion`, `trap`) from one that
+  // names a toggle (`ageless-patience`); the strings are indistinguishable
+  // otherwise. See rollOptions.traitVocabulary.
+  traitVocabulary?: readonly string[]
   stamp?: string
 }
 
@@ -106,7 +111,8 @@ function optionsFor(input: DerivationInput, ranks: Record<string, number>): Roll
     activeRules: [
       ...(input.activeRules ?? []),
       ...Object.entries(ranks).map(([path, rank]) => `${path}:${rank}`)
-    ]
+    ],
+    traitVocabulary: input.traitVocabulary
   })
 }
 
@@ -341,7 +347,7 @@ function build(
   seedModifiers: EngineModifier[],
   domains: readonly string[],
   ranks: Record<string, number>,
-  carried: { applied: number; skipped: SkippedRule[] }
+  carried: { applied: number; skipped: SkippedRule[]; conditional?: ConditionalModifier[] }
 ): DerivedStatistic {
   const options = optionsFor(input, ranks)
   const collected = collectFlatModifiers(input.items, domains, options, contextFor(input))
@@ -356,7 +362,8 @@ function build(
     ledger: sealLedger(
       {
         applied: carried.applied + collected.applied,
-        skipped: [...carried.skipped, ...collected.skipped]
+        skipped: [...carried.skipped, ...collected.skipped],
+        conditional: [...(carried.conditional ?? []), ...collected.conditional]
       },
       versionVerdict(input.stamp)
     )
@@ -672,7 +679,8 @@ export function deriveInitiative(
     ledger: sealLedger(
       {
         applied: statistic.ledger.applied + extra.applied,
-        skipped: [...statistic.ledger.skipped, ...extra.skipped, ...carried.skipped]
+        skipped: [...statistic.ledger.skipped, ...extra.skipped, ...carried.skipped],
+        conditional: [...statistic.ledger.conditional, ...extra.conditional]
       },
       versionVerdict(input.stamp)
     )
@@ -764,7 +772,7 @@ export function deriveFocusPool(input: DerivationInput): {
     max: Math.floor(Math.min(Math.max(raw, 0), cap)) || 0,
     cap,
     ledger: sealLedger(
-      { applied: applied.applied, skipped: applied.skipped },
+      { applied: applied.applied, skipped: applied.skipped, conditional: applied.conditional },
       versionVerdict(input.stamp)
     )
   }

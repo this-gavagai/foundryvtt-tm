@@ -8,7 +8,7 @@ import {
   type EngineModifier
 } from './flatModifiers'
 import { sealLedger, type Ledger, type SkippedRule } from './ledger'
-import type { RollOptionSet } from './rollOptions'
+import { asRolled, type RollOptionSet } from './rollOptions'
 import { versionVerdict } from './index'
 
 // Movement speeds.
@@ -76,12 +76,7 @@ interface BaseSpeedRule {
   slug?: string
 }
 
-const modifier = (
-  slug: string,
-  label: string,
-  value: number,
-  source: string
-): EngineModifier => ({
+const modifier = (slug: string, label: string, value: number, source: string): EngineModifier => ({
   slug,
   label,
   modifier: value,
@@ -133,16 +128,14 @@ function constructedModifiers(
   const penalty = armorSystem?.speedPenalty ?? 0
   const requirement = armorSystem?.strength
   const eased =
-    typeof requirement === 'number' && strength >= requirement
-      ? Math.min(penalty + 5, 0)
-      : penalty
+    typeof requirement === 'number' && strength >= requirement ? Math.min(penalty + 5, 0) : penalty
   const armorPenalty = Math.min(eased, 0)
   if (armorPenalty) {
     // PF2e gates this on `nor: ['armor:ignore-speed-penalty']`, an option some
     // feats set. Unknown means the option family is one the engine cannot
     // decide, and a penalty silently dropped is exactly the direction that
     // flatters — so an unknown verdict is recorded and the penalty kept out.
-    const verdict = testPredicate([{ nor: ['armor:ignore-speed-penalty'] }], options)
+    const verdict = testPredicate([{ nor: ['armor:ignore-speed-penalty'] }], asRolled(options))
     if (verdict === 'true') {
       modifiers.push(
         modifier('armor-speed-penalty', armor?.name ?? 'Armor', armorPenalty, armor?.name ?? '')
@@ -161,10 +154,15 @@ function constructedModifiers(
   const shield = heldShieldItem(items)
   const shieldPenalty = (shield?.system as unknown as ArmorSystem | undefined)?.speedPenalty ?? 0
   if (shieldPenalty) {
-    const verdict = testPredicate([{ not: 'self:shield:ignore-speed-penalty' }], options)
+    const verdict = testPredicate([{ not: 'self:shield:ignore-speed-penalty' }], asRolled(options))
     if (verdict === 'true') {
       modifiers.push(
-        modifier('shield-speed-penalty', shield?.name ?? 'Shield', shieldPenalty, shield?.name ?? '')
+        modifier(
+          'shield-speed-penalty',
+          shield?.name ?? 'Shield',
+          shieldPenalty,
+          shield?.name ?? ''
+        )
       )
     } else if (verdict === 'unknown') {
       skipped.push({
@@ -211,7 +209,8 @@ function baseSpeedRules(
       const selector = (rule.selector ?? '').trim().replace(/-speed$/, '')
       if (selector !== type) continue
 
-      const verdict = testPredicate(rule.predicate, input.options)
+      // PF2e's own reading: roll-context options are absent, not unknown.
+      const verdict = testPredicate(rule.predicate, asRolled(input.options))
       if (verdict === 'false') continue
       if (verdict === 'unknown') {
         skipped.push({
@@ -266,8 +265,7 @@ function speedDomains(type: MovementType): string[] {
 // Land, which everything else is measured against.
 export function deriveLandSpeed(input: MovementInput): DerivedSpeed {
   const ancestry = input.items.find((item) => item.type === 'ancestry')?.system as
-    | AncestrySystem
-    | undefined
+    AncestrySystem | undefined
   const rules = baseSpeedRules(input, 'land')
   // PF2e reduces with `Math.max` over the ancestry's speed and every candidate,
   // so a BaseSpeed rule raises land but never lowers it.

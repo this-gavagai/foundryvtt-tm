@@ -2,7 +2,7 @@ import { testPredicate, type PredicateStatement } from './predicate'
 import { resolveValue, type ValueContext } from './resolveValue'
 import type { EngineItem } from './flatModifiers'
 import { sealLedger, type Ledger, type SkippedRule } from './ledger'
-import type { RollOptionSet } from './rollOptions'
+import { asRolled, type RollOptionSet } from './rollOptions'
 import { versionVerdict } from './index'
 
 // Immunities, weaknesses and resistances.
@@ -132,7 +132,8 @@ export function deriveIWR(input: IWRInput): DerivedIWR {
       const kind = KEY_TO_KIND[rule.key ?? '']
       if (!kind || rule.ignored) continue
 
-      const verdict = testPredicate(rule.predicate, input.options)
+      // PF2e's own reading: roll-context options are absent, not unknown.
+      const verdict = testPredicate(rule.predicate, asRolled(input.options))
       if (verdict === 'false') continue
       if (verdict === 'unknown') {
         skipped.push({
