@@ -22,9 +22,9 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 // succeeded.
 
 const httpGet = vi.fn()
-const getCookies = vi.fn(() => Promise.resolve({}))
-const setCookie = vi.fn(() => Promise.resolve())
-const deleteCookie = vi.fn(() => Promise.resolve())
+const getCookies = vi.fn((_options: unknown) => Promise.resolve({}))
+const setCookie = vi.fn((_options: unknown) => Promise.resolve())
+const deleteCookie = vi.fn((_options: unknown) => Promise.resolve())
 
 vi.mock('@capacitor/core', () => ({
   CapacitorHttp: {
@@ -48,7 +48,7 @@ const SERVER = new URL('https://vtt.example.com/')
 const SESSION_KEY = 'foundrySession:https://vtt.example.com'
 
 // A minted session, as Foundry hands it back.
-const withSession = (sid: string, data = '') => ({
+const withSession = (sid: string, data: unknown = '') => ({
   status: 200,
   data,
   headers: {
@@ -57,7 +57,7 @@ const withSession = (sid: string, data = '') => ({
   url: SERVER.href
 })
 // The same request once a session cookie is already in the jar.
-const withoutSession = (data = '') => ({
+const withoutSession = (data: unknown = '') => ({
   status: 200,
   data,
   headers: { 'Content-Type': 'text/html' },
