@@ -564,7 +564,13 @@ export function runDifferential(
 
 // A compact summary for a log line: only the figures that diverged.
 export function describeDifferential(report: DifferentialReport): string {
-  if (report.clean) return `rule engine: clean on ${report.actorId}`
+  // "modifiers clean", not "clean". This harness compares the engine's MODIFIER
+  // lists and statistic totals against the payload it arrived with; the
+  // prediction check (derivedReconcile) asks a different question about a
+  // different set of figures, and a run can be clean here and report a miss
+  // there without either being wrong. An unqualified "clean" reads as a verdict
+  // on the whole sheet and made the pair look self-contradictory.
+  if (report.clean) return `rule engine: modifiers clean on ${report.actorId}`
   const parts = report.figures
     .filter((f) => f.valueMismatch.length || f.engineOnly.length || f.silentMiss.length || f.total)
     .map((f) => {

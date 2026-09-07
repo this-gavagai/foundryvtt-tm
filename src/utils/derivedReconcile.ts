@@ -61,9 +61,15 @@ export function reconcileDerived(
     // dropped: the payload is the best answer until we have seen the world
     // change at least once.
     if (!previous || !previous.has(figure.key)) continue
+    const before = previous.get(figure.key)
+    // A figure that could not answer last time has not MOVED by answering now,
+    // and one that has stopped answering has not moved either. Its INPUTS
+    // arrived or went away; the world did not change. Dropping the payload on
+    // that would put our first guess in place of PF2e's settled answer.
+    if (before === undefined || value === undefined) continue
     // Compared as rendered rather than by identity, so a figure that returns a
     // fresh object each pass does not read as having moved every time.
-    if (comparable(previous.get(figure.key)) === comparable(value)) continue
+    if (comparable(before) === comparable(value)) continue
     moved.push(figure.key)
     figure.clear()
   }
@@ -107,12 +113,7 @@ export function checkPredictions(
   if (found.length) {
     misses.push(...found)
     if (misses.length > MAX_RETAINED) misses.splice(0, misses.length - MAX_RETAINED)
-    logger.warn(
-      'TM: prediction missed —',
-      found
-        .map((m) => `${m.key}: said ${comparable(m.predicted)}, got ${comparable(m.reported)}`)
-        .join('; ')
-    )
+    logger.warn('TM: prediction missed —', found.map(describeMiss).join('; '))
   }
   // The payload is canonical again, so the snapshot restarts from it: a
   // prediction is only ever compared against the FIRST payload after the write
@@ -138,6 +139,57 @@ function comparable(value: unknown): string {
   if (value === null || value === undefined) return ''
   if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
+}
+
+// A miss should say WHAT MOVED, not hand back both sides in full and leave the
+// reader to find it.
+//
+// The figures covering a whole inventory run to thousands of characters, so a
+// single mis-named dagger arrived as a wall of text with the answer buried in
+// the middle of it — technically complete and practically unreadable, which is
+// the same failure as saying nothing.
+const MAX_LISTED = 6
+const clip = (text: string) => (text.length > 160 ? `${text.slice(0, 160)}…` : text)
+
+// The list figures all serialise as `[[id, …], …]`, so a miss in one of them can
+// be reported per id. Anything else is left alone.
+function asKeyedList(value: unknown): Map<string, string> | undefined {
+  if (typeof value !== 'string' || !value.startsWith('[')) return undefined
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    return undefined
+  }
+  if (!Array.isArray(parsed)) return undefined
+  const entries = new Map<string, string>()
+  for (const entry of parsed) {
+    if (!Array.isArray(entry) || entry.length < 2 || typeof entry[0] !== 'string') return undefined
+    entries.set(entry[0], JSON.stringify(entry.slice(1)))
+  }
+  return entries
+}
+
+function describeMiss(miss: PredictionMiss): string {
+  const ours = asKeyedList(miss.predicted)
+  const theirs = asKeyedList(miss.reported)
+  if (ours && theirs) {
+    const differences: string[] = []
+    for (const id of new Set([...ours.keys(), ...theirs.keys()])) {
+      const mine = ours.get(id)
+      const yours = theirs.get(id)
+      if (mine === yours) continue
+      // An id only one side lists is a difference worth seeing too.
+      differences.push(`${id} ${mine ?? '(absent)'} ≠ ${yours ?? '(absent)'}`)
+    }
+    if (differences.length) {
+      const shown = differences.slice(0, MAX_LISTED).join(', ')
+      return differences.length > MAX_LISTED
+        ? `${miss.key}: ${differences.length} entries differ — ${shown}, …`
+        : `${miss.key}: ${shown}`
+    }
+  }
+  return `${miss.key}: said ${clip(comparable(miss.predicted))}, got ${clip(comparable(miss.reported))}`
 }
 
 export function predictionMisses(): PredictionMiss[] {

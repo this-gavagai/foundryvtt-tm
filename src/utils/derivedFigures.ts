@@ -21,6 +21,7 @@ import { inventoryTypes } from '@/utils/constants'
 import { displayedValuation } from '@/utils/itemValuation'
 import { displacedOverlays } from '@/utils/itemSource'
 import { asDocumentArray } from '@/api/internal'
+import { logger } from '@/utils/utilities'
 import type { EngineItem } from '@/utils/ruleEngine/flatModifiers'
 
 // Every figure the app can work out for itself, in one list.
@@ -133,9 +134,31 @@ const speedTotals = (
 // with a rune, on every payload. Pinia is active wherever the sheet is, but this
 // table is also built from tests, so a missing store costs the composed name
 // rather than the whole list.
+// Said once per session, because declining quietly would trade a wrong answer
+// for no answer AND no explanation. The stamp cannot catch this on its own: it
+// is `system@version|locale|moduleVersion`, and a development build's version
+// does not change when the module's catalog contents do — so a client running
+// an older module publishes a catalog that says it is current and is not.
+let announcedMissingNames = false
+
 function itemNameCatalog(): Record<string, string> | undefined {
   try {
-    return useLabelCatalogsStore().catalogs.itemNames
+    const names = useLabelCatalogsStore().catalogs.itemNames
+    // An EMPTY catalog is an unpublished one, not a world without runes in it:
+    // the module publishes the whole system's base types and rune names, or
+    // none of them. Treated as absent so the figure declines rather than
+    // composing from nothing.
+    if (names && Object.keys(names).length > 0) return names
+    if (!announcedMissingNames) {
+      announcedMissingNames = true
+      logger.info(
+        'TM: no item-name catalog published — items will show their stored names ' +
+          'rather than composed ones (a rune-bearing weapon as "Dagger" rather than ' +
+          '"+2 Greater Striking Dagger"). A Foundry client needs to reload for the ' +
+          'module to publish it.'
+      )
+    }
+    return undefined
   } catch {
     return undefined
   }
@@ -209,7 +232,19 @@ export function derivableFigures(
       // Physical items only, and in our own order, on both sides: the payload
       // names inventory types and their subitems, we name what we can compose,
       // and a comparison across two different sets of items is not a comparison.
+      //
+      // NO CATALOG, NO ANSWER. Without the world's rune and material names
+      // composeItemName hands back the item's STORED name, and that is not our
+      // answer to this question — it is the absence of one, and PF2e's is
+      // better. So the figure declines: `undefined` leaves the payload
+      // canonical and makes no prediction, where composing from nothing
+      // predicted "Dagger" against PF2e's "+2 Greater Striking Dagger" on every
+      // payload. The catalog is published by the Foundry module at `ready`, so
+      // it is missing exactly when that client has not reloaded since the module
+      // last changed — something to fix over there, not a divergence to report
+      // here.
       value: () =>
+        parts &&
         JSON.stringify(named.map((i) => [i._id, composeItemName(i as NameableItem, parts)])),
       reported: () => {
         const labels = readAt(a, 'inventory.labels') as Record<string, string> | undefined

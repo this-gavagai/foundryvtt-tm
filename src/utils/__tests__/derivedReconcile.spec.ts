@@ -14,6 +14,7 @@ vi.mock('@/utils/derivedFigures', () => ({
 }))
 
 import { reconcileDerived, checkPredictions, forgetPredictions } from '@/utils/derivedReconcile'
+import { logger } from '@/utils/utilities'
 
 // A figure whose calculated value the test controls, and which records whether
 // its payload copy was dropped.
@@ -179,6 +180,133 @@ describe('the prediction it leaves behind', () => {
         () => ({ value: 25 })
       )
     ]
+    expect(checkPredictions('a1', actor, undefined)).toEqual([])
+  })
+})
+
+// A miss has to be readable to be worth reporting. The inventory figures run to
+// thousands of characters, so printing both sides in full buried a single
+// mis-named item in a wall of text — complete, and useless.
+describe('what a miss says', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    forgetPredictions()
+  })
+
+  const warn = () => vi.spyOn(logger, 'warn').mockImplementation(() => {})
+
+  const list = (entries: [string, string][]) => JSON.stringify(entries)
+
+  function missOn(ours: unknown, theirs: unknown, key = 'inventory.labels'): string {
+    const spy = warn()
+    figures.current = [
+      figure(
+        key,
+        () => ours,
+        () => theirs
+      )
+    ]
+    reconcileDerived('a1', actor, undefined)
+    checkPredictions('a1', actor, undefined)
+    const line = String(spy.mock.calls[0]?.[1] ?? '')
+    spy.mockRestore()
+    return line
+  }
+
+  it('names the entry that moved, not the whole list', () => {
+    const line = missOn(
+      list([
+        ['a', 'Backpack'],
+        ['b', 'Dagger'],
+        ['c', 'Bedroll']
+      ]),
+      list([
+        ['a', 'Backpack'],
+        ['b', '+2 Greater Striking Dagger'],
+        ['c', 'Bedroll']
+      ])
+    )
+    expect(line).toContain('b')
+    expect(line).toContain('+2 Greater Striking Dagger')
+    // The entries that agree stay out of it — that is the whole point.
+    expect(line).not.toContain('Bedroll')
+    expect(line).not.toContain('Backpack')
+  })
+
+  it('says which side is missing an entry the other lists', () => {
+    const line = missOn(list([['a', 'Backpack']]), list([]))
+    expect(line).toContain('(absent)')
+  })
+
+  it('counts the rest rather than printing them', () => {
+    const many = (suffix: string) =>
+      list(Array.from({ length: 20 }, (_, i) => [`i${i}`, `name${i}${suffix}`]))
+    const line = missOn(many(''), many('!'))
+    expect(line).toContain('20 entries differ')
+    expect(line.length).toBeLessThan(600)
+  })
+
+  it('falls back to both sides for a figure that is not a list', () => {
+    const line = missOn(21, 20, 'ac')
+    expect(line).toBe('ac: said 21, got 20')
+  })
+
+  it('clips a long value rather than printing all of it', () => {
+    const line = missOn('x'.repeat(5000), 'y')
+    expect(line.length).toBeLessThan(400)
+    expect(line).toContain('…')
+  })
+})
+
+// A figure answers from inputs that may not have arrived yet. When they do, the
+// figure has not MOVED — the world did not change, we just became able to say
+// something about it — and dropping the payload there would put our first guess
+// in place of PF2e's settled answer.
+describe('a figure whose inputs arrive late', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    forgetPredictions()
+  })
+
+  it('does not drop the payload when a figure starts answering', () => {
+    let answer: unknown = undefined
+    const f = figure('inventory.labels', () => answer)
+    figures.current = [f]
+    reconcileDerived('a1', actor, undefined)
+    answer = 'composed at last'
+    reconcileDerived('a1', actor, undefined)
+    expect(f.cleared).toBe(0)
+  })
+
+  it('nor when one stops', () => {
+    let answer: unknown = 'composed'
+    const f = figure('inventory.labels', () => answer)
+    figures.current = [f]
+    reconcileDerived('a1', actor, undefined)
+    answer = undefined
+    reconcileDerived('a1', actor, undefined)
+    expect(f.cleared).toBe(0)
+  })
+
+  it('still drops it when the answer genuinely moves', () => {
+    let answer = 'before'
+    const f = figure('inventory.labels', () => answer)
+    figures.current = [f]
+    reconcileDerived('a1', actor, undefined)
+    answer = 'after'
+    reconcileDerived('a1', actor, undefined)
+    expect(f.cleared).toBe(1)
+  })
+
+  it('makes no prediction for a figure that could not answer', () => {
+    figures.current = [
+      figure(
+        'inventory.labels',
+        () => undefined,
+        () => 'whatever PF2e says'
+      )
+    ]
+    reconcileDerived('a1', actor, undefined)
     expect(checkPredictions('a1', actor, undefined)).toEqual([])
   })
 })

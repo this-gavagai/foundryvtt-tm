@@ -4,6 +4,7 @@ import { ref, type Ref } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 import { derivableFigures } from '@/utils/derivedFigures'
 import type { TablemateCharacter } from '@/types/character-types'
+import { useLabelCatalogsStore } from '@/stores/labelCatalogs'
 
 // The figure table itself, rather than the rule that consumes it.
 //
@@ -180,5 +181,29 @@ describe('clearing a figure', () => {
     const { actor, by } = table()
     by('ac')?.clear()
     expect(actor.value?.system?.attributes?.hp?.max).toBe(68)
+  })
+})
+
+// Without the world's rune and material names, composeItemName hands back the
+// item's stored name — which is not our answer, it is the absence of one. The
+// figure has to decline, or it predicts "Dagger" against PF2e's "+2 Greater
+// Striking Dagger" on every payload for as long as the catalog is unpublished.
+describe('the label figure without its catalog', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('declines to answer rather than composing from nothing', () => {
+    // A fresh pinia has an empty catalog, which is what an unpublished one
+    // looks like: the module publishes the whole system's names or none.
+    expect(table().by('inventory.labels')?.value()).toBeUndefined()
+  })
+
+  it('answers once the catalog is there', () => {
+    useLabelCatalogsStore().catalogs.itemNames = { 'weapon-base-dagger': 'Dagger' }
+    expect(table().by('inventory.labels')?.value()).toBe(
+      JSON.stringify([
+        ['pack', 'Backpack'],
+        ['dagger', 'Dagger']
+      ])
+    )
   })
 })
