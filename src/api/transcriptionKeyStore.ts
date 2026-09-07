@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core'
 import { KeychainAccess, SecureStorage } from '@aparajita/capacitor-secure-storage'
 
+import { keystoreReady } from '@/api/keystoreInstall'
 import { logger } from '@/utils/utilities'
 
 // This device's transcription API key — a billable credential, so on native it
@@ -32,6 +33,7 @@ const KEYCHAIN_ACCESS = KeychainAccess.afterFirstUnlockThisDeviceOnly
 export async function readTranscriptionKey(): Promise<string> {
   try {
     if (!hasKeystore) return localStorage.getItem(STORAGE_KEY) ?? ''
+    await keystoreReady()
     const stored = await SecureStorage.get(STORAGE_KEY)
     return typeof stored === 'string' ? stored : ''
   } catch (e) {
@@ -46,6 +48,7 @@ export async function readTranscriptionKey(): Promise<string> {
 export async function writeTranscriptionKey(apiKey: string): Promise<void> {
   const value = apiKey.trim()
   try {
+    if (hasKeystore) await keystoreReady()
     if (!value) {
       if (hasKeystore) await SecureStorage.remove(STORAGE_KEY)
       else localStorage.removeItem(STORAGE_KEY)

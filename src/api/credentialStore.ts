@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core'
 import { KeychainAccess, SecureStorage } from '@aparajita/capacitor-secure-storage'
 
+import { keystoreReady } from '@/api/keystoreInstall'
 import { logger } from '@/utils/utilities'
 
 // Per-server login credentials, held in the OS keystore (iOS Keychain /
@@ -50,6 +51,7 @@ function isCredential(value: unknown): value is StoredCredential {
 export async function readCredential(origin: string): Promise<StoredCredential | undefined> {
   if (!origin || !hasKeystore) return undefined
   try {
+    await keystoreReady()
     const stored = await SecureStorage.get(credentialKey(origin))
     if (!isCredential(stored)) return undefined
     return stored
@@ -68,6 +70,7 @@ export async function writeCredential(
 ): Promise<void> {
   if (!origin || !userid || !hasKeystore) return
   try {
+    await keystoreReady()
     await SecureStorage.set(
       credentialKey(origin),
       { userid, password },
@@ -84,6 +87,7 @@ export async function writeCredential(
 export async function forgetCredential(origin: string): Promise<void> {
   if (!origin || !hasKeystore) return
   try {
+    await keystoreReady()
     await SecureStorage.remove(credentialKey(origin))
   } catch (e) {
     logger.debug('TM-DIAG credentialStore: remove failed', String(e))

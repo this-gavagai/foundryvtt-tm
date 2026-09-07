@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // The keystore gate is read at module load, so the platform mock has to be in
@@ -7,6 +8,8 @@ const isNativePlatform = vi.fn(() => true)
 const get = vi.fn()
 const set = vi.fn()
 const remove = vi.fn()
+const clear = vi.fn()
+const readdir = vi.fn()
 
 vi.mock('@capacitor/core', () => ({
   Capacitor: {
@@ -15,11 +18,21 @@ vi.mock('@capacitor/core', () => ({
   }
 }))
 
+vi.mock('@capacitor/filesystem', () => ({
+  Directory: { Library: 'LIBRARY' },
+  Encoding: { UTF8: 'utf8' },
+  Filesystem: {
+    readdir: (...args: unknown[]) => readdir(...args),
+    writeFile: () => Promise.resolve({ uri: 'file:///x' })
+  }
+}))
+
 vi.mock('@aparajita/capacitor-secure-storage', () => ({
   SecureStorage: {
     get: (...args: unknown[]) => get(...args),
     set: (...args: unknown[]) => set(...args),
-    remove: (...args: unknown[]) => remove(...args)
+    remove: (...args: unknown[]) => remove(...args),
+    clear: (...args: unknown[]) => clear(...args)
   },
   KeychainAccess: { afterFirstUnlockThisDeviceOnly: 3 }
 }))
@@ -36,6 +49,10 @@ beforeEach(() => {
   isNativePlatform.mockReturnValue(true)
   set.mockResolvedValue(undefined)
   remove.mockResolvedValue(true)
+  clear.mockResolvedValue(undefined)
+  // A marker already on disk, so the reinstall sweep (see keystoreInstall)
+  // stays out of the way of every case that isn't about it.
+  readdir.mockResolvedValue({ files: [{ name: 'tm-keystore-install' }] })
 })
 
 describe('credentialStore on a device', () => {
@@ -107,5 +124,49 @@ describe('credentialStore off-device', () => {
     expect(get).not.toHaveBeenCalled()
     expect(set).not.toHaveBeenCalled()
     expect(remove).not.toHaveBeenCalled()
+  })
+})
+
+// The keychain outlives the app on iOS, so a reinstalled app finds the previous
+// install's password sitting there (see keystoreInstall). Every entry point
+// here waits on that sweep rather than reading — or writing — across it.
+describe('credentialStore and the reinstall sweep', () => {
+  beforeEach(() => {
+    // No marker: this launch is the one that sweeps.
+    readdir.mockResolvedValue({ files: [] })
+  })
+
+  it('reads nothing until the sweep has finished', async () => {
+    const order: string[] = []
+    // Arranged before the import: the sweep starts the moment the module loads,
+    // so a spy installed afterwards would miss the very call being pinned.
+    clear.mockImplementation(async () => {
+      order.push('clear:start')
+      await Promise.resolve()
+      order.push('clear:done')
+    })
+    get.mockImplementation(() => {
+      order.push('get')
+      return Promise.resolve(null)
+    })
+    const { readCredential } = await loadStore()
+    await readCredential(ORIGIN)
+    expect(order).toEqual(['clear:start', 'clear:done', 'get'])
+  })
+
+  it('does not let a fresh login be swept away with the old install', async () => {
+    const order: string[] = []
+    clear.mockImplementation(async () => {
+      order.push('clear:start')
+      await Promise.resolve()
+      order.push('clear:done')
+    })
+    set.mockImplementation(() => {
+      order.push('set')
+      return Promise.resolve()
+    })
+    const { writeCredential } = await loadStore()
+    await writeCredential(ORIGIN, 'user1', 'hunter2')
+    expect(order).toEqual(['clear:start', 'clear:done', 'set'])
   })
 })
