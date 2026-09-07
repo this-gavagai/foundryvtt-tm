@@ -9,6 +9,7 @@ import { useListenersStore } from '@/stores/listenersOnline'
 import { useModifierOverrides } from '@/composables/useModifierOverrides'
 import { useSpellVariantMemory } from '@/composables/useSpellVariantMemory'
 import { parseDamageFormulaDice, makeDiceResults } from '@/utils/diceFormula'
+import { SignedNumber } from '@/utils/formatters'
 import type { SpellVariant } from '@/utils/spellVariants'
 
 import InfoModal from '@/components/InfoModal.vue'
@@ -85,19 +86,18 @@ const spellRollModifiers = computed(() =>
     : spellRollDamageData.value?.modifiers
 )
 
+// No critical context, deliberately: this modal has no critical damage roll.
+// `getDamage` returns one formula and `doSpellDamage` takes no outcome, so the
+// panel only ever describes ordinary damage — which is exactly what
+// `useModifierOverrides` assumes without a context, showing a crit-only
+// modifier as disabled. Give it one only if a critical spell-damage roll ever
+// lands here.
+const spellRollControls = useModifierOverrides(spellRollModifiers)
 const {
   modifierOverrides: spellRollModifierOverrides,
-  toggleModifier: toggleSpellRollModifier,
-  effectiveEnabled: spellRollEffectiveEnabled,
-  isManuallyActivated: isSpellRollManuallyActivated,
-  isManuallyDeactivated: isSpellRollManuallyDeactivated,
-  isStackingLoser: isSpellRollStackingLoser
-} = useModifierOverrides(spellRollModifiers)
-
-function spellRollModifierOverridePayload() {
-  const overrides = spellRollModifierOverrides.value
-  return Object.keys(overrides).length ? { ...overrides } : undefined
-}
+  overridePayload: spellRollModifierOverridePayload,
+  overrideDelta: spellRollOverrideDelta
+} = spellRollControls
 
 function open(
   spell: Spell,
@@ -154,7 +154,21 @@ const spellRollRolls = computed<Roll[]>(() => {
   const v = viewedSpellRoll.value
   if (!v || !isListening.value) return []
   if (v.phase === 'attack') {
-    const suffix = v.map === 0 ? '' : v.map === 1 ? ' -5' : ' -10'
+    // The attack modifier this button will actually roll at: the entry's own
+    // total, the multiple-attack penalty for this chip, and whatever the
+    // player's modifier toggles are worth. Quoted absolutely, as the strike
+    // panel quotes its variants — the bare " -5" said what was being subtracted
+    // without ever saying from what, and said nothing at all about the rows the
+    // player had just switched on. Falls back to the penalty alone for an entry
+    // with no attack modifier to anchor on.
+    const map = v.map === 0 ? 0 : v.map === 1 ? -5 : -10
+    const attackModifier = v.entry?.spellAttackModifier
+    const suffix =
+      attackModifier === undefined
+        ? map === 0
+          ? ''
+          : ` ${map}`
+        : ' ' + SignedNumber.format(attackModifier + map + spellRollOverrideDelta.value)
     return [
       {
         key: 'spell-attack',
@@ -246,14 +260,9 @@ const spellRollRolls = computed<Roll[]>(() => {
       />
       <ModifierOverrideList
         :modifiers="spellRollModifiers"
+        :controls="spellRollControls"
         :toggleable="viewedSpellRoll?.phase === 'attack' || viewedSpellRoll?.phase === 'damage'"
         showDamageType
-        :showAll="viewedSpellRoll?.phase === 'damage'"
-        :effectiveEnabled="spellRollEffectiveEnabled"
-        :isManuallyActivated="isSpellRollManuallyActivated"
-        :isManuallyDeactivated="isSpellRollManuallyDeactivated"
-        :isStackingLoser="isSpellRollStackingLoser"
-        :onToggle="toggleSpellRollModifier"
       />
       <template v-if="viewedSpellRoll?.phase === 'damage'">
         <div v-if="spellRollDamageData?.formula" class="font-mono text-sm">

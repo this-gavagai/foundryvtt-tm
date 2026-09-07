@@ -32,6 +32,10 @@ type Roller = {
   // The statistic's real modifiers, straight off the resolved stat. undefined
   // for rollers with no statistic behind them (flat DC / raw d20).
   modifiers?: Modifier[]
+  // PF2e's own total for that statistic, which the roll button quotes rather
+  // than re-adding the modifier rows: the rows arrive pre-collapse, so their sum
+  // can differ from the number the sheet prints beside the same skill.
+  total?: number
   execute: (face?: number, options?: object) => Promise<RequestResolutionArgs | null>
 }
 
@@ -74,18 +78,21 @@ const saveRollers = computed<Roller[]>(() => [
     slug: 'fortitude',
     label: saves.fortitude.value?.label ?? t('saves.fortitude'),
     modifiers: saves.fortitude.value?.modifiers ?? undefined,
+    total: saves.fortitude.value?.totalModifier ?? undefined,
     execute: (face, opts) => saves.fortitude.value?.roll?.(face, opts) ?? Promise.resolve(null)
   },
   {
     slug: 'reflex',
     label: saves.reflex.value?.label ?? t('saves.reflex'),
     modifiers: saves.reflex.value?.modifiers ?? undefined,
+    total: saves.reflex.value?.totalModifier ?? undefined,
     execute: (face, opts) => saves.reflex.value?.roll?.(face, opts) ?? Promise.resolve(null)
   },
   {
     slug: 'will',
     label: saves.will.value?.label ?? t('saves.will'),
     modifiers: saves.will.value?.modifiers ?? undefined,
+    total: saves.will.value?.totalModifier ?? undefined,
     execute: (face, opts) => saves.will.value?.roll?.(face, opts) ?? Promise.resolve(null)
   }
 ])
@@ -117,6 +124,7 @@ const skillRollers = computed<Roller[]>(() => {
       slug: perception.value.slug ?? 'perception',
       label: perception.value.label ?? t('saves.perception'),
       modifiers: perception.value.modifiers ?? undefined,
+      total: perception.value.totalModifier ?? undefined,
       execute: (face, opts) => perception.value!.roll?.(face, opts) ?? Promise.resolve(null)
     })
   }
@@ -126,6 +134,7 @@ const skillRollers = computed<Roller[]>(() => {
       slug: s.slug ?? '',
       label: s.label ?? s.slug ?? '',
       modifiers: s.modifiers ?? undefined,
+      total: s.totalModifier ?? undefined,
       execute: (face, opts) => s.roll?.(face, opts) ?? Promise.resolve(null)
     })
   }
@@ -136,6 +145,7 @@ const skillRollers = computed<Roller[]>(() => {
       label: s.label ?? s.slug ?? '',
       italic: true,
       modifiers: s.modifiers ?? undefined,
+      total: s.totalModifier ?? undefined,
       execute: (face, opts) => s.roll?.(face, opts) ?? Promise.resolve(null)
     })
   }
@@ -157,14 +167,9 @@ const activeLabel = computed(() => activeRoller.value?.label ?? '')
 // on/off). The chosen toggles ride along as `modifierOverrides` so PF2e
 // re-resolves the check server-side.
 const activeModifiers = computed<Modifier[]>(() => activeRoller.value?.modifiers ?? [])
-const {
-  modifierOverrides,
-  toggleModifier,
-  effectiveEnabled,
-  isManuallyActivated,
-  isManuallyDeactivated,
-  isStackingLoser
-} = useModifierOverrides(activeModifiers)
+const modifierControls = useModifierOverrides(activeModifiers)
+const { modifierOverrides, overridePayload, enabledOptions, overrideDelta, effectiveTotal } =
+  modifierControls
 
 // Switching statistics invalidates any in-flight per-modifier toggles — start
 // the new selection clean.
@@ -172,21 +177,22 @@ watch(activeSlug, () => {
   modifierOverrides.value = {}
 })
 
-// Sum of effectively-enabled, non-stacking-loser modifiers — mirrors StatBox so
-// the button label previews the combined modifier before rolling.
-const effectiveTotal = computed<number | undefined>(() => {
-  const mods = activeModifiers.value
-  if (!mods.length) return undefined
-  return mods
-    .filter((m) => effectiveEnabled(m) && !isStackingLoser(m))
-    .reduce((sum, m) => sum + (m.modifier ?? 0), 0)
+// The statistic's effective modifier, anchored on PF2e's own total where the
+// selected roller has one — mirrors StatBox for the same reason: the modifier
+// rows arrive before PF2e's per-slug collapse, so their sum can differ from the
+// figure the sheet prints for that same skill.
+const statisticTotal = computed<number | undefined>(() => {
+  const roller = activeRoller.value
+  if (!roller) return undefined
+  if (roller.total !== undefined) return roller.total + overrideDelta.value
+  return activeModifiers.value.length ? effectiveTotal.value : undefined
 })
 
 // The total shown on the roll button: the statistic's effective modifier (if a
 // stat is selected) plus the situational, else just the situational.
 const rollTotal = computed<number | undefined>(() => {
-  if (effectiveTotal.value === undefined) return flatModifier.value || undefined
-  return effectiveTotal.value + flatModifier.value
+  if (statisticTotal.value === undefined) return flatModifier.value || undefined
+  return statisticTotal.value + flatModifier.value
 })
 
 const flatSuffix = computed(() =>
@@ -226,16 +232,18 @@ const checkRolls = computed<Roll[]>(() => [
             : undefined
       const options: Record<string, unknown> = {}
       if (isSecret.value) options.messageMode = 'blind'
-      if (traitList.length) {
-        options.traits = traitList
-        options.extraRollOptions = traitList
-      }
+      if (traitList.length) options.traits = traitList
       if (rollTwice) options.rollTwice = rollTwice
       if (flatModifier.value) options._flatModifier = flatModifier.value
       // Per-roll modifier toggles: PF2e re-resolves the statistic with these
       // applied. Only meaningful when a real statistic is selected.
-      const overrides = modifierOverrides.value
-      if (Object.keys(overrides).length) options.modifierOverrides = { ...overrides }
+      const overrides = overridePayload()
+      if (overrides) options.modifierOverrides = overrides
+      // The traits the player tagged, plus the conditions declared by any
+      // modifier row PF2e is fed rather than overridden. One channel, so a trait
+      // no longer wins over a declared condition by overwriting the key.
+      const extraRollOptions = [...new Set([...traitList, ...enabledOptions()])]
+      if (extraRollOptions.length) options.extraRollOptions = extraRollOptions
       const result = roller
         ? await roller.execute(faces?.[0], options)
         : await freeRoll(
@@ -322,12 +330,8 @@ defineExpose({ open, close })
           <ModifierOverrideList
             class="mt-1"
             :modifiers="activeModifiers"
+            :controls="modifierControls"
             :toggleable="true"
-            :effectiveEnabled="effectiveEnabled"
-            :isManuallyActivated="isManuallyActivated"
-            :isManuallyDeactivated="isManuallyDeactivated"
-            :isStackingLoser="isStackingLoser"
-            :onToggle="toggleModifier"
           />
         </div>
 

@@ -47,6 +47,7 @@ const masterName = computed(() => worldStore.actorById(familiar.masterId.value)?
           :modal-heading="$t('familiar.attackModal')"
           :proficiency="familiar.attack.value?.rank"
           :modifiers="familiar.attack.value?.modifiers"
+          :total="familiar.attack.value?.totalModifier"
           :rollAction="familiar.attack.value?.roll"
         >
           {{ formatModifier(familiar.attack.value?.totalModifier) }}

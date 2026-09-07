@@ -9,6 +9,7 @@ import {
 import {
   AC_DOMAINS,
   PERCEPTION_DOMAINS,
+  INITIATIVE_DOMAINS,
   SAVE_ATTRIBUTES,
   loreDomains,
   saveDomains,
@@ -426,7 +427,12 @@ export function deriveSkill(
   input: DerivationInput,
   slug: string,
   storedRank: number,
-  options: { lore?: boolean; attribute?: string } = {}
+  // `extraDomains` widens the collection for a statistic being rolled in another
+  // capacity — initiative, which PF2e rolls as the named skill or perception
+  // with an `initiative` domain added. The domains have to be collected together
+  // and contested ONCE: a status bonus to the skill and one to initiative
+  // compete in PF2e, and two separate contests let both through.
+  options: { lore?: boolean; attribute?: string; extraDomains?: readonly string[] } = {}
 ): DerivedStatistic {
   const shared = resolve(input)
   const { ranks } = shared
@@ -444,7 +450,7 @@ export function deriveSkill(
       proficiencyBonus(rank, input.level),
       rank
     ),
-    domains,
+    options.extraDomains ? [...domains, ...options.extraDomains] : domains,
     shared
   )
 }
@@ -467,14 +473,18 @@ export function deriveSave(input: DerivationInput, slug: string): DerivedStatist
   )
 }
 
-export function derivePerception(input: DerivationInput): DerivedStatistic {
+export function derivePerception(
+  input: DerivationInput,
+  // See the note on deriveSkill's `extraDomains`.
+  extraDomains?: readonly string[]
+): DerivedStatistic {
   const shared = resolve(input)
   const rank = shared.ranks['system.perception.rank'] ?? 0
   return build(
     input,
     0,
     baseModifiers('wis', input.attributes.wis ?? 0, proficiencyBonus(rank, input.level), rank),
-    PERCEPTION_DOMAINS,
+    extraDomains ? [...PERCEPTION_DOMAINS, ...extraDomains] : PERCEPTION_DOMAINS,
     shared
   )
 }
@@ -532,13 +542,7 @@ export function deriveArmorClass(input: DerivationInput): DerivedStatistic {
       )
     )
   }
-  return build(
-    input,
-    10,
-    seeds,
-    AC_DOMAINS,
-    shared
-  )
+  return build(input, 10, seeds, AC_DOMAINS, shared)
 }
 
 export function deriveClassDC(input: DerivationInput, keyAttribute: string): DerivedStatistic {
@@ -681,36 +685,27 @@ export function deriveSpellAttack(input: DerivationInput, entry: EngineItem): De
 //
 // Nearly free once the statistics exist: `system.initiative.statistic` is stored
 // — it is the player's choice of which check rolls initiative — and the total is
-// simply that statistic's. PF2e adds an `initiative` domain on top, so a
-// modifier aimed there is collected as well.
+// simply that statistic's, collected over the `initiative` domain as well.
+//
+// ONE derivation, not a statistic plus an initiative-domain top-up. The top-up
+// version contested the `initiative` modifiers only against each other, so a
+// status bonus to perception and one to initiative both applied where PF2e keeps
+// the larger — and it reported the two independently-resolved lists
+// concatenated, which could show two same-type modifiers both enabled. The
+// sheet's own re-run then struck one of them through while the total went on
+// counting both: a figure contradicting its own breakdown.
 export function deriveInitiative(
   input: DerivationInput,
   named: string | undefined,
   storedSkillRank: number
 ): DerivedStatistic {
   const slug = named ?? 'perception'
-  const statistic =
-    slug === 'perception'
-      ? derivePerception(input)
-      : deriveSkill(input, slug, storedSkillRank, { lore: !(slug in SKILL_ATTRIBUTES) })
-  const shared = resolve(input)
-  const extra = collectFlatModifiers(input.items, ['initiative'], shared.options, shared.context)
-  return {
-    base: statistic.base,
-    value: statistic.value + applyStacking(extra.modifiers),
-    modifiers: [...statistic.modifiers, ...resolveStacking(extra.modifiers)],
-    ledger: sealLedger(
-      {
-        applied: statistic.ledger.applied + extra.applied,
-        // The rank pass's own skips are already in `statistic.ledger` — it was
-        // built from the same resolve — so folding them in again double-counted
-        // every one of them on this figure alone.
-        skipped: [...statistic.ledger.skipped, ...extra.skipped],
-        conditional: [...statistic.ledger.conditional, ...extra.conditional]
-      },
-      versionVerdict(input.stamp)
-    )
-  }
+  return slug === 'perception'
+    ? derivePerception(input, INITIATIVE_DOMAINS)
+    : deriveSkill(input, slug, storedSkillRank, {
+        lore: !(slug in SKILL_ATTRIBUTES),
+        extraDomains: INITIATIVE_DOMAINS
+      })
 }
 
 // Maximum hit points.

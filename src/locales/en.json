@@ -622,8 +622,17 @@
       }
     }
   },
+  "modifierTypes": {
+    "circumstance": "circumstance",
+    "status": "status",
+    "item": "item",
+    "ability": "ability",
+    "proficiency": "proficiency",
+    "potency": "potency"
+  },
   "modifiers": {
-    "outranked": "Outranked by a higher same-type modifier; will not contribute to the roll"
+    "outranked": "Outranked by a higher same-type modifier; will not contribute to the roll",
+    "declaredCondition": "Switched on, this condition is declared for the roll and PF2e decides whether the modifier applies"
   },
   "sync": {
     "awaitingGm": "Waiting for the GM to recalculate — this may be out of date.",

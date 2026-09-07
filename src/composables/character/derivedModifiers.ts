@@ -52,12 +52,17 @@ export function useDerivedModifiers() {
     return modifier.label
   }
 
+  // Fields no derived check modifier ever has: the engine derives no damage, so
+  // there are no dice and no damage category, and nothing it reads carries a
+  // critical flag or an `ignored` marker.
   const blank = {
     ignored: undefined,
     diceNumber: undefined,
     dieSize: undefined,
     damageType: undefined,
-    critical: undefined
+    damageCategory: undefined,
+    critical: undefined,
+    enableOptions: undefined
   }
 
   return {
@@ -106,7 +111,14 @@ export function useDerivedModifiers() {
           hideIfDisabled: false,
           type: entry.type,
           force: false,
-          ...blank
+          ...blank,
+          // The options the predicate is waiting on, where it named them
+          // plainly. Toggling such a row DECLARES them for the roll and lets
+          // PF2e answer its own predicate, instead of overriding `enabled` on a
+          // modifier keyed by a slug the engine reconstructed from a label —
+          // which `applyOverridesToModifiers` skips in silence when it does not
+          // match PF2e's. See useModifierOverrides.enabledOptions.
+          enableOptions: entry.enableOptions
         }))
       ]
     }

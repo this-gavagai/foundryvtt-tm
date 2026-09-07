@@ -11,6 +11,7 @@ const { perception } = useInjectedActor()
     :modalHeading="$t('saves.perceptionFull')"
     :proficiency="perception?.rank"
     :modifiers="perception?.modifiers"
+    :total="perception?.totalModifier"
     :rollAction="perception?.roll"
   >
     {{ formatModifier(perception?.totalModifier) }}

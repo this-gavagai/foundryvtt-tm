@@ -62,29 +62,26 @@ export function useCharacterSkillActions(
           variants: action.variants ?? known?.variants,
           // Rolls through PF2e's native action (the 'skillAction' handler runs
           // game.pf2e.actions.get(slug).use(...)), so the card, traits, target
-          // DC, degree of success and notes all come from the system. We split
-          // the user's modifier toggles into two channels:
-          //   - statistic modifiers (feats/items on the skill) → modifierOverrides
-          //   - conditional ACTION modifiers (e.g. Steal's "pocketed") → their
-          //     native sub-roll-options, since they live on the action, not the
-          //     skill, and are gated by predicates like `action:steal:pocketed`.
+          // DC, degree of success and notes all come from the system.
+          //
+          // The user's toggles arrive already split into the two channels PF2e
+          // needs — `modifierOverrides` for a modifier on the skill statistic,
+          // `extraRollOptions` for one gated by a predicate like
+          // `action:steal:pocketed`, which is answered by declaring the option and
+          // letting PF2e's own evaluator decide. `useModifierOverrides` performs
+          // that split for every panel now, off the `enableOptions` this payload
+          // already carries, so this no longer re-derives it from the raw list.
+          //
+          // The channel is NAMED differently here: `Action#use` takes
+          // `rollOptions` and merges them with the action's own, where a bare
+          // statistic check takes `extraRollOptions`. That rename is the only
+          // thing left for this function to do.
           rollAction: (result?: number, options: object = {}) => {
-            const overrides =
-              (options as { modifierOverrides?: Record<string, boolean> }).modifierOverrides ?? {}
-            const rollOptions: string[] = [
-              ...((options as { rollOptions?: string[] }).rollOptions ?? [])
-            ]
-            const actionSlugs = new Set<string>()
-            for (const m of stat.modifiers) {
-              if (!m.fromAction || !m.slug) continue
-              actionSlugs.add(m.slug)
-              const on = m.slug in overrides ? overrides[m.slug] : m.enabled
-              if (on && m.enableOptions?.length) rollOptions.push(...m.enableOptions)
+            const { extraRollOptions, ...rest } = options as {
+              extraRollOptions?: string[]
+              rollOptions?: string[]
             }
-            // Statistic-only overrides — action modifiers are handled via options.
-            const statOverrides = Object.fromEntries(
-              Object.entries(overrides).filter(([slug]) => !actionSlugs.has(slug))
-            )
+            const rollOptions = [...(rest.rollOptions ?? []), ...(extraRollOptions ?? [])]
             return rollCheck(
               actor,
               'skillAction',
@@ -96,10 +93,9 @@ export function useCharacterSkillActions(
                 // multi-variant action) rides along in this spread — PF2e's
                 // use() reads it and resolves the variant's traits, notes and
                 // `action:<slug>:<variant>` roll option itself.
-                ...options,
+                ...rest,
                 statistic: stat.statistic,
-                rollOptions,
-                modifierOverrides: statOverrides
+                rollOptions
               }
             )
           }

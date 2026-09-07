@@ -42,17 +42,30 @@ export type SerializedModifier = {
   // Both are inputs to PF2e's stacking contest, which the client re-runs every
   // time a player toggles a modifier. Without them that re-run is a different
   // calculation from the one the server will do: `force` decides the `ability`
-  // contest outright, and `ignored` marks a modifier from an unequipped or
-  // uninvested item, which enters no contest at all.
+  // contest outright, and `ignored` keeps a modifier out of the contest
+  // altogether.
+  //
+  // `ignored` is BROADER than unequipped gear, which is what this once said and
+  // what the client once assumed: PF2e's `Modifier#test()` sets
+  // `ignored = !enabled` on every predicate failure, so it arrives set on most
+  // default-off rows. The client therefore moves it with the player's toggle
+  // rather than reading it as final — see useModifierOverrides.
   force?: boolean
   ignored?: boolean
   // True for modifiers declared on the action itself (e.g. Steal's "Object
   // pocketed or protected") rather than inherited from the skill statistic.
+  // Written here to decide whether `enableOptions` is worth lifting; the app
+  // reads the options, not this.
   fromAction?: boolean
-  // For conditional action modifiers, the roll option(s) that enable them (from
-  // the modifier's predicate, e.g. ["action:steal:pocketed"]). Toggling the
-  // modifier on adds these to the action's roll; empty for always-on or
-  // auto-evaluated (negated-predicate) modifiers. See useCharacterSkillActions.
+  // For a conditional action modifier, the roll option(s) that enable it (from
+  // the modifier's predicate, e.g. ["action:steal:pocketed"]).
+  //
+  // Their presence is what marks a row as one PF2e can be FED rather than
+  // overridden: switching it on declares these options for the roll and lets
+  // PF2e's own evaluator answer the predicate. `useModifierOverrides` collects
+  // them (`enabledOptions`) and `ModifierOverrideList` labels the row. Empty for
+  // an always-on or auto-evaluated (negated-predicate) modifier, which falls
+  // back to an override.
   enableOptions?: string[]
 }
 

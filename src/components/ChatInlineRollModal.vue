@@ -16,23 +16,27 @@ const { skills, saves, perception } = useInjectedActor()
 type SaveSlug = 'fortitude' | 'will' | 'reflex'
 const SAVE_SLUGS: readonly string[] = ['fortitude', 'will', 'reflex']
 
-const rollModifiers = computed(() => {
+// The statistic this inline anchor rolls, resolved once. Both the breakdown and
+// the button's total come off it, so they cannot describe different statistics.
+const rollStatistic = computed(() => {
   const ar = activeRoll.value
   if (!ar) return undefined
 
   if (ar.action === 'action' && ar.statisticSlug) {
-    return skills.value?.find((s) => s.slug === ar.statisticSlug)?.modifiers
+    return skills.value?.find((s) => s.slug === ar.statisticSlug)
   }
 
   if (ar.action === 'check' && ar.slug) {
     const slug = ar.slug
-    if (SAVE_SLUGS.includes(slug)) return saves[slug as SaveSlug].value?.modifiers
-    if (slug === 'perception') return perception.value?.modifiers
-    return skills.value?.find((s) => s.slug === slug)?.modifiers
+    if (SAVE_SLUGS.includes(slug)) return saves[slug as SaveSlug].value
+    if (slug === 'perception') return perception.value
+    return skills.value?.find((s) => s.slug === slug)
   }
 
   return undefined
 })
+
+const rollModifiers = computed(() => rollStatistic.value?.modifiers)
 
 const modifiersToggleable = computed(() => {
   const ar = activeRoll.value
@@ -42,16 +46,18 @@ const modifiersToggleable = computed(() => {
   return false
 })
 
-const {
-  modifierOverrides,
-  toggleModifier,
-  effectiveEnabled,
-  isManuallyActivated,
-  isManuallyDeactivated,
-  isStackingLoser
-} = useModifierOverrides(rollModifiers)
+const modifierControls = useModifierOverrides(rollModifiers)
+const { modifierOverrides, overrideDelta } = modifierControls
 
-const rolls = useRollsFromActiveRoll(activeRoll, modifierOverrides)
+// PF2e's own total for the statistic, moved by whatever the player toggled. The
+// button label quotes it so a toggle in this panel has a visible effect, the
+// same way the stat box and the strike panel do.
+const rollTotal = computed<number | undefined>(() => {
+  const total = rollStatistic.value?.totalModifier
+  return total === undefined ? undefined : total + overrideDelta.value
+})
+
+const rolls = useRollsFromActiveRoll(activeRoll, modifierOverrides, rollTotal)
 const isOpen = computed(() => modal.value?.isOpen ?? false)
 
 function open(roll: ActiveRoll) {
@@ -81,12 +87,8 @@ defineExpose({ open, close, isOpen })
         <ModifierOverrideList
           v-if="rollModifiers?.length"
           :modifiers="rollModifiers"
+          :controls="modifierControls"
           :toggleable="modifiersToggleable"
-          :effectiveEnabled="effectiveEnabled"
-          :isManuallyActivated="isManuallyActivated"
-          :isManuallyDeactivated="isManuallyDeactivated"
-          :isStackingLoser="isStackingLoser"
-          :onToggle="toggleModifier"
         />
       </template>
     </InfoModal>

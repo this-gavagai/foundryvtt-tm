@@ -65,7 +65,10 @@ export function useCharacterResources(actor: Ref<CharacterPF2e | undefined>): Ch
         { modifiers?: RawModifier[]; _modifiers?: RawModifier[] } | undefined
       const reported = hp?.modifiers ?? hp?._modifiers
       if (reported) return makeModifiers(reported)
-      return derivedModifiers.present(derived.hitPointsMax.value?.modifiers)
+      return derivedModifiers.present(
+        derived.hitPointsMax.value?.modifiers,
+        derived.hitPointsMax.value?.conditional
+      )
     }),
     set: (target: HitPointTarget) => setHitPoints(actor, target)
   }

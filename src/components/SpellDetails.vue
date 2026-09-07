@@ -3,10 +3,11 @@ import { computed, ref } from 'vue'
 import type { Consumable, Spell, SpellcastingEntry } from '@/composables/character'
 import type { SpellInfo } from '@/utils/spellcasting'
 
-import ModifierList from '@/components/ModifierList.vue'
+import ModifierOverrideList from '@/components/ModifierOverrideList.vue'
 import ParsedDescription from '@/components/ParsedDescription.vue'
+import { useModifierOverrides } from '@/composables/useModifierOverrides'
 
-defineProps<{
+const props = defineProps<{
   entry?: SpellcastingEntry
   item?: Spell | Consumable
   spell?: Spell
@@ -17,6 +18,13 @@ defineProps<{
   consumableSpellRollData: Record<string, unknown>
 }>()
 
+// Read-only: this panel describes the entry's spell attack, it does not roll it
+// — the roll (and its toggles) live in SpellRollModal. Resolving the list
+// through the same composable anyway is what let the second, cut-down copy of
+// the panel go: it showed the same modifiers with no type tags and no stacking
+// marks, so an outranked row read as a contributing one.
+const attackControls = useModifierOverrides(computed(() => props.entry?.spellAttackModifiers))
+
 const description = ref<InstanceType<typeof ParsedDescription>>()
 const activeRoll = computed(() => description.value?.activeRoll)
 
@@ -26,7 +34,7 @@ defineExpose({ activeRoll })
 <template>
   <div data-component="SpellDetails">
     <template v-if="entry && !item">
-      <ModifierList :modifiers="entry.spellAttackModifiers" />
+      <ModifierOverrideList :modifiers="entry.spellAttackModifiers" :controls="attackControls" />
     </template>
     <template v-else-if="!entry || item">
       <div class="flex gap-2 empty:hidden">

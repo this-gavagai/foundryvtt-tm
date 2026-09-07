@@ -32,3 +32,9 @@ export function loreDomains(slug: string): string[] {
 
 export const AC_DOMAINS = ['all', 'ac', 'dex-based']
 export const PERCEPTION_DOMAINS = ['perception', 'all', 'wis-based']
+
+// Added to whichever statistic rolls initiative, rather than collected on its
+// own. PF2e clones the named statistic with this domain appended, so an
+// initiative modifier contests against the statistic's own — see
+// `deriveInitiative`.
+export const INITIATIVE_DOMAINS = ['initiative']

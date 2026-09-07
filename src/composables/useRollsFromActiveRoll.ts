@@ -5,6 +5,7 @@ import type { Roll } from '@/types/roll-types'
 import { useInjectedActor } from '@/composables/injectKeys'
 import { parseDamageFormulaDice, makeDiceResults } from '@/utils/diceFormula'
 import { rollInlineCheck } from '@/api/actionRpc'
+import { SignedNumber } from '@/utils/formatters'
 import { useListenersStore } from '@/stores/listenersOnline'
 
 type SaveSlug = 'fortitude' | 'will' | 'reflex'
@@ -12,11 +13,16 @@ const SAVE_SLUGS: readonly SaveSlug[] = ['fortitude', 'will', 'reflex']
 
 export function useRollsFromActiveRoll(
   activeRoll: Ref<ActiveRoll | undefined> | ComputedRef<ActiveRoll | undefined>,
-  modifierOverrides?: Ref<Record<string, boolean>>
+  modifierOverrides?: Ref<Record<string, boolean>>,
+  // The modifier the button will roll at, as the caller resolved it: PF2e's
+  // total for the statistic plus whatever the player has toggled. Quoted in the
+  // label so a toggle in the panel is visible before the die is thrown.
+  total?: Ref<number | undefined> | ComputedRef<number | undefined>
 ): ComputedRef<Roll[]> {
   const { t } = useI18n()
   const listeners = useListenersStore()
-  const { _actor, doCharacterAction, doDamage, doFlatCheck, saves, skills } = useInjectedActor()
+  const { _actor, doCharacterAction, doDamage, doFlatCheck, saves, skills, perception } =
+    useInjectedActor()
 
   return computed<Roll[]>(() => {
     const ar = activeRoll.value
@@ -29,7 +35,12 @@ export function useRollsFromActiveRoll(
     if (!listeners.isListening) return []
     const slug = ar.slug
     const label = ar.label ?? slug ?? ''
-    const buttonLabel = `${t('common.roll')} ${label}`.trim()
+    const modifier = total?.value
+    const buttonLabel = `${t('common.roll')} ${label} ${
+      modifier === undefined ? '' : SignedNumber.format(modifier)
+    }`
+      .replace(/\s+/g, ' ')
+      .trim()
 
     if (ar.action === 'action') {
       // Actors without the capability (familiars) get no button rather than
@@ -99,6 +110,20 @@ export function useRollsFromActiveRoll(
             inline: ar.checkInline,
             diceResults
           }) as Promise<RequestResolutionArgs | null>
+        }
+      } else if (slug === 'perception') {
+        // Perception lives at `system.perception`, NOT in the skill list — so the
+        // fallback branch below, which resolves the executor by searching
+        // `skills`, found nothing and returned null. An inline
+        // `@Check[perception|dc:20]` rendered a full modifier breakdown over a
+        // button that did nothing at all.
+        execute = (faces) => {
+          const overrides = modifierOverrides?.value
+          const opts =
+            overrides && Object.keys(overrides).length
+              ? { ...rollOptions, modifierOverrides: overrides }
+              : rollOptions
+          return perception?.value?.roll?.(faces?.[0], opts) ?? Promise.resolve(null)
         }
       } else if (slug && (SAVE_SLUGS as readonly string[]).includes(slug)) {
         const saveSlug = slug as SaveSlug

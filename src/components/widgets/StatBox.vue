@@ -48,6 +48,9 @@ export interface StatBoxVariant {
     r: number | undefined,
     options?: {
       modifierOverrides?: Record<string, boolean>
+      // Roll options to declare for this roll, for the modifier rows PF2e is FED
+      // rather than overridden. See useModifierOverrides.enabledOptions.
+      extraRollOptions?: string[]
       messageMode?: 'blind'
       rollMode?: 'blindroll'
       variant?: string
@@ -69,6 +72,14 @@ const props = defineProps<{
   // instead of the default centered stack — used by list contexts like skills.
   row?: boolean
   modifiers?: Modifier[] | undefined
+  // The statistic's own total, as PF2e reported it. The roll button quotes THIS
+  // plus whatever the player's toggles are worth, rather than re-adding the
+  // modifier rows itself: the rows are what PF2e sent before its own per-slug
+  // collapse, so summing them can differ from the figure in the box directly
+  // above — the same roll quoted two ways on one screen. Omit it and the button
+  // falls back to the local sum, which is all there is for a list with no total
+  // beside it.
+  total?: number
   breakdown?: string
   preventInfoModal?: boolean
   variants?: StatBoxVariant[]
@@ -76,6 +87,7 @@ const props = defineProps<{
     r: number | undefined,
     options?: {
       modifierOverrides?: Record<string, boolean>
+      extraRollOptions?: string[]
       messageMode?: 'blind'
       rollMode?: 'blindroll'
     }
@@ -144,14 +156,9 @@ function activate(e: KeyboardEvent) {
 // (ruleEngine/flatModifiers.sluggify) could ever reach a real roll. Decided
 // here now, once.
 const canToggleModifiers = computed(() => !!activeRollAction.value && isListening.value)
-const {
-  modifierOverrides,
-  toggleModifier: toggleModifierOverride,
-  effectiveEnabled,
-  isManuallyActivated,
-  isManuallyDeactivated,
-  isStackingLoser
-} = useModifierOverrides(activeModifiers)
+const modifierControls = useModifierOverrides(activeModifiers)
+const { modifierOverrides, overridePayload, enabledOptions, overrideDelta, effectiveTotal } =
+  modifierControls
 
 // Switching variants changes the modifier set entirely, so any in-flight
 // per-modifier toggles no longer apply — start the new selection clean.
@@ -172,24 +179,22 @@ function onModalClosed() {
   isSecret.value = false
 }
 
-function toggleModifier(mod: Modifier) {
-  if (canToggleModifiers.value) toggleModifierOverride(mod)
-}
-
-// Sum of all effectively-enabled, non-stacking-loser modifiers — drives the
-// roll button label so the user can see the combined modifier before rolling.
-const effectiveTotal = computed<number | undefined>(() => {
-  const mods = activeModifiers.value
-  if (!mods?.length) return undefined
-  return mods
-    .filter((m) => effectiveEnabled(m) && !isStackingLoser(m))
-    .reduce((sum, m) => sum + (m.modifier ?? 0), 0)
+// What the roll button quotes.
+//
+// PF2e's own number wherever there is one — the statistic's `totalModifier`, or
+// the variant's, both of which are post-collapse and post-contest — moved by
+// what the player's toggles are worth. The local sum is the fallback for a list
+// that came with no total, and the reason it is only a fallback is that it can
+// disagree with the figure printed in the box directly above.
+const rollTotal = computed<number | undefined>(() => {
+  const anchor = selectedVariant.value ? selectedVariant.value.modifier : props.total
+  if (anchor !== undefined) return anchor + overrideDelta.value
+  return activeModifiers.value?.length ? effectiveTotal.value : undefined
 })
 
 const rolls = computed<Roll[]>(() => {
   if (!activeRollAction.value || !isListening.value) return []
-  const totalLabel =
-    effectiveTotal.value !== undefined ? ' ' + SignedNumber.format(effectiveTotal.value) : ''
+  const totalLabel = rollTotal.value !== undefined ? ' ' + SignedNumber.format(rollTotal.value) : ''
   return [
     {
       key: 'statbox-roll',
@@ -198,10 +203,11 @@ const rolls = computed<Roll[]>(() => {
       dice: ['d20'],
       armed: true,
       execute: (faces) => {
-        const overrides = modifierOverrides.value
-        const hasOverrides = Object.keys(overrides).length > 0
+        const overrides = overridePayload()
+        const fedOptions = enabledOptions()
         const options = {
-          ...(hasOverrides ? { modifierOverrides: { ...overrides } } : {}),
+          ...(overrides ? { modifierOverrides: overrides } : {}),
+          ...(fedOptions.length ? { extraRollOptions: fedOptions } : {}),
           ...(isSecret.value
             ? { messageMode: 'blind' as const, rollMode: 'blindroll' as const }
             : {}),
@@ -373,12 +379,8 @@ defineExpose({ infoModal })
           />
           <ModifierOverrideList
             :modifiers="activeModifiers"
+            :controls="modifierControls"
             :toggleable="canToggleModifiers"
-            :effectiveEnabled="effectiveEnabled"
-            :isManuallyActivated="isManuallyActivated"
-            :isManuallyDeactivated="isManuallyDeactivated"
-            :isStackingLoser="isStackingLoser"
-            :onToggle="toggleModifier"
           />
           <!-- Selected skill action's rulebook description (rich HTML from the
                pf2e.actionspf2e compendium). Read-only: autoSelect off so inline

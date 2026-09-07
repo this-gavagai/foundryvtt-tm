@@ -82,6 +82,14 @@ export interface ConditionalModifier {
   itemName?: string
   // The predicate as written, so the sheet can say what it is conditional ON.
   predicate?: unknown
+  // The roll option(s) that switch it on, where the predicate names them
+  // plainly. Present so the sheet can FEED PF2e the option and let its own
+  // evaluator decide, rather than overriding `enabled` on a modifier whose slug
+  // the engine reconstructed and may have reconstructed differently — see "Where
+  // the GM is fed rather than re-implemented" in ../README.md. Empty for a
+  // predicate with no top-level atom to lift (a bare `or`, a nested `and`),
+  // which falls back to the override.
+  enableOptions?: string[]
 }
 
 export interface Ledger {

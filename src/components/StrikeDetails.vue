@@ -5,6 +5,7 @@ import DropdownWidget from '@/components/widgets/DropdownWidget.vue'
 import ActionIcons from '@/components/widgets/ActionIcons.vue'
 import ModifierOverrideList from '@/components/ModifierOverrideList.vue'
 import type { Modifier } from '@/composables/character'
+import type { ModifierControls } from '@/composables/useModifierOverrides'
 import type { ViewedStrike } from '@/utils/strikes'
 
 import action1 from '@/assets/icons/action1.svg'
@@ -33,11 +34,9 @@ defineProps<{
   viewedDamageTypeSelected?: string
   blastActions?: string
   isListening: boolean
-  effectiveEnabled: (mod: Modifier) => boolean
-  isManuallyActivated: (mod: Modifier) => boolean
-  isManuallyDeactivated: (mod: Modifier) => boolean
-  isStackingLoser: (mod: Modifier) => boolean
-  onToggleModifier: (mod: Modifier) => unknown
+  // The whole modifier panel in one object, rather than the five callbacks this
+  // used to forward one by one on the parent's behalf.
+  controls: ModifierControls
   onToggleLoaded: () => unknown
   onUpdateDamageType: (damageType: string) => unknown
   onSetBlastActions: (actions: string) => unknown
@@ -124,15 +123,10 @@ defineProps<{
           ? damageData?.response?.modifiers
           : viewed?.target.data._modifiers
       "
+      :controls="controls"
       :toggleable="viewed?.phase === 'attack' || viewed?.phase === 'damage'"
       :diceToggleable="viewed?.phase === 'damage' && viewed?.target.kind === 'strike'"
-      showAll
       showDamageType
-      :effectiveEnabled="effectiveEnabled"
-      :isManuallyActivated="isManuallyActivated"
-      :isManuallyDeactivated="isManuallyDeactivated"
-      :isStackingLoser="isStackingLoser"
-      :onToggle="onToggleModifier"
     />
   </div>
 </template>

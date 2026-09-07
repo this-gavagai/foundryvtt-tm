@@ -61,33 +61,18 @@ const viewedModifiers = computed(() =>
 const isCriticalContext = computed(
   () => viewed.value?.phase === 'damage' && viewed.value?.subtype === 1
 )
-const {
-  modifierOverrides,
-  toggleModifier,
-  effectiveEnabled,
-  isManuallyActivated,
-  isManuallyDeactivated,
-  isStackingLoser
-} = useModifierOverrides(viewedModifiers, isCriticalContext)
+const modifierControls = useModifierOverrides(viewedModifiers, isCriticalContext)
+const { modifierOverrides, overrideDelta } = modifierControls
 
-// Effective base total (MAP 0, no extra modifiers) with overrides applied.
-const effectiveAttackBase = computed(() =>
-  attackModifiers.value
-    .filter((m) => effectiveEnabled(m) && !isStackingLoser(m))
-    .reduce((sum, m) => sum + (m.modifier ?? 0), 0)
-)
-
-// Delta vs. the default MAP-0 total (parsed from the first variant's label).
-// We compare to the parsed label rather than re-simulating default stacking,
-// keeping the logic simple and consistent with what PF2e already computed.
-const attackDelta = computed(() => {
-  const v = viewed.value
-  if (!v || v.phase !== 'attack' || !Object.keys(modifierOverrides.value).length) return 0
-  const baseLabel = v.target.data.variants?.find((vrt) => vrt.map === 0)?.label ?? ''
-  const m = baseLabel.match(/^([+-]?\d+)/)
-  if (!m) return 0
-  return effectiveAttackBase.value - parseInt(m[1], 10)
-})
+// What the player's toggles are worth, applied on top of the number PF2e put in
+// the variant label.
+//
+// `overrideDelta` measures the toggles against the SAME local simulation with
+// nothing toggled, so any systematic gap between that simulation and PF2e's
+// cancels — which the previous version, subtracting the parsed label from a
+// locally-summed absolute total, could not do. Zero when nothing is toggled, so
+// the label at rest is PF2e's own, untouched.
+const attackDelta = computed(() => (viewed.value?.phase === 'attack' ? overrideDelta.value : 0))
 
 const { isListening } = storeToRefs(useListenersStore())
 
@@ -128,8 +113,7 @@ const viewedItem = computed<Weapon | undefined>(() => {
   const itemId = viewed.value?.target.data.item?._id
   if (!itemId) return undefined
   return [...(inventory.value || []), ...(actions.value || [])].find((i) => i._id === itemId) as
-    | Weapon
-    | undefined
+    Weapon | undefined
 })
 
 const viewedTraits = computed<string[]>(() => traitsForViewed(viewed.value, viewedItem.value))
@@ -441,11 +425,7 @@ watch([strikes, blasts], () => {
           :viewedDamageTypeSelected="viewedDamageTypeSelected"
           :blastActions="blastActions + ''"
           :isListening="isListening"
-          :effectiveEnabled="effectiveEnabled"
-          :isManuallyActivated="isManuallyActivated"
-          :isManuallyDeactivated="isManuallyDeactivated"
-          :isStackingLoser="isStackingLoser"
-          :onToggleModifier="toggleModifier"
+          :controls="modifierControls"
           :onToggleLoaded="toggleLoaded"
           :onUpdateDamageType="updateDamageType"
           :onSetBlastActions="setBlastActions"

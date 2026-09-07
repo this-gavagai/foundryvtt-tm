@@ -88,7 +88,7 @@ export function useCharacterSpells(actor: Ref<TablemateCharacter | undefined>): 
           // the same statistic that produced the attack modifier above.
           spellAttackModifiers: spellModData?.modifiers
             ? makeModifiers(spellModData.modifiers)
-            : derivedModifiers.present(derivedAttack?.modifiers),
+            : derivedModifiers.present(derivedAttack?.modifiers, derivedAttack?.conditional),
           doSpellAttack: (result?: number, modifierOverrides?: Record<string, boolean>) =>
             rollCheck(
               actor,

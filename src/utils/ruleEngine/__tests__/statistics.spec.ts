@@ -861,6 +861,44 @@ describe('initiative', () => {
     ])
     expect(deriveInitiative(input, undefined, 0).value).toBe(derivePerception(fighter()).value + 2)
   })
+
+  // PF2e clones the named statistic with an `initiative` domain appended and
+  // builds ONE StatisticModifier over the union, so an initiative modifier
+  // contests against the statistic's own. Deriving the statistic and then adding
+  // a separately-contested initiative pass on top let both through.
+  it('contests an initiative modifier against the statistic’s own', () => {
+    const input = fighter([
+      feature('Watchful', [
+        { key: 'FlatModifier', selector: 'perception', type: 'status', value: 1 }
+      ]),
+      feature('Incredible Initiative', [
+        { key: 'FlatModifier', selector: 'initiative', type: 'status', value: 2 }
+      ])
+    ])
+    // The larger status bonus wins outright; +3 would be both of them applying.
+    expect(deriveInitiative(input, undefined, 0).value).toBe(derivePerception(fighter()).value + 2)
+  })
+
+  it('reports one list with the contest already resolved', () => {
+    const input = fighter([
+      feature('Watchful', [
+        { key: 'FlatModifier', selector: 'perception', type: 'status', value: 1 }
+      ]),
+      feature('Incredible Initiative', [
+        { key: 'FlatModifier', selector: 'initiative', type: 'status', value: 2 }
+      ])
+    ])
+    const initiative = deriveInitiative(input, undefined, 0)
+    const status = initiative.modifiers.filter((m) => m.type === 'status')
+    expect(status.map((m) => [m.modifier, m.enabled])).toEqual([
+      [1, false],
+      [2, true]
+    ])
+    // The breakdown adds up to the figure beside it. Two concatenated lists
+    // could show both enabled while the total counted only one.
+    expect(initiative.modifiers.filter((m) => m.enabled).reduce((sum, m) => sum + m.modifier, 0)) //
+      .toBe(initiative.value)
+  })
 })
 
 // The rank pass, the roll-option set and the value context are resolved ONCE

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { saveDomains, AC_DOMAINS, describeLedger, sealLedger, versionVerdict } from '@/utils/ruleEngine'
+import {
+  saveDomains,
+  AC_DOMAINS,
+  describeLedger,
+  sealLedger,
+  versionVerdict
+} from '@/utils/ruleEngine'
 import { buildRollOptions, type RollOptionSource } from '@/utils/ruleEngine/rollOptions'
 import {
   applyStacking,
@@ -244,7 +250,10 @@ describe('the version gate', () => {
     // five figures with the same caveat, which ranks nothing and teaches a
     // reader to stop looking. A mismatched stamp is a real signal; a missing one
     // is not.
-    const result = deriveFigure({ items: [], options: {} as RollOptionSource, paths: {}, stamp: undefined }, AC_DOMAINS)
+    const result = deriveFigure(
+      { items: [], options: {} as RollOptionSource, paths: {}, stamp: undefined },
+      AC_DOMAINS
+    )
     expect(result.ledger.skipped).toHaveLength(0)
     expect(result.ledger.confidence).toBe('exact')
   })
@@ -270,8 +279,14 @@ describe('the version gate', () => {
 })
 
 describe('stacking', () => {
+  // A DISTINCT slug per fixture unless a case names one, because a repeated slug
+  // is not a second modifier: `resolveModifierList` collapses same-slug entries
+  // the way `StatisticModifier`'s constructor does, before any contest. A shared
+  // default of 's' made every list below one modifier deep, so the cases meant
+  // to exercise the contest were quietly exercising the collapse instead.
+  let counter = 0
   const mod = (over: Partial<EngineModifier> & { ignored?: boolean }): EngineModifier => ({
-    slug: 's',
+    slug: `s${++counter}`,
     label: 'l',
     modifier: 0,
     type: 'untyped',
@@ -347,6 +362,41 @@ describe('stacking', () => {
         mod({ type: 'item', modifier: 3, ignored: true })
       ])
     ).toBe(1)
+  })
+
+  // PF2e allows at most one modifier per slug in a resolved statistic:
+  // `StatisticModifier`'s constructor collapses the list before contesting it,
+  // keeping the enabled entry and then the larger magnitude. The engine
+  // reconstructs slugs from labels, so two items whose names sluggify alike
+  // produce a collision PF2e would never have had.
+  it('collapses a repeated slug rather than counting it twice', () => {
+    expect(
+      applyStacking([
+        mod({ slug: 'twice', type: 'untyped', modifier: 2 }),
+        mod({ slug: 'twice', type: 'untyped', modifier: 2 })
+      ])
+    ).toBe(2)
+  })
+
+  it('keeps the larger magnitude of a collapsed pair', () => {
+    expect(
+      applyStacking([
+        mod({ slug: 'twice', type: 'untyped', modifier: 1 }),
+        mod({ slug: 'twice', type: 'untyped', modifier: -3 })
+      ])
+    ).toBe(-3)
+  })
+
+  it('drops the superseded copy from the reported breakdown', () => {
+    // Not reported disabled: unlike the wire path there is no second copy to
+    // reconcile with, so a row here would name a modifier the character has not
+    // got.
+    const resolved = resolveStacking([
+      mod({ slug: 'twice', type: 'untyped', modifier: 1 }),
+      mod({ slug: 'twice', type: 'untyped', modifier: 2 })
+    ])
+    expect(resolved).toHaveLength(1)
+    expect(resolved[0].modifier).toBe(2)
   })
 })
 

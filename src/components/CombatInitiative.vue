@@ -76,6 +76,7 @@ const initiativeReady = computed(() => {
         <StatBox
           :modalHeading="$t('combat.initiative')"
           :modifiers="initiativeMods"
+          :total="initiativeTotalModifier"
           :rollAction="initiativeReady ? rollInitiative : undefined"
         >
           <span v-bind="attrs">{{ formatModifier(initiativeTotalModifier ?? NaN) }}</span>

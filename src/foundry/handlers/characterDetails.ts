@@ -263,8 +263,11 @@ export function buildSkillActionRegistry(descriptions: Map<string, string>): Ski
       label: action.name ? localize(action.name) : action.slug,
       cost: action.cost === undefined ? undefined : String(action.cost),
       traits: Array.isArray(action.traits) ? action.traits : [],
-      // Replayed as extraRollOptions on the actual roll so the rolled number
-      // matches the previewed modifier (action-specific bonuses fire again).
+      // The options this preview was built against, for the record. NOT replayed
+      // by the app, and it must not be: `Action#use` merges `this.rollOptions`
+      // into the roll itself, so an app that sent them too would be declaring
+      // them twice. The preview above needs them explicitly because it builds a
+      // StatisticModifier by hand rather than going through `use`.
       rollOptions: action.rollOptions.length ? action.rollOptions : [`action:${action.slug}`],
       variants: serializeActionVariants(action),
       description: descriptions.get(action.slug)

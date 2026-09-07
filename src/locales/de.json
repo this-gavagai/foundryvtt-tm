@@ -622,8 +622,17 @@
       }
     }
   },
+  "modifierTypes": {
+    "circumstance": "Umstand",
+    "status": "Status",
+    "item": "Gegenstand",
+    "ability": "Attribut",
+    "proficiency": "Übung",
+    "potency": "Wirksamkeit"
+  },
   "modifiers": {
-    "outranked": "Von einem höheren Modifikator desselben Typs übertroffen; trägt nicht zum Wurf bei"
+    "outranked": "Von einem höheren Modifikator desselben Typs übertroffen; trägt nicht zum Wurf bei",
+    "declaredCondition": "Eingeschaltet wird diese Bedingung für den Wurf angegeben, und PF2e entscheidet, ob der Modifikator gilt"
   },
   "sync": {
     "awaitingGm": "Wartet auf die Neuberechnung durch den SL – möglicherweise veraltet.",

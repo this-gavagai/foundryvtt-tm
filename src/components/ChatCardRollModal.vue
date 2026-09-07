@@ -71,19 +71,20 @@ const rollModifiers = computed(() =>
     : damageData.value?.modifiers
 )
 
-const {
-  modifierOverrides,
-  toggleModifier,
-  effectiveEnabled,
-  isManuallyActivated,
-  isManuallyDeactivated,
-  isStackingLoser
-} = useModifierOverrides(rollModifiers)
+// This modal renders the CRITICAL formula when the card's button is the critical
+// one (see fetchDamagePreview), so the modifier list has to be read in that
+// context too: a crit-only die contributes to the formula shown and a
+// `critical: false` modifier does not. Without this the panel greyed out the
+// deadly dice sitting in the formula printed beside them.
+// Only a strike card carries the pair; a spell card's damage button is never the
+// critical one, which is why the union has `critical` on the strike arm alone.
+const isCriticalContext = computed(() => {
+  const roll = view.value?.roll
+  return roll?.phase === 'damage' && roll.kind === 'strike' && roll.critical
+})
 
-function overridePayload() {
-  const overrides = modifierOverrides.value
-  return Object.keys(overrides).length ? { ...overrides } : undefined
-}
+const modifierControls = useModifierOverrides(rollModifiers, isCriticalContext)
+const { modifierOverrides, overridePayload } = modifierControls
 
 function withOverrides() {
   const overrides = overridePayload()
@@ -278,14 +279,9 @@ const rolls = computed<Roll[]>(() => {
     <template #body>
       <ModifierOverrideList
         :modifiers="rollModifiers"
+        :controls="modifierControls"
         toggleable
         showDamageType
-        :showAll="view?.roll.phase === 'damage'"
-        :effectiveEnabled="effectiveEnabled"
-        :isManuallyActivated="isManuallyActivated"
-        :isManuallyDeactivated="isManuallyDeactivated"
-        :isStackingLoser="isStackingLoser"
-        :onToggle="toggleModifier"
       />
       <template v-if="view?.roll.phase === 'damage'">
         <div v-if="damageData?.formula" class="font-mono text-sm">

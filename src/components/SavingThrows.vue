@@ -30,6 +30,7 @@ const willAttrs = mark(will)
       :modalHeading="$t('savesFull.fortitude')"
       :proficiency="fortitude?.rank"
       :modifiers="fortitude?.modifiers"
+      :total="fortitude?.totalModifier"
       :rollAction="fortitude?.roll"
     >
       <span v-bind="fortitudeAttrs">{{ formatModifier(fortitude?.totalModifier) }}</span>
@@ -39,6 +40,7 @@ const willAttrs = mark(will)
       :modalHeading="$t('savesFull.reflex')"
       :proficiency="reflex?.rank"
       :modifiers="reflex?.modifiers"
+      :total="reflex?.totalModifier"
       :rollAction="reflex?.roll"
     >
       <span v-bind="reflexAttrs">{{ formatModifier(reflex?.totalModifier) }}</span>
@@ -48,6 +50,7 @@ const willAttrs = mark(will)
       :modalHeading="$t('savesFull.will')"
       :proficiency="will?.rank"
       :modifiers="will?.modifiers"
+      :total="will?.totalModifier"
       :rollAction="will?.roll"
     >
       <span v-bind="willAttrs">{{ formatModifier(will?.totalModifier) }}</span>

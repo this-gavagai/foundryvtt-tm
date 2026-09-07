@@ -622,8 +622,17 @@
       }
     }
   },
+  "modifierTypes": {
+    "circumstance": "circunstancia",
+    "status": "estado",
+    "item": "objeto",
+    "ability": "atributo",
+    "proficiency": "competencia",
+    "potency": "potencia"
+  },
   "modifiers": {
-    "outranked": "Superado por un modificador del mismo tipo de mayor rango; no contribuirá a la tirada"
+    "outranked": "Superado por un modificador del mismo tipo de mayor rango; no contribuirá a la tirada",
+    "declaredCondition": "Al activarla, esta condición se declara para la tirada y PF2e decide si el modificador se aplica"
   },
   "sync": {
     "awaitingGm": "Esperando que el DJ recalcule: puede estar desactualizado.",

@@ -287,7 +287,10 @@ export function useCharacterActions(actor: Ref<CharacterPF2e | undefined>): Char
     modifiers: computed(() => {
       const reported = actor.value?.system?.initiative?.modifiers
       if (reported) return makeModifiers(reported)
-      return derivedModifiers.present(derivedInitiative.value?.modifiers)
+      return derivedModifiers.present(
+        derivedInitiative.value?.modifiers,
+        derivedInitiative.value?.conditional
+      )
     }),
     // The statistic that rolls initiative is stored; its total is not. Derived
     // from whichever statistic is named — the sheet showed `??` without a GM,

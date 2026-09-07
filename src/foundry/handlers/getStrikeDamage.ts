@@ -9,6 +9,7 @@ import {
   discoverDamageDicePrototype,
   type ModifierOverrideMap
 } from './checks/modifierOverrides'
+import { collapseModifiersBySlug, type Stackable } from '@/utils/ruleEngine/flatModifiers'
 
 export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
   const source = getGame()
@@ -66,18 +67,15 @@ export async function foundryGetStrikeDamage(args: GetStrikeDamageArgs) {
       )
       // Deduplicate by slug: extractModifiers can produce multiple instances of
       // the same logical modifier when a rule element is registered under more
-      // than one of the blast's damage selectors. Prefer the enabled instance;
-      // if tied, keep the first seen.
-      modifiers = blastDamage.then(() => {
-        const bySlug = new Map<string, unknown>()
-        for (const m of blastCapture) {
-          const slug = (m as { slug?: string }).slug
-          if (!slug) continue
-          const existing = bySlug.get(slug)
-          if (!existing || !(existing as { enabled?: boolean }).enabled) bySlug.set(slug, m)
-        }
-        return [...bySlug.values()]
-      })
+      // than one of the blast's damage selectors.
+      //
+      // `collapseModifiersBySlug` is PF2e's own rule for this, out of
+      // `StatisticModifier`'s constructor — the enabled instance wins, then the
+      // larger magnitude — and it is the same collapse the app now runs on every
+      // modifier list it renders. This capture is a raw array with no
+      // StatisticModifier anywhere in its path, which is why it has to be done
+      // by hand here at all.
+      modifiers = blastDamage.then(() => collapseModifiersBySlug([...blastCapture] as Stackable[]))
     } else {
       const baseDamageOptions = { getFormula: true }
       const baseModifierOptions = {

@@ -203,13 +203,22 @@ export function collectFlatModifiers(
         // for: conditional rather than inapplicable. False both ways means this
         // character can never trigger it, and there is nothing to show.
         if (testPredicate(rule.predicate, asPersistent(options)) === 'unknown') {
+          // The same lift `characterDetails.buildSkillActions` performs GM-side:
+          // a predicate's positive top-level string atoms ARE the options that
+          // switch the modifier on, so the sheet can supply them and let PF2e
+          // answer its own predicate. Anything structural (`or`, `not`, nested
+          // `and`) yields nothing and the row falls back to an override.
+          const enableOptions = Array.isArray(rule.predicate)
+            ? rule.predicate.filter((atom): atom is string => typeof atom === 'string')
+            : []
           draft.conditional.push({
             slug: ruleSlug,
             label: rule.label ?? item.name ?? ruleSlug,
             modifier: Number(rule.value) || 0,
             type: rule.type ?? 'untyped',
             itemName: item.name,
-            predicate: rule.predicate
+            predicate: rule.predicate,
+            enableOptions: enableOptions.length ? enableOptions : undefined
           })
         }
         continue
@@ -260,31 +269,149 @@ export function collectFlatModifiers(
   }
 }
 
-// The fields the stacking contest reads, and nothing else.
+// The fields resolving a modifier list reads, and nothing else.
 //
 // Deliberately loose, because two very different lists have to run through the
-// same contest: the engine's own modifiers, and the trimmed ones that arrive
-// over the wire and are re-contested every time a player toggles one.
+// same rules: the engine's own modifiers, and the trimmed ones that arrive over
+// the wire and are re-resolved every time a player toggles one.
 export interface Stackable {
+  // Identity, and load-bearing: PF2e allows at most one modifier per slug in a
+  // resolved statistic, so a repeated slug is the same modifier seen twice.
+  slug?: string | null
   type?: string | null
   modifier?: number | null
   enabled?: boolean | null
   force?: boolean | null
   ignored?: boolean | null
+  // 'persistent' | 'precision' | 'splash' | null. Persistent damage is contested
+  // in its OWN partition — see `resolveModifierList`.
+  damageCategory?: string | null
+}
+
+// PF2e's per-slug collapse, transcribed from `StatisticModifier`'s constructor:
+//
+//   modifiers.reduce((acc, m) => ((!acc[m.slug]?.enabled ||
+//     Math.abs(m.modifier) > Math.abs(acc[m.slug].modifier)) && (acc[m.slug] = m), acc), {})
+//
+// Necessary because the lists reaching this file are PRE-collapse.
+// `extractModifiers` yields one Modifier instance per matching domain, so a rule
+// with `selector: ["stealth", "skill-check"]` lands twice; PF2e tolerates that
+// because every path to a total runs through a `StatisticModifier`, which
+// collapses first. `Statistic#getTraceData` does NOT — it sends
+// `check.modifiers` raw while sending `totalModifier` collapsed — so a sheet
+// that adds up the rows it was sent reports a number PF2e never had. The blast
+// capture in `foundry/handlers/getStrikeDamage` hit the same thing from the
+// damage side and deduplicated locally; this is that, once, for everyone.
+//
+// A repeated slug is NOT two modifiers that stack badly. It is one modifier
+// listed twice, which is why the non-survivors are reported separately from the
+// contest's losers: there is nothing for a reader to learn from the second copy.
+//
+// Two details worth keeping: the comparison is on MAGNITUDE (so the harsher of
+// two penalties survives), and a disabled incumbent yields to anything — which
+// is what lets the tested copy beat the untested one.
+function collapseBySlug<T extends Stackable>(
+  modifiers: readonly T[],
+  isEnabled: (modifier: T) => boolean
+): boolean[] {
+  const amount = (modifier: T) => Math.abs(modifier.modifier ?? 0)
+  // Keyed the way PF2e keys it, INCLUDING the slugless case: `acc[undefined]`
+  // is one bucket there too, so at most one unslugged modifier survives.
+  const winner = new Map<string, number>()
+  modifiers.forEach((modifier, index) => {
+    const key = modifier.slug ?? ''
+    const incumbent = winner.get(key)
+    if (incumbent === undefined) {
+      winner.set(key, index)
+      return
+    }
+    if (!isEnabled(modifiers[incumbent]) || amount(modifier) > amount(modifiers[incumbent]))
+      winner.set(key, index)
+  })
+  const distinct = modifiers.map(() => false)
+  for (const index of winner.values()) distinct[index] = true
+  return distinct
+}
+
+// The collapse as a LIST, for a caller holding a raw array that reached it
+// without passing through a `StatisticModifier` at all — the blast damage
+// capture in `foundry/handlers/getStrikeDamage`, which is assembled from hooked
+// prototype calls.
+//
+// Anything RENDERING a list wants `resolveModifierList` instead: it keeps the
+// input's indices, so a discarded duplicate can be identified as such rather
+// than silently vanishing from a breakdown the reader is comparing to a total.
+export function collapseModifiersBySlug<T extends Stackable>(modifiers: readonly T[]): T[] {
+  const distinct = collapseBySlug(modifiers, (modifier) => !!modifier.enabled)
+  return modifiers.filter((_, index) => distinct[index])
+}
+
+export interface ListOutcome {
+  // Whether each modifier contributes to the total.
+  applies: boolean[]
+  // False for a modifier the per-slug collapse discarded — the same modifier
+  // seen twice, not a second one. Kept apart from `applies` because it is not a
+  // contest result and must not be explained as one.
+  distinct: boolean[]
+}
+
+// Everything that happens to a modifier LIST before it becomes a number, in
+// PF2e's order: collapse by slug, then contest each damage partition.
+//
+// The partition is the damage dialog's, verbatim:
+//
+//   applyStackingRules(modifiers.filter((m) => m.category !== 'persistent'))
+//   applyStackingRules(modifiers.filter((m) => m.category === 'persistent'))
+//
+// Persistent damage is a separate pool, so a persistent status bonus and an
+// ordinary one do not compete. One contest over the whole list marked one of
+// them outranked and dropped it from the preview, while the roll applied both.
+//
+// Verdicts come back per INPUT INDEX so a caller can mark the row it is
+// rendering. Slugs cannot serve: they are not unique — that is the whole reason
+// the collapse above exists — and resolving by them marks every copy.
+export function resolveModifierList<T extends Stackable>(
+  modifiers: readonly T[],
+  isEnabled: (modifier: T) => boolean = (modifier) => !!modifier.enabled
+): ListOutcome {
+  const distinct = collapseBySlug(modifiers, isEnabled)
+  const applies = modifiers.map(() => false)
+  for (const persistent of [false, true]) {
+    const indices: number[] = []
+    modifiers.forEach((modifier, index) => {
+      if (distinct[index] && (modifier.damageCategory === 'persistent') === persistent)
+        indices.push(index)
+    })
+    if (!indices.length) continue
+    const verdicts = stackingOutcome(
+      indices.map((index) => modifiers[index]),
+      isEnabled
+    )
+    indices.forEach((index, slot) => {
+      applies[index] = verdicts[slot]
+    })
+  }
+  return { applies, distinct }
 }
 
 // PF2e's `applyStackingRules`, as the single place this rule is written.
 //
-// Shared with the ROLL path (composables/useModifierOverrides), and the shape is
-// what made that possible: a pure function over a loose `Stackable`, with
-// `isEnabled` as its one seam. The engine asks about its own `enabled`; the sheet
-// asks about `enabled` as overridden by the player, which is the whole reason the
-// UI re-runs this — toggling a modifier changes who wins, and neither PF2e nor
-// the engine knows what was toggled.
+// The CONTEST only. Reached through `resolveModifierList`, which is what callers
+// should use: a list has to be collapsed by slug and split by damage partition
+// before the contest is the right question to ask of it. Exported on its own
+// because it is the part that transcribes a named PF2e function, and the part
+// worth testing against that function directly.
+//
+// The shape is what let one implementation serve both the engine and the sheet:
+// a pure function over a loose `Stackable`, with `isEnabled` as its one seam. The
+// engine asks about its own `enabled`; the sheet asks about `enabled` as
+// overridden by the player, which is the whole reason the UI re-runs this —
+// toggling a modifier changes who wins, and neither PF2e nor the engine knows
+// what was toggled.
 //
 // One verdict per input INDEX rather than a new list or a set of slugs, because
 // the two callers address modifiers differently — the engine by object, the UI by
-// slug — and slugs are neither unique nor always present, so resolving by them
+// row — and slugs are neither unique nor always present, so resolving by them
 // would mark the wrong row.
 //
 // Three details are easy to get wrong:
@@ -361,17 +488,27 @@ export function stackingOutcome<T extends Stackable>(
 //
 // Every modifier the engine collects is pushed `enabled: true`, because a failed
 // predicate never gets pushed at all. So in an ENGINE list `enabled: false` means
-// precisely "outranked". A modifier that failed its predicate is reported
-// separately, as a ConditionalModifier.
+// precisely "outranked or superseded". A modifier that failed its predicate is
+// reported separately, as a ConditionalModifier.
+//
+// A superseded duplicate is DROPPED here rather than reported disabled. The
+// engine reconstructs slugs from labels (`sluggify`), so two items whose names
+// collapse to one slug produce two rows PF2e would only ever have had one of —
+// and unlike the wire path there is no second copy to reconcile with. Keeping it
+// would put a row in the breakdown that names no modifier the character has.
 export function resolveStacking(modifiers: readonly EngineModifier[]): EngineModifier[] {
-  const applies = stackingOutcome(modifiers)
-  return modifiers.map((modifier, index) =>
-    modifier.enabled === applies[index] ? modifier : { ...modifier, enabled: applies[index] }
+  const { applies, distinct } = resolveModifierList(modifiers)
+  return modifiers.flatMap((modifier, index) =>
+    !distinct[index]
+      ? []
+      : modifier.enabled === applies[index]
+        ? modifier
+        : { ...modifier, enabled: applies[index] }
   )
 }
 
 export function applyStacking(modifiers: readonly EngineModifier[]): number {
-  const applies = stackingOutcome(modifiers)
+  const { applies } = resolveModifierList(modifiers)
   return modifiers.reduce(
     (total, modifier, index) => (applies[index] ? total + modifier.modifier : total),
     0

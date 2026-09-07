@@ -43,6 +43,7 @@ withDefaults(
               :heading="skill.label"
               :proficiency="skill.rank"
               :modifiers="skill.modifiers"
+              :total="skill.totalModifier"
               :variants="skill.slug ? skillActionsBySkill?.[skill.slug] : undefined"
               :rollAction="skill?.roll"
             >
@@ -77,6 +78,7 @@ withDefaults(
               :heading="skill.label"
               :proficiency="skill.rank"
               :modifiers="skill.modifiers"
+              :total="skill.totalModifier"
               :variants="skill.slug ? skillActionsBySkill?.[skill.slug] : undefined"
               :rollAction="skill?.roll"
             >

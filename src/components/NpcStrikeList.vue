@@ -62,30 +62,14 @@ const viewedModifiers = computed(() =>
 const isCriticalContext = computed(
   () => viewed.value?.phase === 'damage' && viewed.value?.subtype === 1
 )
-const {
-  modifierOverrides,
-  toggleModifier,
-  effectiveEnabled,
-  isManuallyActivated,
-  isManuallyDeactivated,
-  isStackingLoser
-} = useModifierOverrides(viewedModifiers, isCriticalContext)
+const modifierControls = useModifierOverrides(viewedModifiers, isCriticalContext)
+const { modifierOverrides, overrideDelta } = modifierControls
 
-// Effective base total (MAP 0, no extra modifiers) with overrides applied,
-// compared against the total PF2e already put in the first variant's label.
-const effectiveAttackBase = computed(() =>
-  attackModifiers.value
-    .filter((m) => effectiveEnabled(m) && !isStackingLoser(m))
-    .reduce((sum, m) => sum + (m.modifier ?? 0), 0)
-)
-const attackDelta = computed(() => {
-  const v = viewed.value
-  if (!v || v.phase !== 'attack' || !Object.keys(modifierOverrides.value).length) return 0
-  const baseLabel = v.target.data.variants?.find((variant) => variant.map === 0)?.label ?? ''
-  const match = baseLabel.match(/^([+-]?\d+)/)
-  if (!match) return 0
-  return effectiveAttackBase.value - parseInt(match[1], 10)
-})
+// What the player's toggles are worth, applied on top of the number PF2e put in
+// the variant label. See the note in StrikeList: measuring the toggles against
+// the same local simulation with nothing toggled cancels any systematic gap
+// between that simulation and PF2e's, and is zero at rest.
+const attackDelta = computed(() => (viewed.value?.phase === 'attack' ? overrideDelta.value : 0))
 
 const viewedStrike = computed(() =>
   viewed.value?.target.kind === 'strike' ? strikes.value?.[viewed.value.target.index] : undefined
@@ -257,11 +241,7 @@ watch(strikes, () => {
           :damageData="strikeModalDamage"
           :damageTypeOptions="[]"
           :isListening="isListening"
-          :effectiveEnabled="effectiveEnabled"
-          :isManuallyActivated="isManuallyActivated"
-          :isManuallyDeactivated="isManuallyDeactivated"
-          :isStackingLoser="isStackingLoser"
-          :onToggleModifier="toggleModifier"
+          :controls="modifierControls"
           :onToggleLoaded="() => {}"
           :onUpdateDamageType="() => {}"
           :onSetBlastActions="() => {}"
