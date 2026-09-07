@@ -39,6 +39,50 @@ function readStoredSession(serverUrl: URL): string | undefined {
   )
 }
 
+// Foundry mints a session on any route through its session middleware, and
+// /api/status is one of them (a redirect like GET / is not). Unlike /join it
+// has no side effect on the session it hands back — /join signs it out of the
+// world — so this is the route to ask for a session with.
+function requestStatus(serverUrl: URL): Promise<HttpResponse> {
+  return CapacitorHttp.get({
+    url: new URL('/api/status', serverUrl).href,
+    connectTimeout: PROBE_TIMEOUT_MS,
+    readTimeout: PROBE_TIMEOUT_MS
+  })
+}
+
+// One in-flight mint per origin, so a socket being established and a repair
+// asking at the same moment share the request rather than racing two sessions.
+const pendingMints = new Map<string, Promise<string | undefined>>()
+
+// Acquire a session for a server we hold none for. Foundry recognizes a socket
+// by the session in its handshake and nothing else: without one it emits
+// `session: null`, registers no event listeners at all, and every emit —
+// getJoinData included — goes unanswered forever (verified against 14.367).
+// Minting here is what lets the *first* socket be a working one, instead of
+// spending it to discover it is deaf and having the login page ask for another.
+function mintNativeSession(serverUrl: URL): Promise<string | undefined> {
+  const key = serverUrl.origin
+  const inFlight = pendingMints.get(key)
+  if (inFlight) return inFlight
+  const attempt = (async () => {
+    try {
+      const response = await requestStatus(serverUrl)
+      if (response.status < 200 || response.status >= 300) return undefined
+      await persistNativeSession(serverUrl, response)
+      return readStoredSession(serverUrl)
+    } catch {
+      // Unreachable, or a server that isn't Foundry. The socket is attempted
+      // session-less all the same, exactly as it was before.
+      return undefined
+    } finally {
+      pendingMints.delete(key)
+    }
+  })()
+  pendingMints.set(key, attempt)
+  return attempt
+}
+
 function responseDataAsText(response: HttpResponse): string {
   return typeof response.data === 'string' ? response.data : JSON.stringify(response.data ?? '')
 }
@@ -92,30 +136,39 @@ async function getNativeJoinData(serverUrl: URL): Promise<JoinData> {
   if (response.status < 200 || response.status >= 300) {
     throw new Error(`Join page returned ${response.status}`)
   }
-  // GET /join mints an anonymous session and hands it back as a Set-Cookie.
-  // Keeping it is what lets the *next* socket authenticate: v14 answers
-  // getJoinData only for a handshake carrying a session, and on a first launch
-  // there is none — while the user list it used to serve in this page's HTML is
-  // now rendered client-side, so scraping can't break the deadlock any more.
-  // The login page's empty-list path already asks for a fresh socket, which
-  // picks this up via readSession.
-  //
-  // Only when nothing is stored. A session that exists and merely hit a
-  // transient socket failure must not be traded for an anonymous one.
-  //
-  // Foundry answers with a Set-Cookie only when the request carried no session
-  // of its own, so a session already sitting in the native jar that we have no
-  // record of (its sid was never readable — see persistNativeSession) makes
-  // this request come back with nothing to keep. Clearing the jar and asking
-  // again forces a mint we can actually see, rather than leaving the socket to
-  // handshake anonymously forever.
-  if (!readStoredSession(serverUrl) && !(await persistNativeSession(serverUrl, response))) {
+  // A session already sitting in the jar that we have no record of (its sid was
+  // never readable — see persistNativeSession) makes this request come back
+  // with nothing to keep, because Foundry mints only for a request that carried
+  // no session. Clearing the jar and asking again forces a mint we can actually
+  // read, rather than leaving the socket to handshake anonymously forever.
+  if (!(await keepJoinSession(serverUrl, response))) {
     logger.debug('TM-DIAG capacitor join page returned no session — re-minting')
     await capacitorServerTransport.deleteSession(serverUrl)
     response = await requestJoinPage(serverUrl)
-    await persistNativeSession(serverUrl, response)
+    await keepJoinSession(serverUrl, response)
   }
   return { ...parseJoinPage(responseDataAsText(response)), userId: null }
+}
+
+// Take the session the join page just handed us, and report whether the app is
+// left holding one at all.
+//
+// A Set-Cookie is proof Foundry did *not* accept the session we sent, since it
+// only ever mints for a request that carried none — so whatever we had stored
+// is dead (a server restart drops its session table) and the new one replaces
+// it. That trade is safe here and only here: the login page is the sole caller,
+// so the session being replaced is already anonymous or unrecognized. Absent
+// that header Foundry took ours, and a merely transient socket failure must not
+// cost us a session that works.
+async function keepJoinSession(serverUrl: URL, response: HttpResponse): Promise<boolean> {
+  const minted = sessionFromSetCookie(readHeader(response, 'set-cookie'))
+  if (minted) return storeNativeSession(serverUrl, minted)
+  if (readStoredSession(serverUrl)) return true
+  // Foundry minted nothing and we hold no record of one: the jar's own copy is
+  // the last chance, for installs whose session was captured before this code
+  // started keeping it.
+  const inJar = (await CapacitorCookies.getCookies({ url: serverUrl.origin })).session
+  return inJar ? storeNativeSession(serverUrl, inJar) : false
 }
 
 // Keep the session this response minted, reporting whether one was found. The
@@ -128,6 +181,10 @@ async function persistNativeSession(serverUrl: URL, response: HttpResponse): Pro
     sessionFromSetCookie(readHeader(response, 'set-cookie')) ??
     (await CapacitorCookies.getCookies({ url: serverUrl.origin })).session
   if (!session) return false
+  return storeNativeSession(serverUrl, session)
+}
+
+async function storeNativeSession(serverUrl: URL, session: string): Promise<boolean> {
   localStorage.setItem(sessionStorageKey(serverUrl), session)
   // Drop the ambiguous pre-upgrade global session now that this server has its
   // own, so it can never be mis-applied to a different server.
@@ -151,7 +208,13 @@ export const capacitorServerTransport: ServerTransport = {
   // could belong to any server — it's only a last resort for installs that
   // predate per-origin storage.
   async readSession(serverUrl: URL): Promise<string | undefined> {
-    const stored = readStoredSession(serverUrl)
+    // Minting one when there is none is what makes the socket about to be
+    // opened a socket that can answer anything (see mintNativeSession). The
+    // login page used to arrive at a deaf first socket, wait out getJoinData's
+    // whole retry budget, fetch the join page for a session, and only then —
+    // via its own "no users" retry — get a socket worth talking to. Hence a
+    // first attempt that always failed and a Retry that always worked.
+    const stored = readStoredSession(serverUrl) ?? (await mintNativeSession(serverUrl))
     if (stored) {
       // Keep the native jar in agreement with the sid we're about to hand the
       // socket, so the websocket handshake's Cookie header can't carry a

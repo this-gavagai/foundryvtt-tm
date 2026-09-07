@@ -98,12 +98,14 @@ async function settle(ticks = 20) {
 }
 
 // Bring up a connected socket and have Foundry report the session as anonymous
-// — the state that used to mean "show the login page", unconditionally.
+// — the state that used to mean "show the login page", unconditionally. Shaped
+// as Foundry shapes it: a session it *knows*, signed in as nobody.
+const ANONYMOUS = { sessionId: 'anon-session', userId: null }
 async function connectAndGoAnonymous() {
   const store = await loadStore()
   await store.connectToServer(SERVER)
   await settle()
-  sockets.at(-1)!.fire('session', {})
+  sockets.at(-1)!.fire('session', ANONYMOUS)
   await settle()
   return store
 }
@@ -130,6 +132,34 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks()
+})
+
+describe('an unrecognized session', () => {
+  // Foundry answers a handshake it cannot place — a session id from before the
+  // server restarted, or none at all — with a bare `null`, where a session it
+  // knows arrives as {sessionId, userId: null}. Storing the dead id past that
+  // point had every later socket hand the same one back, and the login page
+  // wait out getJoinData's whole retry budget on a socket Foundry wires no
+  // listeners for: the first attempt always failed, and Retry always worked.
+  it('is dropped so the next socket can mint a live one', async () => {
+    const store = await loadStore()
+    await store.connectToServer(SERVER)
+    await settle()
+
+    sockets.at(-1)!.fire('session', null)
+    await settle()
+
+    expect(deleteSession).toHaveBeenCalledWith(SERVER)
+    expect(store.needsLogin).toBe(true)
+  })
+
+  it('is left alone when Foundry names the session it knows', async () => {
+    await connectAndGoAnonymous()
+
+    // Anonymous, but live: trading it in would cost a round trip and gain
+    // nothing.
+    expect(deleteSession).not.toHaveBeenCalled()
+  })
 })
 
 describe('silent re-authentication', () => {
@@ -186,7 +216,7 @@ describe('silent re-authentication', () => {
     await connectAndGoAnonymous()
 
     for (let i = 0; i < 4; i++) {
-      sockets.at(-1)!.fire('session', {})
+      sockets.at(-1)!.fire('session', ANONYMOUS)
       await settle()
     }
 
@@ -207,7 +237,7 @@ describe('silent re-authentication', () => {
     await store.connectToServer(SERVER)
     await settle()
     for (let i = 0; i < 5; i++) {
-      sockets.at(-1)!.fire('session', {})
+      sockets.at(-1)!.fire('session', ANONYMOUS)
       await settle()
     }
     expect(store.needsLogin).toBe(true)
@@ -223,7 +253,7 @@ describe('silent re-authentication', () => {
     await store.connectToServer(SERVER)
     await settle()
     for (let i = 0; i < 5; i++) {
-      sockets.at(-1)!.fire('session', {})
+      sockets.at(-1)!.fire('session', ANONYMOUS)
       await settle()
     }
     expect(store.needsLogin).toBe(true)
@@ -232,7 +262,7 @@ describe('silent re-authentication', () => {
     await settle()
     expect(store.needsLogin).toBe(false)
 
-    sockets.at(-1)!.fire('session', {})
+    sockets.at(-1)!.fire('session', ANONYMOUS)
     await settle()
     expect(store.needsLogin).toBe(false)
   })
@@ -252,8 +282,8 @@ describe('silent re-authentication', () => {
     await store.connectToServer(SERVER)
     await settle()
     const socket = sockets.at(-1)!
-    socket.fire('session', {})
-    socket.fire('session', {})
+    socket.fire('session', ANONYMOUS)
+    socket.fire('session', ANONYMOUS)
     await settle()
 
     expect(verifyCredentials).toHaveBeenCalledTimes(1)

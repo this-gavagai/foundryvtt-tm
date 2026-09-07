@@ -334,7 +334,7 @@ export const useServerStore = defineStore('server', () => {
   // The stored session has to go too, not just the password: it's still valid,
   // so the next socket would hand it over and Foundry would answer with an
   // authenticated session event, clearing needsLogin and undoing the sign-out.
-  // Reconnecting without a sid gets an anonymous session, which then finds no
+  // Reconnecting then gets a *fresh* anonymous session, which finds no
   // credential to repair itself with and settles on the login page.
   //
   // The point of signing out is that someone else signs in on this device, so
@@ -454,9 +454,10 @@ export const useServerStore = defineStore('server', () => {
       sessionReady.value = false
       armSessionWatchdog(epoch, url)
     })
-    s.on('session', (args: { userId: string }) => {
+    s.on('session', (args: { sessionId?: string; userId: string } | null) => {
       logger.debug('TM-DIAG session event', {
         userId: args?.userId,
+        sessionId: args?.sessionId,
         stale: epoch !== connectionId
       })
       if (epoch !== connectionId) return
@@ -485,6 +486,20 @@ export const useServerStore = defineStore('server', () => {
         sessionHooks.onSessionAuthenticated?.()
       } else {
         sessionReady.value = false
+        // Foundry distinguishes the two ways to be logged out, and the app has
+        // to as well: an anonymous session it *knows* arrives as
+        // `{sessionId, userId: null}`, while a session it has never heard of —
+        // or none at all — arrives as a bare `null` (verified against 14.367).
+        // The second means the sid we are storing is dead; a server restart
+        // drops its whole session table. Keeping it would have every later
+        // socket hand the same dead sid back, and the login page wait out
+        // getJoinData's full retry budget on a socket Foundry wires no
+        // listeners for. Dropping it lets the next socket mint a live one (see
+        // the native transport's readSession); silent re-auth is unaffected,
+        // since POST /join brings its own session back.
+        if (!args?.sessionId) {
+          void Promise.resolve(currentTransport().deleteSession(url)).catch(() => {})
+        }
         handleAuthFailure()
       }
     })

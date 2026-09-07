@@ -1,21 +1,25 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-// How the native build gets hold of a Foundry session, and the one asymmetry
-// that used to break it.
+// How the native build gets hold of a Foundry session — the thing every socket
+// it opens is worth nothing without.
 //
-// Foundry sends a Set-Cookie only to a request that carried no session of its
-// own — every later request just re-presents the cookie it already planted. The
-// sid is HttpOnly, and the WebView's document.cookie belongs to the app origin
-// rather than the server's, so that header is the app's only sight of it.
+// Foundry recognizes a socket by the session in its handshake and by nothing
+// else: without one it emits `session: null`, registers no event listeners at
+// all, and every emit (getJoinData included) goes unanswered forever. And it
+// hands out a session only to a request that carried none — every later request
+// just re-presents the cookie it already planted. The sid is HttpOnly, and the
+// WebView's document.cookie belongs to the app origin rather than the server's,
+// so that response header is the app's only sight of it.
 //
-// The reachability probe (GET /api/status) runs through the session middleware
-// and therefore mints one. So a bare-host address like "vtt.example.com" — the
-// only kind that gets probed, to choose https over http — spent its session on
-// the probe, and the login page's GET /join came back with nothing to keep. The
-// socket then handshaked anonymously, v14 wired no listeners for it, and the
-// user list never arrived; typing "https://vtt.example.com" skipped the probe
-// and worked. Both halves of the repair are pinned here.
+// Two bugs came out of that, both pinned here. A bare-host address like
+// "vtt.example.com" — the only kind that gets probed, to choose https over http
+// — spent its session on the reachability probe (GET /api/status runs through
+// the session middleware), so the login page's GET /join came back with nothing
+// to keep and the user list never arrived at all; typing the protocol skipped
+// the probe and worked. And every session-less first socket was deaf by
+// construction, which is why the login page's first attempt failed and Retry
+// succeeded.
 
 const httpGet = vi.fn()
 const getCookies = vi.fn(() => Promise.resolve({}))
@@ -96,6 +100,46 @@ describe('capacitorServerTransport.probe', () => {
   })
 })
 
+describe('capacitorServerTransport.readSession', () => {
+  it('mints a session for a server it holds none for', async () => {
+    // Foundry recognizes a socket by the session in its handshake and nothing
+    // else: without one it registers no event listeners, so every emit —
+    // getJoinData included — is answered with silence. The socket about to be
+    // opened has to carry one, or it is deaf from birth.
+    httpGet.mockResolvedValue(withSession('minted-sid', { active: true }))
+
+    expect(await capacitorServerTransport.readSession(SERVER)).toBe('minted-sid')
+    expect(String(httpGet.mock.calls[0][0].url)).toBe('https://vtt.example.com/api/status')
+    expect(localStorage.getItem(SESSION_KEY)).toBe('minted-sid')
+  })
+
+  it('asks once when two sockets are established at the same moment', async () => {
+    httpGet.mockResolvedValue(withSession('minted-sid', { active: true }))
+
+    const [a, b] = await Promise.all([
+      capacitorServerTransport.readSession(SERVER),
+      capacitorServerTransport.readSession(SERVER)
+    ])
+
+    expect([a, b]).toEqual(['minted-sid', 'minted-sid'])
+    expect(httpGet).toHaveBeenCalledTimes(1)
+  })
+
+  it('hands the stored session over without a round trip', async () => {
+    localStorage.setItem(SESSION_KEY, 'stored-sid')
+
+    expect(await capacitorServerTransport.readSession(SERVER)).toBe('stored-sid')
+    expect(httpGet).not.toHaveBeenCalled()
+  })
+
+  it('leaves the socket session-less when the server cannot be reached', async () => {
+    httpGet.mockRejectedValue(new Error('unreachable'))
+
+    expect(await capacitorServerTransport.readSession(SERVER)).toBeUndefined()
+    expect(localStorage.getItem(SESSION_KEY)).toBeNull()
+  })
+})
+
 describe('capacitorServerTransport.getJoinData', () => {
   const socketSilence = () => Promise.reject(new Error('getJoinData timed out'))
 
@@ -123,6 +167,31 @@ describe('capacitorServerTransport.getJoinData', () => {
     expect(deleteCookie).toHaveBeenCalledWith({ url: SERVER.origin, key: 'session' })
     expect(httpGet).toHaveBeenCalledTimes(2)
     expect(localStorage.getItem(SESSION_KEY)).toBe('fresh-sid')
+  })
+
+  it('replaces a session the server no longer recognizes', async () => {
+    // A Set-Cookie is proof Foundry refused the sid we sent — it mints only for
+    // a request that carried none — so a server that restarted (dropping its
+    // session table) must not leave us re-presenting the dead one forever.
+    localStorage.setItem(SESSION_KEY, 'dead-sid')
+    httpGet.mockResolvedValue(withSession('live-sid'))
+
+    await capacitorServerTransport.getJoinData(SERVER, socketSilence)
+
+    expect(localStorage.getItem(SESSION_KEY)).toBe('live-sid')
+    expect(httpGet).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a session the server accepted', async () => {
+    localStorage.setItem(SESSION_KEY, 'live-sid')
+    httpGet.mockResolvedValue(withoutSession())
+
+    await capacitorServerTransport.getJoinData(SERVER, socketSilence)
+
+    // No Set-Cookie means Foundry took ours; a transient socket failure must
+    // not cost a session that works.
+    expect(localStorage.getItem(SESSION_KEY)).toBe('live-sid')
+    expect(deleteCookie).not.toHaveBeenCalled()
   })
 
   it('asks only once when the join page mints a session', async () => {
