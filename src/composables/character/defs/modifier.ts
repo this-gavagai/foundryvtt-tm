@@ -19,6 +19,10 @@ export interface Modifier {
   // hit; null/undefined = applies to both. Set by PF2e's FlatModifier and
   // DamageDicePF2e constructors and preserved through JSON serialization.
   critical: Maybe<boolean>
+  // Inputs to the stacking contest the sheet re-runs on every toggle. See
+  // ruleEngine/flatModifiers.stackingOutcome.
+  force: Maybe<boolean>
+  ignored: Maybe<boolean>
 }
 type RawDamageModifier = RawModifier | RawDamageDice
 // Accept both live PF2e modifiers (world data that never left Foundry) and the
@@ -37,6 +41,8 @@ export function makeModifiers(set: ModifierLike[] | undefined): Modifier[] | und
     enabled: m.enabled,
     hideIfDisabled: m.hideIfDisabled,
     type: 'type' in m ? m.type : undefined,
-    critical: (m as { critical?: boolean | null }).critical ?? undefined
+    critical: (m as { critical?: boolean | null }).critical ?? undefined,
+    force: (m as { force?: boolean }).force ?? undefined,
+    ignored: (m as { ignored?: boolean }).ignored ?? undefined
   }))
 }

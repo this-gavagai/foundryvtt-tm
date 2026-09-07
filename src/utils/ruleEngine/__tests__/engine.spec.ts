@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { deriveFigure, saveDomains, AC_DOMAINS, describeLedger } from '@/utils/ruleEngine'
 import {
   applyStacking,
+  resolveStacking,
   collectFlatModifiers,
   type EngineItem,
   type EngineModifier
@@ -217,7 +218,7 @@ describe('the version gate', () => {
 })
 
 describe('stacking', () => {
-  const mod = (over: Partial<EngineModifier>): EngineModifier => ({
+  const mod = (over: Partial<EngineModifier> & { ignored?: boolean }): EngineModifier => ({
     slug: 's',
     label: 'l',
     modifier: 0,
@@ -243,13 +244,57 @@ describe('stacking', () => {
     expect(applyStacking([mod({ modifier: 1 }), mod({ modifier: 2 })])).toBe(3)
   })
 
-  it('exempts a forced modifier from the contest', () => {
+  // This asserted the opposite — that `force` exempts a modifier from the
+  // contest and always applies. It does not. `force` is read in exactly ONE
+  // place in pf2e 8.4.1: the ability pre-pass, where it wins outright. A forced
+  // circumstance or status bonus competes like any other, so the smaller one
+  // still loses and the total is 2, not 3.
+  it('makes a forced modifier compete like any other outside `ability`', () => {
     expect(
       applyStacking([
         mod({ type: 'status', modifier: 2 }),
         mod({ type: 'status', modifier: 1, force: true })
       ])
-    ).toBe(3)
+    ).toBe(2)
+  })
+
+  // Ability modifiers contest as ONE group across both signs, unlike every
+  // other type. Two of opposite sign leave one survivor, not two — which is why
+  // PF2e gives them their own pass before the general contest.
+  it('leaves one ability modifier standing, whatever the signs', () => {
+    expect(
+      applyStacking([mod({ type: 'ability', modifier: 4 }), mod({ type: 'ability', modifier: -1 })])
+    ).toBe(4)
+  })
+
+  it('lets a forced ability modifier win against a larger one', () => {
+    expect(
+      applyStacking([
+        mod({ type: 'ability', modifier: 4 }),
+        mod({ type: 'ability', modifier: 1, force: true })
+      ])
+    ).toBe(1)
+  })
+
+  it('gives a tie to the later modifier, as PF2e’s `>=` does', () => {
+    const resolved = resolveStacking([
+      mod({ slug: 'first', type: 'status', modifier: 2 }),
+      mod({ slug: 'second', type: 'status', modifier: 2 })
+    ])
+    // Same total either way; the difference is which row the breakdown marks.
+    expect(applyStacking(resolved)).toBe(2)
+    expect(resolved.find((m) => m.slug === 'second')?.enabled).toBe(true)
+    expect(resolved.find((m) => m.slug === 'first')?.enabled).toBe(false)
+  })
+
+  it('keeps an ignored modifier out of every contest', () => {
+    // PF2e sets `ignored` on a modifier from an unequipped or uninvested item.
+    expect(
+      applyStacking([
+        mod({ type: 'item', modifier: 1 }),
+        mod({ type: 'item', modifier: 3, ignored: true })
+      ])
+    ).toBe(1)
   })
 })
 

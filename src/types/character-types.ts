@@ -39,6 +39,13 @@ export type SerializedModifier = {
   hideIfDisabled?: boolean
   type?: RawModifier['type']
   critical?: boolean
+  // Both are inputs to PF2e's stacking contest, which the client re-runs every
+  // time a player toggles a modifier. Without them that re-run is a different
+  // calculation from the one the server will do: `force` decides the `ability`
+  // contest outright, and `ignored` marks a modifier from an unequipped or
+  // uninvested item, which enters no contest at all.
+  force?: boolean
+  ignored?: boolean
   // True for modifiers declared on the action itself (e.g. Steal's "Object
   // pocketed or protected") rather than inherited from the skill statistic.
   fromAction?: boolean

@@ -263,43 +263,119 @@ export function collectFlatModifiers(
   }
 }
 
-// PF2e's `applyStackingRules`, resolved onto the modifiers themselves.
+// The fields the stacking contest reads, and nothing else.
 //
-// Returns the list with `enabled` set to what actually applies: within each
-// non-untyped type only the best positive and the worst negative survive, and
-// `force` exempts a modifier from the contest.
+// Deliberately loose, because two very different lists have to run through the
+// same contest: the engine's own modifiers, and the trimmed ones that arrive
+// over the wire and are re-contested every time a player toggles one.
+export interface Stackable {
+  type?: string | null
+  modifier?: number | null
+  enabled?: boolean | null
+  force?: boolean | null
+  ignored?: boolean | null
+}
+
+// PF2e's `applyStackingRules`, as the single place this rule is written.
 //
-// Resolving it onto the list rather than just summing is what makes the
-// breakdown honest. PF2e reports the losers too — a live character's untrained
-// Arcana shows `proficiency:0:proficiency:false` beside
-// `untrained-improvisation:4:proficiency:true`, and the pair reverses once the
-// skill is trained. Marking everything enabled would have shown Untrained
-// Improvisation as applying to a trained skill, which is exactly the thing the
-// stacking fix stopped it from doing to the TOTAL.
-export function resolveStacking(modifiers: readonly EngineModifier[]): EngineModifier[] {
-  const best = new Map<string, { positive?: EngineModifier; negative?: EngineModifier }>()
-  for (const modifier of modifiers) {
-    if (!modifier.enabled || modifier.type === 'untyped' || modifier.force) continue
-    const bucket = best.get(modifier.type) ?? {}
-    if (modifier.modifier >= 0) {
-      if (!bucket.positive || modifier.modifier > bucket.positive.modifier)
-        bucket.positive = modifier
-    } else if (!bucket.negative || modifier.modifier < bucket.negative.modifier) {
-      bucket.negative = modifier
+// Returns one verdict per input index rather than a new list or a set of slugs.
+// Indices because the two callers address modifiers differently — the engine by
+// object, the UI by slug — and slugs are neither unique nor always present, so
+// resolving by them would silently mark the wrong row.
+//
+// `isEnabled` is the seam that made unification possible. The engine asks about
+// its own `enabled`; the sheet asks about `enabled` as overridden by the player,
+// which is the whole reason the UI needs to re-run this at all — toggling a
+// modifier changes who wins, and neither PF2e nor the engine knows what was
+// toggled.
+//
+// Three details are easy to get wrong, and this had all three wrong:
+//
+//  1. ABILITY modifiers contest as ONE group across both signs, not as
+//     best-positive plus worst-negative. Two of opposite sign leave one
+//     survivor, not two.
+//  2. `force` is NOT a general exemption. It is read in exactly one place in
+//     pf2e 8.4.1 — the ability pre-pass, where it wins outright. A forced
+//     circumstance bonus competes like any other.
+//  3. Ties go to the LAST modifier: the comparators are `>=` and `<=`, so a
+//     later equal entry displaces an earlier one. Same total, different row
+//     marked — and the marked row is what the breakdown shows.
+export function stackingOutcome<T extends Stackable>(
+  modifiers: readonly T[],
+  isEnabled: (modifier: T) => boolean = (modifier) => !!modifier.enabled
+): boolean[] {
+  const amount = (modifier: T) => modifier.modifier ?? 0
+  const kind = (modifier: T) => modifier.type ?? 'untyped'
+  // `ignored` is an INPUT, not a result: PF2e sets it on a modifier from an
+  // unequipped or uninvested item, and such a modifier enters no contest.
+  const live = modifiers.map((modifier) => isEnabled(modifier) && !modifier.ignored)
+
+  // (1) and (2): the ability pre-pass, transcribed.
+  let winner = -1
+  modifiers.forEach((modifier, index) => {
+    if (!live[index] || kind(modifier) !== 'ability') return
+    if (winner < 0 || modifier.force) {
+      winner = index
+      return
     }
-    best.set(modifier.type, bucket)
-  }
-  return modifiers.map((modifier) => {
-    if (!modifier.enabled || modifier.type === 'untyped' || modifier.force) return modifier
-    const bucket = best.get(modifier.type)
-    const wins = bucket?.positive === modifier || bucket?.negative === modifier
-    return wins ? modifier : { ...modifier, enabled: false }
+    if (modifiers[winner].force) return
+    if (amount(modifier) > amount(modifiers[winner])) winner = index
   })
+  modifiers.forEach((modifier, index) => {
+    if (kind(modifier) === 'ability' && index !== winner) live[index] = false
+  })
+
+  // The per-type contest, one bucket per type and sign.
+  const applies = modifiers.map(() => false)
+  const bonuses = new Map<string, number>()
+  const penalties = new Map<string, number>()
+  modifiers.forEach((modifier, index) => {
+    if (!live[index]) return
+    if (kind(modifier) === 'untyped') {
+      applies[index] = true
+      return
+    }
+    const negative = amount(modifier) < 0
+    const bucket = negative ? penalties : bonuses
+    const incumbent = bucket.get(kind(modifier))
+    if (incumbent === undefined) {
+      applies[index] = true
+      bucket.set(kind(modifier), index)
+      return
+    }
+    // (3): `>=` / `<=`, so equal displaces.
+    const better = negative
+      ? amount(modifier) <= amount(modifiers[incumbent])
+      : amount(modifier) >= amount(modifiers[incumbent])
+    if (!better) return
+    applies[incumbent] = false
+    applies[index] = true
+    bucket.set(kind(modifier), index)
+  })
+  return applies
+}
+
+// The contest resolved back onto the modifiers, which is what makes a breakdown
+// honest. PF2e reports the losers too — a live character's untrained Arcana
+// shows `proficiency:0:proficiency:false` beside
+// `untrained-improvisation:4:proficiency:true`, and the pair reverses once the
+// skill is trained.
+//
+// Every modifier the engine collects is pushed `enabled: true`, because a
+// predicate that failed never gets pushed at all. So in an ENGINE list,
+// `enabled: false` means precisely "outranked" — which is what lets the sheet
+// tell an outranked row from a switched-off one.
+export function resolveStacking(modifiers: readonly EngineModifier[]): EngineModifier[] {
+  const applies = stackingOutcome(modifiers)
+  return modifiers.map((modifier, index) =>
+    modifier.enabled === applies[index] ? modifier : { ...modifier, enabled: applies[index] }
+  )
 }
 
 export function applyStacking(modifiers: readonly EngineModifier[]): number {
-  return resolveStacking(modifiers).reduce(
-    (total, modifier) => (modifier.enabled ? total + modifier.modifier : total),
+  const applies = stackingOutcome(modifiers)
+  return modifiers.reduce(
+    (total, modifier, index) => (applies[index] ? total + modifier.modifier : total),
     0
   )
 }

@@ -1,5 +1,6 @@
 import { computed, type Ref } from 'vue'
 import { useDerivedModifiers } from './derivedModifiers'
+import type { EngineModifier } from '@/utils/ruleEngine/flatModifiers'
 import type {
   Immunity,
   Weakness,
@@ -125,13 +126,40 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
   // full and thrown away — measured at 4.2ms per sheet render for a 100-item
   // character, on hardware far quicker than the tablet this runs on. The
   // derivation is only cheap when it does not happen.
+  // Declared ahead of statOrDerived, which closes over it: a `const` used by a
+  // function defined above it works only because the call is lazy, and that is
+  // not a thing to rely on.
+  const derivedModifiers = useDerivedModifiers()
   const statOrDerived = (
     prepared: Stat | undefined,
-    fallback: () => { value: number; provisional: boolean; caveat: string } | undefined,
+    fallback: () =>
+      | {
+          value: number
+          provisional: boolean
+          caveat: string
+          modifiers?: EngineModifier[] | undefined
+        }
+      | undefined,
     slug: string,
     label: string
   ): Stat | undefined => {
-    if (prepared?.value !== undefined || prepared?.totalModifier !== undefined) return prepared
+    // PREPARED, not merely present.
+    //
+    // The old test was `value !== undefined`, and a world dump satisfies it: two
+    // of the ten characters on the test table store `saves.fortitude` as
+    // `{ rank: 0, value: 0 }` — a stale zero PF2e overwrites during preparation
+    // and never reads. That zero passed the gate, so their saves displayed as
+    // +0 with an empty breakdown while the engine had +9 ready, on any sheet no
+    // GM had answered for.
+    //
+    // A prepared statistic is recognisable by what only preparation produces: a
+    // `totalModifier`, a `breakdown`, or a modifier list. Source data has a
+    // rank and sometimes a stale value, and none of the three.
+    const looksPrepared =
+      prepared?.totalModifier !== undefined ||
+      prepared?.breakdown !== undefined ||
+      prepared?.modifiers !== undefined
+    if (looksPrepared) return prepared
     const derivedFigure = fallback()
     if (!derivedFigure) return prepared
     return {
@@ -141,7 +169,16 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
       value: derivedFigure.value,
       totalModifier: derivedFigure.value,
       provisional: derivedFigure.provisional,
-      caveat: derivedFigure.caveat
+      caveat: derivedFigure.caveat,
+      // The engine's breakdown, not just its total.
+      //
+      // Without this the info modal showed the right number over an EMPTY list
+      // on a sheet no GM has answered for — and there is nothing else to fall
+      // back on, because the world dump carries no modifiers at all: a
+      // character's `system.saves` is `{}` and `system.perception` is null. AC
+      // had this wired directly; saves, skills and perception did not, so the
+      // engine computed a breakdown that nothing ever displayed.
+      modifiers: derivedModifiers.present(derivedFigure.modifiers)
     } as Stat
   }
   const attributes = {
@@ -153,7 +190,6 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
     cha: computed(() => actor.value?.system?.abilities?.cha?.mod ?? calcAttribute(actor, 'cha'))
   }
   const derivedAc = derived.armorClass
-  const derivedModifiers = useDerivedModifiers()
   const ac = {
     current: computed(() => actor.value?.system?.attributes?.ac?.value ?? derivedAc.value?.value),
     // Whether the AC on screen is the engine's rather than PF2e's, and whether

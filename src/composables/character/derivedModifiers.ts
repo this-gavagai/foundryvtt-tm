@@ -60,6 +60,8 @@ export function useDerivedModifiers() {
         enabled: modifier.enabled,
         hideIfDisabled: modifier.hideIfDisabled,
         type: modifier.type,
+        force: modifier.force,
+        ignored: undefined,
         diceNumber: undefined,
         dieSize: undefined,
         damageType: undefined,

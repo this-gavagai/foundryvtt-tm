@@ -1,5 +1,6 @@
 import { computed, ref, type Ref } from 'vue'
 import type { Modifier } from '@/composables/character'
+import { stackingOutcome } from '@/utils/ruleEngine/flatModifiers'
 
 export function useModifierOverrides(
   modifiers: Ref<Modifier[] | undefined>,
@@ -42,31 +43,27 @@ export function useModifierOverrides(
     return modifierOverrides.value[slug] === false
   }
 
+  // PF2e's stacking rule, run through the ENGINE's implementation rather than a
+  // second copy of it.
+  //
+  // This used to reimplement the contest here, and the two had already drifted:
+  // this copy knew nothing of `force`, split ability modifiers by sign where
+  // PF2e contests them as one group, and gave ties to the first entry where
+  // PF2e gives them to the last. One rule, one implementation now; the seam is
+  // `effectiveEnabled`, which is the only part that is genuinely this file's —
+  // the contest has to be re-run against what the PLAYER has toggled, and
+  // neither PF2e nor the engine knows that.
   const stackingLosers = computed<Set<string>>(() => {
+    const mods = modifiers.value ?? []
+    const applies = stackingOutcome(mods, effectiveEnabled)
     const losers = new Set<string>()
-    const byType: Record<string, Modifier[]> = {}
-    for (const mod of modifiers.value ?? []) {
-      if (!effectiveEnabled(mod)) continue
-      const type = mod.type ?? 'untyped'
-      if (type === 'untyped') continue
-      ;(byType[type] ??= []).push(mod)
-    }
-    for (const bucket of Object.values(byType)) {
-      const positives = bucket.filter((mod) => (mod.modifier ?? 0) >= 0)
-      const negatives = bucket.filter((mod) => (mod.modifier ?? 0) < 0)
-      const claim = (winners: Modifier[], better: (a: number, b: number) => boolean) => {
-        if (winners.length <= 1) return
-        let best = winners[0]
-        for (let i = 1; i < winners.length; i++) {
-          if (better(winners[i].modifier ?? 0, best.modifier ?? 0)) best = winners[i]
-        }
-        for (const mod of winners) {
-          if (mod !== best && mod.slug) losers.add(mod.slug)
-        }
-      }
-      claim(positives, (a, b) => a > b)
-      claim(negatives, (a, b) => a < b)
-    }
+    mods.forEach((mod, index) => {
+      // Lost the CONTEST, as against merely being out of play. Only the former
+      // earns the outranked styling — a switched-off modifier is already greyed,
+      // and an `ignored` one (unequipped, uninvested) never entered a contest to
+      // lose, so calling it outranked would explain it wrongly.
+      if (!applies[index] && effectiveEnabled(mod) && !mod.ignored && mod.slug) losers.add(mod.slug)
+    })
     return losers
   })
 

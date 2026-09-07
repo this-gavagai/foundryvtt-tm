@@ -69,7 +69,12 @@ function serializeModifier(modifier: RawModifier) {
     enabled: modifier.enabled,
     hideIfDisabled: modifier.hideIfDisabled,
     type: modifier.type,
-    critical: (modifier as { critical?: boolean | null }).critical ?? undefined
+    critical: (modifier as { critical?: boolean | null }).critical ?? undefined,
+    // Carried because the client re-runs PF2e's stacking contest on every
+    // toggle. Dropping them made that re-run disagree with the server's for any
+    // forced modifier, and for anything hanging off unequipped gear.
+    force: (modifier as { force?: boolean }).force || undefined,
+    ignored: (modifier as { ignored?: boolean }).ignored || undefined
   }
 }
 
