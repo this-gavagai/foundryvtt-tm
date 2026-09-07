@@ -71,20 +71,24 @@ function parseJoinPage(html: string): { users: JoinUser[]; activeUsers: string[]
   }
 }
 
-// Fetches the login form's user list over plain HTTP.
-//
-// NOTE: this signs the session out of the world — Foundry's GET /join handler
-// calls sessions.logoutWorld before rendering. That's harmless here (the only
-// caller is the login page, where the user is about to pick a user anyway) but
-// it means this must never be used to *inspect* a session. Use
-// sessionIsAuthenticated for that.
-async function getNativeJoinData(serverUrl: URL): Promise<JoinData> {
-  const response = await CapacitorHttp.get({
+// NOTE: requesting /join signs the session out of the world — Foundry's GET
+// /join handler calls sessions.logoutWorld before rendering. That's harmless
+// for the callers below (they run from the login page, where the user is about
+// to pick a user anyway) but it means this must never be used to *inspect* a
+// session. Use sessionIsAuthenticated for that.
+function requestJoinPage(serverUrl: URL): Promise<HttpResponse> {
+  return CapacitorHttp.get({
     url: new URL('/join', serverUrl).href,
     responseType: 'text',
     connectTimeout: JOIN_DATA_TIMEOUT_MS,
     readTimeout: JOIN_DATA_TIMEOUT_MS
   })
+}
+
+// Fetches the login form's user list over plain HTTP, and keeps the session the
+// request mints.
+async function getNativeJoinData(serverUrl: URL): Promise<JoinData> {
+  let response = await requestJoinPage(serverUrl)
   if (response.status < 200 || response.status >= 300) {
     throw new Error(`Join page returned ${response.status}`)
   }
@@ -98,15 +102,32 @@ async function getNativeJoinData(serverUrl: URL): Promise<JoinData> {
   //
   // Only when nothing is stored. A session that exists and merely hit a
   // transient socket failure must not be traded for an anonymous one.
-  if (!readStoredSession(serverUrl)) await persistNativeSession(serverUrl, response)
+  //
+  // Foundry answers with a Set-Cookie only when the request carried no session
+  // of its own, so a session already sitting in the native jar that we have no
+  // record of (its sid was never readable — see persistNativeSession) makes
+  // this request come back with nothing to keep. Clearing the jar and asking
+  // again forces a mint we can actually see, rather than leaving the socket to
+  // handshake anonymously forever.
+  if (!readStoredSession(serverUrl) && !(await persistNativeSession(serverUrl, response))) {
+    logger.debug('TM-DIAG capacitor join page returned no session — re-minting')
+    await capacitorServerTransport.deleteSession(serverUrl)
+    response = await requestJoinPage(serverUrl)
+    await persistNativeSession(serverUrl, response)
+  }
   return { ...parseJoinPage(responseDataAsText(response)), userId: null }
 }
 
-async function persistNativeSession(serverUrl: URL, response: HttpResponse) {
+// Keep the session this response minted, reporting whether one was found. The
+// sid is only ever legible in a Set-Cookie header (Foundry's cookie is
+// HttpOnly, and the app's own document.cookie jar belongs to the WebView
+// origin, not the server's), so a response that set no cookie leaves us with
+// nothing — which is a *recoverable* state the caller has to know about.
+async function persistNativeSession(serverUrl: URL, response: HttpResponse): Promise<boolean> {
   const session =
     sessionFromSetCookie(readHeader(response, 'set-cookie')) ??
     (await CapacitorCookies.getCookies({ url: serverUrl.origin })).session
-  if (!session) return
+  if (!session) return false
   localStorage.setItem(sessionStorageKey(serverUrl), session)
   // Drop the ambiguous pre-upgrade global session now that this server has its
   // own, so it can never be mis-applied to a different server.
@@ -120,6 +141,7 @@ async function persistNativeSession(serverUrl: URL, response: HttpResponse) {
     value: session,
     path: sessionCookiePath(serverUrl)
   })
+  return true
 }
 
 export const capacitorServerTransport: ServerTransport = {
@@ -206,7 +228,20 @@ export const capacitorServerTransport: ServerTransport = {
         connectTimeout: PROBE_TIMEOUT_MS,
         readTimeout: PROBE_TIMEOUT_MS
       })
-      return response.status >= 200 && response.status < 300
+      const reachable = response.status >= 200 && response.status < 300
+      // /api/status runs through Foundry's session middleware, so this probe
+      // *mints* a session of its own — and Foundry only sends a Set-Cookie to a
+      // request that carried none, so the login page's GET /join then comes
+      // back with no sid to keep. Keeping the probe's is what stops a bare-host
+      // address (which is the only kind that gets probed, to choose https over
+      // http) from reaching the login page session-less: the socket would
+      // handshake anonymously, v14 would wire no listeners for it, and the user
+      // list would never arrive. Typing the protocol skipped the probe, which
+      // is why that spelling of the same server worked.
+      if (reachable && !readStoredSession(serverUrl)) {
+        await persistNativeSession(serverUrl, response)
+      }
+      return reachable
     } catch {
       return false
     }
