@@ -1,7 +1,6 @@
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 import { ref, type Ref } from 'vue'
 import type { CharacterPF2e } from '@7h3laughingman/pf2e-types'
-import { deriveFigure, type EngineInput } from './index'
 import {
   deriveActorTraits,
   readStoredRanks,
@@ -35,41 +34,35 @@ type SpellModifiers = { dc?: number; mod?: number; modifiers?: WireModifier[] }
 
 // Measure the engine against PF2e, on real characters, continuously.
 //
-// This is the whole reason the engine can be trusted rather than merely hoped
-// for: every character payload carries PF2e's OWN answer for the same actor the
-// engine can be run against. That makes each payload a labelled example, and the
-// table a growing test set that no hand-written fixture suite could match for
-// realism — real feats, real homebrew, real module interactions.
+// Every character payload carries PF2e's OWN answer for the same actor the
+// engine can be run against, which makes each payload a labelled example and the
+// table a growing test set no hand-written fixture suite could match for realism.
+// Nothing here changes a number on screen.
 //
-// So the engine is measured before it is displayed. Nothing here changes a
-// number on screen; it reports how far the engine is from the truth, per
-// statistic, so that "good enough to show" becomes an observation rather than a
-// judgement call.
+// Three outcomes, carrying very different weight:
 //
-// Three outcomes, and they carry very different weight:
-//
-//   valueMismatch  same modifier, different number. An arithmetic or clamping
-//                  bug — noisy but honest, and easy to chase.
-//   engineOnly     the engine produced a modifier PF2e did not. It said a
-//                  predicate was true that was false: an OVER-application, the
-//                  kind that inflates a defence.
-//   silentMiss     PF2e has a modifier from a FlatModifier rule on this actor
-//                  that the engine neither produced NOR recorded as skipped.
-//                  This is the only category that indicts the design rather than
-//                  the implementation — the ledger was supposed to make it
+//   valueMismatch  same modifier, different number. Arithmetic or clamping.
+//   engineOnly     the engine produced a modifier PF2e did not — it read a
+//                  predicate as true that was false. OVER-application, the kind
+//                  that inflates a defence.
+//   silentMiss     PF2e has a modifier from a FlatModifier on this actor that the
+//                  engine neither produced NOR recorded as skipped. The only
+//                  category that indicts the DESIGN rather than the
+//                  implementation: the ledger was supposed to make it
 //                  impossible, so any occurrence is a bug in the honesty
 //                  machinery itself and outranks the other two.
 //
-// It also compares WHOLE TOTALS, which is a strictly stronger check than the
-// modifier sets: it exercises the base arithmetic — proficiency ranks, the class
-// item's stored values, dex caps, ancestry hit points — that the modifier
-// comparison cannot see at all. A figure can have a perfect modifier set and
-// still be six points out because its proficiency rank was never upgraded.
+// It also compares WHOLE TOTALS, which is strictly stronger than the modifier
+// sets: it exercises the base arithmetic — ranks, class stored values, dex caps,
+// ancestry hit points — that the modifier comparison cannot see at all.
 //
-// Attributes are compared separately. `calcAttribute` reconstructs them from
-// build data, and every statistic keys off one, so an error there would surface
-// as divergence in a dozen figures at once and look like a dozen bugs. Checked
-// on its own, it reads as what it is.
+// THE HARNESS MUST BE CONFIGURED AS THE SHEET IS, or it is measuring a different
+// engine. `usedSource` and `usedTraitVocabulary` exist because that failed
+// silently once; see the note on `usedTraitVocabulary` below.
+//
+// Attributes are compared separately: `calcAttribute` reconstructs them from
+// build data and every statistic keys off one, so an error there would surface as
+// divergence in a dozen figures at once and look like a dozen bugs.
 
 export interface FigureDivergence {
   figure: string
@@ -110,6 +103,17 @@ export interface DifferentialReport {
   // the payload's prepared system. A report built the second way flatters the
   // engine and must not be read as a measurement of the real path.
   usedSource: boolean
+  // Whether the world's trait vocabulary was available, as it is in production
+  // once the label catalog has been published.
+  //
+  // Its own flag for the same reason `usedSource` and `totalCompared` have one:
+  // an ABSENT input silently changes what is being measured, and a report that
+  // cannot say so is indistinguishable from one measuring the real thing. The
+  // harness once never passed a vocabulary while production always does, so
+  // every bare trait atom was `opaque` here and `context` there — a modifier
+  // gated on `{not: "trap"}` was SKIPPED in the measurement and APPLIED on the
+  // sheet, the flattering direction and the hardest to notice.
+  usedTraitVocabulary: boolean
 }
 
 interface WireModifier {
@@ -166,27 +170,40 @@ function candidateSlugs(items: readonly EngineItem[], domains: readonly string[]
   return slugs
 }
 
+// A figure with no comparable modifier list on the wire: hit points, initiative,
+// the speeds, the focus pool. One function rather than five hand-rolled
+// literals, which had already drifted apart.
+function totalOnly(
+  figure: string,
+  ledger: Ledger | undefined,
+  engine: number,
+  pf2e: number | undefined
+): FigureDivergence {
+  return {
+    figure,
+    valueMismatch: [],
+    engineOnly: [],
+    silentMiss: [],
+    skipped: ledger?.skipped.length ?? 0,
+    skippedBy: (ledger?.skipped ?? []).map((skip) => ({ key: skip.key, reason: skip.reason })),
+    totalCompared: typeof pf2e === 'number',
+    total: typeof pf2e === 'number' && engine !== pf2e ? { engine, pf2e } : undefined
+  }
+}
+
 function compareFigure(
   figure: string,
-  input: EngineInput,
+  items: readonly EngineItem[],
   domains: readonly string[],
   reported: WireModifier[] | undefined,
-  total?: { engine: number | undefined; pf2e: number | undefined },
-  // The modifier list the SHEET would render, when the caller has already built
-  // it. Passing it is what makes this compare the real derivation.
-  //
-  // Without it the comparison fell back to `deriveFigure`, which collects flat
-  // modifiers and returns them UNRESOLVED — no stacking applied, and no
-  // attribute or proficiency in the contest at all. So a proficiency-typed feat
-  // that loses to a trained skill's own bonus came out enabled here and disabled
-  // in PF2e's list, and the harness reported a divergence out of two lists that
-  // agree exactly. Every trained skill on every character carrying Untrained
-  // Improvisation, on every payload.
-  actual?: { modifiers: EngineModifier[]; ledger: Ledger }
+  total: { engine: number | undefined; pf2e: number | undefined },
+  // The figure the SHEET would render. REQUIRED — there is no second way to
+  // produce one, and the type is what keeps it that way. An instrument must not
+  // be able to measure a code path production never calls.
+  derived: { modifiers: EngineModifier[]; ledger: Ledger }
 ): FigureDivergence {
-  const derived = actual ?? deriveFigure(input, domains)
   const truth = pf2eModifiers(reported)
-  const candidates = candidateSlugs(input.items, domains)
+  const candidates = candidateSlugs(items, domains)
   // Attribution is by slug, which is why the ledger records one. Matching on the
   // item's name instead would fail for any rule whose slug differs from it, and
   // an unattributable skip would be misread as a silent miss.
@@ -236,10 +253,10 @@ function compareFigure(
     silentMiss,
     skipped: derived.ledger.skipped.length,
     skippedBy: derived.ledger.skipped.map((skip) => ({ key: skip.key, reason: skip.reason })),
-    totalCompared: typeof total?.engine === 'number' && typeof total?.pf2e === 'number',
+    totalCompared: typeof total.engine === 'number' && typeof total.pf2e === 'number',
     total:
-      typeof total?.engine === 'number' &&
-      typeof total?.pf2e === 'number' &&
+      typeof total.engine === 'number' &&
+      typeof total.pf2e === 'number' &&
       total.engine !== total.pf2e
         ? { engine: total.engine, pf2e: total.pf2e }
         : undefined
@@ -251,6 +268,12 @@ function compareFigure(
 export function runDifferential(
   args: UpdateCharacterDetailsArgs,
   stamp: string | undefined,
+  // The world's trait slugs, exactly as the sheet passes them. NOT optional in
+  // spirit — `undefined` is a legitimate value (the catalog is unpublished) but
+  // a caller that simply forgets is measuring something else, so it is a
+  // positional parameter rather than a field on an options bag, and the report
+  // says which way it went. See `usedTraitVocabulary`.
+  traitVocabulary: readonly string[] | undefined,
   // The SAME actor as the world dump holds it — source data, no prepared
   // overlays. Passing it is what makes this a measurement of the fallback path
   // rather than of a situation the engine never faces.
@@ -301,121 +324,93 @@ export function runDifferential(
   // definite "no" — so reading the payload's here would measure a case
   // production never sees.
   const traits = usedSource ? deriveActorTraits(items) : (system?.traits?.value ?? [])
-  const input: EngineInput = {
-    items,
-    options: { level, traits, items, activeRules: args.activeRules ?? [] },
-    paths: typeof level === 'number' ? { 'actor.level': level } : {},
-    stamp
-  }
-
   // PF2e's own attribute modifiers, so the statistic comparison isolates the
   // statistic. calcAttribute is checked separately below.
   const attributes: Record<string, number> = {}
   for (const key of ['str', 'dex', 'con', 'int', 'wis', 'cha']) {
     attributes[key] = system?.abilities?.[key]?.mod ?? 0
   }
-  const derivationInput: DerivationInput | undefined =
-    typeof level === 'number'
-      ? {
-          items,
-          level,
-          attributes,
-          traits,
-          activeRules: args.activeRules ?? [],
-          // From SOURCE when we have it, which is the whole point.
-          storedRanks: readStoredRanks(sourceActor?.system ?? undefined),
-          stamp
-        }
-      : undefined
+
+  // Nothing is measurable without a level: every figure keys off it, and the
+  // engine declines to derive at all. An empty report that says so beats a
+  // report full of rows that compared nothing.
+  if (typeof level !== 'number') {
+    return {
+      actorId: args.actorId,
+      figures: [],
+      attributes: [],
+      clean: true,
+      silentMisses: 0,
+      totalMismatches: 0,
+      usedSource,
+      usedTraitVocabulary: !!traitVocabulary?.length
+    }
+  }
+
+  // ONE input, carrying every field the sheet's own `derivationInputFor`
+  // populates. A field present there and absent here is not a smaller
+  // measurement — it is a measurement of a different engine.
+  const derivationInput: DerivationInput = {
+    items,
+    level,
+    attributes,
+    traits,
+    activeRules: args.activeRules ?? [],
+    rollOptionSet: args.rollOptionSet,
+    // From SOURCE when we have it, which is the whole point.
+    storedRanks: readStoredRanks(sourceActor?.system ?? undefined),
+    traitVocabulary,
+    stamp
+  }
 
   const figures: FigureDivergence[] = []
+  const ac = deriveArmorClass(derivationInput)
   figures.push(
-    compareFigure(
-      'ac',
-      input,
-      AC_DOMAINS,
-      system?.attributes?.ac?.modifiers,
-      {
-        engine: derivationInput ? deriveArmorClass(derivationInput).value : undefined,
-        pf2e: system?.attributes?.ac?.value
-      },
-      derivationInput ? deriveArmorClass(derivationInput) : undefined
-    )
+    compareFigure('ac', items, AC_DOMAINS, system?.attributes?.ac?.modifiers, {
+      engine: ac.value,
+      pf2e: system?.attributes?.ac?.value
+    }, ac)
   )
+  const perception = derivePerception(derivationInput)
   figures.push(
-    compareFigure(
-      'perception',
-      input,
-      PERCEPTION_DOMAINS,
-      system?.perception?.modifiers,
-      {
-        engine: derivationInput ? derivePerception(derivationInput).value : undefined,
-        pf2e: system?.perception?.totalModifier
-      },
-      derivationInput ? derivePerception(derivationInput) : undefined
-    )
+    compareFigure('perception', items, PERCEPTION_DOMAINS, system?.perception?.modifiers, {
+      engine: perception.value,
+      pf2e: system?.perception?.totalModifier
+    }, perception)
   )
   // Hit points have no modifier list of their own on the wire, so this row is a
   // pure total comparison — and the one most likely to expose a wrong class or
   // ancestry reading, since nothing else on the sheet uses those fields.
-  if (derivationInput) {
-    figures.push({
-      figure: 'hp-max',
-      valueMismatch: [],
-      engineOnly: [],
-      silentMiss: [],
-      skipped: deriveHitPointsMax(derivationInput).ledger.skipped.length,
-      skippedBy: deriveHitPointsMax(derivationInput).ledger.skipped.map((skip) => ({
-        key: skip.key,
-        reason: skip.reason
-      })),
-      totalCompared: typeof system?.attributes?.hp?.max === 'number',
-      total:
-        typeof system?.attributes?.hp?.max === 'number' &&
-        deriveHitPointsMax(derivationInput).value !== system.attributes.hp.max
-          ? { engine: deriveHitPointsMax(derivationInput).value, pf2e: system.attributes.hp.max }
-          : undefined
-    })
-  }
+  const hp = deriveHitPointsMax(derivationInput)
+  figures.push(totalOnly('hp-max', hp.ledger, hp.value, system?.attributes?.hp?.max))
   for (const [slug, save] of Object.entries(system?.saves ?? {})) {
     if (!save) continue
+    const derived = deriveSave(derivationInput, slug)
     figures.push(
       compareFigure(
         slug,
-        input,
+        items,
         saveDomains(slug, save.attribute ?? SAVE_ATTRIBUTES[slug]),
         save.modifiers,
-        {
-          engine: derivationInput ? deriveSave(derivationInput, slug).value : undefined,
-          pf2e: save.totalModifier
-        },
-        derivationInput ? deriveSave(derivationInput, slug) : undefined
+        { engine: derived.value, pf2e: save.totalModifier },
+        derived
       )
     )
   }
   for (const [slug, skill] of Object.entries(system?.skills ?? {})) {
     if (!skill) continue
+    const derived = deriveSkill(derivationInput, slug, skill.rank ?? 0, {
+      lore: skill.lore,
+      attribute: skill.attribute
+    })
     figures.push(
       compareFigure(
         slug,
-        input,
+        items,
         skillDomains(slug, skill.attribute ?? 'int'),
         skill.modifiers,
-        {
-          engine: derivationInput
-            ? deriveSkill(derivationInput, slug, skill.rank ?? 0, {
-                lore: skill.lore,
-                attribute: skill.attribute
-              }).value
-            : undefined,
-          pf2e: skill.totalModifier
-        },
-        derivationInput
-          ? deriveSkill(derivationInput, slug, skill.rank ?? 0, {
-              lore: skill.lore,
-              attribute: skill.attribute
-            })
-          : undefined
+        { engine: derived.value, pf2e: skill.totalModifier },
+        derived
       )
     )
   }
@@ -423,73 +418,33 @@ export function runDifferential(
   // Initiative is a pure total comparison. Its modifier list is the underlying
   // statistic's, already checked in that statistic's own row, so comparing it
   // again would double-count one divergence as two.
-  if (derivationInput) {
-    const named = system?.initiative?.statistic
-    const rank = named ? (system?.skills?.[named]?.rank ?? 0) : 0
-    const engine = deriveInitiative(derivationInput, named, rank)
-    figures.push({
-      figure: 'initiative',
-      valueMismatch: [],
-      engineOnly: [],
-      silentMiss: [],
-      skipped: engine.ledger.skipped.length,
-      skippedBy: engine.ledger.skipped.map((skip) => ({ key: skip.key, reason: skip.reason })),
-      totalCompared: typeof system?.initiative?.totalModifier === 'number',
-      total:
-        typeof system?.initiative?.totalModifier === 'number' &&
-        engine.value !== system.initiative.totalModifier
-          ? { engine: engine.value, pf2e: system.initiative.totalModifier }
-          : undefined
-    })
-  }
+  const named = system?.initiative?.statistic
+  const initiative = deriveInitiative(
+    derivationInput,
+    named,
+    named ? (system?.skills?.[named]?.rank ?? 0) : 0
+  )
+  figures.push(
+    totalOnly('initiative', initiative.ledger, initiative.value, system?.initiative?.totalModifier)
+  )
 
-  // One row per spellcasting entry, twice over: a character with two entries
-  // has two different DCs, and the whole reason spell DC needed its own
-  // derivation is that it does not follow the class.
-  // Speeds and the focus pool are pure total comparisons: neither carries a
+  // Speeds and the focus pool are pure total comparisons too: neither carries a
   // modifier list on the wire that lines up with the engine's domains, and both
   // are far more likely to be wrong in the base than in the modifiers.
-  if (derivationInput) {
-    const speeds = deriveMovement(derivationInput)
-    for (const [type, speed] of Object.entries(speeds)) {
-      const pf2e = system?.movement?.speeds?.[type]?.value
-      // PF2e reports absent speeds as null; the engine reports them as null
-      // too, so "both say nothing" is agreement, not a missing row.
-      if (typeof pf2e !== 'number' && !speed) continue
-      figures.push({
-        figure: `speed:${type}`,
-        valueMismatch: [],
-        engineOnly: [],
-        silentMiss: [],
-        skipped: speed?.ledger.skipped.length ?? 0,
-        skippedBy: (speed?.ledger.skipped ?? []).map((skip) => ({
-          key: skip.key,
-          reason: skip.reason
-        })),
-        totalCompared: typeof pf2e === 'number',
-        total:
-          typeof pf2e === 'number' && (speed?.value ?? 0) !== pf2e
-            ? { engine: speed?.value ?? 0, pf2e }
-            : undefined
-      })
-    }
-
-    const focus = deriveFocusPool(derivationInput)
-    const reportedFocus = system?.resources?.focus?.max
-    figures.push({
-      figure: 'focus-pool',
-      valueMismatch: [],
-      engineOnly: [],
-      silentMiss: [],
-      skipped: focus.ledger.skipped.length,
-      skippedBy: focus.ledger.skipped.map((skip) => ({ key: skip.key, reason: skip.reason })),
-      totalCompared: typeof reportedFocus === 'number',
-      total:
-        typeof reportedFocus === 'number' && focus.max !== reportedFocus
-          ? { engine: focus.max, pf2e: reportedFocus }
-          : undefined
-    })
+  for (const [type, speed] of Object.entries(deriveMovement(derivationInput))) {
+    const pf2e = system?.movement?.speeds?.[type]?.value
+    // PF2e reports absent speeds as null; the engine reports them as null
+    // too, so "both say nothing" is agreement, not a missing row.
+    if (typeof pf2e !== 'number' && !speed) continue
+    figures.push(
+      totalOnly(`speed:${type}`, speed?.ledger, speed?.value ?? 0, pf2e)
+    )
   }
+
+  const focus = deriveFocusPool(derivationInput)
+  figures.push(
+    totalOnly('focus-pool', focus.ledger, focus.max, system?.resources?.focus?.max)
+  )
 
   // Top level on the payload, NOT under `actor` — the sheet reads it off the
   // merged TablemateActor, where parseActorData has already hoisted it, and
@@ -500,29 +455,31 @@ export function runDifferential(
     if (entry.type !== 'spellcastingEntry') continue
     const id = (entry as { _id?: string })._id
     const reported = id ? spellMods?.[id] : undefined
-    if (!reported || !derivationInput) continue
+    if (!reported) continue
     const entrySystem = entry.system as unknown as SpellcastingEntrySystem | undefined
     const attribute = entrySystem?.ability?.value ?? 'int'
     const tradition = entrySystem?.tradition?.value ?? 'arcane'
     const slug = (entry as { name?: string }).name ?? id ?? 'spellcasting'
+    const dc = deriveSpellDC(derivationInput, entry)
+    const attack = deriveSpellAttack(derivationInput, entry)
     figures.push(
       compareFigure(
         `${slug} DC`,
-        input,
+        items,
         spellcastingDomains(attribute, tradition, 'dc'),
         reported.modifiers,
-        { engine: deriveSpellDC(derivationInput, entry).value, pf2e: reported.dc },
-        deriveSpellDC(derivationInput, entry)
+        { engine: dc.value, pf2e: reported.dc },
+        dc
       )
     )
     figures.push(
       compareFigure(
         `${slug} attack`,
-        input,
+        items,
         spellcastingDomains(attribute, tradition, 'attack'),
         reported.modifiers,
-        { engine: deriveSpellAttack(derivationInput, entry).value, pf2e: reported.mod },
-        deriveSpellAttack(derivationInput, entry)
+        { engine: attack.value, pf2e: reported.mod },
+        attack
       )
     )
   }
@@ -558,7 +515,8 @@ export function runDifferential(
     clean,
     silentMisses,
     totalMismatches,
-    usedSource
+    usedSource,
+    usedTraitVocabulary: !!traitVocabulary?.length
   }
 }
 

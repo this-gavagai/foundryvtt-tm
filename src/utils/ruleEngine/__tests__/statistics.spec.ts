@@ -862,3 +862,61 @@ describe('initiative', () => {
     expect(deriveInitiative(input, undefined, 0).value).toBe(derivePerception(fighter()).value + 2)
   })
 })
+
+// The rank pass, the roll-option set and the value context are resolved ONCE
+// per actor and shared by every figure (see `resolve` in statistics.ts). That is
+// a cache in front of the engine's hottest path, so it has to be pinned: keyed
+// on the input OBJECT, invalidated by a new one, and never handing one actor's
+// ranks to another.
+describe('the shared resolve', () => {
+  // The fighter fixture's class already grants expert Reflex, so a Will
+  // subfeature is what actually moves a rank here.
+  const withExpertise = (): DerivationInput =>
+    fighter([
+      {
+        name: 'Will Expertise',
+        type: 'feat',
+        system: {
+          slug: 'will-expertise',
+          rules: [],
+          subfeatures: { proficiencies: { will: { rank: 2 } } }
+        }
+      } as unknown as EngineItem
+    ])
+
+  it('gives the same answer however many times a figure is asked', () => {
+    const input = withExpertise()
+    const first = deriveSave(input, 'will').value
+    expect(deriveSave(input, 'will').value).toBe(first)
+    expect(derivePerception(input).value).toBe(derivePerception(input).value)
+  })
+
+  it('does not carry one actor’s ranks into another', () => {
+    // Two inputs, same shape but for the feat. A cache keyed on anything
+    // coarser than the object would answer the second from the first.
+    const expert = deriveSave(withExpertise(), 'will').value
+    const plain = deriveSave(fighter(), 'will').value
+    expect(expert).toBeGreaterThan(plain)
+    // And back again, to catch an entry that survives in the wrong direction.
+    expect(deriveSave(withExpertise(), 'will').value).toBe(expert)
+  })
+
+  it('counts the rank pass’s gaps once on initiative, not twice', () => {
+    // Initiative derives its underlying statistic AND used to run the rank pass
+    // again on top, folding the same skips into the ledger a second time. The
+    // count is what the player-facing caveat is built from.
+    const input = fighter([
+      feature('Mystery Rank', [
+        {
+          key: 'ActiveEffectLike',
+          mode: 'upgrade',
+          path: 'system.perception.rank',
+          value: '@actor.flags.nothing.here'
+        }
+      ])
+    ])
+    expect(deriveInitiative(input, 'perception', 0).ledger.skipped.length).toBe(
+      derivePerception(input).ledger.skipped.length
+    )
+  })
+})

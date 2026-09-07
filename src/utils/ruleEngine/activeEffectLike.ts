@@ -1,25 +1,22 @@
 import { testPredicate, type PredicateStatement } from './predicate'
 import { resolveValue, type ValueContext } from './resolveValue'
-import { asRolled, asPersistent, type RollOptionSet } from './rollOptions'
+import { asPersistent, type RollOptionSet } from './rollOptions'
 import { emptyLedger, type ConditionalModifier, type SkippedRule } from './ledger'
 import type { EngineItem } from './flatModifiers'
 
 // ActiveEffectLike: a rule element that writes a number straight onto the actor.
 //
-// The second type this engine implements, and it is not optional for Tier 2.
-// PF2e seeds a character's proficiency ranks from the class item's own source
-// fields — `class.system.savingThrows.fortitude`, `.defenses.light`,
-// `.perception` — and then every class feature that raises one does it with an
-// ActiveEffectLike `upgrade` on `system.saves.fortitude.rank`. Without this, a
-// level 15 fighter's Fortitude reads as the rank they had at level 1, and the
-// resulting save is wrong by four to six points while looking entirely ordinary.
+// Not optional. PF2e seeds proficiency ranks from the class item's source fields
+// and then every class feature that raises one does it with an AE-like `upgrade`
+// on `system.saves.<slug>.rank` — so without this a level 15 fighter's Fortitude
+// reads as the rank they had at level 1, four to six points out while looking
+// entirely ordinary.
 //
-// Bounded on purpose. It applies NUMERIC modes to a caller-supplied map of
-// paths, and does not touch anything else: no array writes, no flags, no string
-// overrides, no creating paths the caller did not ask about. A rule aimed
-// outside that map is not this engine's business and is not reported; a rule
-// aimed INSIDE it that cannot be resolved is reported, because it changes a
-// number the caller is about to show.
+// Bounded on purpose: NUMERIC modes only, against a caller-supplied map of
+// paths. No array writes, no flags, no string overrides, no creating paths the
+// caller did not ask about. A rule aimed outside the map is not this engine's
+// business and is not reported; one aimed INSIDE it that cannot be resolved is,
+// because it changes a number the caller is about to show.
 
 type Mode = 'add' | 'subtract' | 'remove' | 'multiply' | 'upgrade' | 'downgrade' | 'override'
 
@@ -218,9 +215,9 @@ export function applyActiveEffectLikes(
       continue
     }
 
-    // Two readings of one option set — see rollOptions.asRolled. The rolled
-    // verdict decides the number; the persistent one only explains a `false`.
-    const verdict = testPredicate(rule.predicate, asRolled(options))
+    // The set's own verdict decides the number; `asPersistent` is consulted
+    // only to explain a `false`. See rollOptions.asPersistent.
+    const verdict = testPredicate(rule.predicate, options)
     if (verdict === 'unknown') {
       draft.skipped.push({
         reason: 'unresolvable-predicate',

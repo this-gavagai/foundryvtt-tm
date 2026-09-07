@@ -1,6 +1,7 @@
 import { computed, type Ref } from 'vue'
 import { useDerivedModifiers } from './derivedModifiers'
 import type { EngineModifier } from '@/utils/ruleEngine/flatModifiers'
+import type { ConditionalModifier } from '@/utils/ruleEngine/ledger'
 import type {
   Immunity,
   Weakness,
@@ -138,6 +139,7 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
           provisional: boolean
           caveat: string
           modifiers?: EngineModifier[] | undefined
+          conditional?: ConditionalModifier[] | undefined
         }
       | undefined,
     slug: string,
@@ -178,7 +180,7 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
       // character's `system.saves` is `{}` and `system.perception` is null. AC
       // had this wired directly; saves, skills and perception did not, so the
       // engine computed a breakdown that nothing ever displayed.
-      modifiers: derivedModifiers.present(derivedFigure.modifiers)
+      modifiers: derivedModifiers.present(derivedFigure.modifiers, derivedFigure.conditional)
     } as Stat
   }
   const attributes = {
@@ -207,7 +209,7 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
       // The engine builds the same three rows PF2e does — attribute,
       // proficiency by rank, and the worn armour as one item bonus — so the AC
       // modal has a breakdown with no GM instead of an empty list.
-      return derivedModifiers.present(derivedAc.value?.modifiers)
+      return derivedModifiers.present(derivedAc.value?.modifiers, derivedAc.value?.conditional)
     })
   }
   // PF2e's shield block is a copy off the held shield item, so it rides a
@@ -345,6 +347,11 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
           totalModifier: fallback?.value,
           provisional: fallback?.provisional,
           caveat: fallback?.caveat,
+          // A lore's breakdown was never wired up, so its info modal showed the
+          // right total over an empty list — the same gap the core skills had
+          // before the engine's modifiers reached them, in the one place that
+          // has NO prepared alternative to fall back to.
+          modifiers: derivedModifiers.present(fallback?.modifiers, fallback?.conditional),
           // PF2e exposes lore stats at actor.skills[slug] just like core skills,
           // so the foundry-side 'skill' check handler dispatches them via the
           // same path.

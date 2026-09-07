@@ -1,15 +1,14 @@
 import { testPredicate, type PredicateStatement } from './predicate'
 import { resolveValue, type ValueContext } from './resolveValue'
-import { asRolled, asPersistent, type RollOptionSet } from './rollOptions'
+import { asPersistent, type RollOptionSet } from './rollOptions'
 import { emptyLedger, type ConditionalModifier, type SkippedRule } from './ledger'
 
 // Collect the FlatModifier rule elements that reach a set of domains.
 //
-// FlatModifier is roughly 70% of the rule elements in PF2e's own compendium and
-// close to all of the ones that move a defence or a check total, which is why it
-// is the only type implemented. Every other `key` is counted as unsupported
-// rather than ignored — a rule the engine cannot read is exactly as important to
-// report as one it read and could not resolve.
+// FlatModifier is the large majority of the rule elements in PF2e's compendium
+// and close to all of the ones that move a defence or a check total. Every other
+// `key` is COUNTED as unsupported rather than ignored — a rule the engine cannot
+// read matters as much as one it read and could not resolve. See ../README.md.
 
 export interface EngineModifier {
   slug: string
@@ -72,16 +71,15 @@ const NEVER_AFFECTS_A_TOTAL = new Set([
   'SubstituteRoll'
 ])
 
-// PF2e's own `sluggify`, in the part that matters here: apostrophes are
-// DELETED, not turned into a separator, so "Mage's Hat" is `mages-hat` and not
-// `mage-s-hat`. Everything else non-alphanumeric becomes a hyphen.
+// PF2e's own `sluggify`, in the part that matters: apostrophes are DELETED, not
+// turned into a separator, so "Mage's Hat" is `mages-hat` and not `mage-s-hat`.
+// Everything else non-alphanumeric becomes a hyphen.
 //
 // Not cosmetic. A modifier's slug is its identity: the harness matches the
 // engine's list against PF2e's by slug, and the roll path sends
 // `modifierOverrides` keyed by slug when a player toggles one off. A slug that
-// disagrees with PF2e's reads as a modifier PF2e never applied, and a toggle
-// against it would silently fail to bind. Three items on the live table hit
-// this — a Mage's Hat, a Crafter's Eyepiece and Healer's Gloves.
+// disagrees reads as a modifier PF2e never applied, and a toggle against it
+// would silently fail to bind.
 const sluggify = (input: string) =>
   input
     .toLowerCase()
@@ -184,11 +182,10 @@ export function collectFlatModifiers(
         continue
       }
 
-      // Asked twice, of two readings of the same option set. `asRolled` answers
-      // the way PF2e answers — roll-context options are absent — and its verdict
-      // decides the number. `asPersistent` withholds those, and is consulted
-      // only to explain a `false`.
-      const verdict = testPredicate(rule.predicate, asRolled(options))
+      // The option set answers the way PF2e answers — roll-context options are
+      // absent — and that verdict decides the number. `asPersistent` withholds
+      // those, and is consulted only to explain a `false`.
+      const verdict = testPredicate(rule.predicate, options)
       if (verdict === 'unknown') {
         // Unknown even when context is granted, so something the engine cannot
         // see is load-bearing. The only honest gap.
@@ -278,18 +275,19 @@ export interface Stackable {
 
 // PF2e's `applyStackingRules`, as the single place this rule is written.
 //
-// Returns one verdict per input index rather than a new list or a set of slugs.
-// Indices because the two callers address modifiers differently — the engine by
-// object, the UI by slug — and slugs are neither unique nor always present, so
-// resolving by them would silently mark the wrong row.
+// Shared with the ROLL path (composables/useModifierOverrides), and the shape is
+// what made that possible: a pure function over a loose `Stackable`, with
+// `isEnabled` as its one seam. The engine asks about its own `enabled`; the sheet
+// asks about `enabled` as overridden by the player, which is the whole reason the
+// UI re-runs this — toggling a modifier changes who wins, and neither PF2e nor
+// the engine knows what was toggled.
 //
-// `isEnabled` is the seam that made unification possible. The engine asks about
-// its own `enabled`; the sheet asks about `enabled` as overridden by the player,
-// which is the whole reason the UI needs to re-run this at all — toggling a
-// modifier changes who wins, and neither PF2e nor the engine knows what was
-// toggled.
+// One verdict per input INDEX rather than a new list or a set of slugs, because
+// the two callers address modifiers differently — the engine by object, the UI by
+// slug — and slugs are neither unique nor always present, so resolving by them
+// would mark the wrong row.
 //
-// Three details are easy to get wrong, and this had all three wrong:
+// Three details are easy to get wrong:
 //
 //  1. ABILITY modifiers contest as ONE group across both signs, not as
 //     best-positive plus worst-negative. Two of opposite sign leave one
@@ -356,15 +354,15 @@ export function stackingOutcome<T extends Stackable>(
 }
 
 // The contest resolved back onto the modifiers, which is what makes a breakdown
-// honest. PF2e reports the losers too — a live character's untrained Arcana
-// shows `proficiency:0:proficiency:false` beside
+// honest. PF2e reports the losers too — a live character's untrained Arcana shows
+// `proficiency:0:proficiency:false` beside
 // `untrained-improvisation:4:proficiency:true`, and the pair reverses once the
 // skill is trained.
 //
-// Every modifier the engine collects is pushed `enabled: true`, because a
-// predicate that failed never gets pushed at all. So in an ENGINE list,
-// `enabled: false` means precisely "outranked" — which is what lets the sheet
-// tell an outranked row from a switched-off one.
+// Every modifier the engine collects is pushed `enabled: true`, because a failed
+// predicate never gets pushed at all. So in an ENGINE list `enabled: false` means
+// precisely "outranked". A modifier that failed its predicate is reported
+// separately, as a ConditionalModifier.
 export function resolveStacking(modifiers: readonly EngineModifier[]): EngineModifier[] {
   const applies = stackingOutcome(modifiers)
   return modifiers.map((modifier, index) =>

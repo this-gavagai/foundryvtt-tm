@@ -132,11 +132,18 @@ function activate(e: KeyboardEvent) {
   ;(e.currentTarget as HTMLElement).click()
 }
 
-// Modifier toggling only makes sense for rollable stats — flipping a
-// modifier on a display-only StatBox (AC, HP, etc.) would have no effect
-// since there's no roll to feed the overrides into. canToggleModifiers
-// gates both the click handler and the cursor/visual affordances below.
-const canToggleModifiers = computed(() => !!activeRollAction.value)
+// Modifier toggling only makes sense where there is a roll to feed the
+// overrides into — flipping one on a display-only StatBox (AC, HP) would have
+// no effect. Gates both the click handler and the cursor/visual affordances.
+//
+// `isListening` as well as `rollAction`, because the overrides are carried BY the
+// roll request and there is no request without a listener. The two used to
+// disagree — the roll button required one, this did not — so with no GM online
+// the rows were clickable and restyled on tap for nothing. Which also decided,
+// by accident, whether the engine's own reconstructed modifier slugs
+// (ruleEngine/flatModifiers.sluggify) could ever reach a real roll. Decided
+// here now, once.
+const canToggleModifiers = computed(() => !!activeRollAction.value && isListening.value)
 const {
   modifierOverrides,
   toggleModifier: toggleModifierOverride,

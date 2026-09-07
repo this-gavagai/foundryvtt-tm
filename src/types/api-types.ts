@@ -125,6 +125,16 @@ export interface UpdateCharacterDetailsArgs {
   system: Partial<TablemateActor['system']>
   inventory: TablemateActorExtras['inventory']
   activeRules: string[]
+  // PF2e's own roll-option set for this actor at rest — `actor.getRollOptions()`.
+  //
+  // Authoritative where the rule engine would otherwise infer. Absent from a
+  // module that predates it, which is exactly the case the engine's closed-set
+  // inference still covers. See utils/ruleEngine/rollOptions.
+  //
+  // NOT `rollOptions`: a live `ActorPF2e` already has a property by that name —
+  // the RollOptionFlags object — and TablemateActor is typed as intersecting
+  // one, so the wire field has to be named apart from it.
+  rollOptionSet?: string[]
   elementalBlasts: TablemateActorExtras['elementalBlasts'] | null
   spellcastingModifiers: Record<string, SpellcastingModifierData>
   // The ONLY labels still riding a character payload: the i18n keys this actor's

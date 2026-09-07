@@ -24,19 +24,18 @@ import {
 import type { EngineItem, EngineModifier } from '@/utils/ruleEngine/flatModifiers'
 import type { MovementType } from '@/utils/ruleEngine/movement'
 import type { DerivedIWR } from '@/utils/ruleEngine/iwr'
-import { describeLedger } from '@/utils/ruleEngine/ledger'
+import { describeLedger, type ConditionalModifier } from '@/utils/ruleEngine/ledger'
 
-// The Tier-2 figures, derived for this actor.
+// The engine's figures, derived for this actor.
 //
-// Every one of these is a FALLBACK. A character payload's number wins whenever
-// there is one, without exception, because it came from PF2e itself. These exist
-// for the sheet painted from the world dump alone, where the alternative is a
-// blank where a save or an AC should be.
+// Every one is a FALLBACK. A character payload's number wins whenever there is
+// one, because it came from PF2e itself; these exist for the sheet painted from
+// the world dump alone, where the alternative is a blank.
 //
-// Each carries its ledger, and the sheet is expected to mark anything that is
-// not `exact`. A provisional number shown as though it were PF2e's is worse than
-// no number: it is indistinguishable from a correct one, and a player will act
-// on it.
+// Each carries its ledger, and the sheet is expected to mark anything not
+// `exact`: a provisional number shown as though it were PF2e's is worse than no
+// number, because it is indistinguishable from a correct one and a player will
+// act on it. See utils/ruleEngine/README.md.
 
 export interface DerivedFigure {
   value: number
@@ -47,6 +46,11 @@ export interface DerivedFigure {
   // engine's own naming. Present on every figure; the sheet reads it only where
   // PF2e sent no list of its own.
   modifiers: EngineModifier[]
+  // Modifiers waiting on a roll — "+2 vs traps". Resolved correctly and not
+  // applying NOW, which makes them part of the breakdown rather than a gap in
+  // it; see derivedModifiers.present. Kept separate from `modifiers` up to the
+  // point of display so nothing can mistake one for a contributor.
+  conditional: ConditionalModifier[]
 }
 
 export interface DerivedStatistics {
@@ -75,7 +79,8 @@ function present(result: DerivedStatistic): DerivedFigure {
     value: result.value,
     provisional: result.ledger.confidence !== 'exact',
     caveat: describeLedger(result.ledger),
-    modifiers: result.modifiers
+    modifiers: result.modifiers,
+    conditional: result.ledger.conditional
   }
 }
 
@@ -125,6 +130,9 @@ export function derivationInputFor(
     // skills — the class item's ranks then act as the floor.
     storedRanks: readStoredRanks(actor.value?.system),
     activeRules: actor.value?.activeRules ?? [],
+    // PF2e's own option set, when a GM has answered for this actor. Where it is
+    // present the engine stops inferring toggle states and reads them.
+    rollOptionSet: actor.value?.rollOptionSet,
     // The world's trait names, which is how a bare predicate atom is told apart
     // from a toggle slug. Absent until the catalog is published, and absent is
     // the conservative reading — every bare atom stays opaque.
@@ -138,12 +146,11 @@ export function useDerivedStatistics(
 ): DerivedStatistics {
   const { stamp } = storeToRefs(useLabelCatalogsStore())
 
-  // Built once per actor change and shared by every figure: the AE-like pass it
-  // drives is over the whole item list, so recomputing it per statistic would
-  // repeat the same work a dozen times on every render.
-  // Built once per actor change and shared by every figure: the AE-like pass it
-  // drives is over the whole item list, so recomputing it per statistic would
-  // repeat the same work a dozen times on every render.
+  // ONE input object per actor change, and its identity matters: the engine
+  // caches this actor's proficiency ranks, roll options and value context
+  // against it (see `resolve` in ruleEngine/statistics), so every figure on the
+  // sheet shares one pass over the item list instead of repeating it. Handing
+  // out a fresh object per figure would silently restore the old cost.
   const input = computed<DerivationInput | undefined>(() => derivationInputFor(actor, stamp.value))
 
   const speeds = computed(() => (input.value ? deriveMovement(input.value) : undefined))
@@ -201,7 +208,8 @@ export function useDerivedStatistics(
         value: pool.max,
         provisional: pool.ledger.confidence !== 'exact',
         caveat: describeLedger(pool.ledger),
-        modifiers: []
+        modifiers: [],
+        conditional: pool.ledger.conditional
       }
     })
   }

@@ -17,6 +17,7 @@ function report(over: Partial<DifferentialReport> = {}): DifferentialReport {
     silentMisses: 0,
     totalMismatches: 0,
     usedSource: true,
+    usedTraitVocabulary: true,
     ...over
   }
 }

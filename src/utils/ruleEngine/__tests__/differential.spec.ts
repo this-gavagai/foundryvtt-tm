@@ -4,6 +4,11 @@ import { labelPayload } from '@/utils/__tests__/fixtures/labelPayload'
 import type { UpdateCharacterDetailsArgs } from '@/types/api-types'
 
 const STAMP = 'pf2e@8.4.1|en|1.4.0'
+// The world's trait slugs, as the sheet always passes them. Stated in every
+// call rather than defaulted: a harness run without them measures a different,
+// more pessimistic engine than the one on screen, so the parameter is required
+// and each test says which configuration it is asserting about.
+const TRAITS = ['trap', 'emotion', 'undead']
 
 // Cast at the fixture boundary, once — the sibling character specs make the same
 // one. `actor` on the wire is serialized source data; the type claims a live
@@ -44,8 +49,8 @@ describe('agreement', () => {
   it('reports clean when the engine matches PF2e', () => {
     const report = runDifferential(
       payload([ringItem(1)], [{ slug: 'ring', modifier: 1, enabled: true }]),
-      STAMP
-    )
+      STAMP,
+    TRAITS)
     expect(report.clean).toBe(true)
     expect(describeDifferential(report)).toContain('clean')
   })
@@ -55,8 +60,8 @@ describe('agreement', () => {
     // not the engine applying something extra, so it must not read as one.
     const report = runDifferential(
       payload([], [{ slug: 'from-somewhere-else', modifier: 9, enabled: true }]),
-      STAMP
-    )
+      STAMP,
+    TRAITS)
     expect(report.figures.find((f) => f.figure === 'ac')?.engineOnly).toEqual([])
   })
 
@@ -67,8 +72,8 @@ describe('agreement', () => {
   it('compares the base entries by value, catching a rank that disagrees', () => {
     const report = runDifferential(
       payload([], [{ slug: 'proficiency', modifier: 9, enabled: true }]),
-      STAMP
-    )
+      STAMP,
+    TRAITS)
     const ac = report.figures.find((f) => f.figure === 'ac')
     expect(ac?.engineOnly).toEqual([])
     expect(ac?.valueMismatch.map((m) => m.slug)).toContain('proficiency')
@@ -77,8 +82,8 @@ describe('agreement', () => {
   it('ignores a modifier PF2e reports as disabled', () => {
     const report = runDifferential(
       payload([], [{ slug: 'ring', modifier: 1, enabled: false }]),
-      STAMP
-    )
+      STAMP,
+    TRAITS)
     expect(report.clean).toBe(true)
   })
 })
@@ -87,8 +92,8 @@ describe('divergence', () => {
   it('catches a value mismatch', () => {
     const report = runDifferential(
       payload([ringItem(2)], [{ slug: 'ring', modifier: 1, enabled: true }]),
-      STAMP
-    )
+      STAMP,
+    TRAITS)
     const ac = report.figures.find((f) => f.figure === 'ac')!
     expect(ac.valueMismatch).toEqual([{ slug: 'ring', engine: 2, pf2e: 1 }])
     expect(describeDifferential(report)).toContain('2≠1')
@@ -97,7 +102,7 @@ describe('divergence', () => {
   it('catches over-application — the engine said yes where PF2e said no', () => {
     // The engine resolved a predicate as true that PF2e resolved as false, so it
     // produced a modifier the system did not. This inflates a defence.
-    const report = runDifferential(payload([ringItem(1)], []), STAMP)
+    const report = runDifferential(payload([ringItem(1)], []), STAMP,TRAITS)
     const ac = report.figures.find((f) => f.figure === 'ac')!
     expect(ac.engineOnly).toEqual(['ring'])
     expect(describeDifferential(report)).toContain('over-applied')
@@ -135,8 +140,8 @@ describe('divergence', () => {
     ]
     const report = runDifferential(
       payload(items, [{ slug: 'mystery', modifier: 3, enabled: true }]),
-      STAMP
-    )
+      STAMP,
+    TRAITS)
     const ac = report.figures.find((f) => f.figure === 'ac')!
     // The skip was recorded, so this is NOT silent — the ledger did its job.
     expect(ac.skipped).toBe(1)
@@ -168,12 +173,53 @@ describe('divergence', () => {
     ]
     const report = runDifferential(
       payload(items, [{ slug: 'ring', modifier: 1, enabled: true }]),
-      STAMP
-    )
+      STAMP,
+    TRAITS)
     const ac = report.figures.find((f) => f.figure === 'ac')!
     expect(ac.silentMiss).toEqual(['ring'])
     expect(report.silentMisses).toBe(1)
     expect(describeDifferential(report)).toContain('SILENT MISS')
+  })
+})
+
+// The harness has to be configured the way the SHEET is, or it is measuring a
+// different engine. This is the concrete case: a bare atom naming a PF2e trait
+// is one of the ROLL's traits, so with the vocabulary it is answerable-and-absent
+// and `{not: "trap"}` is TRUE; without it the atom is opaque and the whole rule
+// is skipped. Production always has the vocabulary. The harness never passed it.
+describe('configuration', () => {
+  const trapWard = {
+    name: 'Trap Ward',
+    type: 'equipment',
+    system: {
+      slug: 'trap-ward',
+      rules: [
+        {
+          key: 'FlatModifier',
+          selector: 'ac',
+          type: 'item',
+          slug: 'trap-ward',
+          value: 1,
+          predicate: [{ not: 'trap' }]
+        }
+      ]
+    }
+  }
+  const args = payload([trapWard], [{ slug: 'trap-ward', modifier: 1, enabled: true }])
+
+  it('agrees with PF2e when given the vocabulary the sheet has', () => {
+    const report = runDifferential(args, STAMP, ['trap', 'emotion'])
+    expect(report.usedTraitVocabulary).toBe(true)
+    expect(report.figures.find((f) => f.figure === 'ac')?.skipped).toBe(0)
+    expect(report.clean).toBe(true)
+  })
+
+  it('skips the same rule without it, and says the report was misconfigured', () => {
+    const report = runDifferential(args, STAMP, undefined)
+    expect(report.usedTraitVocabulary).toBe(false)
+    // Not a silent miss — the ledger recorded it — but a different number from
+    // the one the sheet computes, which is the point.
+    expect(report.figures.find((f) => f.figure === 'ac')?.skipped).toBe(1)
   })
 })
 
@@ -190,7 +236,7 @@ describe('coverage', () => {
         skills: { athletics: { modifiers: [], attribute: 'str' } }
       } as unknown as UpdateCharacterDetailsArgs['system']
     })
-    const report = runDifferential(args, STAMP)
+    const report = runDifferential(args, STAMP,TRAITS)
     // hp-max, initiative, land speed and the focus pool join the list
     // unconditionally: none has a modifier list to key off, so all four are
     // compared whenever the payload reports a level. The other four speeds do
@@ -239,7 +285,7 @@ describe('coverage', () => {
         details: { level: { value: 5 } }
       } as unknown as UpdateCharacterDetailsArgs['system']
     })
-    const figures = runDifferential(args, STAMP).figures.map((f) => f.figure)
+    const figures = runDifferential(args, STAMP,TRAITS).figures.map((f) => f.figure)
     expect(figures).toContain('Arcane DC')
     expect(figures).toContain('Arcane attack')
     expect(figures).toContain('Bardic DC')
@@ -290,8 +336,8 @@ describe('whole totals', () => {
     // Fortitude: con 3 + (expert 2 x 2 + 8) = 15
     const report = runDifferential(
       withTotals({ saves: { fortitude: { modifiers: [], totalModifier: 15 } } }),
-      STAMP
-    )
+      STAMP,
+    TRAITS)
     expect(report.figures.find((f) => f.figure === 'fortitude')?.total).toBeUndefined()
   })
 
@@ -300,8 +346,8 @@ describe('whole totals', () => {
     // at all, and the number is still six out.
     const report = runDifferential(
       withTotals({ saves: { fortitude: { modifiers: [], totalModifier: 21 } } }),
-      STAMP
-    )
+      STAMP,
+    TRAITS)
     const fortitude = report.figures.find((f) => f.figure === 'fortitude')!
     expect(fortitude.valueMismatch).toEqual([])
     expect(fortitude.total).toEqual({ engine: 15, pf2e: 21 })
@@ -311,9 +357,9 @@ describe('whole totals', () => {
 
   it('compares maximum hit points, which have no modifier list at all', () => {
     // 8 + (10 + 3) x 8 = 112
-    const good = runDifferential(withTotals({ attributes: { hp: { max: 112 } } }), STAMP)
+    const good = runDifferential(withTotals({ attributes: { hp: { max: 112 } } }), STAMP,TRAITS)
     expect(good.figures.find((f) => f.figure === 'hp-max')?.total).toBeUndefined()
-    const bad = runDifferential(withTotals({ attributes: { hp: { max: 130 } } }), STAMP)
+    const bad = runDifferential(withTotals({ attributes: { hp: { max: 130 } } }), STAMP,TRAITS)
     expect(bad.figures.find((f) => f.figure === 'hp-max')?.total).toEqual({
       engine: 112,
       pf2e: 130
@@ -323,7 +369,7 @@ describe('whole totals', () => {
   it('checks calcAttribute on its own line', () => {
     // One wrong attribute would otherwise surface as a dozen wrong figures and
     // read as a dozen bugs.
-    const report = runDifferential(withTotals({}), STAMP)
+    const report = runDifferential(withTotals({}), STAMP,TRAITS)
     // The fixture has no build data, so calcAttribute returns 0 against PF2e's
     // reported modifiers — exactly the divergence this line exists to name.
     expect(report.attributes.map((a) => a.attribute)).toContain('str')

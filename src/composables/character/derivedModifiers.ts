@@ -1,6 +1,7 @@
 import { i18n } from '@/plugins/i18n'
 import type { Modifier } from './defs/modifier'
 import type { EngineModifier } from '@/utils/ruleEngine/flatModifiers'
+import type { ConditionalModifier } from '@/utils/ruleEngine/ledger'
 
 // The engine's modifiers, named the way PF2e names its own.
 //
@@ -51,21 +52,63 @@ export function useDerivedModifiers() {
     return modifier.label
   }
 
+  const blank = {
+    ignored: undefined,
+    diceNumber: undefined,
+    dieSize: undefined,
+    damageType: undefined,
+    critical: undefined
+  }
+
   return {
-    present: (modifiers: EngineModifier[] | undefined): Modifier[] | undefined =>
-      modifiers?.map((modifier) => ({
-        slug: modifier.slug,
-        label: label(modifier),
-        modifier: modifier.modifier,
-        enabled: modifier.enabled,
-        hideIfDisabled: modifier.hideIfDisabled,
-        type: modifier.type,
-        force: modifier.force,
-        ignored: undefined,
-        diceNumber: undefined,
-        dieSize: undefined,
-        damageType: undefined,
-        critical: undefined
-      }))
+    present: (
+      modifiers: EngineModifier[] | undefined,
+      // Modifiers the engine resolved correctly and whose answer is "not yet":
+      // false for a statistic at rest, true under some roll. Appended as
+      // DISABLED rows, which is what PF2e's own breakdown does — it keeps a
+      // predicate-failed modifier in the list with `enabled: false` — and what
+      // the roll path already ships for a conditional action modifier
+      // (`enableOptions`, extracted GM-side; see characterSkillActions).
+      //
+      // Without them the same character had a SHORTER breakdown with no GM than
+      // with one, missing exactly the rows a player wants to see, out of a fact
+      // the engine had already computed.
+      conditional?: ConditionalModifier[] | undefined
+    ): Modifier[] | undefined => {
+      if (!modifiers && !conditional) return undefined
+      return [
+        ...(modifiers ?? []).map((modifier) => ({
+          slug: modifier.slug,
+          label: label(modifier),
+          modifier: modifier.modifier,
+          enabled: modifier.enabled,
+          hideIfDisabled: modifier.hideIfDisabled,
+          type: modifier.type,
+          force: modifier.force,
+          ...blank
+        })),
+        ...(conditional ?? []).map((entry) => ({
+          slug: entry.slug,
+          // A conditional's label is a rule element's own, or the item's — world
+          // data either way, so it is not mapped through i18n. The one exception
+          // an AE-like conditional can produce is a bare path, which is not a
+          // label; the item's name is carried for exactly that case.
+          label: entry.label || entry.itemName || entry.slug,
+          modifier: entry.modifier,
+          // Never shown as contributing. `stackingOutcome` reads `enabled` as
+          // its liveness input, so a disabled row enters no contest and adds
+          // nothing to the total — while a player toggling it on puts it in,
+          // exactly as it does for a disabled row PF2e sent.
+          enabled: false,
+          // Always shown. `hideIfDisabled` exists for a modifier that is noise
+          // when off; a conditional is the opposite — being off is the whole
+          // thing it has to say.
+          hideIfDisabled: false,
+          type: entry.type,
+          force: false,
+          ...blank
+        }))
+      ]
+    }
   }
 }

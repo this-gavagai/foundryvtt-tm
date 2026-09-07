@@ -8,7 +8,7 @@ import {
   type EngineModifier
 } from './flatModifiers'
 import { sealLedger, type Ledger, type SkippedRule } from './ledger'
-import { asRolled, type RollOptionSet } from './rollOptions'
+import type { RollOptionSet } from './rollOptions'
 import { versionVerdict } from './index'
 
 // Movement speeds.
@@ -135,7 +135,7 @@ function constructedModifiers(
     // feats set. Unknown means the option family is one the engine cannot
     // decide, and a penalty silently dropped is exactly the direction that
     // flatters — so an unknown verdict is recorded and the penalty kept out.
-    const verdict = testPredicate([{ nor: ['armor:ignore-speed-penalty'] }], asRolled(options))
+    const verdict = testPredicate([{ nor: ['armor:ignore-speed-penalty'] }], options)
     if (verdict === 'true') {
       modifiers.push(
         modifier('armor-speed-penalty', armor?.name ?? 'Armor', armorPenalty, armor?.name ?? '')
@@ -154,7 +154,7 @@ function constructedModifiers(
   const shield = heldShieldItem(items)
   const shieldPenalty = (shield?.system as unknown as ArmorSystem | undefined)?.speedPenalty ?? 0
   if (shieldPenalty) {
-    const verdict = testPredicate([{ not: 'self:shield:ignore-speed-penalty' }], asRolled(options))
+    const verdict = testPredicate([{ not: 'self:shield:ignore-speed-penalty' }], options)
     if (verdict === 'true') {
       modifiers.push(
         modifier(
@@ -210,7 +210,7 @@ function baseSpeedRules(
       if (selector !== type) continue
 
       // PF2e's own reading: roll-context options are absent, not unknown.
-      const verdict = testPredicate(rule.predicate, asRolled(input.options))
+      const verdict = testPredicate(rule.predicate, input.options)
       if (verdict === 'false') continue
       if (verdict === 'unknown') {
         skipped.push({

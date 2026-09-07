@@ -253,3 +253,62 @@ describe('the last two modifier lists', () => {
     ])
   })
 })
+
+// A modifier waiting on a roll belongs IN the breakdown, disabled — which is
+// what PF2e's own list does, and what the roll path already ships for a
+// conditional action modifier (`fromAction` + `enableOptions`, extracted GM-side
+// and rendered by ModifierOverrideList). The engine computed the identical fact
+// into `ledger.conditional` and nothing read it, so the same character's
+// breakdown was SHORTER without a GM than with one, missing exactly the rows a
+// player wants to see.
+describe('modifiers waiting on a roll', () => {
+  const { present } = useDerivedModifiers()
+
+  const trapFinder = {
+    name: 'Trap Finder',
+    type: 'feat',
+    system: {
+      slug: 'trap-finder',
+      rules: [
+        {
+          key: 'FlatModifier',
+          selector: 'ac',
+          type: 'circumstance',
+          slug: 'trap-finder',
+          label: 'Trap Finder',
+          value: 2,
+          predicate: ['target:trait:trap']
+        }
+      ]
+    }
+  } as unknown as EngineItem
+
+  it('appends it as a disabled row rather than dropping it', () => {
+    const ac = deriveArmorClass(wizard([clothing as unknown as EngineItem, trapFinder]))
+    // Not a gap: the engine resolved it correctly and the answer is "not yet".
+    expect(ac.ledger.confidence).toBe('exact')
+    expect(ac.ledger.conditional.map((c) => c.slug)).toEqual(['trap-finder'])
+
+    const rows = present(ac.modifiers, ac.ledger.conditional)
+    const row = rows?.find((r) => r.slug === 'trap-finder')
+    expect(row?.label).toBe('Trap Finder')
+    expect(row?.modifier).toBe(2)
+    // Disabled, so it contributes nothing; and always shown, because being off
+    // is the whole thing it has to say.
+    expect(row?.enabled).toBe(false)
+    expect(row?.hideIfDisabled).toBe(false)
+  })
+
+  it('leaves the total alone', () => {
+    const withOut = deriveArmorClass(wizard([clothing as unknown as EngineItem]))
+    const withIn = deriveArmorClass(wizard([clothing as unknown as EngineItem, trapFinder]))
+    expect(withIn.value).toBe(withOut.value)
+  })
+
+  it('presents an empty list as undefined, not as an empty array', () => {
+    // The sheet reads "no answer" off undefined and would render an empty
+    // breakdown for [].
+    expect(present(undefined, undefined)).toBeUndefined()
+    expect(present(undefined, [])).toEqual([])
+  })
+})

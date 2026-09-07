@@ -348,11 +348,36 @@ export async function getCharacterDetails(
     }, {}),
     containers: serializeContainers(actor)
   }
+  // PF2e's OWN roll-option set for this actor, at rest.
+  //
+  // The authority, not an inference. `getRollOptions()` is what the system
+  // itself passes to every predicate it evaluates for a displayed statistic, so
+  // sending it replaces the app's reconstruction of the same thing — a closed
+  // set of families the client enumerates from source data, which can only ever
+  // approximate this. Where the app has it, an option is present because PF2e
+  // says so and absent because PF2e says so.
+  //
+  // Cheap next to what it replaces: a few hundred short strings on a payload
+  // that already carries the actor's whole item list.
+  const rollOptionSet = [...actor.getRollOptions()]
+
+  // Which of the actor's RollOption rules the toggle panel should OFFER. A
+  // different question from the set above — that says what is switched ON, this
+  // says what exists to switch — and the app reads it that way (see
+  // composables/character/characterRules).
+  //
+  // Two things were wrong here. Every rule was cast to a RollOption, so any
+  // rule element carrying an `option` field joined the list; and the predicate
+  // was tested against `[]` rather than against the actor's real options, so a
+  // toggle gated on anything true about the character — `self:trait:elf` is
+  // ordinary content — tested false and its toggle was never offered at all.
   const activeRules = new Set<string>()
+  const optionSet = new Set(rollOptionSet)
   actor.rules.forEach((r) => {
+    if (r.key !== 'RollOption') return
     const ro = r as RollOptionRuleElement
-    if (ro.option && ro.predicate.test([])) activeRules.add(ro.option)
-  }, [])
+    if (ro.option && ro.predicate.test(optionSet)) activeRules.add(ro.option)
+  })
   // elementalBlasts has a circular `actor` back-reference
   const cleanBlasts = elementalBlasts
     ? JSON.parse(JSON.stringify(elementalBlasts, blastReplacer))
@@ -560,6 +585,7 @@ export async function getCharacterDetails(
     system: systemPayload as UpdateCharacterDetailsArgs['system'],
     inventory: inventory as UpdateCharacterDetailsArgs['inventory'],
     activeRules: [...activeRules],
+    rollOptionSet,
     elementalBlasts: cleanBlasts,
     spellcastingModifiers,
     rollOptionLabels,

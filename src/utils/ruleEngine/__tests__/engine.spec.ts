@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { deriveFigure, saveDomains, AC_DOMAINS, describeLedger } from '@/utils/ruleEngine'
+import { saveDomains, AC_DOMAINS, describeLedger, sealLedger, versionVerdict } from '@/utils/ruleEngine'
+import { buildRollOptions, type RollOptionSource } from '@/utils/ruleEngine/rollOptions'
 import {
   applyStacking,
   resolveStacking,
@@ -18,10 +19,39 @@ const item = (name: string, rules: unknown[], extra: Record<string, unknown> = {
 
 const input = (items: ReturnType<typeof item>[], stamp: string | undefined = STAMP) => ({
   items,
-  options: { level: 5, traits: ['human'], items },
+  options: { level: 5, traits: ['human'], items } as RollOptionSource,
   paths: { 'actor.level': 5 },
   stamp
 })
+
+// These tests exercise the COLLECT → STACK → SEAL core directly, without the
+// base modifiers and proficiency ranks a real statistic brings.
+//
+// It used to be a production export (`deriveFigure`), which meant the only two
+// callers of that path were this file and the differential harness — so the
+// harness was measuring a code path the sheet never runs. The composition is
+// three lines and belongs to the test, not to the engine's surface.
+function deriveFigure(
+  source: {
+    items: readonly unknown[]
+    options: RollOptionSource
+    paths: Record<string, number>
+    stamp: string | undefined
+  },
+  domains: readonly string[]
+): { total: number; modifiers: EngineModifier[]; ledger: ReturnType<typeof sealLedger> } {
+  const collected = collectFlatModifiers(
+    source.items as EngineItem[],
+    domains,
+    buildRollOptions(source.options),
+    { paths: source.paths }
+  )
+  return {
+    total: applyStacking(collected.modifiers),
+    modifiers: collected.modifiers,
+    ledger: sealLedger(collected, versionVerdict(source.stamp))
+  }
+}
 
 describe('collecting modifiers', () => {
   it('applies a FlatModifier that reaches the domain', () => {
@@ -159,7 +189,11 @@ describe('the ledger', () => {
     expect(result.ledger.confidence).toBe('exact')
   })
 
-  it('says how many were missed, not just that some were', () => {
+  // The caveat is PLAYER-FACING — it lands inside "Calculated on this device —
+  // {caveat}. The GM has not confirmed it." So it names the things on the
+  // character sheet, not this file's reason codes. The reasons stay the right
+  // axis for the console, which is what `skippedBy` and `bySkippedKey` are.
+  it('names the items it could not account for, not the reason codes', () => {
     const result = deriveFigure(
       input([
         item('A', [{ key: 'AdjustModifier', selector: 'ac', value: 1 }]),
@@ -167,7 +201,25 @@ describe('the ledger', () => {
       ]),
       AC_DOMAINS
     )
-    expect(describeLedger(result.ledger)).toContain('2 not evaluated')
+    const caveat = describeLedger(result.ledger)
+    expect(caveat).toContain('A')
+    expect(caveat).toContain('B')
+    expect(caveat).not.toMatch(/unsupported-key|unresolvable-|unconfirmable-/)
+  })
+
+  it('names one item once however many of its rules were skipped', () => {
+    // Three rules on one item is one thing a player has to know about.
+    const result = deriveFigure(
+      input([
+        item('Bracers of Armor', [
+          { key: 'AdjustModifier', selector: 'ac', value: 1 },
+          { key: 'DexterityModifierCap', selector: 'ac', value: 1 },
+          { key: 'FlatModifier', selector: 'ac', value: 1, predicate: ['self:armored'] }
+        ])
+      ]),
+      AC_DOMAINS
+    )
+    expect(describeLedger(result.ledger)).toBe('did not account for Bracers of Armor')
   })
 })
 
@@ -192,7 +244,7 @@ describe('the version gate', () => {
     // five figures with the same caveat, which ranks nothing and teaches a
     // reader to stop looking. A mismatched stamp is a real signal; a missing one
     // is not.
-    const result = deriveFigure({ items: [], options: {}, paths: {}, stamp: undefined }, AC_DOMAINS)
+    const result = deriveFigure({ items: [], options: {} as RollOptionSource, paths: {}, stamp: undefined }, AC_DOMAINS)
     expect(result.ledger.skipped).toHaveLength(0)
     expect(result.ledger.confidence).toBe('exact')
   })

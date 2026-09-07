@@ -4,18 +4,13 @@ import type { Figure } from '@/utils/derivedFigures'
 import { describeDifferential } from './differential'
 import { logger } from '@/utils/utilities'
 
-// The harness's console surface, and its answer to a question the first version
-// could not answer: "is this thing running?"
+// The harness's console surface.
 //
-// That version logged only when a report diverged, which made silence ambiguous
-// in exactly the way the whole engine design exists to avoid. Seeing nothing was
-// consistent with everything matching, with Chrome hiding `console.debug`, with
-// a production build, with `runDifferential` throwing on every payload, and with
-// no payloads arriving at all. An instrument that is silent when healthy cannot
-// distinguish "no problem" from "no measurement".
-//
-// So: it announces itself once, counts every report whether clean or not, and
-// keeps them where they can be interrogated rather than scrolled back to.
+// It announces itself once, counts every report whether clean or not, and keeps
+// them where they can be interrogated rather than scrolled back to — because an
+// instrument that is silent when healthy cannot distinguish "no problem" from
+// "no measurement", which is the confusion the engine's ledger exists to prevent
+// everywhere else.
 
 export interface HarnessSummary {
   payloads: number
@@ -30,6 +25,14 @@ export interface HarnessSummary {
   // what separates "the engine agrees" from "nothing was checked".
   totalsCompared: number
   totalsUncompared: number
+  // Payloads NOT measured with the engine configured as the sheet configures it.
+  //
+  // Aggregated here rather than left on each report, because a flag nobody sums
+  // is a flag nobody reads — which is how the omission it records survived. A
+  // run with `misconfigured > 0` is not a weaker measurement of the engine; it
+  // is a measurement of a different one, whose skip counts and modifier sets do
+  // not describe what any player sees.
+  misconfigured: number
   // Which figures diverge most, worst first — where to look.
   byFigure: { figure: string; diverged: number; totalMismatch: number }[]
   // Which rule element types are costing the most coverage, worst first. This is
@@ -50,9 +53,14 @@ function summarize(): HarnessSummary {
   let totalMismatches = 0
   let totalsCompared = 0
   let totalsUncompared = 0
+  let misconfigured = 0
 
   for (const report of reports) {
     if (report.clean) clean++
+    // The sheet always passes a trait vocabulary once the catalog is published,
+    // so a report without one classified every bare trait atom more
+    // pessimistically than production does.
+    if (!report.usedTraitVocabulary || !report.usedSource) misconfigured++
     silentMisses += report.silentMisses
     totalMismatches += report.totalMismatches
     for (const attribute of report.attributes) {
@@ -86,6 +94,7 @@ function summarize(): HarnessSummary {
     totalMismatches,
     totalsCompared,
     totalsUncompared,
+    misconfigured,
     byFigure: [...byFigure.entries()]
       .map(([figure, counts]) => ({ figure, ...counts }))
       .sort((a, b) => b.diverged - a.diverged),
@@ -103,19 +112,17 @@ declare global {
       reports: () => DifferentialReport[]
       last: () => DifferentialReport | undefined
       // What we said PF2e WOULD compute after a write, where it then said
-      // otherwise. A different question from the differential above — that one
-      // compares the engine against the payload it arrived with, both
-      // describing the same settled world; these are predictions made across a
-      // mutation. See utils/derivedReconcile.
+      // otherwise. A different question from the differential above, which
+      // compares the engine against the payload it arrived with — both
+      // describing one settled world. See utils/derivedReconcile.
       predictions: () => PredictionMiss[]
       // Every derivable figure with our answer beside the payload's, right now.
       //
-      // The third question, and the one that needs no write and no divergence to
-      // answer: in a world nobody has touched, does each figure AGREE with the
-      // payload it is going to be compared against? Six of them could not, ever
-      // — their two sides rendered the same world in different shapes, so each
-      // reported a miss on every payload with the numbers identical. That was
-      // invisible from the other two inspectors and obvious from this one.
+      // The third question, needing neither a write nor a divergence: in a world
+      // nobody has touched, does each figure AGREE with the payload it will be
+      // compared against? A figure whose two sides render the same world in
+      // different SHAPES reports a miss on every payload with the numbers
+      // identical, which is invisible from the other two inspectors.
       figures: () => FigureReading[]
       reset: () => void
     }
@@ -131,11 +138,10 @@ export interface FigureReading {
 }
 
 // The sheet owns the actor, so it lends its table rather than this reaching for
-// one — and KEYED BY ACTOR, because more than one sheet is mounted at a time.
-// A single slot here read whichever sheet had mounted last while reporting
-// numbers as though they were the one on screen, which is the same mistake as
-// the bug this inspector exists to find: an instrument answering a question
-// next to the one being asked.
+// one — and KEYED BY ACTOR, because more than one sheet is mounted at a time. A
+// single slot read whichever sheet mounted last while reporting numbers as
+// though they were the one on screen: an instrument answering a question next to
+// the one being asked, which is the same mistake this inspector exists to find.
 const figureTables = new Map<string, () => Figure[]>()
 
 export function registerFigures(actorId: string, table: (() => Figure[]) | undefined): void {

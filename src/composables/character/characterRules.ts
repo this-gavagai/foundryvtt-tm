@@ -42,6 +42,12 @@ export function useCharacterRules(actor: Ref<TablemateCharacter | undefined>): C
   const rollOptions = computed(() => {
     const rollOptions = new Map<string, RollOption>()
     const activeRules = actor.value?.activeRules
+    // PF2e's own option set, when the GM sent one. Whether a toggle is ON is a
+    // fact there, where `rule.value` is only source data: a toggleable rule with
+    // nothing stored reads as off, which is PF2e's default and still a guess —
+    // and it is simply wrong for a rule whose value is a formula, or one another
+    // rule switched on. See rollOptions.rollOptionSet.
+    const settled = actor.value?.rollOptionSet
     actor.value?.items.forEach((item) => {
       ;(item.system.rules as RollOptionRule[]).forEach((rule) => {
         if (
@@ -59,7 +65,9 @@ export function useCharacterRules(actor: Ref<TablemateCharacter | undefined>): C
               sourceId: item?._id ?? undefined,
               label: (rule.label ? labels?.[rule.label] : undefined) ?? item.name ?? '',
               toggleable: rule?.toggleable,
-              value: rule?.value,
+              value: settled?.length
+                ? settled.includes(rule.option ?? '')
+                : rule?.value,
               alwaysActive: rule?.alwaysActive,
               suboptions: [],
               selection: rule?.selection,

@@ -178,7 +178,8 @@ describe('when no GM has answered', () => {
     const { ac } = useCharacterStats(actor)
     expect(ac.current.value).toBe(22)
     expect(ac.provisional.value).toBe(true)
-    expect(ac.caveat.value).toContain('unresolvable-predicate')
+    // Names the item, in words a player has a chance with — see describeLedger.
+    expect(ac.caveat.value).toContain('Conditional Guard')
   })
 
   it('marks every figure provisional on an unverified system version', () => {

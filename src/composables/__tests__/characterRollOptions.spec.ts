@@ -40,12 +40,13 @@ const rollOption = (over: Rule = {}): Rule => ({
 // Cast at the fixture boundary, once — the same one the sibling character specs
 // make: TablemateCharacter claims CharacterPF2e, but what the app holds is the
 // plain JSON the Foundry side serialized with toObject().
-function rulesOf(items: Item[]) {
+function rulesOf(items: Item[], rollOptionSet?: string[]) {
   const actor = ref({
     _id: 'seelah',
     items,
     // Every option below has to be live for the model to surface it.
     activeRules: ['finisher', 'panache'],
+    rollOptionSet,
     rollOptionLabels: {}
   }) as unknown as Ref<TablemateCharacter | undefined>
   const { rollOptions } = useCharacterRules(actor)
@@ -200,5 +201,28 @@ describe('updateRule', () => {
     const rules = written().updates[0].system.rules
     expect(rules.find((r) => r.option === 'finisher')?.value).toBe(true)
     expect(rules.find((r) => r.option === 'panache')?.value).toBe(false)
+  })
+})
+
+// Whether a toggle is ON is a fact in PF2e's own option set and a guess in
+// `rule.value`. The panel prefers the fact when the GM sent one.
+describe('toggle state', () => {
+  const item = (rules: Rule[]): Item => ({ _id: 'i1', name: 'Item', system: { rules } })
+
+  it('reads the stored value when no option set arrived', () => {
+    const { rows } = rulesOf([item([rollOption({ value: true })])])
+    expect(rows().get('all:finisher')?.value).toBe(true)
+  })
+
+  it('prefers PF2e’s answer over the stored value', () => {
+    // Stored says off; PF2e lists it, so it is on. Nothing readable from the
+    // rule's own fields could have established that.
+    const { rows } = rulesOf([item([rollOption({ value: false })])], ['finisher'])
+    expect(rows().get('all:finisher')?.value).toBe(true)
+  })
+
+  it('prefers PF2e’s answer in the other direction too', () => {
+    const { rows } = rulesOf([item([rollOption({ value: true })])], ['panache'])
+    expect(rows().get('all:finisher')?.value).toBe(false)
   })
 })

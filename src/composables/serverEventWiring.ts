@@ -193,7 +193,17 @@ export function registerServerEventWiring() {
         // engine works from in production.
         const source = useWorldStore().actorById(args.actorId) as
           { items?: never[]; system?: unknown } | undefined
-        recordReport(runDifferential(args, labelCatalogs.stamp, source))
+        // The trait vocabulary the SHEET passes, from the same store, so the
+        // harness measures the engine the sheet runs rather than a more
+        // pessimistic one. See usedTraitVocabulary in differential.ts.
+        recordReport(
+          runDifferential(
+            args,
+            labelCatalogs.stamp,
+            Object.keys(labelCatalogs.catalogs.traits ?? {}),
+            source
+          )
+        )
       } catch (error) {
         // A failure to RUN is not a clean result and must not read like one.
         recordFailure(args.actorId, error)

@@ -14,26 +14,23 @@ import {
   saveDomains,
   skillDomains
 } from './domains'
-import { sealLedger, type ConditionalModifier, type Ledger, type SkippedRule } from './ledger'
+import { sealLedger, type Ledger, type SkippedRule } from './ledger'
 import { buildRollOptions, type RollOptionSet } from './rollOptions'
 import { versionVerdict } from './index'
 import type { ValueContext } from './resolveValue'
 import { deriveSpeeds, type DerivedSpeed, type MovementType } from './movement'
 import { deriveIWR as deriveIWRSets, type DerivedIWR } from './iwr'
 
-// Tier 2: the figures that are reproducible from source ONCE rule elements are
+// The figures that are reproducible from source once rule elements are
 // accounted for.
 //
-// Each is the same shape — a base the app can compute from stored data, plus
-// whatever the engine can account for on top, plus a ledger saying what it
-// could not. The base is where PF2e's arithmetic lives; the engine is where its
-// content lives; the ledger is what makes the sum safe to show.
+// Each is the same shape: a base computed from stored data, plus whatever the
+// engine can account for on top, plus a ledger saying what it could not. The
+// base is where PF2e's arithmetic lives; the engine is where its content lives;
+// the ledger is what makes the sum safe to show.
 //
-// The proficiency ranks are the reason ActiveEffectLike had to exist. A
-// character's save and defence ranks are seeded from the CLASS ITEM's source
-// fields and then raised by class features, each of which is an AE-like
-// `upgrade` on `system.saves.<slug>.rank`. Skills are the exception: their ranks
-// are stored on the actor, which is why skills were reachable before this.
+// See ../README.md. `resolve` below is the file's hot path and the one thing to
+// understand before editing here.
 
 // PF2e's 16 core skills and the attribute each keys off. A static table, and
 // the reason a skill total needs no lookup into derived data.
@@ -77,6 +74,9 @@ export interface DerivationInput {
   attributes: Record<string, number>
   traits?: readonly string[]
   activeRules?: readonly string[]
+  // PF2e's own roll-option set for this actor, when a GM has sent one. The
+  // authority; see rollOptions.rollOptionSet.
+  rollOptionSet?: readonly string[]
   // Every trait slug the world's PF2e defines. Distinguishes a bare predicate
   // atom that names one of the ROLL's traits (`emotion`, `trap`) from one that
   // names a toggle (`ageless-patience`); the strings are indistinguishable
@@ -100,20 +100,88 @@ function contextFor(input: DerivationInput): ValueContext {
   return { paths }
 }
 
-function optionsFor(input: DerivationInput, ranks: Record<string, number>): RollOptionSet {
-  return buildRollOptions({
+// The app's internal rank path → PF2e's own roll-option key.
+//
+// Read off pf2e 8.4.1's statistic construction. The paths this engine keys ranks
+// by are Foundry document paths and are NOT those strings, so the mapping has to
+// be explicit.
+//
+// Class DC and base spellcasting are deliberately absent: PF2e builds those
+// through the generic `${slug}:rank:${n}` on a Statistic whose slug this engine
+// does not know for certain, and an invented string would be a family claimed as
+// enumerated that nothing can match.
+const RANK_OPTION_KEYS: { pattern: RegExp; key: (match: RegExpMatchArray) => string }[] = [
+  { pattern: /^system\.saves\.([^.]+)\.rank$/, key: (m) => `save:${m[1]}:rank` },
+  { pattern: /^system\.skills\.([^.]+)\.rank$/, key: (m) => `skill:${m[1]}:rank` },
+  { pattern: /^system\.perception\.rank$/, key: () => 'perception:rank' },
+  {
+    pattern: /^system\.proficiencies\.defenses\.([^.]+)\.rank$/,
+    key: (m) => `defense:${m[1]}:rank`
+  },
+  {
+    pattern: /^system\.proficiencies\.attacks\.([^.]+)\.rank$/,
+    key: (m) => `attack:${m[1]}:rank`
+  }
+]
+
+function rankOptionsFor(ranks: Record<string, number>): string[] {
+  const out: string[] = []
+  for (const [path, rank] of Object.entries(ranks)) {
+    for (const { pattern, key } of RANK_OPTION_KEYS) {
+      const match = path.match(pattern)
+      if (match) {
+        out.push(`${key(match)}:${rank}`)
+        break
+      }
+    }
+  }
+  return out
+}
+
+// Everything about one actor that every figure needs and none of them should
+// compute for itself: the proficiency ranks, the roll-option set, the value
+// context, and the rank pass's own ledger.
+//
+// THIS IS THE FILE'S HOT PATH. The rank pass runs the ActiveEffectLike pass over
+// every item and rule on the actor; done per figure, a full sheet fires it 27
+// times — measured at 4.4ms for a 102-item character on a desktop, repeated by
+// the reconciler on every write and the dev harness on every payload.
+//
+// The ordering is real: the AE-like pass needs an option set to test predicates
+// against, and the option set wants the ranks that pass produces. So the set is
+// built twice — a BOOTSTRAP without ranks, then the real one — and once per
+// actor, not twice per figure.
+interface Resolved {
+  ranks: Record<string, number>
+  carried: { applied: number; skipped: SkippedRule[] }
+  options: RollOptionSet
+  context: ValueContext
+}
+
+// Keyed on the input OBJECT, not its contents. The sheet builds one
+// `DerivationInput` per actor change and hands the same object to every figure,
+// so identity is stable for the life of a render and a changed actor produces a
+// new object that cannot hit a stale entry. A content hash would cost more than
+// the pass it saves; a Map would leak every actor the app has shown.
+const resolvedCache = new WeakMap<DerivationInput, Resolved>()
+
+function resolve(input: DerivationInput): Resolved {
+  const cached = resolvedCache.get(input)
+  if (cached) return cached
+  const context = contextFor(input)
+  const { ranks, ...carried } = deriveProficiencyRanks(input, context)
+  const options = buildRollOptions({
     level: input.level,
     traits: input.traits,
     items: input.items,
-    // Rank options are what predicates like `self:save:fortitude:rank:3` read,
-    // and they are only knowable once the ranks are resolved — which is why
-    // ranks are computed first and fed back in here.
-    activeRules: [
-      ...(input.activeRules ?? []),
-      ...Object.entries(ranks).map(([path, rank]) => `${path}:${rank}`)
-    ],
-    traitVocabulary: input.traitVocabulary
+    activeRules: input.activeRules,
+    rollOptionSet: input.rollOptionSet,
+    traitVocabulary: input.traitVocabulary,
+    rankOptions: rankOptionsFor(ranks)
   })
+  const result: Resolved = { ranks, carried, options, context }
+  resolvedCache.set(input, result)
+  return result
 }
 
 const classItem = (items: readonly EngineItem[]) => items.find((item) => item.type === 'class')
@@ -185,7 +253,14 @@ interface ClassSystem {
 // because the AE-like pass is priority-ordered across the whole actor: resolving
 // one path at a time would apply the same rules repeatedly and, where a rule
 // touches two paths, in inconsistent order.
-export function deriveProficiencyRanks(input: DerivationInput): {
+// Exported for the tests that pin the seeding rules. Production reaches it
+// through `resolve`, which runs it ONCE per actor — see the note there.
+export function deriveProficiencyRanks(
+  input: DerivationInput,
+  // Passed in rather than rebuilt, so `resolve` builds it once and this cannot
+  // disagree with the context every figure is later evaluated against.
+  context: ValueContext = contextFor(input)
+): {
   ranks: Record<string, number>
   skipped: SkippedRule[]
   applied: number
@@ -245,52 +320,39 @@ export function deriveProficiencyRanks(input: DerivationInput): {
     }
   }
 
-  const context = contextFor(input)
+  // The BOOTSTRAP option set: no ranks in it, because the ranks are what this
+  // pass produces. `resolve` builds the real one on top of the result.
   const bootstrap = buildRollOptions({
     level: input.level,
     traits: input.traits,
     items: input.items,
-    activeRules: input.activeRules
+    activeRules: input.activeRules,
+    rollOptionSet: input.rollOptionSet,
+    traitVocabulary: input.traitVocabulary
   })
   const result = applyActiveEffectLikes(input.items, seed, bootstrap, context)
 
-  // The `unconfirmable-rank` caveat used to be emitted here, for every save,
-  // perception and armour rank that rested on the class baseline alone. It was
-  // added when a rank raised by a rules-free class feature looked unrecoverable,
-  // and it is deliberately gone.
-  //
-  // That mechanism turned out to be `subfeatures.proficiencies`, which is now
-  // read — and the harness then measured ZERO total divergence across fourteen
-  // payloads and ten characters, so the baseline is right wherever no subfeature
-  // speaks. The caveat had stopped hedging anything and had become the thing it
-  // was meant to prevent: a marker on five figures out of five, identical on all
-  // of them, ranking nothing and teaching a reader to ignore it.
-  //
-  // If the harness ever shows a base divergence again, this is where the hedge
-  // goes back — but it should come back with evidence, as it should have had.
+  // A rank resting on the class baseline alone is NOT hedged, and that is a
+  // decision with evidence behind it: the mechanism that raises save,
+  // perception and armour ranks is `subfeatures.proficiencies`, which is read
+  // above, and the harness then measured zero base divergence across the test
+  // table. If it ever shows one again, a hedge belongs here — with its own
+  // evidence, as this one should have had.
   return { ranks: result.paths, skipped: result.skipped, applied: result.applied }
 }
 
-// The attribute and proficiency components of a statistic, as TYPED MODIFIERS
-// rather than a flat base.
-//
-// This is not presentation — it is what makes stacking correct. PF2e builds both
-// with `createAttributeModifier` / `createProficiencyModifier` and lets them
-// contest anything of the same type. Untrained Improvisation is a
-// `proficiency`-typed modifier, so on a TRAINED skill it loses to the real
-// proficiency bonus and contributes nothing.
-//
-// Held outside the contest, the base had no competitor, and Untrained
-// Improvisation stacked on top of every trained skill — every one of a live
-// character's eight read four points high. Its own modifier list shows PF2e's
-// answer plainly: `proficiency:0:proficiency:false` beside
-// `untrained-improvisation:4:proficiency:true` on an untrained skill, and the
-// reverse once trained.
 // A modifier the engine constructs rather than reads off a rule element.
 //
-// `label` is a stable English string, matching what PF2e names the same entry.
-// It is NOT localized here — the engine has no locale — and the sheet maps the
-// slugs it recognizes through its own i18n before display, falling back to this.
+// The attribute and proficiency components of a statistic are TYPED MODIFIERS,
+// not a flat base, and that is what makes stacking correct: PF2e builds both with
+// `createAttributeModifier` / `createProficiencyModifier` and lets them contest
+// anything of the same type. Untrained Improvisation is `proficiency`-typed, so
+// on a TRAINED skill it loses to the real proficiency bonus and contributes
+// nothing — which cannot happen if the base is held outside the contest.
+//
+// `label` is a stable English string matching what PF2e names the same entry. It
+// is NOT localized here — the engine has no locale — and the sheet maps the slugs
+// it recognizes through its own i18n, falling back to this.
 export function namedModifier(
   slug: string,
   label: string,
@@ -326,19 +388,6 @@ function baseModifiers(
   ]
 }
 
-// A figure inherits only the rank gaps that belong to it. Nothing emits
-// `unconfirmable-rank` today (see deriveProficiencyRanks), but the filter stays:
-// it is the rule that a skill must not be marked because a SAVE's rank was
-// uncertain, and it would be needed again the moment such a gap is recorded.
-function relevant(carried: { applied: number; skipped: SkippedRule[] }, paths: string[]) {
-  return {
-    applied: carried.applied,
-    skipped: carried.skipped.filter(
-      (skip) => skip.reason !== 'unconfirmable-rank' || paths.includes(skip.slug ?? '')
-    )
-  }
-}
-
 function build(
   input: DerivationInput,
   // A constant that takes part in no contest — AC's 10, an armour's own AC
@@ -346,11 +395,12 @@ function build(
   constant: number,
   seedModifiers: EngineModifier[],
   domains: readonly string[],
-  ranks: Record<string, number>,
-  carried: { applied: number; skipped: SkippedRule[]; conditional?: ConditionalModifier[] }
+  // The one resolve for this actor: ranks, roll options, value context and the
+  // rank pass's own ledger, all shared.
+  shared: Resolved
 ): DerivedStatistic {
-  const options = optionsFor(input, ranks)
-  const collected = collectFlatModifiers(input.items, domains, options, contextFor(input))
+  const carried = shared.carried
+  const collected = collectFlatModifiers(input.items, domains, shared.options, shared.context)
   const all = [...seedModifiers, ...collected.modifiers]
   const resolved = resolveStacking(all)
   return {
@@ -363,7 +413,7 @@ function build(
       {
         applied: carried.applied + collected.applied,
         skipped: [...carried.skipped, ...collected.skipped],
-        conditional: [...(carried.conditional ?? []), ...collected.conditional]
+        conditional: collected.conditional
       },
       versionVerdict(input.stamp)
     )
@@ -378,7 +428,8 @@ export function deriveSkill(
   storedRank: number,
   options: { lore?: boolean; attribute?: string } = {}
 ): DerivedStatistic {
-  const { ranks, ...carried } = deriveProficiencyRanks(input)
+  const shared = resolve(input)
+  const { ranks } = shared
   const attribute = options.lore ? 'int' : (options.attribute ?? SKILL_ATTRIBUTES[slug] ?? 'int')
   // The resolved rank wins over the caller's: it already folds the caller's in
   // as a floor, and it also carries any AE-like upgrade the caller cannot see.
@@ -394,15 +445,14 @@ export function deriveSkill(
       rank
     ),
     domains,
-    ranks,
-    relevant(carried, [])
+    shared
   )
 }
 
 export function deriveSave(input: DerivationInput, slug: string): DerivedStatistic {
-  const { ranks, ...carried } = deriveProficiencyRanks(input)
+  const shared = resolve(input)
   const attribute = SAVE_ATTRIBUTES[slug] ?? 'con'
-  const rank = ranks[`system.saves.${slug}.rank`] ?? 0
+  const rank = shared.ranks[`system.saves.${slug}.rank`] ?? 0
   return build(
     input,
     0,
@@ -413,21 +463,19 @@ export function deriveSave(input: DerivationInput, slug: string): DerivedStatist
       rank
     ),
     saveDomains(slug, attribute),
-    ranks,
-    relevant(carried, [`system.saves.${slug}.rank`])
+    shared
   )
 }
 
 export function derivePerception(input: DerivationInput): DerivedStatistic {
-  const { ranks, ...carried } = deriveProficiencyRanks(input)
-  const rank = ranks['system.perception.rank'] ?? 0
+  const shared = resolve(input)
+  const rank = shared.ranks['system.perception.rank'] ?? 0
   return build(
     input,
     0,
     baseModifiers('wis', input.attributes.wis ?? 0, proficiencyBonus(rank, input.level), rank),
     PERCEPTION_DOMAINS,
-    ranks,
-    relevant(carried, ['system.perception.rank'])
+    shared
   )
 }
 
@@ -452,11 +500,11 @@ function wornArmor(items: readonly EngineItem[]) {
 }
 
 export function deriveArmorClass(input: DerivationInput): DerivedStatistic {
-  const { ranks, ...carried } = deriveProficiencyRanks(input)
+  const shared = resolve(input)
   const armor = wornArmor(input.items)
   const system = armor?.system as unknown as ArmorSystem | undefined
   const category = system?.category ?? 'unarmored'
-  const rank = ranks[`system.proficiencies.defenses.${category}.rank`] ?? 0
+  const rank = shared.ranks[`system.proficiencies.defenses.${category}.rank`] ?? 0
   // Dex is capped by the armour, which is the one place AC's arithmetic differs
   // in shape from a check's.
   const dexCap = typeof system?.dexCap === 'number' ? system.dexCap : Infinity
@@ -489,16 +537,13 @@ export function deriveArmorClass(input: DerivationInput): DerivedStatistic {
     10,
     seeds,
     AC_DOMAINS,
-    ranks,
-    // Only the category actually worn: an unconfirmable heavy-armour rank is no
-    // reason to doubt an unarmoured figure.
-    relevant(carried, [`system.proficiencies.defenses.${category}.rank`])
+    shared
   )
 }
 
 export function deriveClassDC(input: DerivationInput, keyAttribute: string): DerivedStatistic {
-  const { ranks, ...carried } = deriveProficiencyRanks(input)
-  const rank = ranks['system.proficiencies.classDCs.rank'] ?? 0
+  const shared = resolve(input)
+  const rank = shared.ranks['system.proficiencies.classDCs.rank'] ?? 0
   return build(
     input,
     10,
@@ -508,8 +553,7 @@ export function deriveClassDC(input: DerivationInput, keyAttribute: string): Der
       proficiencyBonus(rank, input.level)
     ),
     ['class-dc', 'all'],
-    ranks,
-    relevant(carried, [])
+    shared
   )
 }
 
@@ -520,22 +564,13 @@ interface AncestrySystem {
   traits?: { value?: string[] }
 }
 
-// A character's traits and size, from the ancestry that grants them.
+// A character's traits, from the ancestry that grants them.
 //
-// Not a new figure so much as a correction. `system.traits` is absent from a
-// world dump entirely — PF2e assembles it, copying the ancestry's traits and
-// size onto the actor — and the engine's roll-option set declares `self:trait`
-// a KNOWN family. So on a source-only sheet it was answering `self:trait:elf`
-// with a confident FALSE for an elf, dropping every ancestry-predicated modifier
-// with no skip recorded.
-//
-// The harness could not see it: it reads traits from the payload, which has
-// them. That is the same "measuring an easier case" trap as feeding it prepared
-// ranks, in a new place.
-//
-// Fixing it compounds. Trait predicates are a real share of the largest
-// remaining skip category, so every one that now resolves is a modifier the
-// engine stops guessing about.
+// `system.traits` is absent from a world dump entirely — PF2e assembles it,
+// copying the ancestry's traits and size onto the actor — while the roll-option
+// set declares `self:trait` a KNOWN family. So without this an elf's
+// `self:trait:elf` answers a confident FALSE and every ancestry-predicated
+// modifier is dropped with no skip recorded.
 export function deriveActorTraits(items: readonly EngineItem[]): string[] {
   const ancestry = items.find((item) => item.type === 'ancestry')?.system as
     AncestrySystem | undefined
@@ -594,35 +629,29 @@ export function spellcastingDomains(
       ]
 }
 
-// A spellcasting entry's DC.
-//
-// Left out of the first Tier 2 pass on the assumption that it was "the same
-// shape as class DC". It is not, and the difference is why: the rank is the
-// GREATER of the entry's own `system.proficiency.value` and the actor's
-// base-spellcasting rank, and the attribute is the entry's, not the class's —
-// so a character with two entries can have two different DCs. PF2e's
-// `SpellcastingEntryPF2e#prepareStatistic` does exactly that Math.max.
-//
-// The domains are the entry statistic's own plus the DC's, which is what PF2e
-// collects a DC's modifiers over.
 // The spellcasting statistic behind both the DC and the attack roll.
 //
-// PF2e builds one statistic per entry and reads a DC off it; the attack
-// modifier is the same figure without the 10, over the attack domains rather
-// than the DC's. Sharing the construction is not tidiness — it is what keeps the
-// two from drifting apart when only one of them is touched.
+// PF2e builds one per entry and reads a DC off it; the attack modifier is the
+// same figure without the 10, over the attack domains rather than the DC's.
+// Sharing the construction keeps the two from drifting when only one is touched.
+//
+// NOT the same shape as class DC: the rank is the GREATER of the entry's own
+// `system.proficiency.value` and the actor's base-spellcasting rank, and the
+// attribute is the ENTRY's — so a character with two entries can have two
+// different DCs. PF2e's `SpellcastingEntryPF2e#prepareStatistic` does that
+// Math.max.
 function spellcastingStatistic(
   input: DerivationInput,
   entry: EngineItem,
   kind: 'dc' | 'attack'
 ): DerivedStatistic {
-  const { ranks, ...carried } = deriveProficiencyRanks(input)
+  const shared = resolve(input)
   const system = entry.system as unknown as SpellcastingEntrySystem | undefined
   const attribute = system?.ability?.value ?? 'int'
   const tradition = system?.tradition?.value ?? 'arcane'
   const rank = Math.max(
     system?.proficiency?.value ?? 0,
-    ranks['system.proficiencies.spellcasting.rank'] ?? 0
+    shared.ranks['system.proficiencies.spellcasting.rank'] ?? 0
   )
   const domains = spellcastingDomains(attribute, tradition, kind)
   return build(
@@ -635,8 +664,7 @@ function spellcastingStatistic(
       rank
     ),
     domains,
-    ranks,
-    relevant(carried, ['system.proficiencies.spellcasting.rank'])
+    shared
   )
 }
 
@@ -665,13 +693,8 @@ export function deriveInitiative(
     slug === 'perception'
       ? derivePerception(input)
       : deriveSkill(input, slug, storedSkillRank, { lore: !(slug in SKILL_ATTRIBUTES) })
-  const { ranks, ...carried } = deriveProficiencyRanks(input)
-  const extra = collectFlatModifiers(
-    input.items,
-    ['initiative'],
-    optionsFor(input, ranks),
-    contextFor(input)
-  )
+  const shared = resolve(input)
+  const extra = collectFlatModifiers(input.items, ['initiative'], shared.options, shared.context)
   return {
     base: statistic.base,
     value: statistic.value + applyStacking(extra.modifiers),
@@ -679,7 +702,10 @@ export function deriveInitiative(
     ledger: sealLedger(
       {
         applied: statistic.ledger.applied + extra.applied,
-        skipped: [...statistic.ledger.skipped, ...extra.skipped, ...carried.skipped],
+        // The rank pass's own skips are already in `statistic.ledger` — it was
+        // built from the same resolve — so folding them in again double-counted
+        // every one of them on this figure alone.
+        skipped: [...statistic.ledger.skipped, ...extra.skipped],
         conditional: [...statistic.ledger.conditional, ...extra.conditional]
       },
       versionVerdict(input.stamp)
@@ -695,7 +721,7 @@ export function deriveInitiative(
 // the `hp` domain — Toughness among them, which adds the character's LEVEL
 // rather than a flat number and so resolves through @actor.level.
 export function deriveHitPointsMax(input: DerivationInput, bonusPerLevel = 0): DerivedStatistic {
-  const { ranks, ...carried } = deriveProficiencyRanks(input)
+  const shared = resolve(input)
   const ancestry = input.items.find((item) => item.type === 'ancestry')?.system as
     AncestrySystem | undefined
   const klass = classItem(input.items)?.system as ClassSystem | undefined
@@ -717,29 +743,23 @@ export function deriveHitPointsMax(input: DerivationInput, bonusPerLevel = 0): D
     ),
     namedModifier('hp-con', 'Constitution', (input.attributes.con ?? 0) * input.level, 'ability')
   ]
-  return build(input, 0, seeds, ['hp', 'con-based'], ranks, relevant(carried, []))
+  return build(input, 0, seeds, ['hp', 'con-based'], shared)
 }
 
-// The focus pool maximum.
-//
-// This page recorded it as the one Tier 2 figure that was not arithmetic at all
-// — "a count of which focus-pool-granting feats an actor has, and that list
-// grows with every published book". That was wrong, and wrong in the same way
-// the proficiency-rank claim was: it describes the RULEBOOK, not the system.
+// The focus pool maximum: a COUNT OF FOCUS SPELLS, not a lookup of which feats
+// grant focus.
 //
 // PF2e never reads a stored maximum for a character. `prepareBaseData` does
 //
 //   d.focus = { value: d.focus?.value || 0, max: 0, cap: 3 }
 //
-// discarding whatever was on the actor, and then every SPELL the character
-// knows that has the `focus` trait and is not a cantrip adds one
-// (`SpellPF2e#prepareActorData`). The pool is a count of focus spells, which are
-// items in plain source data — not a list of feats needing a lookup table.
+// discarding whatever was on the actor, and then every spell the character knows
+// with the `focus` trait that is not a cantrip adds one
+// (`SpellPF2e#prepareActorData`). Those are items in plain source data.
 //
-// Two things can still move it, both of which the engine already handles:
-// ActiveEffectLike rules writing `system.resources.focus.max` (a handful of
-// psychic feats — every other such rule was stripped by a system migration) or
-// `…focus.cap`, and the final clamp between zero and that cap.
+// Two things move it, both already handled: ActiveEffectLike rules writing
+// `system.resources.focus.max` or `…focus.cap`, and the clamp between zero and
+// that cap.
 export function deriveFocusPool(input: DerivationInput): {
   max: number
   cap: number
@@ -758,13 +778,8 @@ export function deriveFocusPool(input: DerivationInput): {
     'system.resources.focus.max': spells.length,
     'system.resources.focus.cap': 3
   }
-  const { ranks } = deriveProficiencyRanks(input)
-  const applied = applyActiveEffectLikes(
-    input.items,
-    seed,
-    optionsFor(input, ranks),
-    contextFor(input)
-  )
+  const shared = resolve(input)
+  const applied = applyActiveEffectLikes(input.items, seed, shared.options, shared.context)
 
   const cap = applied.paths['system.resources.focus.cap'] ?? 3
   const raw = applied.paths['system.resources.focus.max'] ?? 0
@@ -785,12 +800,12 @@ export function deriveFocusPool(input: DerivationInput): {
 // callers from having to build those themselves — and keeps the rank pass, which
 // the option set depends on, from being forgotten.
 export function deriveMovement(input: DerivationInput): Record<MovementType, DerivedSpeed | null> {
-  const { ranks } = deriveProficiencyRanks(input)
+  const shared = resolve(input)
   return deriveSpeeds({
     items: input.items,
     strength: input.attributes.str ?? 0,
-    options: optionsFor(input, ranks),
-    context: contextFor(input),
+    options: shared.options,
+    context: shared.context,
     stamp: input.stamp
   })
 }
@@ -799,12 +814,12 @@ export function deriveMovement(input: DerivationInput): Record<MovementType, Der
 // figure. The seam that keeps callers from assembling roll options and a value
 // context themselves — and from forgetting the rank pass the options depend on.
 export function deriveIWR(input: DerivationInput, stored?: unknown): DerivedIWR {
-  const { ranks } = deriveProficiencyRanks(input)
+  const shared = resolve(input)
   return deriveIWRSets({
     items: input.items,
     stored: (stored ?? {}) as Partial<Record<'immunities' | 'weaknesses' | 'resistances', unknown>>,
-    options: optionsFor(input, ranks),
-    context: contextFor(input),
+    options: shared.options,
+    context: shared.context,
     stamp: input.stamp
   })
 }

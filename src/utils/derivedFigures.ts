@@ -2,6 +2,7 @@ import type { Ref } from 'vue'
 import type { TablemateCharacter } from '@/types/character-types'
 import { derivationInputFor } from '@/composables/character/derivedStatistics'
 import {
+  deriveActorSize,
   deriveArmorClass,
   deriveFocusPool,
   deriveHitPointsMax,
@@ -201,8 +202,16 @@ export function derivableFigures(
   const input = derivationInputFor(actor, stamp)
 
   // ── Inventory: no rule-element surface, so these reproduce PF2e exactly.
-  const size = (a.system as { traits?: { size?: { value?: string } } } | undefined)?.traits?.size
-    ?.value
+  //
+  // Size falls back to the ANCESTRY's, because `system.traits` is absent from a
+  // world dump entirely — PF2e assembles it during preparation. Read from the
+  // payload alone, a Small or Large character's Bulk limits and every
+  // size-converted item Bulk were computed as Medium with no GM online, which
+  // is a wrong number rather than a missing one. `deriveActorSize` already
+  // answered this and nothing called it.
+  const size =
+    (a.system as { traits?: { size?: { value?: string } } } | undefined)?.traits?.size?.value ??
+    deriveActorSize(engineItems)
   const strength = a.system?.abilities?.str?.mod ?? 0
   const named = items.filter((i) => NAMED_ITEM_TYPES.has(i.type ?? ''))
   const parts = itemNameCatalog()

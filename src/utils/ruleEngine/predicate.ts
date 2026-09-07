@@ -2,19 +2,16 @@ import type { RollOptionSet } from './rollOptions'
 
 // PF2e's predicate language, evaluated three ways.
 //
-// The system's own evaluator is a boolean: an option is in the set or it is not.
-// It can afford that, because it holds the complete set. This engine does not,
-// so it needs a third answer — and getting that third answer right is the
-// difference between an estimator that admits its gaps and one that quietly
-// reports a wrong number.
+// The system's own evaluator is a boolean, which it can afford because it holds
+// the complete option set. This engine does not, so it needs a third answer:
 //
 //   'true'     the statement holds
 //   'false'    the statement does not hold
-//   'unknown'  the statement references something outside the closed option set
+//   'unknown'  it references something outside the closed option set
 //
 // Faithful to `StatementValidator` and `Predicate#test` in pf2e 8.4.1: atomic
 // strings, five binary operators over `key:value` options, and the compound
-// forms and / or / nand / nor / xor / not / if / iff.
+// forms and / or / nand / nor / xor / not / if / iff. See ../README.md.
 
 export type Truth = 'true' | 'false' | 'unknown'
 

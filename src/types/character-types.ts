@@ -149,6 +149,8 @@ export type ContainerCapacity = {
 // actor having been serialized by a GM. See utils/labelCache.ts.
 export type TablemateActorExtras = {
   activeRules?: string[]
+  // PF2e's own roll-option set for this actor at rest. See api-types.
+  rollOptionSet?: string[]
   elementalBlasts?: PF2eElementalBlast
   spellcastingModifiers?: Record<string, SpellcastingModifierData>
   skillActions?: SkillActionData[]
