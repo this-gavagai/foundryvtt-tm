@@ -16,7 +16,6 @@ import ReconnectingBanner from '@/components/ReconnectingBanner.vue'
 import VersionMismatchBanner from '@/components/VersionMismatchBanner.vue'
 import SharedImageModal from '@/components/SharedImageModal.vue'
 
-import { initTheme } from '@/composables/useTheme'
 import { useSession } from '@/composables/useSession'
 import { useCharacterRouting } from '@/composables/useCharacterRouting'
 import { useConnectionRecovery } from '@/composables/useConnectionRecovery'
@@ -24,7 +23,6 @@ import { useKeepScreenAwake } from '@/composables/useKeepScreenAwake'
 import { useDevGlobals } from '@/composables/useDevGlobals'
 import { useScrollBoundaryLock } from '@/composables/useScrollBoundaryLock'
 
-initTheme()
 useScrollBoundaryLock()
 
 const serverStore = useServerStore()

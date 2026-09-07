@@ -12,6 +12,7 @@ import { StatusBar, Style } from '@capacitor/status-bar'
 import { initImageCache } from '@/api/imageCache'
 import { initPushNotifications } from '@/api/pushNotifications'
 import { installApiStoreBridge } from '@/composables/serverEventWiring'
+import { initTheme } from '@/composables/useTheme'
 
 if (Capacitor.isNativePlatform()) {
   // Marks the build as native so the status-bar-overlay layout rules in
@@ -38,9 +39,10 @@ if (Capacitor.isNativePlatform()) {
   // swallowed so a missing plugin never blocks startup.
   //
   // The icon/text style is theme-driven (syncNativeStatusBar in useTheme):
-  // initTheme() runs during first render and flips it to suit the active
-  // theme's background luminance. Style.Dark (light icons) below is only a
-  // pre-paint placeholder matching the common dark theme.
+  // initTheme() runs just below and flips it to suit the active theme's
+  // background luminance. Style.Dark (light icons) here is only a pre-paint
+  // placeholder matching the common dark theme, so it has to be set before
+  // that call rather than after it.
   StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {})
   StatusBar.setBackgroundColor({ color: '#00000000' }).catch(() => {})
   StatusBar.setStyle({ style: Style.Dark }).catch(() => {})
@@ -51,6 +53,14 @@ window.__TM_ENV__ = {
   DEV: import.meta.env.DEV,
   PROD: import.meta.env.PROD
 }
+
+// Before the app mounts, and outside it: the theme is a property of the
+// document (classes on <body>), not of any one screen. It used to be
+// initialised by ConnectedApp, which is only half the app — a launch that
+// landed on the ServerUrlGate instead (no server saved yet, or the active one
+// cleared) painted the gate unthemed, because nothing had put a theme class on
+// the body yet. Every screen the app can open on now starts themed.
+initTheme()
 
 const pinia = createPinia()
 const app = createApp(App)
