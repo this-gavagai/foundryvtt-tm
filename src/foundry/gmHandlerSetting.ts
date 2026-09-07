@@ -21,12 +21,18 @@
 // which the menu exposes as a per-GM "Handles" checkbox.
 //
 // World scope, not client: every client evaluates the same election locally and
-// must reach the same answer, so the inputs have to be shared world data. A
-// client-scoped "I ignore requests" toggle would only be visible to the GM who
-// set it, and the other GMs would still elect them and then wait forever.
+// must reach the same answer, so the inputs have to be shared. A client-scoped
+// "I ignore requests" toggle would only be visible to the GM who set it, and the
+// other GMs would still elect them and then wait forever.
+//
+// The policy is one of three inputs, and the only configured one. The others are
+// `user.active`, which core broadcasts, and the client census (clientCensus.ts),
+// which every client builds from the same module-channel traffic — a GM sitting
+// in Tabula is active and unopted-out and still has nothing there to answer.
 
 import { MODULE_ID } from '@/api/protocol'
 import { isSheetUser, type SheetFlaggedUser } from './utils/sheetUser'
+import { isTabulaOnlyClient } from './clientCensus'
 import { settingsApi } from './globals'
 
 export const GM_HANDLERS_SETTING = 'gmHandlers'
@@ -154,15 +160,31 @@ export function isHandlerCapableClient(user: SheetFlaggedUser | undefined): bool
   return !!user && !isSheetUser(user)
 }
 
+// The same fact, learned live instead of read off a flag: this user IS signed in
+// to Tabula, whatever the world configured them as, and has no Foundry client
+// behind them to answer with.
+//
+// It is a separate question from the one above, not an extension of it, because
+// the two have different lifetimes. A sheet user is a standing decision about a
+// person, and the GM Handlers menu drops them from the priority list entirely.
+// This one is where somebody happens to be sitting right now — they may be back
+// in Foundry in a minute — so the menu keeps their row and their rank and only
+// declines to send them work while they are away. See clientCensus.ts for how
+// the two client kinds are told apart, and why an unknown user is never excluded.
+export function isAwayInTabula(user: HandlerUser | undefined): boolean {
+  return !!user && isTabulaOnlyClient(handlerId(user))
+}
+
 // Does `me` win the election among `users`? THE routing decision: every request
 // from every client is answered by the one user this returns true for, so the
 // answer must be identical on every client from the same inputs — which is why
-// the inputs are world data (the policy) plus user.active, and why there is no
-// requester parameter. Routing cannot depend on who asked.
+// every input is something the whole table sees (the world's policy, core's
+// user.active, the client census), and why there is no requester parameter.
+// Routing cannot depend on who asked.
 //
-// Eligible = an active GM, on a client that can actually handle requests, whom
-// the policy has not opted out. Among those, the comparator decides, and `me`
-// wins by there being nobody ahead.
+// Eligible = an active GM, on a client that can actually handle requests, not
+// away in Tabula, whom the policy has not opted out. Among those, the comparator
+// decides, and `me` wins by there being nobody ahead.
 // How wide the field is for one request.
 //
 // `requireGM: false` opens the election to any module-running client, for
@@ -195,6 +217,7 @@ export function isElectedHandler(
     (requireGM ? user.isGM === true : true) &&
     user.active === true &&
     isHandlerCapableClient(user) &&
+    !isAwayInTabula(user) &&
     gmHandlesRequests(user, policy)
 
   // With the field widened, a GM still wins outright whenever one is eligible —

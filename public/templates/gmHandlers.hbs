@@ -73,7 +73,7 @@
 		<span class="tm-gm-name">
 			<span>{{this.name}}</span>
 			<span class="tm-gm-tag">
-				{{#if this.answering}}handling now{{else if this.online}}online{{else}}offline{{/if}}
+				{{#if this.answering}}handling now{{else if this.inTabula}}in Tabula{{else if this.online}}online{{else}}offline{{/if}}
 			</span>
 		</span>
 		<label class="tm-gm-handles">
@@ -107,7 +107,8 @@
 
 	{{#if noHandler}}
 	<p class="notification warning" style="margin-top: 0.75rem">
-		No GM is currently able to handle Tabula requests — no online GM is checked.
+		No GM is currently able to handle Tabula requests — every online GM is either unchecked or
+		signed in to Tabula rather than Foundry.
 	</p>
 	{{/if}}
 </div>

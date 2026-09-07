@@ -19,6 +19,7 @@ import {
   compareGmHandlers,
   gmHandlerPolicy,
   gmHandlesRequests,
+  isAwayInTabula,
   isHandlerCapableClient,
   saveGmHandlerPolicy,
   type GmHandlerPolicy
@@ -36,6 +37,11 @@ declare interface GmHandlerRow {
   // Connected right now — the election only considers active GMs, so this is
   // what makes the list legible ("Alice is first but she's offline").
   online: boolean
+  // Signed in, but from Tabula rather than Foundry: connected, keeping their
+  // rank, and passed over while there is no Foundry client behind them. Distinct
+  // from offline, because the fix is different — "open Foundry", not "come
+  // back".
+  inTabula: boolean
   handles: boolean
   // Priority label: position among handlers, or an em dash when opted out.
   rank: string
@@ -148,14 +154,17 @@ export class GmHandlerMenu extends HandlebarsApplicationMixin(ApplicationV2) {
       const user = byId.get(id)!
       const handles = !draft.ignored.has(id)
       const online = !!user.active
+      const inTabula = isAwayInTabula(user)
       if (handles) handlerCount++
-      // First online handler in priority order wins the live election.
-      const answering = handles && online && !answeringFound
+      // First online handler in priority order wins the live election — the same
+      // three conditions isElectedHandler applies, in the same order.
+      const answering = handles && online && !inTabula && !answeringFound
       if (answering) answeringFound = true
       return {
         id,
         name: user.name ?? id,
         online,
+        inTabula,
         handles,
         rank: handles ? String(handlerCount) : '—',
         answering,

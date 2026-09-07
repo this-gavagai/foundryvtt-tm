@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import {
   collapseGmHandlerPolicy,
   normalizeGmHandlerPolicy,
@@ -12,6 +12,7 @@ import {
   type ElectableUser
 } from '@/foundry/gmHandlerSetting'
 import { SHEET_USER_FLAG, SHEET_USER_VALUE } from '@/foundry/utils/sheetUser'
+import { noteAppClient, noteFoundryClient, resetClientCensusForTest } from '@/foundry/clientCensus'
 
 // The world's GM handler policy decides which GM client handles a Tablemate
 // request. These tests pin the two things listener.ts relies on: an unconfigured
@@ -24,6 +25,11 @@ const carol: HandlerUser = { _id: 'ccc' }
 
 const policy = (order: string[] = [], ignored: string[] = []): GmHandlerPolicy =>
   normalizeGmHandlerPolicy({ order, ignored })
+
+// The election's third input, alongside the policy and user.active: which kind
+// of client is behind each id. Empty here unless a test says otherwise, which is
+// the state every client starts in and the one every other test assumes.
+beforeEach(resetClientCensusForTest)
 
 // THE election listener.ts routes every request through — the real function, not
 // a restatement of it. Callers pass the GMs they consider online; this returns
@@ -216,6 +222,40 @@ describe('handler election', () => {
     const users: ElectableUser[] = [
       { _id: 'aaa', isGM: true, active: true, flags: { tablemate: { character_sheet: 'root' } } }
     ]
+    expect(users.filter((u) => isElectedHandler(u, users, policy()))).toHaveLength(0)
+  })
+
+  it('does not elect a GM who is signed in to Tabula as themselves', () => {
+    // The sheet-user flag above covers the users a world CONFIGURED for the app.
+    // This is the GM who simply opened Tabula and signed in: no flag, active like
+    // anyone else, and nothing in that browser to answer with.
+    const users: ElectableUser[] = [
+      { _id: 'aaa', isGM: true, active: true },
+      { _id: 'bbb', isGM: true, active: true }
+    ]
+    noteAppClient('aaa')
+    expect(isElectedHandler(users[0], users, policy())).toBe(false)
+    expect(isElectedHandler(users[1], users, policy())).toBe(true)
+    // …including when the world explicitly put them first.
+    expect(isElectedHandler(users[0], users, policy(['aaa']))).toBe(false)
+    expect(isElectedHandler(users[1], users, policy(['aaa']))).toBe(true)
+  })
+
+  it('keeps a GM who is signed in from Foundry as well as from Tabula', () => {
+    // Both clients are real, so both views have to agree that the Foundry one
+    // answers — the alternative is not a missed request but a doubled one.
+    const users: ElectableUser[] = [
+      { _id: 'aaa', isGM: true, active: true },
+      { _id: 'bbb', isGM: true, active: true }
+    ]
+    noteAppClient('aaa')
+    noteFoundryClient('aaa')
+    expect(users.filter((u) => isElectedHandler(u, users, policy()))).toEqual([users[0]])
+  })
+
+  it('leaves nobody to handle requests when the only online GM is in the app', () => {
+    const users: ElectableUser[] = [{ _id: 'aaa', isGM: true, active: true }]
+    noteAppClient('aaa')
     expect(users.filter((u) => isElectedHandler(u, users, policy()))).toHaveLength(0)
   })
 

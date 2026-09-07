@@ -4,7 +4,7 @@ import type {
   RequestCharacterDetailsArgs
 } from '@/types/api-types'
 import { getCharacterDetails } from './handlers'
-import { PASSIVE_ACTIONS, rpcDescriptor } from './rpcTable'
+import { actionOrigin, PASSIVE_ACTIONS, rpcDescriptor } from './rpcTable'
 import { authorizeRequest, targetActorId, userOwnsActorById, type AuthWorld } from './rpcAuthorize'
 import { debounce } from 'lodash-es'
 import { logger } from '@/utils/utilities'
@@ -25,6 +25,12 @@ import {
 } from '@/api/protocol'
 import { makeAck, stampTablemateChatOrigin, tablemateChatOriginUuid } from './utils/foundry'
 import { markRequestSeen, requestAlreadySeen } from './requestDedup'
+import {
+  forgetClient,
+  noteAppClient,
+  noteFoundryClient,
+  HANDLER_PRESENT_INTERVAL_MS
+} from './clientCensus'
 import { ownTargetIds } from './utils/target'
 import { resolveCapture, type CapturedMessage } from './chatCapture'
 import {
@@ -281,6 +287,20 @@ function ackHandlerError(deps: ModuleEventDeps, args: ModuleEventArgs, error: un
 export function handleModuleEvent(args: ModuleEventArgs, deps: ModuleEventDeps) {
   if (!args.userId) logger.warn('TM-missing: no userid', args)
 
+  // Who is behind the ids on this channel — an app, or a Foundry client. Counted
+  // on EVERY client and BEFORE every gate below, because the election those
+  // gates run is what the census feeds: a client that only counted the messages
+  // it was elected to answer would learn nothing on the clients where the answer
+  // is supposed to change. See clientCensus.ts.
+  //
+  // Our own id goes in on every message we handle, not only on the beat we send:
+  // running this line is proof this client exists, and it arrives on socket
+  // traffic rather than on a timer the browser is free to throttle.
+  noteFoundryClient(deps.selfUserId())
+  const sender = actionOrigin(args.action)
+  if (sender === 'app') noteAppClient(args.userId)
+  else if (sender === 'foundry') noteFoundryClient(args.userId)
+
   // Character refresh has its own path: it is debounced per actor and answered
   // by the elected GM (see handleCharacterRequest), rather than going through
   // the handler table and the serialized dispatch chain below.
@@ -524,6 +544,10 @@ export function setupListener() {
   // leaves announces itself, so an app hears about a GM handoff (or a departure)
   // without waiting out its presence heartbeat.
   setupPresenceHandoff()
+  // Before announceSelf, and before anything asks who is elected: this client
+  // counting itself is what keeps the election below from mistaking THIS browser
+  // for the app, on a user who is signed in to both.
+  setupHandlerPresence()
   announceSelf()
 
   game.socket.onAnyOutgoing((event: string, ...args: ModuleEventArgs[] | GetEvent[]) => {
@@ -678,6 +702,47 @@ function announceSelf() {
   })
 }
 
+// Say that a Foundry client is running for this user.
+//
+// Sent by every module client, not only the elected GM and not only GMs: the
+// question it answers is "is this id a Foundry client or a Tabula app?", and the
+// answer matters for any user the election might consider — which, for requests
+// that name no actor, includes players (see ElectionScope.requireGM).
+//
+// Tiny on purpose. It carries an id and nothing else, so sending it several
+// times a minute from every browser at the table costs less than one of the
+// handshakes announceSelf sends on a settings change.
+function announceHandlerPresent() {
+  const userId = game.user?.id
+  if (!userId) return
+  // We never receive our own broadcast, so count ourselves here. Every other
+  // client learns the same fact from the message itself.
+  noteFoundryClient(userId)
+  game.socket.emit(TM.CHANNEL, { action: TM.HANDLER_PRESENT, userId })
+}
+
+// The beat, and the one moment it is worth being early.
+//
+// A user's Tabula app declares itself constantly (its own presence heartbeat is
+// app-origin traffic), so a client that joins the table hears about the apps
+// within seconds. The Foundry clients have to answer in kind or they would be
+// mistaken for one — and the moment that matters most is exactly when somebody
+// joins, before the newcomer has had time to form an opinion about who is a
+// phantom. Core tells every client about that in `userConnected`, which
+// setupPresenceHandoff already listens to.
+//
+// The interval then covers the rest: a client that started before us, a beat
+// lost with a dropped packet, a browser tab that was throttled while
+// backgrounded. Missing several in a row is what it means to be gone, and
+// FOUNDRY_CLIENT_TTL_MS is sized for that.
+let handlerPresenceTimer: ReturnType<typeof setInterval> | undefined
+
+function setupHandlerPresence() {
+  if (handlerPresenceTimer) return
+  announceHandlerPresent()
+  handlerPresenceTimer = setInterval(announceHandlerPresent, HANDLER_PRESENT_INTERVAL_MS)
+}
+
 // Report THIS client's own targeting to the table.
 //
 // Only the targeting client can do this without loss. `user.targets` is a
@@ -762,10 +827,25 @@ const announceIfElected = debounce(() => {
   if (iAmFirstGM()) announceSelf()
 }, PRESENCE_ANNOUNCE_DEBOUNCE_MS)
 
+// The census beat, on the same signal and for the newcomer's benefit rather than
+// the app's — see setupHandlerPresence. Debounced together with the announcement
+// above so a world starting up produces one of each rather than one per user.
+const announceHandlerPresentSoon = debounce(announceHandlerPresent, PRESENCE_ANNOUNCE_DEBOUNCE_MS)
+
 let presenceHandoffRegistered = false
 
 function setupPresenceHandoff() {
   if (presenceHandoffRegistered) return
   presenceHandoffRegistered = true
-  hooks().on('userConnected', () => announceIfElected())
+  hooks().on('userConnected', (...args: unknown[]) => {
+    const user = args[0] as { id?: string } | undefined
+    const active = args[1]
+    // Their last socket has closed, so whichever client we had them down as is
+    // gone. Forgetting both facts together is what lets them come back as the
+    // other kind — the GM who was in Tabula this afternoon and opens Foundry
+    // tonight must not be judged by where they were sitting last time.
+    if (active === false) forgetClient(user?.id)
+    announceHandlerPresentSoon()
+    announceIfElected()
+  })
 }

@@ -255,7 +255,8 @@ const NON_RPC_ACTIONS = {
   [TM.ANYBODY_HOME]: 'early',
   [TM.LISTENER_ONLINE]: 'passive',
   [TM.UPDATE_CHARACTER]: 'passive',
-  [TM.SHARE_TARGETS]: 'passive'
+  [TM.SHARE_TARGETS]: 'passive',
+  [TM.HANDLER_PRESENT]: 'passive'
 } as const satisfies Record<NonRpcAction, 'early' | 'passive'>
 
 export const PASSIVE_ACTIONS: ReadonlySet<string> = new Set(
@@ -263,6 +264,36 @@ export const PASSIVE_ACTIONS: ReadonlySet<string> = new Set(
     .filter(([, kind]) => kind === 'passive')
     .map(([action]) => action)
 )
+
+// WHICH SIDE puts each message on the wire. Every RPC is client-initiated by
+// definition (that is what the table above is), so only the non-RPC actions need
+// saying — and the same `satisfies` makes saying it mandatory, because the
+// client census reads this to tell a user's Tabula app apart from their Foundry
+// client (clientCensus.ts). A new action left unclassified would compile as
+// neither and quietly go uncounted, which for a Foundry-origin one means its
+// client stops being seen and its GM drops out of the election.
+const NON_RPC_ORIGIN = {
+  [TM.ACK]: 'foundry',
+  [TM.LISTENER_ONLINE]: 'foundry',
+  [TM.UPDATE_CHARACTER]: 'foundry',
+  [TM.SHARE_TARGETS]: 'foundry',
+  [TM.HANDLER_PRESENT]: 'foundry',
+  [TM.REQUEST_CHARACTER]: 'app',
+  [TM.REQUEST_TARGETS]: 'app',
+  [TM.ANYBODY_HOME]: 'app'
+} as const satisfies Record<NonRpcAction, 'app' | 'foundry'>
+
+// Where a message off the socket came from, or 'unknown' for an action this
+// module has no entry for — an app newer than this module, or a hand-crafted
+// payload. Unknown stays unknown rather than being guessed at: the census turns
+// positive evidence into an exclusion from the election, so a wrong guess in
+// either direction takes a working client out of it.
+export function actionOrigin(action: string): 'app' | 'foundry' | 'unknown' {
+  if (Object.prototype.hasOwnProperty.call(NON_RPC_ORIGIN, action)) {
+    return (NON_RPC_ORIGIN as Record<string, 'app' | 'foundry'>)[action]
+  }
+  return rpcDescriptor(action) ? 'app' : 'unknown'
+}
 
 // Widened handler type for the dispatch loop, which holds a value it has only
 // narrowed to "some action" — the per-action pairing is enforced at the table.

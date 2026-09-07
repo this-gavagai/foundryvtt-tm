@@ -35,15 +35,29 @@ let table: Record<
 > = {}
 const PASSIVE = new Set<string>(['tm.passiveAction'])
 
+// Origin is faked alongside the table for the same reason: rpcTable.spec.ts pins
+// which side sends what, action by action. What belongs here is that the loop
+// counts the sender BEFORE any gate can drop the message — see the census test
+// at the bottom.
+const APP_SENT = new Set<string>([TM.ANYBODY_HOME, TM.REQUEST_CHARACTER, TM.REQUEST_TARGETS])
+
 vi.mock('@/foundry/rpcTable', () => ({
   PASSIVE_ACTIONS: PASSIVE,
-  rpcDescriptor: (action: string) => table[action]
+  rpcDescriptor: (action: string) => table[action],
+  actionOrigin: (action: string) =>
+    APP_SENT.has(action) || table[action]
+      ? 'app'
+      : PASSIVE.has(action) || action === TM.ACK
+        ? 'foundry'
+        : 'unknown'
 }))
 
 const { handleModuleEvent, resetDispatchChainForTest } = await import('@/foundry/listener')
 const { markRequestSeen, requestAlreadySeen, resetRequestDedupForTest } =
   await import('@/foundry/requestDedup')
 const { resetChatOriginForTest } = await import('@/foundry/chatOrigin')
+const { isTabulaOnlyClient, hasFoundryClient, resetClientCensusForTest } =
+  await import('@/foundry/clientCensus')
 
 const OWNER = 3
 const GM = 'gm-1'
@@ -95,6 +109,7 @@ beforeEach(() => {
   resetDispatchChainForTest()
   resetRequestDedupForTest()
   resetChatOriginForTest()
+  resetClientCensusForTest()
   // The one Foundry global still reached from this path: error acks are built
   // through makeAck so they share the success acks' shape, and makeAck reads the
   // answering client's id off `game`. Stood up the same way reactions.spec.ts
@@ -451,5 +466,48 @@ describe('the anyClient widening', () => {
 
     expect(handler).not.toHaveBeenCalled()
     expect(emittedError(deps.emit)).toBe(TM_ERROR_UNAUTHORIZED)
+  })
+})
+
+// Every client counts who is behind the ids on this channel, because the
+// election that gates everything above is what the count feeds — and the clients
+// where the answer needs to change are precisely the ones the responder gate
+// turns away. See clientCensus.ts.
+describe('the client census, which runs before every gate', () => {
+  it('counts a message from the app against its sender', () => {
+    handleModuleEvent(event({ action: TM.ANYBODY_HOME, userId: 'gm-2' }), makeDeps())
+    expect(isTabulaOnlyClient('gm-2')).toBe(true)
+  })
+
+  it('counts it on a client that is not the responder', () => {
+    // The whole point: this client is turned away by the gate below and still
+    // has to come away knowing gm-2 is a phantom, or it will keep deferring to
+    // them and nobody will ever answer.
+    handleModuleEvent(
+      event({ action: TM.ANYBODY_HOME, userId: 'gm-2' }),
+      makeDeps({ isResponder: () => false })
+    )
+    expect(isTabulaOnlyClient('gm-2')).toBe(true)
+  })
+
+  it('counts a message from another module client as a Foundry client', () => {
+    handleModuleEvent(event({ action: 'tm.passiveAction', userId: 'gm-2' }), makeDeps())
+    expect(hasFoundryClient('gm-2')).toBe(true)
+    expect(isTabulaOnlyClient('gm-2')).toBe(false)
+  })
+
+  it('counts THIS client too, off traffic rather than off a timer', () => {
+    // A backgrounded tab has its own presence beat throttled, and a client that
+    // let its own mark lapse would exclude itself from the election on the one
+    // user who is signed in to both. Handling a message is proof enough.
+    handleModuleEvent(event({ action: TM.ANYBODY_HOME, userId: GM }), makeDeps())
+    expect(hasFoundryClient(GM)).toBe(true)
+    expect(isTabulaOnlyClient(GM)).toBe(false)
+  })
+
+  it('leaves an action it cannot place uncounted, rather than guessing', () => {
+    handleModuleEvent(event({ action: 'tm.somethingNewer', userId: 'gm-2' }), makeDeps())
+    expect(hasFoundryClient('gm-2')).toBe(false)
+    expect(isTabulaOnlyClient('gm-2')).toBe(false)
   })
 })

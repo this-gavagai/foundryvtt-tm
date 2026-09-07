@@ -161,6 +161,20 @@ export const TM = {
   UPDATE_CHARACTER: 'updateCharacterDetails',
   LISTENER_ONLINE: 'listenerOnline',
   SHARE_TARGETS: 'shareTargets',
+  // "A Foundry client for this user is running." Module → module: the app has
+  // no subscriber for it and ignores it, exactly as an older module ignores an
+  // action it has never heard of.
+  //
+  // Deliberately NOT folded into LISTENER_ONLINE, which is the elected GM's
+  // handshake with the app and carries the world's whole configuration with it.
+  // This is sent by EVERY module client, several times a minute, and the app
+  // reads a LISTENER_ONLINE as "a GM is home" — announcing one from every
+  // player's browser would light up affordances with nobody to answer them.
+  //
+  // What it is for: telling a user signed in from Foundry apart from the same
+  // user signed in from Tabula, which `user.active` cannot do (one user, one
+  // active flag, any number of sockets). See foundry/clientCensus.ts.
+  HANDLER_PRESENT: 'handlerPresent',
 
   // Client-initiated (browser → Foundry)
   UPDATE_ACTOR: 'updateActor',

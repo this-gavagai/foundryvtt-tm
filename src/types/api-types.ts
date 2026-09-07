@@ -15,6 +15,7 @@ import type {
 export type ModuleEventArgs =
   | AcknowledgementArgs
   | ListenderOnlineArgs
+  | HandlerPresentArgs
   | UpdateCharacterDetailsArgs
   | RequestCharacterDetailsArgs
   | AnybodyHomeArgs
@@ -106,6 +107,15 @@ export interface ListenderOnlineArgs {
   // already holds is still current. Absent on modules predating the split, which
   // the app reads as "no catalog available from this world".
   labelStamp?: string
+}
+// A module client saying it is running, so other module clients can tell a user
+// signed in from Foundry apart from the same user signed in from Tabula. Never
+// read by the app — see TM.HANDLER_PRESENT and foundry/clientCensus.ts.
+export interface HandlerPresentArgs {
+  action: typeof TM.HANDLER_PRESENT
+  // The user this client is signed in as. That is the whole payload: the
+  // message says nothing but "there is a Foundry client behind this id".
+  userId: string
 }
 export interface UpdateCharacterDetailsArgs {
   action: typeof TM.UPDATE_CHARACTER

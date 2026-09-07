@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { TM } from '@/api/protocol'
 import type { RpcAction } from '@/types/api-types'
-import { PASSIVE_ACTIONS, RPC_TABLE, rpcDescriptor } from '@/foundry/rpcTable'
+import { actionOrigin, PASSIVE_ACTIONS, RPC_TABLE, rpcDescriptor } from '@/foundry/rpcTable'
 import type { AuthRequirement } from '@/foundry/rpcAuthorize'
 
 // RPC_TABLE replaced four hand-maintained structures in listener.ts: a handler
@@ -179,7 +179,7 @@ describe('PASSIVE_ACTIONS', () => {
   // to do; anything else without a table entry gets an error ack instead.
   it('is exactly the actions this side sends', () => {
     expect([...PASSIVE_ACTIONS].sort()).toEqual(
-      [TM.LISTENER_ONLINE, TM.UPDATE_CHARACTER, TM.SHARE_TARGETS].sort()
+      [TM.LISTENER_ONLINE, TM.UPDATE_CHARACTER, TM.SHARE_TARGETS, TM.HANDLER_PRESENT].sort()
     )
   })
 
@@ -196,5 +196,35 @@ describe('PASSIVE_ACTIONS', () => {
   it('never overlaps the table', () => {
     const overlap = [...PASSIVE_ACTIONS].filter((action) => rpcDescriptor(action))
     expect(overlap).toEqual([])
+  })
+})
+
+// Which side puts a message on the wire is what lets the client census tell a
+// user's Tabula app apart from their Foundry client (clientCensus.ts), and a
+// wrong answer there takes a working GM out of the handler election. So the
+// classification is pinned action by action, the same way the auth column is.
+describe('actionOrigin', () => {
+  it('calls every request the app can send app-origin', () => {
+    for (const action of Object.keys(RPC_TABLE)) {
+      expect(actionOrigin(action), `${action} is a client-initiated RPC`).toBe('app')
+    }
+    for (const action of [TM.REQUEST_CHARACTER, TM.REQUEST_TARGETS, TM.ANYBODY_HOME]) {
+      expect(actionOrigin(action), `${action} is sent by the app`).toBe('app')
+    }
+  })
+
+  it('calls everything this side sends foundry-origin, acks included', () => {
+    for (const action of [...PASSIVE_ACTIONS, TM.ACK]) {
+      expect(actionOrigin(action), `${action} is sent by the module`).toBe('foundry')
+    }
+  })
+
+  // An app newer than this module sends actions with no entry anywhere. Guessing
+  // would be worse than not knowing: guessed 'app' on a foundry-origin message
+  // would drop that client's GM out of the election, and the census only ever
+  // acts on positive evidence.
+  it('refuses to guess about an action it has never heard of', () => {
+    expect(actionOrigin('tm.somethingNewer')).toBe('unknown')
+    expect(actionOrigin('constructor')).toBe('unknown')
   })
 })
