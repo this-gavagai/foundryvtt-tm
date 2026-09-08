@@ -91,6 +91,14 @@ export interface DerivedStatistic {
   base: number
   modifiers: EngineModifier[]
   ledger: Ledger
+  // The proficiency rank this figure was built on, for the statistics that have
+  // one. Reported rather than kept private because the sheet colours a value by
+  // its rank, and a figure the engine derived has no payload rank to read: the
+  // world dump carries none for saves or perception, and the stale zero it
+  // sometimes carries would paint a legendary save untrained. The rank here has
+  // already folded in the class floor and any AE-like upgrade, so it is the
+  // better answer even where a stored one exists.
+  rank?: number
 }
 
 function contextFor(input: DerivationInput): ValueContext {
@@ -398,7 +406,10 @@ function build(
   domains: readonly string[],
   // The one resolve for this actor: ranks, roll options, value context and the
   // rank pass's own ledger, all shared.
-  shared: Resolved
+  shared: Resolved,
+  // The rank the seeds were built from, carried out to the caller. Omitted by
+  // the figures that have no proficiency behind them — hit points.
+  rank?: number
 ): DerivedStatistic {
   const carried = shared.carried
   const collected = collectFlatModifiers(input.items, domains, shared.options, shared.context)
@@ -407,6 +418,7 @@ function build(
   return {
     base: constant + applyStacking(seedModifiers),
     value: constant + applyStacking(all),
+    rank,
     // Reported with `enabled` resolved, so a breakdown shows which modifiers
     // actually applied rather than every one that was considered.
     modifiers: resolved,
@@ -451,7 +463,8 @@ export function deriveSkill(
       rank
     ),
     options.extraDomains ? [...domains, ...options.extraDomains] : domains,
-    shared
+    shared,
+    rank
   )
 }
 
@@ -469,7 +482,8 @@ export function deriveSave(input: DerivationInput, slug: string): DerivedStatist
       rank
     ),
     saveDomains(slug, attribute),
-    shared
+    shared,
+    rank
   )
 }
 
@@ -485,7 +499,8 @@ export function derivePerception(
     0,
     baseModifiers('wis', input.attributes.wis ?? 0, proficiencyBonus(rank, input.level), rank),
     extraDomains ? [...PERCEPTION_DOMAINS, ...extraDomains] : PERCEPTION_DOMAINS,
-    shared
+    shared,
+    rank
   )
 }
 
@@ -542,7 +557,7 @@ export function deriveArmorClass(input: DerivationInput): DerivedStatistic {
       )
     )
   }
-  return build(input, 10, seeds, AC_DOMAINS, shared)
+  return build(input, 10, seeds, AC_DOMAINS, shared, rank)
 }
 
 export function deriveClassDC(input: DerivationInput, keyAttribute: string): DerivedStatistic {
@@ -557,7 +572,8 @@ export function deriveClassDC(input: DerivationInput, keyAttribute: string): Der
       proficiencyBonus(rank, input.level)
     ),
     ['class-dc', 'all'],
-    shared
+    shared,
+    rank
   )
 }
 
@@ -668,7 +684,8 @@ function spellcastingStatistic(
       rank
     ),
     domains,
-    shared
+    shared,
+    rank
   )
 }
 

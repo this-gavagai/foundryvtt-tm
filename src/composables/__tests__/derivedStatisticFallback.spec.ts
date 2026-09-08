@@ -189,3 +189,75 @@ describe('when no GM has answered', () => {
     expect(ac.provisional.value).toBe(true)
   })
 })
+
+// The sheet colours a statistic by its rank (StatBox's data-proficiency-level),
+// so a derived figure that reports no rank is not merely uncoloured — it is
+// coloured WRONG, in the neutral grey that means untrained. The number and its
+// hue have to come from the same place.
+describe('the rank behind a derived figure', () => {
+  it('reports the class rank for a save the payload never carried', () => {
+    const { saves } = useCharacterStats(character({}))
+    // Fighter fortitude is expert, and the figure already spends that rank on
+    // its proficiency bonus — it just never said so.
+    expect(saves.fortitude.value?.rank).toBe(2)
+  })
+
+  it('reports the class rank for a perception the payload never carried', () => {
+    const { perception } = useCharacterStats(character({}))
+    expect(perception.value?.rank).toBe(2)
+  })
+
+  it('overrides the stale zero a world dump stores beside the stale value', () => {
+    // The exact shape two of the ten test-table characters carry: a rank and a
+    // value PF2e overwrites during preparation and never reads. `looksPrepared`
+    // already rejects the value; the rank rode along with it and painted an
+    // expert save untrained.
+    const actor = character({ saves: { fortitude: { rank: 0, value: 0 } } })
+    const { saves } = useCharacterStats(actor)
+    expect(saves.fortitude.value?.value).toBe(15)
+    expect(saves.fortitude.value?.rank).toBe(2)
+  })
+
+  it('reports a rank an AE-like upgrade raised above the stored one', () => {
+    const actor = character({ skills: { athletics: { slug: 'athletics', rank: 1 } } }, [
+      {
+        name: 'Juggernaut',
+        type: 'feat',
+        system: {
+          slug: 'juggernaut',
+          rules: [
+            {
+              key: 'ActiveEffectLike',
+              mode: 'upgrade',
+              path: 'system.skills.athletics.rank',
+              value: 3
+            }
+          ]
+        }
+      }
+    ])
+    const { skills } = useCharacterStats(actor)
+    const athletics = skills.value?.find((skill) => skill.slug === 'athletics')
+    // str 4 + (master 3 x 2 + 8) = 18, and the hue has to agree with the total.
+    expect(athletics?.value).toBe(18)
+    expect(athletics?.rank).toBe(3)
+  })
+
+  it('reports a lore’s rank from its own item', () => {
+    const actor = character({}, [
+      { name: 'Warfare Lore', type: 'lore', system: { proficient: { value: 2 } } }
+    ])
+    const { skills } = useCharacterStats(actor)
+    expect(skills.value?.find((skill) => skill.lore)?.rank).toBe(2)
+  })
+
+  it('leaves the payload’s own rank alone on a prepared statistic', () => {
+    // The prepared branch returns PF2e's trace untouched, engine and all. A
+    // rank the system prepared outranks anything derived here.
+    const actor = character({
+      saves: { fortitude: { slug: 'fortitude', rank: 4, value: 20, totalModifier: 20 } }
+    })
+    const { saves } = useCharacterStats(actor)
+    expect(saves.fortitude.value?.rank).toBe(4)
+  })
+})

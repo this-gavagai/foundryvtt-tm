@@ -51,6 +51,10 @@ export interface DerivedFigure {
   // it; see derivedModifiers.present. Kept separate from `modifiers` up to the
   // point of display so nothing can mistake one for a contributor.
   conditional: ConditionalModifier[]
+  // The proficiency rank behind the figure, where it has one. The sheet colours
+  // a statistic by its rank, and a derived figure has no prepared rank to read;
+  // see DerivedStatistic.rank.
+  rank?: number
 }
 
 export interface DerivedStatistics {
@@ -80,7 +84,8 @@ function present(result: DerivedStatistic): DerivedFigure {
     provisional: result.ledger.confidence !== 'exact',
     caveat: describeLedger(result.ledger),
     modifiers: result.modifiers,
-    conditional: result.ledger.conditional
+    conditional: result.ledger.conditional,
+    rank: result.rank
   }
 }
 

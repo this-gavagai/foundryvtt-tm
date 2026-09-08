@@ -138,6 +138,7 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
           value: number
           provisional: boolean
           caveat: string
+          rank?: number | undefined
           modifiers?: EngineModifier[] | undefined
           conditional?: ConditionalModifier[] | undefined
         }
@@ -172,6 +173,16 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
       totalModifier: derivedFigure.value,
       provisional: derivedFigure.provisional,
       caveat: derivedFigure.caveat,
+      // The engine's rank, not the payload's.
+      //
+      // The sheet colours a statistic by its rank, and only the prepared branch
+      // above has a rank worth trusting. Here there is either none at all — the
+      // world dump carries no `system.saves` or `system.perception` — leaving
+      // the value uncoloured, or the same stale zero the `looksPrepared` gate
+      // just rejected the VALUE for, which painted a legendary save untrained.
+      // The engine's rank already folds the stored one in as a floor and adds
+      // any AE-like upgrade, so it is the better answer in both cases.
+      rank: derivedFigure.rank ?? prepared?.rank,
       // The engine's breakdown, not just its total.
       //
       // Without this the info modal showed the right number over an EMPTY list
@@ -340,7 +351,10 @@ export function useCharacterStats(actor: Ref<TablemateCharacter | undefined>): C
           slug,
           label: lore.name,
           lore: true,
-          rank,
+          // The engine's rank where it has one: it takes the item's as a floor
+          // and adds any AE-like upgrade, the same preference statOrDerived
+          // makes for the core skills.
+          rank: fallback?.rank ?? rank,
           // A lore never appears in the payload's skill list, so it has no
           // prepared figure to prefer — the engine's is all there is.
           value: fallback?.value,
