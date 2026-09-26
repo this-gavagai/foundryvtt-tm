@@ -490,15 +490,13 @@ export const useServerStore = defineStore('server', () => {
         // to as well: an anonymous session it *knows* arrives as
         // `{sessionId, userId: null}`, while a session it has never heard of —
         // or none at all — arrives as a bare `null` (verified against 14.367).
-        // The second means the sid we are storing is dead; a server restart
-        // drops its whole session table. Keeping it would have every later
-        // socket hand the same dead sid back, and the login page wait out
-        // getJoinData's full retry budget on a socket Foundry wires no
-        // listeners for. Dropping it lets the next socket mint a live one (see
-        // the native transport's readSession); silent re-auth is unaffected,
+        // The second is ambiguous from here: the sid may be dead (a server
+        // restart drops the whole session table), or this handshake may simply
+        // not have carried the cookie. The transport asks Foundry which, and
+        // replaces the sid only if it is dead; silent re-auth is unaffected,
         // since POST /join brings its own session back.
         if (!args?.sessionId) {
-          void Promise.resolve(currentTransport().deleteSession(url)).catch(() => {})
+          void Promise.resolve(currentTransport().revalidateSession(url)).catch(() => {})
         }
         handleAuthFailure()
       }

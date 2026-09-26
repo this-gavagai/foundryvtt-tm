@@ -33,6 +33,10 @@ export interface ServerTransport {
   sessionIsAuthenticated(serverUrl: URL): Promise<boolean | undefined>
   // Forget the stored session for a server (used when the server is deleted).
   deleteSession(serverUrl: URL): Promise<void> | void
+  // A socket's handshake named no session Foundry knows. Ask over HTTP whether
+  // the stored one is really dead, and replace it only if it is — a socket can
+  // also arrive without the cookie while the session behind it is fine.
+  revalidateSession(serverUrl: URL): Promise<void> | void
 }
 
 export const JOIN_DATA_TIMEOUT_MS = 3_000

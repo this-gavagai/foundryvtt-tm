@@ -13,6 +13,7 @@ const SERVER = new URL('https://vtt.example.com/')
 
 const verifyCredentials = vi.fn<(...args: unknown[]) => Promise<JoinAttempt>>()
 const deleteSession = vi.fn()
+const revalidateSession = vi.fn()
 const readCredential = vi.fn()
 const writeCredential = vi.fn()
 const forgetCredential = vi.fn()
@@ -57,6 +58,7 @@ vi.mock('@/api/socketConnection', async () => {
     getServerTransport: () => ({
       readSession: () => undefined,
       deleteSession: (...args: unknown[]) => deleteSession(...args),
+      revalidateSession: (...args: unknown[]) => revalidateSession(...args),
       getJoinData: async () => ({ users: [], activeUsers: [], userId: null }),
       verifyCredentials: (...args: unknown[]) => verifyCredentials(...args),
       probe: async () => true,
@@ -116,6 +118,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
   deleteSession.mockResolvedValue(undefined)
+  revalidateSession.mockResolvedValue(undefined)
   clearCachedCharacterData.mockResolvedValue(undefined)
   writeCredential.mockResolvedValue(undefined)
   forgetCredential.mockResolvedValue(undefined)
@@ -135,13 +138,13 @@ afterEach(() => {
 })
 
 describe('an unrecognized session', () => {
-  // Foundry answers a handshake it cannot place — a session id from before the
-  // server restarted, or none at all — with a bare `null`, where a session it
-  // knows arrives as {sessionId, userId: null}. Storing the dead id past that
-  // point had every later socket hand the same one back, and the login page
-  // wait out getJoinData's whole retry budget on a socket Foundry wires no
-  // listeners for: the first attempt always failed, and Retry always worked.
-  it('is dropped so the next socket can mint a live one', async () => {
+  // Foundry answers a handshake it cannot place with a bare `null`, where a
+  // session it knows arrives as {sessionId, userId: null}. That covers a sid
+  // from before a server restart, but also a live sid whose cookie this
+  // handshake didn't carry — so the verdict is checked, never acted on blind.
+  // Deleting the sid outright had every later round mint a new session and
+  // open a socket before its cookie could land, the same miss every time.
+  it('is checked with the server rather than dropped', async () => {
     const store = await loadStore()
     await store.connectToServer(SERVER)
     await settle()
@@ -149,7 +152,8 @@ describe('an unrecognized session', () => {
     sockets.at(-1)!.fire('session', null)
     await settle()
 
-    expect(deleteSession).toHaveBeenCalledWith(SERVER)
+    expect(revalidateSession).toHaveBeenCalledWith(SERVER)
+    expect(deleteSession).not.toHaveBeenCalled()
     expect(store.needsLogin).toBe(true)
   })
 
@@ -158,6 +162,7 @@ describe('an unrecognized session', () => {
 
     // Anonymous, but live: trading it in would cost a round trip and gain
     // nothing.
+    expect(revalidateSession).not.toHaveBeenCalled()
     expect(deleteSession).not.toHaveBeenCalled()
   })
 })

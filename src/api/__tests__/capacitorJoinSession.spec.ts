@@ -204,3 +204,45 @@ describe('capacitorServerTransport.getJoinData', () => {
     expect(localStorage.getItem(SESSION_KEY)).toBe('join-sid')
   })
 })
+
+describe('capacitorServerTransport.revalidateSession', () => {
+  // A socket told `session: null` may just have left without its cookie — a
+  // freshly planted one reaches the WebView asynchronously — so the stored sid
+  // is replaced only when Foundry itself proves it dead.
+  it('keeps a session the server still recognizes', async () => {
+    localStorage.setItem(SESSION_KEY, 'live-sid')
+    httpGet.mockResolvedValue(withoutSession({ active: true }))
+
+    await capacitorServerTransport.revalidateSession(SERVER)
+
+    expect(localStorage.getItem(SESSION_KEY)).toBe('live-sid')
+    expect(deleteCookie).not.toHaveBeenCalled()
+  })
+
+  it('replaces a session the server mints over', async () => {
+    localStorage.setItem(SESSION_KEY, 'dead-sid')
+    httpGet.mockResolvedValue(withSession('live-sid', { active: true }))
+
+    await capacitorServerTransport.revalidateSession(SERVER)
+
+    expect(localStorage.getItem(SESSION_KEY)).toBe('live-sid')
+    expect(setCookie).toHaveBeenCalledWith(
+      expect.objectContaining({ value: 'live-sid', path: '/; SameSite=None; Secure' })
+    )
+  })
+
+  it('keeps the session when the server cannot be reached', async () => {
+    localStorage.setItem(SESSION_KEY, 'live-sid')
+    httpGet.mockRejectedValue(new Error('offline'))
+
+    await capacitorServerTransport.revalidateSession(SERVER)
+
+    expect(localStorage.getItem(SESSION_KEY)).toBe('live-sid')
+  })
+
+  it('asks nothing when no session is stored', async () => {
+    await capacitorServerTransport.revalidateSession(SERVER)
+
+    expect(httpGet).not.toHaveBeenCalled()
+  })
+})

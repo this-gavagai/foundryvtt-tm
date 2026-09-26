@@ -239,6 +239,30 @@ export const capacitorServerTransport: ServerTransport = {
     }
   },
 
+  // A socket answered `session: null` doesn't mean the sid is dead. Foundry
+  // also says that about a handshake that carried no cookie at all, and a
+  // freshly planted cookie reaches the WebView's store asynchronously — a
+  // socket opened right after planting can leave without it. Deleting the sid
+  // on that verdict made the loss permanent: every round then minted a new
+  // session and opened a socket milliseconds after planting it, losing the same
+  // race again, so the login page sat on an empty user list forever.
+  //
+  // Foundry settles it: /api/status mints a session only for a request whose
+  // cookie it doesn't know. A Set-Cookie means ours was dead and this one
+  // replaces it; none means ours is live and the next socket, opened after the
+  // cookie has had time to land, should carry it.
+  async revalidateSession(serverUrl: URL): Promise<void> {
+    if (!readStoredSession(serverUrl)) return
+    try {
+      const response = await requestStatus(serverUrl)
+      const minted = sessionFromSetCookie(readHeader(response, 'set-cookie'))
+      logger.debug('TM-DIAG capacitor revalidateSession', { dead: Boolean(minted) })
+      if (minted) await storeNativeSession(serverUrl, minted)
+    } catch {
+      // Unreachable: nothing learned, so nothing is thrown away.
+    }
+  },
+
   async getJoinData(serverUrl: URL, socketJoinData: () => Promise<JoinData>): Promise<JoinData> {
     // A socket carrying no session can't produce users on either Foundry
     // generation: v13 answers getJoinData with an *empty* user list rather than

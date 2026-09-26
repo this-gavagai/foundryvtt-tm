@@ -21,6 +21,8 @@ export const browserServerTransport: ServerTransport = {
   // session lives in that origin's own cookie jar — nothing app-managed to
   // delete, and there's no multi-server list here either.
   deleteSession() {},
+  // The browser owns that cookie too, and re-mints it on its own.
+  revalidateSession() {},
 
   // Socket first — a page opened from a Foundry the user is already signed into
   // has the session cookie, and the emit answers straight away.
