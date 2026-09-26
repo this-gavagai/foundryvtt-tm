@@ -24,6 +24,9 @@ export const browserServerTransport: ServerTransport = {
   // The browser owns that cookie too, and re-mints it on its own.
   revalidateSession() {},
 
+  // Same-origin, so WebKit attaches the session cookie to the handshake itself.
+  socketOptions: { transports: ['websocket'], upgrade: false },
+
   // Socket first — a page opened from a Foundry the user is already signed into
   // has the session cookie, and the emit answers straight away.
   //

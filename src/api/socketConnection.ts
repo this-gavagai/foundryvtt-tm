@@ -66,7 +66,7 @@ export async function establishSocket(
     Promise.resolve(transport.readSession(url))
       .then((sid) => {
         const socket = io(socketIoUrl.origin, {
-          upgrade: false,
+          ...transport.socketOptions,
           path: socketIoUrl.pathname,
           // Mobile networks (cellular ↔ wifi handoffs, NAT-binding expirations,
           // PWA backgrounding) need an effectively unbounded retry budget — a few
@@ -77,7 +77,6 @@ export async function establishSocket(
           reconnectionDelay: SOCKET_RECONNECTION_DELAY_MS,
           reconnectionAttempts: Infinity,
           reconnectionDelayMax: SOCKET_RECONNECTION_DELAY_MAX_MS,
-          transports: ['websocket'],
           withCredentials: true,
           ...(sid ? { query: { session: sid } } : {})
         })

@@ -1,3 +1,5 @@
+import type { ManagerOptions } from 'socket.io-client'
+
 export interface JoinUser {
   _id: string
   name: string
@@ -37,6 +39,9 @@ export interface ServerTransport {
   // the stored one is really dead, and replace it only if it is — a socket can
   // also arrive without the cookie while the session behind it is fine.
   revalidateSession(serverUrl: URL): Promise<void> | void
+  // Which engine.io transports the socket connects over, and whether it may
+  // upgrade from the first to the second.
+  socketOptions: Pick<ManagerOptions, 'transports' | 'upgrade'>
 }
 
 export const JOIN_DATA_TIMEOUT_MS = 3_000

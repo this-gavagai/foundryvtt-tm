@@ -1,5 +1,8 @@
 import { CapacitorCookies, CapacitorHttp, type HttpResponse } from '@capacitor/core'
 
+import { WebSocket } from 'socket.io-client'
+
+import { CapacitorPolling } from '@/api/capacitorPolling'
 import { logger } from '@/utils/utilities'
 
 import {
@@ -202,6 +205,10 @@ async function storeNativeSession(serverUrl: URL, session: string): Promise<bool
 }
 
 export const capacitorServerTransport: ServerTransport = {
+  // The handshake goes over native HTTP so it carries the session cookie; see
+  // CapacitorPolling for why the WebView's own socket can't.
+  socketOptions: { transports: [CapacitorPolling, WebSocket], upgrade: true },
+
   // Per-origin storage is the authoritative source: it's written at login for
   // exactly this server. The webview's document.cookie is origin-blind (it's
   // the app origin's jar, not the server's), so a session cookie found there
