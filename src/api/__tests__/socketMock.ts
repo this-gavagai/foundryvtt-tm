@@ -44,6 +44,7 @@ export function fakeStoreBridge(overrides: Partial<StoreBridge> = {}): StoreBrid
     getWorldPacks: () => [],
     getUserRole: () => 0,
     getWorldActor: () => undefined,
+    releaseRollCards: () => {},
     ...overrides
   }
 }

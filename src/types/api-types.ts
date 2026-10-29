@@ -16,6 +16,7 @@ export type ModuleEventArgs =
   | AcknowledgementArgs
   | ListenderOnlineArgs
   | HandlerPresentArgs
+  | DiceRevealedArgs
   | UpdateCharacterDetailsArgs
   | RequestCharacterDetailsArgs
   | AnybodyHomeArgs
@@ -71,6 +72,11 @@ export interface AcknowledgementArgs {
   // of resolving it, so a failed handler surfaces as a rejected promise
   // rather than a 30s timeout indistinguishable from "the GM is slow".
   error?: string
+  // The roll cards this request posted. The requesting app reveals them in its
+  // own chat log on receipt, rather than waiting for DICE_REVEALED — which is
+  // what lets a roll made with physical dice show at once for its roller while
+  // the rest of the table waits for the 3D dice. Absent when it posted none.
+  rollMessageIds?: string[]
 }
 // World-scoped GM policy for rolls that arrive with player-determined dice
 // faces (manual picker or Pixel dice):
@@ -116,6 +122,13 @@ export interface HandlerPresentArgs {
   // The user this client is signed in as. That is the whole payload: the
   // message says nothing but "there is a Foundry client behind this id".
   userId: string
+}
+// Dice So Nice has finished throwing the dice for a roll card on the elected
+// GM's screen. See TM.DICE_REVEALED.
+export interface DiceRevealedArgs {
+  action: typeof TM.DICE_REVEALED
+  userId: string
+  messageId: string
 }
 export interface UpdateCharacterDetailsArgs {
   action: typeof TM.UPDATE_CHARACTER

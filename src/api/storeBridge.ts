@@ -43,6 +43,9 @@ export interface StoreBridge {
   // affordance-level gates in the UI are what should normally keep a request
   // from being sent at all. See stores/listenersOnline.ts.
   isListening: () => boolean
+  // Reveal roll cards held back for Dice So Nice (stores/diceReveal.ts). Called
+  // with the cards an ack names — this app's own roll, whose result it now has.
+  releaseRollCards: (messageIds: string[]) => void
 }
 
 let bridge: StoreBridge | undefined

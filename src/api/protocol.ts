@@ -139,6 +139,21 @@ export const CAPABILITY_COMMENTS = 'comments'
 // module already serves, so it shows regardless.
 export const CAPABILITY_END_TURN = 'endTurn'
 
+// Dice So Nice is holding roll cards back on this world's Foundry screens until
+// its 3D dice land, and this module will say when each one has (DICE_REVEALED).
+// Advertised only while that is true — DSN active on the elected GM's client
+// and its "Show chat message immediately" world setting off — because it asks
+// the app to hold every new roll card out of its chat log until the module
+// releases it. A world without DSN must not pay that round trip on every roll.
+export const CAPABILITY_DICE_REVEAL = 'diceReveal'
+
+// The longest the app ever keeps a roll result waiting on Dice So Nice. The app
+// lets a held card go at this point whatever it has heard, and the module stops
+// waiting short of it — by a round trip — so a held ack arrives inside it too.
+// A long throw is cut short rather than leaving the player waiting on it. See
+// foundry/diceReveal.ts and stores/diceReveal.ts.
+export const DICE_REVEAL_MAX_MS = 5_000
+
 // World-setting field names for the module's three opt-in features. Here rather
 // than only in foundry/featureToggles.ts because BOTH ends need them now: the
 // module registers the settings, and the app reads them straight out of core's
@@ -175,6 +190,12 @@ export const TM = {
   // user signed in from Tabula, which `user.active` cannot do (one user, one
   // active flag, any number of sockets). See foundry/clientCensus.ts.
   HANDLER_PRESENT: 'handlerPresent',
+  // "The dice on this roll card have landed." Sent by the elected GM's client
+  // once Dice So Nice has finished animating a new roll card there — the moment
+  // its own chat log reveals it — so the app can reveal the card at the same
+  // time instead of spoiling the throw. Only sent while CAPABILITY_DICE_REVEAL
+  // is advertised.
+  DICE_REVEALED: 'diceRevealed',
 
   // Client-initiated (browser → Foundry)
   UPDATE_ACTOR: 'updateActor',

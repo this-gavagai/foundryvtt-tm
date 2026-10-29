@@ -85,6 +85,7 @@ function makeDeps(over: Partial<Deps> = {}): Deps & { emit: ReturnType<typeof vi
     onCharacterRequest: vi.fn(),
     onAnybodyHome: vi.fn(),
     onRequestTargets: vi.fn(),
+    settleRequestDice: async () => [],
     ...over
   } as Deps & { emit: ReturnType<typeof vi.fn> }
 }
@@ -400,6 +401,76 @@ describe('dispatch', () => {
 // A request that names no actor and reads no document does not need a GM.
 // The dispatch loop asks the responder gate a different question for those, and
 // the descriptor lookup had to move ahead of the gate to make that possible.
+// Dice So Nice holds a roll card back on the table's screens until its dice
+// land, and the ack is the roller's result — so it waits for the same moment,
+// without holding up anyone else's request while it does.
+describe('the ack of a roll whose dice are in the air', () => {
+  it('waits for the roll cards to be revealed, then names them', async () => {
+    table['tm.rollCheck'] = { handler: async () => ({ ok: true, uuid: 'req-1' }), auth: 'owner' }
+    let land: (() => void) | undefined
+    const settleRequestDice = vi.fn(
+      () => new Promise<string[]>((resolve) => (land = () => resolve(['msg-1'])))
+    )
+    const deps = makeDeps({ settleRequestDice })
+
+    handleModuleEvent(event({ action: 'tm.rollCheck', actorId: 'actor-1', uuid: 'req-1' }), deps)
+    await settle()
+    expect(settleRequestDice).toHaveBeenCalledWith(expect.objectContaining({ uuid: 'req-1' }), true)
+    expect(deps.emit).not.toHaveBeenCalled()
+
+    land!()
+    await settle()
+    expect(deps.emit).toHaveBeenCalledWith({ ok: true, uuid: 'req-1', rollMessageIds: ['msg-1'] })
+  })
+
+  // The player already saw the physical die; there is nothing to keep from them.
+  it('does not wait for a roll made with physical dice', async () => {
+    table['tm.rollCheck'] = { handler: async () => ({ ok: true }), auth: 'owner' }
+    const settleRequestDice = vi.fn(async () => ['msg-1'])
+    const deps = makeDeps({ settleRequestDice })
+
+    handleModuleEvent(
+      event({
+        action: 'tm.rollCheck',
+        actorId: 'actor-1',
+        uuid: 'req-1',
+        diceResults: { d20: [17] }
+      }),
+      deps
+    )
+    await settle()
+
+    expect(settleRequestDice).toHaveBeenCalledWith(expect.anything(), false)
+    expect(deps.emit).toHaveBeenCalledWith({ ok: true, rollMessageIds: ['msg-1'] })
+  })
+
+  it('leaves the ack as it was when the request posted no roll card', async () => {
+    table['tm.rollCheck'] = { handler: async () => ({ ok: true }), auth: 'owner' }
+    const deps = makeDeps()
+
+    handleModuleEvent(event({ action: 'tm.rollCheck', actorId: 'actor-1', uuid: 'req-1' }), deps)
+    await settle()
+
+    expect(deps.emit).toHaveBeenCalledWith({ ok: true })
+  })
+
+  it('lets the next request run while an ack waits on the dice', async () => {
+    const second = vi.fn(async () => ({ ok: true }))
+    table['tm.first'] = { handler: async () => ({ ok: true }), auth: 'owner' }
+    table['tm.second'] = { handler: second, auth: 'owner' }
+    const deps = makeDeps({
+      settleRequestDice: (origin) =>
+        origin.uuid === 'first-1' ? new Promise<string[]>(() => {}) : Promise.resolve([])
+    })
+
+    handleModuleEvent(event({ action: 'tm.first', actorId: 'actor-1', uuid: 'first-1' }), deps)
+    handleModuleEvent(event({ action: 'tm.second', actorId: 'actor-1', uuid: 'second-1' }), deps)
+    await settle()
+
+    expect(second).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('the anyClient widening', () => {
   it('asks the gate to require a GM for an ordinary request', () => {
     const scopes: unknown[] = []

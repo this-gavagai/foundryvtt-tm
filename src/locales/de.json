@@ -607,6 +607,8 @@
     "versus": "gegen {name}",
     "dc": "{label} {dc}",
     "offset": "um {offset}",
+    "rolling": "Es wird gewürfelt…",
+    "failed": "Der Wurf ist nicht angekommen.",
     "degree": {
       "check": {
         "criticalSuccess": "Kritischer Erfolg",

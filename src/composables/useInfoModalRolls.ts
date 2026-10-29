@@ -2,6 +2,7 @@ import { computed, ref, watch, type Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePixelDiceStore } from '@/stores/pixelDice'
 import { useGmPolicyStore } from '@/stores/gmPolicy'
+import { useDiceRevealStore } from '@/stores/diceReveal'
 import { triggerRollHapticFeedback } from '@/composables/useHapticFeedback'
 import { TM_ERROR_MANUAL_ROLLS_DISABLED } from '@/api/protocol'
 import type { RequestResolutionArgs } from '@/types/api-types'
@@ -10,6 +11,12 @@ import type { Roll } from '@/types/roll-types'
 interface UseInfoModalRollsOptions {
   rolls: Ref<Roll[] | undefined>
   isOpen: Ref<boolean>
+  // The roll is on its way and its result will be a while: Dice So Nice is
+  // throwing the dice on the table's screen, and the module answers when they
+  // land. Not called for a roll that brings its own faces (Pixel dice, the
+  // manual picker) — that result comes back at once, because its roller
+  // already saw it on the physical die.
+  onRollStarted?: (roll: Roll) => void
   onRollResolved: (result: RequestResolutionArgs | null | undefined) => void
   onRollError?: (error: unknown) => void
 }
@@ -17,12 +24,14 @@ interface UseInfoModalRollsOptions {
 export function useInfoModalRolls({
   rolls,
   isOpen,
+  onRollStarted,
   onRollResolved,
   onRollError = (error) => console.error('Failed to execute roll', error)
 }: UseInfoModalRollsOptions) {
   const { lastRoll, readyFaceCounts } = storeToRefs(usePixelDiceStore())
   const gmPolicy = useGmPolicyStore()
   const { manualRollsBlocked } = storeToRefs(gmPolicy)
+  const { active: diceRevealActive } = storeToRefs(useDiceRevealStore())
 
   // The roll that consumes the next physical-die input: prefer an explicitly
   // armed roll; otherwise the first dice-eligible roll.
@@ -81,7 +90,13 @@ export function useInfoModalRolls({
     try {
       // Belt-and-braces client gate: never send player-determined faces when
       // the GM rejects them (covers a buffer filled before the policy arrived).
-      const result = await roll.execute(manualRollsBlocked.value ? undefined : faces)
+      const sentFaces = manualRollsBlocked.value ? undefined : faces
+      const pending = roll.execute(sentFaces)
+      // Announced only once execute() has started: a caller may close the modal
+      // here, and the close resets state (modifier overrides, the reroll being
+      // made) that execute() reads up front.
+      if (diceRevealActive.value && !sentFaces?.length) onRollStarted?.(roll)
+      const result = await pending
       onRollResolved(result)
     } catch (error) {
       // The module refused the roll because manual results are disabled —

@@ -57,9 +57,19 @@ const {
 } = useInfoModalRolls({
   rolls: computed(() => props.rolls),
   isOpen,
-  onRollResolved: (result) => {
+  // The result panel takes over straight away, rolling, while the table's dice
+  // are in the air — the same hand-off as a resolved roll, just earlier.
+  onRollStarted: (roll) => {
     close(true)
+    rollResultModal.value?.openRolling(roll.label)
+  },
+  onRollResolved: (result) => {
+    if (isOpen.value) close(true)
     rollResultModal.value?.open(result)
+  },
+  onRollError: (error) => {
+    rollResultModal.value?.showFailure()
+    console.error('Failed to execute roll', error)
   }
 })
 

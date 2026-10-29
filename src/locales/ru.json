@@ -607,6 +607,8 @@
     "versus": "против {name}",
     "dc": "{label} {dc}",
     "offset": "на {offset}",
+    "rolling": "Бросаем…",
+    "failed": "Бросок не прошёл.",
     "degree": {
       "check": {
         "criticalSuccess": "Критический успех",

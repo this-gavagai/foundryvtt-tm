@@ -6,7 +6,8 @@ import {
   CAPABILITY_VOICE_MEMO_TRANSCRIPT,
   CAPABILITY_IMAGE_UPLOAD,
   CAPABILITY_SET_HIT_POINTS,
-  CAPABILITY_END_TURN
+  CAPABILITY_END_TURN,
+  CAPABILITY_DICE_REVEAL
 } from '@/api/protocol'
 
 // Tracks whether the connected Foundry module speaks the same wire protocol as
@@ -76,6 +77,12 @@ export const useVersionCompatStore = defineStore('versionCompat', () => {
   // read from world data every module serves, so it stays visible.
   const supportsEndTurn = computed(() => moduleCapabilities.value.includes(CAPABILITY_END_TURN))
 
+  // Whether Dice So Nice is holding roll cards back on the world's screens and
+  // the module will say when each is revealed. See stores/diceReveal.ts.
+  const supportsDiceReveal = computed(() =>
+    moduleCapabilities.value.includes(CAPABILITY_DICE_REVEAL)
+  )
+
   function reportModule(
     protocol: number | undefined,
     version: string | undefined,
@@ -109,6 +116,7 @@ export const useVersionCompatStore = defineStore('versionCompat', () => {
     supportsImageUpload,
     supportsSetHitPoints,
     supportsEndTurn,
+    supportsDiceReveal,
     isMismatched,
     reportModule,
     reset

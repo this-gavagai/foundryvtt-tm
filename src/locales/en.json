@@ -607,6 +607,8 @@
     "versus": "vs {name}",
     "dc": "{label} {dc}",
     "offset": "by {offset}",
+    "rolling": "Rolling…",
+    "failed": "The roll didn't go through.",
     "degree": {
       "check": {
         "criticalSuccess": "Critical Success",

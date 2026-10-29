@@ -21,7 +21,8 @@ import {
   CAPABILITY_REACTIONS,
   CAPABILITY_END_TURN,
   CAPABILITY_SET_HIT_POINTS,
-  CAPABILITY_COMMENTS
+  CAPABILITY_COMMENTS,
+  CAPABILITY_DICE_REVEAL
 } from '@/api/protocol'
 import { makeAck, stampTablemateChatOrigin, tablemateChatOriginUuid } from './utils/foundry'
 import { markRequestSeen, requestAlreadySeen } from './requestDedup'
@@ -35,6 +36,7 @@ import { ownTargetIds } from './utils/target'
 import { resolveCapture, type CapturedMessage } from './chatCapture'
 import {
   chatOriginStampFor,
+  currentChatOrigin,
   currentChatOriginUserId,
   withChatOrigin,
   type ChatOrigin,
@@ -69,6 +71,12 @@ import { refreshReactionDisplay } from './reactionDisplay'
 import { refreshCommentDisplay } from './commentDisplay'
 import { notifyChatMessage } from './pushNotify'
 import { notifyTurnStart } from './pushTurn'
+import {
+  diceRevealHeld,
+  isDiceRevealSetting,
+  settleRequestDice,
+  trackDiceReveal
+} from './diceReveal'
 
 type GetEvent = { action: 'get' }
 
@@ -215,6 +223,12 @@ function setupChatOriginStamping() {
     if (originUserId) stampTablemateChatOrigin(message, originUserId)
     const uuid = tablemateChatOriginUuid(message)
     if (uuid) resolveCapture(uuid, message as CapturedMessage)
+    // Wait for Dice So Nice to throw this card's dice, so the app can reveal it
+    // when this screen does (see diceReveal.ts). Only the client that speaks for
+    // the table needs to — or one executing a request, whose ack waits on the
+    // cards it posted.
+    const origin = currentChatOrigin()
+    if (origin || iAmFirstGM()) trackDiceReveal(message, origin, announceDiceRevealed)
     // Push the message to everyone who can see it (leader-elected + gated on
     // push config inside; safe to call on every client).
     void notifyChatMessage(message)
@@ -263,6 +277,16 @@ export interface ModuleEventDeps {
   onAnybodyHome: (args: ModuleEventArgs) => void
   // Report this client's own targeting.
   onRequestTargets: () => void
+  // The roll cards a request posted, once Dice So Nice has thrown their dice
+  // (or at once, when told not to wait). See diceReveal.ts.
+  settleRequestDice: (origin: ChatOrigin, waitForDice: boolean) => Promise<string[]>
+}
+
+// Name the request's roll cards on its ack, so the requesting app can reveal
+// them without waiting for DICE_REVEALED.
+function withRollMessageIds(result: unknown, rollMessageIds: string[]): unknown {
+  if (!rollMessageIds.length || !result || typeof result !== 'object') return result
+  return { ...result, rollMessageIds }
 }
 
 // Answer a refused/failed request with an error ack so the waiting app rejects
@@ -464,10 +488,23 @@ export function handleModuleEvent(args: ModuleEventArgs, deps: ModuleEventDeps) 
           )
           advance()
         }, HANDLER_QUEUE_TIMEOUT_MS)
-        void respond(withChatOrigin(origin, () => rpc.handler(args))).finally(() => {
+        const handled = withChatOrigin(origin, () => rpc.handler(args))
+        // The queue moves on when the HANDLER settles, not when its ack goes out:
+        // the ack may wait seconds more for Dice So Nice, and nothing in that
+        // wait needs the serialization — the roll is already on the table.
+        const release = () => {
           globalThis.clearTimeout(timer)
           advance()
-        })
+        }
+        handled.then(release, release)
+        // The ack is the roller's result, so it waits for the dice to land like
+        // the card does — except for player-determined faces, which the roller
+        // has already seen on the physical die.
+        void respond(
+          handled.then(async (result) =>
+            withRollMessageIds(result, await deps.settleRequestDice(origin, !presetDice))
+          )
+        )
       })
   )
 }
@@ -532,6 +569,16 @@ export function setupListener() {
     announceSelf()
     refreshCommentDisplay()
   })
+  // Dice So Nice's "Show chat message immediately" decides whether the dice
+  // reveal capability rides announceSelf. It is DSN's setting, so there is no
+  // onChange of ours to hang this on — watch the Setting document instead. A
+  // world that never changed it has no document until the first save, hence
+  // create as well as update.
+  for (const hook of ['createSetting', 'updateSetting']) {
+    hooks().on(hook, (...args: unknown[]) => {
+      if (isDiceRevealSetting(args[0])) announceIfElected()
+    })
+  }
   registerPushSettings()
   // GM-only: generate + provision this world's push identity if enabled.
   void ensureWorldPushIdentity()
@@ -577,7 +624,8 @@ export function setupListener() {
       checkClientVersion(args)
       announceSelf()
     },
-    onRequestTargets: broadcastOwnTargets
+    onRequestTargets: broadcastOwnTargets,
+    settleRequestDice
   }
 
   game.socket.on(TM.CHANNEL, (args: ModuleEventArgs) => handleModuleEvent(args, deps))
@@ -697,8 +745,23 @@ function announceSelf() {
       CAPABILITY_SET_HIT_POINTS,
       // Likewise: it says this module can advance the encounter on a player's
       // behalf, so the app's turn bar can offer an End Turn button.
-      CAPABILITY_END_TURN
+      CAPABILITY_END_TURN,
+      // Conditional on Dice So Nice, not on a setting of ours: it asks the app
+      // to hold roll cards until this client announces them, which only makes
+      // sense while DSN is holding them here too.
+      ...(diceRevealHeld() ? [CAPABILITY_DICE_REVEAL] : [])
     ]
+  })
+}
+
+// The dice on a roll card have landed on this screen. Said only by the client
+// the election picks, which is the one connected apps take their cue from.
+function announceDiceRevealed(messageId: string) {
+  if (!iAmFirstGM()) return
+  game.socket.emit(TM.CHANNEL, {
+    action: TM.DICE_REVEALED,
+    userId: game.user.id,
+    messageId
   })
 }
 

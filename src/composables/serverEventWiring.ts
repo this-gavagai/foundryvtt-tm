@@ -17,6 +17,7 @@ import { useWorldStore } from '@/stores/world'
 import { useLabelCatalogsStore } from '@/stores/labelCatalogs'
 import { useSettingsStore } from '@/stores/settings'
 import { usePixelDiceStore } from '@/stores/pixelDice'
+import { useDiceRevealStore } from '@/stores/diceReveal'
 import { resetWorldScopedStores } from '@/stores/worldScopedReset'
 import { logger } from '@/utils/utilities'
 import { runDifferential } from '@/utils/ruleEngine/differential'
@@ -84,7 +85,11 @@ export function installApiStoreBridge() {
       return user?.role ?? 0
     },
     getWorldActor: (actorId) => useWorldStore().actorById(actorId),
-    isListening: () => useListenersStore().isListening
+    isListening: () => useListenersStore().isListening,
+    releaseRollCards: (messageIds) => {
+      const diceReveal = useDiceRevealStore()
+      messageIds.forEach((id) => diceReveal.release(id))
+    }
   })
 }
 
@@ -240,6 +245,9 @@ export function registerServerEventWiring() {
     void useLabelCatalogsStore().ensureCatalog(args.labelStamp)
   })
 
+  // The dice on a held roll card have landed on the table's screen.
+  onTmAction(TM.DICE_REVEALED, (args) => useDiceRevealStore().release(args.messageId))
+
   // Core "show players" image share. Gated on an opt-in setting, and checked
   // here rather than in the modal so a player who left it off never even holds
   // the payload — the popup can't flash on a race with the toggle.
@@ -306,6 +314,18 @@ function updatedIds(args: DocumentSocketResponse): string[] {
     .filter((id): id is string => typeof id === 'string')
 }
 
+// The created messages that carry rolls — the same test the module applies when
+// deciding which cards to announce (foundry/diceReveal.ts).
+function holdNewRollCards(created: unknown) {
+  if (!Array.isArray(created)) return
+  const diceReveal = useDiceRevealStore()
+  for (const message of created as { _id?: unknown; rolls?: unknown }[]) {
+    if (typeof message?._id === 'string' && Array.isArray(message.rolls) && message.rolls.length) {
+      diceReveal.hold(message._id)
+    }
+  }
+}
+
 // World-scoped handlers, registered once a world exists. Re-calling replaces
 // the previous registration (same handler-slot semantics as before the
 // registry refactor); no socket access is needed because the registries are
@@ -362,6 +382,10 @@ export function setupSocketListenersForWorld(world: Ref<GamePF2e | undefined>) {
         useWorldStore().bumpSettingsRevision()
         break
       case 'ChatMessage':
+        // A new roll card stays out of the chat log until its dice have landed
+        // (stores/diceReveal.ts). Held before it is merged, so no render can
+        // slip in between.
+        if (args.action === 'create') holdNewRollCards(args.result)
         processChanges(args, asDocumentArray(world.value?.messages))
         // Signal the chat cache that messages changed even when the mutation is
         // invisible to its count/tail fingerprint (in-place updates).

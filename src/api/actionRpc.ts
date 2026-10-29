@@ -84,6 +84,16 @@ function pushToAckQueue(
       reject(new Error(args.error))
       return
     }
+    // Our own roll: reveal its cards in the chat log with the result, rather
+    // than when the elected GM's dice land. Guarded for the same reason as the
+    // resync above — a throw here would strand the caller.
+    if (args.rollMessageIds?.length) {
+      try {
+        requireStoreBridge().releaseRollCards(args.rollMessageIds)
+      } catch (bridgeError) {
+        logger.debug('TM: could not release roll cards after ack', bridgeError)
+      }
+    }
     resolve(args)
   })
 }

@@ -256,7 +256,8 @@ const NON_RPC_ACTIONS = {
   [TM.LISTENER_ONLINE]: 'passive',
   [TM.UPDATE_CHARACTER]: 'passive',
   [TM.SHARE_TARGETS]: 'passive',
-  [TM.HANDLER_PRESENT]: 'passive'
+  [TM.HANDLER_PRESENT]: 'passive',
+  [TM.DICE_REVEALED]: 'passive'
 } as const satisfies Record<NonRpcAction, 'early' | 'passive'>
 
 export const PASSIVE_ACTIONS: ReadonlySet<string> = new Set(
@@ -278,6 +279,7 @@ const NON_RPC_ORIGIN = {
   [TM.UPDATE_CHARACTER]: 'foundry',
   [TM.SHARE_TARGETS]: 'foundry',
   [TM.HANDLER_PRESENT]: 'foundry',
+  [TM.DICE_REVEALED]: 'foundry',
   [TM.REQUEST_CHARACTER]: 'app',
   [TM.REQUEST_TARGETS]: 'app',
   [TM.ANYBODY_HOME]: 'app'

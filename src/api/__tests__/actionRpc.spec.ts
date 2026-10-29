@@ -185,6 +185,33 @@ describe('stale-target refusal', () => {
   })
 })
 
+// The ack of this app's own roll names the cards it posted, so they appear in
+// the chat log with the result instead of waiting on the table's 3D dice.
+describe('roll cards named on an ack', () => {
+  it('are released when the ack resolves', async () => {
+    const releaseRollCards = vi.fn()
+    registerStoreBridge(fakeStoreBridge({ releaseRollCards }))
+    const pending = sendItemToChat('actor-1', 'item-1')
+    await flushMicrotasks()
+    const uuid = lastEmittedUuid()
+
+    resolveAck(uuid, ackFor(uuid, { rollMessageIds: ['msg-1'] }))
+    await expect(pending).resolves.toMatchObject({ rollMessageIds: ['msg-1'] })
+    expect(releaseRollCards).toHaveBeenCalledExactlyOnceWith(['msg-1'])
+    resetStoreBridgeForTest()
+  })
+
+  it('still resolve the caller when no bridge is registered to release them', async () => {
+    const pending = sendItemToChat('actor-1', 'item-1')
+    await flushMicrotasks()
+    const uuid = lastEmittedUuid()
+    resetStoreBridgeForTest()
+
+    resolveAck(uuid, ackFor(uuid, { rollMessageIds: ['msg-1'] }))
+    await expect(pending).resolves.toMatchObject({ uuid })
+  })
+})
+
 describe('rejectAllPending (socket swap)', () => {
   it('rejects every in-flight request with the given reason and drains the queue', async () => {
     const first = sendItemToChat('actor-1', 'item-1')

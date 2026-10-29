@@ -607,6 +607,8 @@
     "versus": "contra {name}",
     "dc": "{label} {dc}",
     "offset": "por {offset}",
+    "rolling": "Tirando…",
+    "failed": "La tirada no se ha podido completar.",
     "degree": {
       "check": {
         "criticalSuccess": "Éxito crítico",

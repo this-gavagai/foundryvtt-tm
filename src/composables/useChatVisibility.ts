@@ -2,6 +2,7 @@ import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useWorldStore } from '@/stores/world'
 import { useUserStore } from '@/stores/user'
+import { useDiceRevealStore } from '@/stores/diceReveal'
 import { collectionToArray, type CollectionLike } from '@/utils/foundryCollections'
 import type { ChatMessageData } from '@/composables/useChatMessages'
 
@@ -51,6 +52,7 @@ export function messageAuthorId(message: ChatMessageData): string | undefined {
 export function useChatVisibility() {
   const { world } = storeToRefs(useWorldStore())
   const userStore = useUserStore()
+  const diceReveal = useDiceRevealStore()
 
   const users = computed(() =>
     collectionToArray<UserData>(world.value?.users as CollectionLike<UserData>)
@@ -129,8 +131,14 @@ export function useChatVisibility() {
 
   // Live, filtered, time-sorted messages from the world payload (no cache
   // fallback — callers that need a cold-launch placeholder layer that on top).
+  //
+  // A roll card whose dice are still in the air on the table's screen is not
+  // visible yet either (stores/diceReveal.ts) — filtered here so the log, the
+  // unread badge and the last-damage offer all wait for it together.
   const visibleMessages = computed(() =>
-    liveMessages().filter(messageVisibleToCurrentUser).sort(byTimestamp)
+    liveMessages()
+      .filter((message) => messageVisibleToCurrentUser(message) && !diceReveal.isHeld(message._id))
+      .sort(byTimestamp)
   )
 
   return {

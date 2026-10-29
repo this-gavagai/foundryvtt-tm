@@ -4,6 +4,7 @@ import { useGmPolicyStore } from '@/stores/gmPolicy'
 import { useTokenRingStore } from '@/stores/tokenRing'
 import { useTargetHelperStore } from '@/stores/targetHelper'
 import { useLabelCatalogsStore } from '@/stores/labelCatalogs'
+import { useDiceRevealStore } from '@/stores/diceReveal'
 
 // Everything the connected world told us about itself, dropped in one place.
 //
@@ -42,4 +43,7 @@ export function resetWorldScopedStores() {
   // return visit (clearCachedCharacterData removes it when the server is
   // forgotten or signed out of).
   useLabelCatalogsStore().reset()
+  // Roll cards held for the old world's dice would otherwise sit out their
+  // ceiling — and their ids mean nothing in the new one.
+  useDiceRevealStore().reset()
 }

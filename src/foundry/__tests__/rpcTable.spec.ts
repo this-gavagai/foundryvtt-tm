@@ -179,7 +179,13 @@ describe('PASSIVE_ACTIONS', () => {
   // to do; anything else without a table entry gets an error ack instead.
   it('is exactly the actions this side sends', () => {
     expect([...PASSIVE_ACTIONS].sort()).toEqual(
-      [TM.LISTENER_ONLINE, TM.UPDATE_CHARACTER, TM.SHARE_TARGETS, TM.HANDLER_PRESENT].sort()
+      [
+        TM.LISTENER_ONLINE,
+        TM.UPDATE_CHARACTER,
+        TM.SHARE_TARGETS,
+        TM.HANDLER_PRESENT,
+        TM.DICE_REVEALED
+      ].sort()
     )
   })
 
