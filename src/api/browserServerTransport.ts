@@ -6,9 +6,11 @@ import {
   homeUrl,
   joinRequestBody,
   readBrowserSessionCookie,
+  readWorldActive,
   PROBE_TIMEOUT_MS,
   SESSION_CHECK_TIMEOUT_MS,
   VERIFY_CREDENTIALS_TIMEOUT_MS,
+  WORLD_STATUS_TIMEOUT_MS,
   type JoinAttempt,
   type JoinData,
   type ServerTransport
@@ -89,6 +91,20 @@ export const browserServerTransport: ServerTransport = {
       return response.ok
     } catch {
       return false
+    } finally {
+      clearTimeout(timeoutId)
+    }
+  },
+
+  async worldActive(serverUrl: URL): Promise<boolean | undefined> {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), WORLD_STATUS_TIMEOUT_MS)
+    try {
+      const response = await fetch(new URL('/api/status', serverUrl), { signal: controller.signal })
+      if (!response.ok) return undefined
+      return readWorldActive(await response.json())
+    } catch {
+      return undefined
     } finally {
       clearTimeout(timeoutId)
     }

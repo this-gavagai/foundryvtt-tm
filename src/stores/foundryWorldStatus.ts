@@ -1,9 +1,9 @@
 import { ref, onScopeDispose } from 'vue'
 import { defineStore } from 'pinia'
+import { getServerTransport } from '@/api/socketConnection'
 import { useServerAddressStore } from '@/stores/serverAddress'
 import { useWorldStore } from '@/stores/world'
 
-const STATUS_FETCH_TIMEOUT_MS = 3000
 const POLL_INTERVAL_MS = 8000
 
 export const useFoundryWorldStatusStore = defineStore('foundryWorldStatus', () => {
@@ -12,25 +12,14 @@ export const useFoundryWorldStatusStore = defineStore('foundryWorldStatus', () =
   // true = Foundry has a game world loaded (from /api/status, auth-independent); false = no world loaded, undefined = not yet determined
   const worldLoaded = ref<boolean | undefined>(undefined)
 
+  // Through the transport rather than the WebView's fetch: on Android the page
+  // is https://localhost, which may not fetch from an http:// server, and the
+  // spinner waits on this answer.
   async function fetchWorldStatus(): Promise<boolean | undefined> {
-    const serverUrl = useServerAddressStore().serverUrl
+    const address = useServerAddressStore()
+    const serverUrl = address.serverUrl
     if (!serverUrl) return undefined
-    // 3s cap so a flaky cellular network doesn't strand refreshes on the
-    // HTTP step. /api/status is normally a sub-100ms call.
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), STATUS_FETCH_TIMEOUT_MS)
-    try {
-      const resp = await fetch(new URL('/api/status', serverUrl), {
-        signal: controller.signal
-      })
-      clearTimeout(timeoutId)
-      if (!resp.ok) return undefined
-      const data = await resp.json()
-      return typeof data?.active === 'boolean' ? data.active : undefined
-    } catch {
-      clearTimeout(timeoutId)
-      return undefined
-    }
+    return getServerTransport(address.isNativeMobile).worldActive(serverUrl)
   }
 
   function markWorldLoaded() {

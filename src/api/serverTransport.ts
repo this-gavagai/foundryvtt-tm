@@ -28,6 +28,9 @@ export interface ServerTransport {
   // Cheap reachability check used to pick a protocol (https vs http) before
   // committing to a server. Resolves true when the candidate answers.
   probe(serverUrl: URL): Promise<boolean>
+  // Whether Foundry has a world loaded, from /api/status (no auth needed):
+  // undefined = couldn't tell (unreachable, unexpected answer).
+  worldActive(serverUrl: URL): Promise<boolean | undefined>
   // Ask the server (over plain HTTP, independent of any socket) whether the
   // stored session is signed in: true = Foundry recognizes it as a logged-in
   // user, false = it's anonymous (the join form would be shown), undefined =
@@ -49,6 +52,25 @@ export const JOIN_DATA_RETRY_ATTEMPTS = 3
 export const VERIFY_CREDENTIALS_TIMEOUT_MS = 10_000
 export const PROBE_TIMEOUT_MS = 4_000
 export const SESSION_CHECK_TIMEOUT_MS = 4_000
+// 3s cap so a flaky cellular network doesn't strand refreshes on the HTTP
+// step. /api/status is normally a sub-100ms call.
+export const WORLD_STATUS_TIMEOUT_MS = 3_000
+
+// Read `active` out of an /api/status body. CapacitorHttp hands back parsed
+// JSON when the response says application/json and a string otherwise, so
+// both shapes are accepted.
+export function readWorldActive(body: unknown): boolean | undefined {
+  let parsed = body
+  if (typeof body === 'string') {
+    try {
+      parsed = JSON.parse(body)
+    } catch {
+      return undefined
+    }
+  }
+  const active = (parsed as { active?: unknown } | null)?.active
+  return typeof active === 'boolean' ? active : undefined
+}
 
 export function readBrowserSessionCookie(): string | undefined {
   return document.cookie
@@ -112,11 +134,13 @@ export function classifyHomeRedirect(
 // Secure cookie is never sent back over a plain connection, and SameSite=None
 // without Secure is rejected outright.
 //
-// On Android that is moot anyway — Capacitor's default androidScheme makes the
-// page origin https://localhost, and Chromium refuses to even construct a
-// ws:// socket from an https page ("An insecure WebSocket connection may not be
-// initiated from a page loaded over HTTPS"), so a plain-http Foundry server has
-// never been reachable there on any Foundry version. iOS runs from
+// On Android, Capacitor's default androidScheme makes the page origin
+// https://localhost, and Chromium refuses to even construct a ws:// socket from
+// an https page ("An insecure WebSocket connection may not be initiated from a
+// page loaded over HTTPS"). A plain-http server's socket therefore never
+// upgrades and stays on the native long-polling it handshook over (see
+// CapacitorPolling); the same rule bars the WebView's own fetch from such a
+// server, so every HTTP request goes through CapacitorHttp. iOS runs from
 // capacitor://localhost, which is not an https page, so ws:// is allowed and
 // http servers do work there — up to v13. On v14 they need this cookie, which
 // http can't have.

@@ -246,3 +246,51 @@ describe('capacitorServerTransport.revalidateSession', () => {
     expect(httpGet).not.toHaveBeenCalled()
   })
 })
+
+describe('capacitorServerTransport.verifyCredentials', () => {
+  // Foundry 14.369's guard on every Express POST, copied from its server: with
+  // no Sec-Fetch-Site it wants an Origin equal to its own, and a native request
+  // sends neither unless told to.
+  function foundryPost(options: { url: string; headers?: Record<string, string> }) {
+    const headers = options.headers ?? {}
+    const fetchSite = headers['Sec-Fetch-Site']
+    const origin = headers.Origin && URL.parse(headers.Origin)?.origin
+    const own = new URL(options.url).origin
+    const crossSite = fetchSite ? fetchSite !== 'same-origin' : !origin || origin !== own
+    if (crossSite) {
+      return Promise.resolve({
+        status: 400,
+        data: { error: 'The request could not be processed.' },
+        headers: {},
+        url: options.url
+      })
+    }
+    return Promise.resolve(withSession('joined-sid', { status: 'success', redirect: '/game' }))
+  }
+
+  it('gets past Foundry’s cross-site POST guard', async () => {
+    httpGet.mockImplementation(foundryPost)
+
+    expect(await capacitorServerTransport.verifyCredentials(SERVER, 'user-id', 'pw')).toBe('ok')
+  })
+})
+
+describe('capacitorServerTransport.worldActive', () => {
+  it('reads the flag from parsed JSON', async () => {
+    httpGet.mockResolvedValue(withoutSession({ active: true }))
+
+    expect(await capacitorServerTransport.worldActive(SERVER)).toBe(true)
+  })
+
+  it('reads the flag from a body handed back as text', async () => {
+    httpGet.mockResolvedValue(withoutSession('{"active":false}'))
+
+    expect(await capacitorServerTransport.worldActive(SERVER)).toBe(false)
+  })
+
+  it('cannot tell when the server does not answer', async () => {
+    httpGet.mockRejectedValue(new Error('unreachable'))
+
+    expect(await capacitorServerTransport.worldActive(SERVER)).toBeUndefined()
+  })
+})

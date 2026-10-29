@@ -13,9 +13,11 @@ import {
   JOIN_DATA_TIMEOUT_MS,
   PROBE_TIMEOUT_MS,
   readBrowserSessionCookie,
+  readWorldActive,
   sessionCookiePath,
   SESSION_CHECK_TIMEOUT_MS,
   VERIFY_CREDENTIALS_TIMEOUT_MS,
+  WORLD_STATUS_TIMEOUT_MS,
   type JoinAttempt,
   type JoinData,
   type JoinUser,
@@ -341,14 +343,31 @@ export const capacitorServerTransport: ServerTransport = {
     }
   },
 
+  async worldActive(serverUrl: URL): Promise<boolean | undefined> {
+    try {
+      const response = await CapacitorHttp.get({
+        url: new URL('/api/status', serverUrl).href,
+        connectTimeout: WORLD_STATUS_TIMEOUT_MS,
+        readTimeout: WORLD_STATUS_TIMEOUT_MS
+      })
+      if (response.status < 200 || response.status >= 300) return undefined
+      return readWorldActive(response.data)
+    } catch {
+      return undefined
+    }
+  },
+
   async verifyCredentials(serverUrl: URL, userid: string, password: string): Promise<JoinAttempt> {
     try {
       // Non-2xx resolves here rather than throwing (both native HTTP handlers
       // read the error stream into the response), so Foundry's 401 body is
       // available to tell a bad password from an outage.
+      // Foundry (from 14.369) answers a POST 400 unless it is same-origin: a
+      // `Sec-Fetch-Site: same-origin`, or failing that an Origin equal to its
+      // own. A native request carries neither, so it names the server's.
       const response = await CapacitorHttp.post({
         url: new URL('/join', serverUrl).href,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Origin: serverUrl.origin },
         data: joinRequestBody(userid, password),
         connectTimeout: VERIFY_CREDENTIALS_TIMEOUT_MS,
         readTimeout: VERIFY_CREDENTIALS_TIMEOUT_MS
