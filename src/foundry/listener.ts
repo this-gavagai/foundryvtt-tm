@@ -60,6 +60,7 @@ import {
 import { registerVoiceMemoSetting, voiceMemoEnabled } from './voiceMemoSetting'
 import { registerImageUploadSetting, imageUploadEnabled } from './imageUploadSetting'
 import { registerPushSettings, ensureWorldPushIdentity } from './pushRegistration'
+import { setupPushPause } from './pushPause'
 import {
   registerReactionsSetting,
   registerCommentsSetting,
@@ -584,6 +585,8 @@ export function setupListener() {
   void ensureWorldPushIdentity()
   setupChatOriginStamping()
   setupTurnAlerts()
+  // GM-only: the chat sidebar's "pause push" switch.
+  setupPushPause()
   // Runs on every client, not just the elected GM: each reports its own
   // targeting so mirroring tablets get it from the one place that knows it.
   setupTargetReporting()

@@ -31,7 +31,14 @@ vi.mock('../pushRegistration', () => ({
   }
 }))
 
-type TestUser = { id: string; name: string; active?: boolean; belongsTo?: string }
+type TestUser = {
+  id: string
+  name: string
+  isGM?: boolean
+  active?: boolean
+  belongsTo?: string
+  pushPaused?: boolean
+}
 
 let fetchMock: ReturnType<typeof vi.fn>
 
@@ -48,7 +55,14 @@ function setWorld(list: TestUser[], ids: { primaryGm?: string; me?: string } = {
       contents: list.map((u) => ({
         id: u.id,
         name: u.name,
-        flags: u.belongsTo ? { tablemate: { belongsTo: u.belongsTo } } : {}
+        isGM: u.isGM === true,
+        active: u.active === true,
+        flags: {
+          tablemate: {
+            ...(u.belongsTo ? { belongsTo: u.belongsTo } : {}),
+            ...(u.pushPaused ? { pushPaused: true } : {})
+          }
+        }
       })),
       get: (id: string) => byId.get(id)
     },
@@ -510,5 +524,51 @@ describe('notification body', () => {
     )
     await vi.waitFor(() => expect(body()).toBe('🎤 Voice message'))
     await sent
+  })
+})
+
+// A GM testing in the live world pauses push from the chat sidebar; the pause
+// holds only while that GM is online (see pushPause.ts).
+describe('push pause', () => {
+  const whisper = () => message({ whisper: ['bob'] })
+
+  it('sends nothing while an online GM has paused push', async () => {
+    setWorld([
+      { id: 'gm', name: 'GameMaster', isGM: true, active: true, pushPaused: true },
+      { id: 'bob', name: 'Bob' }
+    ])
+    await notifyChatMessage(whisper())
+    expect(payload()).toBeUndefined()
+  })
+
+  // The sender is the primary GM, who need not be the one testing.
+  it('honours a pause set by a GM other than the sender', async () => {
+    setWorld([
+      { id: 'gm', name: 'GameMaster', isGM: true, active: true },
+      { id: 'gm2', name: 'CoGM', isGM: true, active: true, pushPaused: true },
+      { id: 'bob', name: 'Bob' }
+    ])
+    await notifyChatMessage(whisper())
+    expect(payload()).toBeUndefined()
+  })
+
+  it('resumes once the pausing GM is offline, though the flag remains', async () => {
+    setWorld([
+      { id: 'gm', name: 'GameMaster', isGM: true, active: true },
+      { id: 'gm2', name: 'CoGM', isGM: true, active: false, pushPaused: true },
+      { id: 'bob', name: 'Bob' }
+    ])
+    await notifyChatMessage(whisper())
+    expect(payload()).toMatchObject({ recipients: ['bob'] })
+  })
+
+  it('ignores the flag on a user who is not a GM', async () => {
+    setWorld([
+      { id: 'gm', name: 'GameMaster', isGM: true, active: true },
+      { id: 'alice', name: 'Alice', active: true, pushPaused: true },
+      { id: 'bob', name: 'Bob' }
+    ])
+    await notifyChatMessage(whisper())
+    expect(payload()).toMatchObject({ recipients: ['bob'] })
   })
 })

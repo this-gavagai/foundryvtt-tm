@@ -29,7 +29,14 @@ vi.mock('../pushRegistration', () => ({
   }
 }))
 
-type TestUser = { id: string; name: string; isGM?: boolean; belongsTo?: string }
+type TestUser = {
+  id: string
+  name: string
+  isGM?: boolean
+  active?: boolean
+  belongsTo?: string
+  pushPaused?: boolean
+}
 
 const USERS: TestUser[] = [
   { id: 'gm', name: 'GameMaster', isGM: true },
@@ -50,7 +57,14 @@ function setWorld(list: TestUser[] = USERS, ids: { primaryGm?: string; me?: stri
       contents: list.map((u) => ({
         id: u.id,
         name: u.name,
-        flags: u.belongsTo ? { tablemate: { belongsTo: u.belongsTo } } : {}
+        isGM: u.isGM === true,
+        active: u.active === true,
+        flags: {
+          tablemate: {
+            ...(u.belongsTo ? { belongsTo: u.belongsTo } : {}),
+            ...(u.pushPaused ? { pushPaused: true } : {})
+          }
+        }
       })),
       get: (id: string) => byId.get(id)
     },
@@ -209,5 +223,23 @@ describe('what does not trigger an alert', () => {
   it('swallows a relay refusal instead of throwing into the hook', async () => {
     fetchMock.mockResolvedValue(new Response('unauthorized', { status: 401 }))
     await expect(notifyTurnStart(combat(), { turn: 1 })).resolves.toBeUndefined()
+  })
+})
+
+describe('push pause', () => {
+  it('sends no turn alert while an online GM has paused push', async () => {
+    setWorld([{ ...USERS[0], active: true, pushPaused: true }, ...USERS.slice(1)])
+    await notifyTurnStart(combat(), { turn: 1 })
+    expect(payload()).toBeUndefined()
+  })
+
+  // Nothing is owed for a turn skipped while paused, but the turn must not be
+  // remembered as pushed either: unpausing and re-announcing it should work.
+  it('alerts for the same turn once the pause ends', async () => {
+    setWorld([{ ...USERS[0], active: true, pushPaused: true }, ...USERS.slice(1)])
+    await notifyTurnStart(combat(), { turn: 1 })
+    setWorld([{ ...USERS[0], active: false, pushPaused: true }, ...USERS.slice(1)])
+    await notifyTurnStart(combat(), { turn: 1 })
+    expect(payload()).toMatchObject({ recipients: ['alice'] })
   })
 })

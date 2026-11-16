@@ -13,6 +13,7 @@
 // collapsing, and are never suppressed for being "connected".
 
 import { readPushConfig, isPrimaryGM, type PushScope } from './pushRegistration'
+import { isPushPaused } from './pushPause'
 import {
   deliverPush,
   notificationTitle,
@@ -285,6 +286,8 @@ export async function notifyChatMessage(message: unknown): Promise<void> {
     // Only the elected primary GM posts, so a message seen by N GM clients
     // produces one push, not N.
     if (!isPrimaryGM()) return
+    // A GM is testing and asked for quiet (see pushPause.ts).
+    if (isPushPaused()) return
 
     const config = readPushConfig()
     if (!config) return

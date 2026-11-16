@@ -14,6 +14,7 @@
 // most likely to move.
 
 import { readPushConfig, isPrimaryGM } from './pushRegistration'
+import { isPushPaused } from './pushPause'
 import {
   deliverPush,
   notificationTitle,
@@ -112,6 +113,9 @@ export async function notifyTurnStart(combat: unknown, changed: unknown): Promis
     // one push, not N. Same election as chat push.
     if (!isPrimaryGM()) return
     if (!isTurnChange(changed as Record<string, unknown> | undefined)) return
+    // Stepping the tracker is half of what a GM tests; see pushPause.ts. The
+    // turn is not marked pushed, so nothing is owed once the pause ends.
+    if (isPushPaused()) return
 
     const config = readPushConfig()
     if (!config?.turnAlerts) return
